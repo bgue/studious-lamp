@@ -1,6 +1,6 @@
 # P0-I2-T08 — `tl schema hash|lint|validate`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: cli
 Depends on: P0-I2-T01, P0-I2-T03, P0-I2-T08a (merged into the base of this branch)

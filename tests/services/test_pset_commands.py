@@ -238,7 +238,11 @@ def test_rebuilding_projections_reproduces_the_rows(db: Path) -> None:
     [
         ("valve_data", "standard", {"size_in": "four"}, PsetValidationError),
         ("valve_data", "standard", {"nope": 1}, PsetValidationError),
-        ("valve_data", "standard", {"size_in": None}, PsetValidationError),
+        ("valve_data", "standard", {"nope": None}, PsetValidationError),
+        ("valve_data", "standard", {"x.fat_witness_by": None}, LayerError),
+        ("valve_data", "custom", {"size_in": None}, LayerError),
+        ("enrich.ai_classifier", "standard", {"valve_type": None}, LayerError),
+        ("valve_data", "standard", {"size_in": None}, NoChangesError),  # nothing to unset
         ("valve_data", "custom", {"x.nope": "v"}, PsetValidationError),
         ("prj.shutdown_tie_in", "project", {"approved": "yes"}, PsetValidationError),
         ("prj.shutdown_tie_in", "project", {"zzz": 1}, PsetValidationError),
@@ -314,3 +318,76 @@ def test_record_checks(db: Path) -> None:
         )
     with pytest.raises(RecordVoidedError):
         set_values(db, record, "valve_data", {"size_in": 4}, version=2)
+
+
+# --- None unsets a property ----------------------------------------------------------------------
+
+
+def test_none_unsets_a_property_everywhere_it_is_projected(db: Path) -> None:
+    record = make_record(db)
+    first = set_values(db, record, "valve_data", {"size_in": 4, "manufacturer": "Acme"})
+    cleared = set_values(
+        db, record, "valve_data", {"size_in": None, "tag_no": "FV-1"}, version=first.version
+    )
+    assert cleared.events[0].payload["values"] == {"size_in": None, "tag_no": "FV-1"}
+    assert cleared.events[0].payload["units"] == {}
+    stored = row(db, record)
+    assert json.loads(stored["psets_json"]) == {
+        "valve_data": {"manufacturer": "Acme", "tag_no": "FV-1"}
+    }
+    assert stored["pset__valve_data__size_in"] is None
+    assert "psets.valve_data.size_in" not in pset_rows(db, record)
+    assert "psets.valve_data.tag_no" in pset_rows(db, record)
+
+
+def test_clearing_every_value_leaves_no_empty_section(db: Path) -> None:
+    record = make_record(db)
+    first = set_values(db, record, "valve_data", {"manufacturer": "Acme"})
+    second = set_values(
+        db, record, "valve_data", {"x.fat_witness_by": "c"}, layer="custom", version=first.version
+    )
+    third = set_values(
+        db, record, "valve_data", {"x.fat_witness_by": None}, layer="custom", version=second.version
+    )
+    assert json.loads(row(db, record)["psets_json"]) == {"valve_data": {"manufacturer": "Acme"}}
+    set_values(db, record, "valve_data", {"manufacturer": None}, version=third.version)
+    assert json.loads(row(db, record)["psets_json"]) == {}
+    assert pset_rows(db, record) == {}
+
+
+def test_clearing_a_required_value_changes_the_conformance(db: Path) -> None:
+    record = make_record(db)
+    first = set_values(db, record, "valve_data", {"size_in": 4, "manufacturer": "Acme"})
+    assert row(db, record)["conformance"] == "ok"
+    cleared = set_values(db, record, "valve_data", {"manufacturer": None}, version=first.version)
+    assert cleared.events[0].payload["conformance"] == "warning"  # advisory, always required
+    assert row(db, record)["conformance"] == "warning"
+
+
+def test_clearing_a_project_pset_property(db: Path) -> None:
+    record = make_record(db)
+    first = set_values(
+        db, record, "prj.shutdown_tie_in", {"window": "SD-1", "approved": True}, layer="project"
+    )
+    set_values(
+        db, record, "prj.shutdown_tie_in", {"window": None}, layer="project", version=first.version
+    )
+    assert json.loads(row(db, record)["psets_json"]) == {
+        "prj": {"shutdown_tie_in": {"approved": True}}
+    }
+
+
+def test_a_none_key_with_no_value_is_ignored_when_other_keys_change(db: Path) -> None:
+    record = make_record(db)
+    result = set_values(db, record, "valve_data", {"size_in": None, "manufacturer": "Acme"})
+    assert result.version == 2
+    assert json.loads(row(db, record)["psets_json"]) == {"valve_data": {"manufacturer": "Acme"}}
+
+
+def test_rebuilding_reproduces_a_clear(db: Path) -> None:
+    record = make_record(db)
+    first = set_values(db, record, "valve_data", {"size_in": 4, "manufacturer": "Acme"})
+    set_values(db, record, "valve_data", {"size_in": None}, version=first.version)
+    before = (row(db, record), pset_rows(db, record))
+    assert rebuild_projections(db) == 3
+    assert (row(db, record), pset_rows(db, record)) == before

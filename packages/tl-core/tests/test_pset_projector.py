@@ -15,7 +15,14 @@ from sqlalchemy.pool import StaticPool
 from tl_core.ledger import Event
 from tl_core.projection.defaults import default_registry
 from tl_core.projection.promoted import ensure_promoted_columns
-from tl_core.projection.pset import classify, flatten, set_nested, typed_columns
+from tl_core.projection.pset import (
+    apply_values,
+    classify,
+    flatten,
+    set_nested,
+    typed_columns,
+    unset_nested,
+)
 from tl_schema.compose import compose
 from tl_schema.effective import EffectiveSchema
 from tl_schema.generators.promoted import column_ddl, promoted_columns, split_column
@@ -374,3 +381,58 @@ def test_projector_fills_promoted_columns_on_later_events(engine: Engine) -> Non
     updated = ev.make("Record.Updated", {"changes": {"psets": [{}, {"valve_data": {}}]}})
     apply(engine, updated)
     assert record(engine)["pset__valve_data__size_in"] is None
+
+
+# --- None unsets a property --------------------------------------------------------------------
+
+
+def test_unset_nested_prunes_empty_sections() -> None:
+    root: dict[str, Any] = {"a": {"b": {"c": 1}}, "keep": 1}
+    assert unset_nested(root, ["a", "b", "c"]) is True
+    assert root == {"keep": 1}
+    assert unset_nested(root, ["a", "b", "c"]) is False
+    assert unset_nested(root, ["keep", "x"]) is False
+    assert root == {"keep": 1}
+
+
+def test_apply_values_sets_and_unsets() -> None:
+    root: dict[str, Any] = {"valve_data": {"size_in": 4, "x": {"w": "c"}}}
+    apply_values(root, "valve_data", {"size_in": None, "x.w": None, "tag_no": "FV-1", "gone": None})
+    assert root == {"valve_data": {"tag_no": "FV-1"}}
+
+
+def test_a_null_in_values_set_removes_the_key_row_and_promoted_value(engine: Engine) -> None:
+    with engine.begin() as conn:
+        ensure_promoted_columns(conn, effective_schema())
+    ev = Events()
+    apply(
+        engine,
+        ev.created(),
+        ev.values_set(
+            "valve_data", {"size_in": 4, "manufacturer": "A"}, units={"size_in": "[in_i]"}
+        ),
+        ev.values_set("valve_data", {"size_in": None}),
+    )
+    assert json.loads(record(engine)["psets_json"]) == {"valve_data": {"manufacturer": "A"}}
+    assert list(rows(engine)) == ["psets.valve_data.manufacturer"]
+    assert record(engine)["pset__valve_data__size_in"] is None
+    # a later set starts without the old unit being resurrected
+    apply(engine, ev.values_set("valve_data", {"size_in": 6}))
+    assert rows(engine)["psets.valve_data.size_in"]["unit"] is None
+
+
+def test_replay_with_a_clear_gives_identical_rows(engine: Engine) -> None:
+    ev = Events()
+    events = [
+        ev.created(),
+        ev.values_set("valve_data", {"size_in": 4, "x.fat_witness_by": "c"}),
+        ev.values_set("valve_data", {"size_in": None, "x.fat_witness_by": None}),
+    ]
+    apply(engine, *events)
+    first = (rows(engine), record(engine))
+    with engine.begin() as conn:
+        for projector in default_registry().all():
+            projector.reset(conn)
+    apply(engine, *events)
+    assert (rows(engine), record(engine)) == first
+    assert json.loads(first[1]["psets_json"]) == {}

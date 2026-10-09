@@ -1,6 +1,6 @@
 # P0-I2-T06 — `SetPsetValues` handler and `Pset.ValuesSet`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: P0-I2-T04, P0-I2-T05, P0-I2-T07 (all merged into the base of this branch)

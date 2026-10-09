@@ -59,6 +59,36 @@ def set_nested(root: dict[str, Any], segments: list[str], value: Any) -> None:
     node[segments[-1]] = value
 
 
+def unset_nested(root: dict[str, Any], segments: list[str]) -> bool:
+    """Remove the value at ``segments`` and any section left empty. ``True`` if it existed."""
+    trail: list[tuple[dict[str, Any], str]] = []
+    node: dict[str, Any] = root
+    for segment in segments[:-1]:
+        child: Any = node.get(segment)
+        if not isinstance(child, dict):
+            return False
+        trail.append((node, segment))
+        node = cast(dict[str, Any], child)
+    if segments[-1] not in node:
+        return False
+    del node[segments[-1]]
+    while trail and not node:
+        node, segment = trail.pop()
+        del node[segment]
+    return True
+
+
+def apply_values(root: dict[str, Any], pset: str, values: dict[str, Any]) -> None:
+    """Merge a ``Pset.ValuesSet`` into ``root``: ``None`` unsets a key, anything else sets it."""
+    base = pset.split(".")
+    for key, value in values.items():
+        segments = [*base, *key.split(".")]
+        if value is None:
+            unset_nested(root, segments)
+        else:
+            set_nested(root, segments, value)
+
+
 def is_property_path(path: list[str]) -> bool:
     """Whether the value at ``path`` (segments below ``psets``) is one property's value.
 
@@ -169,10 +199,8 @@ class PsetProjector:
     def _values_set(self, conn: Connection, event: Event) -> None:
         payload = event.payload
         psets = self._load(conn, event)
-        pset_segments = str(payload["pset"]).split(".")
         units: dict[str, str] = {}
-        for key, value in payload["values"].items():
-            set_nested(psets, [*pset_segments, *str(key).split(".")], value)
+        apply_values(psets, str(payload["pset"]), payload["values"])
         declared: dict[str, str] = payload.get("units") or {}
         for key, unit in declared.items():
             units[f"psets.{payload['pset']}.{key}"] = unit

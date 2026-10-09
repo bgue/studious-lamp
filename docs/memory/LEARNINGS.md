@@ -162,3 +162,23 @@ test or a generated artefact already enforces, or narrative history (that belong
   root schema of the original view breaks its import resolution. Annotations assigned in memory must be `Annotation`
   objects (`tag`, `value`) to match what a YAML load produces.
   Evidence: `packages/tl-schema/src/tl_schema/linkml_render.py`, `tests/test_linkml_render.py`. Status: active
+
+- **L-P0-I2-3** · 2026-10-09 · tags: process, tests
+  A supervisor-written stub (names, signatures, docstrings) plus a provided test file under `docs/tickets/<inc>/provided/`
+  plus a spec verified against a scratch reference implementation gave first-attempt passes for 6 of 7 Haiku tickets (the seventh, T04b, was flagged only for committing its report file). Keep
+  the reference implementation until the ticket merges; it is the takeover path. State in the ticket that the stub's
+  `STUB:` docstring paragraph must be removed (T01 left it).
+  Evidence: P0-I2 reports T01, T04, T04b, T06, T08, T08a, T10. Status: active
+
+- **L-P0-I2-4** · 2026-10-09 · tags: tooling
+  `ruff format` moves a trailing `# type: ignore[...]` off a call it re-wraps, so the ignore stops working. Type the helper
+  parameter instead (`layer: Literal[...]`). pyright strict also widens tuple elements to `str`, so build typed values
+  (`FieldKind`) through a helper with annotated parameters rather than a list of tuples.
+  Evidence: `docs/tickets/P0-I2/provided/test_pset_commands.py.txt`; T04b ticket text. Status: active
+
+- **L-P0-I2-5** · 2026-10-09 · tags: schema, ledger
+  Runtime schema changes that add columns (promoted pset properties) are dialect-neutral when the existing columns are found
+  with `sqlalchemy.inspect(conn).get_columns(...)` and the `ALTER TABLE ... ADD COLUMN` text is generated per dialect in
+  `tl_schema` (SQLite has no `ADD COLUMN IF NOT EXISTS`). Projectors stay deterministic by reading only the event payload
+  and existing rows: schema-derived facts (conformance, units) are computed by the command handler and carried in the event.
+  Evidence: `tl_core/projection/promoted.py`, `pset.py`; decisions A5, A9. Status: active

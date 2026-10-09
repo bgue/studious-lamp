@@ -43,13 +43,13 @@ tl pset get --project P123 V-0001            # psets, effective_schema_hash, con
 | T04 | JSON Schema per record type and psets validator | H | T03 | merged | pass, 1 round; empty-enum follow-up fixed by the supervisor (A18) |
 | T04b | Form metadata from the effective schema (added) | H | T03 | merged | pass on attempt 2 (attempt 1 committed its report file) |
 | T05 | Conformance evaluator | S (plan: H) | T03, T04 | merged | 23 tests green on the real validator |
-| T06 | `SetPsetValues` handler and `Pset.ValuesSet` | H | T04, T05, T07 | ready | round 2 |
+| T06 | `SetPsetValues` handler and `Pset.ValuesSet` | H | T04, T05, T07 | merged | pass, 1 round; `None` unsets (A20) added by the supervisor afterwards |
 | T07 | `PsetProjector`, `cur_pset_values`, promoted columns | S | T03 | built | |
-| T08 | `tl schema hash|lint|validate` | H | T01, T08a | ready | round 2 |
+| T08 | `tl schema hash|lint|validate` | H | T01, T08a | merged | pass, 1 round; the supervisor added `tl schema reload` |
 | T08a | Lint rules (added; split from T08) | H | T03 | merged | pass, 1 round; context gap: the ticket did not list `schema/fixtures` |
-| T08b | `tl pset set|get` (added; split from T08) | H | T06, T08 | planned | |
-| T09 | Fixture-driven matrix: every row of the §6.3 "projects can / cannot" table | H | T06 | planned | |
-| T10 | `Schema.EffectiveChanged` event and hot-reload hook | H | T03, T07 | ready | round 2 |
+| T08b | `tl pset set|get` (added; split from T08) | H | T06, T08 | ready | round 3 |
+| T09 | Fixture-driven matrix: every row of the §6.3 "projects can / cannot" table | H (taken by the supervisor) | T06 | done (`tests/schema/test_projects_can_cannot.py`, 29 tests) | Tests-only ticket written directly to save a relay round; mutation check: disabling waivers fails the waiver test |
+| T10 | `Schema.EffectiveChanged` event and hot-reload hook | H | T03, T07 | merged | pass, 1 round |
 
 Haiku-ability (`01-tiers.md` §6): T01, T04, T04b, T08a ship a provided test file plus a precise specification, touch two files each, and
 avoid every row of the Sonnet-authored table (the conformance rules, which T04 only feeds, are T05). T06 writes layer-aware
@@ -78,6 +78,8 @@ check is split (T08 became T08, T08a, T08b; T04b was added because form metadata
 | A17 | T01 interpretations confirmed: the highest version is taken among the project's own documents; "those documents" are the ones chosen by that rule; a pin to a stored non-company package is skipped by `adopted` and reported by `check`; a pin to an unstored version raises `PackageError` from `adopted`; an error with no location reads `(document)`; `load_package` also wraps read and decode errors; `projects()` returns the distinct non-null `project` values. Tests: `test_registry_pins.py` | The reviewer found them consistent with the ticket |
 | A18 | An enum property with no values is unconstrained in JSON Schema (no `"enum": []`), and the compiler rejects a code list without values | An empty list would reject every value |
 | A19 | Schema provider: change detection hashes file bytes (a same-size edit in one mtime tick is noticed; touch alone is not a change). `reload()` compares against what the previous `reload()` reported, so an edit that `effective()` noticed first is still reported, and it is all-or-nothing. A project scope with no project packages uses the company effective schema composed for that scope (orchestrator ruling; the scope is in the hash). A malformed scope raises `InvalidScopeError`, a `ServiceError`. `effective_by_hash` exists on the directory provider | Review of d4feec7/00291bd |
+| A20 | Ruling (orchestrator): `None` in `SetPsetValues.values` unsets the property. The handler accepts `None` for any writable key (layer and unknown-key rules still apply, no type check); the event carries the key with null as the ledgered clear; the projector removes the key (and any section left empty) from `psets_json` and deletes the `cur_pset_values` row; no null rows are kept; a `None` for a property with no value is a no-op, and if every key is a no-op `NoChangesError` applies. `tl pset set NAME=null` unsets | The TUI sends a cleared field as `None` (§5.2: corrections are events) |
+| A21 | `tl schema lint` counts errors and warnings by exact severity string (`error` and `warning`); the summary line always uses the plural words | T08 implementation; confirmed |
 | A12 | JSON Schema is generated from `EffectiveSchema` directly, not by the LinkML generator | The LinkML generator cannot express the policy annotations and would lose layer information; the LinkML view stays for lint and export |
 
 ## Order of work (relay rounds)
@@ -85,7 +87,7 @@ check is split (T08 became T08, T08a, T08b; T04b was added because form metadata
 |---|---|---|
 | 1 | T01, T04, T04b, T08a | Plan; T02, T03; fixtures; provided tests; T05 (side branch); T07; `schema/core/psets.yaml` |
 | 2 | T06, T10, T08 (round 2 supervisor work done: merges, provider, services, tickets) | Merge round 1 and T05; provider; `form_metadata` and `conformance` services; handler hooks |
-| 3 | T08b, T09 | Merge round 2; READMEs, AGENTS.md; learnings |
+| 3 | T08b | Merge round 2; T09 and READMEs, AGENTS.md, learnings and the runbook written in the same turn |
 | Final | — | Gates, report `docs/reports/P0-I2-A.md` |
 
 ## Risks and escalation triggers

@@ -18,7 +18,7 @@ from tl_schema.validation import validate_psets
 
 from tl_core.ledger import NewEvent
 from tl_core.projection.promoted import ensure_promoted_columns
-from tl_core.projection.pset import set_nested
+from tl_core.projection.pset import apply_values
 from tl_core.schema_provider import get_provider
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import (
@@ -59,18 +59,13 @@ def load_row(uow: UnitOfWork, stream_id: str, scope: str) -> Any:
     return row
 
 
-def _nest(pset: str, values: dict[str, Any], into: dict[str, Any]) -> None:
-    """Write ``values`` into ``into`` at their pset-qualified paths (``valve_data.x.a``)."""
-    for key, value in values.items():
-        set_nested(into, [*pset.split("."), *key.split(".")], value)
-
-
 def handle_set_pset_values(uow: UnitOfWork, cmd: SetPsetValues) -> CommandResult:
     """Validate against the scope's effective schema and emit ``Pset.ValuesSet``.
 
-    Structural problems (wrong layer, unknown key, wrong type, null) refuse the write. Range,
-    pattern and value-list problems are stored and show up as conformance. Every refusal raises
-    before anything is appended; the handler never commits.
+    Structural problems (wrong layer, unknown key, wrong type) refuse the write. A ``None`` value
+    unsets that property (a key with no value is a no-op; if nothing changes at all the write is
+    refused with ``NoChangesError``). Range, pattern and value-list problems are stored and show
+    up as conformance. Every refusal raises before anything is appended; the handler never commits.
     """
     row = load_row(uow, cmd.stream_id, cmd.scope)
     if row.voided:
@@ -105,15 +100,10 @@ def handle_set_pset_values(uow: UnitOfWork, cmd: SetPsetValues) -> CommandResult
                 [f"psets.{cmd.pset}.{key}: not defined"],
             )
 
-    nulls = sorted(key for key, value in cmd.values.items() if value is None)
-    if nulls:
-        raise PsetValidationError(
-            "null values are not supported",
-            [f"{cmd.pset}.{key}: null" for key in nulls],
-        )
-
+    # A None value unsets the property: nothing to type-check, and the key is recorded in the
+    # event as the ledgered clear.
     incoming: dict[str, Any] = {}
-    _nest(cmd.pset, cmd.values, incoming)
+    apply_values(incoming, cmd.pset, {k: v for k, v in cmd.values.items() if v is not None})
     issues = validate_psets(schema, row.type, incoming)
     kept = [issue for issue in issues if issue.keyword in BLOCKING_KEYWORDS]
     if kept:
@@ -124,7 +114,7 @@ def handle_set_pset_values(uow: UnitOfWork, cmd: SetPsetValues) -> CommandResult
 
     current: dict[str, Any] = json.loads(row.psets_json)
     merged: dict[str, Any] = json.loads(json.dumps(current))
-    _nest(cmd.pset, cmd.values, merged)
+    apply_values(merged, cmd.pset, cmd.values)
     if merged == current:
         raise NoChangesError(f"no value of {cmd.pset} differs from the record")
 
@@ -132,9 +122,9 @@ def handle_set_pset_values(uow: UnitOfWork, cmd: SetPsetValues) -> CommandResult
     report = evaluate(schema, row.type, merged, state=row.status, on=utcnow().date())
 
     units: dict[str, str] = {}
-    for key in cmd.values:
+    for key, value in cmd.values.items():
         prop = pset.find(key)
-        if prop is not None and prop.unit is not None:
+        if value is not None and prop is not None and prop.unit is not None:
             units[key] = prop.unit
 
     result = uow.append(
