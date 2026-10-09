@@ -5,8 +5,9 @@ Rules every implementation keeps:
   spliced into SQL.
 - Pset paths compile to EXISTS sub-queries over ``cur_pset_values`` (the long-form typed index,
   brief 5.4), so filters stay dialect-neutral.
-- Linked / CountLinked / MissingLink compile over ``cur_links`` (both directions, retracted links
-  excluded).
+- Linked / CountLinked / MissingLink compile over ``cur_links`` (both directions). Only live links
+  count: status ``active``, ``stale`` or ``broken``; ``suggested`` links (not yet accepted, brief
+  7.3) and ``retracted`` links are excluded.
 - Results are the same envelope dicts as ``tl_core.services.queries.list_records``.
 - ``path(a>b>c)`` from brief 7.5 is out of scope for P0-I4 and raises QuerySyntaxError.
 """
@@ -44,14 +45,28 @@ class QuerySpec:
 
 def parse(text: str) -> Expr | None:
     """Parse query text into an AST; blank text gives None. Raises QuerySyntaxError."""
-    raise NotImplementedError
+    from tl_core.query.parser import parse_text
+
+    return parse_text(text)
 
 
 def run_query(uow: UnitOfWork, spec: QuerySpec) -> list[dict[str, Any]]:
     """Matching records as envelope dicts, ordered by ``spec.order_by`` then ``id``."""
-    raise NotImplementedError
+    from sqlalchemy import text
+
+    from tl_core.query.compiler import compile_query
+    from tl_core.services.queries import envelope_from_row
+
+    compiled = compile_query(spec)
+    rows = uow.conn().execute(text(compiled.sql), compiled.params).mappings().all()
+    return [envelope_from_row(row) for row in rows]
 
 
 def count_query(uow: UnitOfWork, spec: QuerySpec) -> int:
     """Number of matching records (ignores limit, offset and order_by)."""
-    raise NotImplementedError
+    from sqlalchemy import text
+
+    from tl_core.query.compiler import compile_query
+
+    compiled = compile_query(spec, count=True)
+    return int(uow.conn().execute(text(compiled.sql), compiled.params).scalar_one())

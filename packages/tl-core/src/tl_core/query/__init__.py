@@ -18,6 +18,8 @@ from tl_core.query.ast import (
     Text,
     Value,
 )
+from tl_core.query.clock import QueryClock, current_clock, use_clock
+from tl_core.query.format import to_text
 
 __all__ = [
     "And",
@@ -29,12 +31,16 @@ __all__ = [
     "MissingLink",
     "Not",
     "Or",
+    "QueryClock",
     "QuerySpec",
     "QuerySyntaxError",
     "RelativeDate",
     "Text",
     "Value",
     "count_query",
+    "current_clock",
     "parse",
     "run_query",
+    "to_text",
+    "use_clock",
 ]

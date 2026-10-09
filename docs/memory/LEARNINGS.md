@@ -269,3 +269,23 @@ test or a generated artefact already enforces, or narrative history (that belong
   fake without editing `fakes.py`. The fake reuses the real vocabulary, `next_status` and error types, so a screen tested on it
   meets the same refusals as on the embedded client.
   Evidence: `tests/test_fakes_links.py` (10 tests). Status: active
+
+- **L-P0-I4-A1** · 2026-10-09 · tags: ledger, tests
+  A SQL comparison against a NULL column is NULL, so `NOT (status = 'open')` silently drops records with no status. Compile every
+  query predicate two-valued (`col IS NOT NULL AND col = :v`, `NOT EXISTS (...)` for psets) so `-x` and `x!=v` agree and a record
+  matches exactly one of `x` and `-x`. `test_not_partitions_the_result` (hypothesis) fails when one comparison loses its NULL guard.
+  Evidence: `tl_core/query/compiler.py`, `tests/query/test_query_properties.py`. Status: active
+
+- **L-P0-I4-A2** · 2026-10-09 · tags: ledger, sync
+  The change-feed registry drops an event whose `seq` is at or below a subscriber's cursor, which is safe only because each source
+  (the bus, a poller) hands over a contiguous ascending run: a source never delivers 10 before 9. SQLite commits serially so this
+  holds. Postgres sequences can become visible out of order (a transaction holding seq 9 commits after one holding 10), so the
+  P0-I5 poller must lag behind in-flight transactions or re-read a short window before trusting its cursor.
+  Evidence: `tl_core/changefeed/registry.py` (`_deliver`), `test_two_sources_feeding_the_same_events_deliver_each_once_in_order`. Status: active
+
+- **L-P0-I4-A3** · 2026-10-09 · tags: process, tooling
+  Run `just check` on the branch tip after every supervisor commit, including a docstring-only edit: a 102-column line in
+  `api.py` (my A7 docstring change) turned `just check` red for every ticket branch cut from that tip, and the T03 implementer
+  correctly stopped as *Blocked*. A *Blocked* caused by the base is not a strike; fix the base, merge it into the ticket branch.
+  Evidence: `docs/reports/P0-I4/P0-I4-T03.md` (Blocked, then Decision), commits 56bb651 and 34e109f. Status: active
+

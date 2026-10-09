@@ -19,7 +19,10 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.services.records`: `handle_create_record`, `handle_update_record`, `handle_void_record` | functions | The only business rules for `core.Record` |
 | `tl_core.services.psets`: `SetPsetValues`, `handle_set_pset_values`, `form_metadata`, `conformance` | model, functions | Layer-aware pset writes (`Pset.ValuesSet`), form metadata and conformance for the TUI and CLI |
 | `tl_core.services.schema_events`: `reload_and_record`, `schema_reload_subscriber` | functions | `Schema.EffectiveChanged` events (stream `schema:<scope>`) and the bus hook |
-| `tl_core.services.queries`: `get_record`, `list_records` | functions | Envelope dictionaries from `cur_core_record` |
+| `tl_core.services.queries`: `get_record`, `list_records`, `envelope_from_row` | functions | Envelope dictionaries from `cur_core_record` |
+| `tl_core.query`: `parse`, `run_query`, `count_query`, `QuerySpec`, `QuerySyntaxError`, `to_text`, `use_clock` | functions, model | The shared filter language (brief 10.2, 7.5): text to AST, AST to allow-listed SQL over `cur_core_record`, `cur_pset_values` and `cur_links`. Reference: `docs/reference/query-language.md` |
+| `tl_core.query.ast` | dataclasses | `Compare`, `Text`, `Linked`, `CountLinked`, `MissingLink`, `And`, `Or`, `Not`, `RelativeDate` (frozen contract) |
+| `tl_core.changefeed`: `SubscriptionFilter`, `SubscriptionRegistry`, `ChangePoller`, `fetch_changes`, `ChangePage` | classes, function | The change feed (brief 5.3, 18.2): filters by scope, event type glob and record id; one fan-out registry fed by the bus (`registry.attach(bus)`) and by a seq-cursor poller; paged filtered reads for `/events?after=`; at-least-once, resumable from the last `seq` |
 | `tl_core.services.errors` | exceptions | `ServiceError` and its subclasses |
 | `tl_core.util`: `utcnow`, `new_ulid` | functions | Clock and id helpers |
 
@@ -44,4 +47,4 @@ Adapters supply connections.
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1. Last interface change: P0-I2 workstream A (pset services, provider, projector; decisions in `docs/tickets/P0-I2/README-A.md`). Rebuild `core_record` and `pset_values` together (`docs/runbooks/rebuild-projections.md`).
+Introduced in P0-I1. Last interface change: P0-I4 workstream A (query language and change feed; decisions in `docs/tickets/P0-I4/README-A.md`). Before that: P0-I2 workstream A (pset services, provider, projector; decisions in `docs/tickets/P0-I2/README-A.md`). Rebuild `core_record` and `pset_values` together (`docs/runbooks/rebuild-projections.md`).
