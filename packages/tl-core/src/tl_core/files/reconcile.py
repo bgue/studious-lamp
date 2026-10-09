@@ -7,23 +7,22 @@ re-hashed, which catches corruption at the cost of reading everything. When the 
 keys (``iter_keys``, which the fs and s3 backends have and the ``ObjectStore`` Protocol does not),
 content keys that no row references are reported as orphans (a rolled-back upload leaves one), and
 ``staging/`` keys are listed so an operator can clean them up.
-
-STUB (P0-I4-T25): the models and signature are final; the function marked ``raise
-NotImplementedError`` is the ticket. Remove this paragraph when done.
 """
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterator
 from typing import Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel
 from sqlalchemy import text
 
-from tl_core.files.types import ObjectStore
+from tl_core.files.types import ObjectStore, object_key
 from tl_core.uow import UnitOfWork
 
 _ROWS_SQL = text("SELECT sha256, size, file_id FROM cur_files ORDER BY sha256, file_id")
+_CHUNK = 1 << 20  # bytes read per step when verifying an object
 
 
 @runtime_checkable
@@ -76,4 +75,67 @@ def reconcile_objects(
     ``staging/`` are ``staging``; other keys are ignored. Otherwise ``listed`` is false and both
     lists are empty.
     """
-    raise NotImplementedError
+    groups: dict[str, list[str]] = {}
+    sizes: dict[str, int] = {}
+    for row in uow.conn().execute(_ROWS_SQL):
+        digest = str(row.sha256)
+        groups.setdefault(digest, []).append(str(row.file_id))
+        sizes.setdefault(digest, int(row.size))
+
+    missing: list[ObjectProblem] = []
+    corrupt: list[ObjectProblem] = []
+    for digest in sorted(groups):
+        key = object_key(digest)
+        file_ids = groups[digest]
+        if not store.exists(key):
+            missing.append(ObjectProblem(kind="missing", sha256=digest, key=key, file_ids=file_ids))
+            continue
+        if verify:
+            detail = _verify_object(store, key, digest, sizes[digest])
+            if detail is not None:
+                corrupt.append(
+                    ObjectProblem(
+                        kind="corrupt", sha256=digest, key=key, file_ids=file_ids, detail=detail
+                    )
+                )
+
+    listed = False
+    orphans: list[str] = []
+    staging: list[str] = []
+    if isinstance(store, _Listing):
+        listed = True
+        referenced = {object_key(digest) for digest in groups}
+        for name in sorted(store.iter_keys()):
+            if name.startswith("sha256/") and name not in referenced:
+                orphans.append(name)
+            elif name.startswith("staging/"):
+                staging.append(name)
+
+    return ReconcileReport(
+        checked=len(groups),
+        verified=verify,
+        listed=listed,
+        missing=missing,
+        corrupt=corrupt,
+        orphans=orphans,
+        staging=staging,
+    )
+
+
+def _verify_object(store: ObjectStore, key: str, digest: str, size: int) -> str | None:
+    """Re-hash the object at ``key``; return what differs from the row, or None when it matches."""
+    hasher = hashlib.sha256()
+    count = 0
+    stream = store.get(key)
+    try:
+        while chunk := stream.read(_CHUNK):
+            hasher.update(chunk)
+            count += len(chunk)
+    finally:
+        stream.close()
+    computed = hasher.hexdigest()
+    if computed != digest:
+        return f"sha256 is {computed}"
+    if count != size:
+        return f"{count} bytes, expected {size}"
+    return None
