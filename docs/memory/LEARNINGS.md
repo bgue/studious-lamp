@@ -269,3 +269,18 @@ test or a generated artefact already enforces, or narrative history (that belong
   fake without editing `fakes.py`. The fake reuses the real vocabulary, `next_status` and error types, so a screen tested on it
   meets the same refusals as on the embedded client.
   Evidence: `tests/test_fakes_links.py` (10 tests). Status: active
+
+- **L-P0-I3-7** · 2026-10-09 · tags: tui, tooling
+  Textual `OptionList` prompts and `DataTable` cells that are plain `str` are parsed as Rich markup, so `[x]` vanished from a
+  row (`▶ [x] KEY` rendered as `▶  KEY`). Wrap row text in `rich.text.Text(...)`. `query_one("#id", Select[str])` raises
+  `TypeError` at run time (subscripted generic): query `Select` and annotate the variable `Select[str]`. A screen method named
+  `action_toggle` overrides `DOMNode.action_toggle` and fails pyright; use `action_toggle_select`. Textual's own command palette
+  owns Ctrl+P: set `ENABLE_COMMAND_PALETTE = False` on the app before binding it.
+  Evidence: `widgets/link_picker.py`, `app.py`, first pilot runs of `test_link_picker`. Status: active
+
+- **L-P0-I3-8** · 2026-10-09 · tags: tui
+  App-level `Binding`s (`l`, `w`, `t`, `R`) do not fire while an `Input` has focus (it consumes printable keys), but they do fire
+  under a `ModalScreen` whose focus is elsewhere, so every new app action starts with `if self._modal_open(): return`.
+  `app.post_message(RecordChanged)` is delivered to the app only, never to a child `RecordView`: after a modal command call
+  `view.reload()` (`TlApp._changed`).
+  Evidence: `tests/test_palette.py::test_the_l_w_t_keys_are_typed_into_the_palette_not_run`, workflow-menu refresh test. Status: active
