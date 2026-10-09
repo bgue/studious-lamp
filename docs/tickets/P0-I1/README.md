@@ -1,6 +1,6 @@
 # Increment plan — P0-I1 Foundations
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-09
 Brief sections: §5.1, §5.2, §5.4, §6.1, §6.2, §14, §25.2
 Branch: `p0/i1` (trunk: `claude/wizardly-allen-m2v96s`)
@@ -39,18 +39,18 @@ tl projections rebuild                       # rebuilt from the ledger; show out
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
 | T01 | Monorepo scaffold | H | — | merged | Blocked once on ruff docs check (fixed by D9, supervisor); reviewer: report-only findings fixed by supervisor; 1 implementer round |
-| T02 | Core LinkML | S | T01 | built | committed on `p0/i1`; awaiting schema approval |
+| T02 | Core LinkML | S | T01 | merged (supervisor-built) | Schema approval logged in `docs/reports/APPROVALS.md`; reviewed, pass |
 | T03 | Codegen wiring (pydantic, JSON Schema, `--check` drift gate) | H | T01, T02 | merged | Review pass round 1 |
 | T04a | DDL type mapping | H | T01 | merged | Review pass round 1; supervisor added non-finite rejection |
-| T04b | DDL generator core | S | T04a, T03 | merged | Registered in `generate.py`; generated DDL committed; awaiting orchestrator review |
+| T04b | DDL generator core | S | T04a, T03 | merged (supervisor-built) | Review pass with 3 findings, all fixed |
 | T05 | Ledger types and hashing | H | T01 | merged | Review pass round 1 |
 | T06 | SQLite ledger adapter | H | T05 | merged | Review pass round 3 |
-| T07 | Projector engine + SQLite UnitOfWork | S | T05, T06 | merged | Review finding fixes applied (bus ordering, test helper table); awaiting orchestrator review of part 2 |
+| T07 | Projector engine + SQLite UnitOfWork | S | T05, T06 | merged (supervisor-built) | Three review rounds; ordered outbox, lost-wakeup guard, Protocol property (D13, D14) |
 | T08 | `core.Record` projector | H | T04b, T07 (projection types) | merged | Review pass round 3 |
 | T09 | Record command handlers | H | T07, T08 | merged | Review pass round 4 |
-| T10 | `tl` CLI | H | T09, T11 | ready | |
+| T10 | `tl` CLI | H | T09, T11 | merged | Review pass round 5; supervisor added ValidationError handling |
 | T11 | Query helpers | H | T08 | merged | Implementer stopped on a Protocol typing defect (fixed by D14); re-review pass |
-| T12 | Package READMEs and AGENTS.md | S (taken by the supervisor to save a relay round) | T10 | in progress | READMEs for 6 packages done; tl-cli README, runbook, demo after T10 |
+| T12 | Package READMEs and AGENTS.md | S (taken by the supervisor to save a relay round) | T10 | merged | READMEs and AGENTS.md for all 7 packages, runbook, `just rebuild-projections`, demo script |
 
 Haiku-ability notes (`01-tiers.md` §6): T01 exceeds the 5-file guideline (about 25 near-identical boilerplate files, every
 one given verbatim) and names dependencies; both are intentional and the ticket pastes the exact content, so a reviewer
@@ -82,7 +82,7 @@ taken over (recorded here). T12 is split by package group if the file count exce
 | 2 | T05, T04a, T03 | Merge T01; T04b and T07 were already built on side branches (round 1 interim) |
 | 3 | T06, T08 | Merge round 2; finish T04b; projection types; provided test for T06 |
 | 4 | T09, T11 | Merge round 3; finish T07 (SQLite UnitOfWork) |
-| 5 | T10, T12 | Merge round 4; demo script |
+| 5 | T10 | Merge round 4; READMEs, runbook, demo script (T12 done by the supervisor) |
 | Final | — | Merge, run all gates, fresh-clone demo, report |
 
 ## Risks and escalation triggers
