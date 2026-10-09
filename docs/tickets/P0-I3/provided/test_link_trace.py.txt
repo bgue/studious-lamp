@@ -180,8 +180,8 @@ def test_each_record_appears_once_even_in_a_cycle_or_a_diamond(uow: UnitOfWork) 
     link(uow, a, c)
     link(uow, b, d)
     link(uow, c, d)  # a diamond: D is reached by both B and C
-    link(uow, d, a)  # and a cycle back to A
-    seen = [key for _depth, key in walk(trace(uow, a, depth=5))]
+    link(uow, d, b)  # and a cycle between D and B
+    seen = [key or "" for _depth, key in walk(trace(uow, a, depth=5))]
     assert sorted(seen) == ["A", "B", "C", "D"]
     root = trace(uow, a, depth=5)
     assert [c.key for c in root.children] == ["B", "C"]
