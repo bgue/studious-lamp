@@ -8,7 +8,6 @@ server images are: ``en_US.utf8``) would put ``apple`` before ``Banana``. The ge
 from __future__ import annotations
 
 import os
-import uuid
 from collections.abc import Iterator
 
 import pytest
@@ -24,16 +23,23 @@ pytestmark = pytest.mark.requires_postgres
 TITLES = ["banana", "Banana", "apple", "Zed", "zed", "Éclair", "10", "9", "_x", "~y"]
 
 
+def unavailable(reason: str) -> None:
+    """Skip, or fail when Postgres is required (CI): this file is the only guard on COLLATE "C"."""
+    if os.environ.get("TL_REQUIRE_POSTGRES") == "1":
+        pytest.fail(reason)
+    pytest.skip(reason)
+
+
 @pytest.fixture
 def icu_url(pg_base_url: str | None) -> Iterator[str]:
-    server = os.environ.get("TL_PG_URL")
-    if pg_base_url is None or server is None:
-        pytest.skip("Postgres is not reachable at TL_PG_URL")
-    name = "tl_pytest_icu_" + uuid.uuid4().hex[:8]
+    server = os.environ.get("TL_PG_URL", admin.DEFAULT_URL)
+    if pg_base_url is None:
+        unavailable("Postgres is not reachable at TL_PG_URL")
+    name = admin.test_database_name("icu")
     try:
         admin.create_database(server, name, icu_locale="en-US")
     except DBAPIError:
-        pytest.skip("this server cannot create an ICU-locale database")
+        unavailable("this server cannot create an ICU-locale database")
     try:
         yield admin.database_url(server, name)
     finally:

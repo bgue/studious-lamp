@@ -53,7 +53,8 @@ Local Postgres: `docs/runbooks/postgres-local-setup.md`.
 ## Postgres behaviour worth knowing
 - Writers queue on one advisory lock (like SQLite's write lock) and fail with a lock timeout after 10 s; readers never wait; `seq` has no gaps.
 - Rows come back SQLite-shaped (canonical JSON text, ISO UTC timestamps, 0/1 booleans). Text columns are byte-ordered (`COLLATE "C"`).
-- `LOWER()` folds by the server's ctype on Postgres and only ASCII on SQLite, so a case-insensitive search for a non-ASCII letter can differ.
+- `LOWER()` folds ASCII letters only on both adapters (generated Postgres `TEXT` columns are `COLLATE "C"`), so case-insensitive matching of `É` against `é` fails identically on both; `tests/parity/test_text_folding.py` pins it.
+- Edge cases of Postgres JSON columns (`cur_*` tables; ledger payloads are TEXT and unaffected): a float of 1e16 or more is stored as a whole number and reads back as an integer, `-0.0` reads back as `0.0`, and a NUL character in a string is rejected (SQLite accepts it).
 - Not done yet: the `tl` CLI, TUI and API still open SQLite paths; `tl migrate` is filed as `docs/tickets/P0-I5/T99-migrate-sqlite-to-postgres.md` (needs a human).
 
 ## Rules specific to this package

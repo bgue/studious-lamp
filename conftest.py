@@ -11,7 +11,9 @@ throw-away database per pytest session, so concurrent runs never share state or 
 
 from __future__ import annotations
 
+import atexit
 import os
+import signal
 import uuid
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
@@ -24,7 +26,6 @@ from sqlalchemy import Engine
 # TL_ENV=dev (P0-I4). A test of the fail-closed behaviour passes its own mapping instead.
 os.environ.setdefault("TL_ENV", "dev")
 
-DEFAULT_PG_URL = "postgresql://postgres:postgres@localhost:5432/tl_test"
 ADAPTER_NAMES = ("sqlite", "postgres")
 
 
@@ -60,23 +61,56 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 
 @pytest.fixture(scope="session")
 def pg_base_url() -> Iterator[str | None]:
-    """URL of a throw-away database on the server ``TL_PG_URL`` names; ``None`` if unreachable."""
+    """URL of a throw-away database on the server ``TL_PG_URL`` names; ``None`` if unreachable.
+
+    The database is dropped when the session ends, on SIGTERM, and at interpreter exit. Databases
+    left by a crashed session (SIGKILL) are swept at the start of the next one once they are a few
+    hours old and have no connections.
+    """
     from tl_adapters.postgres import admin
 
-    server = os.environ.get("TL_PG_URL", DEFAULT_PG_URL)
+    server = os.environ.get("TL_PG_URL", admin.DEFAULT_URL)
     if not admin.reachable(server):
         yield None
         return
-    name = "tl_pytest_" + uuid.uuid4().hex[:12]
+    try:
+        admin.sweep_stale_databases(server)
+    except Exception:
+        pass  # a sweep is housekeeping; never fail a run because of it
+    name = admin.test_database_name()
     try:
         admin.create_database(server, name)
     except Exception:
         yield server  # no CREATE DATABASE right: isolate by schema in the given database
         return
+
+    def drop() -> None:
+        try:
+            admin.drop_database(server, name)
+        except Exception:
+            pass
+
+    atexit.register(drop)
+    previous = signal.getsignal(signal.SIGTERM)
+
+    def on_sigterm(signum: int, frame: object) -> None:
+        drop()
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    try:
+        signal.signal(signal.SIGTERM, on_sigterm)
+    except ValueError:  # not the main thread
+        pass
     try:
         yield admin.database_url(server, name)
     finally:
-        admin.drop_database(server, name)
+        drop()
+        atexit.unregister(drop)
+        try:
+            signal.signal(signal.SIGTERM, previous)
+        except (ValueError, TypeError):
+            pass
 
 
 @dataclass

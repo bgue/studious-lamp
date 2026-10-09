@@ -8,6 +8,8 @@ schema the connection's ``search_path`` names.
 from __future__ import annotations
 
 import re
+import time
+import uuid
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
@@ -15,6 +17,11 @@ from sqlalchemy.pool import NullPool
 
 from tl_adapters.postgres.engine import sqlalchemy_url
 
+DEFAULT_URL = "postgresql://postgres:postgres@localhost:5432/tl_test"
+"""The dev cluster of ADR-0002; ``TL_PG_URL`` overrides it."""
+
+TEST_DATABASE_PREFIX = "tl_pytest_"
+_TEST_DATABASE = re.compile(r"^tl_pytest_(?:icu_)?([0-9a-f]{8})_[0-9a-f]{6}$")
 _SCHEMA_NAME = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 
 
@@ -96,3 +103,43 @@ def create_database(url: str, database: str, *, icu_locale: str | None = None) -
 def drop_database(url: str, database: str) -> None:
     """Drop ``database``, disconnecting any session still in it; a missing one is not an error."""
     _run(url, f"DROP DATABASE IF EXISTS {_checked(database)} WITH (FORCE)")
+
+
+def test_database_name(kind: str = "") -> str:
+    """A unique throw-away database name that records its creation time.
+
+    ``tl_pytest_<unix time, 8 hex>_<6 hex>``, or ``tl_pytest_icu_...`` for ``kind="icu"``. The time
+    lets :func:`sweep_stale_databases` tell a crashed session's leftovers from a live one.
+    """
+    middle = f"{kind}_" if kind else ""
+    return f"{TEST_DATABASE_PREFIX}{middle}{int(time.time()):08x}_{uuid.uuid4().hex[:6]}"
+
+
+def sweep_stale_databases(url: str, *, older_than_s: float = 3 * 3600) -> list[str]:
+    """Drop test databases left behind by crashed sessions; return their names.
+
+    Only names made by :func:`test_database_name`, created more than ``older_than_s`` ago, and with
+    no connection open are dropped, so another session's live database is never touched.
+    """
+    engine = create_engine(sqlalchemy_url(url), poolclass=NullPool, isolation_level="AUTOCOMMIT")
+    dropped: list[str] = []
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT d.datname, s.numbackends FROM pg_database d "
+                    "JOIN pg_stat_database s ON s.datname = d.datname "
+                    "WHERE d.datname LIKE 'tl\\_pytest\\_%'"
+                )
+            ).all()
+            for name, backends in rows:
+                match = _TEST_DATABASE.match(str(name))
+                if match is None or backends != 0:
+                    continue
+                if time.time() - int(match.group(1), 16) < older_than_s:
+                    continue
+                conn.exec_driver_sql(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
+                dropped.append(str(name))
+    finally:
+        engine.dispose()
+    return dropped
