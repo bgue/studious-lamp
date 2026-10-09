@@ -70,6 +70,7 @@ def record_history(uow: UnitOfWork, record_id: str) -> list[Event]:
 SORTABLE_COLUMNS = frozenset(
     {"key", "title", "status", "type", "created_at", "updated_at", "version"}
 )
+_TEXT_COLUMNS = SORTABLE_COLUMNS - {"version"}  # '' sorts last like NULL
 _MAX_LIMIT = 2**63 - 1  # portable "no limit" so OFFSET can be used on its own
 
 
@@ -89,7 +90,8 @@ def list_records(
     Voided rows are left out unless ``include_voided`` is true. ``status`` and ``record_type``,
     when given, filter on equality. ``limit`` and ``offset`` page the ordered result; ``limit``
     ``None`` means no limit. ``order_by`` lists ``(column, direction)`` pairs over
-    ``SORTABLE_COLUMNS``; empty values sort last in both directions and ``id`` always breaks ties.
+    ``SORTABLE_COLUMNS``; empty values (NULL, or '' for text columns) sort last in both
+    directions and ``id`` always breaks ties.
     Raises ``ValueError`` for an unknown column or a negative ``limit`` or ``offset``.
     """
     if limit is not None and limit < 0:
@@ -113,7 +115,10 @@ def list_records(
             raise ValueError(f"cannot order by {column!r}; allowed: {sorted(SORTABLE_COLUMNS)}")
         if direction not in ("asc", "desc"):
             raise ValueError(f"direction must be 'asc' or 'desc', got {direction!r}")
-        terms.append(f"({column} IS NULL), {column} {direction.upper()}")
+        empty = (
+            f"{column} IS NULL OR {column} = ''" if column in _TEXT_COLUMNS else f"{column} IS NULL"
+        )
+        terms.append(f"({empty}), {column} {direction.upper()}")
     order = ", ".join([*terms, "id"]) if terms else "created_at, id"
     paging = ""
     if limit is not None or offset:

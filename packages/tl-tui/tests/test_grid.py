@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import threading
 from typing import Any
 
 import pytest
@@ -434,5 +436,39 @@ def test_a_failed_reload_leaves_the_rows_untouched() -> None:
         await pilot.press("r")
         await pilot.pause()
         assert _keys(grid) == ["FV-1001", "FV-1002", "FV-1003"]
+
+    run_pilot(host, scenario)
+
+
+def test_moving_the_cursor_while_the_end_worker_runs_does_not_duplicate_rows() -> None:
+    entered = threading.Event()
+    release = threading.Event()
+
+    class Gated(FakeClient):
+        def list_records(self, scope: str, **kwargs: Any) -> list[dict[str, Any]]:
+            if threading.current_thread() is not threading.main_thread():
+                entered.set()
+                release.wait(timeout=10)
+            return super().list_records(scope, **kwargs)
+
+    client = Gated.with_valve_example(extra_rows=37)  # 40 rows
+    host = Host(client, page_size=8)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        grid = host.query_one(RecordGrid)
+        await pilot.press("end")
+        for _ in range(100):  # wait until the worker is inside its first fetch
+            if entered.is_set():
+                break
+            await asyncio.sleep(0.02)
+        assert entered.is_set()
+        await pilot.press(*["down"] * 7)  # the cursor nears the end while the worker is busy
+        assert len(grid.rows) == 8  # the main thread did not page
+        release.set()
+        await host.workers.wait_for_complete()
+        await pilot.pause()
+        ids = [r["id"] for r in grid.rows]
+        assert len(ids) == len(set(ids)) == 40 and grid.exhausted
 
     run_pilot(host, scenario)

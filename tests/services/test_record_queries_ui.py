@@ -145,3 +145,31 @@ def test_list_records_rejects_bad_arguments(tmp_path: Path) -> None:
         ):
             with pytest.raises(ValueError):
                 list_records(uow, "project:p1", **bad)  # pyright: ignore[reportArgumentType]
+
+
+def test_order_by_treats_empty_text_like_null(tmp_path: Path) -> None:
+    db = tmp_path / "tl.db"
+    create_schema(db)
+    for record_id, key, status in (("rec-a", "T-1", ""), ("rec-b", "T-2", "open")):
+        _create(db, record_id, key)
+        with open_uow(db) as uow:
+            uow.append(
+                stream_id=record_id,
+                stream_type="core.Record",
+                scope="project:p1",
+                expected_version=1,
+                events=[
+                    NewEvent(
+                        event_type="Record.Updated",
+                        payload={"changes": {"status": [None, status]}},
+                    )
+                ],
+                actor="user:t",
+                source="test",
+                correlation_id="c",
+            )
+    with open_uow(db, readonly=True) as uow:
+        asc = list_records(uow, "project:p1", order_by=[("status", "asc")])
+        desc = list_records(uow, "project:p1", order_by=[("status", "desc")])
+    assert [r["id"] for r in asc] == ["rec-b", "rec-a"]
+    assert [r["id"] for r in desc] == ["rec-b", "rec-a"]

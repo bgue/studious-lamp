@@ -61,6 +61,8 @@ implementation, which was then discarded.
 | B9 | Ctrl+A selects the loaded rows only and says "N loaded rows selected; more not loaded" when more exist | Same reason; honest about what is selected |
 | B10 | Shift+Up/Down extends the selection add-only (it never removes a row on the way back) | Acceptable per review; Space toggles a row off |
 | B11 | TSV and `y` export raw values (`6.0`, `nonconformant`, ISO timestamps, `true`), not display symbols; header uses the column labels | A pasted spreadsheet should hold data, not decoration |
+| B13 | While the End worker runs, `_load_more` returns early (the worker alone pages); the alternative of bumping `_generation` would discard the worker's progress on every cursor move. Regression test holds the worker mid-fetch, moves the cursor, and asserts unique rows | Verification found that cursor paging during End appended a page on the main thread and then the worker appended from its old offset, duplicating rows |
+| B14 | `order_by` sorts `''` like NULL (last in both directions) for text columns, via `(col IS NULL OR col = '')`; `version` only NULL | An empty status or title should not float to the top |
 | B12 | A failed page fetch posts an error status and leaves `exhausted` false (and a failed reload leaves the rows untouched); the next cursor move retries | The list must not look complete after an error |
 
 ### §15 performance gap

@@ -246,8 +246,8 @@ class RecordGrid(ScrollView, can_focus=True):
                 return
 
     def _load_more(self) -> None:
-        if self.exhausted:
-            return
+        if self.exhausted or self._loading:
+            return  # the End worker owns paging while it runs; two pagers would duplicate rows
         page = self._fetch(self.page_size, len(self.rows))
         if page is None:
             return  # not exhausted: the list is incomplete and a later move retries
