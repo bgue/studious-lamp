@@ -54,7 +54,7 @@ uv run pytest tests/services/test_record_queries.py -q
 ## Tests to add
 `tests/services/test_record_queries.py`. Create `db = tmp_path / "tl.db"` with `create_schema(db)`; seed rows by appending real events through
 `with open_uow(db) as uow: uow.append(stream_id=..., stream_type="core.Record", scope=..., expected_version=0, events=[NewEvent(event_type="Record.Created", payload={...})], actor="user:t", source="test", correlation_id="c")`
-(and `Record.Voided` / `Record.Updated` events with `expected_version=1` to void or change status... status is only changeable through a `Record.Updated` with `{"changes": {"status": [None, "open"]}}`). Query with `open_uow(db, readonly=True)`.
+; append a `Record.Voided` event (payload `{"reason": "r"}`, `expected_version=1`) to void a record, and a `Record.Updated` event (payload `{"changes": {"status": [None, "open"]}}`, `expected_version=1`) to give a record a status). Query with `open_uow(db, readonly=True)`.
 - `get_record` returns the envelope dict with exactly the keys above, `psets` parsed (`{"a": 1}`), `voided` is `False`, `version == 1`; unknown key and a key in another scope return `None`.
 - A voided record is still returned by `get_record` with `voided is True`.
 - `list_records` returns only the scope's rows, ordered by creation; hides voided unless `include_voided=True`; `status="open"` returns only rows with that status.
