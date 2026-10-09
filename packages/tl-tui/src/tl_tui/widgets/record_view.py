@@ -70,13 +70,14 @@ def event_summary(event: Event) -> str:
 class RecordView(Vertical, can_focus=True):
     """Opened by the app for ``OpenRecord``. Posts `CloseRecord` on Esc and `StepRecord` on [ ]."""
 
-    KEY_HINTS: ClassVar[str] = "Esc back  [ ] prev/next  h history"
+    KEY_HINTS: ClassVar[str] = "Esc back  [ ] prev/next  h history  e edit"
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("escape", "close", show=False),
         Binding("left_square_bracket", "step(-1)", show=False),
         Binding("right_square_bracket", "step(1)", show=False),
         Binding("h", "history", show=False),
+        Binding("e", "edit", show=False),
     ]
 
     def __init__(
@@ -168,3 +169,25 @@ class RecordView(Vertical, can_focus=True):
 
     def action_history(self) -> None:
         self.query_one("#rv-tabs", TabbedContent).active = "tab-history"
+
+    def action_edit(self) -> None:
+        record = self.record
+        if record is None:
+            return
+        from tl_tui.widgets.edit_form import EditForm  # new module; imported here on purpose
+
+        try:
+            meta = self.client.form_metadata(self.scope, record["type"])
+        except NotImplementedError:
+            self.post_message(StatusMessage("Editing needs the pset services", "warning"))
+            return
+        except CLIENT_ERRORS as exc:
+            self.post_message(StatusMessage(describe_error(exc), "error"))
+            return
+        actor = str(getattr(self.app, "actor", "user:dev"))
+
+        def saved(done: bool | None) -> None:
+            if done:
+                self.post_message(RecordChanged(record["id"]))
+
+        self.app.push_screen(EditForm(self.client, self.scope, record, meta, actor=actor), saved)
