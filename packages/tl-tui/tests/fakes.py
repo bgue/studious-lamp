@@ -13,7 +13,7 @@ import hashlib
 from collections.abc import Sequence
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
@@ -206,6 +206,7 @@ class FakeClient:
         self.metadata = valve_form_metadata()
         self.calls: list[str] = []  # method names in call order, for assertions
         self.set_pset_commands: list[SetPsetValues] = []
+        self.orders: list[list[tuple[str, Literal["asc", "desc"]]] | None] = []
         self._records: dict[str, dict[str, Any]] = {}
         self._events: dict[str, list[Event]] = {}
         self._seq = 0
@@ -326,8 +327,10 @@ class FakeClient:
         include_voided: bool = False,
         limit: int = 500,
         offset: int = 0,
+        order_by: list[tuple[str, Literal["asc", "desc"]]] | None = None,
     ) -> list[dict[str, Any]]:
         self.calls.append("list_records")
+        self.orders.append(order_by)
         rows = [
             r
             for r in self._records.values()
@@ -336,6 +339,13 @@ class FakeClient:
             and (status is None or r["status"] == status)
             and (include_voided or not r["voided"])
         ]
+        for column, direction in reversed(order_by or []):
+            rows.sort(
+                key=lambda r, c=column: (r[c] is None, r[c] if r[c] is not None else 0),
+                reverse=direction == "desc",
+            )
+            if direction == "desc":  # empty values stay last, as in the real query
+                rows.sort(key=lambda r, c=column: r[c] is None)
         return [deepcopy(r) for r in rows[offset : offset + limit]]
 
     def get_record(self, scope: str, key: str) -> dict[str, Any] | None:

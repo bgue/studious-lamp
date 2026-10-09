@@ -167,3 +167,16 @@ test or a generated artefact already enforces, or narrative history (that belong
   and `Pilot[Any]`. `ScrollView` widgets draw only in `render_line(y)`, with `y` relative to the viewport; add
   `scroll_offset.y` yourself and keep a sticky header on line 0 by adding one to `virtual_size.height`.
   Evidence: pyright errors in the first `test_grid.py`; `widgets/grid.py`. Status: active
+
+- **L-P0-I2-B4** · 2026-10-09 · tags: tui, tooling
+  Do not name a widget or screen attribute after a Textual DOM property: `self.visible = [...]` on a `ModalScreen`
+  raised `TypeError: unhashable type: 'list'` at runtime because `visible` is a DOM property (`shown` works). Textual
+  `Static` also parses `[...]` as markup, so any text that can hold user data needs `markup=False` or `rich.text.Text`.
+  Evidence: T13b scratch build; `widgets/column_chooser.py`. Status: active
+
+- **L-P0-I2-B5** · 2026-10-09 · tags: tui, process
+  A grid must never load every page on the UI thread: the first `RecordGrid` did, and froze for 2.7 s at 20k rows
+  (about 15 s at 50k). Sort goes to the server (`order_by`), and "go to end" pages in a `run_worker(thread=True)`
+  worker that reports through `post_message` and applies results with `call_from_thread`, guarded by a generation
+  counter. A moving cursor must not trigger paging inside that apply step or the cap is overshot.
+  Evidence: supervisor-pieces review of 73bb88c; `test_grid.py::test_end_pages_in_a_worker_reports_progress_and_caps`. Status: active

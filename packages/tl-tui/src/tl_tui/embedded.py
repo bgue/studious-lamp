@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from tl_core.ledger import Event
 from tl_core.services import psets, queries
@@ -54,6 +54,7 @@ class EmbeddedClient:
         include_voided: bool = False,
         limit: int = 500,
         offset: int = 0,
+        order_by: list[tuple[str, Literal["asc", "desc"]]] | None = None,
     ) -> list[dict[str, Any]]:
         with self._uow(True) as uow:
             return queries.list_records(
@@ -64,6 +65,7 @@ class EmbeddedClient:
                 record_type=record_type,
                 limit=limit,
                 offset=offset,
+                order_by=order_by,
             )
 
     def get_record(self, scope: str, key: str) -> dict[str, Any] | None:

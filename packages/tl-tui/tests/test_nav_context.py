@@ -10,6 +10,7 @@ from textual.message import Message
 from textual.pilot import Pilot
 from tl_tui.messages import NavSelected
 from tl_tui.widgets.context_panel import ContextPanel, context_text, flatten_psets
+from tl_tui.widgets.footer import hints_for
 from tl_tui.widgets.nav_tree import NavTree
 
 RECORD: dict[str, Any] = {
@@ -124,3 +125,8 @@ def test_context_panel_renders_and_updates_the_record_literally() -> None:
         assert panel.record is None and "No record under the cursor" in screen_text(app)
 
     run_pilot(app, scenario, size=(60, 24))
+
+
+def test_nav_tree_defines_key_hints_and_shows_them_in_the_footer() -> None:
+    assert "Enter" in NavTree.KEY_HINTS
+    assert hints_for(NavTree(company="ACME", scope="project:P123")) == NavTree.KEY_HINTS

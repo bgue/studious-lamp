@@ -7,7 +7,7 @@ instead of writing SQL. All values are bound parameters; the SQL text is fixed.
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import text
 from sqlalchemy.engine import RowMapping
@@ -67,6 +67,12 @@ def record_history(uow: UnitOfWork, record_id: str) -> list[Event]:
     return uow.ledger.read_stream(record_id)
 
 
+SORTABLE_COLUMNS = frozenset(
+    {"key", "title", "status", "type", "created_at", "updated_at", "version"}
+)
+_MAX_LIMIT = 2**63 - 1  # portable "no limit" so OFFSET can be used on its own
+
+
 def list_records(
     uow: UnitOfWork,
     scope: str,
@@ -76,13 +82,20 @@ def list_records(
     record_type: str | None = None,
     limit: int | None = None,
     offset: int = 0,
+    order_by: list[tuple[str, Literal["asc", "desc"]]] | None = None,
 ) -> list[dict[str, Any]]:
-    """Records of ``scope`` ordered by ``created_at, id``.
+    """Records of ``scope``, ordered by ``order_by`` or else by ``created_at, id``.
 
     Voided rows are left out unless ``include_voided`` is true. ``status`` and ``record_type``,
     when given, filter on equality. ``limit`` and ``offset`` page the ordered result; ``limit``
-    ``None`` means no limit.
+    ``None`` means no limit. ``order_by`` lists ``(column, direction)`` pairs over
+    ``SORTABLE_COLUMNS``; empty values sort last in both directions and ``id`` always breaks ties.
+    Raises ``ValueError`` for an unknown column or a negative ``limit`` or ``offset``.
     """
+    if limit is not None and limit < 0:
+        raise ValueError(f"limit must not be negative, got {limit}")
+    if offset < 0:
+        raise ValueError(f"offset must not be negative, got {offset}")
     clauses: list[str] = ["scope = :scope"]
     params: dict[str, Any] = {"scope": scope}
     if status is not None:
@@ -94,13 +107,19 @@ def list_records(
     if not include_voided:
         clauses.append("voided = :voided")
         params["voided"] = False
+    terms: list[str] = []
+    for column, direction in order_by or []:
+        if column not in SORTABLE_COLUMNS:
+            raise ValueError(f"cannot order by {column!r}; allowed: {sorted(SORTABLE_COLUMNS)}")
+        if direction not in ("asc", "desc"):
+            raise ValueError(f"direction must be 'asc' or 'desc', got {direction!r}")
+        terms.append(f"({column} IS NULL), {column} {direction.upper()}")
+    order = ", ".join([*terms, "id"]) if terms else "created_at, id"
     paging = ""
-    if limit is not None:  # LIMIT/OFFSET is portable; OFFSET without LIMIT is not, so slice below
+    if limit is not None or offset:
         paging = " LIMIT :limit OFFSET :offset"
-        params["limit"] = limit
+        params["limit"] = _MAX_LIMIT if limit is None else limit
         params["offset"] = offset
-    sql = text(f"{_SELECT} WHERE {' AND '.join(clauses)} ORDER BY created_at, id{paging}")
+    sql = text(f"{_SELECT} WHERE {' AND '.join(clauses)} ORDER BY {order}{paging}")
     rows = uow.conn().execute(sql, params).mappings().all()
-    if limit is None and offset:
-        rows = rows[offset:]
     return [_envelope(row) for row in rows]

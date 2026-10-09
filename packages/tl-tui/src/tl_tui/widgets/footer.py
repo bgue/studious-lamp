@@ -39,6 +39,8 @@ def footer_lines(
     right = f"{selection_count} selected " if selection_count > 0 else ""
     if not right:
         return first, _cut(left, width)
+    if cell_len(right) > width:
+        return first, _cut(right.rstrip(), width)  # no room for both: the count wins
     left = _cut(left, width - cell_len(right) - 1)
     gap = max(0, width - cell_len(left) - cell_len(right))
     return first, left + " " * gap + right

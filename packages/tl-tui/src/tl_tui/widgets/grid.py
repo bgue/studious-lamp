@@ -1,14 +1,17 @@
 """Data grid: virtualised record rows, cursor, sort, multi-select, TSV (brief 10.2, sketch 1).
 
 `RecordGrid` renders only the visible lines (`ScrollView.render_line`) over rows fetched through
-`ClientInterface.list_records` in pages. Sorting is client-side over the loaded rows, so a sort
-first loads every page (up to `MAX_ROWS`). The grid posts `RecordHighlighted`, `SelectionChanged`,
-`OpenRecord` and `StatusMessage`; it never talks to other widgets.
+`ClientInterface.list_records` in pages. Sorting is done by the server (`order_by`) and re-reads the
+first page; End pages forward in a worker thread up to `END_CAP` rows. The grid posts
+`RecordHighlighted`, `SelectionChanged`, `OpenRecord` and `StatusMessage`; it never talks to other
+widgets.
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from functools import partial
 from typing import Any, ClassVar, Literal
 
 from rich.cells import cell_len, set_cell_size
@@ -27,7 +30,9 @@ from tl_tui.messages import OpenRecord, RecordHighlighted, SelectionChanged, Sta
 from tl_tui.paths import pset_value
 from tl_tui.text import CONFORMANCE_MARK, format_value, timestamp
 
-MAX_ROWS = 50_000
+END_CAP = 5_000  # rows the End key will load; beyond it the user narrows the list instead
+# Envelope columns the server can order by (tl_core.services.queries.SORTABLE_COLUMNS).
+SORTABLE_KEYS = frozenset({"key", "title", "status", "type", "created_at", "updated_at", "version"})
 MARKER_WIDTH = 5  # cursor mark, "[x]", and a space
 GAP = " "
 
@@ -83,17 +88,19 @@ def cell_text(record: dict[str, Any], column: GridColumn) -> str:
     return format_value(value)
 
 
-def sort_value(record: dict[str, Any], column: GridColumn) -> tuple[int, Any]:
-    """Sort key: empty values last, numbers numerically, text case-insensitively."""
+def raw_text(record: dict[str, Any], column: GridColumn) -> str:
+    """The stored value as plain text without display symbols (``""`` when empty)."""
     if column.key.startswith("psets."):
         value = pset_value(record.get("psets") or {}, column.key)
     else:
         value = record.get(column.key)
-    if value is None or value == "":
-        return (2, 0)
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        return (0, float(value))
-    return (1, str(value).casefold())
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return str(value)
 
 
 def fit_cell(text: str, width: int, align: Align = "left") -> str:
@@ -106,13 +113,13 @@ def fit_cell(text: str, width: int, align: Align = "left") -> str:
 
 
 def to_tsv(columns: list[GridColumn], rows: list[dict[str, Any]]) -> str:
-    """Header line plus one line per row, tab-separated, newline-terminated."""
+    """Header line plus one line per row of raw values, tab-separated, newline-terminated."""
 
     def clean(text: str) -> str:
         return text.replace("\t", " ").replace("\n", " ").replace("\r", " ")
 
     lines = ["\t".join(clean(c.label) for c in columns)]
-    lines += ["\t".join(clean(cell_text(r, c)) for c in columns) for r in rows]
+    lines += ["\t".join(clean(raw_text(r, c)) for c in columns) for r in rows]
     return "\n".join(lines) + "\n"
 
 
@@ -120,7 +127,7 @@ class RecordGrid(ScrollView, can_focus=True):
     """Virtualised, sortable, multi-select grid of records of one scope and record type."""
 
     KEY_HINTS: ClassVar[str] = (
-        "Enter open  Space select  Ctrl+A all  ←→ column  s sort  c columns  y copy  r reload"
+        "Enter open  Space select  Ctrl+A all  ←→ column  s sort  c columns  y copy  F6 panels"
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -181,37 +188,56 @@ class RecordGrid(ScrollView, can_focus=True):
         self.selected_ids: set[str] = set()
         self.sort_key: str | None = None
         self.sort_descending = False
+        self._generation = 0  # bumped whenever rows are replaced; late worker results are dropped
+        self._loading = False
 
     # --- data --------------------------------------------------------------------------------
 
     def on_mount(self) -> None:
         self.load()
 
-    def _fetch(self, limit: int, offset: int) -> list[dict[str, Any]]:
+    def _order(self) -> list[tuple[str, Literal["asc", "desc"]]] | None:
+        if self.sort_key is None:
+            return None
+        return [(self.sort_key, "desc" if self.sort_descending else "asc")]
+
+    def _fetch(self, limit: int, offset: int) -> list[dict[str, Any]] | None:
+        """One page, or ``None`` after posting an error status (the caller keeps its state)."""
         try:
             return self.client.list_records(
-                self.scope, record_type=self.record_type, limit=limit, offset=offset
+                self.scope,
+                record_type=self.record_type,
+                limit=limit,
+                offset=offset,
+                order_by=self._order(),
             )
         except CLIENT_ERRORS as exc:
             self.post_message(StatusMessage(describe_error(exc), "error"))
-            return []
+            return None
 
-    def load(self, *, keep_id: str | None = None) -> None:
-        """Replace the rows with the first page in server order and drop any sort."""
-        self.sort_key = None
-        self.sort_descending = False
-        count = max(self.page_size, len(self.rows)) if keep_id else self.page_size
-        self.rows = self._fetch(count, 0)
-        self.exhausted = len(self.rows) < count
+    def load(self, *, keep_id: str | None = None, count: int | None = None) -> bool:
+        """Replace the rows with the first ``count`` rows (default one page) in the current order.
+
+        Returns ``False``, leaving everything as it was, when the fetch failed.
+        """
+        count = count or self.page_size
+        page = self._fetch(count, 0)
+        if page is None:
+            return False
+        self._generation += 1
+        self.rows = page
+        self.exhausted = len(page) < count
         self.cursor_row = 0
         if keep_id is not None:
             self._move_to_id(keep_id)
         self._after_rows_changed()
+        return True
 
     def reload(self) -> None:
-        """Re-read the rows, keeping the cursor on the same record when it still exists."""
+        """Re-read the loaded rows, keeping the sort and the cursor record when it still exists."""
         current = self.cursor_record
-        self.load(keep_id=None if current is None else current["id"])
+        size = min(max(self.page_size, len(self.rows)), END_CAP)
+        self.load(keep_id=None if current is None else current["id"], count=size)
 
     def _move_to_id(self, record_id: str) -> None:
         for index, row in enumerate(self.rows):
@@ -220,20 +246,51 @@ class RecordGrid(ScrollView, can_focus=True):
                 return
 
     def _load_more(self) -> None:
-        if self.exhausted or len(self.rows) >= MAX_ROWS:
+        if self.exhausted:
             return
         page = self._fetch(self.page_size, len(self.rows))
+        if page is None:
+            return  # not exhausted: the list is incomplete and a later move retries
         self.rows.extend(page)
         if len(page) < self.page_size:
             self.exhausted = True
         self._update_virtual_size()
 
-    def _load_all(self) -> None:
-        while not self.exhausted and len(self.rows) < MAX_ROWS:
-            before = len(self.rows)
-            self._load_more()
-            if len(self.rows) == before:
-                self.exhausted = True
+    def _load_to_end(self, generation: int, start: int) -> None:
+        """Worker thread: page forward from ``start`` up to ``END_CAP`` rows in total."""
+        rows: list[dict[str, Any]] = []
+        exhausted = failed = False
+        while start + len(rows) < END_CAP:
+            page = self._fetch(self.page_size, start + len(rows))
+            if page is None:
+                failed = True
+                break
+            rows.extend(page)
+            if len(page) < self.page_size:
+                exhausted = True
+                break
+            self.post_message(StatusMessage(f"Loading rows… {start + len(rows):,}"))
+        del rows[END_CAP - start :]
+        self.app.call_from_thread(self._finish_load_to_end, generation, rows, exhausted, failed)
+
+    def _finish_load_to_end(
+        self, generation: int, rows: list[dict[str, Any]], exhausted: bool, failed: bool
+    ) -> None:
+        self._loading = False
+        if generation != self._generation:
+            return  # the list was replaced while the worker ran
+        self.rows.extend(rows)
+        self.exhausted = exhausted
+        self._update_virtual_size()
+        self._set_cursor(len(self.rows) - 1, page_in=False)
+        if failed:
+            return  # _fetch already posted the error
+        if exhausted:
+            self.post_message(StatusMessage(f"Loaded {len(self.rows):,} rows"))
+        else:
+            self.post_message(
+                StatusMessage(f"Capped at {END_CAP:,} rows; narrow the list to see more", "warning")
+            )
 
     def _after_rows_changed(self) -> None:
         self._update_virtual_size()
@@ -294,11 +351,11 @@ class RecordGrid(ScrollView, can_focus=True):
     def _announce_cursor(self) -> None:
         self.post_message(RecordHighlighted(self.cursor_record))
 
-    def _set_cursor(self, row: int) -> None:
+    def _set_cursor(self, row: int, *, page_in: bool = True) -> None:
         if not self.rows:
             return
         row = max(0, min(row, len(self.rows) - 1))
-        if not self.exhausted and row >= len(self.rows) - max(self.page_size // 4, 1):
+        if page_in and not self.exhausted and row >= len(self.rows) - max(self.page_size // 4, 1):
             self._load_more()
         changed = row != self.cursor_row
         self.cursor_row = row
@@ -327,9 +384,18 @@ class RecordGrid(ScrollView, can_focus=True):
         self._set_cursor(row)
 
     def action_cursor_to_end(self) -> None:
-        self._load_all()
-        self._update_virtual_size()
-        self._set_cursor(len(self.rows) - 1)
+        if self.exhausted or len(self.rows) >= END_CAP:
+            self._set_cursor(len(self.rows) - 1)
+            return
+        if self._loading:
+            return
+        self._loading = True
+        self.post_message(StatusMessage("Loading rows…"))
+        self.run_worker(
+            partial(self._load_to_end, self._generation, len(self.rows)),
+            thread=True,
+            group="grid-end",
+        )
 
     def action_column(self, delta: int) -> None:
         self.column_cursor = max(0, min(self.column_cursor + delta, len(self.columns) - 1))
@@ -354,10 +420,13 @@ class RecordGrid(ScrollView, can_focus=True):
         self._selection_changed()
 
     def action_select_all(self) -> None:
-        self._load_all()
-        self._update_virtual_size()
+        """Select the loaded rows only; say so when more rows exist on the server."""
         self.selected_ids = {r["id"] for r in self.rows}
         self._selection_changed()
+        if not self.exhausted:
+            self.post_message(
+                StatusMessage(f"{len(self.rows):,} loaded rows selected; more not loaded")
+            )
 
     def action_open(self) -> None:
         record = self.cursor_record
@@ -407,27 +476,26 @@ class RecordGrid(ScrollView, can_focus=True):
         self.post_message(SelectionChanged(frozenset(self.selected_ids)))
 
     def sort_by(self, key: str) -> None:
-        """Cycle ascending, descending, unsorted (server order) on column ``key``."""
+        """Cycle ascending, descending, unsorted on column ``key``; the server does the ordering."""
         column = next((c for c in self.columns if c.key == key), None)
         if column is None:
             return
+        if key.startswith("psets."):
+            self.post_message(StatusMessage("Sort on pset columns arrives with the query language"))
+            return
+        if key not in SORTABLE_KEYS:
+            self.post_message(StatusMessage(f"Sorting by {column.label} is not available"))
+            return
+        previous = (self.sort_key, self.sort_descending)
         if self.sort_key != key:
             self.sort_key, self.sort_descending = key, False
         elif not self.sort_descending:
             self.sort_descending = True
         else:
-            self.reload()
-            return
+            self.sort_key, self.sort_descending = None, False
         current = self.cursor_record
-        self._load_all()
-        self.rows.sort(key=lambda r: sort_value(r, column), reverse=self.sort_descending)
-        if self.sort_descending:  # keep empty values last when reversed
-            self.rows.sort(key=lambda r: sort_value(r, column)[0] == 2)
-        if current is not None:
-            self._move_to_id(current["id"])
-        self._update_virtual_size()
-        self._scroll_to_cursor()
-        self.refresh()
+        if not self.load(keep_id=None if current is None else current["id"]):
+            self.sort_key, self.sort_descending = previous
 
     # --- mouse -------------------------------------------------------------------------------
 

@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
 from fakes import SCOPE, FakeClient
 from helpers import run_pilot, screen_text
 from textual.app import App, ComposeResult
 from textual.message import Message
 from textual.pilot import Pilot
+from tl_core.services.errors import ServiceError
 from tl_tui.messages import OpenRecord, RecordHighlighted, SelectionChanged, StatusMessage
+from tl_tui.widgets import grid as grid_module
 from tl_tui.widgets.grid import (
     DEFAULT_COLUMNS,
     GridColumn,
@@ -59,6 +62,28 @@ def test_pure_helpers() -> None:
     rows = [{"key": "A", "title": "x\ty", "psets": {}}]
     cols = [GridColumn("key", "Key", 5), GridColumn("title", "Title", 5)]
     assert to_tsv(cols, rows) == "Key\tTitle\nA\tx y\n"
+
+
+def test_tsv_exports_raw_values_not_display_symbols() -> None:
+    record = {
+        "conformance": "nonconformant",
+        "version": 3,
+        "updated_at": "2026-10-09T09:05:30+00:00",
+        "status": None,
+        "psets": {"valve_data": {"size_in": 6.0, "flag": True, "x": {"a": 1}}},
+    }
+    cols = [
+        GridColumn("conformance", "Conf", 5),
+        GridColumn("version", "Ver", 5),
+        GridColumn("updated_at", "Upd", 5),
+        GridColumn("status", "Status", 5),
+        GridColumn("psets.valve_data.size_in", "Size", 5),
+        GridColumn("psets.valve_data.flag", "Flag", 5),
+        GridColumn("psets.valve_data.x", "X", 5),
+        GridColumn("psets.valve_data.missing", "Missing", 5),
+    ]
+    line = to_tsv(cols, [record]).splitlines()[1]
+    assert line == 'nonconformant\t3\t2026-10-09T09:05:30+00:00\t\t6.0\ttrue\t{"a":1}\t'
 
 
 def test_available_columns_include_pset_properties() -> None:
@@ -186,6 +211,8 @@ def test_pages_in_more_rows_when_the_cursor_nears_the_end() -> None:
             await pilot.press("down")
         assert len(grid.rows) > 8
         await pilot.press("end")
+        await host.workers.wait_for_complete()
+        await pilot.pause()
         assert len(grid.rows) == 40 and grid.exhausted
         assert grid.cursor_row == 39
         assert client.calls.count("list_records") >= 5
@@ -275,5 +302,137 @@ def test_mouse_click_header_sorts_and_double_click_opens() -> None:
         await pilot.click(RecordGrid, offset=(8, 2), times=2)
         await pilot.pause()
         assert any(isinstance(m, OpenRecord) for m in host.seen)
+
+    run_pilot(host, scenario)
+
+
+def test_sort_is_requested_from_the_server_and_loads_only_one_page() -> None:
+    client = FakeClient.with_valve_example(extra_rows=37)  # 40 rows
+    host = Host(client, page_size=8)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        grid = host.query_one(RecordGrid)
+        await pilot.press("s")  # Key ascending
+        assert client.orders[-1] == [("key", "asc")]
+        assert len(grid.rows) == 8 and not grid.exhausted
+        await pilot.press("s")
+        assert client.orders[-1] == [("key", "desc")]
+        assert grid.rows[0]["key"] == "FV-2036"
+        await pilot.press("s")  # third press: back to server order
+        assert client.orders[-1] is None and grid.sort_key is None
+
+    run_pilot(host, scenario)
+
+
+def test_sort_on_unsupported_columns_explains_instead_of_sorting() -> None:
+    client = FakeClient.with_valve_example()
+    host = Host(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        grid = host.query_one(RecordGrid)
+        grid.set_columns(
+            [
+                GridColumn("psets.valve_data.size_in", "size_in", 8),
+                GridColumn("conformance", "Conformance", 15),
+            ]
+        )
+        await pilot.press("s")
+        await pilot.press("right", "s")
+        await pilot.pause()
+        texts = [m.text for m in host.seen if isinstance(m, StatusMessage)]
+        assert texts == [
+            "Sort on pset columns arrives with the query language",
+            "Sorting by Conformance is not available",
+        ]
+        assert grid.sort_key is None and client.orders == [None]
+
+    run_pilot(host, scenario)
+
+
+def test_end_pages_in_a_worker_reports_progress_and_caps(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(grid_module, "END_CAP", 30)
+    client = FakeClient.with_valve_example(extra_rows=57)  # 60 rows
+    host = Host(client, page_size=8)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        grid = host.query_one(RecordGrid)
+        await pilot.press("end")
+        await host.workers.wait_for_complete()
+        await pilot.pause()
+        assert len(grid.rows) == 30 and not grid.exhausted
+        assert grid.cursor_row == 29
+        texts = [m.text for m in host.seen if isinstance(m, StatusMessage)]
+        assert "Loading rows…" in texts
+        assert any(t.startswith("Loading rows… ") for t in texts)
+        assert texts[-1] == "Capped at 30 rows; narrow the list to see more"
+        assert grid.summary().startswith("30+ rows")
+
+    run_pilot(host, scenario)
+
+
+def test_select_all_selects_loaded_rows_only_and_says_so() -> None:
+    client = FakeClient.with_valve_example(extra_rows=37)
+    host = Host(client, page_size=8)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        grid = host.query_one(RecordGrid)
+        await pilot.press("ctrl+a")
+        await pilot.pause()
+        assert len(grid.selected_ids) == 8
+        texts = [m.text for m in host.seen if isinstance(m, StatusMessage)]
+        assert texts == ["8 loaded rows selected; more not loaded"]
+
+    run_pilot(host, scenario)
+
+
+def test_a_failed_page_fetch_keeps_the_list_open_and_a_later_move_retries() -> None:
+    class Flaky(FakeClient):
+        fail_offset: int | None = None
+
+        def list_records(self, scope: str, **kwargs: Any) -> list[dict[str, Any]]:
+            if kwargs.get("offset") == self.fail_offset:
+                raise ServiceError("page unavailable")
+            return super().list_records(scope, **kwargs)
+
+    client = Flaky.with_valve_example(extra_rows=37)  # 40 rows
+    assert isinstance(client, Flaky)
+    host = Host(client, page_size=8)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        grid = host.query_one(RecordGrid)
+        client.fail_offset = 8
+        for _ in range(7):
+            await pilot.press("down")
+        await pilot.pause()
+        assert len(grid.rows) == 8 and not grid.exhausted
+        errors = [m for m in host.seen if isinstance(m, StatusMessage)]
+        assert {(e.text, e.severity) for e in errors} == {("page unavailable", "error")}
+        client.fail_offset = None
+        await pilot.press("up", "down")  # still near the end: the next move retries and succeeds
+        assert len(grid.rows) > 8
+
+    run_pilot(host, scenario)
+
+
+def test_a_failed_reload_leaves_the_rows_untouched() -> None:
+    client = FakeClient.with_valve_example()
+    host = Host(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        grid = host.query_one(RecordGrid)
+
+        def boom(scope: str, **kwargs: Any) -> list[dict[str, Any]]:
+            raise ServiceError("down")
+
+        client.list_records = boom  # type: ignore[method-assign]
+        await pilot.press("r")
+        await pilot.pause()
+        assert _keys(grid) == ["FV-1001", "FV-1002", "FV-1003"]
 
     run_pilot(host, scenario)

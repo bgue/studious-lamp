@@ -127,3 +127,9 @@ def test_footer_widget_shows_hints_status_and_selection_count() -> None:
         assert lines[-1] == " ✗ not found"
 
     run_pilot(app, scenario, size=(80, 10))
+
+
+def test_footer_lines_when_the_count_alone_is_wider_than_the_width() -> None:
+    _, second = footer_lines("h", "boom", "error", 12, 8)
+    assert second == "12 sele…"
+    assert cell_len(second) == 8

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from tl_adapters.sqlite.uow import create_schema, open_uow
 from tl_core.ledger import NewEvent
 from tl_core.services.queries import get_record_by_id, list_records, record_history
@@ -91,3 +92,56 @@ def test_list_records_limit_and_offset(tmp_path: Path) -> None:
     assert [r["id"] for r in second] == ["rec-2", "rec-3"]
     assert [r["id"] for r in tail] == ["rec-3", "rec-4"]
     assert beyond == []
+
+
+def _create_titled(db: Path, record_id: str, key: str, title: str, version_bumps: int = 0) -> None:
+    _create(db, record_id, key)
+    with open_uow(db) as uow:
+        uow.append(
+            stream_id=record_id,
+            stream_type="core.Record",
+            scope="project:p1",
+            expected_version=1,
+            events=[
+                NewEvent(
+                    event_type="Record.Updated",
+                    payload={"changes": {"title": [key, title], "status": [None, "s"]}},
+                )
+            ],
+            actor="user:t",
+            source="test",
+            correlation_id="c",
+        )
+
+
+def test_list_records_order_by_direction_tiebreak_and_nulls_last(tmp_path: Path) -> None:
+    db = tmp_path / "tl.db"
+    create_schema(db)
+    _create_titled(db, "rec-a", "T-1", "bravo")
+    _create_titled(db, "rec-b", "T-2", "alpha")
+    _create_titled(db, "rec-c", "T-3", "bravo")
+    _create(db, "rec-d", "t-4")  # title is the key; status stays empty
+    with open_uow(db, readonly=True) as uow:
+        asc = list_records(uow, "project:p1", order_by=[("title", "asc")])
+        desc = list_records(uow, "project:p1", order_by=[("title", "desc")])
+        by_status = list_records(uow, "project:p1", order_by=[("status", "desc")])
+        paged = list_records(uow, "project:p1", order_by=[("title", "desc")], limit=2, offset=1)
+    assert [r["id"] for r in asc] == ["rec-b", "rec-a", "rec-c", "rec-d"]
+    assert [r["id"] for r in desc] == ["rec-d", "rec-a", "rec-c", "rec-b"]
+    assert [r["id"] for r in by_status] == ["rec-a", "rec-b", "rec-c", "rec-d"]  # empty last
+    assert [r["id"] for r in paged] == ["rec-a", "rec-c"]
+
+
+def test_list_records_rejects_bad_arguments(tmp_path: Path) -> None:
+    db = tmp_path / "tl.db"
+    create_schema(db)
+    with open_uow(db, readonly=True) as uow:
+        for bad in (
+            {"order_by": [("psets_json", "asc")]},
+            {"order_by": [("title; DROP TABLE x", "asc")]},
+            {"order_by": [("title", "sideways")]},
+            {"limit": -1},
+            {"offset": -1},
+        ):
+            with pytest.raises(ValueError):
+                list_records(uow, "project:p1", **bad)  # pyright: ignore[reportArgumentType]

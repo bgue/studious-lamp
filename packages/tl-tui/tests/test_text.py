@@ -31,3 +31,7 @@ def test_format_value() -> None:
     assert format_value(2.5) == "2.5"
     assert format_value({"b": 1, "a": [1, 2]}) == '{"a":[1,2],"b":1}'
     assert format_value("x") == "x"
+
+
+def test_conformance_mark_of_nothing_is_a_dash() -> None:
+    assert conformance_mark(None) == "—"

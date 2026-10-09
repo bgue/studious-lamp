@@ -25,7 +25,9 @@ def timestamp(value: str | None) -> str:
 
 def conformance_mark(value: str | None) -> str:
     """The conformance level with its symbol, for example ``✗ nonconformant``."""
-    return CONFORMANCE_MARK.get(str(value), str(value))
+    if value is None:
+        return EMPTY
+    return CONFORMANCE_MARK.get(value, value)
 
 
 def format_value(value: Any) -> str:

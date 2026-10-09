@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from textual.widgets import Tree
 
 from tl_tui.messages import NavSelected
@@ -9,6 +11,8 @@ from tl_tui.messages import NavSelected
 
 class NavTree(Tree[str]):
     """A tree whose leaves carry a view id; choosing one posts `NavSelected(view_id)`."""
+
+    KEY_HINTS: ClassVar[str] = "Enter open view  ↑↓ move  F2 hide  F6 panels"
 
     def __init__(self, *, company: str, scope: str, id: str | None = None) -> None:  # noqa: A002
         super().__init__(company, data="company", id=id)
