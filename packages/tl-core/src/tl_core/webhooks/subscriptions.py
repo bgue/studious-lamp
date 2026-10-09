@@ -55,6 +55,9 @@ class InvalidSubscriptionError(ServiceError): ...
 class AlreadyInStateError(ServiceError): ...
 
 
+class SubscriptionNotActiveError(ServiceError): ...
+
+
 class CreateWebhookSubscription(Command):
     name: str = Field(min_length=1)
     target_url: str

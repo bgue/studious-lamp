@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from datetime import timedelta
+from typing import Any
 
 import pytest
 from tl_core.webhooks import queries
@@ -81,3 +83,60 @@ def test_listings_show_state_counts_and_never_a_secret(world: World) -> None:
 
 
 SCOPE_P1 = "project:P1"
+
+
+def test_make_engine_and_make_dispatcher_wire_a_working_pair(world: World) -> None:
+    from tl_core.webhooks.dispatch import Dispatcher
+    from tl_core.webhooks.wiring import make_dispatcher, make_engine
+
+    local = world.subscribe(url="http://127.0.0.1:9/hook").subscription_id
+    assert isinstance(make_dispatcher(world.factory), Dispatcher)
+    blocked = make_engine(world.factory, transport=world.transport).send_test(local)
+    assert blocked.blocked and not blocked.ok and world.transport.sent == []
+    allowed = make_engine(
+        world.factory, allow_hosts=("127.0.0.1",), transport=world.transport
+    ).send_test(local)
+    assert allowed.ok and world.transport.sent[0].target.ip == "127.0.0.1"
+
+
+def test_a_test_send_is_marked_and_real_deliveries_are_not(world: World) -> None:
+    sid = world.subscribe(filter=RECORDS).subscription_id
+    world.engine().send_test(sid)
+    assert world.transport.sent[0].headers["webhook-test"] == "1"
+    world.record("P1-1")
+    world.dispatcher().run_until_idle()
+    world.engine().run_cycle()
+    assert "webhook-test" not in world.transport.sent[-1].headers
+
+
+def test_send_test_refuses_a_disabled_or_expired_subscription(world: World) -> None:
+    from tl_core.webhooks.subscriptions import (
+        CreateWebhookSubscription,
+        DisableWebhookSubscription,
+        SubscriptionNotActiveError,
+        create_subscription,
+        disable_subscription,
+    )
+
+    common: dict[str, Any] = {"actor": "user:alice", "source": "test", "scope": "project:P1"}
+    sid = world.subscribe().subscription_id
+    with world.factory() as uow:
+        disable_subscription(uow, DisableWebhookSubscription(subscription_id=sid, **common))
+    with pytest.raises(SubscriptionNotActiveError, match="disabled"):
+        world.engine().send_test(sid)
+    with world.factory() as uow:
+        expiring = create_subscription(
+            uow,
+            CreateWebhookSubscription(
+                name="short",
+                target_url="https://hook.test/",
+                expires_at=world.clock() + timedelta(hours=1),
+                **common,
+            ),
+            clock=world.clock,
+        ).subscription_id
+    assert world.engine().send_test(expiring).ok
+    world.clock.advance(hours=2)
+    with pytest.raises(SubscriptionNotActiveError, match="expired"):
+        world.engine().send_test(expiring)
+    assert len(world.transport.sent) == 1

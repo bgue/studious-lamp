@@ -1,6 +1,6 @@
 # Throughline event catalog
 
-Every ledger event type that can reach a webhook subscriber, generated from the LinkML event classes. Each event arrives as a CloudEvents 1.0 JSON message signed with Standard Webhooks headers; the payload modes are `thin`, `delta` and `full`. Receivers dedupe on the event `id`.
+Every ledger event type that can reach a webhook subscriber, generated from the LinkML event classes. Each event arrives as a CloudEvents 1.0 JSON message signed with Standard Webhooks headers; the payload modes are `thin`, `delta` and `full`. Receivers dedupe on the event `id`. A request sent by `tl webhook test` carries the extra header `webhook-test: 1`; real deliveries never do.
 
 ## Event types
 

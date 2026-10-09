@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -47,10 +48,13 @@ from tl_core.webhooks.subscription_projector import (
     DISABLED,
     SUBSCRIPTION_STREAM_TYPE,
 )
+from tl_core.webhooks.subscriptions import SubscriptionNotActiveError
 from tl_core.webhooks.transport import Transport, TransportResult
 
 log = logging.getLogger(__name__)
 
+#: Header on test sends (``DeliveryEngine.send_test``); absent from real deliveries.
+TEST_HEADER = "webhook-test"
 ACTOR = "svc:webhooks"
 SOURCE = "svc:webhook-worker"
 DEFAULT_LEASE_S = 60.0
@@ -238,8 +242,13 @@ class DeliveryEngine:
 
     # --- attempt (no database) -----------------------------------------------------------------
 
-    def attempt(self, claim: Claim) -> AttemptOutcome:
-        """Check the target, sign the body afresh and send it. Opens no transaction."""
+    def attempt(
+        self, claim: Claim, *, extra_headers: Mapping[str, str] | None = None
+    ) -> AttemptOutcome:
+        """Check the target, sign the body afresh and send it. Opens no transaction.
+
+        ``extra_headers`` are added after signing (they are not part of the signed content).
+        """
         started = self._clock()
         try:
             target = self._egress.check(claim.target_url)
@@ -254,6 +263,7 @@ class DeliveryEngine:
         headers = {
             **sign_headers(claim.event_id, int(started.timestamp()), claim.body, claim.secrets),
             "Content-Type": "application/json",
+            **(extra_headers or {}),
         }
         result = self._transport.send(
             target, headers, claim.body.encode("utf-8"), timeout_s=self._timeout_s
@@ -437,7 +447,10 @@ class DeliveryEngine:
 
         A fresh event id and the current time replace the sample's. Nothing is queued, retried or
         recorded: it is a one-shot check of reachability, signature handling and egress policy,
-        and the receiver sees ``data.detail`` of the sample. The result says what happened.
+        and the receiver sees ``data.detail`` of the sample. The request carries the header
+        ``webhook-test: 1`` so a receiver can tell it from a real delivery. A disabled or expired
+        subscription is refused with :class:`SubscriptionNotActiveError`. The result says what
+        happened.
         """
         from tl_schema.catalog import sample
 
@@ -447,7 +460,8 @@ class DeliveryEngine:
                 uow.conn()
                 .execute(
                     text(
-                        "SELECT target_url FROM cur_webhook_subscription WHERE subscription_id = :s"
+                        "SELECT target_url, status, expires_at FROM cur_webhook_subscription "
+                        "WHERE subscription_id = :s"
                     ),
                     {"s": subscription_id},
                 )
@@ -455,6 +469,10 @@ class DeliveryEngine:
             )
             if row is None:
                 raise LookupError(f"no webhook subscription {subscription_id}")
+            if row.status != "active":
+                raise SubscriptionNotActiveError(f"subscription {subscription_id} is disabled")
+            if row.expires_at is not None and parse_iso(str(row.expires_at)) <= now:
+                raise SubscriptionNotActiveError(f"subscription {subscription_id} has expired")
             secrets = self._active_secrets(uow.conn(), subscription_id, now)
         envelope = dict(sample(event_type)["envelope"])
         envelope["id"] = new_ulid()
@@ -473,7 +491,7 @@ class DeliveryEngine:
             target_url=str(row.target_url),
             secrets=secrets,
         )
-        outcome = self.attempt(claim)
+        outcome = self.attempt(claim, extra_headers={TEST_HEADER: "1"})
         result = outcome.result
         return TestResult(
             event_id=claim.event_id,

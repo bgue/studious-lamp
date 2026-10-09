@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 from pathlib import Path
@@ -35,23 +36,59 @@ def test_every_event_class_is_in_the_catalog_with_a_stable_name(events: list[Any
         assert e.title.endswith(".") and e.payload_class.endswith("Payload")
 
 
-def test_every_event_type_the_code_emits_is_in_the_catalog(events: list[Any]) -> None:
+#: String literals shaped like an event type that are not catalog events, each with its reason.
+NOT_EVENTS = {
+    "Test.Bumped": "event type of the test-only counter projector (projection/testing.py)"
+}
+EVENT_LITERAL = re.compile(r"[A-Z]\w*\.[A-Z]\w*")
+
+
+def event_like_literals(packages: Path) -> set[str]:
+    """Every string literal in ``packages/*/src`` shaped ``Class.Verb``, generated code excluded.
+
+    A literal anywhere counts (an ``event_type=`` argument, a frozenset of handled types, a handler
+    comparison), so an event type cannot slip past the catalog by being named in a new way.
+    """
+    found: set[str] = set()
+    for path in packages.glob("*/src/**/*.py"):
+        if "generated" in path.parts:
+            continue
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                if EVENT_LITERAL.fullmatch(node.value):
+                    found.add(node.value)
+    return found
+
+
+def uncatalogued(packages: Path, catalogued: set[str]) -> set[str]:
+    return event_like_literals(packages) - catalogued - set(NOT_EVENTS)
+
+
+def test_every_event_type_the_code_names_is_in_the_catalog(events: list[Any]) -> None:
     """Add a class to schema/core/events.yaml in the same change that adds an event type."""
-    emitted: set[str] = set()
-    for path in (REPO / "packages").glob("*/src/**/*.py"):
-        text = path.read_text()
-        emitted |= set(re.findall(r'event_type="([A-Z][A-Za-z]*\.[A-Z][A-Za-z]*)"', text))
-        emitted |= set(
-            re.findall(
-                r"^(?:\w*EVENT\w*|CREATED|UPDATED|DISABLED|ENABLED|SECRET_ROTATED)"
-                r' = "([A-Z][A-Za-z]*\.[A-Z][A-Za-z]*)"',
-                text,
-                re.M,
-            )
-        )
-    emitted.discard("Test.Bumped")
-    missing = emitted - {e.event_type for e in events}
+    missing = uncatalogued(REPO / "packages", {e.event_type for e in events})
     assert not missing, f"event types without a catalog class: {sorted(missing)}"
+
+
+def test_the_coverage_scan_sees_an_unknown_type_and_ignores_generated_code(
+    tmp_path: Path, events: list[Any]
+) -> None:
+    source = tmp_path / "demo" / "src" / "demo"
+    source.mkdir(parents=True)
+    (source / "handlers.py").write_text(
+        'HANDLED = frozenset({"Record.Created", "Fake.Thing"})\n'
+        'def handle(event_type):\n    return event_type == "Other.Unknown"\n'
+    )
+    generated = source / "generated"
+    generated.mkdir()
+    (generated / "models.py").write_text('X = "Generated.Noise"\n')
+    catalogued = {e.event_type for e in events}
+    assert uncatalogued(tmp_path, catalogued) == {"Fake.Thing", "Other.Unknown"}
+
+
+def test_the_catalog_coverage_scan_catches_a_removed_event_class(events: list[Any]) -> None:
+    without_link_added = {e.event_type for e in events} - {"Link.Added"}
+    assert "Link.Added" in uncatalogued(REPO / "packages", without_link_added)
 
 
 def test_samples_validate_against_their_own_schemas(events: list[Any]) -> None:
