@@ -64,3 +64,13 @@ test or a generated artefact already enforces, or narrative history (that belong
   `git push` may print "fatal: expected 'acknowledgments', received 'packfile'" and "push negotiation failed;
   proceeding anyway" and still succeed. Check for the `->` ref-update line before retrying.
   Evidence: pushes of the first two commits. Status: active
+
+- **L-P0-SETUP-8** · 2026-10-09 · tags: process
+  Subagents cannot spawn subagents in this harness (no `Agent` tool inside a supervisor). Only the top-level session
+  spawns; supervisors return DISPATCH/DONE/BLOCKED and the orchestrator runs `.claude/workflows/ticket-batch.js`.
+  Evidence: capability probe of a supervisor agent; ADR-0004. Status: active
+
+- **L-P0-SETUP-9** · 2026-10-09 · tags: process, env
+  Workflow agent concurrency is min(16, CPUs - 2); this container has 4 CPUs, so 2 agents run at once. Size DISPATCH
+  batches at 2–4 tickets.
+  Evidence: workflow-authoring reference; `nproc` = 4. Status: active

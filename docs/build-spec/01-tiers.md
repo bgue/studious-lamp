@@ -169,6 +169,11 @@ Each step is written into the ticket or plan under *Blocked* before the call. Th
 
 ## 9. Fanout mechanics
 
+> **Harness note (ADR-0004):** subagents cannot spawn subagents here. The orchestrator spawns every agent; supervisors
+> return `DISPATCH`/`DONE`/`BLOCKED` blocks and the orchestrator runs tickets through `.claude/workflows/ticket-batch.js`.
+> Where this section or §3 says a supervisor dispatches or reviews via agents, read it as "asks the orchestrator to".
+
+
 - **Worktrees.** Every supervisor and implementer runs in its own git worktree (`isolation: "worktree"`). Branch names: `<phase>/<inc>/<ticket>` (e.g. `p0/i1/t06-sqlite-ledger`); increment branch `p0/i1`; integration branch `p0/integration`; default branch `main`.
 - **Merge order.** Set in the fanout plan from the dependency DAG. Later-merging workstream's supervisor resolves conflicts, never by rewriting another branch's history (merge commits only).
 - **Interfaces first.** A fanout never starts before the shared interfaces are committed on the integration branch.
