@@ -1,6 +1,6 @@
 # P0-I1-T06 — SQLite ledger adapter
 
-Status: draft (ready when T05 merges and the provided test file is committed)
+Status: ready
 Tier: haiku
 Labels: adapter
 Depends on: P0-I1-T05
@@ -164,14 +164,22 @@ Reads: build `Event` objects from rows (`payload` via `json.loads`, timestamps v
 `stream_version`; `read_after` orders by `seq`, applies `scope` when given, and `LIMIT :limit`. Use `read_tx(self._engine)` for reads. Use bound
 parameters everywhere; never format values into SQL.
 
+## Step 1: install the provided test file
+The supervisor-written test file is stored outside the test tree so it cannot break other tickets' checks. Copy it byte for byte:
+```
+cp docs/tickets/P0-I1/provided/test_sqlite_ledger.py.txt packages/tl-adapters/tests/test_sqlite_ledger.py
+```
+Never edit the copy. A reviewer will run `diff` between the two files; any difference is a finding.
+
 ## Context (read these, nothing else)
 - `AGENTS.md`
 - `packages/tl-core/src/tl_core/ledger/types.py`
 - `packages/tl-core/src/tl_core/ledger/hashing.py`
 - `packages/tl-core/src/tl_core/util.py`
-- `packages/tl-adapters/tests/test_sqlite_ledger.py` (provided by the supervisor; make it pass, do not edit)
+- `docs/tickets/P0-I1/provided/test_sqlite_ledger.py.txt` (the provided test; make the installed copy pass, do not edit it)
 
 ## Allowed paths
+- `packages/tl-adapters/tests/test_sqlite_ledger.py` (create by `cp` from the provided file, unchanged)
 - `packages/tl-adapters/src/tl_adapters/sqlite/__init__.py` (create, docstring only)
 - `packages/tl-adapters/src/tl_adapters/sqlite/ledger.py` (create)
 - `packages/tl-adapters/src/tl_adapters/sqlite/schema.sql` (create, exact content above)
@@ -182,6 +190,7 @@ No dependency changes: `sqlalchemy` and `python-ulid` are already declared in `p
 ## Acceptance
 ```
 just check
+diff docs/tickets/P0-I1/provided/test_sqlite_ledger.py.txt packages/tl-adapters/tests/test_sqlite_ledger.py
 uv run pytest packages/tl-adapters/tests/test_sqlite_ledger.py -q
 ```
 Expected: the provided file passes in full (17 tests). It covers: new stream append and field filling; explicit `effective_at`; version
