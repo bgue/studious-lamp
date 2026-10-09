@@ -150,6 +150,13 @@ Candidate learnings go in the report under *Learnings*; do not edit `docs/memory
 - `pg_isready -h localhost` fails: run `sudo pg_ctlcluster 16 main start`, wait, retry once; if it still fails write *Blocked*.
 - A file needs more than the recipe (for example SQLite-only behaviour such as WAL, `PRAGMA`, `sqlite_master`): write *Blocked*; do not delete the test.
 
+## Review notes (for the reviewer)
+- Fixture use: every test in the diff that touches a database takes `new_db`, `db`, `adapter_name` or `new_engine`, so it runs once per adapter. Grep the
+  diff for a leftover `tmp_path / "...db"` or an import from `tl_adapters.sqlite`, and run
+  `uv run pytest tests/services/test_file_service.py tests/services/test_file_service_fs.py --adapters sqlite,postgres --collect-only -q | grep -c '\[postgres'`: it must not be zero.
+- Counts: re-run the acceptance commands; the pytest totals must equal the table, with no skip, xfail or deselect.
+- Raw SQL: no `0`/`1` literal in a boolean column, no non-ISO timestamp, no `?` placeholder, no `sqlite_master`.
+
 ## Blocked
 (implementer writes here)
 

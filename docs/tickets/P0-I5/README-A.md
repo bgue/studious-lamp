@@ -52,6 +52,7 @@ REVIEW-SUPERVISOR-PIECES: S1 to S6 below are Sonnet-authored by rule (ledger app
 | S4 | Generator: `collated()`, float to `DOUBLE PRECISION`; regenerated DDL; golden file and `test_postgres_differs_only_in_the_documented_types` updated; `promoted.table_columns` replaces reflection | Cross-dialect DDL generator is Sonnet-authored by rule (`01-tiers` §3) | Orchestrator | built |
 | S5 | `test_postgres_ledger.py` (15), `test_postgres_collation.py` (2), `test_postgres_factory.py` (2) | They prove S1, S3, S4 | Orchestrator | built |
 | S6 | `PostgresUowFactory` | Contract with WS-B | Orchestrator | built |
+| S8 | Review fixes: READ COMMITTED pin on write transactions, `LockTimeoutError` on both adapters, unit of work reusable after a failed enter, listener reconnect test, ASCII-folding parity test, ICU test honours `TL_REQUIRE_POSTGRES`, test databases dropped on SIGTERM and swept when stale | Reviewer findings on S1 to S6 | Orchestrator | built |
 | S7 | Reference implementation of T01 to T11 kept outside the repo in `/home/user/wt/p0-i5a-refs` until the tickets merge (takeover path, and where the acceptance counts come from) | Verification | — | built; sqlite+postgres: 2300+ passed |
 
 ## Tickets
@@ -62,10 +63,10 @@ public-interface change; (7) a reviewer verifies from the diff plus the commands
 
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| T01 | Record command and query tests on both adapters | H | — | ready | |
-| T02 | Pset command and service tests on both adapters | H | — | ready | |
-| T03 | Schema events, required files, project can/cannot tests on both adapters | H | — | ready | |
-| T04 | Numbering tests and property tests on both adapters | H | — | ready | |
+| T01 | Record command and query tests on both adapters | H | — | merged | merged, review pass attempt 1 |
+| T02 | Pset command and service tests on both adapters | H | — | merged | merged, review pass attempt 1 |
+| T03 | Schema events, required files, project can/cannot tests on both adapters | H | — | merged | merged, review pass attempt 1 (one INSERT literal 0 to FALSE) |
+| T04 | Numbering tests and property tests on both adapters | H | — | merged | merged, review pass attempt 1 |
 | T05 | Workflow engine and expected-links tests on both adapters | H | — | ready | |
 | T06 | File upload service tests on both adapters | H | — | ready | |
 | T07 | Reconciliation and change-feed integration tests on both adapters | H | — | ready | |
@@ -74,12 +75,13 @@ public-interface change; (7) a reviewer verifies from the diff plus the commands
 | T10 | Generated DDL executes and stores values alike on both dialects | H | — | ready | |
 | T11 | CI parity job with a Postgres service container | H | — | ready | |
 | T12 | Runbook for local Postgres and the compose service | H | — | ready | |
+| T13 | Licence gate in `just check` (ADR-0006) | H | — | ready | |
 | T99 | `tl migrate --from sqlite --to postgres` | S | WS-A merged | draft, needs-human | filed, not built (A1) |
 
 ## Order of work
 1. Round 1 (done): S1 to S7; the reference run showed production code was already close to portable: the two real dialect bugs were `REAL` precision and text collation, plus
    reflection; every other failure was test-side raw SQL (integer literals in boolean columns, `?` placeholders, invalid timestamps).
-2. Batch 1: T01 to T04 (service tests). Batch 2: T05 to T08. Batch 3: T09 to T12. Disjoint *Allowed paths* inside each batch; the whole set is disjoint.
+2. Batch 1: T01 to T04 (service tests). Batch 2: T05 to T08. Batch 3: T09 to T13. Disjoint *Allowed paths* inside each batch; the whole set is disjoint.
 3. After each batch: merge passed tickets (merge commits), run `just check`, `just test`, `just test-parity`; take over two-strikes tickets from the reference.
 4. Last round: README and AGENTS.md of `tl-adapters`, learnings, report `docs/reports/P0-I5-A.md`; DONE.
 

@@ -23,15 +23,18 @@ one runbook. `dev/docker-compose.yml` also documents a Postgres service for mach
 - Run the parity suite: `just test-parity`. One module: `just test-parity tests/services/test_record_commands.py`.
   The suite fails (does not skip) when Postgres is unreachable, because `just test-parity` sets `TL_REQUIRE_POSTGRES=1`. `just test` runs SQLite only;
   Postgres-only tests in it skip when the server is unreachable.
-- How the tests isolate themselves: each pytest session creates a throw-away database named `tl_pytest_<12 hex>` on the server `TL_PG_URL` names
-  and drops it at the end; each test gets its own schema `tl_t_<16 hex>` inside it. If the role cannot create databases, schemas are created in the
-  database the URL names. Concurrent sessions never share a database or the ledger lock.
-- If a run is killed, leftover databases remain. List them and drop them (only when no test run is in progress, because the pattern also matches other
-  people's live sessions):
+- How the tests isolate themselves: each pytest session creates a throw-away database named `tl_pytest_<8 hex creation time>_<6 hex>` on the server
+  `TL_PG_URL` names and drops it when the session ends, at interpreter exit, and on SIGTERM; each test gets its own schema `tl_t_<16 hex>` inside it.
+  If the role cannot create databases, schemas are created in the database the URL names. Concurrent sessions never share a database or the ledger lock.
+- After a SIGKILL (or a power loss) the database is left behind. The next session sweeps it automatically once it is older than 3 hours and has no open
+  connection (`tl_adapters.postgres.admin.sweep_stale_databases`). To clean up by hand, only when no test run is in progress, because the pattern also matches
+  other people's live sessions:
   ```
   psql "postgresql://postgres:postgres@localhost:5432/postgres" -Atc "SELECT datname FROM pg_database WHERE datname LIKE 'tl\_pytest\_%'"
   psql "postgresql://postgres:postgres@localhost:5432/postgres" -c 'DROP DATABASE "tl_pytest_<suffix>" WITH (FORCE)'
   ```
+- The Postgres driver is `pg8000` (pure Python, BSD-3-Clause); there is nothing to install besides `uv sync --all-packages`. A write that waits more than 10 seconds
+  for the ledger lock raises `tl_core.services.errors.LockTimeoutError` (on SQLite too, after its busy timeout).
 - Using the adapter from code: the target is a `postgresql://` URL; `tl_adapters.db.open_uow(url)`, `create_schema(url)` and `rebuild_projections(url)`
   work the same as with a SQLite path. To keep several ledgers in one database, scope the URL to a schema:
   `tl_adapters.postgres.admin.create_schema_namespace(url, "tl_demo")` then `schema_url(url, "tl_demo")`.
@@ -81,7 +84,7 @@ may explore: (none)
 
 ## Steps
 1. Write the runbook from `docs/templates/runbook.md`: Purpose, When to use, Before you start, Steps (numbered: start, set URL, run parity, one module,
-   code usage, wake-ups), Verify, Roll back (cleanup of leftover databases), Related (`docs/adr/0002-build-environment-constraints.md`,
+   code usage, wake-ups), Verify, Roll back (cleanup of leftover databases, including after a SIGKILL), Related (`docs/adr/0002-build-environment-constraints.md`,
    `packages/tl-adapters/README.md`, `docs/runbooks/rebuild-projections.md`). Name the brief section as `§14`. Delete the template's guidance lines.
 2. Add the compose service and volume.
 3. Run every command you wrote that is safe to run (`pg_isready`, `just test-parity packages/tl-adapters/tests/test_postgres_factory.py`) and paste the output in the report.
