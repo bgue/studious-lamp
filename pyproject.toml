@@ -9,6 +9,9 @@ dev = ["ruff", "pyright", "pytest", "hypothesis", "pytest-textual-snapshot"]
 
 [tool.uv]
 package = false
+# linkml requires jsonschema[format], which pulls rfc3987 (GPL-3.0+). Copyleft dependencies are a human gate
+# (04-gates.md); format-nongpl validates the same formats with permissive packages.
+override-dependencies = ["jsonschema[format-nongpl]>=4.26"]
 
 [tool.uv.workspace]
 members = ["packages/*"]

@@ -317,3 +317,9 @@ test or a generated artefact already enforces, or narrative history (that belong
   question, and the supervisor decided with the orchestrator. Two Haiku tickets that run in one batch cannot depend on each other's code
   (T02b `trace` needed T14a): leave the dependent piece out of the ticket and add it after the merge.
   Evidence: `docs/reports/P0-I3/P0-I3-T13b.md`, decisions D26 and D27. Status: active
+- **L-P0-I5-O1** · 2026-10-09 · tags: dependencies, gates
+  Check the licence of every new dependency and its transitive tree before adding it. psycopg 3 is LGPL-3.0, and
+  linkml's hard `jsonschema[format]` pulls rfc3987 (GPL-3.0+). Both are copyleft, which is a human gate. Use pg8000 for
+  Postgres, and keep the root `override-dependencies` that swaps in `jsonschema[format-nongpl]`. Name the licence in
+  the relay NOTE and in APPROVALS.md. Policy and allow-list: ADR-0006.
+  Evidence: orchestrator licence scan during P0-I5. Status: active
