@@ -38,9 +38,11 @@ tl file reconcile                                                              #
 | D5 | `FileService(scan_inline=True)` appends `File.Uploaded` and `File.Processed|Rejected` in one unit of work; `scan_inline=False` leaves files quarantined for `scan_pending` (a worker) | Phase 0 scanner passes everything; a slow real scanner changes only the flag |
 | D6 | Upload ids are HMAC-signed, expiring tokens carrying the declared actor, scope, record, slot, name, type, size, hash and staging key; no upload-session table | Stateless; avoids a hand-written non-projection table; the ledger records only completed uploads |
 | D7 | A presigned PUT targets a `staging/<ulid>` key; `complete_upload` streams the staged bytes through `store.put(content key, …)`, which verifies | The Protocol has no copy or delete; a client can never write an unverified object at a content key |
-| D8 | Dedupe without bytes only for a hash already attached **in the same scope**; otherwise the bytes must be shown once (hashed, not re-stored) | Knowing a hash must not grant access to someone else's file |
-| D9 | Bytes whose hash a scan rejected are refused for good (`ContentRejectedError`) | A rejected file cannot come back by re-upload or dedupe |
+| D8 | Dedupe without bytes only for a hash already **available** (scan passed) **in the same scope**; a quarantined-only hash needs the bytes, hashed once and not re-stored. A retry is recognised only for the same actor, or when the existing file is available | Knowing a hash must not grant access to someone else's file; a quarantined file must not be readable before its scan through a second attachment (security review, finding 1) |
+| D9 | Bytes whose hash a scan rejected are refused for good (`ContentRejectedError`). The check is **global across scopes** | A rejected file cannot come back by re-upload or dedupe. Known-bad content is bad everywhere. Accepted cost: a caller can learn that some scope had these bytes rejected (a small cross-scope oracle), and a false positive blocks the bytes in every scope until an admin override, which arrives with the real scanner (security review, finding 4) |
 | D10 | Completing the same upload (same record, slot, bytes) twice returns the existing file with `already_attached` | Safe retries; resumable clients |
+| D12 | `object_secret()` fails closed: `TL_OBJECT_SECRET`, else the public dev secret only when `TL_ENV=dev`, else `ValueError`. `just` exports `TL_ENV=dev`; the root `conftest.py` sets it for tests | A deployment that forgets the secret must not sign upload ids and presigned URLs with a value that is public in the repository (finding 3) |
+| D13 | Upload-id verification compares bytes (`hmac.compare_digest` on encoded values) and maps any malformed token, including non-ASCII, to `UploadTokenError` | `compare_digest` raises `TypeError` on a non-ASCII `str`; a client controls that text (finding 2) |
 | D11 | The object-store write happens before the unit of work commits. A rollback leaves an unreferenced object | Harmless (content-addressed); the reconciliation job lists orphans (runbook) |
 
 ## Upload-service signatures (for WS-C: REST and MCP; frozen for Phase 0 except by escalation)
@@ -86,6 +88,11 @@ Errors (all `ServiceError`, in `tl_core.services.errors`): `RecordNotFoundError`
 `UploadVerificationError`, `UnknownFileError`, `FileQuarantinedError`, `FileRejectedError`, `ObjectMissingError`,
 `InvalidFileTransitionError`. Suggested HTTP mapping: 404 not-found, 409 voided, 413 too large, 415 type, 400 token/verification/incomplete,
 403 quarantined (non-uploader), 410 rejected, 422 unknown slot, 503 object missing.
+**Download responses (WS-C must do this):** `content_type` is client-declared, so a served file can be hostile HTML or SVG. Every
+response that returns file bytes (`GET /files/{id}/content`, and anything behind a `presign_download` URL that the API proxies) must send
+`Content-Disposition: attachment; filename*=UTF-8''<encoded filename>` and `X-Content-Type-Options: nosniff`, and never reflect the
+declared type as an inline-renderable type. Do not set cookies for the file origin. Operator note: `TL_OBJECT_SECRET` must be set (or
+`TL_ENV=dev` in a dev shell); the same secret signs upload ids and fs presigned URLs, so rotating it invalidates open uploads.
 Event payloads (`core.File` stream, `File.*` per `03` §8): `File.Uploaded {file_id, record_id, slot, revision, sha256, size, content_type,
 filename, status: "quarantined", deduplicated}`; `File.Processed {file_id, status: "available", report, supersedes[]}`;
 `File.Rejected {file_id, status: "rejected", reason, report}`. The scan events' actor is `svc:scanner`.
@@ -94,7 +101,7 @@ filename, status: "quarantined", deduplicated}`; `File.Processed {file_id, statu
 | # | Piece | Why supervisor-tier | Reviewer | Status |
 |---|---|---|---|---|
 | S1 | `schema/core/files.yaml` (`File` → `cur_files`, `FileStatus`, slot enums), `tl:file_slots` in `annotations.yaml`, fixture `schema/fixtures/files/core-record.yaml`, regenerated DDL and models | `schema/**` (human gate; delegated, §20) | Orchestrator | built |
-| S2 | Upload service (`files/service.py`): hash and size verification, dedupe, quarantine state machine, `File.*` events in the slot-attachment unit of work, token signing | Hash verification, dedupe and quarantine are the security-relevant core of §20 | Orchestrator | built (38 tests; 8 mutations caught) |
+| S2 | Upload service (`files/service.py`): hash and size verification, dedupe, quarantine state machine, `File.*` events in the slot-attachment unit of work, token signing | Hash verification, dedupe and quarantine are the security-relevant core of §20 | Orchestrator | built (43 tests; mutations caught); security-review fixes 1-4 applied |
 | S3 | `FileProjector` (`projection/files.py`), `files/lifecycle.py`, scanner seam, error types, key validation, object-store factory | The projector carries supersession semantics; the reference was needed at once for the service tests | Orchestrator | built (14 lifecycle tests) |
 | S4 | Stubs and provided tests for T20–T23; reference implementations kept outside the repo until the tickets merge | Test scaffolds | — | built |
 

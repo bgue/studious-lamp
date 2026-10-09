@@ -376,6 +376,16 @@ def test_a_tampered_or_foreign_upload_id_is_refused(env: Env) -> None:
         )
 
 
+@pytest.mark.parametrize("suffix", ["é" * 64, "\ud800" * 3, ""])
+def test_a_non_ascii_signature_is_a_token_error_not_a_crash(env: Env, suffix: str) -> None:
+    rec = env.record()
+    ticket = env.register(rec, PDF, "report")
+    body, _, _ = ticket.upload_id.partition(".")
+    for upload_id in (f"{body}.{suffix}", f"{suffix}.{suffix}", f"{suffix}{body}.x"):
+        with pytest.raises(UploadTokenError):
+            env.complete(ticket.model_copy(update={"upload_id": upload_id}), PDF)
+
+
 def test_an_upload_id_expires(env: Env) -> None:
     rec = env.record()
     ticket = env.register(rec, PDF, "report")
@@ -443,6 +453,45 @@ def test_knowing_a_hash_is_not_enough_to_attach_another_scopes_file(env: Env) ->
     result = env.complete(ticket, PDF, scope=OTHER_PROJECT)  # proves possession
     assert result.deduplicated is True
     assert env.store.puts == [ticket.key]  # the object is stored once
+
+
+def test_a_quarantined_hash_cannot_be_deduped_without_bytes(tmp_path: Path) -> None:
+    db = tmp_path / "tl.db"
+    create_schema(db)
+    env = Env(db, scan_inline=False)
+    rec_a, rec_b = env.record("REC-1"), env.record("REC-2")
+    first = env.put(rec_a, PDF, "report")  # Alice's file waits in quarantine
+    assert first.status == "quarantined"
+    ticket = env.register(rec_b, PDF, "report", actor=BOB)
+    assert ticket.exists is False  # Bob must show the bytes
+    with pytest.raises(UploadIncompleteError):
+        env.complete(ticket, actor=BOB)
+    with pytest.raises(UploadIncompleteError):
+        env.attach(rec_b, PDF, "report", actor=BOB)
+    # Without bytes Bob can neither attach nor read Alice's quarantined file.
+    with open_uow(db, readonly=True) as uow, pytest.raises(FileQuarantinedError):
+        env.service.open_file(uow, PROJECT, first.file_id, actor=BOB)
+    # Once Alice's file is released the hash can be deduped without bytes.
+    with open_uow(db) as uow:
+        env.service.scan_pending(uow)
+    ticket = env.register(rec_b, PDF, "report", actor=BOB)
+    assert ticket.exists is True
+    result = env.complete(ticket, actor=BOB)
+    assert result.deduplicated is True and len(env.store.puts) == 1
+
+
+def test_an_already_attached_answer_does_not_expose_anothers_quarantined_file(
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "tl.db"
+    create_schema(db)
+    env = Env(db, scan_inline=False)
+    rec = env.record()
+    alice = env.put(rec, PDF, "report")
+    with pytest.raises(UploadIncompleteError):
+        env.attach(rec, PDF, "report", actor=BOB)  # not "already attached": Alice's is hidden
+    again = env.put(rec, PDF, "report")  # Alice's own retry is recognised
+    assert again.already_attached and again.file_id == alice.file_id
 
 
 def test_an_object_in_the_store_is_never_replaced(env: Env) -> None:

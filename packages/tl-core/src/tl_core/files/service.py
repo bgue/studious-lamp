@@ -14,9 +14,12 @@ Rules this module owns:
 * Client-declared size and hash are never trusted. Bytes are verified before an object becomes
   visible (the store's ``put``), and a dedupe hit is checked against the size the ledger holds.
 * Objects are never replaced; a new revision is a new object and a new file row.
-* Dedupe without bytes is allowed only for a hash already attached in the same scope, so knowing a
-  hash is not enough to read someone else's file. Otherwise the bytes must be shown once.
-* Bytes whose hash was rejected by a scan are refused (``ContentRejectedError``).
+* Dedupe without bytes is allowed only for a hash already *available* (scan passed) in the same
+  scope, so knowing a hash is not enough to read someone else's file, quarantined or not.
+  Otherwise the bytes must be shown once.
+* Bytes whose hash was rejected by a scan are refused (``ContentRejectedError``). The check is
+  deliberately global: known-bad content is bad in every scope, at the price of letting a caller
+  learn that some scope had these bytes rejected.
 * A quarantined file is readable only by its uploader; a rejected one by nobody.
 * Completing the same upload twice (a retry) attaches nothing new and reports ``already_attached``.
 
@@ -142,12 +145,13 @@ class _Record:
 _RECORD_SQL = text("SELECT id, type, scope, voided FROM cur_core_record WHERE id = :id")
 _KNOWN_SQL = text(
     "SELECT size FROM cur_files WHERE sha256 = :sha256 AND scope = :scope "
-    "AND status <> 'rejected' ORDER BY uploaded_at LIMIT 1"
+    "AND status = 'available' ORDER BY uploaded_at LIMIT 1"
 )
 _REJECTED_SQL = text("SELECT 1 FROM cur_files WHERE sha256 = :sha256 AND status = 'rejected'")
 _SAME_SQL = (
     "SELECT file_id FROM cur_files WHERE record_id = :record_id AND sha256 = :sha256 "
-    "AND status <> 'rejected' AND superseded_by IS NULL"
+    "AND status <> 'rejected' AND superseded_by IS NULL "
+    "AND (status = 'available' OR uploaded_by = :actor)"
 )
 _MAX_REVISION_SQL = "SELECT COALESCE(MAX(revision), 0) FROM cur_files WHERE record_id = :record_id"
 _FILE_SQL = text(
@@ -163,6 +167,11 @@ _PENDING_SQL = (
     "SELECT file_id, scope FROM cur_files WHERE status = 'quarantined'{scope} "
     "ORDER BY uploaded_at, file_id LIMIT :limit"
 )
+
+
+def _wire(text_value: str) -> bytes:
+    """Client-supplied token text as bytes, never raising on odd characters."""
+    return text_value.encode("utf-8", errors="replace")
 
 
 def hash_stream(data: BinaryIO) -> tuple[str, int]:
@@ -504,7 +513,11 @@ class FileService:
     def _same_attachment(uow: UnitOfWork, cmd: _Declared) -> str | None:
         """The live file of this record and slot with the same bytes (a retry), else ``None``."""
         sql = _SAME_SQL + (" AND slot = :slot" if cmd.slot is not None else " AND slot IS NULL")
-        params: dict[str, Any] = {"record_id": cmd.record_id, "sha256": cmd.sha256}
+        params: dict[str, Any] = {
+            "record_id": cmd.record_id,
+            "sha256": cmd.sha256,
+            "actor": cmd.actor,
+        }
         if cmd.slot is not None:
             params["slot"] = cmd.slot
         row = uow.conn().execute(text(sql), params).first()
@@ -609,8 +622,10 @@ class FileService:
 
     def _verify(self, token: str) -> dict[str, Any]:
         body, dot, signature = token.partition(".")
-        expected = hmac.new(self._secret, body.encode(), hashlib.sha256).hexdigest()
-        if not dot or not hmac.compare_digest(signature, expected):
+        # Bytes, not str: compare_digest raises TypeError on a non-ASCII str, and a client controls
+        # this text. ``replace`` keeps lone surrogates from raising; such a token cannot verify.
+        expected = hmac.new(self._secret, _wire(body), hashlib.sha256).hexdigest().encode()
+        if not dot or not hmac.compare_digest(_wire(signature), expected):
             raise UploadTokenError("upload id is malformed or was not issued by this server")
         try:
             claims: dict[str, Any] = json.loads(base64.urlsafe_b64decode(body.encode()))

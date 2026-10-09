@@ -24,15 +24,29 @@ __all__ = ["DEFAULT_ROOT", "DEV_SECRET", "FsObjectStore", "S3ObjectStore", "make
 
 
 def object_secret(env: Mapping[str, str] | None = None) -> bytes:
-    """The signing secret: ``TL_OBJECT_SECRET``, else the dev default."""
+    """The signing secret for upload ids and fs presigned URLs. Fails closed.
+
+    ``TL_OBJECT_SECRET`` when set and not empty. Otherwise, only when ``TL_ENV`` is ``dev``, the
+    documented dev default. Anything else raises ``ValueError``, so a deployment that forgot the
+    secret never signs with a value that is public in the repository. ``just`` exports
+    ``TL_ENV=dev``; tests set it in the root ``conftest.py``.
+    """
     source = os.environ if env is None else env
-    return source.get("TL_OBJECT_SECRET", DEV_SECRET).encode()
+    secret = source.get("TL_OBJECT_SECRET", "")
+    if secret:
+        return secret.encode()
+    if source.get("TL_ENV") == "dev":
+        return DEV_SECRET.encode()
+    raise ValueError(
+        "TL_OBJECT_SECRET is not set; set it, or set TL_ENV=dev to use the public dev secret"
+    )
 
 
 def make_object_store(env: Mapping[str, str] | None = None) -> ObjectStore:
     """Build the store named by ``TL_OBJECT_STORE`` (``fs`` by default, or ``s3``).
 
-    ``fs``: ``TL_OBJECT_ROOT`` (default ``./dev/data/objects``) and ``TL_OBJECT_SECRET``.
+    ``fs``: ``TL_OBJECT_ROOT`` (default ``./dev/data/objects``) and the secret from
+    ``object_secret`` (``TL_OBJECT_SECRET``, or ``TL_ENV=dev``).
     ``s3``: ``TL_S3_BUCKET`` (required), ``TL_S3_PREFIX``, ``TL_S3_ENDPOINT`` (MinIO), and the usual
     AWS credential variables read by boto3.
     """

@@ -1,6 +1,10 @@
 # Throughline task runner. `just` is the only entry point for builds, checks, and demos.
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
+# Every recipe is a dev command: the object store signs with the public dev secret (TL_ENV=dev).
+# Set TL_ENV and TL_OBJECT_SECRET yourself to run against anything real.
+export TL_ENV := env_var_or_default("TL_ENV", "dev")
+
 default:
     @just --list
 

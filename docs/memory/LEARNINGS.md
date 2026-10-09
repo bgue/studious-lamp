@@ -302,3 +302,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   (a RawIOBase double, an over-long docstring line, a test that could not fail). Keep the references outside the repo
   (`/home/user/wt/p0-i4b-refs/`) until the tickets merge.
   Evidence: this round's verification runs. Status: active
+
+- **L-P0-I4-B6** · 2026-10-09 · tags: process, api
+  Security review of the upload service found four fixable things a test-by-mutation pass had not: a dedupe gate that counted
+  quarantined rows (so a second user could read a file before its scan), `hmac.compare_digest` on a client-controlled `str`
+  (raises on non-ASCII), a silent public fallback secret, and a global rejected-hash check (kept on purpose, recorded as a
+  decision). Rules: gate any "no bytes needed" shortcut on the state that grants read access, compare secrets as bytes, fail
+  closed on missing secrets, and serve client-typed files as attachments with `nosniff`.
+  Evidence: `docs/tickets/P0-I4/README-B.md` D8, D9, D12, D13; `tests/services/test_file_service.py`. Status: active
