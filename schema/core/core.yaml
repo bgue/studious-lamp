@@ -17,4 +17,5 @@ imports:
   - links
   - numbering
   - workflow
+  - files
 default_range: string

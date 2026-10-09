@@ -12,6 +12,16 @@
                 "string"
             ]
         },
+        "CaptureHint": {
+            "description": "How a client should capture a file for a slot (brief 20.1).",
+            "enum": [
+                "camera",
+                "scan",
+                "file"
+            ],
+            "title": "CaptureHint",
+            "type": "string"
+        },
         "ConformanceStatus": {
             "description": "Result of evaluating a record against its effective schema (brief 6.3).",
             "enum": [
@@ -125,6 +135,156 @@
             ],
             "title": "Event",
             "type": "object"
+        },
+        "File": {
+            "additionalProperties": false,
+            "description": "One file attached to a record, in its current lifecycle state.",
+            "properties": {
+                "content_type": {
+                    "description": "Declared media type.",
+                    "type": "string"
+                },
+                "deduplicated": {
+                    "description": "True when the object already existed in the store at upload time.",
+                    "type": "boolean"
+                },
+                "file_id": {
+                    "description": "Immutable file identifier; equals the ledger `stream_id` of the file.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "filename": {
+                    "description": "Original file name, kept for display and download.",
+                    "type": "string"
+                },
+                "last_seq": {
+                    "description": "Ledger `seq` of the last event applied.",
+                    "type": "integer"
+                },
+                "processed_at": {
+                    "description": "Time of the `File.Processed` or `File.Rejected` event.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "reason": {
+                    "description": "Why the file was rejected.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "record_id": {
+                    "description": "The record the file is attached to.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "report": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Scan or processing report of the last `File.Processed` or `File.Rejected`."
+                },
+                "revision": {
+                    "description": "Position of the file among the attachments of its record and slot, starting at 1.",
+                    "type": "integer"
+                },
+                "scope": {
+                    "description": "Scope of the file, which is the scope of its record.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "sha256": {
+                    "description": "Lower-case SHA-256 hex digest of the bytes; the object key derives from it.",
+                    "type": "string"
+                },
+                "size": {
+                    "description": "Size in bytes, verified by the server.",
+                    "type": "integer"
+                },
+                "slot": {
+                    "description": "Name of the record type's file slot; null for a generic attachment.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "status": {
+                    "$ref": "#/$defs/FileStatus",
+                    "description": "Quarantine lifecycle state."
+                },
+                "superseded_by": {
+                    "description": "The file that replaced this one in a cardinality-one slot; null while it is current.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "updated_at": {
+                    "description": "Time of the last applied event (system time).",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "uploaded_at": {
+                    "description": "Time of the `File.Uploaded` event (system time).",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "uploaded_by": {
+                    "description": "Actor of the `File.Uploaded` event; the only reader while the file is quarantined.",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Ledger `stream_version` of the last event applied.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "file_id",
+                "scope",
+                "record_id",
+                "revision",
+                "sha256",
+                "size",
+                "content_type",
+                "filename",
+                "status",
+                "deduplicated",
+                "uploaded_by",
+                "uploaded_at",
+                "updated_at",
+                "version",
+                "last_seq"
+            ],
+            "title": "File",
+            "type": "object"
+        },
+        "FileSlotCardinality": {
+            "description": "How many current files a slot holds (brief 20.1).",
+            "enum": [
+                "one",
+                "many"
+            ],
+            "title": "FileSlotCardinality",
+            "type": "string"
+        },
+        "FileStatus": {
+            "description": "Where a file is in its quarantine lifecycle (brief 20.2).",
+            "enum": [
+                "quarantined",
+                "available",
+                "rejected"
+            ],
+            "title": "FileStatus",
+            "type": "string"
         },
         "Link": {
             "additionalProperties": false,
