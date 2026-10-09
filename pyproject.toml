@@ -1,0 +1,47 @@
+[project]
+name = "throughline"
+version = "0.0.1"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = ["ruff", "pyright", "pytest", "hypothesis", "pytest-textual-snapshot"]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+tl-schema = { workspace = true }
+tl-core = { workspace = true }
+tl-adapters = { workspace = true }
+tl-api = { workspace = true }
+tl-mcp = { workspace = true }
+tl-tui = { workspace = true }
+tl-cli = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+include = ["*.py", "*.pyi", "**/pyproject.toml"]
+extend-exclude = ["packages/tl-schema/src/tl_schema/generated"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["packages", "tests"]
+addopts = "--import-mode=importlib"
+
+[tool.pyright]
+include = ["packages", "tests"]
+exclude = ["**/generated", "**/.venv"]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
+strict = [
+  "packages/tl-core/src",
+  "packages/tl-schema/src",
+  "packages/tl-adapters/src",
+]

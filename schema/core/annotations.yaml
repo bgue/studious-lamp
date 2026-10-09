@@ -1,0 +1,29 @@
+id: https://example.org/throughline/core/annotations
+name: tl_annotations
+title: Throughline annotation namespace
+description: >-
+  Declares the `tl:` annotation tags that Throughline generators read. LinkML annotations are free-form,
+  so this file is the single place that names them and says what each one means. It defines no classes.
+  Generators ignore any tag not listed here. Add a tag by editing this file and the generator that reads it
+  in the same change.
+
+  Class-level tags
+  - `tl:current_state` (boolean): generate a `cur_<module>_<class>` current-state table for this class (brief 5.4).
+  - `tl:history` (boolean): also generate a `hist_<module>_<class>` table (not used before Phase 3).
+
+  Schema-level tags
+  - `tl:module` (string): the module segment of generated object names; `core` for everything under `schema/core`.
+
+  Slot-level tags
+  - `tl:json` (boolean): store the slot as a JSON column (TEXT on SQLite, JSONB on Postgres). The generated
+    column name is the slot name with `_json` appended unless `tl:column` is set.
+  - `tl:column` (string): override the generated column name.
+  - `tl:indexed` (boolean): generate a plain index on this column.
+  - `tl:materialize` (boolean): reserved for promoted pset properties (Increment 2).
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+default_range: string

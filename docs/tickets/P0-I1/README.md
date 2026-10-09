@@ -1,15 +1,96 @@
-# Increment P0-I1 — Foundations (ticket folder)
+# Increment plan — P0-I1 Foundations
 
-Seed plan: `docs/build-spec/05-phase0-plan.md` §Increment 1. The supervisor expands it into
-`docs/tickets/P0-I1/README.md` using `docs/templates/sonnet-increment.md` (replace this file).
+Status: done
+Supervisor session: 2026-10-09
+Brief sections: §5.1, §5.2, §5.4, §6.1, §6.2, §14, §25.2
+Branch: `p0/i1` (trunk: `claude/wizardly-allen-m2v96s`)
 
-Worked example tickets in this folder show the expected level of detail:
+## Objective
+Stand up the monorepo and the first vertical slice of the platform: a `uv` workspace with seven package skeletons and a
+`just` interface, the core LinkML schema with a deterministic codegen pipeline (Pydantic, JSON Schema, SQLite and
+Postgres DDL for `cur_core_record`), an append-only SQLite ledger with a per-scope hash chain, a projector engine and
+unit of work that update `cur_core_record` in the same transaction as the events, record command handlers and queries,
+and a `tl` CLI that drives all of it. Out of scope: numbering (explicit keys only), psets, links, TUI, API, Postgres
+adapters (their DDL is generated and golden-tested but not executed).
 
-| File | Ticket | Why it is an example |
+## Demo
+```
+just demo P0-I1
+```
+which runs `dev/demos/P0-I1.sh` against a temporary ledger:
+```
+tl init
+tl record create --project P123 --key DEMO-0001 --title "First record"
+tl record show --project P123 DEMO-0001      # the cur_core_record row: title, status, version 1, voided false
+tl events tail --project P123 -n 5           # one Record.Created line with a 64-hex hash
+tl record void --project P123 DEMO-0001 --reason demo ; tl record show ... # voided: true, version 2
+tl projections rebuild                       # rebuilt from the ledger; show output unchanged
+```
+
+## Supervisor-built pieces (in order)
+| # | Piece | Why supervisor-tier | Reviewer | Status |
+|---|---|---|---|---|
+| T02 | Core LinkML: `schema/core/{annotations,record,ledger,core}.yaml` | Schema semantics (`01-tiers.md` §3, human gate on `schema/**`) | Orchestrator approves schema | built, committed (needs `SCHEMA_APPROVALS`) |
+| T04b | DDL generator core: LinkML class to `cur_<module>_<class>` DDL per dialect, golden test equals `03` §9 | Cross-dialect generator core (§5.4) | Orchestrator or human | built on `p0/i1-t04b-ddl-core` (`b74d268`); registration in `generate.py` and generated output land after T03/T04a merge |
+| T07 | Projector engine, `UnitOfWork` Protocol and SQLite implementation, in-process bus, rebuild | Ledger append plus inline projector transaction (§5) | Orchestrator or human | built on `p0/i1-t07-projector-engine` (`537e866`); verified against a scratch T05/T06; merge after T06 |
+| Demo | `dev/demos/P0-I1.sh`, wired to `just demo` | Supervisor deliverable | Orchestrator | planned (after T10) |
+
+## Tickets
+| ID | Title | Tier | Depends | Status | Outcome |
+|---|---|---|---|---|---|
+| T01 | Monorepo scaffold | H | — | merged | Blocked once on ruff docs check (fixed by D9, supervisor); reviewer: report-only findings fixed by supervisor; 1 implementer round |
+| T02 | Core LinkML | S | T01 | merged (supervisor-built) | Schema approval logged in `docs/reports/APPROVALS.md`; reviewed, pass |
+| T03 | Codegen wiring (pydantic, JSON Schema, `--check` drift gate) | H | T01, T02 | merged | Review pass round 1 |
+| T04a | DDL type mapping | H | T01 | merged | Review pass round 1; supervisor added non-finite rejection |
+| T04b | DDL generator core | S | T04a, T03 | merged (supervisor-built) | Review pass with 3 findings, all fixed |
+| T05 | Ledger types and hashing | H | T01 | merged | Review pass round 1 |
+| T06 | SQLite ledger adapter | H | T05 | merged | Review pass round 3 |
+| T07 | Projector engine + SQLite UnitOfWork | S | T05, T06 | merged (supervisor-built) | Three review rounds; ordered outbox, lost-wakeup guard, Protocol property (D13, D14) |
+| T08 | `core.Record` projector | H | T04b, T07 (projection types) | merged | Review pass round 3 |
+| T09 | Record command handlers | H | T07, T08 | merged | Review pass round 4 |
+| T10 | `tl` CLI | H | T09, T11 | merged | Review pass round 5; supervisor added ValidationError handling |
+| T11 | Query helpers | H | T08 | merged | Implementer stopped on a Protocol typing defect (fixed by D14); re-review pass |
+| T12 | Package READMEs and AGENTS.md | S (taken by the supervisor to save a relay round) | T10 | merged | READMEs and AGENTS.md for all 7 packages, runbook, `just rebuild-projections`, demo script |
+
+Haiku-ability notes (`01-tiers.md` §6): T01 exceeds the 5-file guideline (about 25 near-identical boilerplate files, every
+one given verbatim) and names dependencies; both are intentional and the ticket pastes the exact content, so a reviewer
+verifies it from the diff and commands alone. All other tickets pass all seven questions; any that fails is split or
+taken over (recorded here). T12 is split by package group if the file count exceeds 5.
+
+## Design decisions taken by the supervisor (within the plan's scope)
+| # | Decision | Why |
 |---|---|---|
-| `T01-monorepo-scaffold.md` | Scaffold | Pure file-list work; shows how precise *Allowed paths* and *Acceptance* must be |
-| `T05-ledger-types-and-hashing.md` | Types + hash | Interface transcription with test vectors; no design freedom |
-| `T06-sqlite-ledger-adapter.md` | Adapter | Implementer against a Protocol with a supervisor-provided failing test file |
-| `T10-tl-cli.md` | CLI | Thin layer over services; shows the "no logic here" rule and an e2e acceptance |
+| D1 | Shared fixtures go in a root `conftest.py`, not `tests/conftest.py` | pytest only applies a conftest to tests beneath it; package tests live in `packages/*/tests` (`03` §10 says "conftest.py at root") |
+| D2 | `just check` runs `python -m tl_schema.generate --check` (compare generated files with generator output) instead of `just gen` + `git diff --exit-code` | Same gate (§25.4), but it also works on a dirty tree and catches untracked or stale files, which implementers hit before committing |
+| D3 | `Event` is a standalone model with `NewEvent`'s field names, not a subclass | pyright strict rejects narrowing `effective_at` in a subclass; field names and types match `03` §7 |
+| D4 | All Increment 1 dependencies are declared in T01 | Keeps `pyproject.toml` and `uv.lock` out of every later ticket (checklist item 6) |
+| D5 | JSON columns are LinkML `range: Any` plus slot annotation `tl:json: true`; column name gets `_json` suffix | gen-json-schema renders a custom dict type as `string`; `Any` renders as any JSON value |
+| D6 | pyright strict covers `packages/*/src` for `tl_core`, `tl_schema`, `tl_adapters`; tests are checked in standard mode | Tests stay cheap to write; engines stay strict |
+| D7 | Modules that import `linkml` start with `# pyright: basic` | linkml has no type stubs |
+| D8 | `SqliteLedger` exposes `append_in(conn, ...)`; `make_engine` begins write transactions with `BEGIN IMMEDIATE` | The unit of work needs ledger append and projectors in one transaction |
+| D10 | Supervisor-provided test files for a ticket live in `docs/tickets/<inc>/provided/*.txt`; the ticket says `cp` them into place and the reviewer diffs | A failing test file on the base breaks pyright (`just check`) for every other ticket branch |
+| D11 | Postgres maps LinkML `integer` to `BIGINT` (SQLite `INTEGER`) | `seq` is a bigint in the brief (§5.1) and versions/sequences should not overflow; `03` §9 only names JSONB, BOOLEAN and TIMESTAMPTZ as the Postgres differences, so this widens one more type |
+| D12 | Every generated DDL statement uses `IF NOT EXISTS` (`03` §9 shows plain `CREATE`) | `Projector.ddl` must be idempotent (`03` §7); the test compares the generated SQLite DDL with §9 after adding `IF NOT EXISTS` |
+| D13 | The SQLite UoW commits and enqueues events for the bus under one process-wide lock, then releases it; an `OrderedPublisher` drains the queue with a single drainer. Delivery: commit (seq) order, at-least-once in-process, a write made inside a callback is deferred until that callback returns, and writers are never blocked by slow subscribers. `InProcessBus` sorts batches and warns on skipped events The publisher registry is a plain `dict` keyed by `id(bus)`, kept for the life of the process (the publisher holds its bus). A `BaseException` during a drain puts the batch back at the head of the queue and releases the drainer | Per-subscriber seq cursors drop events published out of commit order (review finding 1); a lock held during publish deadlocked a nested write (second review), and an RLock would have delivered N+1 before N |
+| D14 | `UnitOfWork.ledger` is a read-only property in the Protocol | Lets `SqliteUnitOfWork` narrow it to `SqliteLedger` and satisfy the Protocol under pyright; typing-only, 03 §7 names and semantics unchanged |
+| D9 | `[tool.ruff] include = ["*.py", "*.pyi", "**/pyproject.toml"]` | ruff 0.16 formats Markdown too and flagged three docs files; ruff governs Python only (orchestrator decision after the T01 implementer stopped, correctly) |
 
-Tickets T02, T04b, T07 are supervisor-built and have no implementer ticket file; the supervisor records them in the plan's "Supervisor-built pieces" table.
+## Order of work (relay rounds)
+| Round | Ticket batch | Supervisor work in the same turn |
+|---|---|---|
+| 1 | T01 | Plan, T02, tickets T03/T04a/T05 |
+| 2 | T05, T04a, T03 | Merge T01; T04b and T07 were already built on side branches (round 1 interim) |
+| 3 | T06, T08 | Merge round 2; finish T04b; projection types; provided test for T06 |
+| 4 | T09, T11 | Merge round 3; finish T07 (SQLite UnitOfWork) |
+| 5 | T10 | Merge round 4; READMEs, runbook, demo script (T12 done by the supervisor) |
+| Final | — | Merge, run all gates, fresh-clone demo, report |
+
+## Risks and escalation triggers
+- Generated DDL cannot be dialect-neutral for a needed type: escalate (listed trigger). So far the mapping table covers every Phase 0 slot type.
+- Hash-chain per scope conflicts with a future partitioned Postgres events table: out of scope here; note in the report.
+- Projector SQL touching JSONB or BOOLEAN columns needs Postgres casts: the Record projector uses bound parameters only; the Postgres run belongs to Increment 5 parity work. Not executed here.
+- SQLite transaction handling through SQLAlchemy is subtle (pysqlite legacy transaction control). T06 pastes the exact engine recipe.
+- Supervisor pieces cannot be reviewed by an agent in this harness (ADR-0004): T02, T04b, T07 are marked for orchestrator review.
+
+## Blocked / Decision
+(none)

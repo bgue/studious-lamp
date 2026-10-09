@@ -1,0 +1,83 @@
+id: https://example.org/throughline/core/ledger
+name: tl_core_ledger
+title: Throughline ledger event model
+description: >-
+  The event envelope of the append-only ledger (brief 5.1). The ledger table itself is not generated: it is
+  hand-written per adapter and guarded by append-only triggers. This file is the contract the hand-written
+  Pydantic types follow until generated models replace them in Increment 2.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+default_range: string
+annotations:
+  tl:module: core
+
+classes:
+  Event:
+    description: One immutable ledger event.
+    attributes:
+      seq:
+        range: integer
+        required: true
+        description: Global monotonic sequence; the ordering backbone.
+      event_id:
+        range: Ulid
+        required: true
+        description: Unique event identifier (ULID).
+      stream_id:
+        range: Ulid
+        required: true
+        description: The record (aggregate) the event belongs to.
+      stream_type:
+        required: true
+        description: Record type of the stream, for example `core.Record`.
+      stream_version:
+        range: integer
+        required: true
+        description: Per-stream version, used for optimistic concurrency.
+      event_type:
+        required: true
+        description: "`<Class>.<PastTenseVerb>`, for example `Record.Created`."
+      schema_version:
+        range: integer
+        required: true
+        ifabsent: int(1)
+        description: Version of the event payload schema, for upcasting.
+      scope:
+        range: ScopeId
+        required: true
+      payload:
+        range: Any
+        required: true
+        description: Event payload, a JSON object validated against the event type's schema.
+        annotations:
+          tl:json: true
+      actor:
+        required: true
+        description: "`user:<id>`, `svc:<name>` or `agent:<id>`."
+      recorded_at:
+        range: datetime
+        required: true
+        description: System (transaction) time.
+      effective_at:
+        range: datetime
+        required: true
+        description: Business (valid) time.
+      correlation_id:
+        required: true
+        description: Ties a command chain, import, or automated process together.
+      causation_id:
+        description: Identifier of the event or command that caused this one; may be null.
+      source:
+        required: true
+        description: "`tui`, `api`, `mcp:<agent>`, `cli`, `import:<job>` or `sim:<run>`."
+      prev_hash:
+        description: Hash of the previous event in the same scope; null for the first.
+      hash:
+        required: true
+        description: Hash of this event chained to `prev_hash`.

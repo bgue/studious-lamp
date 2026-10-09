@@ -75,7 +75,76 @@ test or a generated artefact already enforces, or narrative history (that belong
   batches at 2–4 tickets.
   Evidence: workflow-authoring reference; `nproc` = 4. Status: active
 
+- **L-P0-I1-1** · 2026-10-09 · tags: tests, tooling
+  A `conftest.py` only applies to tests beneath its directory, so shared fixtures live in a root `conftest.py`
+  (not `tests/conftest.py`), and pytest runs with `--import-mode=importlib` so identically named test files in
+  different packages (`test_import.py`) do not collide.
+  Evidence: root `pyproject.toml` `[tool.pytest.ini_options]`; `03` §10. Status: active
+
+- **L-P0-I1-2** · 2026-10-09 · tags: tooling
+  pyright strict rejects a pydantic subclass that narrows a base field type (`datetime | None` to `datetime`), so
+  `Event` is not a subclass of `NewEvent`. `linkml` ships no type stubs, so modules importing it start with
+  `# pyright: basic`. Strict applies to `src` directories only; tests use standard mode.
+  Evidence: `docs/tickets/P0-I1/T05-ledger-types-and-hashing.md`, `T03-codegen-wiring.md`. Status: active
+
+- **L-P0-I1-3** · 2026-10-09 · tags: tooling
+  Codegen drift is checked by comparing generator output with the committed files (`python -m tl_schema.generate
+  --check`), not by `git diff`, because a diff fails on any dirty tree and misses untracked files. LinkML generators
+  embed the schema path they were given, so they must run inside `schema/core/` with a relative file name.
+  Evidence: `justfile` `check` recipe; `docs/tickets/P0-I1/T03-codegen-wiring.md`. Status: active
+
+- **L-P0-I1-4** · 2026-10-09 · tags: schema
+  `gen-json-schema` renders a custom `dict`-based LinkML type as `string`. JSON-valued slots therefore use
+  `range: Any` (class `Any`, `class_uri: linkml:Any`) plus the annotation `tl:json: true`. `linkml-lint` also warns
+  when the prefix `tl` is mapped to a non-canonical namespace, so schemas declare the prefix `throughline` and use
+  `tl:` only as the annotation tag namespace.
+  Evidence: `schema/core/record.yaml`, `annotations.yaml`; `linkml-lint schema/core/core.yaml` clean. Status: active
 - **L-P0-SETUP-10** · 2026-10-09 · tags: process, tooling
   Git cannot hold a branch `p0/i1` and a branch `p0/i1/t01-…` at the same time (ref namespace clash). Ticket branches are
   siblings: `p0/i1-t01-<slug>`. The branch passed by the orchestrator overrides a ticket's Branch field.
   Evidence: `fatal: cannot lock ref 'refs/heads/p0/i1/t01-monorepo-scaffold'` in the first ticket-batch run. Status: active
+
+- **L-P0-I1-5** · 2026-10-09 · tags: tooling, ledger
+  SQLite through SQLAlchemy: pysqlite's legacy transaction control breaks an explicit `BEGIN IMMEDIATE`. Set
+  `dbapi_connection.isolation_level = None` on connect and issue `BEGIN IMMEDIATE` (writes) or `BEGIN` (reads) from the
+  SQLAlchemy `begin` event, chosen by a connection execution option. `executescript` (via `engine.raw_connection()`)
+  is needed to run schema files whose trigger bodies contain semicolons.
+  Evidence: `docs/tickets/P0-I1/T06-sqlite-ledger-adapter.md` (`engine.py`); two-thread race test passes. Status: active
+
+- **L-P0-I1-6** · 2026-10-09 · tags: tooling
+  pyright strict flags `@contextmanager` functions annotated `Iterator[X]` (use `Generator[X]`), and ruff's
+  `E501` applies to docstrings and comments at 100 columns, so wrap prose when writing modules. Provided test files
+  must be ruff-clean before commit because implementers may not edit them.
+  Evidence: scratch builds of T04b and T07. Status: active
+
+- **L-P0-I1-7** · 2026-10-09 · tags: tooling
+  ruff 0.16 formats Markdown as well as Python, so `ruff format --check .` flags files under `docs/`. The root
+  `[tool.ruff]` therefore sets `include = ["*.py", "*.pyi", "**/pyproject.toml"]`. A scratch build without `docs/`
+  missed this; verify scaffold tickets in a checkout that contains the whole repo.
+  Evidence: T01 implementer report `docs/reports/P0-I1/P0-I1-T01.md`. Status: active
+
+- **L-P0-I1-8** · 2026-10-09 · tags: process, tests
+  A supervisor-provided failing test committed in the package test tree makes `just check` (pyright includes tests)
+  red on every other ticket branch cut from the same base. Store provided tests under
+  `docs/tickets/<inc>/provided/<name>.py.txt` and have the ticket `cp` them into place; the reviewer `diff`s the pair.
+  Evidence: attempted commit of `test_sqlite_ledger.py` failed pyright with unresolved imports. Status: active
+
+- **L-P0-I1-9** · 2026-10-09 · tags: ledger, tests
+  A bus with per-subscriber `seq` cursors drops any event published after a later one, so publish order must equal
+  commit order. Do not publish while holding a lock (a nested write from a subscriber deadlocks, and re-entrancy would
+  reorder); commit and enqueue under the lock, then drain from a single drainer (`OrderedPublisher`). A test that delays
+  every third publish proves the ordering; a nested-write test and a slow-subscriber test prove liveness. A plain concurrent-writer test did not catch the bug until the
+  delay was added. Projector test helpers use portable SQL (UPDATE then INSERT) and non-`cur_` table names.
+  Evidence: `packages/tl-adapters/tests/test_sqlite_uow.py` `SlowBus`; reviewer finding on `bus.py`. Status: active
+
+- **L-P0-I1-10** · 2026-10-09 · tags: tooling
+  A Protocol attribute (`ledger: Ledger`) is invariant, so an adapter that narrows it (`SqliteLedger`) fails pyright
+  strict; declare Protocol attributes that implementers may narrow as read-only `@property`.
+  Evidence: T11 blocked on 11 pyright errors; `tl_core/uow.py`. Status: active
+
+- **L-P0-I1-11** · 2026-10-09 · tags: tests
+  A concurrency invariant needs a deterministic seam, not repetition: the lost-wakeup test replaces the publisher's lock
+  with one that runs a second writer right after a given release, and a deliberately wrong `LeakyPublisher` proves the
+  test can fail. Three clean runs of a racy test prove nothing. Threads in such tests are `daemon=True` and joined
+  with a timeout so a regression fails instead of hanging the suite.
+  Evidence: `packages/tl-core/tests/test_bus.py`; mutation (flag cleared outside the lock) fails the test. Status: active

@@ -1,0 +1,16 @@
+id: https://example.org/throughline/core
+name: tl_core
+title: Throughline core schema
+description: >-
+  Root of the core schema. Generators run over this file; it only imports. Later increments add
+  psets, links, files, workflow, feed, integration and settings here.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+  - ledger
+default_range: string
