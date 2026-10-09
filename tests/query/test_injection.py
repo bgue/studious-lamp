@@ -171,3 +171,34 @@ def test_quote_and_to_text_round_trip_hostile_strings() -> None:
         assert parse(quote(payload)) == Text(payload)
         expr = Compare("title", "=", payload)
         assert parse(to_text(expr)) == expr
+
+
+@pytest.mark.parametrize(
+    "ast",
+    [
+        Compare("psets.a.b\n", "=", "x"),
+        Compare("psets.a.b\n", "=", None),
+        Linked("requires\n", None, None),
+        Linked(None, "NCR\n", None),
+        MissingLink("requires\n", None),
+        Compare("created_at", "=", "2026-10-09\n"),
+        Compare("created_at", "=", "2026-10-09T12:00:00Z\n"),
+    ],
+)
+def test_a_trailing_newline_does_not_pass_an_identifier_or_date_check(
+    uow: SqliteUnitOfWork, ast: Expr
+) -> None:
+    with pytest.raises(QuerySyntaxError):
+        run_query(uow, QuerySpec(scope=SCOPE, where=ast))
+
+
+def test_a_trailing_newline_in_an_order_by_path_is_refused(uow: SqliteUnitOfWork) -> None:
+    with pytest.raises(ValueError):
+        run_query(uow, QuerySpec(scope=SCOPE, order_by=[("psets.a.b\n", "asc")]))
+
+
+def test_a_quoted_date_with_a_trailing_newline_is_a_syntax_error() -> None:
+    with pytest.raises(QuerySyntaxError):
+        parse('created_at:"2026-10-09\n"')
+    with pytest.raises(QuerySyntaxError):
+        parse('created_at:"+7d\n"')

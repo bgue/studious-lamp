@@ -6,14 +6,12 @@ reads ``Ledger.read_after`` from a cursor and hands every page to a :class:`Subs
 which filters and delivers it. The cursor only moves forward after a page was dispatched, so a
 crash or a failed read repeats events rather than losing them (at-least-once); the registry drops
 a repeat for a subscriber that already saw it.
-
-STUB (P0-I4-T02): the names, signatures and docstrings are final; the bodies marked
-``raise NotImplementedError`` are the ticket. Remove this paragraph when done.
 """
 
 from __future__ import annotations
 
 import logging
+import threading
 from types import TracebackType
 
 from tl_core.changefeed.registry import SubscriptionRegistry
@@ -39,22 +37,36 @@ class ChangePoller:
         ``after_seq=n`` starts after ``n`` (0 replays everything). ``scope`` is passed to
         ``read_after``. Raises ``ValueError`` for ``after_seq`` < 0, ``interval_s`` <= 0 or
         ``page_size`` < 1."""
-        raise NotImplementedError
+        if after_seq is not None and after_seq < 0:
+            raise ValueError("after_seq must be >= 0")
+        if interval_s <= 0:
+            raise ValueError("interval_s must be > 0")
+        if page_size < 1:
+            raise ValueError("page_size must be >= 1")
+        self._ledger = ledger
+        self._registry = registry
+        self._scope = scope
+        self._interval = interval_s
+        self._page_size = page_size
+        self._cursor = ledger.head_seq() if after_seq is None else after_seq
+        self._error: Exception | None = None
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
 
     @property
     def cursor(self) -> int:
         """``seq`` of the last event dispatched (or the start point before any)."""
-        raise NotImplementedError
+        return self._cursor
 
     @property
     def running(self) -> bool:
         """True while the background thread is alive."""
-        raise NotImplementedError
+        return self._thread is not None and self._thread.is_alive()
 
     @property
     def last_error(self) -> Exception | None:
         """The exception from the most recent failed poll; ``None`` after a successful one."""
-        raise NotImplementedError
+        return self._error
 
     def poll_once(self) -> int:
         """Read and dispatch every event after the cursor; return how many were dispatched.
@@ -62,7 +74,17 @@ class ChangePoller:
         Reads pages of ``page_size`` until a page comes back short or empty. Exceptions from the
         ledger propagate.
         """
-        raise NotImplementedError
+        total = 0
+        while True:
+            page = self._ledger.read_after(self._cursor, scope=self._scope, limit=self._page_size)
+            if not page:
+                break
+            self._registry.dispatch(page)
+            self._cursor = page[-1].seq
+            total += len(page)
+            if len(page) < self._page_size:
+                break
+        return total
 
     def start(self) -> None:
         """Run ``poll_once`` every ``interval_s`` seconds on a daemon thread.
@@ -70,11 +92,31 @@ class ChangePoller:
         A poll that raises is logged, kept in ``last_error`` and retried at the next interval.
         Raises ``RuntimeError`` if already running.
         """
-        raise NotImplementedError
+        if self.running:
+            raise RuntimeError("the poller is already running")
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._run, name="tl-change-poller", daemon=True)
+        self._thread.start()
 
     def stop(self, timeout: float = 5.0) -> None:
         """Stop the thread and wait up to ``timeout`` seconds for it. Safe to call twice."""
-        raise NotImplementedError
+        thread = self._thread
+        if thread is None:
+            return
+        self._stop.set()
+        thread.join(timeout)
+        if not thread.is_alive():
+            self._thread = None
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            try:
+                self.poll_once()
+                self._error = None
+            except Exception as exc:
+                self._error = exc
+                log.warning("change-feed poll failed: %s", exc)
+            self._stop.wait(self._interval)
 
     def __enter__(self) -> ChangePoller:
         self.start()

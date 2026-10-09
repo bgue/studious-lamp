@@ -6,8 +6,8 @@ Rules every implementation keeps:
 - Pset paths compile to EXISTS sub-queries over ``cur_pset_values`` (the long-form typed index,
   brief 5.4), so filters stay dialect-neutral.
 - Linked / CountLinked / MissingLink compile over ``cur_links`` (both directions). Only live links
-  count: status ``active``, ``stale`` or ``broken``; ``suggested`` links (not yet accepted, brief 7.3)
-  and ``retracted`` links are excluded.
+  count: status ``active``, ``stale`` or ``broken``; ``suggested`` links (not yet accepted, brief
+  7.3) and ``retracted`` links are excluded.
 - Results are the same envelope dicts as ``tl_core.services.queries.list_records``.
 - ``path(a>b>c)`` from brief 7.5 is out of scope for P0-I4 and raises QuerySyntaxError.
 """

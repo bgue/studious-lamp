@@ -81,6 +81,7 @@ class QueueSubscription:
     def bind(self, inner: RegistrySubscription) -> None:
         """Tie this handle to its registry subscription (done by ``subscribe_queue``)."""
         self._inner = inner
+        self._resume_seq = inner.last_seq  # where a consumer that stops now would resume
 
     def offer(self, event: Event) -> None:
         """Enqueue without blocking; on a full queue, mark the overflow and close the feed."""
