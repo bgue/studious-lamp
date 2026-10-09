@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections import deque
 from collections.abc import Callable, Sequence
 from typing import Protocol
 
@@ -58,15 +59,14 @@ class _Subscription:
 class InProcessBus:
     """Synchronous, in-process delivery with a per-subscriber ``seq`` cursor.
 
-    A subscription never sees a ``seq`` that is not greater than the last one delivered to it, so
-    delivery is ordered and never repeats. ``publish`` sorts each batch by ``seq`` and delivers it
-    while holding the bus lock, so concurrent publishers are serialised. An event that is skipped
-    because its ``seq`` is at or below the cursor (a duplicate of a replayed event, or one that
-    arrived after a later event) is logged as a warning, never dropped silently. Publishers must
-    publish in commit order; the SQLite unit of work guarantees that by committing and publishing
-    under one lock. A callback that raises is logged and skipped; it cannot affect the publisher or
-    other subscribers. When the bus is given a ledger, ``subscribe(after_seq=n)`` first replays
-    committed events after ``n``.
+    Delivery semantics: events reach each subscriber in commit (``seq``) order, at least once
+    within the process (a replayed event may be offered again and is then skipped), never reordered
+    and never repeated. A subscription ignores any event whose ``seq`` is not greater than the last
+    one delivered to it; such a skip is logged as a warning, never silent. ``publish`` sorts each
+    batch by ``seq`` and delivers it under the bus lock. Callers must hand batches over in commit
+    order: use :class:`OrderedPublisher`, which the SQLite unit of work does. A callback that
+    raises is logged and skipped; it cannot affect the publisher or other subscribers. When the bus
+    is given a ledger, ``subscribe(after_seq=n)`` first replays committed events after ``n``.
     """
 
     def __init__(self, ledger: Ledger | None = None) -> None:
@@ -127,3 +127,46 @@ class InProcessBus:
             sub.callback(event)
         except Exception:
             log.exception("bus subscriber failed for seq %s", event.seq)
+
+
+class OrderedPublisher:
+    """Hands committed batches to a bus strictly in the order they were enqueued.
+
+    A writer commits and calls :meth:`enqueue` while holding whatever lock orders its commits, then
+    releases that lock and calls :meth:`drain`. Only one thread drains at a time: a caller that
+    finds a drain already running returns at once and its batch is delivered by the running drainer.
+    So a slow subscriber never blocks a writer, and a write made from inside a callback (which
+    enqueues and calls ``drain`` on the same thread) is delivered after the current callback
+    returns, still in commit order.
+    """
+
+    def __init__(self, bus: Bus) -> None:
+        self._bus = bus
+        self._lock = threading.Lock()
+        self._queue: deque[Sequence[Event]] = deque()
+        self._draining = False
+
+    def enqueue(self, events: Sequence[Event]) -> None:
+        with self._lock:
+            self._queue.append(events)
+
+    def drain(self) -> None:
+        with self._lock:
+            if self._draining:
+                return
+            self._draining = True
+        try:
+            while True:
+                with self._lock:
+                    if not self._queue:
+                        self._draining = False
+                        return
+                    batch = self._queue.popleft()
+                try:
+                    self._bus.publish(batch)
+                except Exception:
+                    log.exception("bus publish failed for a batch of %s events", len(batch))
+        except BaseException:
+            with self._lock:
+                self._draining = False
+            raise

@@ -5,12 +5,12 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import text
-from tl_adapters.sqlite.uow import SqliteUnitOfWork, create_schema, open_uow
+from tl_adapters.sqlite.uow import create_schema, open_uow
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.services.commands import (
     CommandResult,
@@ -40,13 +40,6 @@ Handler = Callable[[UnitOfWork, Any], CommandResult]
 Run = Callable[[Handler, Any], CommandResult]
 
 
-def as_uow(uow: SqliteUnitOfWork) -> UnitOfWork:
-    # SqliteUnitOfWork.ledger is inferred as SqliteLedger, which pyright will not match against the
-    # invariant `ledger: Ledger` of the UnitOfWork Protocol. The runtime object is the same; the
-    # annotation belongs in tl_adapters (outside this ticket's allowed paths).
-    return cast(UnitOfWork, uow)
-
-
 @pytest.fixture
 def db(tmp_path: Path) -> Path:
     path = tmp_path / "tl.db"
@@ -58,7 +51,7 @@ def db(tmp_path: Path) -> Path:
 def run(db: Path) -> Run:
     def _run(handler: Handler, cmd: Any) -> CommandResult:
         with open_uow(db) as uow:
-            return handler(as_uow(uow), cmd)
+            return handler(uow, cmd)
 
     return _run
 
@@ -431,8 +424,8 @@ def test_error_after_a_write_in_the_same_transaction_rolls_back_that_write(db: P
     seq_before = head_seq(db)
 
     with pytest.raises(DuplicateKeyError), open_uow(db) as uow:
-        handle_create_record(as_uow(uow), create_cmd(key="SAME"))
-        handle_create_record(as_uow(uow), create_cmd(key="SAME", title="Second"))
+        handle_create_record(uow, create_cmd(key="SAME"))
+        handle_create_record(uow, create_cmd(key="SAME", title="Second"))
 
     assert head_seq(db) == seq_before
     assert count_rows(db) == 0
