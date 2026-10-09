@@ -1,6 +1,6 @@
 # P0-I1-T05 — Ledger types and hashing
 
-Status: draft (ready when T01 merges)
+Status: ready
 Tier: haiku
 Labels: core
 Depends on: P0-I1-T01

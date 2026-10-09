@@ -1,6 +1,6 @@
 # P0-I1-T03 — Codegen wiring
 
-Status: draft (ready when T01 merges; T02 is already on the branch)
+Status: ready
 Tier: haiku
 Labels: tooling
 Depends on: P0-I1-T01, P0-I1-T02

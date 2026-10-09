@@ -1,6 +1,6 @@
 # P0-I1-T01 — Monorepo scaffold
 
-Status: in-review (merged state: orchestrator decision applied, see plan D9)
+Status: merged
 Tier: haiku
 Labels: tooling
 Depends on: —

@@ -1,6 +1,6 @@
 # P0-I1-T04a — DDL type mapping
 
-Status: draft (ready when T01 merges)
+Status: ready
 Tier: haiku
 Labels: schema-tooling
 Depends on: P0-I1-T01

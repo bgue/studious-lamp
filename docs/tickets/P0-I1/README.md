@@ -38,12 +38,12 @@ tl projections rebuild                       # rebuilt from the ledger; show out
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| T01 | Monorepo scaffold | H | — | in-review (blocked once on ruff docs check, fixed by D9) | |
+| T01 | Monorepo scaffold | H | — | merged | Blocked once on ruff docs check (fixed by D9, supervisor); reviewer: report-only findings fixed by supervisor; 1 implementer round |
 | T02 | Core LinkML | S | T01 | built | committed on `p0/i1`; awaiting schema approval |
-| T03 | Codegen wiring (pydantic, JSON Schema, `--check` drift gate) | H | T01, T02 | draft | |
-| T04a | DDL type mapping | H | T01 | draft | |
+| T03 | Codegen wiring (pydantic, JSON Schema, `--check` drift gate) | H | T01, T02 | ready | |
+| T04a | DDL type mapping | H | T01 | ready | |
 | T04b | DDL generator core | S | T04a, T03 | built (side branch) | |
-| T05 | Ledger types and hashing | H | T01 | draft | |
+| T05 | Ledger types and hashing | H | T01 | ready | |
 | T06 | SQLite ledger adapter | H | T05 | draft (ticket final; provided test waits for T05) | |
 | T07 | Projector engine + SQLite UnitOfWork | S | T05, T06 | built (side branch) | |
 | T08 | `core.Record` projector | H | T04b, T07 (projection types) | planned | |
