@@ -12,7 +12,9 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 EXPECTED_KEYS = {
     "__init__.py",
     "ddl/postgres/cur_core_record.sql",
+    "ddl/postgres/cur_pset_values.sql",
     "ddl/sqlite/cur_core_record.sql",
+    "ddl/sqlite/cur_pset_values.sql",
     "json_schema/core.schema.json",
     "models.py",
 }

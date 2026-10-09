@@ -5,7 +5,8 @@ Rules (brief 5.4, build spec 03 section 9):
 
 * A class gets a table only when it carries the annotation ``tl:current_state: true``.
 * The table is named ``cur_<module>_<class in snake_case>``; ``<module>`` is the ``tl:module``
-  annotation of the schema file that defines the class.
+  annotation of the schema file that defines the class. The annotation ``tl:table`` on the class
+  overrides the whole name (for example ``cur_pset_values``).
 * Columns are the class's induced slots in LinkML order. A slot's column is its name, or
   ``<name>_json`` when it is annotated ``tl:json: true``, or the value of ``tl:column`` if present.
 * The type comes from ``ddl_types.column_type`` after resolving the slot range: a custom type to
@@ -68,6 +69,9 @@ def _module_of(view: SchemaView, class_name: str) -> str:
 
 
 def table_name(view: SchemaView, class_name: str) -> str:
+    override = _annotation(view.get_class(class_name), "tl:table")
+    if override:
+        return str(override)
     return f"cur_{_module_of(view, class_name)}_{snake_case(class_name)}"
 
 

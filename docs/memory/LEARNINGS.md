@@ -148,3 +148,37 @@ test or a generated artefact already enforces, or narrative history (that belong
   test can fail. Three clean runs of a racy test prove nothing. Threads in such tests are `daemon=True` and joined
   with a timeout so a regression fails instead of hanging the suite.
   Evidence: `packages/tl-core/tests/test_bus.py`; mutation (flag cleared outside the lock) fails the test. Status: active
+
+- **L-P0-I2-1** · 2026-10-09 · tags: tests, tooling
+  With `--import-mode=importlib` a test module cannot `from conftest import ...`; share helpers between test files as
+  pytest fixtures (`build_docs`, `effective`, `fixture_dir` in `packages/tl-schema/tests/conftest.py`). pyright strict
+  also rejects partly typed third-party calls: annotate `jsonschema` validators and errors as `Any`, and linkml
+  metamodel objects as `Any` (their dict/list unions make every attribute access an error).
+  Evidence: `docs/tickets/P0-I2/provided/test_registry.py.txt`; `tl_schema/linkml_render.py`. Status: active
+
+- **L-P0-I2-2** · 2026-10-09 · tags: schema, tooling
+  To render an effective schema as LinkML, load `core.yaml` with `SchemaView`, call `merge_imports()`, mutate the
+  `SchemaDefinition` (classes, enums, annotations), then wrap it in a fresh `SchemaView(definition)`; renaming the
+  root schema of the original view breaks its import resolution. Annotations assigned in memory must be `Annotation`
+  objects (`tag`, `value`) to match what a YAML load produces.
+  Evidence: `packages/tl-schema/src/tl_schema/linkml_render.py`, `tests/test_linkml_render.py`. Status: active
+
+- **L-P0-I2-3** · 2026-10-09 · tags: process, tests
+  A supervisor-written stub (names, signatures, docstrings) plus a provided test file under `docs/tickets/<inc>/provided/`
+  plus a spec verified against a scratch reference implementation gave first-attempt passes for 6 of 7 implementer tickets (the seventh, T04b, was flagged only for committing its report file). Keep
+  the reference implementation until the ticket merges; it is the takeover path. State in the ticket that the stub's
+  `STUB:` docstring paragraph must be removed (T01 left it).
+  Evidence: P0-I2 reports T01, T04, T04b, T06, T08, T08a, T10. Status: active
+
+- **L-P0-I2-4** · 2026-10-09 · tags: tooling
+  `ruff format` moves a trailing `# type: ignore[...]` off a call it re-wraps, so the ignore stops working. Type the helper
+  parameter instead (`layer: Literal[...]`). pyright strict also widens tuple elements to `str`, so build typed values
+  (`FieldKind`) through a helper with annotated parameters rather than a list of tuples.
+  Evidence: `docs/tickets/P0-I2/provided/test_pset_commands.py.txt`; T04b ticket text. Status: active
+
+- **L-P0-I2-5** · 2026-10-09 · tags: schema, ledger
+  Runtime schema changes that add columns (promoted pset properties) are dialect-neutral when the existing columns are found
+  with `sqlalchemy.inspect(conn).get_columns(...)` and the `ALTER TABLE ... ADD COLUMN` text is generated per dialect in
+  `tl_schema` (SQLite has no `ADD COLUMN IF NOT EXISTS`). Projectors stay deterministic by reading only the event payload
+  and existing rows: schema-derived facts (conformance, units) are computed by the command handler and carried in the event.
+  Evidence: `tl_core/projection/promoted.py`, `pset.py`; decisions A5, A9. Status: active

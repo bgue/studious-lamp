@@ -1,0 +1,22 @@
+# Project custom pset (brief 6.3 layer 4): addressed as psets.prj.shutdown_tie_in.*
+package: prj.P123
+version: 1.0.0
+kind: project
+description: Project P123 custom psets.
+project: P123
+
+psets:
+  shutdown_tie_in:
+    label: Shutdown tie-in
+    description: Planning data for tie-ins that need a plant shutdown.
+    applies_to: [core.Record]
+    enforcement: advisory
+    properties:
+      window:
+        label: Shutdown window
+        description: Reference of the shutdown window, for example SD-2027-03.
+        range: string
+      approved:
+        label: Approved
+        description: True once operations has approved the tie-in.
+        range: bool
