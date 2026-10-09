@@ -7,11 +7,12 @@ The data is described in ``query_seed.py``. This directory is put on ``sys.path`
 from __future__ import annotations
 
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
-from tl_adapters.sqlite.uow import SqliteUnitOfWork, open_uow
+from tl_adapters._unit import BaseUnitOfWork
+from tl_adapters.db import DbTarget, open_uow
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -19,13 +20,13 @@ from query_seed import build_db  # noqa: E402
 
 
 @pytest.fixture
-def db(tmp_path: Path) -> Path:
-    path = tmp_path / "ledger.db"
+def db(new_db: Callable[[], DbTarget]) -> DbTarget:
+    path = new_db()
     build_db(path)
     return path
 
 
 @pytest.fixture
-def uow(db: Path) -> Iterator[SqliteUnitOfWork]:
+def uow(db: DbTarget) -> Iterator[BaseUnitOfWork]:
     with open_uow(db, readonly=True) as opened:
         yield opened

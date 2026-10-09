@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 from query_seed import SCOPE, create_record
 from sqlalchemy import text
-from tl_adapters.sqlite.uow import SqliteUnitOfWork, open_uow
+from tl_adapters._unit import BaseUnitOfWork
+from tl_adapters.db import DbTarget, open_uow
 from tl_core.query import (
     CountLinked,
     Linked,
@@ -40,7 +39,7 @@ HOSTILE = [
 ]
 
 
-def table_counts(uow: SqliteUnitOfWork) -> dict[str, int]:
+def table_counts(uow: BaseUnitOfWork) -> dict[str, int]:
     return {
         name: int(uow.conn().execute(text(f"SELECT COUNT(*) FROM {name}")).scalar_one())
         for name in ("events", "cur_core_record", "cur_pset_values", "cur_links")
@@ -48,7 +47,7 @@ def table_counts(uow: SqliteUnitOfWork) -> dict[str, int]:
 
 
 @pytest.fixture
-def hostile_db(db: Path) -> Path:
+def hostile_db(db: DbTarget) -> DbTarget:
     """The seeded ledger plus one record per hostile string, used as title and as a pset value."""
     with open_uow(db) as uow:
         for n, payload in enumerate(HOSTILE):
@@ -64,7 +63,7 @@ def hostile_db(db: Path) -> Path:
 
 @pytest.mark.parametrize("payload", HOSTILE)
 def test_hostile_values_are_found_as_data_everywhere_a_value_can_go(
-    hostile_db: Path, payload: str
+    hostile_db: DbTarget, payload: str
 ) -> None:
     n = HOSTILE.index(payload)
     key = f"H-{n:02d}"
@@ -90,7 +89,7 @@ def test_hostile_values_are_found_as_data_everywhere_a_value_can_go(
 
 
 @pytest.mark.parametrize("payload", HOSTILE)
-def test_no_caller_text_appears_in_the_sql(uow: SqliteUnitOfWork, payload: str) -> None:
+def test_no_caller_text_appears_in_the_sql(uow: BaseUnitOfWork, payload: str) -> None:
     quoted = quote(payload)
     for query in (
         f"title:{quoted}",
@@ -113,7 +112,7 @@ def test_no_caller_text_appears_in_the_sql(uow: SqliteUnitOfWork, payload: str) 
 
 @pytest.mark.parametrize("payload", HOSTILE)
 def test_hostile_scope_and_record_type_are_bound_parameters(
-    uow: SqliteUnitOfWork, payload: str
+    uow: BaseUnitOfWork, payload: str
 ) -> None:
     assert run_query(uow, QuerySpec(scope=payload)) == []
     assert run_query(uow, QuerySpec(scope=SCOPE, record_type=payload)) == []
@@ -122,7 +121,7 @@ def test_hostile_scope_and_record_type_are_bound_parameters(
 
 @pytest.mark.parametrize("payload", HOSTILE)
 def test_identifiers_in_a_hand_built_ast_are_checked_not_spliced(
-    uow: SqliteUnitOfWork, payload: str
+    uow: BaseUnitOfWork, payload: str
 ) -> None:
     hostile_asts: list[Expr] = [
         Compare(payload, "=", "x"),
@@ -149,14 +148,14 @@ def test_identifiers_in_a_hand_built_ast_are_checked_not_spliced(
     assert table_counts(uow) == before
 
 
-def test_hostile_text_in_a_hand_built_ast_is_a_parameter(uow: SqliteUnitOfWork) -> None:
+def test_hostile_text_in_a_hand_built_ast_is_a_parameter(uow: BaseUnitOfWork) -> None:
     for payload in HOSTILE:
         compiled = compile_query(QuerySpec(scope=SCOPE, where=Text(payload)))
         assert payload not in compiled.sql
         assert run_query(uow, QuerySpec(scope=SCOPE, where=Text(payload))) == []
 
 
-def test_unquoted_hostile_text_is_a_syntax_error_not_sql(uow: SqliteUnitOfWork) -> None:
+def test_unquoted_hostile_text_is_a_syntax_error_not_sql(uow: BaseUnitOfWork) -> None:
     for query in ("'; DROP TABLE events;--", "title:x; DROP TABLE events", "x' OR '1'='1"):
         try:
             where = parse(query)
@@ -186,13 +185,13 @@ def test_quote_and_to_text_round_trip_hostile_strings() -> None:
     ],
 )
 def test_a_trailing_newline_does_not_pass_an_identifier_or_date_check(
-    uow: SqliteUnitOfWork, ast: Expr
+    uow: BaseUnitOfWork, ast: Expr
 ) -> None:
     with pytest.raises(QuerySyntaxError):
         run_query(uow, QuerySpec(scope=SCOPE, where=ast))
 
 
-def test_a_trailing_newline_in_an_order_by_path_is_refused(uow: SqliteUnitOfWork) -> None:
+def test_a_trailing_newline_in_an_order_by_path_is_refused(uow: BaseUnitOfWork) -> None:
     with pytest.raises(ValueError):
         run_query(uow, QuerySpec(scope=SCOPE, order_by=[("psets.a.b\n", "asc")]))
 
