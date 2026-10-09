@@ -12,6 +12,10 @@ Purpose: rebuild the current-state tables (`cur_*`) from the append-only ledger 
 - Safe to run during business hours: yes for the dev ledger. The rebuild holds the database write lock for its duration, so writers wait (up to the 5 s busy timeout) and may fail on a large ledger; stop writers first on a busy ledger.
 
 ## Steps
+0. In a new environment with no ledger file yet, create it first:
+   ```
+   uv run tl init
+   ```
 1. Note the state you expect to keep, for example a record:
    ```
    uv run tl record show --project P123 DEMO-0001
@@ -22,10 +26,6 @@ Purpose: rebuild the current-state tables (`cur_*`) from the append-only ledger 
    just rebuild-projections core_record
    ```
    Expected: `replayed <n> events`, where `<n>` equals the number of events in the ledger.
-3. If the schema file does not exist yet (new environment), create it first:
-   ```
-   uv run tl init
-   ```
 
 ## Verify
 - `uv run tl record show --project P123 DEMO-0001` prints the same values as before when nothing was corrupted, or the values the events imply when a row had drifted.
