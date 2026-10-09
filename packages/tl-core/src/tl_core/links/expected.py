@@ -91,7 +91,7 @@ def parse_expected_links(text: str, *, source: str = "<string>") -> ExpectedLink
 
     The record type of a class is ``<module>.<ClassName>`` where ``<module>`` is the schema-level
     annotation ``tl:module``. The annotation value is a list of mappings (see ``ExpectedLink``);
-    a single mapping is also accepted. A class without the annotation contributes nothing; a
+    a single mapping is also accepted. An empty file declares nothing. A class without the annotation contributes nothing; a
     schema without ``tl:module`` raises. Raises ``ExpectedLinkError`` (message starts with
     ``source``) for invalid YAML, a document that is not a mapping, a missing ``tl:module`` on a
     schema that has expectations, or an entry that is not a valid ``ExpectedLink``.
@@ -100,6 +100,8 @@ def parse_expected_links(text: str, *, source: str = "<string>") -> ExpectedLink
         loaded: Any = yaml.safe_load(text)
     except yaml.YAMLError as exc:
         raise ExpectedLinkError(f"{source}: invalid YAML: {exc}") from exc
+    if loaded is None:
+        return ExpectedLinkRegistry()  # an empty file declares nothing
     document = _as_mapping(loaded)
     if document is None:
         raise ExpectedLinkError(f"{source}: a schema file must be a YAML mapping")
@@ -205,7 +207,8 @@ def _count_matching(uow: UnitOfWork, record_id: str, expectation: ExpectedLink) 
     elif expectation.direction == "in":
         statements = [_COUNT_IN]
     else:
-        statements = [_COUNT_OUT, _COUNT_IN]
+        # A self-link (not creatable through the commands) would match both ways: count it once.
+        statements = [_COUNT_OUT, _COUNT_IN + " AND l.from_id <> l.to_id"]
     total = 0
     for statement in statements:
         params: dict[str, Any] = {

@@ -33,24 +33,24 @@ tl wf transition --project P123 P123-REC-0001 approve        # allowed; Workflow
 | S2 | Link lifecycle rules (`links/lifecycle.py`, 62 tests), error types, vocabulary, loader, expected-link stubs and provided tests | Link state rules are subtle; interfaces and test scaffolds | Orchestrator | built |
 | T05 | Numbering pattern parser (`numbering/pattern.py`) | Needed by the allocator at once; reference was written to verify the ticket | Reviewer | built (49 tests) |
 | T06 | Numbering allocator, counters projection, key-less `CreateRecord`, `tl record create --segment` | Numbering allocator is supervisor-authored by rule (concurrency) | Orchestrator | built (21 service tests, 1 property test, mutation-checked) |
-| T09 | Workflow engine: guard evaluation, `TransitionWorkflow`, `Workflow.Transitioned`, `WorkflowProjector` | Workflow engine evaluation is supervisor-authored by rule | Orchestrator | round 2 |
+| T09 | Workflow engine: guard evaluation, `TransitionWorkflow`, `workflow_status`, `Workflow.Transitioned`, `WorkflowProjector` | Workflow engine evaluation is supervisor-authored by rule | Orchestrator | built (23 service tests, two mutations caught) |
 | T00 | Atomic edit command (`EditRecord`: record fields plus pset batches in one unit of work) | Command handler semantics; filed by P0-I2 workstream B | Reviewer | round 4 |
 | — | `ClientInterface` additions and embedded client for links, search, workflow, key detection; `FakeClient` additions | Shared TUI contract | Reviewer | round 2 |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| T01 | Relation vocabulary (`links/vocabulary.py`) | H | S2 | ready (batch 1) | |
-| T02 | Link commands: suggest, add, accept, decline, repin, verify, flag, retract, stale-by-revision (`services/links.py`) | H | T01, T03 | draft (batch 2) | |
+| T01 | Relation vocabulary (`links/vocabulary.py`) | H | S2 | merged | pass, 1 round |
+| T02 | Link commands: suggest, add, accept, decline, repin, verify, flag, retract, stale-by-revision (`services/links.py`) | H | T01, T03 | ready (batch 2) | |
 | T02b | `tl link` CLI (add, suggest, accept, decline, repin, verify, flag, retract, list) | H | T02, T03b | draft (batch 4) | |
-| T03 | `LinkProjector`: `cur_links`, `cur_link_counts` | H | S2 | ready (batch 1) | |
+| T03 | `LinkProjector`: `cur_links`, `cur_link_counts` | H | S2 | merged | pass, 1 round |
 | T03b | Link read queries: `links_of` (both directions, labels), counts, `search_linkable` | H | T01, T03 | draft (batch 2) | |
-| T04 | Expected links: `tl:expects_link` loader and missing list | H | S1 | ready (batch 1) | |
+| T04 | Expected links: `tl:expects_link` loader and missing list | H | S1 | merged | pass, 1 round; supervisor fixed self-link count and empty file (D19) |
 | T05 | Numbering pattern parser | S | — | built | |
 | T06 | Numbering allocator | S | T05 | built | |
 | T07 | Key detection: find keys in text, resolve to records (suggestion chips) | H | T05 | draft (batch 2) | |
-| T08 | Workflow definition loader and registry | H | S2 | ready (batch 1) | |
-| T09 | Workflow engine | S | T04, T08 | round 2 | |
+| T08 | Workflow definition loader and registry | H | S2 | merged | pass, 1 round |
+| T09 | Workflow engine | S | T04, T08 | built (23 tests, mutation-checked) | |
 | T10 | `tl wf show|transition` CLI | H | T09 | draft (batch 4) | |
 | T11 | Command palette widget | H | ClientInterface | held for batch 3 | |
 | T12 | Link picker modal | H | T02, ClientInterface | held for batch 3 | |
@@ -88,6 +88,7 @@ reference implementation before dispatch (kept in the supervisor's scratch area 
 | D16 | Voiding a record does not yet flag its links stale (brief 7.3 health check) | Needs a rule hook in the void handler; follow-up |
 | D17 | Overflow past the declared width (`P1-REC-10000` for `{seq:4}`) is allowed and sorts lexically before `9999`; `Pattern.parse` accepts only the canonical spelling (no `P1-REC-00012`). Gap-free holds only if a failure leaves the `with open_uow` block (an exception swallowed inside commits the number) | Orchestrator review of the allocator |
 | D18 | A `broken` link has no direct route back to `active`: flag it `stale`, then repin, or retract | Brief 7.3 makes `broken` a health-check outcome; the check does not exist yet |
+| D19 | Reviewed T03 and T04 judgement calls confirmed: the counts upsert rewrites `scope` from the record; a self-link (which the commands refuse) refreshes counts once more and counts once under `direction: either`; an empty expected-links file declares nothing; a duplicate state name is reported once per repeated occurrence | Batch 1 review |
 
 ## Order of work (relay rounds)
 | Round | Ticket batch | Supervisor work in the same turn |

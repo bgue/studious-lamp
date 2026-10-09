@@ -350,3 +350,28 @@ def test_missing_expected_links_defaults_to_the_shipped_declarations(
 def test_an_unknown_record_is_refused(uow: UnitOfWork) -> None:
     with pytest.raises(RecordNotFoundError):
         missing_expected_links(uow, "NOPE", registry=ExpectedLinkRegistry())
+
+
+# --- supervisor additions (review of T04) ----------------------------------------------------
+
+
+def test_an_empty_file_declares_nothing() -> None:
+    assert parse_expected_links("", source="e.yaml").record_types() == []
+    assert parse_expected_links("# only a comment\n", source="e.yaml").record_types() == []
+
+
+def test_a_non_list_annotation_value_is_refused() -> None:
+    text_ = (
+        "annotations:\n  tl:module: m\nclasses:\n  A:\n    annotations:\n"
+        "      tl:expects_link: just-a-string\n"
+    )
+    with pytest.raises(ExpectedLinkError, match=r"^s\.yaml: A\.tl:expects_link must be a mapping"):
+        parse_expected_links(text_, source="s.yaml")
+
+
+def test_a_self_link_counts_once_under_either(uow: UnitOfWork) -> None:
+    a = record(uow, "A")
+    add_link(uow, a, a)  # the commands refuse self-links; the projection could still hold one
+    want = ExpectedLink(relation="requires", direction="either", min_count=2)
+    (missing,) = unmet_expectations(uow, a, [want])
+    assert missing.found == 1
