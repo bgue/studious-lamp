@@ -91,10 +91,11 @@ def parse_expected_links(text: str, *, source: str = "<string>") -> ExpectedLink
 
     The record type of a class is ``<module>.<ClassName>`` where ``<module>`` is the schema-level
     annotation ``tl:module``. The annotation value is a list of mappings (see ``ExpectedLink``);
-    a single mapping is also accepted. An empty file declares nothing. A class without the annotation contributes nothing; a
-    schema without ``tl:module`` raises. Raises ``ExpectedLinkError`` (message starts with
-    ``source``) for invalid YAML, a document that is not a mapping, a missing ``tl:module`` on a
-    schema that has expectations, or an entry that is not a valid ``ExpectedLink``.
+    a single mapping is also accepted. An empty file declares nothing. A class without the
+    annotation contributes nothing; a schema without ``tl:module`` raises. Raises
+    ``ExpectedLinkError`` (message starts with ``source``) for invalid YAML, a document that is not
+    a mapping, a missing ``tl:module`` on a schema that has expectations, or an entry that is not a
+    valid ``ExpectedLink``.
     """
     try:
         loaded: Any = yaml.safe_load(text)
