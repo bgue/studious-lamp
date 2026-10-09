@@ -9,12 +9,16 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Annotated, Any, Literal, NoReturn
+from pathlib import Path
+from typing import Annotated, Any, Literal, NoReturn, cast
 
 import typer
 from pydantic import ValidationError
-from tl_core.ledger import ConcurrencyError
+from tl_adapters.sqlite.uow import open_uow
+from tl_core.ledger import ConcurrencyError, canonical_json
 from tl_core.services.errors import ServiceError
+from tl_core.services.psets import SetPsetValues, conformance, handle_set_pset_values
+from tl_core.services.queries import get_record
 
 app = typer.Typer(help="Set and read pset values.", no_args_is_help=True)
 
@@ -64,7 +68,29 @@ def set_values(
     ),
 ) -> None:
     """Set values of one pset on a record (NAME=null unsets a value)."""
-    raise NotImplementedError  # P0-I2-T08b
+    db: Path = ctx.obj
+    values = dict(parse_assignment(a) for a in assignments)
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db) as uow:
+        current = get_record(uow, scope, key)
+        if current is None:
+            _fail(f"no record with key {key!r} in project {project!r}")
+        result = handle_set_pset_values(
+            uow,
+            SetPsetValues(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                stream_id=current["id"],
+                expected_version=current["version"],
+                pset=pset,
+                layer=cast(Layer, layer),
+                values=values,
+            ),
+        )
+    typer.echo(f"set {result.stream_id}")
+    typer.echo(f"version {result.version}")
+    typer.echo(f"conformance {result.events[0].payload['conformance']}")
 
 
 def _section(psets: dict[str, Any], pset: str) -> Any:
@@ -84,4 +110,18 @@ def get_values(
     pset: Annotated[str | None, typer.Argument(help="Show only this pset.")] = None,
 ) -> None:
     """Show a record's pset values, stored schema hash and live conformance."""
-    raise NotImplementedError  # P0-I2-T08b
+    db: Path = ctx.obj
+    scope = f"project:{project}"
+    with open_uow(db, readonly=True) as uow:
+        row = get_record(uow, scope, key)
+        if row is None:
+            _fail(f"no record with key {key!r} in project {project!r}")
+        report = conformance(uow, row["id"])
+    typer.echo(f"key: {row['key']}")
+    typer.echo(f"version: {row['version']}")
+    typer.echo(f"effective_schema_hash: {row['effective_schema_hash'] or '-'}")
+    typer.echo(f"conformance: {report.status}")
+    for issue in report.issues:
+        typer.echo(f"issue {issue.level} {issue.rule} {issue.path} {issue.message}")
+    shown = row["psets"] if pset is None else _section(row["psets"], pset)
+    typer.echo(f"psets: {canonical_json(shown)}")
