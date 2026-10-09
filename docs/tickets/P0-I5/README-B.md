@@ -69,9 +69,10 @@ REVIEW-SUPERVISOR-PIECES: items 2 to 8 are in the Sonnet-authored list (webhook 
 | P0-I5-T21 | Markdown catalog page renderer (pure function) | haiku | pieces 9 types | merged | merged (1 review round) |
 | P0-I5-T22 | `WebhookFilter.matches_row` | haiku | piece 2, 3 | merged | merged (1 review round) |
 | P0-I5-T23 | Dev webhook receiver (verifies signatures, dedupes, scripted failures) | haiku | piece 4 | merged | merged (1 review round) |
-| P0-I5-T24 | Worker loop: `WebhookWorker` (threads, dispatch plus deliver cycles) | haiku | piece 5 | planned (round 2) | |
-| P0-I5-T25 | `tl webhook add\|ls\|test\|replay\|dlq` | haiku | pieces 5, 7, T24 | planned (round 2) | |
-| P0-I5-T26 | Contract tests: delivered payloads against the catalog | haiku | piece 9 | planned (round 2) | |
+| P0-I5-T24 | Worker loop: `WebhookWorker` (threads, dispatch plus deliver cycles) | haiku | piece 5 | ready | |
+| P0-I5-T25 | `tl webhook add\|ls\|test\|replay` | haiku | pieces 5, 7 | ready | |
+| P0-I5-T26 | `tl webhook dlq ls\|redrive`, `disable`, `enable`, `rotate-secret` | haiku | pieces 5, 7 | ready | |
+| (supervisor) | Contract tests: delivered payloads against the catalog; `tl webhook run` | sonnet | T24 | planned | The contract test is a scenario over the catalog and is quicker to write than to specify; `run` needs the worker |
 
 ### Haiku-ability checklist (01-tiers.md section 6)
 | Ticket | 1 files (at most 6) | 2 interfaces in repo | 3 test or commands | 4 size (400 lines, 5 files) | 5 avoids Sonnet table | 6 no schema, deps, interface change | 7 verifiable | Reference check |
@@ -80,6 +81,9 @@ REVIEW-SUPERVISOR-PIECES: items 2 to 8 are in the Sonnet-authored list (webhook 
 | T21 | 3 | yes | provided, 11 tests | about 110 lines, 2 files | yes | yes | yes | passes tests; ruff clean after format |
 | T22 | 3 | yes | provided, 31 tests | about 40 lines, 2 files | yes (a subscription filter, not a confidentiality filter) | yes | yes | passes ruff, pyright, tests |
 | T23 | 3 | yes | provided, 9 tests | about 170 lines, 2 files | yes (uses `verify`, does not sign) | yes | yes | passes ruff, pyright, tests |
+| T24 | 2 | yes | provided, 10 tests | about 110 lines, 2 files | yes (schedules the engine, no ordering or signing logic) | yes | yes | passes ruff, pyright, tests 3 times; threads=1 mutation fails the parallel test |
+| T25 | 4 | yes | provided, 10 tests | about 150 lines, 2 files | yes | yes | yes | passes ruff, pyright, tests |
+| T26 | 4 | yes | provided, 6 tests | about 100 lines, 2 files | yes | yes | yes | passes ruff, pyright, tests |
 
 ## Order of work
 1. Round 1 (this relay): plan, registry extension, LinkML, outbox projector, signing, egress, retry, dispatcher, delivery engine, subscriptions, envelope, tests for each; tickets T20 to T23 with provided tests verified against scratch references.

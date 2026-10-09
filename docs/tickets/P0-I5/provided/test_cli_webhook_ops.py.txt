@@ -138,11 +138,11 @@ def test_disable_and_enable_change_the_status_and_refuse_repeats(env: dict[str, 
     assert (
         ok(run(env, "webhook", "disable", sid, "--project", "P123")).stdout == f"disabled {sid}\n"
     )
-    assert ok(run(env, "webhook", "ls")).stdout.split("\t")[1] == "disabled"
+    assert sql(env, "SELECT status FROM cur_webhook_subscription") == [("disabled",)]
     assert sql(env, "SELECT disabled_reason FROM cur_webhook_subscription") == [("owner",)]
     refused(run(env, "webhook", "disable", sid, "--project", "P123"), "already disabled")
     assert ok(run(env, "webhook", "enable", sid, "--project", "P123")).stdout == f"enabled {sid}\n"
-    assert ok(run(env, "webhook", "ls")).stdout.split("\t")[1] == "active"
+    assert sql(env, "SELECT status FROM cur_webhook_subscription") == [("active",)]
     refused(run(env, "webhook", "enable", sid, "--project", "P123"), "already active")
 
 
@@ -193,7 +193,7 @@ def test_rotate_secret_prints_the_new_secret_once_and_both_sign_during_the_overl
     # The old secret was never printed again, and the ledger holds neither secret.
     ledger = str(sql(env, "SELECT payload FROM events"))
     assert old not in ledger and printed["secret"] not in ledger
-    assert old not in ok(run(env, "webhook", "ls")).stdout
+    assert old not in str(sql(env, "SELECT * FROM cur_webhook_subscription"))
 
 
 def test_a_negative_overlap_is_refused(env: dict[str, str]) -> None:
