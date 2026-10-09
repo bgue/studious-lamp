@@ -269,3 +269,36 @@ test or a generated artefact already enforces, or narrative history (that belong
   fake without editing `fakes.py`. The fake reuses the real vocabulary, `next_status` and error types, so a screen tested on it
   meets the same refusals as on the embedded client.
   Evidence: `tests/test_fakes_links.py` (10 tests). Status: active
+
+- **L-P0-I4-B1** · 2026-10-09 · tags: env, tooling
+  A fresh `git worktree` has no `.venv` of its own; `uv sync` (without `--all-packages`) installs only the root and leaves
+  the workspace packages out, so `just check` shows about 1500 pyright "import could not be resolved" errors and `just test`
+  fails at collection. Run `uv sync --all-packages` once per new worktree.
+  Evidence: first `just check` in `/home/user/wt/p0-i4b`; `.claude/hooks/session-start.sh` line 60. Status: active
+
+- **L-P0-I4-B2** · 2026-10-09 · tags: tests, tooling
+  moto's in-process `mock_aws()` is enough for the s3 backend: no server, no network, and a presigned URL can be used with
+  `requests` inside the mock. Bucket names must be at least 3 characters (`"b"` raises `InvalidBucketName`); set fake
+  `AWS_*` variables with `monkeypatch`. A same-content `put_object` keeps the same ETag, so "never replaced" cannot be proved
+  by comparing object metadata: spy on `client.put_object` (a first version of the test survived a mutation).
+  Evidence: `docs/tickets/P0-I4/provided/test_objectstore_s3.py.txt`. Status: active
+
+- **L-P0-I4-B3** · 2026-10-09 · tags: tests
+  Test doubles for `io.BufferedReader` must subclass `io.RawIOBase` and implement `readinto`, not `read`: the buffered wrapper
+  never calls `read` on the raw object. To prove a store does not read an endless stream to the end, count the bytes asked of
+  `readinto`.
+  Evidence: `test_objectstore_fs.py.txt` `CountingReader`. Status: active
+
+- **L-P0-I4-B4** · 2026-10-09 · tags: ledger, process
+  The `ObjectStore` Protocol has no delete, list or size call. Consequences already handled: presigned uploads go to a
+  `staging/` key and are streamed into the content key through `put` (which verifies), staging leftovers need a bucket
+  lifecycle rule, and reconciliation uses `iter_keys` on the concrete backends. An object is written before the database
+  commit, so a rolled-back upload leaves an unreferenced object; that is harmless because keys are content-addressed.
+  Evidence: `tl_core/files/service.py` module docstring, `docs/tickets/P0-I4/README-B.md` D7, D11. Status: active
+
+- **L-P0-I4-B5** · 2026-10-09 · tags: process, tests
+  Stub-plus-provided-test tickets again passed the supervisor's verification on the first try because the check dropped a
+  scratch reference over the stub and ran `ruff`, `pyright` and the provided test; three references needed a fix at that stage
+  (a RawIOBase double, an over-long docstring line, a test that could not fail). Keep the references outside the repo
+  (`/home/user/wt/p0-i4b-refs/`) until the tickets merge.
+  Evidence: this round's verification runs. Status: active

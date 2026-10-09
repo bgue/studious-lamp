@@ -9,7 +9,7 @@ Branch: `p0/i4b-t23-required-file-slots`
 ## Goal
 `tl_core.files.required` answers "which required file slots does this record still lack?" by counting current rows of `cur_files`, so the
 workflow engine can use it as a guard (a report must be attached before `Approved`). The model `MissingFile`, the SQL constants and the
-signatures exist; the two functions marked `raise NotImplementedError` are the work. A provided test file (9 tests) must pass.
+signatures exist; the two functions marked `raise NotImplementedError` are the work. A provided test file (10 tests) must pass.
 
 ## Brief references (pasted)
 > **20.1** `required_in_states`: required before `Receipt: Accepted`. Each record type declares file slots in LinkML.
@@ -63,7 +63,7 @@ just check
 just test
 diff docs/tickets/P0-I4/provided/test_required_files.py.txt tests/services/test_required_files.py
 ```
-Expected: 9 tests pass, `just check` and `just test` exit 0, `diff` prints nothing.
+Expected: 10 tests pass, `just check` and `just test` exit 0, `diff` prints nothing.
 
 ## Tests to add
 None beyond the provided file.
