@@ -74,3 +74,8 @@ test or a generated artefact already enforces, or narrative history (that belong
   Workflow agent concurrency is min(16, CPUs - 2); this container has 4 CPUs, so 2 agents run at once. Size DISPATCH
   batches at 2–4 tickets.
   Evidence: workflow-authoring reference; `nproc` = 4. Status: active
+
+- **L-P0-SETUP-10** · 2026-10-09 · tags: process, tooling
+  Git cannot hold a branch `p0/i1` and a branch `p0/i1/t01-…` at the same time (ref namespace clash). Ticket branches are
+  siblings: `p0/i1-t01-<slug>`. The branch passed by the orchestrator overrides a ticket's Branch field.
+  Evidence: `fatal: cannot lock ref 'refs/heads/p0/i1/t01-monorepo-scaffold'` in the first ticket-batch run. Status: active

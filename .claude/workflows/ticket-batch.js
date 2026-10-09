@@ -56,6 +56,7 @@ Your worktree is ${wt}. Every Bash command must start with \`cd ${wt} && \`. Use
 If ${wt}/pyproject.toml exists, run \`cd ${wt} && uv sync --all-packages\` before any test (fall back to \`uv sync\`).
 
 Read ${wt}/AGENTS.md, then the ticket at ${wt}/${t.path}, then only the files its Context section lists (under ${wt}).
+Your branch is ${t.branch}; if the ticket's Branch field says something else, ${t.branch} supersedes it (convention fix, LEARNINGS L-P0-SETUP-10) and that is not a deviation.
 Do exactly what the ticket says inside its Allowed paths. Run every Acceptance command and keep the decisive output lines.
 
 Commit on ${t.branch} with message "${t.id}: <imperative summary>" and a body, ending with these exact lines:

@@ -4,7 +4,7 @@ Status: ready
 Tier: haiku
 Labels: core
 Depends on: P0-I1-T01
-Branch: `p0/i1/t05-ledger-types`
+Branch: `p0/i1-t05-ledger-types`
 
 ## Goal
 The ledger's value types (`NewEvent`, `Event`, `AppendResult`, `ConcurrencyError`), the `Ledger` Protocol, canonical

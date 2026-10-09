@@ -62,7 +62,7 @@ Supervisor increment report (`docs/templates/sonnet-increment.md` §Report): obj
 
 ## 5. Branches, commits, PRs
 
-- Branches: `p<phase>/i<inc>/t<nn>-<slug>` for tickets; `p<phase>/i<inc>` increment branch; `p<phase>/integration`; `main`.
+- Branches: `p<phase>/i<inc>-t<nn>-<slug>` for tickets (a sibling of the increment branch: git cannot hold both `p0/i1` and `p0/i1/...`); `p<phase>/i<inc>` increment branch; `p<phase>/integration`; `main`.
 - Commits: `<ticket-id>: <imperative summary>` with a body that says what and why. No model names or IDs in any committed content.
 - One PR per ticket, from the ticket branch to the increment branch. PR body = the report. Reviewer verdict is posted as a review.
 - Merges are merge commits (no squash, no rebase) so ticket history stays legible.
