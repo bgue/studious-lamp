@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any, Literal
 
 import pytest
-from tl_adapters.sqlite.uow import create_schema, open_uow, rebuild_projections
+from sqlalchemy import text
+from tl_adapters.db import DbTarget, create_schema, open_uow, rebuild_projections
 from tl_core.ledger import ConcurrencyError, NewEvent
 from tl_core.schema_provider import DirectorySchemaProvider, get_provider, use_provider
 from tl_core.services.commands import CommandResult, CreateRecord, VoidRecord
@@ -36,13 +37,13 @@ def fixture_schemas() -> Iterator[None]:
 
 
 @pytest.fixture
-def db(tmp_path: Path) -> Path:
-    path = tmp_path / "tl.db"
+def db(new_db: Callable[[], DbTarget]) -> DbTarget:
+    path = new_db()
     create_schema(path)
     return path
 
 
-def make_record(db: Path, key: str = "V-1", scope: str = SCOPE) -> CommandResult:
+def make_record(db: DbTarget, key: str = "V-1", scope: str = SCOPE) -> CommandResult:
     with open_uow(db) as uow:
         return handle_create_record(
             uow,
@@ -58,7 +59,7 @@ def make_record(db: Path, key: str = "V-1", scope: str = SCOPE) -> CommandResult
 
 
 def set_values(
-    db: Path,
+    db: DbTarget,
     record: CommandResult,
     pset: str,
     values: dict[str, Any],
@@ -81,31 +82,34 @@ def set_values(
         return handle_set_pset_values(uow, cmd)
 
 
-def row(db: Path, record: CommandResult) -> dict[str, Any]:
+def row(db: DbTarget, record: CommandResult) -> dict[str, Any]:
     with open_uow(db, readonly=True) as uow:
         found = (
             uow.conn()
-            .exec_driver_sql("SELECT * FROM cur_core_record WHERE id = ?", (record.stream_id,))
+            .execute(
+                text("SELECT * FROM cur_core_record WHERE id = :id"),
+                {"id": record.stream_id},
+            )
             .mappings()
             .one()
         )
         return dict(found)
 
 
-def pset_rows(db: Path, record: CommandResult) -> dict[str, dict[str, Any]]:
+def pset_rows(db: DbTarget, record: CommandResult) -> dict[str, dict[str, Any]]:
     with open_uow(db, readonly=True) as uow:
         found = (
             uow.conn()
-            .exec_driver_sql(
-                "SELECT * FROM cur_pset_values WHERE record_id = ? ORDER BY path",
-                (record.stream_id,),
+            .execute(
+                text("SELECT * FROM cur_pset_values WHERE record_id = :id ORDER BY path"),
+                {"id": record.stream_id},
             )
             .mappings()
         )
         return {r["path"]: dict(r) for r in found}
 
 
-def event_count(db: Path) -> int:
+def event_count(db: DbTarget) -> int:
     with open_uow(db, readonly=True) as uow:
         return uow.ledger.head_seq()
 
@@ -113,7 +117,7 @@ def event_count(db: Path) -> int:
 # --- writes ------------------------------------------------------------------------------------
 
 
-def test_sets_standard_values_and_emits_one_event(db: Path) -> None:
+def test_sets_standard_values_and_emits_one_event(db: DbTarget) -> None:
     record = make_record(db)
     result = set_values(db, record, "valve_data", {"size_in": 4, "manufacturer": "Acme"})
     assert result.version == 2 and result.key == "V-1"
@@ -132,7 +136,7 @@ def test_sets_standard_values_and_emits_one_event(db: Path) -> None:
     }
 
 
-def test_projections_follow_the_event(db: Path) -> None:
+def test_projections_follow_the_event(db: DbTarget) -> None:
     record = make_record(db)
     set_values(db, record, "valve_data", {"size_in": 4, "body_material": "CS", "manufacturer": "A"})
     stored = row(db, record)
@@ -149,7 +153,7 @@ def test_projections_follow_the_event(db: Path) -> None:
     assert rows["psets.valve_data.size_in"]["layer"] == "standard"
 
 
-def test_custom_and_project_layers(db: Path) -> None:
+def test_custom_and_project_layers(db: DbTarget) -> None:
     record = make_record(db)
     first = set_values(db, record, "valve_data", {"x.fat_witness_by": "client"}, layer="custom")
     second = set_values(
@@ -172,13 +176,13 @@ def test_custom_and_project_layers(db: Path) -> None:
     assert second.events[0].payload["units"] == {}
 
 
-def test_a_missing_advisory_property_shows_a_warning(db: Path) -> None:
+def test_a_missing_advisory_property_shows_a_warning(db: DbTarget) -> None:
     record = make_record(db)
     set_values(db, record, "valve_data", {"size_in": 4})
     assert row(db, record)["conformance"] == "warning"  # manufacturer is advisory and required
 
 
-def test_out_of_range_values_are_stored_and_flagged(db: Path) -> None:
+def test_out_of_range_values_are_stored_and_flagged(db: DbTarget) -> None:
     record = make_record(db)
     result = set_values(db, record, "valve_data", {"size_in": 500, "manufacturer": "A"})
     assert result.events[0].payload["conformance"] == "nonconformant"
@@ -189,7 +193,7 @@ def test_out_of_range_values_are_stored_and_flagged(db: Path) -> None:
     assert result.events[0].payload["conformance"] == "warning"  # tag_no pattern is advisory
 
 
-def test_a_required_in_state_property_is_nonconformant_in_that_state(db: Path) -> None:
+def test_a_required_in_state_property_is_nonconformant_in_that_state(db: DbTarget) -> None:
     record = make_record(db)
     with open_uow(db) as uow:
         appended = uow.append(
@@ -213,13 +217,13 @@ def test_a_required_in_state_property_is_nonconformant_in_that_state(db: Path) -
     assert result.events[0].payload["conformance"] == "nonconformant"  # size_in, body_material
 
 
-def test_locked_psets_accept_values(db: Path) -> None:
+def test_locked_psets_accept_values(db: DbTarget) -> None:
     record = make_record(db, scope="company")
     result = set_values(db, record, "safety_data", {"sil_rating": 2}, scope="company")
     assert result.events[0].payload["conformance"] == "ok"
 
 
-def test_rebuilding_projections_reproduces_the_rows(db: Path) -> None:
+def test_rebuilding_projections_reproduces_the_rows(db: DbTarget) -> None:
     record = make_record(db)
     first = set_values(db, record, "valve_data", {"size_in": 4, "manufacturer": "A"})
     set_values(
@@ -259,7 +263,7 @@ def test_rebuilding_projections_reproduces_the_rows(db: Path) -> None:
     ],
 )
 def test_refusals_append_nothing(
-    db: Path, pset: str, layer: Layer, values: dict[str, Any], error: type[Exception]
+    db: DbTarget, pset: str, layer: Layer, values: dict[str, Any], error: type[Exception]
 ) -> None:
     record = make_record(db)
     before = event_count(db)
@@ -268,7 +272,7 @@ def test_refusals_append_nothing(
     assert event_count(db) == before
 
 
-def test_validation_errors_list_each_issue(db: Path) -> None:
+def test_validation_errors_list_each_issue(db: DbTarget) -> None:
     record = make_record(db)
     with pytest.raises(PsetValidationError) as caught:
         set_values(db, record, "valve_data", {"size_in": "four", "manufacturer": 7})
@@ -277,20 +281,20 @@ def test_validation_errors_list_each_issue(db: Path) -> None:
     assert caught.value.issues[1].startswith("psets.valve_data.size_in")
 
 
-def test_a_locked_pset_has_no_custom_section(db: Path) -> None:
+def test_a_locked_pset_has_no_custom_section(db: DbTarget) -> None:
     record = make_record(db, scope="company")
     with pytest.raises(LayerError):
         set_values(db, record, "safety_data", {"x.note": "n"}, layer="custom", scope="company")
 
 
-def test_unchanged_values_are_refused(db: Path) -> None:
+def test_unchanged_values_are_refused(db: DbTarget) -> None:
     record = make_record(db)
     first = set_values(db, record, "valve_data", {"size_in": 4})
     with pytest.raises(NoChangesError):
         set_values(db, record, "valve_data", {"size_in": 4}, version=first.version)
 
 
-def test_record_checks(db: Path) -> None:
+def test_record_checks(db: DbTarget) -> None:
     record = make_record(db)
     with pytest.raises(RecordNotFoundError):
         set_values(
@@ -323,7 +327,7 @@ def test_record_checks(db: Path) -> None:
 # --- None unsets a property ----------------------------------------------------------------------
 
 
-def test_none_unsets_a_property_everywhere_it_is_projected(db: Path) -> None:
+def test_none_unsets_a_property_everywhere_it_is_projected(db: DbTarget) -> None:
     record = make_record(db)
     first = set_values(db, record, "valve_data", {"size_in": 4, "manufacturer": "Acme"})
     cleared = set_values(
@@ -340,7 +344,7 @@ def test_none_unsets_a_property_everywhere_it_is_projected(db: Path) -> None:
     assert "psets.valve_data.tag_no" in pset_rows(db, record)
 
 
-def test_clearing_every_value_leaves_no_empty_section(db: Path) -> None:
+def test_clearing_every_value_leaves_no_empty_section(db: DbTarget) -> None:
     record = make_record(db)
     first = set_values(db, record, "valve_data", {"manufacturer": "Acme"})
     second = set_values(
@@ -355,7 +359,7 @@ def test_clearing_every_value_leaves_no_empty_section(db: Path) -> None:
     assert pset_rows(db, record) == {}
 
 
-def test_clearing_a_required_value_changes_the_conformance(db: Path) -> None:
+def test_clearing_a_required_value_changes_the_conformance(db: DbTarget) -> None:
     record = make_record(db)
     first = set_values(db, record, "valve_data", {"size_in": 4, "manufacturer": "Acme"})
     assert row(db, record)["conformance"] == "ok"
@@ -364,7 +368,7 @@ def test_clearing_a_required_value_changes_the_conformance(db: Path) -> None:
     assert row(db, record)["conformance"] == "warning"
 
 
-def test_clearing_a_project_pset_property(db: Path) -> None:
+def test_clearing_a_project_pset_property(db: DbTarget) -> None:
     record = make_record(db)
     first = set_values(
         db, record, "prj.shutdown_tie_in", {"window": "SD-1", "approved": True}, layer="project"
@@ -377,14 +381,14 @@ def test_clearing_a_project_pset_property(db: Path) -> None:
     }
 
 
-def test_a_none_key_with_no_value_is_ignored_when_other_keys_change(db: Path) -> None:
+def test_a_none_key_with_no_value_is_ignored_when_other_keys_change(db: DbTarget) -> None:
     record = make_record(db)
     result = set_values(db, record, "valve_data", {"size_in": None, "manufacturer": "Acme"})
     assert result.version == 2
     assert json.loads(row(db, record)["psets_json"]) == {"valve_data": {"manufacturer": "Acme"}}
 
 
-def test_rebuilding_reproduces_a_clear(db: Path) -> None:
+def test_rebuilding_reproduces_a_clear(db: DbTarget) -> None:
     record = make_record(db)
     first = set_values(db, record, "valve_data", {"size_in": 4, "manufacturer": "Acme"})
     set_values(db, record, "valve_data", {"size_in": None}, version=first.version)
