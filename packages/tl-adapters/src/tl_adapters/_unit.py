@@ -71,8 +71,9 @@ class BaseUnitOfWork:
     def __enter__(self) -> Self:
         if self._tx is not None:
             raise RuntimeError("unit of work is already open")
-        self._tx = self._open_tx()
-        self._conn = self._tx.__enter__()
+        tx = self._open_tx()
+        self._conn = tx.__enter__()  # if this raises (lock timeout), the unit stays reusable
+        self._tx = tx
         self._pending = []
         return self
 

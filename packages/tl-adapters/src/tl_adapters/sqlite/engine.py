@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import Connection, Engine, create_engine, event
+from sqlalchemy.exc import OperationalError
+from tl_core.services.errors import LockTimeoutError
 
 WRITE_OPTION = "tl_write"
 
@@ -48,9 +50,20 @@ def is_write_connection(conn: Connection) -> bool:
 
 @contextmanager
 def write_tx(engine: Engine) -> Generator[Connection]:
-    """One write transaction (``BEGIN IMMEDIATE``); rolls back on any exception."""
-    with engine.connect().execution_options(**{WRITE_OPTION: True}) as conn, conn.begin():
-        yield conn
+    """One write transaction (``BEGIN IMMEDIATE``); rolls back on any exception.
+
+    Waiting longer than the busy timeout for the write lock raises ``LockTimeoutError`` (nothing
+    was written; retry), the same error the Postgres adapter raises.
+    """
+    with engine.connect().execution_options(**{WRITE_OPTION: True}) as conn:
+        try:
+            transaction = conn.begin()  # BEGIN IMMEDIATE runs here
+        except OperationalError as exc:
+            if "locked" in str(exc.orig).lower():
+                raise LockTimeoutError("the ledger write lock was busy; retry") from exc
+            raise
+        with transaction:
+            yield conn
 
 
 @contextmanager

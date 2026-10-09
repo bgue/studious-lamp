@@ -26,9 +26,10 @@ from typing import Any, cast
 
 from sqlalchemy import Connection, Engine, create_engine, event, text
 from sqlalchemy.engine import URL, ExceptionContext, make_url
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.pool import NullPool
 from tl_core.ledger import iso_utc
+from tl_core.services.errors import LockTimeoutError
 
 WRITE_OPTION = "tl_write"
 # The one lock every write transaction takes first. Any constant works; this is "tlledger".
@@ -131,13 +132,10 @@ def make_engine(url: str, *, pooled: bool = False) -> Engine:
     def _classify(context: ExceptionContext) -> Exception | None:
         # pg8000 raises IntegrityError only for a unique violation (23505); every other
         # constraint failure (class 23: not null, check, our append-only trigger) arrives as a
-        # ProgrammingError. Report all of class 23 as IntegrityError, as SQLite and psycopg do.
+        # ProgrammingError. Report all of class 23 as IntegrityError, as SQLite does.
         original = context.original_exception
-        args: tuple[Any, ...] = getattr(original, "args", ())
-        info: Any = args[0] if args else None
-        fields = cast(dict[str, Any], info) if isinstance(info, dict) else {}
-        code: Any = fields.get("C")
-        if isinstance(code, str) and code.startswith("23") and context.statement is not None:
+        code = _sqlstate(original)
+        if code is not None and code.startswith("23") and context.statement is not None:
             return IntegrityError(context.statement, context.parameters, original)
         return None
 
@@ -154,12 +152,33 @@ def take_ledger_lock(conn: Connection) -> None:
     conn.execute(_LOCK_SQL, {"key": LEDGER_LOCK_KEY})
 
 
+def _sqlstate(error: BaseException) -> str | None:
+    original: Any = getattr(error, "orig", error)
+    args: tuple[Any, ...] = getattr(original, "args", ())
+    info: Any = args[0] if args else None
+    fields = cast(dict[str, Any], info) if isinstance(info, dict) else {}
+    code: Any = fields.get("C")
+    return code if isinstance(code, str) else None
+
+
 @contextmanager
 def write_tx(engine: Engine) -> Generator[Connection]:
-    """One write transaction holding the ledger lock; rolls back on any exception."""
-    with engine.connect().execution_options(**{WRITE_OPTION: True}) as conn, conn.begin():
-        conn.exec_driver_sql(f"SET LOCAL lock_timeout = '{LOCK_TIMEOUT}'")
-        take_ledger_lock(conn)
+    """One write transaction holding the ledger lock; rolls back on any exception.
+
+    The transaction is ``READ COMMITTED`` whatever the server's ``default_transaction_isolation``
+    says: under a stricter default the snapshot would be taken before the lock was granted and a
+    waiting writer would read stale data. Waiting longer than ``LOCK_TIMEOUT`` for the lock raises
+    ``LockTimeoutError`` (nothing was written; retry).
+    """
+    options: dict[str, Any] = {WRITE_OPTION: True, "isolation_level": "READ COMMITTED"}
+    with engine.connect().execution_options(**options) as conn, conn.begin():
+        try:
+            conn.exec_driver_sql(f"SET LOCAL lock_timeout = '{LOCK_TIMEOUT}'")
+            take_ledger_lock(conn)
+        except DBAPIError as exc:
+            if _sqlstate(exc) == "55P03":
+                raise LockTimeoutError("the ledger write lock was busy; retry") from exc
+            raise
         yield conn
 
 

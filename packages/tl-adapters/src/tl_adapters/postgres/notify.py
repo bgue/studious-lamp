@@ -23,6 +23,7 @@ from tl_adapters.postgres.engine import NOTIFY_CHANNEL, split_url
 
 log = logging.getLogger(__name__)
 
+APPLICATION_NAME = "tl-listener"
 _RETRY_S = 1.0
 _POLL_S = 0.05
 
@@ -39,6 +40,8 @@ class NotifyListener:
         self._thread: threading.Thread | None = None
         self.notifications = 0
         """How many matching notifications arrived (for tests and metrics)."""
+        self.connections = 0
+        """How many times the listener (re)connected and began listening."""
 
     @property
     def running(self) -> bool:
@@ -85,6 +88,7 @@ class NotifyListener:
             database=parsed.database,
             password=parsed.password,
             startup_params=connect_args.get("startup_params"),
+            application_name=APPLICATION_NAME,
         )
 
     def _listen(self) -> None:
@@ -95,6 +99,7 @@ class NotifyListener:
             rows = conn.run("SELECT current_schema()") or [[""]]
             schema = rows[0][0]
             conn.run(f"LISTEN {identifier(self._channel)}")
+            self.connections += 1
             self._ready.set()
             self._wake.set()  # anything committed before LISTEN began is found by the first poll
             while not self._stop.is_set():

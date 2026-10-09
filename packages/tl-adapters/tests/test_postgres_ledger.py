@@ -22,6 +22,7 @@ from tl_adapters.sqlite.engine import make_engine as make_sqlite_engine
 from tl_adapters.sqlite.ledger import SqliteLedger
 from tl_core.changefeed import ChangePoller, SubscriptionRegistry
 from tl_core.ledger import NewEvent
+from tl_core.services.errors import LockTimeoutError
 
 pytestmark = pytest.mark.requires_postgres
 
@@ -219,7 +220,7 @@ def test_waiting_for_the_lock_times_out_instead_of_hanging(
     monkeypatch.setattr(pg_engine, "LOCK_TIMEOUT", "200ms")
     with pg_engine.write_tx(engine):
         started = time.monotonic()
-        with pytest.raises(DBAPIError, match="lock timeout"), pg_engine.write_tx(engine):
+        with pytest.raises(LockTimeoutError), pg_engine.write_tx(engine):
             pass
         assert time.monotonic() - started < WAIT
 
@@ -372,3 +373,72 @@ def test_commit_order_is_seq_order_under_concurrent_writers(engine: Engine) -> N
     watcher.join(WAIT)
     assert violations == []
     assert ledger.head_seq() == 100
+
+
+def test_writers_still_serialise_when_the_server_defaults_to_repeatable_read(
+    pg_db: str, pg_base_url: str | None
+) -> None:
+    """Write transactions pin READ COMMITTED.
+
+    A stricter server default must not make a writer that waited for the lock work from a snapshot
+    older than the lock grant (it would fail on the key).
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.engine import make_url
+    from sqlalchemy.pool import NullPool
+    from tl_adapters.postgres.engine import sqlalchemy_url
+
+    assert pg_base_url is not None
+    database = make_url(sqlalchemy_url(pg_base_url)).database or ""
+    if not database.startswith("tl_pytest_"):
+        pytest.skip("changing the server default is only safe in the throw-away test database")
+    admin_engine = create_engine(
+        sqlalchemy_url(pg_base_url), poolclass=NullPool, isolation_level="AUTOCOMMIT"
+    )
+    with admin_engine.connect() as conn:
+        conn.exec_driver_sql(
+            f"ALTER DATABASE \"{database}\" SET default_transaction_isolation = 'repeatable read'"
+        )
+    admin_engine.dispose()
+    engine = pg_engine.make_engine(pg_db)
+    ledger = PostgresLedger(engine)
+    ledger.create_schema()
+    errors: list[BaseException] = []
+
+    def write(name: str) -> None:
+        try:
+            for i in range(10):
+                append(ledger, f"{name}-{i}", 0, "company")
+        except BaseException as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=write, args=(f"w{n}",)) for n in range(6)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(WAIT * 3)
+    assert errors == []
+    assert [e.seq for e in ledger.read_after(0, limit=1000)] == list(range(1, 61))
+    engine.dispose()
+
+
+def test_a_listener_reconnects_after_its_backend_is_killed(pg_db: str, engine: Engine) -> None:
+    wake = threading.Event()
+    ledger = PostgresLedger(engine)
+    with NotifyListener(pg_db, wake) as listener:
+        assert listener.connections == 1
+        with engine.connect() as conn:
+            killed = conn.execute(
+                text(
+                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                    "WHERE application_name = 'tl-listener' AND datname = current_database()"
+                )
+            ).all()
+        assert killed
+        deadline = time.monotonic() + WAIT
+        while listener.connections < 2 and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert listener.connections == 2  # reconnected and listening again
+        wake.clear()
+        append(ledger, "after", 0, "company")
+        assert wake.wait(WAIT)

@@ -7,6 +7,11 @@ class ServiceError(Exception):
     """Base class for expected, user-correctable command failures."""
 
 
+class LockTimeoutError(
+    ServiceError
+): ...  # the write lock was not free in time; nothing was written, retry
+
+
 class KeyRequiredError(ServiceError): ...  # CreateRecord without a key
 
 
