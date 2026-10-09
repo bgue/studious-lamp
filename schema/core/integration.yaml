@@ -128,13 +128,15 @@ classes:
         ifabsent: string(active)
       disabled_reason:
         range: DisabledReason
-      active_from_seq:
-        range: integer
+      active_windows:
+        range: Any
         required: true
-        description: Events with a `seq` above this are delivered; set by creation and by every enable.
-      active_until_seq:
-        range: integer
-        description: Events with a `seq` above this are not delivered; set by disable, null while active.
+        description: >-
+          JSON list of `{"from": seq, "until": seq or null}`. An event is delivered when `from < seq <= until`
+          for some window (`until` null is open). Creation and every enable open a window; a disable closes the
+          open one. Events committed while disabled are not delivered unless replayed.
+        annotations:
+          tl:json: true
       expires_at:
         range: datetime
         description: After this time the subscription no longer receives events.

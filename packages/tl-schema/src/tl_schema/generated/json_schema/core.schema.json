@@ -2366,16 +2366,9 @@
             "additionalProperties": false,
             "description": "An outbound webhook (brief 18.4): where to send, what to send, and how. One row per subscription in its current state.",
             "properties": {
-                "active_from_seq": {
-                    "description": "Events with a `seq` above this are delivered; set by creation and by every enable.",
-                    "type": "integer"
-                },
-                "active_until_seq": {
-                    "description": "Events with a `seq` above this are not delivered; set by disable, null while active.",
-                    "type": [
-                        "integer",
-                        "null"
-                    ]
+                "active_windows": {
+                    "$ref": "#/$defs/Any",
+                    "description": "JSON list of `{\"from\": seq, \"until\": seq or null}`. An event is delivered when `from < seq <= until` for some window (`until` null is open). Creation and every enable open a window; a disable closes the open one. Events committed while disabled are not delivered unless replayed."
                 },
                 "created_at": {
                     "format": "date-time",
@@ -2474,7 +2467,7 @@
                 "payload_mode",
                 "event_schema_version",
                 "status",
-                "active_from_seq",
+                "active_windows",
                 "created_by",
                 "created_at",
                 "updated_at",

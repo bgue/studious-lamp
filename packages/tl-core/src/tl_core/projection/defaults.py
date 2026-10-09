@@ -10,6 +10,7 @@ from tl_core.projection.record import RecordProjector
 from tl_core.projection.registry import InMemoryRegistry
 from tl_core.projection.workflow import WorkflowProjector
 from tl_core.webhooks.outbox import OutboxProjector
+from tl_core.webhooks.state import WebhookStateTables
 from tl_core.webhooks.subscription_projector import WebhookSubscriptionProjector
 
 
@@ -25,6 +26,7 @@ def default_registry() -> InMemoryRegistry:
     registry.register(
         WebhookSubscriptionProjector()
     )  # independent: subscriptions are their own streams
+    registry.register(WebhookStateTables())  # operational tables; never reset by a rebuild
     # Last, on purpose: it reads the rows the projectors above wrote for the same event.
     registry.register(OutboxProjector())
     return registry

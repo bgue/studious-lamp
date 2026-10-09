@@ -22,6 +22,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, cast
 
+from tl_core.changefeed.filters import glob_match
 from tl_core.webhooks.rows import OutboxRow
 
 #: ``<from> -> <to>`` with ``*`` wildcards; the arrow may also be written ``→``.
@@ -136,6 +137,25 @@ class WebhookFilter:
     def matches_row(self, row: OutboxRow) -> bool:
         """Whether ``row`` passes every part of the filter except ``record_selector``.
 
-        STUB (P0-I5-T22): the body raises ``NotImplementedError``.
+        STUB (P0-I5-T22): scope, event types and record ids work; the other five parts raise
+        ``NotImplementedError`` when they are set (a silent "matches everything" would be a leak).
         """
-        raise NotImplementedError
+        if self.scope_selector is not None and not glob_match(self.scope_selector, row.scope):
+            return False
+        if self.event_types is not None and not any(
+            glob_match(pattern, row.event_type) for pattern in self.event_types
+        ):
+            return False
+        if self.record_ids is not None and not (
+            row.subject_id in self.record_ids or any(r in self.record_ids for r in row.related_ids)
+        ):
+            return False
+        if (
+            self.changed_fields is not None
+            or self.transitions is not None
+            or self.link_relations is not None
+            or self.file_slots is not None
+            or self.hashtags is not None
+        ):
+            raise NotImplementedError
+        return True

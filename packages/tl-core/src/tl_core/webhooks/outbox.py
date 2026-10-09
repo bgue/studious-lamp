@@ -23,14 +23,13 @@ preparation. The outbox stores the full ``data`` regardless; the policy decides 
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from sqlalchemy import Connection, text
 from tl_schema.ddl_loader import statements
 
 from tl_core.ledger import Event, iso_utc
-from tl_core.webhooks.rows import as_list, as_object, load_json
+from tl_core.webhooks.rows import as_list, as_object, dumps, load_json
 
 LINK_PREFIX = "Link."
 FILE_PREFIX = "File."
@@ -48,11 +47,6 @@ _INSERT_SQL = text(
 _RECORD_SQL = text("SELECT type, key, version FROM cur_core_record WHERE id = :id")
 _LINK_SQL = text("SELECT from_id, to_id, relation FROM cur_links WHERE link_id = :id")
 _FILE_SQL = text("SELECT record_id, slot FROM cur_files WHERE file_id = :id")
-
-
-def _json(value: Any) -> str:
-    """Canonical JSON text, the same form the ledger hashes."""
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def leaf_paths(prefix: str, value: Any) -> dict[str, Any]:
@@ -228,14 +222,14 @@ class OutboxProjector:
                 "source": event.source,
                 "recorded_at": iso_utc(event.recorded_at),
                 "correlation_id": event.correlation_id,
-                "changed_fields": _json(sorted(changes)),
+                "changed_fields": dumps(sorted(changes)),
                 "from_state": from_state,
                 "to_state": to_state,
-                "related_ids": _json(related),
-                "link_relations": _json(relations),
+                "related_ids": dumps(related),
+                "link_relations": dumps(relations),
                 "file_slot": file_slot,
-                "hashtags": _json(hashtags),
-                "data": _json(data),
+                "hashtags": dumps(hashtags),
+                "data": dumps(data),
             },
         )
 

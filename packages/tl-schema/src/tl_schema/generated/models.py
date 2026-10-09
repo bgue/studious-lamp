@@ -955,8 +955,8 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'FileRejectedPayload'],
          'ifabsent': 'string(active)'} })
     disabled_reason: Optional[DisabledReason] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscription']} })
-    active_from_seq: int = Field(default=..., description="""Events with a `seq` above this are delivered; set by creation and by every enable.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscription']} })
-    active_until_seq: Optional[int] = Field(default=None, description="""Events with a `seq` above this are not delivered; set by disable, null while active.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscription']} })
+    active_windows: Any = Field(default=..., description="""JSON list of `{\"from\": seq, \"until\": seq or null}`. An event is delivered when `from < seq <= until` for some window (`until` null is open). Creation and every enable open a window; a disable closes the open one. Events committed while disabled are not delivered unless replayed.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['WebhookSubscription']} })
     expires_at: Optional[datetime ] = Field(default=None, description="""After this time the subscription no longer receives events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscription',
                        'WebhookSecret',
                        'WebhookSubscriptionCreatedPayload']} })

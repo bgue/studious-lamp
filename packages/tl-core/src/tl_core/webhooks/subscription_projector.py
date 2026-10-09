@@ -1,9 +1,9 @@
 """WebhookSubscriptionProjector: ``WebhookSubscription.*`` events into ``cur_webhook_subscription``.
 
 One row per subscription. Deterministic: every value comes from the event (the secret itself is
-never in an event; only ``secret_id`` is). ``active_from_seq`` and ``active_until_seq`` bound the
-events a subscription receives: creation and every enable set the start, a disable sets the end, so
-events committed while it was disabled are not delivered unless an operator replays them.
+never in an event; only ``secret_id`` is). ``active_windows`` lists the ``seq`` intervals in which
+the subscription receives events: creation and every enable open one, a disable closes the open
+one, so events committed while it was disabled are not delivered unless an operator replays them.
 """
 
 from __future__ import annotations
@@ -13,8 +13,8 @@ from typing import Any
 from sqlalchemy import Connection, text
 from tl_schema.ddl_loader import statements
 
-from tl_core.ledger import Event, canonical_json, iso_utc
-from tl_core.webhooks.rows import as_list, as_object
+from tl_core.ledger import Event, iso_utc
+from tl_core.webhooks.rows import as_list, as_object, dumps, load_json
 
 SUBSCRIPTION_STREAM_TYPE = "core.WebhookSubscription"
 CREATED = "WebhookSubscription.Created"
@@ -39,12 +39,22 @@ UPDATABLE_FIELDS = frozenset(_UPDATABLE_COLUMNS)
 _INSERT_SQL = text(
     "INSERT INTO cur_webhook_subscription (subscription_id, scope, name, owner, integration_app, "
     "target_url, filter_json, payload_mode, event_schema_version, status, disabled_reason, "
-    "active_from_seq, active_until_seq, expires_at, current_secret_id, created_by, created_at, "
-    "updated_at, version, last_seq) VALUES (:subscription_id, :scope, :name, :owner, "
-    ":integration_app, :target_url, :filter_json, :payload_mode, :event_schema_version, 'active', "
-    "NULL, :active_from_seq, NULL, :expires_at, :current_secret_id, :created_by, :created_at, "
-    ":updated_at, :version, :last_seq)"
+    "active_windows_json, expires_at, current_secret_id, created_by, created_at, updated_at, "
+    "version, last_seq) VALUES (:subscription_id, :scope, :name, :owner, :integration_app, "
+    ":target_url, :filter_json, :payload_mode, :event_schema_version, 'active', NULL, "
+    ":active_windows, :expires_at, :current_secret_id, :created_by, :created_at, :updated_at, "
+    ":version, :last_seq)"
 )
+
+
+def _load_windows(conn: Connection, subscription_id: str) -> list[dict[str, Any]]:
+    row = conn.execute(
+        text("SELECT active_windows_json FROM cur_webhook_subscription WHERE subscription_id = :s"),
+        {"s": subscription_id},
+    ).first()
+    if row is None:
+        raise LookupError(f"no subscription row for stream {subscription_id}")
+    return [dict(as_object(item)) for item in as_list(load_json(row[0]))]
 
 
 class WebhookSubscriptionProjector:
@@ -80,10 +90,10 @@ class WebhookSubscriptionProjector:
                 "owner": payload["owner"],
                 "integration_app": payload.get("integration_app"),
                 "target_url": payload["target_url"],
-                "filter_json": canonical_json(payload.get("filter") or {}),
+                "filter_json": dumps(payload.get("filter") or {}),
                 "payload_mode": payload.get("payload_mode", "thin"),
                 "event_schema_version": payload.get("event_schema_version", "v1"),
-                "active_from_seq": event.seq,
+                "active_windows": dumps([{"from": event.seq, "until": None}]),
                 "expires_at": payload.get("expires_at"),
                 "current_secret_id": payload.get("secret_id"),
                 "created_by": event.actor,
@@ -109,19 +119,23 @@ class WebhookSubscriptionProjector:
                 if column is None:
                     raise ValueError(f"cannot update subscription field {name!r}")
                 new = as_list(raw_changes[name])[1]
-                changes[column] = canonical_json(new) if name == "filter" else new
+                changes[column] = dumps(new) if name == "filter" else new
         elif event.event_type == DISABLED:
+            windows = _load_windows(conn, event.stream_id)
+            if windows and windows[-1]["until"] is None:
+                windows[-1]["until"] = event.seq
             changes.update(
                 status="disabled",
                 disabled_reason=payload.get("reason", "owner"),
-                active_until_seq=event.seq,
+                active_windows_json=dumps(windows),
             )
         elif event.event_type == ENABLED:
+            windows = _load_windows(conn, event.stream_id)
+            windows.append({"from": event.seq, "until": None})
             changes.update(
                 status="active",
                 disabled_reason=None,
-                active_from_seq=event.seq,
-                active_until_seq=None,
+                active_windows_json=dumps(windows),
             )
         elif event.event_type == SECRET_ROTATED:
             changes["current_secret_id"] = payload["secret_id"]

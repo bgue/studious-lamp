@@ -7,11 +7,10 @@ happens in one transaction, so a crash repeats the pass and the unique ``(subscr
 key)``
 index makes the repeat harmless.
 
-Which events a subscription receives: those committed after it was created or last enabled
-(``active_from_seq``) and, if it was disabled, up to the disable (``active_until_seq``); within its
-scope (a project subscription sees its own project; a company subscription sees every scope); that
-pass ``WebhookFilter.matches_row`` and, if set, the ``record_selector`` evaluated against the
-subject
+Which events a subscription receives: those committed inside one of its active windows (opened by
+creation or an enable, closed by a disable; ``active_windows``); within its scope (a project
+subscription sees its own project, a company subscription sees every scope); that pass
+``WebhookFilter.matches_row`` and, if set, the ``record_selector`` evaluated against the subject
 record's **current** state at dispatch time; that are before its ``expires_at``.
 
 Postgres sequences can become visible out of order (L-P0-I4-A2). Workstream A serialises appends so
@@ -44,7 +43,13 @@ from tl_core.webhooks.envelope import (
     to_body,
 )
 from tl_core.webhooks.filters import WebhookFilter
-from tl_core.webhooks.rows import OUTBOX_COLUMNS, OutboxRow
+from tl_core.webhooks.rows import (
+    OUTBOX_COLUMNS,
+    OutboxRow,
+    as_list,
+    as_object,
+    load_json,
+)
 from tl_core.webhooks.uris import UriConfig
 
 log = logging.getLogger(__name__)
@@ -54,7 +59,7 @@ PAGE = 500
 
 _SUBSCRIPTION_COLUMNS = (
     "subscription_id, scope, name, owner, target_url, filter_json, payload_mode, status, "
-    "active_from_seq, active_until_seq, expires_at, current_secret_id, version"
+    "active_windows_json, expires_at, current_secret_id, version"
 )
 _INSERT_DELIVERY = text(
     "INSERT INTO wh_delivery (delivery_id, subscription_id, dedupe_key, seq, event_id, subject_id, "
@@ -85,16 +90,13 @@ class SubscriptionRow:
     filter: WebhookFilter
     payload_mode: str
     status: str
-    active_from_seq: int
-    active_until_seq: int | None
+    windows: tuple[tuple[int, int | None], ...]
     expires_at: datetime | None
     current_secret_id: str | None
     version: int
 
     @staticmethod
     def from_mapping(row: Mapping[Any, Any]) -> SubscriptionRow:
-        from tl_core.webhooks.rows import load_json
-
         return SubscriptionRow(
             subscription_id=row["subscription_id"],
             scope=row["scope"],
@@ -104,10 +106,12 @@ class SubscriptionRow:
             filter=WebhookFilter.from_dict(load_json(row["filter_json"])),
             payload_mode=row["payload_mode"],
             status=row["status"],
-            active_from_seq=int(row["active_from_seq"]),
-            active_until_seq=None
-            if row["active_until_seq"] is None
-            else int(row["active_until_seq"]),
+            windows=tuple(
+                (int(w["from"]), None if w["until"] is None else int(w["until"]))
+                for w in (
+                    as_object(item) for item in as_list(load_json(row["active_windows_json"]))
+                )
+            ),
             expires_at=None if row["expires_at"] is None else parse_iso(str(row["expires_at"])),
             current_secret_id=row["current_secret_id"],
             version=int(row["version"]),
@@ -115,9 +119,9 @@ class SubscriptionRow:
 
     def receives(self, row: OutboxRow) -> bool:
         """Whether ``row`` falls inside this subscription's window, scope and expiry."""
-        if row.seq <= self.active_from_seq:
-            return False
-        if self.active_until_seq is not None and row.seq > self.active_until_seq:
+        if not any(
+            start < row.seq and (end is None or row.seq <= end) for start, end in self.windows
+        ):
             return False
         if self.scope != "company" and self.scope != row.scope:
             return False

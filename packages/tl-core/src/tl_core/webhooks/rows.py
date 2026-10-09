@@ -18,6 +18,11 @@ def as_list(value: Any) -> list[Any]:
     return cast("list[Any]", value) if isinstance(value, list) else []
 
 
+def dumps(value: Any) -> str:
+    """Canonical JSON text of a JSON value (sorted keys, no spaces), as stored in columns."""
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
 def load_json(value: Any) -> Any:
     """A JSON column value as Python: SQLite returns text, Postgres JSONB returns parsed values."""
     if isinstance(value, (str, bytes, bytearray)):
