@@ -122,3 +122,9 @@ test or a generated artefact already enforces, or narrative history (that belong
   `[tool.ruff]` therefore sets `include = ["*.py", "*.pyi", "**/pyproject.toml"]`. A scratch build without `docs/`
   missed this; verify scaffold tickets in a checkout that contains the whole repo.
   Evidence: T01 implementer report `docs/reports/P0-I1/P0-I1-T01.md`. Status: active
+
+- **L-P0-I1-8** · 2026-10-09 · tags: process, tests
+  A supervisor-provided failing test committed in the package test tree makes `just check` (pyright includes tests)
+  red on every other ticket branch cut from the same base. Store provided tests under
+  `docs/tickets/<inc>/provided/<name>.py.txt` and have the ticket `cp` them into place; the reviewer `diff`s the pair.
+  Evidence: attempted commit of `test_sqlite_ledger.py` failed pyright with unresolved imports. Status: active

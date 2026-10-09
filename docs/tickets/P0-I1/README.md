@@ -40,13 +40,13 @@ tl projections rebuild                       # rebuilt from the ledger; show out
 |---|---|---|---|---|---|
 | T01 | Monorepo scaffold | H | — | merged | Blocked once on ruff docs check (fixed by D9, supervisor); reviewer: report-only findings fixed by supervisor; 1 implementer round |
 | T02 | Core LinkML | S | T01 | built | committed on `p0/i1`; awaiting schema approval |
-| T03 | Codegen wiring (pydantic, JSON Schema, `--check` drift gate) | H | T01, T02 | ready | |
-| T04a | DDL type mapping | H | T01 | ready | |
-| T04b | DDL generator core | S | T04a, T03 | built (side branch) | |
-| T05 | Ledger types and hashing | H | T01 | ready | |
-| T06 | SQLite ledger adapter | H | T05 | draft (ticket final; provided test waits for T05) | |
-| T07 | Projector engine + SQLite UnitOfWork | S | T05, T06 | built (side branch) | |
-| T08 | `core.Record` projector | H | T04b, T07 (projection types) | planned | |
+| T03 | Codegen wiring (pydantic, JSON Schema, `--check` drift gate) | H | T01, T02 | merged | Review pass round 1 |
+| T04a | DDL type mapping | H | T01 | merged | Review pass round 1; supervisor added non-finite rejection |
+| T04b | DDL generator core | S | T04a, T03 | merged | Registered in `generate.py`; generated DDL committed; awaiting orchestrator review |
+| T05 | Ledger types and hashing | H | T01 | merged | Review pass round 1 |
+| T06 | SQLite ledger adapter | H | T05 | ready | |
+| T07 | Projector engine + SQLite UnitOfWork | S | T05, T06 | half merged | Contracts, registry, bus merged; SQLite UoW on side branch until T06 |
+| T08 | `core.Record` projector | H | T04b, T07 (projection types) | ready | |
 | T09 | Record command handlers | H | T07, T08 | planned | |
 | T10 | `tl` CLI | H | T09, T11 | planned | |
 | T11 | Query helpers | H | T08 | planned | |
@@ -68,6 +68,7 @@ taken over (recorded here). T12 is split by package group if the file count exce
 | D6 | pyright strict covers `packages/*/src` for `tl_core`, `tl_schema`, `tl_adapters`; tests are checked in standard mode | Tests stay cheap to write; engines stay strict |
 | D7 | Modules that import `linkml` start with `# pyright: basic` | linkml has no type stubs |
 | D8 | `SqliteLedger` exposes `append_in(conn, ...)`; `make_engine` begins write transactions with `BEGIN IMMEDIATE` | The unit of work needs ledger append and projectors in one transaction |
+| D10 | Supervisor-provided test files for a ticket live in `docs/tickets/<inc>/provided/*.txt`; the ticket says `cp` them into place and the reviewer diffs | A failing test file on the base breaks pyright (`just check`) for every other ticket branch |
 | D9 | `[tool.ruff] include = ["*.py", "*.pyi", "**/pyproject.toml"]` | ruff 0.16 formats Markdown too and flagged three docs files; ruff governs Python only (orchestrator decision after the T01 implementer stopped, correctly) |
 
 ## Order of work (relay rounds)
