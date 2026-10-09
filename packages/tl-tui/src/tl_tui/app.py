@@ -13,6 +13,7 @@ from textual import events
 from textual.app import App, ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Horizontal
+from textual.screen import ModalScreen
 from textual.widget import Widget
 
 from tl_tui.client import ClientInterface
@@ -49,6 +50,7 @@ class TlApp(App[None]):
         Binding("f6", "cycle_panels(1)", "Panels"),
         Binding("shift+f6", "cycle_panels(-1)", "Panels back", show=False),
         Binding("escape", "close_overlay", "Close", show=False),
+        Binding("n", "new_record", "New", show=False),
     ]
 
     def __init__(
@@ -152,6 +154,29 @@ class TlApp(App[None]):
 
     def _focus_main(self) -> None:
         self._main_focus_target().focus()
+
+    def action_new_record(self) -> None:
+        # The app-level `n` binding stays live under a modal; a form already open must keep it.
+        if isinstance(self.screen, ModalScreen):
+            return
+        from tl_tui.widgets.new_record_form import NewRecordForm
+
+        async def created(key: str | None) -> None:
+            if key is None:
+                return
+            self.query_one("#grid", RecordGrid).reload()
+            self.query_one("#footer", TlFooter).show_status(f"Created {key}", "info")
+            await self._show_record(self.scope, key)
+
+        self.push_screen(
+            NewRecordForm(
+                self.client,
+                self.scope,
+                record_type=self.record_type or "core.Record",
+                actor=self.actor,
+            ),
+            created,
+        )
 
     # --- hints -------------------------------------------------------------------------------
 
