@@ -1,6 +1,6 @@
 # Increment plan — P0-I4 WS-B Files: object store, upload service, `File.*`, `cur_files`, `tl file`
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-09
 Brief sections: §5.2 (files are immutable, content-addressed), §6.2 (`attachments[]`), §8 (attachments row), §20 (slots, upload flow, quarantine, privacy, previews), §24.5 (missing or corrupt objects)
 Branch: `p0/i4b` (integration branch `p0/i4`; trunk `claude/wizardly-allen-m2v96s`). Ticket branches `p0/i4b-t<nn>-<slug>`.
@@ -113,8 +113,8 @@ filename, status: "quarantined", deduplicated}`; `File.Processed {file_id, statu
 | T21 | `S3ObjectStore` (boto3, moto) | H | S3 | merged | pass, 1 round; same guard on `presign_put` |
 | T22 | `tl:file_slots` parse and load (`files/slots.py`) | H | S1 | merged | pass, 1 round |
 | T23 | Required file slots: missing list (`files/required.py`) | H | S2 | merged | pass, 1 round |
-| T24 | `tl file put|get|ls` CLI | H | T20, T22, S2 | ready (batch 2) | |
-| T25 | Reconciliation: referenced hashes versus the store (`files/reconcile.py`) and `tl file reconcile` | H | T20 | ready (batch 2) | |
+| T24 | `tl file put|get|ls` CLI | H | T20, T22, S2 | merged | pass, 1 round; `get` closes the stream in a `finally` (accepted deviation) |
+| T25 | Reconciliation: referenced hashes versus the store (`files/reconcile.py`) and `tl file reconcile` | H | T20 | merged | pass, 1 round; supervisor added the vanishing-object case |
 | T26 | Docs: package READMEs and AGENTS.md for the object store and files | — | T24, T25 | abandoned as a ticket: the supervisor wrote the READMEs, AGENTS.md and the runbook, because the text is mostly security-relevant operating rules and needs the final behaviour | |
 
 ## Order of work

@@ -1,6 +1,6 @@
 # P0-I4-T25 — Object-store reconciliation and `tl file reconcile`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core, cli
 Depends on: — (models, stubs, fs store and the provided tests are on the base branch)

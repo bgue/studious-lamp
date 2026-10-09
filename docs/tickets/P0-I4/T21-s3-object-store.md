@@ -1,6 +1,6 @@
 # P0-I4-T21 — S3 object store (boto3, tested with moto)
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: adapter
 Depends on: — (stub, error types, key validation, dependencies and the provided test are on the base branch)

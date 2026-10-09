@@ -318,3 +318,16 @@ test or a generated artefact already enforces, or narrative history (that belong
   Also: when restoring stubs over scratch references, `git checkout <dir>` reverts uncommitted doc edits in that directory too;
   commit docs first or restore file by file.
   Evidence: `docs/runbooks/object-store-reconciliation.md` step 3; commit 34fe583. Status: active
+
+- **L-P0-I4-B8** · 2026-10-09 · tags: tests, cli
+  `typer.testing.CliRunner.invoke` catches exceptions and returns them on the result, so a CLI test that only asserts "nothing
+  changed" passes against a command that crashes (it passed against a `NotImplementedError` stub). Assert `exit_code` and
+  `result.exception is None` in every CLI test, including negative-space ones. Implementer-found, T25.
+  Evidence: `docs/reports/P0-I4/P0-I4-T25.md`; `packages/tl-cli/tests/test_cli_file_reconcile_exit.py`. Status: active
+
+- **L-P0-I4-B9** · 2026-10-09 · tags: ledger, process
+  A spec that says two different things about one case ("a content key is never replaced" for `put`, "always replacing" for
+  `put_via_url`) makes the implementer follow the literal text and flag it; the review then rules. Write the invariant once
+  at the top of a ticket and derive per-method wording from it. Also: `FsObjectStore` objects are mode 0600 (from
+  `mkstemp`), which is kept on purpose: a service running as another user must be given access explicitly.
+  Evidence: `docs/reports/P0-I4/P0-I4-T20.md`; orchestrator ruling D14 in README-B. Status: active

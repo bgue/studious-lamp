@@ -11,3 +11,4 @@ Read the root `AGENTS.md` first. These rules add to it.
 - Object stores: a `sha256/` key is written only by `put`, after size and SHA-256 are verified, and is never replaced. Presigned uploads (`presign_put`, `put_via_url`) accept staging keys only. Every key goes through `tl_core.files.keys.check_key` first.
 - Tests use `FsObjectStore` or moto's in-process `mock_aws`; never a live MinIO, never the network. `s3.py` starts with `# pyright: basic` because boto3 has no stubs; keep that to the one file.
 - `object_secret()` fails closed. Never add a default secret or log one.
+- `FsObjectStore` writes objects with mode 0600 (temp files come from `mkstemp`). Keep it: widening access is an operator decision, not a code default.

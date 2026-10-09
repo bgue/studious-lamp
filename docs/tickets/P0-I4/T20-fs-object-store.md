@@ -1,6 +1,6 @@
 # P0-I4-T20 — Filesystem object store
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: adapter
 Depends on: — (stub, error types, key validation and the provided test are on the base branch)

@@ -1,6 +1,6 @@
 # P0-I4-T24 — `tl file put|get|ls`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: cli
 Depends on: — (service, fs store and slots are merged; the group, helpers and registration are on the base branch)

@@ -18,7 +18,7 @@ from typing import Literal, Protocol, runtime_checkable
 from pydantic import BaseModel
 from sqlalchemy import text
 
-from tl_core.files.types import ObjectStore, object_key
+from tl_core.files.types import ObjectNotFound, ObjectStore, object_key
 from tl_core.uow import UnitOfWork
 
 _ROWS_SQL = text("SELECT sha256, size, file_id FROM cur_files ORDER BY sha256, file_id")
@@ -91,7 +91,13 @@ def reconcile_objects(
             missing.append(ObjectProblem(kind="missing", sha256=digest, key=key, file_ids=file_ids))
             continue
         if verify:
-            detail = _verify_object(store, key, digest, sizes[digest])
+            try:
+                detail = _verify_object(store, key, digest, sizes[digest])
+            except ObjectNotFound:  # it vanished between exists() and get(): still missing
+                missing.append(
+                    ObjectProblem(kind="missing", sha256=digest, key=key, file_ids=file_ids)
+                )
+                continue
             if detail is not None:
                 corrupt.append(
                     ObjectProblem(

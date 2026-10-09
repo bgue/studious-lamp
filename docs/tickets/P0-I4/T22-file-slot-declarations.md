@@ -1,6 +1,6 @@
 # P0-I4-T22 — File slot declarations: parse and load `tl:file_slots`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: — (models, registry, fixture and the provided test are on the base branch)

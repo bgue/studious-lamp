@@ -1,6 +1,6 @@
 # P0-I4-T23 — Required file slots: the missing list
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: — (models, stub and the provided test are on the base branch; the test inserts `cur_files` rows with SQL and passes its own registry)
