@@ -45,3 +45,6 @@ class PsetValidationError(ServiceError):
     def __init__(self, message: str, issues: list[str] | None = None) -> None:
         super().__init__(message)
         self.issues: list[str] = issues if issues is not None else []
+
+
+class InvalidScopeError(ServiceError): ...  # scope is neither "company" nor "project:<id>"

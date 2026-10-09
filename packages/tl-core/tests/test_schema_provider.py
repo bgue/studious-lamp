@@ -13,6 +13,8 @@ from tl_core.schema_provider import (
     set_provider,
     use_provider,
 )
+from tl_core.services.errors import InvalidScopeError, ServiceError
+from tl_schema.compile import SchemaCompileError
 from tl_schema.registry import PackageError
 
 FIXTURES = Path(__file__).resolve().parents[3] / "schema" / "fixtures"
@@ -80,3 +82,98 @@ def test_use_provider_restores_the_previous_one(directory: Path) -> None:
     previous = set_provider(mine)
     assert previous is original
     set_provider(original)
+
+
+# --- review follow-ups -------------------------------------------------------------------------
+
+
+def restore_mtime(path: Path, mtime_ns: int) -> None:
+    os.utime(path, ns=(mtime_ns, mtime_ns))
+
+
+def test_a_same_size_edit_with_the_old_mtime_is_noticed(directory: Path) -> None:
+    provider = DirectorySchemaProvider(directory)
+    before = provider.effective("project:P123")
+    path = directory / "x.P123@1.4.0.yaml"
+    stat = path.stat()
+    path.write_text(path.read_text().replace("Shutdown window", "Shutdown Window"))
+    restore_mtime(path, stat.st_mtime_ns)
+    after = path.stat()
+    assert (after.st_size, after.st_mtime_ns) == (stat.st_size, stat.st_mtime_ns)
+    assert provider.effective("project:P123").hash != before.hash
+
+
+def test_a_changed_size_alone_is_noticed(directory: Path) -> None:
+    provider = DirectorySchemaProvider(directory)
+    before = provider.effective("project:P123").hash
+    path = directory / "x.P123@1.4.0.yaml"
+    stat = path.stat()
+    path.write_text(path.read_text().replace("Shutdown window", "Shutdown window of the plant"))
+    restore_mtime(path, stat.st_mtime_ns)
+    assert provider.effective("project:P123").hash != before
+
+
+def test_a_changed_mtime_alone_is_not_a_change(directory: Path) -> None:
+    provider = DirectorySchemaProvider(directory)
+    before = provider.effective("project:P123")
+    path = directory / "x.P123@1.4.0.yaml"
+    restore_mtime(path, path.stat().st_mtime_ns + 5_000_000_000)
+    assert provider.effective("project:P123") is before  # content unchanged: cache kept
+
+
+def test_reload_reports_an_edit_that_effective_noticed_first(directory: Path) -> None:
+    provider = DirectorySchemaProvider(directory)
+    provider.reload()
+    old = provider.effective("project:P123").hash
+    path = directory / "x.P123@1.4.0.yaml"
+    path.write_text(path.read_text().replace("Shutdown window reference", "Shutdown window ref"))
+    new = provider.effective("project:P123").hash  # picks the edit up on its own
+    assert new != old
+    changes = provider.reload()
+    assert [(c.scope, c.old_hash, c.new_hash) for c in changes] == [("project:P123", old, new)]
+    assert provider.reload() == []
+
+
+def test_a_failed_reload_changes_nothing(directory: Path) -> None:
+    provider = DirectorySchemaProvider(directory)
+    provider.reload()
+    old = provider.effective("project:P123").hash
+    path = directory / "x.P123@1.4.0.yaml"
+    good = path.read_text()
+    path.write_text(good.replace("tighten:", "tighten:\n      size_in: {minimum: 0.1}\n    #"))
+    with pytest.raises(SchemaCompileError):
+        provider.reload()
+    path.write_text(good.replace("Shutdown window reference", "Shutdown window ref"))
+    changes = provider.reload()
+    assert [c.scope for c in changes] == ["project:P123"]
+    assert changes[0].old_hash == old  # the failed attempt reported nothing and kept old state
+
+
+@pytest.mark.parametrize("scope", ["P123", "", "projects:P123", "project:", "Company"])
+def test_a_malformed_scope_is_a_service_error(directory: Path, scope: str) -> None:
+    provider = DirectorySchemaProvider(directory)
+    with pytest.raises(InvalidScopeError) as caught:
+        provider.effective(scope)
+    assert isinstance(caught.value, ServiceError)
+
+
+def test_a_project_without_packages_gets_the_company_set_rescoped(directory: Path) -> None:
+    provider = DirectorySchemaProvider(directory)
+    other = provider.effective("project:P999")
+    assert other.scope == "project:P999"
+    assert list(other.psets) == ["valve_data"]  # mandatory psets only
+    assert other.psets["valve_data"].extension is None
+    assert other.hash != provider.effective("company").hash
+    assert other.hash != provider.effective("project:P123").hash
+
+
+def test_effective_by_hash_finds_schemas_composed_earlier(directory: Path) -> None:
+    provider = DirectorySchemaProvider(directory)
+    first = provider.effective("project:P123")
+    path = directory / "x.P123@1.4.0.yaml"
+    path.write_text(path.read_text().replace("Shutdown window reference", "Shutdown window ref"))
+    second = provider.effective("project:P123")
+    assert second.hash != first.hash
+    assert provider.effective_by_hash(first.hash) == first
+    assert provider.effective_by_hash(second.hash) == second
+    assert provider.effective_by_hash("nope") is None

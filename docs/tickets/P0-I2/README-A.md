@@ -77,6 +77,7 @@ check is split (T08 became T08, T08a, T08b; T04b was added because form metadata
 | A16 | Reserved names: psets `x`, `prj`, `enrich`, `src`; property `x`. `required_in_states` containing `*` covers every state (one helper, `states_cover`/`required_in`, for compiler and evaluator). A `json` property keeps a dict value as one `cur_pset_values` row; an empty dict leaves a row | The projector classifies paths by those markers and depth |
 | A17 | T01 interpretations confirmed: the highest version is taken among the project's own documents; "those documents" are the ones chosen by that rule; a pin to a stored non-company package is skipped by `adopted` and reported by `check`; a pin to an unstored version raises `PackageError` from `adopted`; an error with no location reads `(document)`; `load_package` also wraps read and decode errors; `projects()` returns the distinct non-null `project` values. Tests: `test_registry_pins.py` | The reviewer found them consistent with the ticket |
 | A18 | An enum property with no values is unconstrained in JSON Schema (no `"enum": []`), and the compiler rejects a code list without values | An empty list would reject every value |
+| A19 | Schema provider: change detection hashes file bytes (a same-size edit in one mtime tick is noticed; touch alone is not a change). `reload()` compares against what the previous `reload()` reported, so an edit that `effective()` noticed first is still reported, and it is all-or-nothing. A project scope with no project packages uses the company effective schema composed for that scope (orchestrator ruling; the scope is in the hash). A malformed scope raises `InvalidScopeError`, a `ServiceError`. `effective_by_hash` exists on the directory provider | Review of d4feec7/00291bd |
 | A12 | JSON Schema is generated from `EffectiveSchema` directly, not by the LinkML generator | The LinkML generator cannot express the policy annotations and would lose layer information; the LinkML view stays for lint and export |
 
 ## Order of work (relay rounds)
@@ -96,6 +97,8 @@ check is split (T08 became T08, T08a, T08b; T04b was added because form metadata
 ## Known gaps recorded for later increments
 - A waiver is dropped silently when other issues remain: `ConformanceReport` has no waived list (contract field). Follow-up for P1-I8 (waiver records).
 - `class_filter` is not evaluated (A14); `conformance` on a row updates only on pset writes, not when the schema changes.
+
+- §27.3 "records being edited keep validating against the schema they were opened with" needs a by-hash lookup in the services and the TUI; `DirectorySchemaProvider.effective_by_hash` exists, the wiring is a follow-up for P0-I4 (live TUI).
 
 ## Blocked / Decision
 (none)
