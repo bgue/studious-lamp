@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal, Protocol
 
 from tl_core.webhooks.rows import OutboxRow
@@ -76,7 +76,7 @@ def effective_mode(policy: ConfidentialityPolicy, row: OutboxRow, requested: str
 
 def rfc3339(stamp: str) -> str:
     """``2026-10-09T03:14:07.000000+00:00`` becomes ``2026-10-09T03:14:07.000000Z``."""
-    moment = datetime.fromisoformat(stamp)
+    moment = datetime.fromisoformat(stamp).astimezone(UTC)
     return moment.isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
