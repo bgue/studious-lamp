@@ -514,6 +514,30 @@ def test_a_missing_object_is_restored_by_the_next_upload_of_the_same_bytes(env: 
     assert env.store.objects[key] == PDF
 
 
+def test_reuploading_to_the_same_slot_restores_a_lost_object(env: Env) -> None:
+    rec = env.record()
+    first = env.put(rec, PDF, "report")
+    del env.store.objects[object_key(first.sha256)]  # the store lost it; the ledger row stays
+    ticket = env.register(rec, PDF, "report")
+    assert ticket.exists is False
+    with pytest.raises(UploadIncompleteError):
+        env.complete(ticket)  # nothing to restore from
+    again = env.complete(ticket, PDF)
+    assert again.already_attached and again.file_id == first.file_id
+    assert env.store.objects[object_key(first.sha256)] == PDF
+    assert len(env.files(rec)) == 1 and env.event_types() == ["File.Uploaded", "File.Processed"]
+
+
+def test_a_restore_still_verifies_the_bytes(env: Env) -> None:
+    rec = env.record()
+    first = env.put(rec, PDF, "report")
+    del env.store.objects[object_key(first.sha256)]
+    ticket = env.register(rec, PDF, "report")
+    with pytest.raises(UploadVerificationError):
+        env.complete(ticket, b"%PDF-1.7 not the same")
+    assert object_key(first.sha256) not in env.store.objects
+
+
 # --- slot cardinality and revisions -----------------------------------------------------------
 
 

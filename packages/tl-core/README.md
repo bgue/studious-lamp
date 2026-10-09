@@ -8,7 +8,7 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.ledger`: `NewEvent`, `Event`, `AppendResult`, `ConcurrencyError`, `Ledger` | models, Protocol | The event envelope and the ledger contract (`append`, `read_stream`, `read_after`, `head_seq`, `stream_version`) |
 | `tl_core.ledger`: `canonical_json`, `iso_utc`, `event_hash` | functions | Per-scope hash chain input and output |
 | `tl_core.projection`: `Projector`, `ProjectorRegistry`, `InMemoryRegistry` | Protocols, class | Inline read-model builders; unique names; per-event lookup |
-| `tl_core.projection.defaults.default_registry()` | function | Built-in projectors (`core_record`, `pset_values`) |
+| `tl_core.projection.defaults.default_registry()` | function | Built-in projectors (`core_record`, `pset_values`, links, numbering, workflow, `files`) |
 | `tl_core.projection.record.RecordProjector` | class | `Record.*` events to `cur_core_record`; rows are never deleted |
 | `tl_core.projection.pset.PsetProjector` | class | `Pset.ValuesSet` and pset-carrying record events to `psets_json`, `cur_pset_values` and promoted columns; `None` values unset |
 | `tl_core.projection.promoted.ensure_promoted_columns` | function | Add and backfill `pset__<pset>__<property>` columns for an effective schema |
@@ -21,6 +21,15 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.services.schema_events`: `reload_and_record`, `schema_reload_subscriber` | functions | `Schema.EffectiveChanged` events (stream `schema:<scope>`) and the bus hook |
 | `tl_core.services.queries`: `get_record`, `list_records` | functions | Envelope dictionaries from `cur_core_record` |
 | `tl_core.services.errors` | exceptions | `ServiceError` and its subclasses |
+| `tl_core.files.types`: `ObjectStore`, `object_key`, `ObjectNotFound` | Protocol, functions | Frozen object-store contract (build spec 03 §7); keys are `sha256/<aa>/<bb>/<digest>` |
+| `tl_core.files.service`: `FileService`, `RegisterUpload`, `CompleteUpload`, `AttachFile`, `UploadTicket`, `FileResult` | class, models | Upload flow: server-side hash and size verification, scope-local dedupe, quarantine, `File.*` events with the `cur_files` row in one unit of work; `open_file`, `scan_pending`. Signatures: `docs/tickets/P0-I4/README-B.md` |
+| `tl_core.files.queries`: `get_file`, `list_files`, `FileInfo` | functions, model | Read side of `cur_files` (the current file per slot is `available` and not superseded) |
+| `tl_core.files.lifecycle`: `next_file_status` | function | The quarantine state machine (`quarantined` to `available` or `rejected`) |
+| `tl_core.files.slots`: `FileSlot`, `FileSlotRegistry`, `default_file_slots()` | models, function | `tl:file_slots` declarations from LinkML YAML (`schema/fixtures/files/`) |
+| `tl_core.files.required`: `missing_required_files` | function | Required slots still empty for a record (a workflow guard) |
+| `tl_core.files.reconcile`: `reconcile_objects` | function | Ledger hashes versus the store: missing, corrupt, orphans, staging (read-only) |
+| `tl_core.files.scan`: `Scanner`, `PassScanner` | Protocol, class | Malware-scan seam; Phase 0 passes everything |
+| `tl_core.projection.files.FileProjector` | class | `File.*` events to `cur_files`; rows are never deleted |
 | `tl_core.util`: `utcnow`, `new_ulid` | functions | Clock and id helpers |
 
 ## Depends on / used by
@@ -44,4 +53,4 @@ Adapters supply connections.
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1. Last interface change: P0-I2 workstream A (pset services, provider, projector; decisions in `docs/tickets/P0-I2/README-A.md`). Rebuild `core_record` and `pset_values` together (`docs/runbooks/rebuild-projections.md`).
+Introduced in P0-I1. Files added in P0-I4 workstream B (`tl_core.files`; `files/types.py` is a frozen contract). Earlier: P0-I2 workstream A (pset services, provider, projector; decisions in `docs/tickets/P0-I2/README-A.md`). Rebuild `core_record` and `pset_values` together (`docs/runbooks/rebuild-projections.md`).

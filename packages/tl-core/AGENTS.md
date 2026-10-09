@@ -12,3 +12,6 @@ Read the root `AGENTS.md` first. These rules add to it.
 - Pset events: `Pset.ValuesSet` payload is `pset, layer, values, effective_schema_hash, conformance, units`; the projector reads only the payload and the rows already in the database, never the schema provider. A `None` value in `values` is a ledgered clear.
 - Services get the effective schema from `tl_core.schema_provider.get_provider()`; tests install a provider with `use_provider`.
 - `psets.py` signatures (`SetPsetValues`, `handle_set_pset_values`, `form_metadata`, `conformance`) are a contract with the TUI; change them only through an orchestrator decision.
+- Files: `files/types.py` is frozen (change only through an orchestrator decision). Never trust client-declared size or hash; verification happens in the store's `put` and in `FileService`. Dedupe without bytes only against an `available` file in the same scope. A quarantined file is readable only by its uploader. Supersession happens at `File.Processed`.
+- File events live on a `core.File` stream (stream id = file id). Quarantine rules are in `files/lifecycle.py` alone; handlers and the projector both call it.
+- Anything that serves file bytes (API) must send `Content-Disposition: attachment` and `X-Content-Type-Options: nosniff`; `content_type` is client-declared.

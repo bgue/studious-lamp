@@ -17,6 +17,10 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl schema reload` | command | Record `Schema.EffectiveChanged` for scopes whose effective schema changed |
 | `tl pset set --project ID KEY PSET NAME=VALUE... [--layer L]` | command | Calls `handle_set_pset_values`; `NAME=null` unsets a value |
 | `tl pset get --project ID KEY [PSET]` | command | Psets, stored schema hash and live conformance with issues |
+| `tl file put PATH --project ID --record KEY [--slot S] [--content-type T]` | command | Hash, upload (or dedupe) and attach a file; prints `file`, `slot`, `revision`, `status`, `size`, `sha256`, `deduplicated`, and `already attached` on a repeat |
+| `tl file get FILE_ID --project ID --out PATH [--force]` | command | Write a file's bytes, checked against the recorded SHA-256 |
+| `tl file ls --project ID --record KEY [--slot S] [--all]` | command | The current file per slot, or every file with `--all`; tab-separated `file_id, slot, revision, status, size, filename` |
+| `tl file reconcile [--verify]` | command | Ledger hashes versus the object store; exit 1 on a missing or corrupt object (runbook: `docs/runbooks/object-store-reconciliation.md`) |
 | `tl_cli.main:app` | typer app | The `tl` entry point |
 
 ## Depends on / used by
@@ -35,10 +39,11 @@ just demo P0-I1
 |---|---|---|
 | `--db PATH` / `TL_DB` | `./dev/data/tl.db` | The SQLite ledger file (git-ignored under `dev/data/`) |
 | `--actor` | `user:dev` | Actor recorded on events |
-| `--dir PATH` / `TL_SCHEMA_DIR` | `schema/fixtures` | Package directory for `tl schema` commands |
+| `--dir PATH` / `TL_SCHEMA_DIR` | `schema/fixtures` | Package directory for `tl schema` commands; file slots are read from its `files/` folder |
+| `TL_OBJECT_STORE`, `TL_OBJECT_ROOT`, `TL_OBJECT_SECRET`, `TL_ENV`, `TL_S3_*` | `fs`, `./dev/data/objects`, none, unset | Object store for `tl file`; see `packages/tl-adapters/README.md`. `just` exports `TL_ENV=dev` |
 
 ## Rules specific to this package
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1; `schema` and `pset` groups added in P0-I2. Numbering is not available yet, so `--key` is required (Increment 3).
+Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `file` group added in P0-I4 workstream B. Numbering is not available yet, so `--key` is required (Increment 3).

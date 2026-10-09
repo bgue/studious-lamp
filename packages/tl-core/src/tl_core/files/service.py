@@ -442,6 +442,9 @@ class FileService:
         self._check_declared(uow, record, cmd)
         same = self._same_attachment(uow, cmd)
         if same is not None:
+            if not self._store.exists(object_key(cmd.sha256)):
+                # The row survives but the object is gone: re-sending the bytes restores it.
+                self._ensure_object(uow, cmd, data, staging)
             info = get_file(uow, cmd.scope, same)
             return self._result(info, deduplicated=info.deduplicated, already_attached=True)
         deduplicated = self._ensure_object(uow, cmd, data, staging)
