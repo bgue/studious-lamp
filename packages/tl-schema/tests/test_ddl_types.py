@@ -142,3 +142,15 @@ def test_sql_literal_wrong_python_type_raises(
 ) -> None:
     with pytest.raises(TypeError):
         sql_literal(linkml_type, value, dialect)
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+@pytest.mark.parametrize("linkml_type", ["float", "double", "decimal"])
+def test_non_finite_numbers_are_rejected(linkml_type: str, bad: float) -> None:
+    with pytest.raises(ValueError, match="finite"):
+        sql_literal(linkml_type, bad, "sqlite")
+
+
+def test_non_finite_decimal_is_rejected() -> None:
+    with pytest.raises(ValueError, match="finite"):
+        sql_literal("decimal", decimal.Decimal("NaN"), "postgres")

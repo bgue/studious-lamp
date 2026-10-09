@@ -7,6 +7,7 @@ build spec 03 §9).
 
 import decimal
 import json as _json
+import math
 from typing import Final, Literal
 
 Dialect = Literal["sqlite", "postgres"]
@@ -86,6 +87,8 @@ def sql_literal(linkml_type: str, value: object, dialect: Dialect, *, json: bool
             raise TypeError(
                 f"{linkml_type} literal requires an int or float, got {type(value).__name__}"
             )
+        if not math.isfinite(value):
+            raise ValueError(f"{linkml_type} literal must be finite, got {value!r}")
         return repr(float(value))
     # Rule 7: decimal.
     if linkml_type == "decimal":
@@ -93,6 +96,8 @@ def sql_literal(linkml_type: str, value: object, dialect: Dialect, *, json: bool
             raise TypeError(
                 f"decimal literal requires an int, float or Decimal, got {type(value).__name__}"
             )
+        if not decimal.Decimal(value).is_finite():
+            raise ValueError(f"decimal literal must be finite, got {value!r}")
         return str(value)
     # Rule 8: every other known type (text-like, enum, date, datetime, time) is a quoted string.
     if not isinstance(value, str):
