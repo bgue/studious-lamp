@@ -3,9 +3,6 @@
 Each subcommand parses options, makes one call into `tl_core.services`, and prints. Rules (relation
 vocabulary, lifecycle, scope) live in the services. Records are named by key; links by the id that
 `add`, `suggest` and `list` print.
-
-STUB (P0-I3-T02b): the helpers, the options and `add`, `suggest` are final; the functions marked
-`raise NotImplementedError` are the ticket. Remove this paragraph when done.
 """
 
 from __future__ import annotations
@@ -13,15 +10,34 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Annotated, NoReturn
+from typing import Annotated, Literal, NoReturn, cast
 
 import typer
 from pydantic import ValidationError
 from tl_adapters.sqlite.uow import open_uow
 from tl_core.ledger import ConcurrencyError
-from tl_core.links.expected import ExpectedLinkError
+from tl_core.links.expected import ExpectedLinkError, missing_expected_links
 from tl_core.services.commands import CommandResult
 from tl_core.services.errors import ServiceError
+from tl_core.services.link_queries import links_of
+from tl_core.services.links import (
+    AcceptLink,
+    AddLink,
+    DeclineLink,
+    FlagLink,
+    RepinLink,
+    RetractLink,
+    SuggestLink,
+    VerifyLink,
+    handle_accept_link,
+    handle_add_link,
+    handle_decline_link,
+    handle_flag_link,
+    handle_repin_link,
+    handle_retract_link,
+    handle_suggest_link,
+    handle_verify_link,
+)
 from tl_core.services.queries import get_record
 from tl_core.uow import UnitOfWork
 from tl_schema.compile import SchemaCompileError
@@ -74,7 +90,34 @@ def _create(
     actor: str,
     confidence: float | None,
 ) -> None:
-    raise NotImplementedError
+    db: Path = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db) as uow:
+        source = _record(uow, scope, project, from_key)
+        target = _record(uow, scope, project, to_key)
+        fields = {
+            "actor": actor,
+            "source": "cli",
+            "scope": scope,
+            "from_id": str(source["id"]),
+            "to_id": str(target["id"]),
+            "relation": relation,
+            "pin": pin,
+            "note": note,
+        }
+        if confidence is None:
+            result = handle_add_link(uow, AddLink(**fields))
+        else:
+            result = handle_suggest_link(uow, SuggestLink(**fields, confidence=confidence))
+    event = result.events[0]
+    if confidence is None:
+        typer.echo(f"added {result.stream_id}")
+        typer.echo(f"relation {event.payload['relation']}")
+        typer.echo("status active")
+    else:
+        typer.echo(f"suggested {result.stream_id}")
+        typer.echo(f"relation {event.payload['relation']}")
+        typer.echo("status suggested")
 
 
 @app.command("add")
@@ -128,7 +171,33 @@ def list_links(
     ] = False,
 ) -> None:
     """Show a record's links in both directions and the expected links it still lacks."""
-    raise NotImplementedError
+    db: Path = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        row = _record(uow, scope, project, key)
+        views = links_of(uow, str(row["id"]), include_retracted=all_links)
+        missing = missing_expected_links(uow, str(row["id"]))
+    typer.echo(f"key: {key}")
+    for view in views:
+        status = "declined" if view.declined else view.status
+        typer.echo(
+            "  ".join(
+                [
+                    view.direction,
+                    view.label,
+                    view.other_key or "—",
+                    status,
+                    view.pin or "floating",
+                    view.link_id,
+                ]
+            )
+        )
+    for item in missing:
+        expectation = item.expectation
+        rule = expectation.relation
+        if expectation.by_state:
+            rule = f"{rule}@{expectation.by_state}"
+        typer.echo(f"missing {expectation.display} (rule: {rule})")
 
 
 def _act(
@@ -154,7 +223,16 @@ def accept(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Accept a suggested link."""
-    raise NotImplementedError
+    _act(
+        ctx,
+        project,
+        "accepted",
+        link_id,
+        lambda uow, scope: handle_accept_link(
+            uow,
+            AcceptLink(actor=actor, source="cli", scope=scope, link_id=link_id, note=note),
+        ),
+    )
 
 
 @app.command("decline")
@@ -166,7 +244,16 @@ def decline(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Decline a suggested link. The same suggestion is not made again."""
-    raise NotImplementedError
+    _act(
+        ctx,
+        project,
+        "declined",
+        link_id,
+        lambda uow, scope: handle_decline_link(
+            uow,
+            DeclineLink(actor=actor, source="cli", scope=scope, link_id=link_id, reason=reason),
+        ),
+    )
 
 
 @app.command("verify")
@@ -178,7 +265,16 @@ def verify(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Mark an active link verified by the actor."""
-    raise NotImplementedError
+    _act(
+        ctx,
+        project,
+        "verified",
+        link_id,
+        lambda uow, scope: handle_verify_link(
+            uow,
+            VerifyLink(actor=actor, source="cli", scope=scope, link_id=link_id, note=note),
+        ),
+    )
 
 
 @app.command("repin")
@@ -192,7 +288,16 @@ def repin(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Re-pin a link; a stale link becomes active again."""
-    raise NotImplementedError
+    _act(
+        ctx,
+        project,
+        "repinned",
+        link_id,
+        lambda uow, scope: handle_repin_link(
+            uow,
+            RepinLink(actor=actor, source="cli", scope=scope, link_id=link_id, pin=pin),
+        ),
+    )
 
 
 @app.command("retract")
@@ -204,7 +309,16 @@ def retract(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Retract a link. Its history stays; links are never deleted."""
-    raise NotImplementedError
+    _act(
+        ctx,
+        project,
+        "retracted",
+        link_id,
+        lambda uow, scope: handle_retract_link(
+            uow,
+            RetractLink(actor=actor, source="cli", scope=scope, link_id=link_id, reason=reason),
+        ),
+    )
 
 
 @app.command("flag")
@@ -217,4 +331,20 @@ def flag(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Flag a link stale or broken."""
-    raise NotImplementedError
+    _act(
+        ctx,
+        project,
+        "flagged",
+        link_id,
+        lambda uow, scope: handle_flag_link(
+            uow,
+            FlagLink(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                link_id=link_id,
+                status=cast(Literal["stale", "broken"], status),
+                reason=reason,
+            ),
+        ),
+    )
