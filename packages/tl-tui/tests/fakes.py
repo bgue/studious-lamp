@@ -18,6 +18,7 @@ from typing import Any, Literal
 from fakes_links import FakeLinkSupport
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
+from tl_core.services.edit import EditRecord
 from tl_core.services.errors import DuplicateKeyError, RecordNotFoundError
 from tl_core.services.psets import SetPsetValues
 from tl_schema.forms import (
@@ -207,6 +208,7 @@ class FakeClient(FakeLinkSupport):
         self.metadata = valve_form_metadata()
         self.calls: list[str] = []  # method names in call order, for assertions
         self.set_pset_commands: list[SetPsetValues] = []
+        self.edit_commands: list[EditRecord] = []
         self.orders: list[list[tuple[str, Literal["asc", "desc"]]] | None] = []
         self._records: dict[str, dict[str, Any]] = {}
         self._events: dict[str, list[Event]] = {}
@@ -432,6 +434,50 @@ class FakeClient(FakeLinkSupport):
         record["conformance"] = self._report(record).status
         return CommandResult(
             stream_id=record["id"], key=record["key"], version=record["version"], events=[event]
+        )
+
+    def edit_record(self, cmd: EditRecord) -> CommandResult:
+        """All parts or none: a failing part restores the record, its events and the counters."""
+        self.calls.append("edit_record")
+        self.edit_commands.append(cmd)
+        record = self._load(cmd.stream_id, cmd.expected_version)
+        before = (deepcopy(record), list(self._events.get(record["id"], [])), self._seq)
+        calls, commands = len(self.calls), len(self.set_pset_commands)
+        common: dict[str, Any] = {
+            "actor": cmd.actor,
+            "source": cmd.source,
+            "scope": cmd.scope,
+            "stream_id": cmd.stream_id,
+        }
+        events: list[Event] = []
+        try:
+            if cmd.changes:
+                result = self.update_record(
+                    UpdateRecord(**common, expected_version=record["version"], changes=cmd.changes)
+                )
+                events.extend(result.events)
+            for part in cmd.pset_edits:
+                result = self.set_pset_values(
+                    SetPsetValues(
+                        **common,
+                        expected_version=record["version"],
+                        pset=part.pset,
+                        layer=part.layer,
+                        values=part.values,
+                    )
+                )
+                events.extend(result.events)
+        except Exception:
+            record.clear()
+            record.update(before[0])
+            self._events[record["id"]] = before[1]
+            self._seq = before[2]
+            raise
+        finally:
+            del self.calls[calls:]
+            del self.set_pset_commands[commands:]
+        return CommandResult(
+            stream_id=record["id"], key=record["key"], version=record["version"], events=events
         )
 
     def form_metadata(self, scope: str, record_type: str) -> FormMetadata:

@@ -291,3 +291,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   the value the code assigned and compare `event.value` with it. A review that probes with a second record type found it; the
   provided test only used one type and could not see it.
   Evidence: T12 escalation; `tests/test_link_picker.py::test_the_relation_follows_the_highlighted_record_until_the_user_changes_it`. Status: active
+
+- **L-P0-I3-10** · 2026-10-09 · tags: core, services
+  Handlers never commit and read the projections of the caller's own transaction, so a new command that needs several writes to be
+  atomic is a composition: call the existing handlers in order inside the one unit of work, chain `expected_version` from each result,
+  share one `correlation_id`, and let the caller's rollback undo everything when a part raises. No new write path was needed for
+  `EditRecord`. A part that changes nothing raises `NoChangesError` before it appends, so it can be skipped safely.
+  Evidence: `services/edit.py`, `tests/services/test_edit_record.py` (rollback and stale-version cases). Status: active

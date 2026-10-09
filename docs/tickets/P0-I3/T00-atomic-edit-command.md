@@ -1,6 +1,6 @@
 # P0-I3-T00 — A single atomic edit command for a record form
 
-Status: draft
+Status: built (supervisor; see decision D25)
 Tier: sonnet
 Labels: core, tui
 Depends on: P0-I2 (workstreams A and B merged)

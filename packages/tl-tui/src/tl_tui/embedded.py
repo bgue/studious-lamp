@@ -18,6 +18,7 @@ from tl_core.links.vocabulary import default_relation
 from tl_core.numbering.detect import KeyChip, suggest_chips
 from tl_core.services import link_queries, link_trace, links, psets, queries
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
+from tl_core.services.edit import EditRecord, handle_edit_record
 from tl_core.services.link_queries import LinkCounts, LinkTarget, LinkView
 from tl_core.services.link_trace import TraceDirection, TraceNode
 from tl_core.services.links import (
@@ -115,6 +116,10 @@ class EmbeddedClient:
     def set_pset_values(self, cmd: SetPsetValues) -> CommandResult:
         with self._uow(False) as uow:
             return psets.handle_set_pset_values(uow, cmd)
+
+    def edit_record(self, cmd: EditRecord) -> CommandResult:
+        with self._uow(False) as uow:
+            return handle_edit_record(uow, cmd)
 
     def form_metadata(self, scope: str, record_type: str) -> FormMetadata:
         with self._uow(True) as uow:

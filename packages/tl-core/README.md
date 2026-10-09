@@ -18,6 +18,7 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.services.commands`: `CreateRecord`, `UpdateRecord`, `VoidRecord`, `CommandResult` | models | Command contracts shared by CLI, TUI, API, MCP |
 | `tl_core.services.records`: `handle_create_record`, `handle_update_record`, `handle_void_record` | functions | The only business rules for `core.Record` |
 | `tl_core.services.psets`: `SetPsetValues`, `handle_set_pset_values`, `form_metadata`, `conformance` | model, functions | Layer-aware pset writes (`Pset.ValuesSet`), form metadata and conformance for the TUI and CLI |
+| `tl_core.services.edit`: `EditRecord`, `PsetEdit`, `handle_edit_record` | model, function | One atomic edit: field changes and pset batches in a single unit of work, one `expected_version`, one correlation id |
 | `tl_core.services.schema_events`: `reload_and_record`, `schema_reload_subscriber` | functions | `Schema.EffectiveChanged` events (stream `schema:<scope>`) and the bus hook |
 | `tl_core.services.queries`: `get_record`, `list_records` | functions | Envelope dictionaries from `cur_core_record` |
 | `tl_core.services.errors` | exceptions | `ServiceError` and its subclasses |

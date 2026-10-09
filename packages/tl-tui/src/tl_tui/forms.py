@@ -3,9 +3,8 @@
 This is plumbing between widgets and `ClientInterface`, not a rule engine: the schema rules live
 in the pset services. A form collects ``edits`` keyed by `FieldMeta.path` (only changed fields; a
 cleared field is ``None``) and calls `save_record_edits`. Edits are grouped into one
-`SetPsetValues` per (pset, layer), because a command carries one pset and one layer, and the
-record version is chained from command to command. If a command fails, earlier ones stay applied;
-the outcome says which.
+`PsetEdit` per (pset, layer), because an edit part carries one pset and one layer, and sent as one
+`EditRecord` with the field changes. The save is atomic: if any part is refused, nothing is saved.
 """
 
 from __future__ import annotations
@@ -13,8 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
-from tl_core.services.commands import UpdateRecord
-from tl_core.services.psets import SetPsetValues
+from tl_core.services.edit import EditRecord, PsetEdit
 from tl_schema.forms import FieldMeta, FormMetadata
 
 from tl_tui.client import ClientInterface
@@ -28,7 +26,7 @@ CORE_PATHS = ("title", "description")
 
 @dataclass(frozen=True)
 class PsetBatch:
-    """One `SetPsetValues` worth of edits: keys are relative to the pset (``x.`` kept)."""
+    """One `PsetEdit` worth of edits: keys are relative to the pset (``x.`` kept)."""
 
     pset: str
     layer: WritableLayer
@@ -37,11 +35,13 @@ class PsetBatch:
 
 @dataclass
 class SaveOutcome:
-    """Result of `save_record_edits`. ``error`` is ``None`` when everything was applied."""
+    """Result of `save_record_edits`. ``error`` is ``None`` when the whole save was applied.
+
+    ``version`` is the record version after the save (unchanged on failure).
+    """
 
     version: int
     applied: list[str] = field(default_factory=lambda: [])
-    failed: str | None = None
     error: Exception | None = None
 
     @property
@@ -81,49 +81,30 @@ def save_record_edits(
     edits: dict[str, Any],
     source: str = "tui",
 ) -> SaveOutcome:
-    """Send core edits as one `UpdateRecord`, then pset edits as chained `SetPsetValues`.
+    """Send all edits as one `EditRecord`: every part is saved or none is.
 
     Validation of the edits against the paths happens before anything is sent, so a bad path
-    changes nothing. Service failures (``CLIENT_ERRORS``) stop the sequence and are returned.
+    changes nothing. A service failure (``CLIENT_ERRORS``) is returned in the outcome with nothing
+    saved. ``applied`` lists the parts of a successful save (``core``, then ``pset/layer``).
     """
     batches = pset_batches(meta, edits)
-    outcome = SaveOutcome(version=record["version"])
     core = {p: edits[p] for p in CORE_PATHS if p in edits}
-    if core:
-        try:
-            result = client.update_record(
-                UpdateRecord(
-                    actor=actor,
-                    source=source,
-                    scope=scope,
-                    stream_id=record["id"],
-                    expected_version=outcome.version,
-                    changes=core,
-                )
+    outcome = SaveOutcome(version=record["version"])
+    try:
+        result = client.edit_record(
+            EditRecord(
+                actor=actor,
+                source=source,
+                scope=scope,
+                stream_id=record["id"],
+                expected_version=outcome.version,
+                changes=core,
+                pset_edits=[PsetEdit(pset=b.pset, layer=b.layer, values=b.values) for b in batches],
             )
-        except CLIENT_ERRORS as exc:
-            outcome.failed, outcome.error = "core", exc
-            return outcome
-        outcome.version = result.version
-        outcome.applied.append("core")
-    for batch in batches:
-        label = f"{batch.pset}/{batch.layer}"
-        try:
-            result = client.set_pset_values(
-                SetPsetValues(
-                    actor=actor,
-                    source=source,
-                    scope=scope,
-                    stream_id=record["id"],
-                    expected_version=outcome.version,
-                    pset=batch.pset,
-                    layer=batch.layer,
-                    values=batch.values,
-                )
-            )
-        except CLIENT_ERRORS as exc:
-            outcome.failed, outcome.error = label, exc
-            return outcome
-        outcome.version = result.version
-        outcome.applied.append(label)
+        )
+    except CLIENT_ERRORS as exc:
+        outcome.error = exc
+        return outcome
+    outcome.version = result.version
+    outcome.applied = (["core"] if core else []) + [f"{b.pset}/{b.layer}" for b in batches]
     return outcome
