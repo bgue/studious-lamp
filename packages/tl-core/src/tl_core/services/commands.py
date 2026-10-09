@@ -32,8 +32,10 @@ class CreateRecord(Command):
     record_type: str  # Phase 0: only "core.Record"
     title: str = Field(min_length=1)
     description: str | None = None
-    key: str | None = None
+    key: str | None = None  # None: the numbering service allocates one (brief 8)
     psets: dict[str, Any] = {}
+    # Values for pattern fields other than {project} and {type}, e.g. {"discipline": "PIP"}.
+    numbering: dict[str, str] = {}
 
 
 class UpdateRecord(Command):

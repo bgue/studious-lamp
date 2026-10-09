@@ -1,4 +1,4 @@
-"""New-record modal and the `n` key of the app (P0-I2-T16c). Provided; do not edit."""
+"""New-record modal and the `n` key of the app (P0-I2-T16c, key optional since P0-I3)."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def test_form_shows_three_fields_with_required_markers() -> None:
         await pilot.pause()
         text = screen_text(app)
         assert "New record" in text
-        assert "Key ●" in text and "Title ●" in text and "Description" in text
+        assert "Key" in text and "Key ●" not in text and "Title ●" in text and "Description" in text
 
     run_pilot(app, scenario, size=(100, 30))
 
@@ -87,7 +87,7 @@ def test_an_empty_description_is_stored_as_none() -> None:
     run_pilot(app, scenario, size=(100, 30))
 
 
-def test_missing_key_or_title_is_refused_with_inline_errors() -> None:
+def test_a_missing_title_is_refused_with_an_inline_error() -> None:
     client = FakeClient()
     app = Host(client)
 
@@ -95,13 +95,32 @@ def test_missing_key_or_title_is_refused_with_inline_errors() -> None:
         await pilot.pause()
         form = app.screen
         assert isinstance(form, NewRecordForm)
-        _fill(form, "", "Only a title")
+        _fill(form, "FV-9", "")
         await pilot.pause()
         await pilot.press("ctrl+s")
         await pilot.pause()
         assert app.results == [] and client.list_records(SCOPE) == []
         text = screen_text(app)
         assert "Required" in text and "Fill in the required fields" in text
+
+    run_pilot(app, scenario, size=(100, 30))
+
+
+def test_a_blank_key_takes_the_next_number() -> None:
+    client = FakeClient()
+    app = Host(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        form = app.screen
+        assert isinstance(form, NewRecordForm)
+        _fill(form, "", "Numbered")
+        await pilot.pause()
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        assert app.results == ["NEW-0001"]
+        created = client.get_record(SCOPE, "NEW-0001")
+        assert created is not None and created["title"] == "Numbered"
 
     run_pilot(app, scenario, size=(100, 30))
 

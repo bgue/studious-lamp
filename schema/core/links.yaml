@@ -1,0 +1,188 @@
+id: https://example.org/throughline/core/links
+name: tl_core_links
+title: Throughline links projection
+description: >-
+  The current state of record-to-record links (brief 7.1). A link is its own ledger stream
+  (`core.Link`); `cur_links` holds one row per link, so both directions are resolved from the same row
+  (outbound by `from_id`, inbound by `to_id`). `cur_link_counts` keeps per-record counts so grids can
+  sort and filter on them (brief 7.4). Links are never deleted: a retracted link keeps its row.
+  The relation vocabulary is extensible, so `relation` is a plain string; the built-in codes are listed
+  in `LinkRelation` and their inverse labels live in `tl_core.links.vocabulary`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+default_range: string
+annotations:
+  tl:module: core
+
+enums:
+  LinkStatus:
+    description: Lifecycle state of a link (brief 7.1).
+    permissible_values:
+      suggested:
+      active:
+      stale:
+      broken:
+      retracted:
+  LinkSource:
+    description: How a link came to exist (brief 7.1).
+    permissible_values:
+      manual:
+      key_detected:
+      tray:
+      bulk:
+      model_selection:
+      thread_dispatch:
+      rule:
+      enricher:
+      import:
+      mapping:
+  LinkRelation:
+    description: >-
+      Built-in relation codes (brief 7.1). Documentation only: the vocabulary is extensible, so link rows
+      store the code as a string.
+    permissible_values:
+      references:
+      derived_from:
+      supersedes:
+      responds_to:
+      raised_against:
+      resolves:
+      belongs_to:
+      requires:
+      blocks:
+      verifies:
+      dispatched_from:
+      attached_to:
+      same_as:
+
+classes:
+  Link:
+    description: One link between two records, in its current lifecycle state.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_links
+    attributes:
+      link_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Immutable link identifier; equals the ledger `stream_id` of the link.
+      scope:
+        range: ScopeId
+        required: true
+        description: Scope of the link, which is the scope of its `from` record.
+        annotations:
+          tl:indexed: true
+      from_id:
+        range: Ulid
+        required: true
+        description: The record the link starts at (the subject of the relation).
+        annotations:
+          tl:indexed: true
+      to_id:
+        range: Ulid
+        required: true
+        description: The record the link points to.
+        annotations:
+          tl:indexed: true
+      relation:
+        required: true
+        description: Forward relation code, for example `raised_against`.
+      status:
+        range: LinkStatus
+        required: true
+        ifabsent: string(active)
+        description: Lifecycle state.
+      pin:
+        description: Revision the link is pinned to; null means floating to the current revision.
+      note:
+        description: Optional free text.
+      source:
+        range: LinkSource
+        required: true
+        description: How the link was created.
+      confidence:
+        range: float
+        description: Confidence of a suggested link, between 0 and 1.
+      reason:
+        description: Reason given with the last flag, decline, or retraction.
+      declined:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: True when the link was a suggestion that a person declined. Declines are remembered.
+      verified_by:
+        description: Actor of the last `Link.Verified` event.
+      verified_at:
+        range: datetime
+        description: Time of the last `Link.Verified` event.
+      created_by:
+        required: true
+        description: Actor of the creating event.
+      created_at:
+        range: datetime
+        required: true
+        description: Time of the creating event (system time).
+      updated_at:
+        range: datetime
+        required: true
+        description: Time of the last applied event (system time).
+      version:
+        range: integer
+        required: true
+        description: Ledger `stream_version` of the last event applied.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied.
+
+  LinkCount:
+    description: Per-record link counts, maintained with `cur_links` (brief 7.4).
+    annotations:
+      tl:current_state: true
+      tl:table: cur_link_counts
+    attributes:
+      record_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: The record the counts belong to.
+      scope:
+        range: ScopeId
+        required: true
+        description: Scope of the record.
+      active_out:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Active links that start at the record.
+      active_in:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Active links that point to the record.
+      stale:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Stale links in either direction.
+      broken:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Broken links in either direction.
+      suggested:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Suggested links in either direction.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event that touched the counts.

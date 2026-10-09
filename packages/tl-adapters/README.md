@@ -32,4 +32,4 @@ just test tests/property
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1. Last interface change: P0-I1 (plan decisions D8, D13).
+Introduced in P0-I1. Last interface change: P0-I1 (plan decisions D8, D13). P0-I3 added no interface: `create_schema` and `rebuild_projections` pick up the link, numbering and workflow projectors from `default_registry()`. Postgres needs row locks on the guard and counter reads (P0-I5).

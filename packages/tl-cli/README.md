@@ -17,11 +17,18 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl schema reload` | command | Record `Schema.EffectiveChanged` for scopes whose effective schema changed |
 | `tl pset set --project ID KEY PSET NAME=VALUE... [--layer L]` | command | Calls `handle_set_pset_values`; `NAME=null` unsets a value |
 | `tl pset get --project ID KEY [PSET]` | command | Psets, stored schema hash and live conformance with issues |
+| `tl record create --project ID --title TITLE [--key KEY] [--segment NAME=VALUE]...` | command | Without `--key` the numbering pattern allocates the key (`P123-REC-0001`) |
+| `tl link add|suggest --project ID FROM TO [--relation R] [--pin P] [--note N]` | command | Create an active link, or a suggestion with `--confidence`; prints the link id, relation and status |
+| `tl link list --project ID KEY [--all]` | command | Links in both directions (`out`/`in`, label, other key, status, pin, id) and the expected links still missing |
+| `tl link accept|decline|verify|repin|retract|flag --project ID LINK_ID ...` | command | Link lifecycle; `retract` and `flag` need `--reason`; a declined suggestion is not made again |
+| `tl link trace --project ID KEY [--depth N] [--direction out|in|both]` | command | Records reachable through links, as an indented tree with stale and broken marks |
+| `tl wf show --project ID KEY [--role R]...` | command | Workflow state and, for each transition, whether its guards pass |
+| `tl wf transition --project ID KEY NAME [--role R]... [--reason T]` | command | Run a transition; a blocked one prints every guard and exits 1 |
 | `tl_cli.main:app` | typer app | The `tl` entry point |
 
 ## Depends on / used by
 - Depends on: `tl_core`, `tl_schema`, `tl_adapters`, `typer`, `rich`.
-- Used by: `just demo P0-I1`, `just demo P0-I2`, `just rebuild-projections`, developers.
+- Used by: `just demo P0-I1`, `just demo P0-I2`, `just demo P0-I3`, `just rebuild-projections`, developers.
 
 ## Commands
 ```
@@ -41,4 +48,4 @@ just demo P0-I1
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1; `schema` and `pset` groups added in P0-I2. Numbering is not available yet, so `--key` is required (Increment 3).
+Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3. `--role` is a stub list (no auth yet).

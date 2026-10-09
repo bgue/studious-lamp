@@ -1,0 +1,477 @@
+"""LinkProjector: link events into cur_links and cur_link_counts (P0-I3-T03)."""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+import pytest
+from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.pool import StaticPool
+from tl_core.ledger import Event
+from tl_core.links.lifecycle import LINK_EVENT_TYPES
+from tl_core.projection.defaults import default_registry
+from tl_core.projection.links import LinkProjector
+from tl_core.services.errors import InvalidLinkTransitionError
+
+BASE_TIME = datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
+A, B, C = "REC-A", "REC-B", "REC-C"
+L1, L2 = "LINK-1", "LINK-2"
+
+
+class Events:
+    """Builds ledger events with increasing seq and per-stream versions."""
+
+    def __init__(self) -> None:
+        self.seq = 0
+        self.versions: dict[str, int] = {}
+
+    def make(
+        self,
+        event_type: str,
+        payload: dict[str, Any],
+        stream_id: str,
+        *,
+        actor: str = "user:test",
+        scope: str = "project:P123",
+        stream_type: str = "core.Link",
+    ) -> Event:
+        self.seq += 1
+        version = self.versions.get(stream_id, 0) + 1
+        self.versions[stream_id] = version
+        at = BASE_TIME + timedelta(minutes=self.seq)
+        return Event(
+            event_type=event_type,
+            payload=payload,
+            seq=self.seq,
+            event_id=f"E{self.seq:06d}",
+            stream_id=stream_id,
+            stream_type=stream_type,
+            stream_version=version,
+            scope=scope,
+            actor=actor,
+            recorded_at=at,
+            effective_at=at,
+            correlation_id="c",
+            causation_id=None,
+            source="test",
+            prev_hash=None,
+            hash=f"h{self.seq}",
+        )
+
+    def record(self, record_id: str, scope: str = "project:P123") -> Event:
+        return self.make(
+            "Record.Created",
+            {"record_type": "core.Record", "key": f"K-{record_id}", "title": record_id},
+            record_id,
+            scope=scope,
+            stream_type="core.Record",
+        )
+
+    def suggested(self, link_id: str = L1, from_id: str = A, to_id: str = B, **extra: Any) -> Event:
+        payload: dict[str, Any] = {
+            "link_id": link_id,
+            "from_ref": from_id,
+            "to_ref": to_id,
+            "relation": "references",
+            "pin": None,
+            "source": "key_detected",
+            "confidence": 0.82,
+            "note": None,
+        }
+        payload.update(extra)
+        return self.make("Link.Suggested", payload, link_id)
+
+    def added(self, link_id: str = L1, from_id: str = A, to_id: str = B, **extra: Any) -> Event:
+        payload: dict[str, Any] = {
+            "link_id": link_id,
+            "from_ref": from_id,
+            "to_ref": to_id,
+            "relation": "raised_against",
+            "pin": "C",
+            "source": "manual",
+            "note": "found at fit-up",
+        }
+        payload.update(extra)
+        return self.make("Link.Added", payload, link_id)
+
+    def later(self, event_type: str, link_id: str = L1, **payload: Any) -> Event:
+        return self.make(event_type, {"link_id": link_id, **payload}, link_id)
+
+
+@pytest.fixture
+def engine() -> Iterator[Engine]:
+    eng = create_engine("sqlite://", poolclass=StaticPool)
+    with eng.begin() as conn:
+        for projector in default_registry().all():
+            for statement in projector.ddl("sqlite"):
+                conn.exec_driver_sql(statement)
+    yield eng
+    eng.dispose()
+
+
+@pytest.fixture
+def ev() -> Events:
+    return Events()
+
+
+def apply(engine: Engine, *events: Event) -> None:
+    """Apply events through the default registry in one transaction (it rolls back on error)."""
+    registry = default_registry()
+    with engine.begin() as conn:
+        for event in events:
+            for projector in registry.for_event(event.event_type):
+                projector.apply(conn, event)
+
+
+def link(engine: Engine, link_id: str = L1) -> dict[str, Any]:
+    with engine.connect() as conn:
+        row = (
+            conn.execute(text("SELECT * FROM cur_links WHERE link_id = :id"), {"id": link_id})
+            .mappings()
+            .first()
+        )
+    assert row is not None, f"no cur_links row {link_id}"
+    return dict(row)
+
+
+def counts(engine: Engine, record_id: str) -> dict[str, Any]:
+    with engine.connect() as conn:
+        row = (
+            conn.execute(
+                text("SELECT * FROM cur_link_counts WHERE record_id = :id"), {"id": record_id}
+            )
+            .mappings()
+            .first()
+        )
+    assert row is not None, f"no cur_link_counts row {record_id}"
+    return dict(row)
+
+
+def count_rows(engine: Engine, table: str) -> int:
+    with engine.connect() as conn:
+        return int(conn.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar_one())
+
+
+# --- projector identity ---------------------------------------------------------------------
+
+
+def test_handles_the_eight_link_events() -> None:
+    projector = LinkProjector()
+    assert projector.name == "links"
+    assert projector.handles == LINK_EVENT_TYPES
+    assert len(projector.handles) == 8
+
+
+def test_default_registry_runs_it_after_the_record_projector() -> None:
+    names = [p.name for p in default_registry().all()]
+    assert names.index("links") > names.index("core_record")
+
+
+@pytest.mark.parametrize("dialect", ["sqlite", "postgres"])
+def test_ddl_creates_both_tables(dialect: str) -> None:
+    joined = "\n".join(LinkProjector().ddl(dialect))
+    assert "cur_links" in joined
+    assert "cur_link_counts" in joined
+
+
+def test_ddl_rejects_an_unknown_dialect() -> None:
+    with pytest.raises(ValueError, match="unsupported dialect"):
+        LinkProjector().ddl("oracle")
+
+
+# --- creating events ------------------------------------------------------------------------
+
+
+def test_suggested_creates_a_suggested_row(engine: Engine, ev: Events) -> None:
+    event = ev.suggested()
+    apply(engine, event)
+    row = link(engine)
+    assert row["status"] == "suggested"
+    assert (row["from_id"], row["to_id"], row["relation"]) == (A, B, "references")
+    assert row["source"] == "key_detected"
+    assert row["confidence"] == pytest.approx(0.82)
+    assert row["pin"] is None
+    assert row["declined"] == 0
+    assert row["scope"] == "project:P123"
+    assert row["created_by"] == "user:test"
+    assert row["version"] == 1
+    assert row["last_seq"] == event.seq
+    assert row["created_at"] == row["updated_at"]
+    assert row["created_at"].startswith("2026-01-01T09:01")
+
+
+def test_added_creates_an_active_row(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.added())
+    row = link(engine)
+    assert row["status"] == "active"
+    assert row["relation"] == "raised_against"
+    assert row["pin"] == "C"
+    assert row["note"] == "found at fit-up"
+    assert row["source"] == "manual"
+    assert row["confidence"] is None
+    assert row["verified_by"] is None
+    assert row["verified_at"] is None
+    assert row["reason"] is None
+
+
+def test_a_missing_source_defaults_to_manual(engine: Engine, ev: Events) -> None:
+    event = ev.make(
+        "Link.Added",
+        {"link_id": L1, "from_ref": A, "to_ref": B, "relation": "references"},
+        L1,
+    )
+    apply(engine, event)
+    row = link(engine)
+    assert row["source"] == "manual"
+    assert row["pin"] is None
+    assert row["note"] is None
+
+
+# --- later events ---------------------------------------------------------------------------
+
+
+def test_accepted_activates_a_suggestion_and_may_set_the_note(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.suggested(), ev.later("Link.Accepted", note="checked on site"))
+    row = link(engine)
+    assert row["status"] == "active"
+    assert row["note"] == "checked on site"
+    assert row["version"] == 2
+
+
+def test_accepted_without_a_note_keeps_the_note(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.suggested(note="from text"), ev.later("Link.Accepted"))
+    assert link(engine)["note"] == "from text"
+
+
+def test_declined_retracts_remembers_the_decline_and_keeps_the_row(
+    engine: Engine, ev: Events
+) -> None:
+    apply(engine, ev.suggested(), ev.later("Link.Declined", reason="not related"))
+    row = link(engine)
+    assert row["status"] == "retracted"
+    assert row["declined"] == 1
+    assert row["reason"] == "not related"
+    assert count_rows(engine, "cur_links") == 1
+
+
+def test_repinned_sets_the_pin_and_none_floats(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.added(pin="B"), ev.later("Link.Repinned", pin="C"))
+    assert link(engine)["pin"] == "C"
+    apply(engine, ev.later("Link.Repinned", pin=None))
+    row = link(engine)
+    assert row["pin"] is None
+    assert row["version"] == 3
+
+
+def test_repinned_brings_a_stale_link_back_to_active(engine: Engine, ev: Events) -> None:
+    apply(
+        engine,
+        ev.added(pin="B"),
+        ev.later("Link.Flagged", status="stale", reason="rev C issued"),
+        ev.later("Link.Repinned", pin="C"),
+    )
+    row = link(engine)
+    assert row["status"] == "active"
+    assert row["pin"] == "C"
+
+
+def test_verified_records_who_and_when(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.added())
+    event = ev.make("Link.Verified", {"link_id": L1}, L1, actor="user:qa")
+    apply(engine, event)
+    row = link(engine)
+    assert row["status"] == "active"
+    assert row["verified_by"] == "user:qa"
+    assert row["verified_at"] == row["updated_at"]
+    assert row["verified_at"].startswith("2026-01-01T09:02")
+
+
+def test_flagged_sets_the_flagged_status_and_the_reason(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.added(), ev.later("Link.Flagged", status="stale", reason="rev C issued"))
+    row = link(engine)
+    assert (row["status"], row["reason"]) == ("stale", "rev C issued")
+    apply(engine, ev.later("Link.Flagged", status="broken", reason="target unreachable"))
+    row = link(engine)
+    assert (row["status"], row["reason"]) == ("broken", "target unreachable")
+
+
+def test_retracted_keeps_the_row_with_the_reason(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.added(), ev.later("Link.Retracted", reason="entered in error"))
+    row = link(engine)
+    assert (row["status"], row["reason"]) == ("retracted", "entered in error")
+    assert row["declined"] == 0
+    assert count_rows(engine, "cur_links") == 1
+
+
+def test_version_last_seq_and_updated_at_follow_every_event(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.added())
+    last = ev.later("Link.Verified")
+    apply(engine, last)
+    row = link(engine)
+    assert row["version"] == 2
+    assert row["last_seq"] == last.seq
+    assert row["created_at"] != row["updated_at"]
+
+
+# --- refusals roll back ----------------------------------------------------------------------
+
+
+def test_an_impossible_transition_raises_and_leaves_the_row_alone(
+    engine: Engine, ev: Events
+) -> None:
+    apply(engine, ev.suggested())
+    with pytest.raises(InvalidLinkTransitionError):
+        apply(engine, ev.later("Link.Verified"))  # a suggestion cannot be verified
+    row = link(engine)
+    assert row["status"] == "suggested"
+    assert row["version"] == 1
+
+
+def test_flagging_to_the_current_status_raises(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.added(), ev.later("Link.Flagged", status="stale", reason="r"))
+    with pytest.raises(InvalidLinkTransitionError):
+        apply(engine, ev.later("Link.Flagged", status="stale", reason="again"))
+
+
+def test_an_event_for_an_unknown_link_raises_lookup_error(engine: Engine, ev: Events) -> None:
+    with pytest.raises(LookupError):
+        apply(engine, ev.later("Link.Retracted", link_id="NOPE", reason="x"))
+
+
+def test_a_retracted_link_takes_no_further_events(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.added(), ev.later("Link.Retracted", reason="x"))
+    for event_type, extra in [
+        ("Link.Verified", {}),
+        ("Link.Repinned", {"pin": "D"}),
+        ("Link.Flagged", {"status": "stale", "reason": "r"}),
+        ("Link.Retracted", {"reason": "again"}),
+    ]:
+        with pytest.raises(InvalidLinkTransitionError):
+            apply(engine, ev.later(event_type, **extra))
+
+
+# --- counts ---------------------------------------------------------------------------------
+
+
+def test_counts_cover_both_ends_of_a_link(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.added())
+    a, b = counts(engine, A), counts(engine, B)
+    assert (a["active_out"], a["active_in"]) == (1, 0)
+    assert (b["active_out"], b["active_in"]) == (0, 1)
+    for row in (a, b):
+        assert (row["stale"], row["broken"], row["suggested"]) == (0, 0, 0)
+
+
+def test_counts_follow_every_status_change(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.suggested())
+    assert counts(engine, A)["suggested"] == 1
+    assert counts(engine, B)["suggested"] == 1
+    assert counts(engine, A)["active_out"] == 0
+
+    apply(engine, ev.later("Link.Accepted"))
+    assert (counts(engine, A)["suggested"], counts(engine, A)["active_out"]) == (0, 1)
+
+    apply(engine, ev.later("Link.Flagged", status="stale", reason="r"))
+    for record_id in (A, B):
+        row = counts(engine, record_id)
+        assert (row["active_out"], row["active_in"], row["stale"]) == (0, 0, 1)
+
+    apply(engine, ev.later("Link.Flagged", status="broken", reason="r"))
+    row = counts(engine, A)
+    assert (row["stale"], row["broken"]) == (0, 1)
+
+    apply(engine, ev.later("Link.Retracted", reason="r"))
+    for record_id in (A, B):
+        row = counts(engine, record_id)
+        assert (row["active_out"], row["active_in"], row["stale"], row["broken"]) == (0, 0, 0, 0)
+        assert row["suggested"] == 0
+
+
+def test_a_declined_suggestion_leaves_no_count(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.suggested(), ev.later("Link.Declined", reason="no"))
+    assert counts(engine, A)["suggested"] == 0
+    assert counts(engine, B)["suggested"] == 0
+
+
+def test_counts_add_up_over_several_links(engine: Engine, ev: Events) -> None:
+    apply(
+        engine,
+        ev.added(L1, A, B),
+        ev.added(L2, C, A),
+        ev.suggested("LINK-3", A, C),
+    )
+    a = counts(engine, A)
+    assert (a["active_out"], a["active_in"], a["suggested"]) == (1, 1, 1)
+    b = counts(engine, B)
+    assert (b["active_out"], b["active_in"], b["suggested"]) == (0, 1, 0)
+    c = counts(engine, C)
+    assert (c["active_out"], c["active_in"], c["suggested"]) == (1, 0, 1)
+
+
+def test_counts_use_the_scope_of_the_record_when_it_exists(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.record(A), ev.record(B, scope="company"))
+    apply(engine, ev.added(L1, A, B))
+    assert counts(engine, A)["scope"] == "project:P123"
+    assert counts(engine, B)["scope"] == "company"
+
+
+def test_counts_fall_back_to_the_link_scope_without_a_record(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.added())
+    assert counts(engine, A)["scope"] == "project:P123"
+    assert counts(engine, B)["scope"] == "project:P123"
+
+
+def test_counts_record_the_last_seq(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.added())
+    last = ev.later("Link.Verified")
+    apply(engine, last)
+    assert counts(engine, A)["last_seq"] == last.seq
+    assert counts(engine, B)["last_seq"] == last.seq
+
+
+# --- reset and replay -----------------------------------------------------------------------
+
+
+def test_reset_empties_both_tables(engine: Engine, ev: Events) -> None:
+    apply(engine, ev.added(), ev.added(L2, B, C))
+    with engine.begin() as conn:
+        LinkProjector().reset(conn)
+    assert count_rows(engine, "cur_links") == 0
+    assert count_rows(engine, "cur_link_counts") == 0
+
+
+def test_replaying_the_same_events_gives_identical_rows(ev: Events) -> None:
+    events = [
+        ev.record(A),
+        ev.record(B),
+        ev.suggested(L1, A, B),
+        ev.later("Link.Accepted"),
+        ev.added(L2, B, A),
+        ev.later("Link.Flagged", L2, status="stale", reason="rev"),
+        ev.later("Link.Verified"),
+    ]
+
+    def snapshot() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        eng = create_engine("sqlite://", poolclass=StaticPool)
+        with eng.begin() as conn:
+            for projector in default_registry().all():
+                for statement in projector.ddl("sqlite"):
+                    conn.exec_driver_sql(statement)
+        apply(eng, *events)
+        with eng.connect() as conn:
+            links = [
+                dict(r)
+                for r in conn.execute(text("SELECT * FROM cur_links ORDER BY link_id")).mappings()
+            ]
+            tally = [
+                dict(r)
+                for r in conn.execute(
+                    text("SELECT * FROM cur_link_counts ORDER BY record_id")
+                ).mappings()
+            ]
+        eng.dispose()
+        return links, tally
+
+    assert snapshot() == snapshot()

@@ -147,11 +147,15 @@ def test_void_twice_fails(env: dict[str, str]) -> None:
     assert "error:" in result.stderr
 
 
-def test_create_without_key_is_a_usage_error(env: dict[str, str]) -> None:
+def test_create_without_key_and_without_a_pattern_asks_for_a_key(
+    env: dict[str, str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("TL_SCHEMA_DIR", str(tmp_path / "no-schema"))  # no numbering patterns
+
     result = _run(env, "record", "create", "--project", "P123", "--title", "First")
 
-    assert result.exit_code != 0
-    assert "--key" in result.output
+    assert result.exit_code == 1
+    assert "give a key" in result.stderr
 
 
 def test_invalid_input_is_an_error_line_not_a_traceback(env: dict[str, str]) -> None:

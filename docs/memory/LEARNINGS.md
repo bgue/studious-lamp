@@ -243,3 +243,77 @@ test or a generated artefact already enforces, or narrative history (that belong
   (P0-I5) the guard reads need `SELECT ... FOR UPDATE` on the record row or SERIALIZABLE isolation, or a concurrent
   link retraction can slip between the guard check and the append.
   Evidence: P0-I3 workflow engine review. Status: active
+- **L-P0-I3-1** · 2026-10-09 · tags: tests, process
+  A provided `*.py.txt` is not covered by `ruff format`, so a hand-written one fails `just check` the moment an implementer
+  copies it. Format provided files before committing: copy to a temp `.py`, `ruff format --config pyproject.toml`, copy back. Verify
+  a ticket by dropping a scratch reference implementation over the stub in a clean tree, running the provided test, `ruff` and
+  `pyright`, then `git checkout . && git clean -fd`; formatting and E501 problems in the reference show up the same way.
+  Evidence: `docs/tickets/P0-I3/provided/`, T03 and T05 verification runs. Status: active
+
+- **L-P0-I3-2** · 2026-10-09 · tags: process, ledger
+  A stub projector that is registered in `default_registry()` must implement `ddl` and `reset` (only `apply` may raise
+  `NotImplementedError`), or every test that calls `create_schema` fails on every ticket branch cut from the base. Decouple
+  tickets that read a projection from the ticket that writes it by letting the provided test INSERT projection rows with SQL (T04
+  does this for `cur_links`).
+  Evidence: `projection/links.py` stub, `test_expected_links.py.txt`. Status: active
+
+- **L-P0-I3-3** · 2026-10-09 · tags: tests, schema
+  Adding a `tl:current_state` class to `schema/core` changes the generated file list, so two tests that enumerate it must be
+  edited in the same commit: `packages/tl-schema/tests/test_generate.py` (`EXPECTED_KEYS`) and `test_ddl.py`
+  (`test_only_current_state_classes_get_tables`).
+  Evidence: first `just test` after adding links.yaml failed 4 tests. Status: active
+
+- **L-P0-I3-4** · 2026-10-09 · tags: ledger, tests
+  Numbering is safe under SQLite because a write transaction is exclusive, so a thread test alone cannot show that the allocator
+  defends itself. The second line of defence (the counter stream's expected version) is tested by monkeypatching the counter read
+  to a stale value and expecting `ConcurrencyError`; mutating the allocator to ignore the version makes that test fail.
+  Evidence: `tests/services/test_numbering.py::test_a_stale_counter_read_is_stopped_by_the_ledger_version_check`. Status: active
+
+- **L-P0-I3-5** · 2026-10-09 · tags: tooling, tests
+  ruff's import sorting treats `tl_*` packages as first-party inside a package's `src` tree (a blank line separates them from
+  third-party imports) but as third-party in test files. A reference implementation written outside the repo gets the wrong
+  grouping; run `ruff check --fix` on it in place before using it to verify a ticket.
+  Evidence: T07 reference failed `I001` on first verification. Status: active
+
+- **L-P0-I3-6** · 2026-10-09 · tags: tui, tests, process
+  Growing `ClientInterface` forces every test double to follow, so the fake's new behaviour went into one mixin
+  (`packages/tl-tui/tests/fakes_links.py`, tested by `test_fakes_links.py`) before any TUI ticket was cut; tickets then use the
+  fake without editing `fakes.py`. The fake reuses the real vocabulary, `next_status` and error types, so a screen tested on it
+  meets the same refusals as on the embedded client.
+  Evidence: `tests/test_fakes_links.py` (10 tests). Status: active
+
+- **L-P0-I3-7** · 2026-10-09 · tags: tui, tooling
+  Textual `OptionList` prompts and `DataTable` cells that are plain `str` are parsed as Rich markup, so `[x]` vanished from a
+  row (`▶ [x] KEY` rendered as `▶  KEY`). Wrap row text in `rich.text.Text(...)`. `query_one("#id", Select[str])` raises
+  `TypeError` at run time (subscripted generic): query `Select` and annotate the variable `Select[str]`. A screen method named
+  `action_toggle` overrides `DOMNode.action_toggle` and fails pyright; use `action_toggle_select`. Textual's own command palette
+  owns Ctrl+P: set `ENABLE_COMMAND_PALETTE = False` on the app before binding it.
+  Evidence: `widgets/link_picker.py`, `app.py`, first pilot runs of `test_link_picker`. Status: active
+
+- **L-P0-I3-8** · 2026-10-09 · tags: tui
+  App-level `Binding`s (`l`, `w`, `t`, `R`) do not fire while an `Input` has focus (it consumes printable keys), but they do fire
+  under a `ModalScreen` whose focus is elsewhere, so every new app action starts with `if self._modal_open(): return`.
+  `app.post_message(RecordChanged)` is delivered to the app only, never to a child `RecordView`: after a modal command call
+  `view.reload()` (`TlApp._changed`).
+  Evidence: `tests/test_palette.py::test_the_l_w_t_keys_are_typed_into_the_palette_not_run`, workflow-menu refresh test. Status: active
+
+- **L-P0-I3-9** · 2026-10-09 · tags: tui, process
+  Textual delivers `Select.Changed` asynchronously, after a programmatic `select.value = ...` has returned, so a reentrancy flag
+  (`_setting = True ... False`) never covers the event: the picker's own change was read as the user's and froze the relation. Remember
+  the value the code assigned and compare `event.value` with it. A review that probes with a second record type found it; the
+  provided test only used one type and could not see it.
+  Evidence: T12 escalation; `tests/test_link_picker.py::test_the_relation_follows_the_highlighted_record_until_the_user_changes_it`. Status: active
+
+- **L-P0-I3-10** · 2026-10-09 · tags: core, services
+  Handlers never commit and read the projections of the caller's own transaction, so a new command that needs several writes to be
+  atomic is a composition: call the existing handlers in order inside the one unit of work, chain `expected_version` from each result,
+  share one `correlation_id`, and let the caller's rollback undo everything when a part raises. No new write path was needed for
+  `EditRecord`. A part that changes nothing raises `NoChangesError` before it appends, so it can be skipped safely.
+  Evidence: `services/edit.py`, `tests/services/test_edit_record.py` (rollback and stale-version cases). Status: active
+
+- **L-P0-I3-11** · 2026-10-09 · tags: process, tickets
+  A ticket that tells the implementer to implement a questionable behaviour "as written" and to raise it as an open question works: T13b's
+  spec ended the tray on the first successful link and hid the refusals of the rest; the implementer kept the spec, reported the
+  question, and the supervisor decided with the orchestrator. Two Haiku tickets that run in one batch cannot depend on each other's code
+  (T02b `trace` needed T14a): leave the dependent piece out of the ticket and add it after the merge.
+  Evidence: `docs/reports/P0-I3/P0-I3-T13b.md`, decisions D26 and D27. Status: active

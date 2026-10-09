@@ -126,6 +126,301 @@
             "title": "Event",
             "type": "object"
         },
+        "Link": {
+            "additionalProperties": false,
+            "description": "One link between two records, in its current lifecycle state.",
+            "properties": {
+                "confidence": {
+                    "description": "Confidence of a suggested link, between 0 and 1.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "created_at": {
+                    "description": "Time of the creating event (system time).",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "created_by": {
+                    "description": "Actor of the creating event.",
+                    "type": "string"
+                },
+                "declined": {
+                    "description": "True when the link was a suggestion that a person declined. Declines are remembered.",
+                    "type": "boolean"
+                },
+                "from_id": {
+                    "description": "The record the link starts at (the subject of the relation).",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "last_seq": {
+                    "description": "Ledger `seq` of the last event applied.",
+                    "type": "integer"
+                },
+                "link_id": {
+                    "description": "Immutable link identifier; equals the ledger `stream_id` of the link.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "note": {
+                    "description": "Optional free text.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "pin": {
+                    "description": "Revision the link is pinned to; null means floating to the current revision.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "reason": {
+                    "description": "Reason given with the last flag, decline, or retraction.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "relation": {
+                    "description": "Forward relation code, for example `raised_against`.",
+                    "type": "string"
+                },
+                "scope": {
+                    "description": "Scope of the link, which is the scope of its `from` record.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "source": {
+                    "$ref": "#/$defs/LinkSource",
+                    "description": "How the link was created."
+                },
+                "status": {
+                    "$ref": "#/$defs/LinkStatus",
+                    "description": "Lifecycle state."
+                },
+                "to_id": {
+                    "description": "The record the link points to.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "Time of the last applied event (system time).",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "verified_at": {
+                    "description": "Time of the last `Link.Verified` event.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "verified_by": {
+                    "description": "Actor of the last `Link.Verified` event.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "version": {
+                    "description": "Ledger `stream_version` of the last event applied.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "link_id",
+                "scope",
+                "from_id",
+                "to_id",
+                "relation",
+                "status",
+                "source",
+                "declined",
+                "created_by",
+                "created_at",
+                "updated_at",
+                "version",
+                "last_seq"
+            ],
+            "title": "Link",
+            "type": "object"
+        },
+        "LinkCount": {
+            "additionalProperties": false,
+            "description": "Per-record link counts, maintained with `cur_links` (brief 7.4).",
+            "properties": {
+                "active_in": {
+                    "description": "Active links that point to the record.",
+                    "type": "integer"
+                },
+                "active_out": {
+                    "description": "Active links that start at the record.",
+                    "type": "integer"
+                },
+                "broken": {
+                    "description": "Broken links in either direction.",
+                    "type": "integer"
+                },
+                "last_seq": {
+                    "description": "Ledger `seq` of the last event that touched the counts.",
+                    "type": "integer"
+                },
+                "record_id": {
+                    "description": "The record the counts belong to.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "scope": {
+                    "description": "Scope of the record.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "stale": {
+                    "description": "Stale links in either direction.",
+                    "type": "integer"
+                },
+                "suggested": {
+                    "description": "Suggested links in either direction.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "record_id",
+                "scope",
+                "active_out",
+                "active_in",
+                "stale",
+                "broken",
+                "suggested",
+                "last_seq"
+            ],
+            "title": "LinkCount",
+            "type": "object"
+        },
+        "LinkRelation": {
+            "description": "Built-in relation codes (brief 7.1). Documentation only: the vocabulary is extensible, so link rows store the code as a string.",
+            "enum": [
+                "references",
+                "derived_from",
+                "supersedes",
+                "responds_to",
+                "raised_against",
+                "resolves",
+                "belongs_to",
+                "requires",
+                "blocks",
+                "verifies",
+                "dispatched_from",
+                "attached_to",
+                "same_as"
+            ],
+            "title": "LinkRelation",
+            "type": "string"
+        },
+        "LinkSource": {
+            "description": "How a link came to exist (brief 7.1).",
+            "enum": [
+                "manual",
+                "key_detected",
+                "tray",
+                "bulk",
+                "model_selection",
+                "thread_dispatch",
+                "rule",
+                "enricher",
+                "import",
+                "mapping"
+            ],
+            "title": "LinkSource",
+            "type": "string"
+        },
+        "LinkStatus": {
+            "description": "Lifecycle state of a link (brief 7.1).",
+            "enum": [
+                "suggested",
+                "active",
+                "stale",
+                "broken",
+                "retracted"
+            ],
+            "title": "LinkStatus",
+            "type": "string"
+        },
+        "NumberingCounter": {
+            "additionalProperties": false,
+            "description": "The last sequence number allocated for one counter.",
+            "properties": {
+                "allocations": {
+                    "description": "Number of allocations made from this counter.",
+                    "type": "integer"
+                },
+                "counter_id": {
+                    "description": "Ledger stream id of the counter, `numbering:<scope>:<pattern>:<prefix>`.",
+                    "type": "string"
+                },
+                "last_key": {
+                    "description": "The key built from `last_sequence`.",
+                    "type": "string"
+                },
+                "last_record_id": {
+                    "description": "The record the last number was allocated for; null for a standalone allocation.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "last_seq": {
+                    "description": "Ledger `seq` of the last allocation.",
+                    "type": "integer"
+                },
+                "last_sequence": {
+                    "description": "The highest sequence number allocated so far.",
+                    "type": "integer"
+                },
+                "pattern": {
+                    "description": "Identifier of the numbering pattern.",
+                    "type": "string"
+                },
+                "prefix": {
+                    "description": "The rendered key without its sequence number, for example `P123-REC-`.",
+                    "type": "string"
+                },
+                "scope": {
+                    "description": "Scope the counter belongs to.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "Time of the last allocation (system time).",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Ledger `stream_version` of the counter after the last allocation.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "counter_id",
+                "scope",
+                "pattern",
+                "prefix",
+                "last_sequence",
+                "last_key",
+                "allocations",
+                "version",
+                "last_seq",
+                "updated_at"
+            ],
+            "title": "NumberingCounter",
+            "type": "object"
+        },
         "PsetLayer": {
             "description": "Layer a pset value belongs to (brief 6.3).",
             "enum": [
@@ -438,6 +733,64 @@
                 "updated_at"
             ],
             "title": "RecordEnvelope",
+            "type": "object"
+        },
+        "WorkflowState": {
+            "additionalProperties": false,
+            "description": "The state a record is in, since when, and by which transition it got there.",
+            "properties": {
+                "entered_at": {
+                    "description": "When the record entered the state (`state_entered_at`).",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "last_seq": {
+                    "description": "Ledger `seq` of the transition event.",
+                    "type": "integer"
+                },
+                "record_id": {
+                    "description": "The record (ledger stream) the state belongs to.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "scope": {
+                    "description": "Scope of the record.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "state": {
+                    "description": "Current state name.",
+                    "type": "string"
+                },
+                "transition": {
+                    "description": "Name of the transition that led here.",
+                    "type": "string"
+                },
+                "transitioned_by": {
+                    "description": "Actor of the transition.",
+                    "type": "string"
+                },
+                "workflow": {
+                    "description": "Identifier of the workflow definition, for example `core.review`.",
+                    "type": "string"
+                },
+                "workflow_version": {
+                    "description": "Version of the workflow definition that was in force.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "record_id",
+                "scope",
+                "workflow",
+                "workflow_version",
+                "state",
+                "entered_at",
+                "transition",
+                "transitioned_by",
+                "last_seq"
+            ],
+            "title": "WorkflowState",
             "type": "object"
         }
     },

@@ -167,6 +167,47 @@ def test_save_record_edits_over_the_real_services(client: EmbeddedClient) -> Non
     assert pset_value(after["psets"], "psets.valve_data.manufacturer") is None
 
 
+def test_a_refused_part_of_a_save_leaves_the_record_untouched(client: EmbeddedClient) -> None:
+    record = _create(client)
+    meta = client.form_metadata(SCOPE, "core.Record")
+    before = len(client.history(record["id"]))
+    outcome = save_record_edits(
+        client,
+        scope=SCOPE,
+        actor="user:t",
+        record=record,
+        meta=meta,
+        edits={
+            "title": "Renamed",
+            "psets.valve_data.manufacturer": "Acme",
+            "psets.valve_data.size_in": "not a number",  # refused by the pset service
+        },
+    )
+    assert not outcome.ok and outcome.applied == []
+    assert outcome.version == record["version"]
+    after = client.get_record_by_id(record["id"])
+    assert after is not None
+    assert after["title"] == "Valve 1" and after["version"] == record["version"]
+    assert len(client.history(record["id"])) == before
+
+
+def test_one_save_is_one_correlation(client: EmbeddedClient) -> None:
+    record = _create(client)
+    meta = client.form_metadata(SCOPE, "core.Record")
+    outcome = save_record_edits(
+        client,
+        scope=SCOPE,
+        actor="user:t",
+        record=record,
+        meta=meta,
+        edits={"title": "Renamed", "psets.valve_data.manufacturer": "Acme"},
+    )
+    assert outcome.ok, outcome.error
+    saved = client.history(record["id"])[1:]
+    assert [e.event_type for e in saved] == ["Record.Updated", "Pset.ValuesSet"]
+    assert len({e.correlation_id for e in saved}) == 1
+
+
 def test_the_edit_form_saves_through_the_real_services_and_the_view_shows_it(
     client: EmbeddedClient,
 ) -> None:

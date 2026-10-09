@@ -1,0 +1,62 @@
+id: https://example.org/throughline/core/workflow
+name: tl_core_workflow
+title: Throughline workflow state
+description: >-
+  The current workflow state of a record (brief 8, workflow engine). Workflow definitions are
+  declarative YAML read at runtime (`schema/fixtures/workflows/`), not LinkML classes; only the
+  projection of `Workflow.Transitioned` events is declared here. The record's `status` column holds the
+  state name too; this table adds when and how the record entered it.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+default_range: string
+annotations:
+  tl:module: core
+
+classes:
+  WorkflowState:
+    description: The state a record is in, since when, and by which transition it got there.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_workflow_state
+    attributes:
+      record_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: The record (ledger stream) the state belongs to.
+      scope:
+        range: ScopeId
+        required: true
+        description: Scope of the record.
+      workflow:
+        required: true
+        description: Identifier of the workflow definition, for example `core.review`.
+      workflow_version:
+        range: integer
+        required: true
+        description: Version of the workflow definition that was in force.
+      state:
+        required: true
+        description: Current state name.
+        annotations:
+          tl:indexed: true
+      entered_at:
+        range: datetime
+        required: true
+        description: When the record entered the state (`state_entered_at`).
+      transition:
+        required: true
+        description: Name of the transition that led here.
+      transitioned_by:
+        required: true
+        description: Actor of the transition.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the transition event.

@@ -14,12 +14,14 @@ from typing import Any
 from sqlalchemy import text
 
 from tl_core.ledger import NewEvent
+from tl_core.numbering.allocator import allocate_key, segment_values
+from tl_core.numbering.config import get_numbering
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord, VoidRecord
 from tl_core.services.errors import (
     AlreadyVoidedError,
     DuplicateKeyError,
-    KeyRequiredError,
     NoChangesError,
+    NoNumberingPatternError,
     RecordNotFoundError,
     RecordVoidedError,
     UnsupportedFieldError,
@@ -59,19 +61,43 @@ def _load_record(uow: UnitOfWork, scope: str, stream_id: str) -> _StoredRecord:
     )
 
 
+def _key_taken(uow: UnitOfWork, scope: str, key: str) -> bool:
+    found = uow.conn().execute(_DUPLICATE_KEY_SQL, {"scope": scope, "key": key}).first()
+    return found is not None
+
+
 def handle_create_record(uow: UnitOfWork, cmd: CreateRecord) -> CommandResult:
     if cmd.record_type != RECORD_TYPE:
         raise UnsupportedRecordTypeError(
             f"record type {cmd.record_type!r} is not supported; only {RECORD_TYPE!r} is"
         )
-    if cmd.key is None:
-        raise KeyRequiredError("a key is required to create a record")
-    duplicate = uow.conn().execute(_DUPLICATE_KEY_SQL, {"scope": cmd.scope, "key": cmd.key}).first()
-    if duplicate is not None:
-        raise DuplicateKeyError(f"key {cmd.key!r} is already used in scope {cmd.scope!r}")
-
     stream_id = new_ulid()
     correlation_id = cmd.correlation_id or new_ulid()
+    key = cmd.key
+    if key is None:
+        pattern = get_numbering().find(cmd.scope, cmd.record_type)
+        if pattern is None:
+            raise NoNumberingPatternError(
+                f"no key given and no numbering pattern for {cmd.record_type!r} in scope "
+                f"{cmd.scope!r}; give a key"
+            )
+        allocation = allocate_key(
+            uow,
+            pattern=pattern,
+            scope=cmd.scope,
+            values=segment_values(pattern, cmd.scope, cmd.numbering),
+            record_id=stream_id,
+            record_type=cmd.record_type,
+            actor=cmd.actor,
+            source=cmd.source,
+            correlation_id=correlation_id,
+            causation_id=cmd.causation_id,
+            is_taken=lambda candidate: _key_taken(uow, cmd.scope, candidate),
+        )
+        key = allocation.key
+    elif _key_taken(uow, cmd.scope, key):
+        raise DuplicateKeyError(f"key {key!r} is already used in scope {cmd.scope!r}")
+
     result = uow.append(
         stream_id=stream_id,
         stream_type=cmd.record_type,
@@ -82,7 +108,7 @@ def handle_create_record(uow: UnitOfWork, cmd: CreateRecord) -> CommandResult:
                 event_type="Record.Created",
                 payload={
                     "record_type": cmd.record_type,
-                    "key": cmd.key,
+                    "key": key,
                     "title": cmd.title,
                     "description": cmd.description,
                     "psets": cmd.psets,
@@ -96,7 +122,7 @@ def handle_create_record(uow: UnitOfWork, cmd: CreateRecord) -> CommandResult:
     )
     return CommandResult(
         stream_id=stream_id,
-        key=cmd.key,
+        key=key,
         version=result.new_version,
         events=result.events,
     )

@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS cur_link_counts (
+  record_id TEXT PRIMARY KEY,
+  scope TEXT NOT NULL,
+  active_out BIGINT NOT NULL DEFAULT 0,
+  active_in BIGINT NOT NULL DEFAULT 0,
+  stale BIGINT NOT NULL DEFAULT 0,
+  broken BIGINT NOT NULL DEFAULT 0,
+  suggested BIGINT NOT NULL DEFAULT 0,
+  last_seq BIGINT NOT NULL
+);

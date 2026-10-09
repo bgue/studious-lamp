@@ -59,6 +59,16 @@ def _show_value(value: object) -> str:
     return str(value)
 
 
+def _segments(items: list[str] | None) -> dict[str, str]:
+    found: dict[str, str] = {}
+    for item in items or []:
+        name, separator, value = item.partition("=")
+        if not separator or not name:
+            _fail(f"expected NAME=VALUE for --segment, got {item!r}")
+        found[name] = value
+    return found
+
+
 @app.command("create")
 def create(
     ctx: typer.Context,
@@ -66,22 +76,29 @@ def create(
         str,
         typer.Option("--project", help="Project ID; the record goes in scope project:<ID>."),
     ],
-    key: Annotated[
-        str,
-        typer.Option("--key", help="Record key, unique in the project. Required until numbering."),
-    ],
     title: Annotated[str, typer.Option("--title", help="Record title.")],
+    key: Annotated[
+        str | None,
+        typer.Option("--key", help="Record key, unique in the project. Default: from numbering."),
+    ] = None,
     description: Annotated[
         str | None, typer.Option("--description", help="Optional description.")
     ] = None,
     record_type: Annotated[
         str, typer.Option("--type", help="Record type; only core.Record exists.")
     ] = "core.Record",
+    segment: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--segment",
+            help="NAME=VALUE for a numbering pattern field other than project and type.",
+        ),
+    ] = None,
     actor: Annotated[str, typer.Option("--actor", help="Actor recorded on events.")] = (
         _DEFAULT_ACTOR
     ),
 ) -> None:
-    """Create a record."""
+    """Create a record. Without --key the numbering service allocates one."""
     db: Path = ctx.obj
     with _service_errors(), open_uow(db) as uow:
         result = handle_create_record(
@@ -94,6 +111,7 @@ def create(
                 title=title,
                 description=description,
                 key=key,
+                numbering=_segments(segment),
             ),
         )
     typer.echo(f"created {result.stream_id}")
