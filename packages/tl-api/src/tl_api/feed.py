@@ -24,6 +24,7 @@ from collections.abc import AsyncIterator
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
+from tl_core.bus import Subscription
 from tl_core.changefeed import (
     ChangePoller,
     QueueSubscription,
@@ -58,9 +59,10 @@ class FeedHub:
         max_streams: int = MAX_STREAMS,
     ) -> None:
         self.backend = backend
-        self.registry = SubscriptionRegistry(backend.ledger)
-        self._attached = self.registry.attach(backend.bus)
-        self.poller = ChangePoller(backend.ledger, self.registry, interval_s=poll_interval_s)
+        self._registry: SubscriptionRegistry | None = None
+        self._attached: Subscription | None = None
+        self._poll_interval_s = poll_interval_s
+        self.poller: ChangePoller | None = None  # built in start(): it reads the ledger head
         self.keepalive_s = keepalive_s
         self.wait_s = wait_s  # how long a worker blocks on the queue before looking again
         self._executor = ThreadPoolExecutor(max_workers=max_streams, thread_name_prefix="tl-sse")
@@ -68,15 +70,31 @@ class FeedHub:
         self._open = 0
         self._lock = threading.Lock()
 
+    @property
+    def registry(self) -> SubscriptionRegistry:
+        """The registry, built on first use so that creating an app touches no storage."""
+        with self._lock:
+            if self._registry is None:
+                self._registry = SubscriptionRegistry(self.backend.ledger)
+                self._attached = self._registry.attach(self.backend.bus)
+            return self._registry
+
     def start(self) -> None:
         """Start looking for events written by other processes (idempotent)."""
+        if self.poller is None:
+            self.poller = ChangePoller(
+                self.backend.ledger, self.registry, interval_s=self._poll_interval_s
+            )
         if not self.poller.running:
             self.poller.start()
 
     def stop(self) -> None:
-        self.poller.stop()
-        self._attached.close()
-        self.registry.close()
+        if self.poller is not None:
+            self.poller.stop()
+        if self._attached is not None:
+            self._attached.close()
+        if self._registry is not None:
+            self._registry.close()
         self._executor.shutdown(wait=False, cancel_futures=True)
 
     @property
