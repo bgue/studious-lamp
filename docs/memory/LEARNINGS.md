@@ -148,3 +148,22 @@ test or a generated artefact already enforces, or narrative history (that belong
   test can fail. Three clean runs of a racy test prove nothing. Threads in such tests are `daemon=True` and joined
   with a timeout so a regression fails instead of hanging the suite.
   Evidence: `packages/tl-core/tests/test_bus.py`; mutation (flag cleared outside the lock) fails the test. Status: active
+
+- **L-P0-I2-B1** · 2026-10-09 · tags: tests, tui
+  pytest runs in importlib mode, so a test cannot `import` a sibling helper file. `packages/tl-tui/tests/conftest.py`
+  puts its own directory on `sys.path`, which lets tests write `from fakes import FakeClient`; pyright resolves the
+  same import from the file's directory. Do not add `__init__.py` to test directories.
+  Evidence: `packages/tl-tui/tests/conftest.py`, `test_grid.py`. Status: active
+
+- **L-P0-I2-B2** · 2026-10-09 · tags: tests, tui
+  No async pytest plugin is installed, and none may be added without a ticket. Drive a Textual app with
+  `tests/helpers.run_pilot(app, scenario, size=(120, 40))` (a plain `asyncio.run` around `app.run_test`) and assert on
+  `screen_text(app)`. Snapshot tests use `snap_compare(app_instance, terminal_size=(120, 40))`; the plugin writes
+  `__snapshots__/<module>/<test>.raw` beside the test file and passes across separate processes.
+  Evidence: `packages/tl-tui/tests/helpers.py`; a spike snapshot test ran twice with identical output. Status: active
+
+- **L-P0-I2-B3** · 2026-10-09 · tags: tooling, tui
+  `App[None]` is not assignable to `App[object]` (the type parameter is invariant), so test helpers take `App[Any]`
+  and `Pilot[Any]`. `ScrollView` widgets draw only in `render_line(y)`, with `y` relative to the viewport; add
+  `scroll_offset.y` yourself and keep a sticky header on line 0 by adding one to `virtual_size.height`.
+  Evidence: pyright errors in the first `test_grid.py`; `widgets/grid.py`. Status: active
