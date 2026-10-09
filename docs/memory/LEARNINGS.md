@@ -92,3 +92,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   --check`), not by `git diff`, because a diff fails on any dirty tree and misses untracked files. LinkML generators
   embed the schema path they were given, so they must run inside `schema/core/` with a relative file name.
   Evidence: `justfile` `check` recipe; `docs/tickets/P0-I1/T03-codegen-wiring.md`. Status: active
+
+- **L-P0-I1-4** · 2026-10-09 · tags: schema
+  `gen-json-schema` renders a custom `dict`-based LinkML type as `string`. JSON-valued slots therefore use
+  `range: Any` (class `Any`, `class_uri: linkml:Any`) plus the annotation `tl:json: true`. `linkml-lint` also warns
+  when the prefix `tl` is mapped to a non-canonical namespace, so schemas declare the prefix `throughline` and use
+  `tl:` only as the annotation tag namespace.
+  Evidence: `schema/core/record.yaml`, `annotations.yaml`; `linkml-lint schema/core/core.yaml` clean. Status: active
