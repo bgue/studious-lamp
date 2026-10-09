@@ -50,7 +50,7 @@ def register(app: typer.Typer) -> None:
                 "dead_at",
             )
             for row in rows:
-                typer.echo("\t".join(str(row[cell]) for cell in cells))
+                typer.echo("\t".join("" if row[cell] is None else str(row[cell]) for cell in cells))
 
     @dlq.command("redrive")
     def dlq_redrive(

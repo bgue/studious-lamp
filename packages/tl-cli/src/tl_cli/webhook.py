@@ -8,6 +8,7 @@ registered at the bottom.
 
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
@@ -15,6 +16,7 @@ import typer
 from tl_core.webhooks import queries
 from tl_core.webhooks.subscriptions import CreateWebhookSubscription, create_subscription
 from tl_core.webhooks.wiring import make_dispatcher, make_engine
+from tl_core.webhooks.worker import WebhookWorker
 
 from tl_cli import webhook_ops
 from tl_cli.webhook_common import ACTOR, SOURCE, factory, fail, scope_of, service_errors
@@ -183,6 +185,43 @@ def replay(
                 typer.echo(f"replayed {count}")
     else:
         fail("give --from-seq and --to-seq, or --since and --until")
+
+
+@app.command("run")
+def run(
+    ctx: typer.Context,
+    once: Annotated[
+        bool, typer.Option("--once", help="Deliver what is due now, print a summary and exit.")
+    ] = False,
+    allow_host: Annotated[
+        list[str] | None,
+        typer.Option("--allow-host", help="Egress allow-list entry (host, host:port, IP, CIDR)."),
+    ] = None,
+    threads: Annotated[int, typer.Option("--threads", min=1, help="Parallel sends.")] = 4,
+    interval: Annotated[
+        float, typer.Option("--interval", min=0.05, help="Seconds between idle cycles.")
+    ] = 0.5,
+) -> None:
+    """Run the webhook worker: dispatch new events and deliver them, until interrupted."""
+    with service_errors(), factory(ctx) as opened:
+        worker = WebhookWorker(
+            make_dispatcher(opened),
+            make_engine(opened, allow_hosts=allow_host or ()),
+            threads=threads,
+            interval_s=interval,
+        )
+        if once:
+            total = worker.drain()
+            for name in ("dispatched", "claimed", "delivered", "retried", "dead", "disabled"):
+                typer.echo(f"{name} {getattr(total, name)}")
+            return
+        typer.echo("webhook worker running; press Ctrl-C to stop", err=True)
+        with worker:
+            try:
+                while worker.running:
+                    time.sleep(0.2)
+            except KeyboardInterrupt:
+                typer.echo("stopping", err=True)
 
 
 webhook_ops.register(app)
