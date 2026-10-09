@@ -51,6 +51,12 @@ Objective met: yes / partially / no. Demo path verified on a fresh clone: yes / 
 ## Escalations and decisions
 - …
 
+## Learnings
+Entries appended to `docs/memory/LEARNINGS.md` this increment (IDs), or none. Implementer proposals declined, with one-line reasons.
+
+## Docs
+Package READMEs / AGENTS.md / runbooks created or updated (paths), per the `throughline-docs` skill §4.
+
 ## Follow-ups filed
 - `docs/tickets/<next>/T..` …
 

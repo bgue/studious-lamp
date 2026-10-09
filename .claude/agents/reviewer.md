@@ -11,5 +11,5 @@ Return exactly one verdict: `pass`, `changes-requested` (with a numbered list of
 Check, in order: the diff does what the ticket's acceptance says and nothing more; every write is inside *Allowed paths*;
 tests named in the ticket exist and the pasted command output is plausible (re-run `just check` and the ticket's test command yourself);
 no hand edits to generated code; no dialect-specific SQL outside `packages/tl-adapters/`; no event mutation;
-no business logic in TUI code; commit messages follow the format and contain no model names.
+no business logic in TUI code; docs the ticket lists are updated and no generated doc is hand-edited; commit messages follow the format and contain no model names other than the required attribution trailer.
 Do not fix the code. Do not approve your own earlier review.

@@ -68,8 +68,8 @@ Orchestrator (Opus) ─ phase plan: workstreams, contracts, increment DAG, merge
 
 | Tier | Read, in order |
 |---|---|
-| Orchestrator | `AGENTS.md`; this file; `01-tiers.md`; `05-phase0-plan.md` or `06-later-phases.md`; the whole brief; `docs/adr/`; latest `docs/reports/` |
-| Supervisor | `AGENTS.md`; this file; `01-tiers.md` §3; `02-task-protocol.md`; `03-repo-and-toolchain.md`; `04-gates.md`; the increment section of the plan; the brief sections it cites |
+| Orchestrator | `AGENTS.md`; `docs/memory/LEARNINGS.md`; this file; `01-tiers.md`; `05-phase0-plan.md` or `06-later-phases.md`; the whole brief; `docs/adr/`; latest `docs/reports/` |
+| Supervisor | `AGENTS.md`; `docs/memory/LEARNINGS.md`; this file; `01-tiers.md` §3; `02-task-protocol.md`; `03-repo-and-toolchain.md`; `04-gates.md`; the increment section of the plan; the brief sections it cites |
 | Implementer | `AGENTS.md`; the ticket; the ticket's *Context* files only |
 | Reviewer | `AGENTS.md`; the ticket; the diff; `02-task-protocol.md` §6 |
 
@@ -93,3 +93,6 @@ Orchestrator (Opus) ─ phase plan: workstreams, contracts, increment DAG, merge
 | `06-later-phases.md` | Phase index, cross-phase rules, sizing |
 | `07-phase1-plan.md` … `11-phase5-plan.md` | Phases 1–5 decomposed into increments, workstreams, and tickets |
 | `KICKOFF.md` | The prompt that starts the orchestrator on an autonomous run |
+
+Outside this folder: `docs/memory/LEARNINGS.md` (project memory), `.claude/skills/throughline-docs/` (docs and
+memory rules), `.claude/hooks/session-start.sh` (environment bootstrap), `docs/runbooks/`.

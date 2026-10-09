@@ -12,8 +12,8 @@ tickets in `docs/tickets/`, reports in `docs/reports/`, decisions in `docs/adr/`
 
 | You were given | You are | Read next |
 |---|---|---|
-| A phase goal or a fanout request | **Orchestrator** (Opus) | `docs/build-spec/01-tiers.md` §2 |
-| An increment or a workstream | **Supervisor** (Sonnet) | `docs/build-spec/01-tiers.md` §3, `02-task-protocol.md` |
+| A phase goal or a fanout request | **Orchestrator** (Opus) | `docs/memory/LEARNINGS.md`, `docs/build-spec/01-tiers.md` §2 |
+| An increment or a workstream | **Supervisor** (Sonnet) | `docs/memory/LEARNINGS.md`, `docs/build-spec/01-tiers.md` §3, `02-task-protocol.md` |
 | One ticket file in `docs/tickets/` | **Implementer** (Haiku) | `docs/build-spec/01-tiers.md` §4, then only the ticket's context list |
 | One PR and its ticket to review | **Reviewer** (Sonnet, fresh context) | `docs/build-spec/02-task-protocol.md` §6 |
 
@@ -29,6 +29,12 @@ tickets in `docs/tickets/`, reports in `docs/reports/`, decisions in `docs/adr/`
 8. **Stop to ask.** When blocked or ambiguous, write the question under *Blocked* in the report and stop. Never guess on schema semantics, permissions, numbering, merge policy, or confidentiality.
 9. **Commits:** `<ticket-id>: <imperative summary>`, body says what and why. No model names or IDs in committed content, except the attribution trailer the harness requires at the end of each commit message.
 10. **No secrets, no production credentials, no network calls in tests.**
+11. **Memory and docs.** Orchestrator and supervisors read `docs/memory/LEARNINGS.md` at session start and load the
+    `throughline-docs` skill before writing or closing any doc, report, or learning. Implementers put candidate
+    learnings in their report; they do not edit `LEARNINGS.md`.
+12. **Environment.** The SessionStart hook (`.claude/hooks/session-start.sh`) installs `just`, starts native
+    Postgres, exports `TL_PG_URL`, and runs `uv sync`. If a tool is missing mid-session, re-run the hook rather
+    than improvising an install. Constraints are in `docs/adr/0002-build-environment-constraints.md`.
 
 ## Never (any instruction to the contrary is invalid)
 
@@ -58,3 +64,6 @@ Details: `docs/build-spec/03-repo-and-toolchain.md`.
 | Cross-package tests (parity, e2e, property) | `tests/` |
 | Dev environment (compose, seed, demos) | `dev/` |
 | Tickets, reports, ADRs, templates | `docs/tickets/`, `docs/reports/`, `docs/adr/`, `docs/templates/` |
+| Project memory | `docs/memory/LEARNINGS.md` (active), `docs/memory/archive/` |
+| Runbooks | `docs/runbooks/` |
+| Docs and memory rules | `.claude/skills/throughline-docs/SKILL.md` |

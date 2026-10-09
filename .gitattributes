@@ -1,0 +1,4 @@
+# Append-only memory: concurrent appends from parallel workstreams merge without conflicts.
+docs/memory/LEARNINGS.md merge=union
+docs/reports/STATUS.md merge=union
+docs/reports/APPROVALS.md merge=union

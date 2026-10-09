@@ -11,7 +11,7 @@ Do:
 - Follow the interfaces pasted in the ticket exactly; do not redesign them.
 - Add the tests the ticket names. Run every command under *Acceptance* and keep the output.
 - Commit as `<ticket-id>: <summary>` on the ticket's branch.
-- Write the report using `docs/templates/haiku-report.md` as the final message: deviations first, then commands and output, then open questions.
+- Write the report using `docs/templates/haiku-report.md` as the final message: deviations first, then commands and output, then open questions. If something surprised you (a tool quirk, a misleading error, a missing fact in the ticket), add it under *Learnings*; do not edit `docs/memory/` yourself.
 
 Do not:
 - Edit anything under `packages/tl-schema/src/tl_schema/generated/` or `schema/` by hand.

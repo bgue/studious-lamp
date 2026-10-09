@@ -19,5 +19,8 @@ $ uv run pytest … -q
 ## Tests added
 - `path::test_name` — behaviour covered
 
+## Learnings (proposed)
+none | <a fact that would have saved time; the supervisor decides whether it goes into docs/memory/LEARNINGS.md>
+
 ## Open questions / Blocked
 none | …

@@ -21,7 +21,11 @@ Start here:
 2. `docs/build-spec/00-overview.md` — how the tiers work together.
 3. `docs/build-spec/05-phase0-plan.md` through `11-phase5-plan.md` — every phase, increment by increment.
    `docs/build-spec/KICKOFF.md` is the prompt that starts an autonomous run.
-4. `docs/templates/` — ticket, report, fanout, and ADR templates.
-5. `docs/tickets/P0-I1/` — worked example tickets for the first increment.
+4. `docs/memory/LEARNINGS.md` — project memory; read it before planning.
+5. `.claude/skills/throughline-docs/` — how docs, reports, and learnings are written.
+6. `docs/templates/` — ticket, report, fanout, ADR, package README, and runbook templates.
+7. `docs/tickets/P0-I1/` — worked example tickets for the first increment.
+
+Cloud sessions bootstrap themselves through `.claude/hooks/session-start.sh` (just, native Postgres, `uv sync`).
 
 Nothing under `packages/` exists yet. Phase 0 increment 1 creates it (`docs/build-spec/05-phase0-plan.md`).

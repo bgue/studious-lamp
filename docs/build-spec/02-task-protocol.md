@@ -81,7 +81,8 @@ The reviewer answers each in order and stops at the first hard failure:
 7. **Dialect:** no SQLite- or Postgres-specific SQL outside `packages/tl-adapters/`.
 8. **Logic placement:** no business logic in `packages/tl-tui/`.
 9. **Tests:** named tests exist, cover the named behaviours, and fail if the change is reverted (spot-check one).
-10. **Conventions:** ruff/pyright clean, commit message format, no model names.
+10. **Conventions:** ruff/pyright clean, commit message format, no model names outside the attribution trailer.
+11. **Docs:** docs listed in *Allowed paths* are updated; generated docs untouched.
 
 Verdicts: `pass`; `changes-requested` with numbered findings; `escalate` with the question.
 
@@ -105,9 +106,17 @@ Verdicts: `pass`; `changes-requested` with numbered findings; `escalate` with th
 - `just check`, `just test` green on the increment branch; `just test-parity` where adapters changed; `just test-tui` where screens changed.
 - Demo script runs clean from `just dev up` on a fresh clone.
 - Increment report written; follow-ups filed as `draft` tickets in the next increment folder.
+- Docs definition of done met (`throughline-docs` skill §4): package READMEs and AGENTS.md current, runbooks for new operations, learnings recorded.
 
 **Phase**
 
 - The brief's exit criteria for the phase (§16) are demonstrated on a simulated project (§29.5) where the simulator exists, else on seed data.
 - Phase report by the orchestrator; risk register (§17) updated; ADRs current.
-- Human sign-off on every gate named in the fanout plans.
+- Human sign-off on every gate named in the fanout plans (or a logged delegated approval in `docs/reports/APPROVALS.md`).
+- `docs/memory/LEARNINGS.md` curated and archived for the phase.
+
+## 9. Project memory
+
+`docs/memory/LEARNINGS.md` is the build's memory: small, actionable facts that are expensive to rediscover. Rules
+for reading, writing, and curating it are in the `throughline-docs` skill §3. It is in git, merges with
+`merge=union`, and is never read by implementers directly; supervisors paste the entries a ticket needs.
