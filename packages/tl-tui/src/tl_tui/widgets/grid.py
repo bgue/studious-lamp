@@ -120,7 +120,7 @@ class RecordGrid(ScrollView, can_focus=True):
     """Virtualised, sortable, multi-select grid of records of one scope and record type."""
 
     KEY_HINTS: ClassVar[str] = (
-        "Enter open  Space select  Ctrl+A all  ←→ column  s sort  r reload  F6 panels"
+        "Enter open  Space select  Ctrl+A all  ←→ column  s sort  c columns  y copy  r reload"
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -138,6 +138,8 @@ class RecordGrid(ScrollView, can_focus=True):
         Binding("ctrl+a", "select_all", "Select all", show=False),
         Binding("enter", "open", "Open", show=False),
         Binding("s", "sort", "Sort", show=False),
+        Binding("c", "choose_columns", "Columns", show=False),
+        Binding("y", "copy", "Copy", show=False),
         Binding("r", "reload", "Reload", show=False),
     ]
 
@@ -367,6 +369,38 @@ class RecordGrid(ScrollView, can_focus=True):
 
     def action_reload(self) -> None:
         self.reload()
+
+    def action_choose_columns(self) -> None:
+        # Function-level import: column_chooser imports GridColumn from this module.
+        from tl_tui.widgets.column_chooser import ColumnChooser  # noqa: PLC0415
+
+        meta: FormMetadata | None
+        try:
+            meta = self.client.form_metadata(self.scope, self.record_type or "core.Record")
+        except CLIENT_ERRORS as exc:
+            self.post_message(StatusMessage(describe_error(exc), "error"))
+            meta = None
+        except NotImplementedError:
+            meta = None
+        mapping: dict[str, GridColumn] = {c.key: c for c in available_columns(meta)}
+        mapping.update({c.key: c for c in self.columns})  # keep the widths of shown columns
+
+        def apply(keys: list[str] | None) -> None:
+            if keys:
+                self.set_columns([mapping[key] for key in keys])
+
+        self.app.push_screen(
+            ColumnChooser(list(mapping.values()), [c.key for c in self.columns]), apply
+        )
+
+    def action_copy(self) -> None:
+        count = len(self.selected_records()) or (1 if self.cursor_record is not None else 0)
+        if count == 0:
+            self.post_message(StatusMessage("Nothing to copy", "warning"))
+            return
+        self.app.copy_to_clipboard(self.copy_text())
+        noun = "row" if count == 1 else "rows"
+        self.post_message(StatusMessage(f"Copied {count} {noun} as TSV"))
 
     def _selection_changed(self) -> None:
         self.refresh()
