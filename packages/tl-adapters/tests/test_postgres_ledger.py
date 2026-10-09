@@ -151,6 +151,40 @@ def test_a_write_transaction_holds_everyone_else_off_until_it_commits(engine: En
     t2.join(WAIT)
 
 
+def test_a_write_transaction_reads_what_the_previous_writer_committed(engine: Engine) -> None:
+    """Guard reads inside a write transaction cannot go stale (LEARNINGS L-P0-I3-O2, fanout A2).
+
+    The lock is taken before the first read, so a writer that waited for another sees that
+    writer's commit; no ``SELECT ... FOR UPDATE`` is needed on top.
+    """
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE guard_links (id int PRIMARY KEY)"))
+        conn.execute(text("INSERT INTO guard_links VALUES (1)"))
+    holding, release = threading.Event(), threading.Event()
+    seen: list[int] = []
+
+    def retract() -> None:
+        with pg_engine.write_tx(engine) as conn:
+            conn.execute(text("DELETE FROM guard_links WHERE id = 1"))
+            holding.set()
+            assert release.wait(WAIT)
+
+    def guard() -> None:
+        with pg_engine.write_tx(engine) as conn:  # blocks until the retraction commits
+            seen.append(conn.execute(text("SELECT count(*) FROM guard_links")).scalar_one())
+
+    first = threading.Thread(target=retract, daemon=True)
+    second = threading.Thread(target=guard, daemon=True)
+    first.start()
+    assert holding.wait(WAIT)
+    second.start()
+    time.sleep(0.3)  # the guard transaction is now waiting for the lock
+    release.set()
+    first.join(WAIT)
+    second.join(WAIT)
+    assert seen == [0]
+
+
 def test_readers_never_wait_for_a_writer(engine: Engine) -> None:
     ledger = PostgresLedger(engine)
     append(ledger, "a", 0, "company")
