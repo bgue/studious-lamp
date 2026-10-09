@@ -112,3 +112,15 @@ class GuardFailedError(ServiceError):
     def __init__(self, message: str, results: list[Any] | None = None) -> None:
         super().__init__(message)
         self.results: list[Any] = results if results is not None else []
+
+
+# --- feed (P0-I6) ------------------------------------------------------------------------------
+
+
+class PostNotFoundError(ServiceError): ...  # post_id unknown, or it belongs to another scope
+
+
+class PostRetractedError(ServiceError): ...  # edit, retract or react on a retracted post
+
+
+class ReactionsDisabledError(ServiceError): ...  # feed.reactions.enabled is off
