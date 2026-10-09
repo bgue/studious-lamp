@@ -188,7 +188,8 @@ def test_the_transition_is_in_the_event_tail(env: dict[str, str]) -> None:
             uow.conn()
             .execute(
                 text(
-                    "SELECT payload, actor, source FROM events WHERE event_type = 'Workflow.Transitioned'"
+                    "SELECT payload, actor, source FROM events "
+                    "WHERE event_type = 'Workflow.Transitioned'"
                 )
             )
             .one()
