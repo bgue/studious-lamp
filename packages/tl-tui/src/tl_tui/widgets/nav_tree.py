@@ -1,11 +1,10 @@
-"""Navigation tree (left panel): company, project, and the views inside it (brief 10.1).
-
-STUB (P0-I2-T12b): the public interface is final; the content is replaced by the ticket.
-"""
+"""Navigation tree (left panel): company, project, and the views inside it (brief 10.1)."""
 
 from __future__ import annotations
 
 from textual.widgets import Tree
+
+from tl_tui.messages import NavSelected
 
 
 class NavTree(Tree[str]):
@@ -17,6 +16,11 @@ class NavTree(Tree[str]):
         self.scope = scope
 
     def on_mount(self) -> None:
-        project = self.root.add(self.scope, data="project", expand=True)
+        project = self.root.add(self.scope.removeprefix("project:"), data="project", expand=True)
         project.add_leaf("Records", data="records")
+        project.add_leaf("★ Saved views (none yet)", data="saved-views")
         self.root.expand()
+
+    def on_tree_node_selected(self, event: Tree.NodeSelected[str]) -> None:
+        if event.node.data == "records":
+            self.post_message(NavSelected("records"))
