@@ -9,6 +9,7 @@ Storage adapters that implement the `tl_core` Protocols: SQLite and the object s
 | `tl_adapters.sqlite.engine.write_tx`, `read_tx` | context managers | One write (immediate) or read transaction |
 | `tl_adapters.sqlite.ledger.SqliteLedger` | class | Append-only `events` table, optimistic concurrency, per-scope hash chain, `append_in(conn, ...)` for a caller's transaction |
 | `tl_adapters.sqlite.schema.sql` | resource | The `events` table, index, and triggers that reject UPDATE and DELETE |
+| `tl_adapters.sqlite.factory.SqliteUowFactory(path)` | class | One engine, many short units of work (`factory()`, `factory(readonly=True)`, `dispose()`); what long-running workers use |
 | `tl_adapters.sqlite.uow.SqliteUnitOfWork`, `open_uow(path, readonly=False)` | class, context manager | Append plus inline projectors in one transaction; publish after commit |
 | `tl_adapters.sqlite.uow.create_schema(path)` | function | Events table and every default projector's tables; idempotent |
 | `tl_adapters.sqlite.uow.rebuild_projections(path, types=None)` | function | Reset projectors and replay the ledger in one transaction; returns events replayed |

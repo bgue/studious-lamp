@@ -58,9 +58,10 @@ REVIEW-SUPERVISOR-PIECES: items 2 to 8 are in the Sonnet-authored list (webhook 
 | 6 | `egress.py` (SSRF) and `transport.py` (pinned IP, no redirects) | Security | orchestrator | built |
 | 7 | `subscriptions.py` (commands, secrets, rotation overlap) and the subscription projector | Secrets | orchestrator | built |
 | 8 | Envelope builder, payload modes, confidentiality seam | Contract used by every consumer | orchestrator | built |
-| 9 | Catalog generator core (`tl_schema.generators.catalog`) and the generated files | Generator logic, 01 section 7 | reviewer | planned (round 2) |
+| 9 | Catalog generator core (`tl_schema.generators.catalog`) and the generated files | Generator logic, 01 section 7 | reviewer | built, reviewed (minor findings fixed) |
 | 10 | `tl_adapters.sqlite.factory.SqliteUowFactory` | Adapter-boundary helper; WS-A provides the same call shape for Postgres | reviewer | built |
 | 11 | Outbox and delivery parity tests after WS-A lands | Needs `p0/i5` | reviewer | planned (after WS-A) |
+| 12 | `tl webhook run`, `dev/demos/P0-I5.sh`, `docs/runbooks/webhook-operations.md`, contract tests | Operational glue and proof | reviewer | built |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
@@ -69,10 +70,10 @@ REVIEW-SUPERVISOR-PIECES: items 2 to 8 are in the Sonnet-authored list (webhook 
 | P0-I5-T21 | Markdown catalog page renderer (pure function) | haiku | pieces 9 types | merged | merged (1 review round) |
 | P0-I5-T22 | `WebhookFilter.matches_row` | haiku | piece 2, 3 | merged | merged (1 review round) |
 | P0-I5-T23 | Dev webhook receiver (verifies signatures, dedupes, scripted failures) | haiku | piece 4 | merged | merged (1 review round) |
-| P0-I5-T24 | Worker loop: `WebhookWorker` (threads, dispatch plus deliver cycles) | haiku | piece 5 | ready | |
-| P0-I5-T25 | `tl webhook add\|ls\|test\|replay` | haiku | pieces 5, 7 | ready | |
-| P0-I5-T26 | `tl webhook dlq ls\|redrive`, `disable`, `enable`, `rotate-secret` | haiku | pieces 5, 7 | ready | |
-| (supervisor) | Contract tests: delivered payloads against the catalog; `tl webhook run` | sonnet | T24 | planned | The contract test is a scenario over the catalog and is quicker to write than to specify; `run` needs the worker |
+| P0-I5-T24 | Worker loop: `WebhookWorker` (threads, dispatch plus deliver cycles) | haiku | piece 5 | merged | merged (1 review round) |
+| P0-I5-T25 | `tl webhook add\|ls\|test\|replay` | haiku | pieces 5, 7 | merged | merged (1 review round) |
+| P0-I5-T26 | `tl webhook dlq ls\|redrive`, `disable`, `enable`, `rotate-secret` | haiku | pieces 5, 7 | merged | merged (1 review round) |
+| (supervisor) | Contract tests (`tests/contract`), `tl webhook run`, demo, runbook | sonnet | T24 | built | Contract test is a scenario over the catalog; `run` and an empty cell for NULL in `dlq ls` added after T24 to T26 merged |
 
 ### Haiku-ability checklist (01-tiers.md section 6)
 | Ticket | 1 files (at most 6) | 2 interfaces in repo | 3 test or commands | 4 size (400 lines, 5 files) | 5 avoids Sonnet table | 6 no schema, deps, interface change | 7 verifiable | Reference check |
