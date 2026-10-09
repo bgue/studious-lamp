@@ -85,7 +85,7 @@ public-interface change; (7) a reviewer verifies from the diff plus the commands
 ## Risks and escalation triggers
 - A converted test that fails on Postgres for a production reason (the implementer stops under *Blocked*): the supervisor fixes it in `tl_adapters` or the generator.
 - Concurrent agents share the Postgres server: a killed run leaves `tl_pytest_*` databases (runbook T12). Per-session databases keep the ledger lock private.
-- Batch concurrency is two agents at a time (L-P0-I1... environment, CPUs), so batches take about twice as long as the spec's four-wide dispatch.
+- Batch concurrency is two agents at a time (L-P0-SETUP-9), so batches take about twice as long as the spec's four-wide dispatch.
 - Escalate to the orchestrator for: a change to a frozen interface in `03` §7, a `schema/**` change (none is planned), or a second failed review of S1.
 
 ## SCHEMA_APPROVALS
