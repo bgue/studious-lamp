@@ -9,6 +9,9 @@ dependencies = [
   "tl-adapters",
 ]
 
+[project.scripts]
+tl = "tl_cli.main:app"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
