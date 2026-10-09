@@ -61,7 +61,7 @@ tl wf transition --project P123 P123-REC-0001 approve        # allowed; Workflow
 | T14 | Trace view widget and tab | H | T14a (the fake client stood in until it merged) | merged | pass, 1 round |
 | T15 | Workflow action menu (`w`) and guard-failure display | H | T09 | merged | pass, 1 round |
 | T16 | Snapshot tests (8 new), demo script `dev/demos/P0-I3.sh`, docs sweep, report | S | all | built (supervisor) | |
-| T00 | Atomic edit command | S | T09 | built | | |
+| T00 | Atomic edit command | S | T09 | built, orchestrator review pass | |
 
 Haiku-ability (`01-tiers.md` §6) for batch 1: each ticket touches two source or test files plus its report, ships a provided test file and a
 precise specification, avoids every row of the supervisor-authored table (T03 and T08 only map events and files onto the rules the
