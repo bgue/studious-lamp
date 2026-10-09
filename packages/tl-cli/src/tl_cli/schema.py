@@ -1,4 +1,4 @@
-"""The `tl schema` group: hash, lint and validate schema packages (brief 27.8).
+"""The `tl schema` group: hash, lint, validate and reload schema packages (brief 27.8).
 
 Each subcommand loads the package directory (``--dir``, env ``TL_SCHEMA_DIR``, default
 ``schema/fixtures``), makes one call into ``tl_schema`` and prints. No rules live here.
@@ -12,6 +12,9 @@ from pathlib import Path
 from typing import Annotated, NoReturn
 
 import typer
+from tl_adapters.sqlite.uow import open_uow
+from tl_core.schema_provider import DirectorySchemaProvider
+from tl_core.services.schema_events import reload_and_record
 from tl_schema.compile import SchemaCompileError
 from tl_schema.compose import compose
 from tl_schema.linkml_render import build_view
@@ -119,3 +122,16 @@ def validate(
         typer.echo(f"ok {scope} {schema.hash[:12]}")
     if failed:
         raise typer.Exit(code=1)
+
+
+@app.command("reload")
+def reload(ctx: typer.Context, directory: DirOption = None) -> None:
+    """Record `Schema.EffectiveChanged` for every scope whose effective schema changed."""
+    db: Path = ctx.obj
+    provider = DirectorySchemaProvider(directory)
+    with _schema_errors(), open_uow(db) as uow:
+        events = reload_and_record(uow, provider)
+    if not events:
+        typer.echo("unchanged")
+    for event in events:
+        typer.echo(f"recorded {event.scope} {str(event.payload['effective_schema_hash'])[:12]}")
