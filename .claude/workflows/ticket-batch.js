@@ -77,6 +77,7 @@ Setup: cd ${REPO} && git worktree remove --force ${rwt} 2>/dev/null; git worktre
 Every Bash command must start with \`cd ${rwt} && \`. Do not modify any tracked file and do not commit.
 Read ${rwt}/AGENTS.md, the ticket at ${rwt}/${t.path}, the diff \`git diff ${A.base}...${t.branch}\`, and docs/build-spec/02-task-protocol.md section 6 (review checklist).
 If pyproject.toml exists run \`uv sync --all-packages\` (fall back to \`uv sync\`), then re-run \`just check\` and every test command in the ticket's Acceptance section yourself. Do not trust pasted output.
+The implementer's report at docs/reports/${A.inc}/${t.id}.md is required by the orchestrator workflow and is always inside the boundary; never raise it as a finding. A ticket Branch field that differs from ${t.branch} is also not a finding.
 Walk the checklist in order. Verdict: "pass", "changes-requested" (each finding cites file:line and the ticket line or AGENTS.md rule it violates, and says concretely what to change), or "escalate" (the diff raises a question the ticket cannot answer).
 Finally: cd ${REPO} && git worktree remove --force ${rwt}
 

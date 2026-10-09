@@ -148,3 +148,9 @@ test or a generated artefact already enforces, or narrative history (that belong
   test can fail. Three clean runs of a racy test prove nothing. Threads in such tests are `daemon=True` and joined
   with a timeout so a regression fails instead of hanging the suite.
   Evidence: `packages/tl-core/tests/test_bus.py`; mutation (flag cleared outside the lock) fails the test. Status: active
+
+- **L-P0-I2-O1** · 2026-10-09 · tags: process
+  The workflow tells implementers to commit a report at docs/reports/<inc>/<ticket>.md, which is outside the ticket's
+  Allowed paths. One reviewer flagged it and forced a retry that deleted the report. The review prompt now says that
+  path is always allowed. Supervisors may also add it to every ticket's Allowed paths.
+  Evidence: P0-I2-T12 attempt 1 review. Status: active
