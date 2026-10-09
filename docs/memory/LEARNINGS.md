@@ -350,3 +350,25 @@ test or a generated artefact already enforces, or narrative history (that belong
   correctly stopped as *Blocked*. A *Blocked* caused by the base is not a strike; fix the base, merge it into the ticket branch.
   Evidence: `docs/reports/P0-I4/P0-I4-T03.md` (Blocked, then Decision), commits 56bb651 and 34e109f. Status: active
 
+
+- **L-P0-I5-B1** · 2026-10-09 · tags: tooling, process
+  Never name a module `types.py` (or `enum.py`, `json.py`) inside a package: a script or `python -` run from that directory puts
+  it first on `sys.path` and the standard library's own imports break (`cannot import name 'MethodType' from 'types'`). The webhook
+  package uses `base.py`.
+  Evidence: `packages/tl-core/src/tl_core/webhooks/base.py` (renamed from `types.py` after the first ad-hoc script failed). Status: active
+
+- **L-P0-I5-B2** · 2026-10-09 · tags: ledger, process
+  State that a lagging consumer reads later must keep its history. A subscription row holding only its latest enable and disable
+  seq made a dispatcher pass that ran after a disable and re-enable drop the events from before the disable; `active_windows`
+  (a list of seq intervals) fixed it, and `test_the_active_window_follows_disable_and_enable` runs the late pass on purpose.
+  Operational tables that no event produces (`wh_*`) are created by a projector with empty `handles` and a no-op `reset`, so
+  `create_schema` makes them and a rebuild never clears a secret or a retry state.
+  Evidence: `tests/webhooks/test_dispatcher.py`, `packages/tl-core/src/tl_core/webhooks/state.py`. Status: active
+
+- **L-P0-I5-B3** · 2026-10-09 · tags: process, tests
+  When a stub-plus-provided-test ticket sits under code that other tests already exercise, make the stub fail loudly only for the
+  part it lacks (`matches_row` raises `NotImplementedError` when one of the five unbuilt filter parts is set) instead of ignoring
+  it or raising everywhere: the rest of the suite stays green, and a silently ignored filter part could never leak events.
+  Reference implementations for T20 to T23 were checked with `/tmp`-style scripts that copy the reference over the stub, run
+  `ruff`, `pyright` and the provided test, then `git checkout -- packages` (commit supervisor edits first: the checkout also reverts them).
+  Evidence: `packages/tl-core/src/tl_core/webhooks/filters.py`; docs/tickets/P0-I5/T22-webhook-filter-match.md. Status: active
