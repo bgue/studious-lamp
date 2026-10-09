@@ -15,6 +15,7 @@ from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
+from fakes_links import FakeLinkSupport
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.errors import DuplicateKeyError, RecordNotFoundError
@@ -198,7 +199,7 @@ def set_path(data: dict[str, Any], dotted: str, value: Any) -> None:
     node[parts[-1]] = value
 
 
-class FakeClient:
+class FakeClient(FakeLinkSupport):
     """Implements `tl_tui.client.ClientInterface` in memory."""
 
     def __init__(self, scope: str = SCOPE) -> None:
@@ -211,6 +212,7 @@ class FakeClient:
         self._events: dict[str, list[Event]] = {}
         self._seq = 0
         self._id = 0
+        self._init_links()
 
     # --- seeding -----------------------------------------------------------------------------
 
