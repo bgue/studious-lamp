@@ -9,6 +9,16 @@ EMPTY = "—"
 CONFORMANCE_MARK = {"ok": "✓ ok", "warning": "! warning", "nonconformant": "✗ nonconformant"}
 
 
+UNIT_LABELS = {"[in_i]": "in", "[ft_i]": "ft", "[psi]": "psi", "Cel": "°C", "mm": "mm"}
+
+
+def unit_label(code: str | None) -> str:
+    """A short label for a UCUM unit code: the code itself when unknown, ``""`` for none."""
+    if not code:
+        return ""
+    return UNIT_LABELS.get(code, code)
+
+
 def short_hash(value: str | None) -> str:
     """``#a91f…3c`` for a content hash (first 4 and last 2 characters), ``—`` when absent."""
     if not value:

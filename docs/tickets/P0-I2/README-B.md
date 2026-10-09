@@ -35,9 +35,10 @@ advisory property. The TUI itself is exercised by `just test-tui` (snapshot test
 | T13 | Data grid core | S | T11 | merged (supervisor-built) | |
 | T13b | Grid column chooser and copy as TSV | H | T13 | merged | Review pass; the error status on a failed `form_metadata` is accepted. The plan's "H polish" half of T13 |
 | T14 | Record view: header, Details, History | H | T11, T12 skeleton | merged | Review pass, no findings |
-| T15 | Psets tab: layer-grouped rendering with enforcement markers (sketch 2) | H | T14, WS-A T05 | draft | |
-| T16 | Generated forms; Save to `SetPsetValues` | H | T15 | draft | |
-| T17 | Snapshot tests; key map `n e Ctrl+S Esc [ ]` | H | T16 | draft | |
+| T15 | Psets tab: layer-grouped rendering with enforcement markers (sketch 2) | H | T14 (fake metadata; WS-A T05 not needed to build) | ready | |
+| T16a | Form field editors generated from `FieldMeta` (inline validation) | H | T11 | ready | Split from the plan's T16 so it can run beside T15 |
+| T16b | Form assembly: edit mode in the Psets tab, Save to `SetPsetValues` grouped by (pset, layer), new-record form | H/S | T15, T16a | draft | Second half of the plan's T16 |
+| T17 | Snapshot tests; key map `n e Ctrl+S Esc [ ]` | H | T16b | draft | |
 | T18 | `just tui`, demo, report | S | T17, WS-A merged | draft | Taken by the supervisor (demo and report are supervisor deliverables) |
 
 Haiku-ability (`01-tiers.md` §6): T12, T12b, T13b and T14 each read at most six files, depend only on interfaces already

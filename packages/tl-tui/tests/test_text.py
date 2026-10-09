@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tl_tui.text import conformance_mark, format_value, short_hash, timestamp
+from tl_tui.text import conformance_mark, format_value, short_hash, timestamp, unit_label
 
 
 def test_short_hash() -> None:
@@ -35,3 +35,9 @@ def test_format_value() -> None:
 
 def test_conformance_mark_of_nothing_is_a_dash() -> None:
     assert conformance_mark(None) == "—"
+
+
+def test_unit_label() -> None:
+    assert unit_label("[in_i]") == "in"
+    assert unit_label("furlong") == "furlong"
+    assert unit_label(None) == ""
