@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS wh_cursor (
+  name TEXT PRIMARY KEY,
+  last_seq BIGINT NOT NULL DEFAULT 0
+);

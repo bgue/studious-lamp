@@ -9,6 +9,8 @@ from tl_core.projection.pset import PsetProjector
 from tl_core.projection.record import RecordProjector
 from tl_core.projection.registry import InMemoryRegistry
 from tl_core.projection.workflow import WorkflowProjector
+from tl_core.webhooks.outbox import OutboxProjector
+from tl_core.webhooks.subscription_projector import WebhookSubscriptionProjector
 
 
 def default_registry() -> InMemoryRegistry:
@@ -20,4 +22,9 @@ def default_registry() -> InMemoryRegistry:
     registry.register(NumberingProjector())
     registry.register(WorkflowProjector())  # after RecordProjector: it updates that row
     registry.register(FileProjector())  # independent of the record row: files carry their scope
+    registry.register(
+        WebhookSubscriptionProjector()
+    )  # independent: subscriptions are their own streams
+    # Last, on purpose: it reads the rows the projectors above wrote for the same event.
+    registry.register(OutboxProjector())
     return registry
