@@ -139,7 +139,7 @@ def test_literal_text_is_escaped_in_the_regex() -> None:
 
 def test_search_regex_finds_keys_in_text() -> None:
     regex = parse_pattern(STANDARD).search_regex()
-    text = "See P123-REC-0001, and (P123-REC-0002) but not XP123-REC-0003 or P123-REC-00044x."
+    text = "See P123-REC-0001, and (P123-REC-0002) but not x-P123-REC-0003 or P123-REC-00044x."
     found = [m.group(0) for m in regex.finditer(text)]
     assert found == ["P123-REC-0001", "P123-REC-0002"]
 
