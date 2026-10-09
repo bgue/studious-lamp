@@ -44,14 +44,28 @@ class QuerySpec:
 
 def parse(text: str) -> Expr | None:
     """Parse query text into an AST; blank text gives None. Raises QuerySyntaxError."""
-    raise NotImplementedError
+    from tl_core.query.parser import parse_text
+
+    return parse_text(text)
 
 
 def run_query(uow: UnitOfWork, spec: QuerySpec) -> list[dict[str, Any]]:
     """Matching records as envelope dicts, ordered by ``spec.order_by`` then ``id``."""
-    raise NotImplementedError
+    from sqlalchemy import text
+
+    from tl_core.query.compiler import compile_query
+    from tl_core.services.queries import envelope_from_row
+
+    compiled = compile_query(spec)
+    rows = uow.conn().execute(text(compiled.sql), compiled.params).mappings().all()
+    return [envelope_from_row(row) for row in rows]
 
 
 def count_query(uow: UnitOfWork, spec: QuerySpec) -> int:
     """Number of matching records (ignores limit, offset and order_by)."""
-    raise NotImplementedError
+    from sqlalchemy import text
+
+    from tl_core.query.compiler import compile_query
+
+    compiled = compile_query(spec, count=True)
+    return int(uow.conn().execute(text(compiled.sql), compiled.params).scalar_one())

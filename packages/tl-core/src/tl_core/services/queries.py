@@ -46,6 +46,11 @@ def _envelope(row: RowMapping) -> dict[str, Any]:
     }
 
 
+def envelope_from_row(row: RowMapping) -> dict[str, Any]:
+    """The envelope dictionary for one ``cur_core_record`` row (all envelope columns selected)."""
+    return _envelope(row)
+
+
 def get_record(uow: UnitOfWork, scope: str, key: str) -> dict[str, Any] | None:
     """The record with this ``(scope, key)``, voided or not; ``None`` when no row matches."""
     row = uow.conn().execute(_GET_SQL, {"scope": scope, "key": key}).mappings().first()
