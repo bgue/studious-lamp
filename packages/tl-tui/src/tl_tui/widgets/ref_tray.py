@@ -5,9 +5,9 @@ this screen. It lists the tray, lets the user tick or remove entries, and links 
 the open record with the chosen relation and pin. It dismisses with the number of links created,
 or ``None`` when closed without linking. Links are made with `ClientInterface.add_link`.
 
-STUB (P0-I3-T13b): the layout (`compose`), constructor, key bindings, `title_text` and the relation helpers
-are final; the functions and methods marked `raise NotImplementedError` are the ticket. Remove this
-paragraph when done.
+STUB (P0-I3-T13b): the layout (`compose`), constructor, key bindings, `title_text` and the
+relation helpers are final; the functions and methods marked `raise NotImplementedError` are the
+ticket. Remove this paragraph when done.
 """
 
 from __future__ import annotations
