@@ -1,6 +1,6 @@
 # Workstream plan — P0-I2 workstream B: TUI shell, grid, record view, forms
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-09
 Brief sections: §4, §10.1–§10.4, §10.6 (sketches 1, 2, 11), §6.3
 Branch: `p0/i2b` (integration branch `p0/i2`; trunk `claude/wizardly-allen-m2v96s`)
@@ -40,9 +40,9 @@ advisory property. The TUI itself is exercised by `just test-tui` (snapshot test
 | T16 | `tl_tui/forms.py`: edits grouped by (pset, layer), chained `SetPsetValues`, core `UpdateRecord` | S | T16a | merged (supervisor-built) | Business-adjacent grouping and version chaining, kept out of Haiku |
 | T16b | Edit form modal and `e` in the record view | H | T14, T15, T16a, T16 | merged | Review pass, 11 tests. Supervisor follow-up: `EditForm` reports a `ValueError` from `save_record_edits` as "Not saved: …" (test added) |
 | T16c | New record form and `n` | H | T16a | merged | Review pass, 8 tests |
-| T17 | Snapshot tests (15 scenarios at 120x40 and 80x24) | H | T16b, T16c | ready | Exceeds the 5-file guideline only through generated snapshot files |
-| T17b | Key map data, help screen (`F1`, `?`) | H | T16b, T16c | ready | The key-map half of the plan's T17; a test ties every documented key to a real binding |
-| T18 | `just tui`, demo, report | S | T17, WS-A merged | draft | Taken by the supervisor (demo and report are supervisor deliverables) |
+| T17 | Snapshot tests (15 scenarios at 120x40 and 80x24) | H | T16b, T16c | merged | Review pass; snapshot hashes identical to the supervisor's scratch build, before and after the integration merge. Exceeds the 5-file guideline only through generated snapshot files |
+| T17b | Key map data, help screen (`F1`, `?`) | H | T16b, T16c | merged | Review pass, 8 tests. The key-map half of the plan's T17; a test ties every documented key to a real binding |
+| T18 | `just tui`, demo, report, real-service checks | S | T17, WS-A merged | merged (supervisor-built) | Taken by the supervisor (demo and report are supervisor deliverables) |
 
 Haiku-ability (`01-tiers.md` §6): T12, T12b, T13b and T14 each read at most six files, depend only on interfaces already
 on `p0/i2b`, ship with a supervisor-provided test file (stored under `provided/*.py.txt`, L-P0-I1-8), stay under about 400
