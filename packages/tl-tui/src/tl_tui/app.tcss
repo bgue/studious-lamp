@@ -48,7 +48,7 @@ TlApp.-narrow #context {
 TlApp.-narrow #nav.-open {
     display: block;
     dock: left;
-    width: 28;
+    width: 34;
     background: $surface;
     border: solid $primary;
 }

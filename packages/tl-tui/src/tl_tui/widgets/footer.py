@@ -13,7 +13,7 @@ from textual.widgets import Static
 
 from tl_tui.messages import Severity
 
-DEFAULT_HINTS = "F2 nav  F3 context  F6 panels  Ctrl+Q quit"
+DEFAULT_HINTS = "F1 help  F2 nav  F3 context  F6 panels  Ctrl+Q quit"
 FALLBACK_WIDTH = 80
 _SEVERITY_PREFIX: dict[Severity, str] = {"info": "", "warning": "! ", "error": "✗ "}
 

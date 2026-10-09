@@ -38,9 +38,10 @@ advisory property. The TUI itself is exercised by `just test-tui` (snapshot test
 | T15 | Psets tab: layer-grouped rendering with enforcement markers (sketch 2) | H | T14 (fake metadata; WS-A T05 not needed to build) | merged | Review pass, 7 tests |
 | T16a | Form field editors generated from `FieldMeta` (inline validation) | H | T11 | merged | Review pass, 32 tests. Open points settled by the supervisor (empty and unknown initials normalise to unset; select labels escaped). Split from the plan's T16 so it can run beside T15 |
 | T16 | `tl_tui/forms.py`: edits grouped by (pset, layer), chained `SetPsetValues`, core `UpdateRecord` | S | T16a | merged (supervisor-built) | Business-adjacent grouping and version chaining, kept out of Haiku |
-| T16b | Edit form modal and `e` in the record view | H | T14, T15, T16a, T16 | ready | Second half of the plan's T16 (edit) |
-| T16c | New record form and `n` | H | T16a | ready | Second half of the plan's T16 (create) |
-| T17 | Snapshot tests; key map `n e Ctrl+S Esc [ ]` | H | T16b, T16c | draft | |
+| T16b | Edit form modal and `e` in the record view | H | T14, T15, T16a, T16 | merged | Review pass, 11 tests. Supervisor follow-up: `EditForm` reports a `ValueError` from `save_record_edits` as "Not saved: …" (test added) |
+| T16c | New record form and `n` | H | T16a | merged | Review pass, 8 tests |
+| T17 | Snapshot tests (15 scenarios at 120x40 and 80x24) | H | T16b, T16c | ready | Exceeds the 5-file guideline only through generated snapshot files |
+| T17b | Key map data, help screen (`F1`, `?`) | H | T16b, T16c | ready | The key-map half of the plan's T17; a test ties every documented key to a real binding |
 | T18 | `just tui`, demo, report | S | T17, WS-A merged | draft | Taken by the supervisor (demo and report are supervisor deliverables) |
 
 Haiku-ability (`01-tiers.md` §6): T12, T12b, T13b and T14 each read at most six files, depend only on interfaces already
@@ -66,6 +67,7 @@ implementation, which was then discarded.
 | B13 | While the End worker runs, `_load_more` returns early (the worker alone pages); the alternative of bumping `_generation` would discard the worker's progress on every cursor move. Regression test holds the worker mid-fetch, moves the cursor, and asserts unique rows | Verification found that cursor paging during End appended a page on the main thread and then the worker appended from its old offset, duplicating rows |
 | B14 | `order_by` sorts `''` like NULL (last in both directions) for text columns, via `(col IS NULL OR col = '')`; `version` only NULL | An empty status or title should not float to the top |
 | B15 | Saves group edits by (pset, layer) and chain `expected_version` command to command; a failure after the first command leaves the earlier ones applied and says so. A cleared field is sent as `None` in `values` (the pset service decides what unset means: open question for WS-A) | `SetPsetValues` carries one pset and one layer |
+| B16 | A save is not atomic: `forms.py` sends `UpdateRecord`, then one `SetPsetValues` per (pset, layer). A partial save is possible and is reported to the user. Accepted for Phase 0 (orchestrator ruling). Follow-up filed: `docs/tickets/P0-I3/T00-atomic-edit-command.md` (single atomic edit command, P0-I3 or with the commands API in P0-I4). Ruling on `None`: it means "unset this property"; the pset handler accepts it for writable properties, the projector removes the key, conformance treats it as missing | Commands carry one pset and one layer |
 | B12 | A failed page fetch posts an error status and leaves `exhausted` false (and a failed reload leaves the rows untouched); the next cursor move retries | The list must not look complete after an error |
 
 ### §15 performance gap

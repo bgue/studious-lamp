@@ -107,14 +107,18 @@ class EditForm(ModalScreen[bool]):
         if not edits:
             self._status("No changes to save")
             return
-        outcome = save_record_edits(
-            self.client,
-            scope=self.scope,
-            actor=self.actor,
-            record=self.record,
-            meta=self.meta,
-            edits=edits,
-        )
+        try:
+            outcome = save_record_edits(
+                self.client,
+                scope=self.scope,
+                actor=self.actor,
+                record=self.record,
+                meta=self.meta,
+                edits=edits,
+            )
+        except ValueError as exc:  # metadata offered a field that users cannot write
+            self._status(f"Not saved: {exc}")
+            return
         if outcome.ok:
             self.dismiss(True)
             return
