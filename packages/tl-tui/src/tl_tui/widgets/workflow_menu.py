@@ -5,9 +5,6 @@ state with ``✓ allowed`` or ``✗ blocked``; below it the guards of the highli
 with its message, so a blocked transition explains itself (a missing expected link, a role, a
 property required in the target state). Enter runs an allowed transition through
 `ClientInterface.transition`.
-
-STUB (P0-I3-T15): the layout (`compose`), constructor and key bindings are final; the functions
-and methods marked `raise NotImplementedError` are the ticket. Remove this paragraph when done.
 """
 
 from __future__ import annotations
@@ -15,30 +12,41 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, ClassVar
 
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual.widgets import OptionList, Static
-from tl_core.services.workflow import TransitionOption, WorkflowStatus
+from textual.widgets.option_list import Option
+from tl_core.services.errors import GuardFailedError
+from tl_core.services.workflow import TransitionOption, TransitionWorkflow, WorkflowStatus
 
 from tl_tui.client import ClientInterface
+from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.text import timestamp
 
 
 def header_text(status: WorkflowStatus) -> str:
     """Two lines: ``KEY  workflow vN`` and ``State: <label>  (since <time>)``."""
-    raise NotImplementedError
+    return (
+        f"{status.key}  {status.workflow} v{status.workflow_version}\n"
+        f"State: {status.state_label}  (since {timestamp(status.entered_at)})"
+    )
 
 
 def option_line(option: TransitionOption) -> str:
     """``<label> → <to state>  ✓ allowed`` or ``…  ✗ blocked``."""
-    raise NotImplementedError
+    verdict = "✓ allowed" if option.allowed else "✗ blocked"
+    return f"{option.label} → {option.to_state}  {verdict}"
 
 
 def guard_lines(option: TransitionOption) -> list[str]:
     """One line per guard, ``  ✓ <kind>: <message>`` or ``  ✗ <kind>: <message>``; a transition
     with no guards gives ``["  (no guards)"]``."""
-    raise NotImplementedError
+    if not option.guards:
+        return ["  (no guards)"]
+    return [f"  {'✓' if g.passed else '✗'} {g.kind}: {g.message}" for g in option.guards]
 
 
 class WorkflowMenu(ModalScreen[bool]):
@@ -93,31 +101,86 @@ class WorkflowMenu(ModalScreen[bool]):
             yield Static("", id="wf-status", markup=False)
 
     def on_mount(self) -> None:
-        raise NotImplementedError
+        self.query_one("#wf-options", OptionList).focus()
+        self._load()
 
     def _say(self, text: str) -> None:
-        raise NotImplementedError
+        self.query_one("#wf-status", Static).update(text)
 
     def _load(self) -> None:
-        raise NotImplementedError
+        options = self.query_one("#wf-options", OptionList)
+        options.clear_options()
+        try:
+            self.status = self.client.workflow_status(self.record["id"], roles=self.roles)
+        except CLIENT_ERRORS as exc:
+            self.status = None
+            self.query_one("#wf-header", Static).update(str(self.record.get("key") or ""))
+            self.query_one("#wf-guards", Static).update("")
+            self._say(describe_error(exc))
+            return
+        roles = ", ".join(self.roles) or "none"
+        self.query_one("#wf-header", Static).update(f"{header_text(self.status)}\nRoles: {roles}")
+        for option in self.status.options:
+            options.add_option(Option(Text(option_line(option)), id=option.transition))
+        if self.status.options:
+            options.highlighted = 0
+        else:
+            self.query_one("#wf-guards", Static).update("No transitions from this state")
+        self._show_guards()
 
     def _highlighted(self) -> TransitionOption | None:
-        raise NotImplementedError
+        if self.status is None:
+            return None
+        index = self.query_one("#wf-options", OptionList).highlighted
+        if index is None or not 0 <= index < len(self.status.options):
+            return None
+        return self.status.options[index]
 
     def _show_guards(self) -> None:
-        raise NotImplementedError
+        option = self._highlighted()
+        if option is not None:
+            self.query_one("#wf-guards", Static).update("\n".join(guard_lines(option)))
 
     def on_option_list_option_highlighted(self, event: OptionList.OptionHighlighted) -> None:
-        raise NotImplementedError
+        event.stop()
+        self._show_guards()
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        raise NotImplementedError
+        event.stop()
+        self._run(self._highlighted())
 
     def action_move(self, delta: int) -> None:
-        raise NotImplementedError
+        options = self.query_one("#wf-options", OptionList)
+        if delta > 0:
+            options.action_cursor_down()
+        else:
+            options.action_cursor_up()
 
     def _run(self, option: TransitionOption | None) -> None:
-        raise NotImplementedError
+        if option is None or self.status is None:
+            return
+        if not option.allowed:
+            reasons = [g.message for g in option.guards if not g.passed]
+            self._say("Blocked: " + "; ".join(reasons))
+            return
+        cmd = TransitionWorkflow(
+            actor=self.actor,
+            source="tui",
+            scope=self.scope,
+            stream_id=str(self.record["id"]),
+            expected_version=self.status.version,
+            transition=option.transition,
+            actor_roles=list(self.roles),
+        )
+        try:
+            self.client.transition(cmd)
+        except GuardFailedError as exc:
+            self._load()
+            self._say(f"Blocked: {exc}")
+        except CLIENT_ERRORS as exc:
+            self._say(describe_error(exc))
+        else:
+            self.dismiss(True)
 
     def action_close(self) -> None:
-        raise NotImplementedError
+        self.dismiss(False)
