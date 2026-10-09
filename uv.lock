@@ -2390,6 +2390,7 @@ dependencies = [
     { name = "linkml" },
     { name = "linkml-runtime" },
     { name = "pydantic" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
@@ -2398,6 +2399,7 @@ requires-dist = [
     { name = "linkml", specifier = ">=1.8" },
     { name = "linkml-runtime", specifier = ">=1.8" },
     { name = "pydantic", specifier = ">=2" },
+    { name = "pyyaml", specifier = ">=6" },
 ]
 
 [[package]]

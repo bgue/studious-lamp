@@ -1,0 +1,87 @@
+# Company standard package (brief 6.3 example, co:acme/engineering@3.2.0).
+# Fixture for P0-I2. Differences from the brief example: psets apply to core.Record (the only
+# Phase 0 record type) and a few properties are added so every enforcement and rule path has data.
+package: co.acme.engineering
+version: 3.2.0
+kind: company
+title: Acme engineering standards
+description: Company standard psets and code lists for engineered equipment.
+
+code_lists:
+  MaterialCode:
+    description: Body and wetted-part material codes from the company standards registry.
+    value_list_policy: extensible
+    values:
+      - {code: CS, label: Carbon steel}
+      - {code: SS304, label: 304 stainless steel}
+      - {code: SS316L, label: 316L stainless steel}
+      - {code: DUPLEX, label: Duplex stainless steel}
+      - {code: other, label: Other (see description)}
+  FailAction:
+    description: Actuator fail position on loss of signal or air.
+    value_list_policy: closed
+    values:
+      - {code: FC, label: Fail closed}
+      - {code: FO, label: Fail open}
+      - {code: FL, label: Fail last position}
+
+psets:
+  valve_data:
+    label: Valve data
+    description: Engineering data for control and manual valves.
+    applies_to: [core.Record]
+    class_filter: "class in (ControlValve, ManualValve)"
+    enforcement: required
+    adoption: mandatory
+    custom_section: {allowed: true, max_properties: 10}
+    properties:
+      size_in:
+        label: Nominal size
+        description: Nominal pipe size of the valve in inches.
+        range: decimal
+        unit: {ucum: "[in_i]"}
+        required_in_states: [Design, Installed]
+        materialize: true
+        minimum: 0.25
+        maximum: 144
+        exact_mappings: [cfihos:CFIHOS-40000123]
+      body_material:
+        label: Body material
+        description: Material code of the valve body.
+        range: MaterialCode
+        value_list_policy: extensible
+        materialize: true
+      fail_action:
+        label: Fail action
+        description: Actuator position on loss of signal or air.
+        range: FailAction
+        value_list_policy: closed
+        enforcement: locked
+      tag_no:
+        label: Tag number
+        description: Instrument tag of the valve, for example FV-1001.
+        range: string
+        pattern: "^[A-Z]{1,3}-[0-9]{3,5}$"
+        enforcement: advisory
+      manufacturer:
+        label: Manufacturer
+        description: Name of the valve manufacturer.
+        range: string
+        required: true
+        enforcement: advisory
+
+  safety_data:
+    label: Safety data
+    description: "Safety integrity data. Locked, so projects fill values and nothing else."
+    applies_to: [core.Record]
+    enforcement: locked
+    adoption: optional
+    custom_section: {allowed: false}
+    properties:
+      sil_rating:
+        label: SIL rating
+        description: Safety integrity level of the safety function, 0 to 4.
+        range: int
+        minimum: 0
+        maximum: 4
+        required_in_states: [Installed]

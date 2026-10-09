@@ -148,3 +148,17 @@ test or a generated artefact already enforces, or narrative history (that belong
   test can fail. Three clean runs of a racy test prove nothing. Threads in such tests are `daemon=True` and joined
   with a timeout so a regression fails instead of hanging the suite.
   Evidence: `packages/tl-core/tests/test_bus.py`; mutation (flag cleared outside the lock) fails the test. Status: active
+
+- **L-P0-I2-1** · 2026-10-09 · tags: tests, tooling
+  With `--import-mode=importlib` a test module cannot `from conftest import ...`; share helpers between test files as
+  pytest fixtures (`build_docs`, `effective`, `fixture_dir` in `packages/tl-schema/tests/conftest.py`). pyright strict
+  also rejects partly typed third-party calls: annotate `jsonschema` validators and errors as `Any`, and linkml
+  metamodel objects as `Any` (their dict/list unions make every attribute access an error).
+  Evidence: `docs/tickets/P0-I2/provided/test_registry.py.txt`; `tl_schema/linkml_render.py`. Status: active
+
+- **L-P0-I2-2** · 2026-10-09 · tags: schema, tooling
+  To render an effective schema as LinkML, load `core.yaml` with `SchemaView`, call `merge_imports()`, mutate the
+  `SchemaDefinition` (classes, enums, annotations), then wrap it in a fresh `SchemaView(definition)`; renaming the
+  root schema of the original view breaks its import resolution. Annotations assigned in memory must be `Annotation`
+  objects (`tag`, `value`) to match what a YAML load produces.
+  Evidence: `packages/tl-schema/src/tl_schema/linkml_render.py`, `tests/test_linkml_render.py`. Status: active
