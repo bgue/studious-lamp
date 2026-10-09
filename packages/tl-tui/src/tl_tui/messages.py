@@ -14,12 +14,17 @@ Severity = Literal["info", "warning", "error"]
 
 
 class OpenRecord(Message):
-    """The user asked to open a record (Enter or double-click on a grid row)."""
+    """The user asked to open a record (Enter or double-click on a grid row).
 
-    def __init__(self, scope: str, key: str) -> None:
+    ``follow`` is true when the user followed a reference (Links tab, trace, palette): the app then
+    extends the back/forward trail instead of starting a new one.
+    """
+
+    def __init__(self, scope: str, key: str, *, follow: bool = False) -> None:
         super().__init__()
         self.scope = scope
         self.key = key
+        self.follow = follow
 
 
 class RecordHighlighted(Message):

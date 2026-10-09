@@ -231,6 +231,18 @@ test or a generated artefact already enforces, or narrative history (that belong
   review round lost to a committed report (T12) and one report left uncommitted in a worktree (T15).
   Evidence: T12 attempt 1; T15 worktree; tickets T16b onward. Status: active
 
+- **L-P0-I3-O1** · 2026-10-09 · tags: env, process
+  A container restart stops background workflows and agents, but the filesystem (repo, worktrees, branches, ~/.local/bin,
+  the Postgres data dir) survives. Recover a ticket batch with `Workflow({scriptPath, resumeFromRunId, args})` using
+  the same args: finished implementer and reviewer calls replay from the journal and only the interrupted ones rerun.
+  Read `<transcriptDir>/journal.jsonl` first to see which agents finished.
+  Evidence: P0-I3 batch 2 restart; resumed wf_3b2e992f-50a. Status: active
+
+- **L-P0-I3-O2** · 2026-10-09 · tags: ledger, sync
+  Workflow guards are safe on SQLite only because they read inside the BEGIN IMMEDIATE write transaction. On Postgres
+  (P0-I5) the guard reads need `SELECT ... FOR UPDATE` on the record row or SERIALIZABLE isolation, or a concurrent
+  link retraction can slip between the guard check and the append.
+  Evidence: P0-I3 workflow engine review. Status: active
 - **L-P0-I3-1** · 2026-10-09 · tags: tests, process
   A provided `*.py.txt` is not covered by `ruff format`, so a hand-written one fails `just check` the moment an implementer
   copies it. Format provided files before committing: copy to a temp `.py`, `ruff format --config pyproject.toml`, copy back. Verify
@@ -404,3 +416,50 @@ test or a generated artefact already enforces, or narrative history (that belong
   `conn.notifications`; result coercions are `register_in_adapter(oid, fn)` with fn taking the text value. The loader behaviour that
   `tl_core` relies on (canonical JSON text, ISO UTC timestamps, 0/1 booleans, int sums) is the same under both drivers.
   Evidence: `postgres/engine.py`, `postgres/notify.py`; 150 adapter tests pass on both adapters. Status: active
+- **L-P0-I3-7** · 2026-10-09 · tags: tui, tooling
+  Textual `OptionList` prompts and `DataTable` cells that are plain `str` are parsed as Rich markup, so `[x]` vanished from a
+  row (`▶ [x] KEY` rendered as `▶  KEY`). Wrap row text in `rich.text.Text(...)`. `query_one("#id", Select[str])` raises
+  `TypeError` at run time (subscripted generic): query `Select` and annotate the variable `Select[str]`. A screen method named
+  `action_toggle` overrides `DOMNode.action_toggle` and fails pyright; use `action_toggle_select`. Textual's own command palette
+  owns Ctrl+P: set `ENABLE_COMMAND_PALETTE = False` on the app before binding it.
+  Evidence: `widgets/link_picker.py`, `app.py`, first pilot runs of `test_link_picker`. Status: active
+
+- **L-P0-I3-8** · 2026-10-09 · tags: tui
+  App-level `Binding`s (`l`, `w`, `t`, `R`) do not fire while an `Input` has focus (it consumes printable keys), but they do fire
+  under a `ModalScreen` whose focus is elsewhere, so every new app action starts with `if self._modal_open(): return`.
+  `app.post_message(RecordChanged)` is delivered to the app only, never to a child `RecordView`: after a modal command call
+  `view.reload()` (`TlApp._changed`).
+  Evidence: `tests/test_palette.py::test_the_l_w_t_keys_are_typed_into_the_palette_not_run`, workflow-menu refresh test. Status: active
+
+- **L-P0-I3-9** · 2026-10-09 · tags: tui, process
+  Textual delivers `Select.Changed` asynchronously, after a programmatic `select.value = ...` has returned, so a reentrancy flag
+  (`_setting = True ... False`) never covers the event: the picker's own change was read as the user's and froze the relation. Remember
+  the value the code assigned and compare `event.value` with it. A review that probes with a second record type found it; the
+  provided test only used one type and could not see it.
+  Evidence: T12 escalation; `tests/test_link_picker.py::test_the_relation_follows_the_highlighted_record_until_the_user_changes_it`. Status: active
+
+- **L-P0-I3-10** · 2026-10-09 · tags: core, services
+  Handlers never commit and read the projections of the caller's own transaction, so a new command that needs several writes to be
+  atomic is a composition: call the existing handlers in order inside the one unit of work, chain `expected_version` from each result,
+  share one `correlation_id`, and let the caller's rollback undo everything when a part raises. No new write path was needed for
+  `EditRecord`. A part that changes nothing raises `NoChangesError` before it appends, so it can be skipped safely.
+  Evidence: `services/edit.py`, `tests/services/test_edit_record.py` (rollback and stale-version cases). Status: active
+
+- **L-P0-I3-11** · 2026-10-09 · tags: process, tickets
+  A ticket that tells the implementer to implement a questionable behaviour "as written" and to raise it as an open question works: T13b's
+  spec ended the tray on the first successful link and hid the refusals of the rest; the implementer kept the spec, reported the
+  question, and the supervisor decided with the orchestrator. Two Haiku tickets that run in one batch cannot depend on each other's code
+  (T02b `trace` needed T14a): leave the dependent piece out of the ticket and add it after the merge.
+  Evidence: `docs/reports/P0-I3/P0-I3-T13b.md`, decisions D26 and D27. Status: active
+- **L-P0-I5-O1** · 2026-10-09 · tags: dependencies, gates
+  Check the licence of every new dependency and its transitive tree before adding it. psycopg 3 is LGPL-3.0, and
+  linkml's hard `jsonschema[format]` pulls rfc3987 (GPL-3.0+). Both are copyleft, which is a human gate. Use pg8000 for
+  Postgres, and keep the root `override-dependencies` that swaps in `jsonschema[format-nongpl]`. Name the licence in
+  the relay NOTE and in APPROVALS.md. Policy and allow-list: ADR-0006.
+  Evidence: orchestrator licence scan during P0-I5. Status: active
+- **L-P0-I5-O2** · 2026-10-09 · tags: environment, lake
+  DuckDB cannot `INSTALL` extensions here because extensions.duckdb.org is refused. Install the PyPI packages
+  `duckdb-extensions` and `duckdb-extension-ducklake`, with `duckdb` pinned to the same version (1.5.5), and call
+  `duckdb_extensions.import_extension('ducklake')` before `LOAD ducklake`. Parquet and JSON are built in. pgBackRest is
+  installable with apt. GitHub release downloads work. Details: the ADR-0002 addendum.
+  Evidence: orchestrator probes before P0-I7. Status: active

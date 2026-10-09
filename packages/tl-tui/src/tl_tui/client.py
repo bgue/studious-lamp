@@ -14,6 +14,7 @@ from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink
 from tl_core.numbering.detect import KeyChip
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
+from tl_core.services.edit import EditRecord
 from tl_core.services.link_queries import LinkCounts, LinkTarget, LinkView
 from tl_core.services.link_trace import TraceDirection, TraceNode
 from tl_core.services.links import (
@@ -64,6 +65,10 @@ class ClientInterface(Protocol):
     def update_record(self, cmd: UpdateRecord) -> CommandResult: ...
 
     def set_pset_values(self, cmd: SetPsetValues) -> CommandResult: ...
+
+    def edit_record(self, cmd: EditRecord) -> CommandResult:
+        """Field changes and pset edits as one atomic save: all of them are applied or none."""
+        ...
 
     def form_metadata(self, scope: str, record_type: str) -> FormMetadata: ...
 

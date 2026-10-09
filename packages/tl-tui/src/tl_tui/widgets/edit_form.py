@@ -19,7 +19,6 @@ from tl_schema.forms import FieldMeta, FormMetadata
 from tl_tui.client import ClientInterface
 from tl_tui.errors import describe_error
 from tl_tui.forms import save_record_edits
-from tl_tui.messages import StatusMessage
 from tl_tui.paths import pset_value
 from tl_tui.widgets.form_fields import FieldEditor
 
@@ -123,16 +122,7 @@ class EditForm(ModalScreen[bool]):
             self.dismiss(True)
             return
         reason = describe_error(outcome.error) if outcome.error is not None else "unknown error"
-        if outcome.applied:
-            self.post_message(
-                StatusMessage(
-                    f"Saved {', '.join(outcome.applied)}; failed {outcome.failed}: {reason}",
-                    "error",
-                )
-            )
-            self.dismiss(True)
-        else:
-            self._status(f"Not saved: {reason}")
+        self._status(f"Not saved: {reason}")
 
     def action_cancel(self) -> None:
         self.dismiss(False)

@@ -34,32 +34,34 @@ tl wf transition --project P123 P123-REC-0001 approve        # allowed; Workflow
 | T05 | Numbering pattern parser (`numbering/pattern.py`) | Needed by the allocator at once; reference was written to verify the ticket | Reviewer | built (49 tests) |
 | T06 | Numbering allocator, counters projection, key-less `CreateRecord`, `tl record create --segment` | Numbering allocator is supervisor-authored by rule (concurrency) | Orchestrator | built (21 service tests, 1 property test, mutation-checked) |
 | T09 | Workflow engine: guard evaluation, `TransitionWorkflow`, `workflow_status`, `Workflow.Transitioned`, `WorkflowProjector` | Workflow engine evaluation is supervisor-authored by rule | Orchestrator | built (23 service tests, two mutations caught) |
-| T00 | Atomic edit command (`EditRecord`: record fields plus pset batches in one unit of work) | Command handler semantics; filed by P0-I2 workstream B | Reviewer | round 4 |
+| T00 | Atomic edit command (`EditRecord`: record fields plus pset batches in one unit of work) | Command handler semantics; filed by P0-I2 workstream B | Orchestrator or human (core command) | built (12 service tests, 3 TUI tests changed, 2 added) |
 | — | `ClientInterface` additions and embedded client for links, search, workflow, key detection; `FakeClient` additions | Shared TUI contract | Reviewer | round 2 |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
 | T01 | Relation vocabulary (`links/vocabulary.py`) | H | S2 | merged | pass, 1 round |
-| T02 | Link commands: suggest, add, accept, decline, repin, verify, flag, retract, stale-by-revision (`services/links.py`) | H | T01, T03 | ready (batch 2) | |
-| T02b | `tl link` CLI (add, suggest, accept, decline, repin, verify, flag, retract, list) | H | T02, T03b | draft (batch 4) | |
+| T02 | Link commands: suggest, add, accept, decline, repin, verify, flag, retract, stale-by-revision (`services/links.py`) | H | T01, T03 | merged | pass, 1 round |
+| T02b | `tl link` CLI (add, suggest, accept, decline, repin, verify, flag, retract, list); `trace` was added by the supervisor after T14a (D26) | H | T02, T03b | merged | pass, 1 round |
 | T03 | `LinkProjector`: `cur_links`, `cur_link_counts` | H | S2 | merged | pass, 1 round |
-| T03b | Link read queries: `links_of` (both directions, labels), counts, `search_linkable` | H | T01, T03 | ready (batch 2) | |
+| T03b | Link read queries: `links_of` (both directions, labels), counts, `search_linkable` | H | T01, T03 | merged | pass, 1 round |
 | T04 | Expected links: `tl:expects_link` loader and missing list | H | S1 | merged | pass, 1 round; supervisor fixed self-link count and empty file (D19) |
 | T05 | Numbering pattern parser | S | — | built | |
 | T06 | Numbering allocator | S | T05 | built | |
-| T07 | Key detection: find keys in text, resolve to records (suggestion chips) | H | T05 | ready (batch 2) | |
+| T07 | Key detection: find keys in text, resolve to records (suggestion chips) | H | T05 | merged | pass, 1 round |
 | T08 | Workflow definition loader and registry | H | S2 | merged | pass, 1 round |
 | T09 | Workflow engine | S | T04, T08 | built (23 tests, mutation-checked) | |
-| T10 | `tl wf show|transition` CLI | H | T09 | ready (batch 2) | |
-| T11 | Command palette widget | H | ClientInterface | held for batch 3 | |
-| T12 | Link picker modal | H | T02, ClientInterface | held for batch 3 | |
-| T13 | Links tab, reference tray, back/forward history | H | T03b, T12 | held | |
-| T14a | Trace query: n-hop tree over `cur_links` (`services/link_queries.py`) | H | T03 | draft (batch 2) | |
-| T14 | Trace view widget and tab | H | T14a | held | |
-| T15 | Workflow action menu (`w`) and guard-failure display | H | T09 | held | |
-| T16 | Snapshot tests, demo script, report | S/H | all | last | |
-| T00 | Atomic edit command | S | T09 | round 4 | |
+| T10 | `tl wf show|transition` CLI | H | T09 | merged | pass, 1 round |
+| T11 | Command palette widget | H | ClientInterface | merged | pass, 1 round |
+| T12 | Link picker modal | H | T02, ClientInterface | merged | escalated once (D24); supervisor fix |
+| T13 | Links tab (row actions, expected-but-missing) | H | T03b | merged | pass, 1 round |
+| T13b | Reference tray screen (tick, remove, link ticked to the open record) | H | T13 | merged | pass, 1 round; supervisor fixed the partial-refusal behaviour (D27) |
+| — | Back/forward history, reference tray state, prompt modal, app wiring, record-view tabs and badges | S | — | built (supervisor) | |
+| T14a | Trace query: n-hop tree over `cur_links` (`services/link_trace.py`) | H | T03 | merged | pass, 1 round |
+| T14 | Trace view widget and tab | H | T14a (the fake client stood in until it merged) | merged | pass, 1 round |
+| T15 | Workflow action menu (`w`) and guard-failure display | H | T09 | merged | pass, 1 round |
+| T16 | Snapshot tests (8 new), demo script `dev/demos/P0-I3.sh`, docs sweep, report | S | all | built (supervisor) | |
+| T00 | Atomic edit command | S | T09 | built, orchestrator review pass | |
 
 Haiku-ability (`01-tiers.md` §6) for batch 1: each ticket touches two source or test files plus its report, ships a provided test file and a
 precise specification, avoids every row of the supervisor-authored table (T03 and T08 only map events and files onto the rules the
@@ -89,15 +91,24 @@ reference implementation before dispatch (kept in the supervisor's scratch area 
 | D17 | Overflow past the declared width (`P1-REC-10000` for `{seq:4}`) is allowed and sorts lexically before `9999`; `Pattern.parse` accepts only the canonical spelling (no `P1-REC-00012`). Gap-free holds only if a failure leaves the `with open_uow` block (an exception swallowed inside commits the number) | Orchestrator review of the allocator |
 | D18 | A `broken` link has no direct route back to `active`: flag it `stale`, then repin, or retract | Brief 7.3 makes `broken` a health-check outcome; the check does not exist yet |
 | D19 | Reviewed T03 and T04 judgement calls confirmed: the counts upsert rewrites `scope` from the record; a self-link (which the commands refuse) refreshes counts once more and counts once under `direction: either`; an empty expected-links file declares nothing; a duplicate state name is reported once per repeated occurrence | Batch 1 review |
+| D20 | TUI keys: `Ctrl+P` and `:` palette; `l` link; `R` add to the reference tray; `F4` open the tray (a modal, not a panel); `w` workflow menu; `t` trace tab; `Alt+Left/Right` history; `1`-`5` record-view tabs; `Ctrl+T` ticks a record in the picker (`Space` types a space in the search box). App-level keys are ignored under a modal. Textual's built-in palette is disabled | Brief keys that exist in the sketches, adapted to what a text box allows |
+| D21 | The reference tray is session state in `TlApp` (not saved between sessions in Phase 0). `OpenRecord(follow=True)` extends the back/forward trail; opening from the grid, `[` `]` or a new record starts a new trail; the header breadcrumb shows the trail | Brief 7.2/7.5; persistence needs a user store |
+| D22 | Link counts and the state-entered time reach the record view through `ClientInterface.link_counts` and `workflow_status` (joins in the services), shown as header badges (`since <time>`, `N links`, `N stale`, `N suggested`). A grid column for link counts waits for the query language (P0-I4), which needs sorting and filtering on them | Orchestrator ruling on D5/D11 |
+| D23 | `NewRecordForm` takes a blank key and lets the numbering service allocate it | Brief 8 |
+| D24 | T12 review: Textual delivers `Select.Changed` after a programmatic change, so a reentrancy flag cannot tell the picker's own change from the user's; the picker now stores the relation it chose (`_auto_relation`) and treats a `Changed` with another value as the user's. The defect was in the ticket text, so the supervisor fixed it and added a test with a second record type | Review of T12 |
+| D25 | T00 built by the supervisor as a composition of the existing handlers (`services/edit.py`): `EditRecord` carries field `changes` and `pset_edits`; the parts run in order in one unit of work with one `expected_version`, chained versions and one correlation id; a part that changes nothing is skipped and an edit that changes nothing raises `NoChangesError`. `ClientInterface.edit_record`, the embedded and fake clients and `save_record_edits` use it, so a form save is all or nothing (the edit form no longer reports a partial save). The idempotency key is still ignored. Review note, accepted: an edit in which every part is a no-op raises `NoChangesError` even when `expected_version` is stale | P0-I2 decision B16 follow-up |
+| D26 | `tl link trace` was written by the supervisor after T14a merged, because the Haiku ticket T02b ran in parallel with T14a and could not test it. It prints the tree with two spaces per level and `+N more`, `! stale`, `✗ broken` marks | Dependency order inside one batch |
+| D27 | A partly refused tray batch keeps the screen open with the refused records still ticked and the reasons shown; closing it reports the links already made (`dismiss(count)` or `None`). Orchestrator preference, with a test | Review of T13b |
+| D28 | The record-view badge reads `1 link`, `2 links` (it said `1 links`) | Found while writing the T16 snapshots |
 
 ## Order of work (relay rounds)
 | Round | Ticket batch | Supervisor work in the same turn |
 |---|---|---|
 | 1 | T01, T03, T04, T08 | Plan; schema; lifecycle; T05, T06; stubs, provided tests, fixtures; trunk merge |
 | 2 | T02, T03b, T07, T10 | Merge batch 1; T09 engine and `WorkflowProjector`; `ClientInterface` additions, fake and embedded client; review fixes |
-| 3 | T11, T12, T13, T14a (TUI first batch; trace query) | Merge batch 2; TUI tickets; key-map entries |
-| 4 | T02b, T14, T15 | Merge batch 3; T00 atomic edit |
-| 5 | T16 | Merge batch 4; demo, docs, report |
+| 3 | T11, T12, T13, T15 (TUI) | Merge batch 2; TUI wiring, stubs, provided tests; key map; snapshots for the new tabs |
+| 4 | T13b, T14a, T14, T02b | Merge batch 3; T00 atomic edit (built before dispatch, D25) |
+| 5 | T16 (supervisor) | Merge batch 4; `tl link trace`; tray fix; 8 snapshots; demo; docs sweep; report |
 
 ## Risks and escalation triggers
 - Numbering semantics (D8) is a reading of an open question (Q7). If the orchestrator rules differently, `numbering/config.py` and the allocator change; the stream design does not.

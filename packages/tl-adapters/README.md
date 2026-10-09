@@ -61,4 +61,4 @@ Local Postgres: `docs/runbooks/postgres-local-setup.md`.
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1. Postgres adapter and parity suite: P0-I5 workstream A (decisions in `docs/tickets/P0-I5/README-A.md`). Previous interface change: P0-I4 workstream B (object store backends; decisions in `docs/tickets/P0-I4/README-B.md`). Recovery: `docs/runbooks/object-store-reconciliation.md`.
+Introduced in P0-I1. Postgres adapter and parity suite: P0-I5 workstream A (decisions in `docs/tickets/P0-I5/README-A.md`). Previous interface change: P0-I4 workstream B (object store backends; decisions in `docs/tickets/P0-I4/README-B.md`). Recovery: `docs/runbooks/object-store-reconciliation.md`. P0-I3 added no interface: `create_schema` and `rebuild_projections` pick up the link, numbering and workflow projectors from `default_registry`.

@@ -9,7 +9,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-CONTEXTS: tuple[str, ...] = ("App", "Grid", "Record view", "Forms")
+CONTEXTS: tuple[str, ...] = (
+    "App",
+    "Grid",
+    "Record view",
+    "Links tab",
+    "Trace tab",
+    "Palette",
+    "Link picker",
+    "Reference tray",
+    "Workflow menu",
+    "Forms",
+)
 
 
 @dataclass(frozen=True)
@@ -31,6 +42,23 @@ KEYMAP: tuple[KeyEntry, ...] = (
     KeyEntry("App", "F6  Shift+F6", "Move focus between panels", "TlApp", "f6"),
     KeyEntry("App", "n", "New record", "TlApp", "n"),
     KeyEntry("App", "Esc", "Close an open side panel (narrow terminals)", "TlApp", "escape"),
+    KeyEntry(
+        "App", "Ctrl+P  :", "Command palette: commands, records, go to a key", "TlApp", "ctrl+p"
+    ),
+    KeyEntry("App", "l", "Link the selection or the open record to another record", "TlApp", "l"),
+    KeyEntry(
+        "App", "R", "Add the selection or the open record to the reference tray", "TlApp", "R"
+    ),
+    KeyEntry("App", "F4", "Open the reference tray", "TlApp", "f4"),
+    KeyEntry("App", "w", "Workflow actions of the open record", "TlApp", "w"),
+    KeyEntry("App", "t", "Trace the open record through its links", "TlApp", "t"),
+    KeyEntry(
+        "App",
+        "Alt+Left  Alt+Right",
+        "Back or forward through followed records",
+        "TlApp",
+        "alt+left",
+    ),
     KeyEntry("App", "Ctrl+Q", "Quit"),
     KeyEntry(
         "Grid",
@@ -70,6 +98,49 @@ KEYMAP: tuple[KeyEntry, ...] = (
     ),
     KeyEntry("Record view", "h", "Show the History tab", "RecordView", "h"),
     KeyEntry("Record view", "e", "Edit the record", "RecordView", "e"),
+    KeyEntry(
+        "Record view",
+        "1  2  3  4  5",
+        "Details, Psets, Links, History, Trace tab",
+        "RecordView",
+        "1",
+    ),
+    KeyEntry("Links tab", "Enter", "Open the record at the other end", "LinksTab", "enter"),
+    KeyEntry("Links tab", "a", "Accept the highlighted suggestion", "LinksTab", "a"),
+    KeyEntry("Links tab", "d", "Decline the highlighted suggestion", "LinksTab", "d"),
+    KeyEntry("Links tab", "u", "Re-pin the highlighted link to a revision", "LinksTab", "u"),
+    KeyEntry("Links tab", "v", "Mark the highlighted link verified", "LinksTab", "v"),
+    KeyEntry("Links tab", "x", "Retract the highlighted link (with a reason)", "LinksTab", "x"),
+    KeyEntry("Trace tab", "Enter", "Open the highlighted record"),
+    KeyEntry("Trace tab", "+  -", "More or fewer hops", "TraceTab", "plus"),
+    KeyEntry("Trace tab", "o", "Follow outbound, inbound or both directions", "TraceTab", "o"),
+    KeyEntry("Palette", "Up  Down", "Move the highlight", "CommandPalette", "down"),
+    KeyEntry("Palette", "Enter", "Run the highlighted entry"),
+    KeyEntry("Palette", "Tab", "Narrow to all, records or commands", "CommandPalette", "tab"),
+    KeyEntry("Palette", "Esc", "Close", "CommandPalette", "escape"),
+    KeyEntry("Link picker", "Up  Down", "Move the highlight", "LinkPicker", "down"),
+    KeyEntry(
+        "Link picker", "Ctrl+T", "Select or unselect the highlighted record", "LinkPicker", "ctrl+t"
+    ),
+    KeyEntry("Link picker", "Enter", "Link the selected records (or the highlighted one)"),
+    KeyEntry("Link picker", "Ctrl+N", "Create a new record and link it", "LinkPicker", "ctrl+n"),
+    KeyEntry("Link picker", "Esc", "Cancel", "LinkPicker", "escape"),
+    KeyEntry(
+        "Reference tray",
+        "Space",
+        "Tick or untick the highlighted record",
+        "ReferenceTrayScreen",
+        "space",
+    ),
+    KeyEntry(
+        "Reference tray", "Delete", "Remove the highlighted record", "ReferenceTrayScreen", "delete"
+    ),
+    KeyEntry("Reference tray", "Enter", "Link the ticked records to the open record"),
+    KeyEntry("Reference tray", "c", "Clear the tray", "ReferenceTrayScreen", "c"),
+    KeyEntry("Reference tray", "Esc", "Close", "ReferenceTrayScreen", "escape"),
+    KeyEntry("Workflow menu", "Up  Down", "Choose a transition", "WorkflowMenu", "down"),
+    KeyEntry("Workflow menu", "Enter", "Run the chosen transition"),
+    KeyEntry("Workflow menu", "Esc", "Close", "WorkflowMenu", "escape"),
     KeyEntry("Forms", "Tab  Shift+Tab", "Next or previous field"),
     KeyEntry(
         "Forms",

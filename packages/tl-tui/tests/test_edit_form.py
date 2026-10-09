@@ -106,10 +106,12 @@ def test_ctrl_s_saves_core_and_pset_changes_and_dismisses_true() -> None:
         assert saved is not None and saved["title"] == "Renamed valve"
         assert get_path(saved["psets"], "valve_data.size_in") == 8.0
         assert get_path(saved["psets"], "valve_data.x.fat_witness_by") == "@party:acme"
-        layers = [(c.pset, c.layer, c.actor) for c in client.set_pset_commands]
-        assert layers == [("valve_data", "standard", "user:t"), ("valve_data", "custom", "user:t")]
-        assert client.set_pset_commands[0].values == {"size_in": 8.0}
-        assert client.set_pset_commands[1].values == {"x.fat_witness_by": "@party:acme"}
+        [command] = client.edit_commands
+        assert command.actor == "user:t" and command.changes == {"title": "Renamed valve"}
+        assert [(e.pset, e.layer, e.values) for e in command.pset_edits] == [
+            ("valve_data", "standard", {"size_in": 8.0}),
+            ("valve_data", "custom", {"x.fat_witness_by": "@party:acme"}),
+        ]
 
     run_pilot(app, scenario, size=(120, 50))
 
@@ -126,7 +128,7 @@ def test_save_button_does_the_same_as_ctrl_s() -> None:
         await pilot.pause()
         await pilot.click("#save")
         await pilot.pause()
-        assert app.results == [True] and len(client.set_pset_commands) == 1
+        assert app.results == [True] and len(client.edit_commands) == 1
 
     run_pilot(app, scenario, size=(120, 50))
 
@@ -201,7 +203,7 @@ def test_a_stale_record_stays_open_with_the_reason_and_applies_nothing() -> None
     run_pilot(app, scenario, size=(120, 50))
 
 
-def test_a_partial_save_dismisses_true_and_reports_what_was_applied() -> None:
+def test_a_failing_part_saves_nothing_and_keeps_the_form_open() -> None:
     client, record, meta = _setup()
     original = client.set_pset_values
     calls = {"n": 0}
@@ -224,15 +226,11 @@ def test_a_partial_save_dismisses_true_and_reports_what_was_applied() -> None:
         await pilot.pause()
         await pilot.press("ctrl+s")
         await pilot.pause()
-        assert app.results == [True]
-        texts = [(m.text, m.severity) for m in app.seen if isinstance(m, StatusMessage)]
-        assert texts == [
-            (
-                "Saved valve_data/standard; failed valve_data/custom: "
-                "this record changed since you opened it; reload and try again",
-                "error",
-            )
-        ]
+        assert app.results == []
+        assert isinstance(app.screen, EditForm)
+        assert "Not saved: this record changed since you opened it" in screen_text(app)
+        saved = client.get_record_by_id(record["id"])
+        assert saved is not None and saved["version"] == record["version"]
 
     run_pilot(app, scenario, size=(120, 50))
 
