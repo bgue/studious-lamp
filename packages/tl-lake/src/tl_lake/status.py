@@ -62,3 +62,12 @@ def lake_status(config: LakeConfig) -> LakeStatus:
             )
     except LakeNotInitialisedError:
         return LakeStatus(initialised=False)
+
+
+def describe_lake(config: LakeConfig) -> dict[str, list[tuple[str, str]]]:
+    """Table name to ``(column, type)`` pairs for every lake table, in column order.
+
+    Raises :class:`LakeNotInitialisedError` when nothing was synced yet.
+    """
+    with open_lake(config, write=False) as con:
+        return lake_tables(con)

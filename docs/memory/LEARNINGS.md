@@ -329,3 +329,30 @@ test or a generated artefact already enforces, or narrative history (that belong
   `duckdb_extensions.import_extension('ducklake')` before `LOAD ducklake`. Parquet and JSON are built in. pgBackRest is
   installable with apt. GitHub release downloads work. Details: the ADR-0002 addendum.
   Evidence: orchestrator probes before P0-I7. Status: active
+- **L-P0-I7-B1** · 2026-10-09 · tags: lake, tooling
+  Load rows into DuckDB/DuckLake through a scratch NDJSON file and `INSERT ... SELECT FROM read_json(file, columns={...})`, never
+  `executemany` or multi-row `VALUES`: 100 000 wide rows took 0.16 s that way, while 10 000 single-column rows took 7.6 s with
+  `executemany` and the multi-row insert had not finished after two minutes.
+  Evidence: scratch benchmark during P0-I7-S1; `tl_lake/ingest.py`. Status: active
+- **L-P0-I7-B2** · 2026-10-09 · tags: lake, tooling
+  DuckDB's Python client needs `pytz` to fetch any `TIMESTAMPTZ` (`lake.snapshots()`' `snapshot_time` and `now()` included), and pytz is not a
+  dependency. Store `TIMESTAMP` holding UTC, select explicit columns from `snapshots()`, and have `lake_query` cast zone-aware result columns to
+  text. In DuckLake 1.5.5 `lake.current_snapshot()` has one column, `id`.
+  Evidence: `ModuleNotFoundError: No module named 'pytz'`; `tl_lake/query.py::_tz_safe`. Status: active
+- **L-P0-I7-B3** · 2026-10-09 · tags: lake
+  DuckLake commits DDL and DML in one transaction as one snapshot, and the next snapshot id is `current_snapshot() + 1`, so a sync can write the
+  `_tl_sync` row naming its own snapshot inside the transaction and verify the id after COMMIT. Small inserts are inlined into the catalog unless
+  the attach sets `DATA_INLINING_ROW_LIMIT 0`; a moved lake directory needs `OVERRIDE_DATA_PATH true`. A DuckDB catalog file admits one writer or
+  many readers across processes, so every open goes through a lock file (`tl_lake.duck.open_lake`).
+  Evidence: `tests/test_sync.py`; scratch probes during P0-I7-S1. Status: active
+- **L-P0-I7-B4** · 2026-10-09 · tags: lake, mcp, security
+  Build a SQL read-only guard on DuckDB's own parser: `json_serialize_sql` refuses everything but SELECT and returns the tree; walk it and allow
+  tables only if they are lake tables or a CTE visible at that point. A flat set of CTE names is bypassable (a scalar subquery that defines a CTE
+  named `duckdb_settings` lets the outer FROM reach the system view), so scope them. Table functions are allow-listed, not deny-listed. Keep
+  READ_ONLY attach and `enable_external_access=false` + `lock_configuration=true` behind the guard.
+  Evidence: `tests/test_guard.py::test_a_cte_only_covers_the_query_that_defines_it`, `test_query.py::test_the_sandbox_blocks_what_the_guard_would_miss`. Status: active
+- **L-P0-I7-B5** · 2026-10-09 · tags: tests, process
+  A property test over a real storage engine is slow and shrinks slowly when it fails: with the machine shared by several workstreams (load
+  average 20 on 4 CPUs) the mutation check of the lake property test took six minutes. Keep `max_examples` near 10, run mutation checks in the
+  background and wait with a notification, and never `pkill -f` a test file name (it matches and kills the shell that runs it).
+  Evidence: `tests/test_rebuild_equals_incremental.py` mutation run. Status: active

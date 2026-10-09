@@ -9,6 +9,7 @@ dependencies = [
   "tl-core",
   "tl-schema",
   "tl-adapters",
+  "tl-lake",
 ]
 
 [project.scripts]

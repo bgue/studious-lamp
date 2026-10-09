@@ -27,7 +27,8 @@ def refused(con: duckdb.DuckDBPyConnection, sql: str) -> str:
         "select count(*) from lake.main.events",
         "SELECT * FROM main.cur_core_record WHERE key = 'A-1';",
         "WITH x AS (SELECT * FROM links) SELECT * FROM x",
-        "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 5) SELECT * FROM r",
+        "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 5) "
+        "SELECT * FROM r",
         "FROM events SELECT seq",
         "VALUES (1), (2)",
         "SELECT 1 UNION ALL SELECT 2",
