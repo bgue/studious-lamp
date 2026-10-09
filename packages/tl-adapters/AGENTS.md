@@ -6,7 +6,11 @@ Read the root `AGENTS.md` first. These rules add to it.
 - Never UPDATE or DELETE rows of `events`; the triggers reject it and no code may route around them.
 - SQLite transactions go through `write_tx` / `read_tx`. Do not reintroduce pysqlite's implicit transaction handling.
 - `append_in` needs a connection from `write_tx`. Commit and bus enqueue happen under one lock; subscribers run after it is released.
-- Parity: anything here that the Postgres adapter will mirror must be covered by a test that can run against both (parity suite arrives in P0-I5).
+- Parity: every behaviour of a ledger or unit of work is tested through the `new_db` fixture so it runs on both adapters (`just test-parity`). A test that only makes sense on one dialect says so in its name and uses `pg_db` or the SQLite engine directly.
+- Postgres write transactions must go through `postgres.engine.write_tx`: it takes the ledger advisory lock before the first read. Never append from a connection that skipped it, and never add `FOR UPDATE` as a substitute.
+- Postgres results are shaped like SQLite's by the loaders in `postgres/engine.py` (canonical JSON text, ISO UTC timestamp strings, 0/1 booleans). Do not change a loader without running the whole parity suite; do not call `sqlalchemy.inspect(...).get_columns` (use `tl_core.projection.promoted.table_columns`).
+- `events.payload` stays TEXT (the hash covers the canonical text) and `seq` stays `MAX(seq)+1` under the lock (gap-free). Both are decisions, see `docs/tickets/P0-I5/README-A.md`.
+- Hand-written SQL in tests: booleans are `TRUE`/`FALSE` or a bound bool, timestamps are full ISO strings, binds are `text(...)` with `:name`.
 - pyright strict applies to `src/`. No ignores.
 - Object stores: a `sha256/` key is written only by `put`, after size and SHA-256 are verified, and is never replaced. Presigned uploads (`presign_put`, `put_via_url`) accept staging keys only. Every key goes through `tl_core.files.keys.check_key` first.
 - Tests use `FsObjectStore` or moto's in-process `mock_aws`; never a live MinIO, never the network. `s3.py` starts with `# pyright: basic` because boto3 has no stubs; keep that to the one file.

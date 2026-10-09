@@ -100,7 +100,7 @@ The test bodies stay as they are. Only how the database is made and a few SQL de
   must still be found as data on Postgres.
 - `test_run_query.py`: only the import and the `BaseUnitOfWork` annotation change.
 - Counts: `test_query_properties.py` has 3 pure-parser tests that stay unparametrised (7 -> 10). The acceptance commands run the whole
-  `tests/query` directory, so `test_reference_doc.py` (9 tests, untouched, never parametrised) is in the totals.
+  `tests/query` directory, so `test_reference_doc.py` (97 tests, untouched, never parametrised) is in the totals.
 - A text-ordering or case-folding difference (for example `LOWER` of a non-ASCII letter) is a production finding: report it as *Blocked*; do not
   adjust the expected value.
 
@@ -144,8 +144,8 @@ Expected: `just check` clean (do not pipe it). Counts of passed tests, with no s
 | `tests/query/test_injection.py` | 64 | 126 |
 | `tests/query/test_query_properties.py` | 7 | 10 |
 | `tests/query/test_run_query.py` | 171 | 342 |
-| `tests/query/test_reference_doc.py (untouched)` | 9 | 9 |
-| **Total** | **251** | **487** |
+| `tests/query/test_reference_doc.py (untouched)` | 97 | 97 |
+| **Total** | **339** | **575** |
 
 `just test-parity` runs only the tests that use the adapter fixtures (it selects by marker), so its total can be lower than the third column when a file
 has tests that never touch a database; it must show no failures and no skips. The diff stat must list only the files in *Allowed paths*.
