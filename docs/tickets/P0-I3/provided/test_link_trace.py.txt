@@ -1,0 +1,249 @@
+"""Trace: the n-hop tree of records reachable through links (P0-I3-T14a; brief 7.5)."""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
+
+import pytest
+from sqlalchemy import text
+from tl_adapters.sqlite.uow import create_schema, open_uow
+from tl_core.ledger import NewEvent
+from tl_core.services.commands import CreateRecord
+from tl_core.services.errors import RecordNotFoundError
+from tl_core.services.link_trace import TraceNode, trace
+from tl_core.services.records import handle_create_record
+from tl_core.uow import UnitOfWork
+
+P1 = "project:P123"
+
+
+@pytest.fixture
+def uow(tmp_path: Path) -> Iterator[UnitOfWork]:
+    db = tmp_path / "tl.db"
+    create_schema(db)
+    with open_uow(db) as handle:
+        yield handle
+
+
+def record(uow: UnitOfWork, key: str, **kw: Any) -> str:
+    rid = handle_create_record(
+        uow,
+        CreateRecord(
+            actor="u",
+            source="t",
+            scope=P1,
+            record_type="core.Record",
+            title=f"title {key}",
+            key=key,
+        ),
+    ).stream_id
+    if kw.get("voided"):
+        uow.conn().execute(text("UPDATE cur_core_record SET voided = 1 WHERE id = :i"), {"i": rid})
+    if "status" in kw:
+        uow.conn().execute(
+            text("UPDATE cur_core_record SET status = :s WHERE id = :i"),
+            {"s": kw["status"], "i": rid},
+        )
+    return rid
+
+
+_n = 0
+
+
+def link(
+    uow: UnitOfWork, from_id: str, to_id: str, relation: str = "references", status: str = "active"
+) -> str:
+    """Append Link.Added (and a status event for the others) so the projection holds the row."""
+    global _n
+    _n += 1
+    link_id = f"LNK{_n:03d}"
+    suggested = status == "suggested"
+    payload = {
+        "link_id": link_id,
+        "from_ref": from_id,
+        "to_ref": to_id,
+        "relation": relation,
+        "pin": None,
+        "source": "manual",
+        "note": None,
+    }
+    events = [NewEvent(event_type="Link.Suggested" if suggested else "Link.Added", payload=payload)]
+    if status in ("stale", "broken"):
+        flagged = {"link_id": link_id, "status": status, "reason": "r"}
+        events.append(NewEvent(event_type="Link.Flagged", payload=flagged))
+    if status == "retracted":
+        events.append(
+            NewEvent(event_type="Link.Retracted", payload={"link_id": link_id, "reason": "r"})
+        )
+    uow.append(
+        stream_id=link_id,
+        stream_type="core.Link",
+        scope=P1,
+        expected_version=0,
+        events=events,
+        actor="u",
+        source="t",
+        correlation_id="c",
+    )
+    return link_id
+
+
+def walk(node: TraceNode) -> list[tuple[int, str | None]]:
+    found = [(node.depth, node.key)]
+    for child in node.children:
+        found.extend(walk(child))
+    return found
+
+
+def chain(uow: UnitOfWork) -> dict[str, str]:
+    """A -> B -> C -> D (references), so depth decides how far the tree reaches."""
+    ids = {k: record(uow, k) for k in "ABCD"}
+    link(uow, ids["A"], ids["B"])
+    link(uow, ids["B"], ids["C"])
+    link(uow, ids["C"], ids["D"])
+    return ids
+
+
+def test_the_root_has_depth_zero_no_link_and_the_record_fields(uow: UnitOfWork) -> None:
+    a = record(uow, "A", status="Open")
+    root = trace(uow, a)
+    assert (root.record_id, root.key, root.title, root.type) == (a, "A", "title A", "core.Record")
+    assert (root.status, root.voided, root.depth) == ("Open", False, 0)
+    assert (root.link_id, root.relation, root.direction, root.label, root.link_status) == (
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
+    assert root.children == [] and root.more == 0
+
+
+def test_depth_limits_how_far_the_tree_reaches(uow: UnitOfWork) -> None:
+    ids = chain(uow)
+    assert walk(trace(uow, ids["A"], depth=0)) == [(0, "A")]
+    assert walk(trace(uow, ids["A"], depth=1)) == [(0, "A"), (1, "B")]
+    assert walk(trace(uow, ids["A"], depth=2)) == [(0, "A"), (1, "B"), (2, "C")]
+    assert walk(trace(uow, ids["A"], depth=9)) == [(0, "A"), (1, "B"), (2, "C"), (3, "D")]
+
+
+def test_the_default_depth_is_two(uow: UnitOfWork) -> None:
+    ids = chain(uow)
+    assert walk(trace(uow, ids["A"])) == [(0, "A"), (1, "B"), (2, "C")]
+
+
+def test_a_child_carries_the_link_it_was_reached_by(uow: UnitOfWork) -> None:
+    a, b = record(uow, "A"), record(uow, "B")
+    link_id = link(uow, a, b, "raised_against")
+    (child,) = trace(uow, a).children
+    assert (child.link_id, child.relation, child.direction, child.label) == (
+        link_id,
+        "raised_against",
+        "out",
+        "raised against",
+    )
+    assert (child.link_status, child.depth, child.key) == ("active", 1, "B")
+    (back,) = trace(uow, b).children
+    assert (back.direction, back.label, back.key) == ("in", "has raised", "A")
+
+
+def test_direction_chooses_outbound_inbound_or_both(uow: UnitOfWork) -> None:
+    me, out_rec, in_rec = record(uow, "ME"), record(uow, "OUT"), record(uow, "IN")
+    link(uow, me, out_rec)
+    link(uow, in_rec, me)
+    assert walk(trace(uow, me, depth=1, direction="out")) == [(0, "ME"), (1, "OUT")]
+    assert walk(trace(uow, me, depth=1, direction="in")) == [(0, "ME"), (1, "IN")]
+    assert walk(trace(uow, me, depth=1)) == [(0, "ME"), (1, "OUT"), (1, "IN")]
+
+
+def test_children_are_ordered_outbound_first_then_vocabulary_then_key(uow: UnitOfWork) -> None:
+    me = record(uow, "ME")
+    z, y, x, w = (record(uow, k) for k in ("Z-1", "Y-1", "X-1", "W-1"))
+    link(uow, me, z, "requires")
+    link(uow, me, y, "references")
+    link(uow, me, x, "requires")
+    link(uow, w, me, "blocks")
+    order = [(c.direction, c.relation, c.key) for c in trace(uow, me, depth=1).children]
+    assert order == [
+        ("out", "references", "Y-1"),
+        ("out", "requires", "X-1"),
+        ("out", "requires", "Z-1"),
+        ("in", "blocks", "W-1"),
+    ]
+
+
+def test_each_record_appears_once_even_in_a_cycle_or_a_diamond(uow: UnitOfWork) -> None:
+    a, b, c, d = (record(uow, k) for k in "ABCD")
+    link(uow, a, b)
+    link(uow, a, c)
+    link(uow, b, d)
+    link(uow, c, d)  # a diamond: D is reached by both B and C
+    link(uow, d, a)  # and a cycle back to A
+    seen = [key for _depth, key in walk(trace(uow, a, depth=5))]
+    assert sorted(seen) == ["A", "B", "C", "D"]
+    root = trace(uow, a, depth=5)
+    assert [c.key for c in root.children] == ["B", "C"]
+    assert [g.key for g in root.children[0].children] == ["D"]  # D under B, the first to reach it
+    assert root.children[1].children == []
+
+
+def test_only_active_stale_and_broken_links_are_followed_by_default(uow: UnitOfWork) -> None:
+    me = record(uow, "ME")
+    keys = {}
+    for status in ("active", "stale", "broken", "suggested", "retracted"):
+        other = record(uow, status.upper())
+        link(uow, me, other, status=status)
+        keys[status] = other
+    shown = {c.key: c.link_status for c in trace(uow, me, depth=1).children}
+    assert shown == {"ACTIVE": "active", "STALE": "stale", "BROKEN": "broken"}
+
+
+def test_statuses_can_be_chosen(uow: UnitOfWork) -> None:
+    me, s, a = record(uow, "ME"), record(uow, "SUG"), record(uow, "ACT")
+    link(uow, me, s, status="suggested")
+    link(uow, me, a)
+    only = trace(uow, me, depth=1, statuses=("suggested",))
+    assert [c.key for c in only.children] == ["SUG"]
+
+
+def test_a_voided_record_is_shown_as_voided(uow: UnitOfWork) -> None:
+    a, b = record(uow, "A"), record(uow, "B", voided=True)
+    link(uow, a, b)
+    (child,) = trace(uow, a).children
+    assert child.voided is True
+
+
+def test_more_counts_linked_records_missing_below_a_node(uow: UnitOfWork) -> None:
+    ids = chain(uow)
+    root = trace(uow, ids["A"], depth=1)
+    (b,) = root.children
+    assert root.more == 0
+    assert b.more == 1  # C is linked to B but beyond the depth
+    deeper = trace(uow, ids["A"], depth=3)
+    assert all(node.more == 0 for node in _all(deeper))
+
+
+def _all(node: TraceNode) -> list[TraceNode]:
+    nodes = [node]
+    for child in node.children:
+        nodes.extend(_all(child))
+    return nodes
+
+
+def test_max_nodes_caps_the_tree_breadth_first_and_more_reports_the_rest(uow: UnitOfWork) -> None:
+    hub = record(uow, "HUB")
+    for number in range(6):
+        link(uow, hub, record(uow, f"S-{number}"))
+    root = trace(uow, hub, depth=2, max_nodes=4)
+    assert len(_all(root)) == 4
+    assert [c.key for c in root.children] == ["S-0", "S-1", "S-2"]
+    assert root.more == 3
+
+
+def test_a_record_with_no_links_and_an_unknown_record(uow: UnitOfWork) -> None:
+    lonely = record(uow, "LONELY")
+    assert trace(uow, lonely).children == []
+    with pytest.raises(RecordNotFoundError):
+        trace(uow, "NOPE")
