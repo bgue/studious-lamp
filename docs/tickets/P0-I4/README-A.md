@@ -86,19 +86,19 @@ while connected:
 ## Supervisor-built pieces (in order)
 | # | Piece | Why supervisor-tier | Reviewer | Status |
 |---|---|---|---|---|
-| S1 | Parser (`query/parser.py`): grammar, precedence, positioned errors, value typing, limits | "Query-language parser and SQL compiler" (`01-tiers.md` §3) | Orchestrator | built; 148 unit tests, hypothesis properties |
+| S1 | Parser (`query/parser.py`): grammar, precedence, positioned errors, value typing, limits | "Query-language parser and SQL compiler" (`01-tiers.md` §3) | Orchestrator | built; reviewed at ce41208: pass (low notes fixed in 34e109f) |
 | S2 | SQL compiler (`query/compiler.py`, `fields.py`, `temporal.py`, `clock.py`): allow-lists, bound params, two-valued predicates, pset EXISTS, link EXISTS/COUNT, ordering | same | Orchestrator | built; 171 DB tests incl. injection and fuzz |
 | S3 | `query/format.py` (`to_text`) | Round-trip partner of the parser; pins the grammar by property test | Orchestrator | built |
 | S4 | `changefeed/filters.py`, `registry.py` (fan-out, dedupe by seq, replay, queue subscriptions, overflow protocol) | Delivery ordering and concurrency (L-P0-I1-9, L-P0-I1-11); consumed by C's SSE | Orchestrator | built; 53 tests with deterministic ordering seams |
-| S5 | Integration tests over the real SQLite ledger (bus + poller double feed, resume, restart) | Needs T01 and T02 merged | — | written; committed after T01 and T02 merge |
-| S6 | Demo script `dev/demos/P0-I4-A.sh`, README and AGENTS updates, report | Closing work | — | after the batch |
+| S5 | Integration tests over the real SQLite ledger (bus + poller double feed, resume, restart): `tests/services/test_changefeed_integration.py` | Needs T01 and T02 merged | — | built (7 tests) |
+| S6 | Demo `dev/demos/P0-I4-A.sh` (`just demo P0-I4-A`), README and AGENTS updates, report | Closing work | — | demo and docs built; report after T03 |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| P0-I4-T01 | `fetch_changes` pager (16 provided tests) | H | S4 | ready | |
-| P0-I4-T02 | `ChangePoller` (19 provided tests) | H | S4 | ready | |
-| P0-I4-T03 | Query language reference page `docs/reference/query-language.md` (examples are executed by a provided test) | H | S1, S2 | ready | |
+| P0-I4-T01 | `fetch_changes` pager (16 provided tests) | H | S4 | merged | pass, 1 round |
+| P0-I4-T02 | `ChangePoller` (19 provided tests) | H | S4 | merged | pass, 1 round |
+| P0-I4-T03 | Query language reference page `docs/reference/query-language.md` (examples are executed by a provided test) | H | S1, S2 | in-review | Implementer blocked correctly: `just check` failed on an E501 I introduced in `api.py` (56bb651). Fixed on `p0/i4a`; branch merged with it; the supervisor added the `~` note; 97 tests |
 
 Haiku-ability (`01-tiers.md` §6), all three: (1) at most 3 files to read; (2) every interface is in the repo, stubs included;
 (3) each ships a provided test (T03's test executes the page's examples, so prose cannot drift from the parser); (4) diffs of 40 to
@@ -143,4 +143,6 @@ about 130 ms; sort by a pset 27 ms. The 100k-row target of §15 is re-measured i
 - Escalate only if C or D need an AST or `QuerySpec` change (contract), or a decision on A7.
 
 ## Blocked / Decision
+- T03 attempt 1 was `blocked` by a red `just check` caused by the supervisor's own docstring commit, not by the implementer. It does not count as a strike.
+- Review notes at ce41208, all fixed in 34e109f: identifier and date regexes now end with `\Z` (a trailing newline used to pass `$`); `QueueSubscription.last_seq` starts at the subscribe point; `~` on numeric or boolean pset values never matches (documented on the reference page).
 - A7 confirmed by the orchestrator (see decision A7). The Phase 0 gap (`discipline`, `due` rejected as unknown fields) is accepted; follow-up for when the envelope gains those columns (P1), to be listed in the report.
