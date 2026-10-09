@@ -44,12 +44,12 @@ tl projections rebuild                       # rebuilt from the ledger; show out
 | T04a | DDL type mapping | H | T01 | merged | Review pass round 1; supervisor added non-finite rejection |
 | T04b | DDL generator core | S | T04a, T03 | merged | Registered in `generate.py`; generated DDL committed; awaiting orchestrator review |
 | T05 | Ledger types and hashing | H | T01 | merged | Review pass round 1 |
-| T06 | SQLite ledger adapter | H | T05 | ready | |
-| T07 | Projector engine + SQLite UnitOfWork | S | T05, T06 | half merged | Contracts, registry, bus merged; SQLite UoW on side branch until T06 |
-| T08 | `core.Record` projector | H | T04b, T07 (projection types) | ready | |
-| T09 | Record command handlers | H | T07, T08 | planned | |
+| T06 | SQLite ledger adapter | H | T05 | merged | Review pass round 3 |
+| T07 | Projector engine + SQLite UnitOfWork | S | T05, T06 | merged | Review finding fixes applied (bus ordering, test helper table); awaiting orchestrator review of part 2 |
+| T08 | `core.Record` projector | H | T04b, T07 (projection types) | merged | Review pass round 3 |
+| T09 | Record command handlers | H | T07, T08 | ready | |
 | T10 | `tl` CLI | H | T09, T11 | planned | |
-| T11 | Query helpers | H | T08 | planned | |
+| T11 | Query helpers | H | T08 | ready | |
 | T12 | Package READMEs and AGENTS.md | H | T10 (interfaces known) | planned | |
 
 Haiku-ability notes (`01-tiers.md` §6): T01 exceeds the 5-file guideline (about 25 near-identical boilerplate files, every
