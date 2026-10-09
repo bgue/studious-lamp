@@ -4,17 +4,19 @@ One cycle dispatches new outbox rows into deliveries, claims the head of each su
 sends them concurrently (the engine guarantees that two events of one subject are never in flight
 together). ``start`` runs cycles on a daemon thread until ``stop``; ``drain`` runs cycles in the
 caller's thread until nothing is left to do now (used by ``tl webhook run --once`` and the demo).
-
-STUB (P0-I5-T24): the method bodies raise ``NotImplementedError``. The specification is the ticket
-and the provided test.
 """
 
 from __future__ import annotations
 
+import logging
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from tl_core.webhooks.delivery import DeliveryEngine
 from tl_core.webhooks.dispatch import Dispatcher
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -44,35 +46,100 @@ class WebhookWorker:
         claim_limit: int = 16,
         interval_s: float = 0.5,
     ) -> None:
-        raise NotImplementedError
+        if threads < 1:
+            raise ValueError("threads must be at least 1")
+        if claim_limit < 1:
+            raise ValueError("claim_limit must be at least 1")
+        if interval_s <= 0:
+            raise ValueError("interval_s must be positive")
+        self._dispatcher = dispatcher
+        self._engine = engine
+        self._threads = threads
+        self._claim_limit = claim_limit
+        self._interval = interval_s
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._error: Exception | None = None
 
     @property
     def running(self) -> bool:
-        raise NotImplementedError
+        return self._thread is not None and self._thread.is_alive()
 
     @property
     def last_error(self) -> Exception | None:
         """The exception that ended the latest failed cycle, cleared by the next good one."""
-        raise NotImplementedError
+        return self._error
 
     def run_cycle(self) -> CycleResult:
         """Dispatch, claim up to ``claim_limit`` heads, deliver them on the thread pool."""
-        raise NotImplementedError
+        created = self._dispatcher.run_until_idle().created
+        claims = self._engine.claim(self._claim_limit)
+        result = CycleResult(dispatched=created, claimed=len(claims))
+        if claims:
+            # The claims of one cycle are heads of different subjects, so sending them together
+            # never reorders a subject.
+            with ThreadPoolExecutor(
+                max_workers=min(self._threads, len(claims)), thread_name_prefix="tl-webhook"
+            ) as pool:
+                for settled in pool.map(self._engine.deliver, claims):
+                    if settled.state == "delivered":
+                        result.delivered += 1
+                    elif settled.state == "retry":
+                        result.retried += 1
+                    elif settled.state == "dead":
+                        result.dead += 1
+                    if settled.disabled_subscription:
+                        result.disabled += 1
+        return result
 
     def drain(self, *, max_cycles: int = 1000) -> CycleResult:
         """Run cycles until one is idle (or ``max_cycles``); return the summed result."""
-        raise NotImplementedError
+        total = CycleResult()
+        for _ in range(max_cycles):
+            cycle = self.run_cycle()
+            total.dispatched += cycle.dispatched
+            total.claimed += cycle.claimed
+            total.delivered += cycle.delivered
+            total.retried += cycle.retried
+            total.dead += cycle.dead
+            total.disabled += cycle.disabled
+            if cycle.idle:
+                break
+        return total
 
     def start(self) -> None:
         """Run cycles on a daemon thread. ``RuntimeError`` if already running."""
-        raise NotImplementedError
+        if self.running:
+            raise RuntimeError("the worker is already running")
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._run, name="tl-webhook-worker", daemon=True)
+        self._thread.start()
 
     def stop(self, timeout: float = 10.0) -> None:
         """Ask the loop to end, wait for it and for deliveries in flight. Harmless twice."""
-        raise NotImplementedError
+        thread = self._thread
+        if thread is None:
+            return
+        self._stop.set()
+        thread.join(timeout)
+        if not thread.is_alive():
+            self._thread = None
 
     def __enter__(self) -> WebhookWorker:
-        raise NotImplementedError
+        self.start()
+        return self
 
     def __exit__(self, *exc: object) -> None:
-        raise NotImplementedError
+        self.stop()
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            idle = True
+            try:
+                idle = self.run_cycle().idle
+                self._error = None
+            except Exception as exc:
+                self._error = exc
+                log.warning("webhook cycle failed: %s", exc)
+            if idle:
+                self._stop.wait(self._interval)
