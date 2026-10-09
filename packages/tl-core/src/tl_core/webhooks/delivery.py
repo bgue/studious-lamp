@@ -27,6 +27,7 @@ increment plan).
 
 from __future__ import annotations
 
+import json
 import logging
 import random
 from dataclasses import dataclass
@@ -131,6 +132,21 @@ class Settled:
     next_attempt_at: datetime | None = None
     dead_reason: str | None = None
     disabled_subscription: bool = False
+
+
+@dataclass(frozen=True)
+class TestResult:
+    """Result of :meth:`DeliveryEngine.send_test`."""
+
+    __test__ = False  # not a pytest class
+
+    event_id: str
+    status: int | None
+    ok: bool
+    latency_ms: int
+    error: str | None = None
+    excerpt: str = ""
+    blocked: bool = False
 
 
 @dataclass
@@ -413,6 +429,61 @@ class DeliveryEngine:
         )
         log.warning("webhook subscription %s auto-disabled: %s", sid, detail)
         return True
+
+    # --- test event ---------------------------------------------------------------------------
+
+    def send_test(self, subscription_id: str, event_type: str = "Record.Created") -> TestResult:
+        """Send a catalog sample of ``event_type`` to the subscription's target, signed as usual.
+
+        A fresh event id and the current time replace the sample's. Nothing is queued, retried or
+        recorded: it is a one-shot check of reachability, signature handling and egress policy,
+        and the receiver sees ``data.detail`` of the sample. The result says what happened.
+        """
+        from tl_schema.catalog import sample
+
+        now = self._clock()
+        with self._open(readonly=True) as uow:
+            row = (
+                uow.conn()
+                .execute(
+                    text(
+                        "SELECT target_url FROM cur_webhook_subscription WHERE subscription_id = :s"
+                    ),
+                    {"s": subscription_id},
+                )
+                .first()
+            )
+            if row is None:
+                raise LookupError(f"no webhook subscription {subscription_id}")
+            secrets = self._active_secrets(uow.conn(), subscription_id, now)
+        envelope = dict(sample(event_type)["envelope"])
+        envelope["id"] = new_ulid()
+        envelope["time"] = iso_z(now)
+        body = json.dumps(envelope, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        claim = Claim(
+            delivery_id="test",
+            subscription_id=subscription_id,
+            scope="",
+            seq=0,
+            event_id=str(envelope["id"]),
+            subject_id="",
+            body=body,
+            attempts=0,
+            created_at=now,
+            target_url=str(row.target_url),
+            secrets=secrets,
+        )
+        outcome = self.attempt(claim)
+        result = outcome.result
+        return TestResult(
+            event_id=claim.event_id,
+            status=None if result is None else result.status,
+            ok=outcome.ok,
+            latency_ms=0 if result is None else result.latency_ms,
+            error=outcome.error if result is None else result.error,
+            excerpt="" if result is None else result.excerpt,
+            blocked=outcome.permanent == "egress_denied",
+        )
 
     # --- convenience -------------------------------------------------------------------------
 
