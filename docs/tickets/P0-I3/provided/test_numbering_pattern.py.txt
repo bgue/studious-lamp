@@ -178,3 +178,17 @@ def test_parse_pattern_rejects_a_bad_template(template: str, message: str) -> No
 def test_patterns_are_value_objects() -> None:
     assert parse_pattern(STANDARD) == parse_pattern(STANDARD)
     assert parse_pattern(STANDARD) != parse_pattern("{project}-{seq:4}")
+
+
+def test_parse_is_strict_about_the_spelling_of_the_sequence() -> None:
+    pattern = parse_pattern(STANDARD)
+    assert pattern.parse("P123-REC-0012") is not None
+    assert pattern.parse("P123-REC-00012") is None
+    overflow = pattern.parse("P123-REC-10000")
+    assert overflow is not None and overflow.sequence == 10000
+
+
+def test_parse_of_an_unpadded_sequence_rejects_leading_zeros() -> None:
+    pattern = parse_pattern("DOC-{seq}")
+    assert pattern.parse("DOC-7") is not None
+    assert pattern.parse("DOC-07") is None

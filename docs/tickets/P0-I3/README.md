@@ -86,6 +86,8 @@ reference implementation before dispatch (kept in the supervisor's scratch area 
 | D14 | T05 was built by the supervisor instead of dispatched | The allocator needed it at once |
 | D15 | `pyyaml` added to `tl-core` dependencies (already in the lock through `tl-schema`) | Core reads YAML definitions |
 | D16 | Voiding a record does not yet flag its links stale (brief 7.3 health check) | Needs a rule hook in the void handler; follow-up |
+| D17 | Overflow past the declared width (`P1-REC-10000` for `{seq:4}`) is allowed and sorts lexically before `9999`; `Pattern.parse` accepts only the canonical spelling (no `P1-REC-00012`). Gap-free holds only if a failure leaves the `with open_uow` block (an exception swallowed inside commits the number) | Orchestrator review of the allocator |
+| D18 | A `broken` link has no direct route back to `active`: flag it `stale`, then repin, or retract | Brief 7.3 makes `broken` a health-check outcome; the check does not exist yet |
 
 ## Order of work (relay rounds)
 | Round | Ticket batch | Supervisor work in the same turn |

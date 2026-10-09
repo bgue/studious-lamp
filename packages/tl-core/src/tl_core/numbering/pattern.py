@@ -2,8 +2,11 @@
 
 A pattern is a template made of literal text, named fields (``{project}``) and exactly one
 sequence segment (``{seq:4}``, zero-padded to 4 digits; ``{seq}`` means no padding). Field values
-are letters and digits only. Two non-literal segments may not touch, because a key could then not
-be read back unambiguously: ``{project}{type}`` and ``{type}{seq:4}`` are refused.
+are letters and digits only. A sequence longer than the declared width is written in full
+(``{seq:4}`` renders 10000 as ``10000``); such keys sort lexically before ``9999``, so sort by
+the parsed sequence, or choose a width that will not overflow. Two non-literal segments may not
+touch, because a key could then not be read back unambiguously: ``{project}{type}`` and
+``{type}{seq:4}`` are refused.
 """
 
 from __future__ import annotations
@@ -74,13 +77,17 @@ class Pattern:
         return re.compile(rf"(?<![A-Za-z0-9_-]){self._regex_source()}(?![A-Za-z0-9_])")
 
     def parse(self, key: str) -> ParsedKey | None:
-        """The field values and sequence number of ``key``, or ``None`` if it does not fit."""
+        """The field values and sequence number of ``key``, or ``None`` if it does not fit.
+
+        Strict: the sequence must be spelled exactly as ``render`` writes it, so zero-padding
+        matches the declared width and a sequence longer than the width has no leading zero.
+        """
         match = self.regex().fullmatch(key)
         if match is None:
             return None
         sequence = int(match.group("seq"))
-        if sequence < 1:
-            return None
+        if sequence < 1 or match.group("seq") != f"{sequence:0{self.seq_width}d}":
+            return None  # only the canonical spelling: P1-REC-00012 is not P1-REC-0012
         return ParsedKey(
             fields={name: match.group(name) for name in self.fields}, sequence=sequence
         )

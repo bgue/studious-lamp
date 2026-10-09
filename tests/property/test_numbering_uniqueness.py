@@ -1,6 +1,8 @@
 """Numbering property: any mix of creates gives unique keys, contiguous per counter (P0-I3).
 
-Run with ``pytest tests/property -k numbering``.
+Run with ``pytest tests/property -k numbering``. The creates here are sequential; concurrent
+creators are covered by ``test_concurrent_creators_never_get_the_same_key`` in
+``tests/services/test_numbering.py``.
 """
 
 from __future__ import annotations

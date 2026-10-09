@@ -4,7 +4,8 @@ Allocation is transactional. ``allocate_key`` appends ``Numbering.Allocated`` to
 stream inside the caller's unit of work, which is the same unit of work that appends the record's
 ``Record.Created``. If anything later in the transaction fails, the allocation rolls back with it
 and the number is handed out again. That is what "gap-free" means here: a number is never spent
-without a record.
+without a record. It holds only if a failure leaves the ``with open_uow(...)`` block: code that
+swallows an exception inside the block commits the allocation, and the number is burned.
 
 Three layers stop two writers from getting the same number:
 

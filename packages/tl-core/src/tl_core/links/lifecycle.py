@@ -18,6 +18,11 @@ Event                   Allowed in                          New status
 ======================  ==================================  ===============
 
 ``Link.Flagged`` carries ``status`` (``stale`` or ``broken``) and must change the status.
+
+There is no direct way back from ``broken`` to ``active``: flag it ``stale`` (the target is
+reachable again but needs attention), then ``Link.Repinned`` it, or retract it. Brief 7.3 makes
+``broken`` a health-check outcome (an unreachable external reference), and the check that would
+clear it does not exist in Phase 0.
 """
 
 from __future__ import annotations
