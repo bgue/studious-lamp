@@ -4,9 +4,6 @@ A relation has a forward code (``raised_against``) and an inverse code (``has_ra
 always stored in the forward direction; the inverse code and label only describe the same link
 as seen from the other record. The vocabulary is extensible: ``RelationVocabulary.add`` registers
 a company or module relation.
-
-STUB (P0-I3-T01): the data tables and signatures are final; the method bodies marked
-``raise NotImplementedError`` are the ticket. Remove this paragraph when done.
 """
 
 from __future__ import annotations
@@ -62,15 +59,24 @@ class RelationVocabulary:
 
     def add(self, relation: Relation) -> None:
         """Register a relation. Raises ``ValueError`` for a malformed or already used code."""
-        raise NotImplementedError
+        codes = {relation.code, relation.inverse_code}
+        for code in sorted(codes):
+            if _CODE.fullmatch(code) is None:
+                raise ValueError(f"relation code {code!r} must match [a-z][a-z0-9_]*")
+        taken = set(self._relations) | set(self._inverses)
+        clashing = sorted(codes & taken)
+        if clashing:
+            raise ValueError(f"relation code already in the vocabulary: {', '.join(clashing)}")
+        self._relations[relation.code] = relation
+        self._inverses[relation.inverse_code] = relation
 
     def codes(self) -> list[str]:
         """Forward codes in insertion order."""
-        raise NotImplementedError
+        return list(self._relations)
 
     def __contains__(self, code: object) -> bool:
         """True for a forward code. An inverse code is not a member."""
-        raise NotImplementedError
+        return isinstance(code, str) and code in self._relations
 
     def get(self, code: str) -> Relation:
         """The relation with this forward code.
@@ -78,7 +84,15 @@ class RelationVocabulary:
         Raises ``UnknownRelationError``. When ``code`` is an inverse code the message names the
         forward relation to use with the two ends swapped.
         """
-        raise NotImplementedError
+        if code in self._relations:
+            return self._relations[code]
+        if code in self._inverses:
+            forward = self._inverses[code].code
+            raise UnknownRelationError(
+                f"{code!r} is the inverse of {forward!r}; "
+                f"use {forward!r} with the two records swapped"
+            )
+        raise UnknownRelationError(f"unknown relation {code!r}")
 
     def resolve(self, code: str) -> tuple[Relation, bool]:
         """The relation for a forward or an inverse code, and whether the code was the inverse.
@@ -86,11 +100,16 @@ class RelationVocabulary:
         For a symmetric relation the code is its own inverse and the flag is ``False``.
         Raises ``UnknownRelationError`` for an unknown code.
         """
-        raise NotImplementedError
+        if code in self._relations:
+            return self._relations[code], False
+        if code in self._inverses:
+            return self._inverses[code], True
+        raise UnknownRelationError(f"unknown relation {code!r}")
 
     def label(self, code: str, direction: Direction) -> str:
         """How the link reads from a record: ``out`` is the label, ``in`` the inverse label."""
-        raise NotImplementedError
+        relation = self.get(code)
+        return relation.label if direction == "out" else relation.inverse_label
 
 
 DEFAULT_RELATIONS: tuple[Relation, ...] = (
@@ -128,7 +147,11 @@ def default_relation(
     Lookup order in ``pairs`` (default ``DEFAULT_PAIR_RELATIONS``): the exact pair, then
     ``(from_type, "*")``, then ``("*", to_type)``, then ``DEFAULT_RELATION``.
     """
-    raise NotImplementedError
+    table = DEFAULT_PAIR_RELATIONS if pairs is None else pairs
+    for key in ((from_type, to_type), (from_type, "*"), ("*", to_type)):
+        if key in table:
+            return table[key]
+    return DEFAULT_RELATION
 
 
 __all__ = [
