@@ -1,0 +1,28 @@
+# Project extension of a company pset (brief 6.3 example, co:acme/x/P123@1.4.0).
+package: x.P123
+version: 1.4.0
+kind: extension
+description: Project P123 extension of the Acme valve_data pset.
+project: P123
+depends:
+  co.acme.engineering: 3.2.0
+
+extends:
+  - ref: co.acme.engineering@3.2.0#valve_data
+    tighten:
+      body_material: {required_in_states: [Design]}
+    add_values:
+      MaterialCode:
+        - {code: SS316L-NACE, label: 316L NACE MR0175, crosswalk: SS316L}
+    custom:
+      fat_witness_by:
+        label: FAT witness
+        description: Client witness for the factory acceptance test.
+        range: string
+      tie_in_window:
+        label: Tie-in window
+        description: Shutdown window reference for the tie-in.
+        range: string
+
+conformance:
+  mode: strict

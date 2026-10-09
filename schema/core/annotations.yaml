@@ -9,7 +9,19 @@ description: >-
 
   Class-level tags
   - `tl:current_state` (boolean): generate a `cur_<module>_<class>` current-state table for this class (brief 5.4).
+  - `tl:table` (string): override the generated table name (for example `cur_pset_values`).
   - `tl:history` (boolean): also generate a `hist_<module>_<class>` table (not used before Phase 3).
+
+  Pset class tags (written by the effective-schema compiler, brief 27.3; never authored in `schema/core`)
+  - `tl:enforcement` (`advisory` | `required` | `locked`): company enforcement level of a pset or property (brief 6.3).
+  - `tl:adoption` (`mandatory` | `default` | `optional`): whether projects get the pset.
+  - `tl:custom_section` (boolean) and `tl:custom_max_properties` (integer as string): whether projects may add
+    `x.` properties, and how many.
+  - `tl:layer` (`standard` | `custom` | `project`): the pset layer the element belongs to.
+  - `tl:applies_to` (JSON list of record types) and `tl:class_filter` (string): where a pset applies.
+  - `tl:package` (`name@version`) and `tl:extension` (`name@version`): the package that defined the element and
+    the project extension that changed it.
+  - `tl:effective_schema_hash` and `tl:scope`: set on the effective schema itself.
 
   Schema-level tags
   - `tl:module` (string): the module segment of generated object names; `core` for everything under `schema/core`.
@@ -19,7 +31,12 @@ description: >-
     column name is the slot name with `_json` appended unless `tl:column` is set.
   - `tl:column` (string): override the generated column name.
   - `tl:indexed` (boolean): generate a plain index on this column.
-  - `tl:materialize` (boolean): reserved for promoted pset properties (Increment 2).
+  - `tl:materialize` (boolean): promote a company standard pset property to a typed column of the
+    current-state table (brief 5.4). Written on pset properties; the column DDL is generated from the
+    effective schema, not from `schema/core`.
+  - `tl:value_list_policy` (`closed` | `extensible` | `project_defined`): how projects may change a value list.
+  - `tl:required_in_states` (JSON list of states): states in which the property must have a value.
+  - `tl:crosswalk` (string, on enum permissible values): the company code a project-added value maps to.
 prefixes:
   linkml: https://w3id.org/linkml/
   throughline: https://example.org/throughline/

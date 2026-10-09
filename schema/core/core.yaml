@@ -13,4 +13,5 @@ imports:
   - annotations
   - record
   - ledger
+  - psets
 default_range: string
