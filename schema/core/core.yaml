@@ -17,4 +17,5 @@ imports:
   - links
   - numbering
   - workflow
+  - feed
 default_range: string

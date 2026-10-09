@@ -1,0 +1,363 @@
+id: https://example.org/throughline/core/feed
+name: tl_core_feed
+title: Throughline activity feed
+description: >-
+  The activity stream (brief 21, 19.2): broadcast posts and aggregated event cards, and the hashtags
+  and mentions found in posts. A post is its own ledger stream (`core.ActivityPost`, stream id = post
+  id, scope = the project) whose `Feed.Posted|Edited|Retracted|Reacted` events are described by the
+  payload classes below. Event cards are never events: they are projection rows built from ledger
+  events, deterministically, from `recorded_at` and `seq` (never from wall-clock time).
+  `cur_feed_items` holds one row per post or card (a retracted post keeps a tombstone row) and
+  `cur_feed_tags` one row per tag of a post, or per subject record of a card. `ActivityPost` and
+  `EventCard` document the logical shapes; only `FeedItemRow` and `Hashtag` are current-state tables.
+  Hashtags never mutate records (brief 21.2).
+prefixes:
+  linkml: https://w3id.org/linkml/
+  as: https://www.w3.org/ns/activitystreams#
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+default_range: string
+annotations:
+  tl:module: core
+
+enums:
+  FeedItemType:
+    description: What a row of `cur_feed_items` is.
+    permissible_values:
+      post:
+      card:
+  TagKind:
+    description: >-
+      Kind of a `#tag` or `@mention` (brief 21.2). Precedence when a token fits several kinds:
+      mention, record, code, signal, topic. A record-like tag that matches no record is a topic.
+    permissible_values:
+      record:
+      code:
+      signal:
+      topic:
+      mention:
+  Importance:
+    description: Noise-control level (brief 21.3). System cards are low, posts normal, signal tags high.
+    permissible_values:
+      low:
+      normal:
+      high:
+
+classes:
+  FeedTag:
+    description: One `#tag` or `@mention` found in a post body, as carried in the event payloads.
+    attributes:
+      text:
+        required: true
+        description: The tag as written, without its leading sigil (`47-1234-S03`, `area:A12`, `party:acme-nde`).
+      kind:
+        range: TagKind
+        required: true
+        description: Kind of the tag after resolution.
+      start:
+        range: integer
+        required: true
+        description: Character offset of the sigil in the body.
+      end:
+        range: integer
+        required: true
+        description: Character offset just past the last character of the tag.
+      namespace:
+        description: For code and mention tags written `ns:value`, the part before the colon.
+      record_id:
+        range: Ulid
+        description: For a record tag that resolved to a record, that record's id.
+
+  ActivityPost:
+    class_uri: as:Note
+    description: >-
+      A broadcast post (brief 19.2, 21.1). Authored by a person, an agent or an external party; an agent's
+      posts are labelled by its `agent:<id>` actor. A post has no replies.
+    attributes:
+      post_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Immutable post identifier; equals the ledger `stream_id`.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project the post was made in. A post is visible wherever its project is.
+      author:
+        required: true
+        description: Actor that posted (`user:<id>`, `agent:<id>` or `svc:<name>`).
+      body:
+        required: true
+        description: Text of the post, with its `#tags` and `@mentions`.
+      importance:
+        range: Importance
+        required: true
+        ifabsent: string(normal)
+        description: Importance the author gave; a signal tag raises the effective level to high.
+      tags:
+        range: FeedTag
+        multivalued: true
+        inlined_as_list: true
+        description: Tags found in the body.
+      record_ids:
+        range: Ulid
+        multivalued: true
+        description: Records the post references (the resolved record tags), without repeats.
+
+  EventCard:
+    class_uri: as:Activity
+    description: >-
+      Feed rendering of one or more aggregated ledger events (brief 19.2, 21.1). Consecutive events with the
+      same actor, event type and scope within a time window form one card.
+    attributes:
+      card_id:
+        identifier: true
+        required: true
+        description: Deterministic card id, `card:<event id of the first aggregated event>`.
+      scope:
+        range: ScopeId
+        required: true
+        description: Scope of the aggregated events.
+      actor:
+        required: true
+        description: Actor of the aggregated events.
+      summary:
+        required: true
+        description: Rendered one-line summary, for example `jsmith created 14 records`.
+      importance:
+        range: Importance
+        required: true
+        ifabsent: string(low)
+        description: System cards are low importance.
+      event_type:
+        required: true
+        description: The ledger event type every aggregated event has.
+      event_count:
+        range: integer
+        required: true
+        description: Number of aggregated ledger events.
+      subjects:
+        range: Ulid
+        multivalued: true
+        description: Records the aggregated events are about.
+
+  FeedPosted:
+    description: Payload of `Feed.Posted`, the first event of a post stream.
+    attributes:
+      post_id:
+        range: Ulid
+        required: true
+      body:
+        required: true
+        description: Text of the post.
+      author:
+        required: true
+        description: Actor that posted.
+      importance:
+        range: Importance
+        required: true
+        ifabsent: string(normal)
+        description: Importance the author gave. The projection derives the effective level from it and the tags.
+      tags:
+        range: FeedTag
+        multivalued: true
+        inlined_as_list: true
+        description: Tags found in the body, after resolution.
+      record_ids:
+        range: Ulid
+        multivalued: true
+        description: Records the post references, without repeats.
+
+  FeedEdited:
+    description: >-
+      Payload of `Feed.Edited`: a full replacement of the body and its tags. The earlier text stays in the
+      ledger, so edits are visible history (brief 21.1).
+    attributes:
+      post_id:
+        range: Ulid
+        required: true
+      body:
+        required: true
+      tags:
+        range: FeedTag
+        multivalued: true
+        inlined_as_list: true
+      record_ids:
+        range: Ulid
+        multivalued: true
+
+  FeedRetracted:
+    description: Payload of `Feed.Retracted`. The projection keeps a tombstone row and drops the body.
+    attributes:
+      post_id:
+        range: Ulid
+        required: true
+      reason:
+        required: true
+        description: Why the post was retracted.
+
+  FeedReacted:
+    description: >-
+      Payload of `Feed.Reacted`: the actor of the event sets (`on` true) or clears (`on` false) one
+      acknowledgement on a post. Reactions are limited to `ack`, `+1` and `resolved` (brief 21.1).
+    attributes:
+      post_id:
+        range: Ulid
+        required: true
+      reaction:
+        required: true
+        pattern: "^(ack|\\+1|resolved)$"
+        description: One of `ack`, `+1`, `resolved`.
+      # YAML 1.1 reads a bare `on` as true, so the key is quoted.
+      "on":
+        range: boolean
+        required: true
+        description: True to set the reaction, false to clear it.
+
+  FeedItemRow:
+    description: >-
+      One row of the feed: a post (with a tombstone once retracted) or an event card. Newest first by
+      `occurred_at`, then `seq`. A card is extended while it is the scope's open card (`open_scope`); the
+      unique key on `open_scope` states that a scope has at most one open card.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_feed_items
+    unique_keys:
+      open_scope:
+        description: A scope has at most one open card (NULL for closed cards and posts).
+        unique_key_slots: [open_scope]
+    attributes:
+      item_id:
+        identifier: true
+        required: true
+        description: The post id, or `card:<event id of the first aggregated event>`.
+      item_type:
+        range: FeedItemType
+        required: true
+        description: Whether the row is a post or an event card.
+      scope:
+        range: ScopeId
+        required: true
+        annotations:
+          tl:indexed: true
+      actor:
+        required: true
+        description: Author of a post, or the actor of a card's events.
+      occurred_at:
+        range: datetime
+        required: true
+        description: "`recorded_at` of the post, or of the latest event of a card."
+      seq:
+        range: integer
+        required: true
+        description: "`seq` of the posted event, or of the latest event of a card."
+        annotations:
+          tl:indexed: true
+      summary:
+        required: true
+        description: Body of a post (empty once retracted) or the rendered summary of a card.
+      importance:
+        range: Importance
+        required: true
+        ifabsent: string(normal)
+        description: Effective importance. High when a post has a signal tag, else `base_importance`.
+      base_importance:
+        range: Importance
+        required: true
+        ifabsent: string(normal)
+        description: Importance the author gave the post (cards are low).
+      event_type:
+        description: Cards only; the event type of every aggregated event.
+      event_count:
+        range: integer
+        required: true
+        ifabsent: int(1)
+        description: 1 for a post; the number of aggregated ledger events for a card.
+      first_us:
+        range: integer
+        description: >-
+          Cards only; `recorded_at` of the first aggregated event in microseconds since the Unix epoch. An integer
+          so the window test does not depend on how a dialect returns timestamps.
+      first_seq:
+        range: integer
+        description: Cards only; `seq` of the first aggregated event.
+      open_scope:
+        range: ScopeId
+        description: Cards only; the scope while the card can still be extended, else null.
+      retracted:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: True once the post was retracted. The row stays as a tombstone.
+      retract_reason:
+        description: Reason given with `Feed.Retracted`.
+      edit_count:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Number of `Feed.Edited` events applied to the post.
+      reactions:
+        range: Any
+        required: true
+        description: >-
+          Reacting actors by reaction (a JSON object such as ack: [user:a]); empty lists are dropped.
+        annotations:
+          tl:json: true
+      version:
+        range: integer
+        description: Posts only; ledger `stream_version` of the post stream after the last event applied.
+
+  Hashtag:
+    description: >-
+      One tag of a post (hashtag, namespaced code, signal tag, topic or mention), or one subject record of a
+      card (kind `record`). Cards have rows only for records, so the feed of a record includes its cards.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_feed_tags
+    attributes:
+      tag_row_id:
+        identifier: true
+        required: true
+        description: "`<item id>|<kind>|<tag key>|<start>`, unique per occurrence."
+      item_id:
+        required: true
+        description: The post or card the tag belongs to.
+        annotations:
+          tl:indexed: true
+      scope:
+        range: ScopeId
+        required: true
+      kind:
+        range: TagKind
+        required: true
+      tag_text:
+        required: true
+        description: The tag as written, without its sigil. For a card's subject row, the record id.
+      tag_key:
+        required: true
+        description: Normalised text used to find the tag's feed (lower case). For a card's subject row, the record id.
+        annotations:
+          tl:indexed: true
+      namespace:
+        description: For code and mention tags, the part before the colon.
+      record_id:
+        range: Ulid
+        description: For a resolved record tag, or a card's subject, the record.
+        annotations:
+          tl:indexed: true
+      start_pos:
+        range: integer
+        required: true
+        description: Offset of the sigil in the post body; 0 for a card's subject row.
+      end_pos:
+        range: integer
+        required: true
+        description: Offset just past the tag; 0 for a card's subject row.
+      seq:
+        range: integer
+        required: true
+        description: "`seq` of the event that added the row; orders a card's subjects."

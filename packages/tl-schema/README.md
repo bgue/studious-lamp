@@ -45,4 +45,4 @@ just test packages/tl-schema
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1. Last interface change: P0-I2 workstream A (decisions A1 to A19 in `docs/tickets/P0-I2/README-A.md`). P0-I3 added the `core.Link`, numbering and workflow classes and the `tl:expects_link` annotation to `schema/core` (current-state tables `cur_links`, `cur_link_counts`, `cur_numbering`, `cur_workflow_state`). Known gaps: `class_filter` is parsed, not evaluated; waivers are declared in a package, not ledgered records.
+Introduced in P0-I1. Last interface change: P0-I2 workstream A (decisions A1 to A19 in `docs/tickets/P0-I2/README-A.md`). P0-I3 added the `core.Link`, numbering and workflow classes and the `tl:expects_link` annotation to `schema/core` (current-state tables `cur_links`, `cur_link_counts`, `cur_numbering`, `cur_workflow_state`). P0-I6 workstream A added `schema/core/feed.yaml` (`ActivityPost`, `EventCard`, `Hashtag`, `FeedItemRow`, the `Feed.*` payload classes; tables `cur_feed_items`, `cur_feed_tags`). Known gaps: `class_filter` is parsed, not evaluated; waivers are declared in a package, not ledgered records.
