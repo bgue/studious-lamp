@@ -1,6 +1,6 @@
 # Increment plan — P0-I4 workstream A: Query language and change feed
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-09
 Brief sections: §5.3, §7.5, §10.2, §18.2, §5.4
 Branch: `p0/i4a` (integration branch `p0/i4`; trunk `claude/wizardly-allen-m2v96s`). Fanout: `docs/tickets/P0-I4/FANOUT.md`.
@@ -87,18 +87,18 @@ while connected:
 | # | Piece | Why supervisor-tier | Reviewer | Status |
 |---|---|---|---|---|
 | S1 | Parser (`query/parser.py`): grammar, precedence, positioned errors, value typing, limits | "Query-language parser and SQL compiler" (`01-tiers.md` §3) | Orchestrator | built; reviewed at ce41208: pass (low notes fixed in 34e109f) |
-| S2 | SQL compiler (`query/compiler.py`, `fields.py`, `temporal.py`, `clock.py`): allow-lists, bound params, two-valued predicates, pset EXISTS, link EXISTS/COUNT, ordering | same | Orchestrator | built; 171 DB tests incl. injection and fuzz |
+| S2 | SQL compiler (`query/compiler.py`, `fields.py`, `temporal.py`, `clock.py`): allow-lists, bound params, two-valued predicates, pset EXISTS, link EXISTS/COUNT, ordering | same | Orchestrator | built; 339 tests in `tests/query` incl. injection and fuzz; reviewed at ce41208: pass |
 | S3 | `query/format.py` (`to_text`) | Round-trip partner of the parser; pins the grammar by property test | Orchestrator | built |
-| S4 | `changefeed/filters.py`, `registry.py` (fan-out, dedupe by seq, replay, queue subscriptions, overflow protocol) | Delivery ordering and concurrency (L-P0-I1-9, L-P0-I1-11); consumed by C's SSE | Orchestrator | built; 53 tests with deterministic ordering seams |
+| S4 | `changefeed/filters.py`, `registry.py` (fan-out, dedupe by seq, replay, queue subscriptions, overflow protocol) | Delivery ordering and concurrency (L-P0-I1-9, L-P0-I1-11); consumed by C's SSE | Orchestrator | built; 54 tests with deterministic ordering seams; reviewed at ce41208: pass |
 | S5 | Integration tests over the real SQLite ledger (bus + poller double feed, resume, restart): `tests/services/test_changefeed_integration.py` | Needs T01 and T02 merged | — | built (7 tests) |
-| S6 | Demo `dev/demos/P0-I4-A.sh` (`just demo P0-I4-A`), README and AGENTS updates, report | Closing work | — | demo and docs built; report after T03 |
+| S6 | Demo `dev/demos/P0-I4-A.sh` (`just demo P0-I4-A`), README and AGENTS updates, report `docs/reports/P0-I4-A.md` | Closing work | — | built |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
 | P0-I4-T01 | `fetch_changes` pager (16 provided tests) | H | S4 | merged | pass, 1 round |
 | P0-I4-T02 | `ChangePoller` (19 provided tests) | H | S4 | merged | pass, 1 round |
-| P0-I4-T03 | Query language reference page `docs/reference/query-language.md` (examples are executed by a provided test) | H | S1, S2 | in-review | Implementer blocked correctly: `just check` failed on an E501 I introduced in `api.py` (56bb651). Fixed on `p0/i4a`; branch merged with it; the supervisor added the `~` note; 97 tests |
+| P0-I4-T03 | Query language reference page `docs/reference/query-language.md` (examples are executed by a provided test) | H | S1, S2 | merged | pass after one blocked attempt (not a strike). Implementer blocked correctly: `just check` failed on an E501 I introduced in `api.py` (56bb651). Fixed on `p0/i4a`; branch merged with it; the supervisor added the `~` note; 97 tests |
 
 Haiku-ability (`01-tiers.md` §6), all three: (1) at most 3 files to read; (2) every interface is in the repo, stubs included;
 (3) each ships a provided test (T03's test executes the page's examples, so prose cannot drift from the parser); (4) diffs of 40 to

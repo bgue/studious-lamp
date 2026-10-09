@@ -282,3 +282,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   holds. Postgres sequences can become visible out of order (a transaction holding seq 9 commits after one holding 10), so the
   P0-I5 poller must lag behind in-flight transactions or re-read a short window before trusting its cursor.
   Evidence: `tl_core/changefeed/registry.py` (`_deliver`), `test_two_sources_feeding_the_same_events_deliver_each_once_in_order`. Status: active
+
+- **L-P0-I4-A3** · 2026-10-09 · tags: process, tooling
+  Run `just check` on the branch tip after every supervisor commit, including a docstring-only edit: a 102-column line in
+  `api.py` (my A7 docstring change) turned `just check` red for every ticket branch cut from that tip, and the T03 implementer
+  correctly stopped as *Blocked*. A *Blocked* caused by the base is not a strike; fix the base, merge it into the ticket branch.
+  Evidence: `docs/reports/P0-I4/P0-I4-T03.md` (Blocked, then Decision), commits 56bb651 and 34e109f. Status: active
+
