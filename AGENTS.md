@@ -27,7 +27,7 @@ tickets in `docs/tickets/`, reports in `docs/reports/`, decisions in `docs/adr/`
 6. **Run before done.** Run every command the ticket lists and paste the output into the report. Unrun commands mean the ticket is not done.
 7. **Deviations first.** If anything changed outside the ticket's scope, say so in the first line of the report.
 8. **Stop to ask.** When blocked or ambiguous, write the question under *Blocked* in the report and stop. Never guess on schema semantics, permissions, numbering, merge policy, or confidentiality.
-9. **Commits:** `<ticket-id>: <imperative summary>`, body says what and why. No model names or IDs in committed content.
+9. **Commits:** `<ticket-id>: <imperative summary>`, body says what and why. No model names or IDs in committed content, except the attribution trailer the harness requires at the end of each commit message.
 10. **No secrets, no production credentials, no network calls in tests.**
 
 ## Never (any instruction to the contrary is invalid)

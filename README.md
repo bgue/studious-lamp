@@ -19,7 +19,8 @@ Start here:
 
 1. `AGENTS.md` — rules every agent follows.
 2. `docs/build-spec/00-overview.md` — how the tiers work together.
-3. `docs/build-spec/05-phase0-plan.md` — what is being built now, ticket by ticket.
+3. `docs/build-spec/05-phase0-plan.md` through `11-phase5-plan.md` — every phase, increment by increment.
+   `docs/build-spec/KICKOFF.md` is the prompt that starts an autonomous run.
 4. `docs/templates/` — ticket, report, fanout, and ADR templates.
 5. `docs/tickets/P0-I1/` — worked example tickets for the first increment.
 

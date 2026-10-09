@@ -90,4 +90,6 @@ Orchestrator (Opus) ─ phase plan: workstreams, contracts, increment DAG, merge
 | `03-repo-and-toolchain.md` | Monorepo layout, toolchain, `just` recipes, generated-code policy, Phase 0 core interfaces and event types |
 | `04-gates.md` | CI gates, human gates, merge order, what "green" means |
 | `05-phase0-plan.md` | Phase 0 increments 1–8 decomposed into supervisor work and implementer tickets |
-| `06-later-phases.md` | Fanout seeds for Phases 1–5 |
+| `06-later-phases.md` | Phase index, cross-phase rules, sizing |
+| `07-phase1-plan.md` … `11-phase5-plan.md` | Phases 1–5 decomposed into increments, workstreams, and tickets |
+| `KICKOFF.md` | The prompt that starts the orchestrator on an autonomous run |
