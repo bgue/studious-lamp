@@ -137,8 +137,10 @@ class WebhookFilter:
     def matches_row(self, row: OutboxRow) -> bool:
         """Whether ``row`` passes every part of the filter except ``record_selector``.
 
-        STUB (P0-I5-T22): scope, event types and record ids work; the other five parts raise
-        ``NotImplementedError`` when they are set (a silent "matches everything" would be a leak).
+        Every part that is set must match; a part left ``None`` matches everything. Globs are
+        case-sensitive. ``changed_fields`` also match a parent path (``psets.vt`` matches
+        ``psets.vt.result``, but ``stat`` does not match ``status``). ``transitions`` need a row
+        with both ``from_state`` and ``to_state``. ``hashtags`` ignore case and a leading ``#``.
         """
         if self.scope_selector is not None and not glob_match(self.scope_selector, row.scope):
             return False
@@ -150,12 +152,35 @@ class WebhookFilter:
             row.subject_id in self.record_ids or any(r in self.record_ids for r in row.related_ids)
         ):
             return False
-        if (
-            self.changed_fields is not None
-            or self.transitions is not None
-            or self.link_relations is not None
-            or self.file_slots is not None
-            or self.hashtags is not None
+        if self.changed_fields is not None and not any(
+            glob_match(pattern, field) or field.startswith(pattern + ".")
+            for pattern in self.changed_fields
+            for field in row.changed_fields
         ):
-            raise NotImplementedError
+            return False
+        if self.transitions is not None:
+            src, dst = row.from_state, row.to_state
+            if src is None or dst is None:
+                return False
+            if not any(
+                glob_match(from_pattern, src) and glob_match(to_pattern, dst)
+                for from_pattern, to_pattern in (
+                    split_transition(entry) for entry in self.transitions
+                )
+            ):
+                return False
+        if self.link_relations is not None and not any(
+            glob_match(pattern, relation)
+            for pattern in self.link_relations
+            for relation in row.link_relations
+        ):
+            return False
+        if self.file_slots is not None:
+            slot = row.file_slot
+            if slot is None or not any(glob_match(pattern, slot) for pattern in self.file_slots):
+                return False
+        if self.hashtags is not None:
+            wanted = {normalise_hashtag(tag) for tag in self.hashtags}
+            if wanted.isdisjoint(normalise_hashtag(tag) for tag in row.hashtags):
+                return False
         return True
