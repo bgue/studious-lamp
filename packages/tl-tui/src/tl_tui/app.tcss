@@ -1,0 +1,62 @@
+/* Shell layout (brief 10.1). Panel widths are cells. Narrow mode is set by TlApp at <= 80 cols. */
+
+#header {
+    dock: top;
+    height: 1;
+    background: $primary;
+    color: $text;
+}
+
+#footer {
+    dock: bottom;
+    height: 2;
+    background: $panel;
+    color: $text;
+}
+
+#body {
+    height: 1fr;
+    layers: base overlay;
+}
+
+#nav {
+    width: 22;
+    border-right: solid $primary;
+}
+
+#main {
+    width: 1fr;
+}
+
+#context {
+    width: 30;
+    border-left: solid $primary;
+}
+
+#nav.-hidden,
+#context.-hidden {
+    display: none;
+}
+
+/* Narrow: side panels are hidden until F2 / F3 opens one as an overlay. */
+TlApp.-narrow #nav,
+TlApp.-narrow #context {
+    display: none;
+    layer: overlay;
+}
+
+TlApp.-narrow #nav.-open {
+    display: block;
+    dock: left;
+    width: 34;
+    background: $surface;
+    border: solid $primary;
+}
+
+TlApp.-narrow #context.-open {
+    display: block;
+    dock: right;
+    width: 32;
+    background: $surface;
+    border: solid $primary;
+}

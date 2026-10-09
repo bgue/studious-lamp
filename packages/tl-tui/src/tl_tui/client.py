@@ -6,7 +6,7 @@ process; the remote implementation (P0-I4) calls the API. Same methods, same ret
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from tl_core.ledger import Event
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
@@ -24,6 +24,7 @@ class ClientInterface(Protocol):
         include_voided: bool = False,
         limit: int = 500,
         offset: int = 0,
+        order_by: list[tuple[str, Literal["asc", "desc"]]] | None = None,
     ) -> list[dict[str, Any]]: ...
 
     def get_record(self, scope: str, key: str) -> dict[str, Any] | None: ...
