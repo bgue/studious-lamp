@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 from tl_schema.compile import SchemaCompileError
 from tl_schema.compose import EffectiveCache, compose, core_digest, project_of
-from tl_schema.effective import compute_hash, resolve_path
+from tl_schema.effective import EffectiveSchema, compute_hash, resolve_path
 from tl_schema.packages import PackageDoc
 
 Build = Callable[..., list[PackageDoc]]
@@ -72,6 +72,22 @@ def test_hash_changes_when_a_package_changes(build_docs: Build) -> None:
     }
     assert base not in hashes
     assert len(hashes) == 4
+
+
+def test_hash_covers_value_meanings(build_docs: Build) -> None:
+    def meaning(iri: str) -> Callable[[Raw], None]:
+        def mutate(raw: Raw) -> None:
+            lists = raw["co.acme.engineering"]["code_lists"]
+            lists["MaterialCode"]["values"][0]["meaning"] = iri
+
+        return mutate
+
+    plain = compose(build_docs(), "project:P123").hash
+    first = compose(build_docs(meaning("cfihos:A")), "project:P123")
+    second = compose(build_docs(meaning("cfihos:B")), "project:P123")
+    assert len({plain, first.hash, second.hash}) == 3
+    material = first.psets["valve_data"].properties["body_material"]
+    assert material.enum_meanings == {"CS": "cfihos:A"}
 
 
 def test_hash_depends_on_scope_and_core_release(build_docs: Build) -> None:
@@ -164,6 +180,12 @@ def test_for_record_type(build_docs: Build) -> None:
         "valve_data",
     ]
     assert schema.for_record_type("piping.Weld") == []
+
+
+def test_cache_rejects_an_unhashed_schema(effective: EffectiveSchema) -> None:
+    unhashed = effective.model_copy(update={"hash": ""})
+    with pytest.raises(ValueError):
+        EffectiveCache().get_or_build(unhashed, "json", lambda: 1)
 
 
 def test_cache_builds_once_per_hash_and_kind(build_docs: Build) -> None:

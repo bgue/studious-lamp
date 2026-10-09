@@ -30,9 +30,9 @@ tl pset get --project P123 V-0001            # psets, effective_schema_hash, con
 |---|---|---|---|---|
 | T02 | Package models (`packages.py`), pset compilation and the "projects cannot" rules (`compile.py`), LinkML rendering (`linkml_render.py`), fixtures | Effective-schema compiler and package merge (`01-tiers.md` §3); `schema/**` | Orchestrator | built (55 compile tests) |
 | T03 | Effective schema model and hash (`effective.py`), composition and adoption filter, conformance settings, cache by hash (`compose.py`) | Effective-schema compiler | Orchestrator | built |
-| T05 | Conformance evaluator (`conformance.py`) | Conformance rules are Sonnet-authored by rule (`01-tiers.md` §3); the plan's "H (rules pasted)" fails Haiku-ability item 5 | Orchestrator | planned |
-| T07 | `PsetProjector` (`cur_pset_values`, `psets_json` merge, promoted columns), `tl:table` generator extension, `schema/core/psets.yaml` | Projector transaction rules, DDL generator (§5.4) | Orchestrator | planned |
-| — | Schema provider, `form_metadata` and `conformance` services (`tl_core`) | Glue over the above | Orchestrator | planned |
+| T05 | Conformance evaluator (`conformance.py`) | Conformance rules are Sonnet-authored by rule (`01-tiers.md` §3); the plan's "H (rules pasted)" fails Haiku-ability item 5 | Orchestrator | built on `p0/i2a-t05-conformance` (22 tests); merges after T04, which provides the validator it calls |
+| T07 | `PsetProjector` (`cur_pset_values`, `psets_json` merge, promoted columns), `tl:table` generator extension, `schema/core/psets.yaml` | Projector transaction rules, DDL generator (§5.4) | Orchestrator | built (27e2e54; 18 tests) |
+| — | Schema provider, `form_metadata` and `conformance` services (`tl_core`) | Glue over T01, T04b and T05; written at the start of round 2 when those are merged | Orchestrator | planned (round 2) |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
@@ -42,9 +42,9 @@ tl pset get --project P123 V-0001            # psets, effective_schema_hash, con
 | T03 | Effective schema, hash, cache | S | T02 | built | |
 | T04 | JSON Schema per record type and psets validator | H | T03 | ready | |
 | T04b | Form metadata from the effective schema (added) | H | T03 | ready | |
-| T05 | Conformance evaluator | S (plan: H) | T03, T04 | planned | |
+| T05 | Conformance evaluator | S (plan: H) | T03, T04 | built (side branch) | |
 | T06 | `SetPsetValues` handler and `Pset.ValuesSet` | H | T04, T05, T07 | planned | |
-| T07 | `PsetProjector`, `cur_pset_values`, promoted columns | S | T03 | planned | |
+| T07 | `PsetProjector`, `cur_pset_values`, promoted columns | S | T03 | built | |
 | T08 | `tl schema hash|lint|validate` | H | T01, T08a | planned | |
 | T08a | Lint rules (added; split from T08) | H | T03 | ready | |
 | T08b | `tl pset set|get` (added; split from T08) | H | T06, T08 | planned | |
@@ -71,13 +71,17 @@ check is split (T08 became T08, T08a, T08b; T04b was added because form metadata
 | A9 | Promoted columns are named `pset__<pset>__<property>` and added to `cur_core_record` by generated `ALTER TABLE` DDL; names may not contain `__`. Existing rows are backfilled from `psets_json` | `cur_core_record` is generated from core LinkML; promotion is runtime (§5.4, §27.7) |
 | A10 | `cur_pset_values` comes from a LinkML class in `schema/core/psets.yaml` with `tl:table: cur_pset_values`; the generator learns `tl:table` | The brief names the table `cur_pset_values`; the generator derives `cur_core_pset_value` otherwise |
 | A11 | T05 is supervisor-built; T04b, T08a, T08b are additions | See Haiku-ability notes |
+| A13 | Hash content: the resolved psets (properties, constraints, code-list values with labels, crosswalks and `meaning` IRIs, enforcement, adoption, custom-section limits), packages and versions, conformance settings and waivers, and the core digest. Not hashed: code-list descriptions, unused code lists, package titles and descriptions | Meaning is append-only (§27.1): editing a value's meaning must change the hash; text that no runtime reader sees must not |
+| A14 | Ruling (orchestrator): pset engagement (A4) stays for Phase 0. Class-filter evaluation needs a record class, which arrives with Tag/TagClass in P1-I1 (T08 class binding); follow-up there. Known Phase 0 gap: a valve with `psets={}` reports `ok` | Recorded in the report |
+| A15 | Ruling (orchestrator): lenient mode downgrades required-ness only. A missing value for a `required` or `locked` property becomes a warning; type, range, pattern, value-list and locked-extension violations stay at their enforcement level in every mode, and waivers are the tool for them | They are data or governance errors, not enforcement levels |
+| A16 | Reserved names: psets `x`, `prj`, `enrich`, `src`; property `x`. `required_in_states` containing `*` covers every state (one helper, `states_cover`/`required_in`, for compiler and evaluator). A `json` property keeps a dict value as one `cur_pset_values` row; an empty dict leaves a row | The projector classifies paths by those markers and depth |
 | A12 | JSON Schema is generated from `EffectiveSchema` directly, not by the LinkML generator | The LinkML generator cannot express the policy annotations and would lose layer information; the LinkML view stays for lint and export |
 
 ## Order of work (relay rounds)
 | Round | Ticket batch | Supervisor work in the same turn |
 |---|---|---|
-| 1 | T01, T04, T04b, T08a | Plan; T02, T03; fixtures; provided tests; T05; T07; provider and services; `schema/core/psets.yaml` |
-| 2 | T06, T10, T08 | Merge round 1; fix review findings; handler hooks |
+| 1 | T01, T04, T04b, T08a | Plan; T02, T03; fixtures; provided tests; T05 (side branch); T07; `schema/core/psets.yaml` |
+| 2 | T06, T10, T08 | Merge round 1 and T05; provider; `form_metadata` and `conformance` services; handler hooks |
 | 3 | T08b, T09 | Merge round 2; READMEs, AGENTS.md; learnings |
 | Final | — | Gates, report `docs/reports/P0-I2-A.md` |
 
@@ -86,6 +90,10 @@ check is split (T08 became T08, T08a, T08b; T04b was added because form metadata
 - A change to `forms.py` or the `psets.py` signatures: stop with BLOCKED; WS-B depends on them.
 - `schema/**` beyond `psets.yaml` and fixtures (this plan also edits `schema/core/annotations.yaml` and `core.yaml`, both entailed by `psets.yaml`): listed under SCHEMA_APPROVALS.
 - Postgres: promoted-column `ALTER` and `ON CONFLICT` upserts are not executed on Postgres in this increment (parity arrives in P0-I5); the SQL is dialect-neutral.
+
+## Known gaps recorded for later increments
+- A waiver is dropped silently when other issues remain: `ConformanceReport` has no waived list (contract field). Follow-up for P1-I8 (waiver records).
+- `class_filter` is not evaluated (A14); `conformance` on a row updates only on pset writes, not when the schema changes.
 
 ## Blocked / Decision
 (none)

@@ -59,19 +59,40 @@ def set_nested(root: dict[str, Any], segments: list[str], value: Any) -> None:
     node[segments[-1]] = value
 
 
-def flatten(psets: dict[str, Any]) -> list[tuple[list[str], Any]]:
-    """Leaf values of a nested pset object as ``(segments, value)``, sorted by path.
+def is_property_path(path: list[str]) -> bool:
+    """Whether the value at ``path`` (segments below ``psets``) is one property's value.
 
-    Dicts are descended; everything else (scalars, lists) is a leaf. An empty dict has no leaves.
+    A property value is stored whole, whatever its shape: a ``json`` property may hold a dict, and
+    an empty dict still leaves a row. Depth by layer: ``<pset>.<property>``,
+    ``<pset>.x.<property>``, ``prj.<pset>.<property>``, ``enrich.<app>.<property>`` and
+    ``src.<system>.<pset>.<property>``.
+    """
+    head = path[0]
+    if head in ("prj", "enrich"):
+        return len(path) == 3
+    if head == "src":
+        return len(path) == 4
+    if len(path) >= 2 and path[1] == "x":
+        return len(path) == 3
+    return len(path) == 2
+
+
+def flatten(psets: dict[str, Any]) -> list[tuple[list[str], Any]]:
+    """Property values of a nested pset object as ``(segments, value)``, sorted by path.
+
+    Dicts are descended until a property path (``is_property_path``) is reached; a value found
+    above that depth that is not a dict (for example a loose scalar) is also a leaf. An empty dict
+    above property depth has no leaves.
     """
     leaves: list[tuple[list[str], Any]] = []
 
     def walk(node: dict[str, Any], prefix: list[str]) -> None:
         for key, value in node.items():
-            if isinstance(value, dict):
-                walk(cast(dict[str, Any], value), [*prefix, key])
+            path = [*prefix, key]
+            if isinstance(value, dict) and not is_property_path(path):
+                walk(cast(dict[str, Any], value), path)
             else:
-                leaves.append(([*prefix, key], value))
+                leaves.append((path, cast(Any, value)))
 
     walk(psets, [])
     return sorted(leaves, key=lambda leaf: leaf[0])

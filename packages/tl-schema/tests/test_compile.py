@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 from tl_schema.compile import SchemaCompileError, compile_psets
+from tl_schema.effective import states_cover
 from tl_schema.packages import PackageDoc
 
 Build = Callable[..., list[PackageDoc]]
@@ -207,6 +208,23 @@ def test_cannot_drop_a_required_state(build_docs: Build) -> None:
     _expect(build_docs, mutate, "loosen")
 
 
+def test_always_required_covers_every_state(build_docs: Build) -> None:
+    def mutate(raw: Raw) -> None:
+        _entry(raw)["tighten"]["size_in"] = {"required_in_states": ["*"]}
+
+    size = compile_psets(build_docs(mutate))["valve_data"].properties["size_in"]
+    assert size.required_in_states == ["*"]
+
+
+def test_states_cover() -> None:
+    assert states_cover(["*"], ["Design", "Installed"])
+    assert states_cover(["*"], ["*"])
+    assert states_cover(["Design", "Installed", "X"], ["Design"])
+    assert not states_cover(["Design"], ["*"])
+    assert not states_cover(["Design"], ["Design", "Installed"])
+    assert states_cover([], [])
+
+
 def test_cannot_drop_the_always_required_marker(build_docs: Build) -> None:
     def mutate(raw: Raw) -> None:
         _entry(raw)["tighten"]["manufacturer"] = {"required_in_states": ["Design"]}
@@ -286,6 +304,25 @@ def test_cannot_extend_a_locked_pset(build_docs: Build) -> None:
                 "labels": {"sil_rating": "SIL"},
             }
         )
+
+    _expect(build_docs, mutate, "locked")
+
+
+@pytest.mark.parametrize("what", ["add_values", "custom", "defaults", "labels", "nothing"])
+def test_a_locked_pset_cannot_be_extended_in_any_way(build_docs: Build, what: str) -> None:
+    # Each variant is caught by the pset-level guard alone: no property-level check applies.
+    entry: dict[str, Any] = {"ref": "co.acme.engineering@3.2.0#safety_data"}
+    if what == "add_values":
+        entry["add_values"] = {"FailAction": [{"code": "FX", "label": "Exotic"}]}
+    elif what == "custom":
+        entry["custom"] = {"note": {"description": "A custom note.", "range": "string"}}
+    elif what == "defaults":
+        entry["defaults"] = {"nope": 1}
+    elif what == "labels":
+        entry["labels"] = {"nope": "x"}
+
+    def mutate(raw: Raw) -> None:
+        raw["x.P123"]["extends"].append(entry)
 
     _expect(build_docs, mutate, "locked")
 
@@ -441,6 +478,9 @@ def test_package_twice_is_rejected(build_docs: Build) -> None:
         "bad_name",
         "bad_list_name",
         "missing_description",
+        "reserved_pset_x",
+        "reserved_pset_prj",
+        "reserved_property_x",
     ],
 )
 def test_document_structure_errors(build_docs: Build, mutate_text: str) -> None:
@@ -460,6 +500,16 @@ def test_document_structure_errors(build_docs: Build, mutate_text: str) -> None:
                 raw["co.acme.engineering"]["code_lists"]["bad_list"] = {"description": "d"}
             case "missing_description":
                 del _valve(raw)["size_in"]["description"]
+            case "reserved_pset_x":
+                raw["co.acme.engineering"]["psets"]["x"] = raw["co.acme.engineering"]["psets"][
+                    "safety_data"
+                ]
+            case "reserved_pset_prj":
+                raw["co.acme.engineering"]["psets"]["prj"] = raw["co.acme.engineering"]["psets"][
+                    "safety_data"
+                ]
+            case "reserved_property_x":
+                _valve(raw)["x"] = {"description": "Collides with the custom section."}
 
     with pytest.raises(ValidationError):
         build_docs(mutate)

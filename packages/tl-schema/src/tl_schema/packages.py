@@ -233,13 +233,13 @@ class PackageDoc(StrictModel):
         if self.kind == "project" and self.extends:
             raise ValueError("a project package declares 'psets', not 'extends'")
         for name in self.psets:
-            _check_name(name)
+            _check_name(name, RESERVED_PSET_NAMES)
         for list_name in self.code_lists:
             if LIST_NAME_PATTERN.fullmatch(list_name) is None:
                 raise ValueError(f"code list name {list_name!r} must be UpperCamelCase")
         for pset in self.psets.values():
             for prop in pset.properties:
-                _check_name(prop)
+                _check_name(prop, RESERVED_PROPERTY_NAMES)
         return self
 
     def key(self) -> str:
@@ -247,9 +247,17 @@ class PackageDoc(StrictModel):
         return f"{self.package}@{self.version}"
 
 
-def _check_name(name: str) -> None:
+#: Pset names that collide with value-layer path markers (``psets.x``, ``psets.prj.*`` ...).
+RESERVED_PSET_NAMES = frozenset({"x", "prj", "enrich", "src"})
+#: Property names that collide with the custom-section key.
+RESERVED_PROPERTY_NAMES = frozenset({"x"})
+
+
+def _check_name(name: str, reserved: frozenset[str] = frozenset()) -> None:
     if NAME_PATTERN.fullmatch(name) is None or "__" in name:
         raise ValueError(f"name {name!r} must be lower snake case without a double underscore")
+    if name in reserved:
+        raise ValueError(f"name {name!r} is reserved")
 
 
 def version_tuple(version: str) -> tuple[int, int, int]:
