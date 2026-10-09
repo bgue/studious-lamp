@@ -155,8 +155,12 @@ class OrderedPublisher:
             if self._draining:
                 return
             self._draining = True
+        batch: Sequence[Event] | None = None
         try:
             while True:
+                # The emptiness check and the flag reset share one critical section with enqueue:
+                # a batch enqueued after the check either finds the flag still set and is picked up
+                # by this loop's next pass, or finds it clear and is drained by its own caller.
                 with self._lock:
                     if not self._queue:
                         self._draining = False
@@ -166,7 +170,12 @@ class OrderedPublisher:
                     self._bus.publish(batch)
                 except Exception:
                     log.exception("bus publish failed for a batch of %s events", len(batch))
+                batch = None
         except BaseException:
+            # e.g. KeyboardInterrupt: put the unfinished batch back so the next drain redelivers it
+            # (subscribers skip anything they already saw), then let another thread drain.
             with self._lock:
+                if batch is not None:
+                    self._queue.appendleft(batch)
                 self._draining = False
             raise

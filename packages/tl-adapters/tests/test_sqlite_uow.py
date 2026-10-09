@@ -244,7 +244,7 @@ def test_a_write_from_inside_a_callback_completes_and_is_delivered_in_order(db: 
         with open_uow(db, registry=registry(), bus=bus) as uow:
             bump(uow, "outer", 0)
 
-    thread = threading.Thread(target=outer)
+    thread = threading.Thread(target=outer, daemon=True)
     thread.start()
     thread.join(10)
     assert not thread.is_alive(), "nested write deadlocked"
@@ -270,7 +270,7 @@ def test_a_slow_subscriber_does_not_block_another_writers_commit(db: Path) -> No
         with open_uow(db, registry=registry(), bus=bus) as uow:
             bump(uow, "a", 0)
 
-    thread_a = threading.Thread(target=writer_a)
+    thread_a = threading.Thread(target=writer_a, daemon=True)
     thread_a.start()
     assert started.wait(10)  # A has committed and its subscriber is now blocked
     done_b = threading.Event()
@@ -280,7 +280,7 @@ def test_a_slow_subscriber_does_not_block_another_writers_commit(db: Path) -> No
             bump(uow, "b", 0)
         done_b.set()
 
-    thread_b = threading.Thread(target=writer_b)
+    thread_b = threading.Thread(target=writer_b, daemon=True)
     thread_b.start()
     assert done_b.wait(10), "writer B was blocked by a slow subscriber"
     assert counter(db) == {"a": 1, "b": 1}  # B committed while A's callback still runs

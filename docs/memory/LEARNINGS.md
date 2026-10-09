@@ -141,3 +141,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   A Protocol attribute (`ledger: Ledger`) is invariant, so an adapter that narrows it (`SqliteLedger`) fails pyright
   strict; declare Protocol attributes that implementers may narrow as read-only `@property`.
   Evidence: T11 blocked on 11 pyright errors; `tl_core/uow.py`. Status: active
+
+- **L-P0-I1-11** · 2026-10-09 · tags: tests
+  A concurrency invariant needs a deterministic seam, not repetition: the lost-wakeup test replaces the publisher's lock
+  with one that runs a second writer right after a given release, and a deliberately wrong `LeakyPublisher` proves the
+  test can fail. Three clean runs of a racy test prove nothing. Threads in such tests are `daemon=True` and joined
+  with a timeout so a regression fails instead of hanging the suite.
+  Evidence: `packages/tl-core/tests/test_bus.py`; mutation (flag cleared outside the lock) fails the test. Status: active

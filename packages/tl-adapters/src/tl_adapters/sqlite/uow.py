@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import threading
-import weakref
 from collections.abc import Callable, Generator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
@@ -25,15 +24,18 @@ REPLAY_PAGE = 1000
 # Commits are ordered by this lock: a writer commits and enqueues its events for the bus while
 # holding it, so the publish queue is in commit (seq) order. Subscribers run after it is released.
 _COMMIT_LOCK = threading.Lock()
-_publishers: weakref.WeakKeyDictionary[Bus, OrderedPublisher] = weakref.WeakKeyDictionary()
+# One publisher per bus, kept for the life of the process (a bus lives that long in Phase 0).
+# The publisher holds its bus, so keying by id() is safe: the bus is never collected, so its id
+# is never reused.
+_publishers: dict[int, OrderedPublisher] = {}
 _publishers_lock = threading.Lock()
 
 
 def _publisher_for(bus: Bus) -> OrderedPublisher:
     with _publishers_lock:
-        publisher = _publishers.get(bus)
+        publisher = _publishers.get(id(bus))
         if publisher is None:
-            publisher = _publishers[bus] = OrderedPublisher(bus)
+            publisher = _publishers[id(bus)] = OrderedPublisher(bus)
         return publisher
 
 

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import threading
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import pytest
 from tl_core.bus import InProcessBus, OrderedPublisher
@@ -274,3 +275,105 @@ def test_a_failing_publish_is_logged_and_does_not_stop_later_batches(
     publisher.enqueue([make_event(3)])
     publisher.drain()  # the drainer flag was reset
     assert seen == [2, 3]
+
+
+class HookedLock:
+    """A lock that calls ``after_release`` each time it is released (a deterministic seam)."""
+
+    def __init__(self, after_release: Callable[[], None]) -> None:
+        self._lock = threading.Lock()
+        self.after_release = after_release
+
+    def __enter__(self) -> None:
+        self._lock.acquire()
+
+    def __exit__(self, *exc: object) -> None:
+        self._lock.release()
+        self.after_release()
+
+
+class LeakyPublisher(OrderedPublisher):
+    """A deliberately wrong drain: it checks emptiness under the lock but clears the flag after
+    releasing it. It exists to prove the lost-wakeup test below can fail."""
+
+    def drain(self) -> None:
+        with self._lock:
+            if self._draining:
+                return
+            self._draining = True
+        while True:
+            with self._lock:
+                empty = not self._queue
+                batch = [] if empty else self._queue.popleft()
+            if empty:
+                self._draining = False  # BUG: outside the lock, after the emptiness check
+                return
+            self._bus.publish(batch)
+
+
+def _lost_wakeup_run(publisher_cls: type[OrderedPublisher]) -> tuple[list[int], int]:
+    """Enqueue seq 1 and drain. Right after the lock section in which the drainer found the queue
+    empty, another thread enqueues seq 2 and calls drain. Returns (delivered seqs, still queued)."""
+    bus = InProcessBus()
+    delivered: list[int] = []
+    bus.subscribe(lambda e: delivered.append(e.seq))
+    publisher = publisher_cls(bus)
+    injected = threading.Event()
+
+    def inject_second_writer() -> None:
+        if injected.is_set() or not delivered or publisher._queue:
+            return
+        injected.set()
+
+        def second_writer() -> None:
+            publisher.enqueue([make_event(2)])
+            publisher.drain()
+
+        thread = threading.Thread(target=second_writer, daemon=True)
+        thread.start()
+        thread.join(5)
+        assert not thread.is_alive()
+
+    cast(Any, publisher)._lock = HookedLock(inject_second_writer)
+    publisher.enqueue([make_event(1)])
+    publisher.drain()
+    return delivered, len(publisher._queue)
+
+
+def test_no_lost_wakeup_between_the_empty_check_and_the_flag_reset() -> None:
+    # The second writer's enqueue and drain run right after the critical section that found the
+    # queue empty. The flag is cleared in that same section, so its own drain does the work.
+    assert _lost_wakeup_run(OrderedPublisher) == ([1, 2], 0)
+
+
+def test_the_lost_wakeup_test_can_fail() -> None:
+    # Clearing the flag outside the lock lets the second writer's drain return early (flag still
+    # set), stranding its batch in the queue: this is the failure the test above guards against.
+    assert _lost_wakeup_run(LeakyPublisher) == ([1], 1)
+
+
+class Abort(BaseException):
+    """Stands in for KeyboardInterrupt."""
+
+
+def test_a_base_exception_requeues_the_batch_and_releases_the_drainer() -> None:
+    class AbortingBus(InProcessBus):
+        aborted = False
+
+        def publish(self, events: Sequence[Event]) -> None:
+            if not self.aborted:
+                self.aborted = True
+                raise Abort
+            super().publish(events)
+
+    bus = AbortingBus()
+    seen: list[int] = []
+    bus.subscribe(lambda e: seen.append(e.seq))
+    publisher = OrderedPublisher(bus)
+    publisher.enqueue([make_event(1)])
+    publisher.enqueue([make_event(2)])
+    with pytest.raises(Abort):
+        publisher.drain()
+    assert seen == []
+    publisher.drain()  # not stuck "draining", and batch 1 is back at the head
+    assert seen == [1, 2]
