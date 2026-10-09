@@ -33,7 +33,7 @@ merge a ticket, remove its worktree (`git worktree remove --force`). Never merge
 a `two-strikes` ticket is yours to finish on its branch (note it as taken over).
 
 COMMITS: `<ticket-id>: <summary>` (supervisor pieces use the plan's ticket id or `{INC}-S<n>`), body says what and
-why, ending with exactly:
+why, ending with the attribution trailer your harness requires (Co-Authored-By naming your own model) and then:
 {TRAILER}
 No model names anywhere else in committed content.
 
