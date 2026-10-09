@@ -17,11 +17,11 @@ from tl_core.query.clock import QueryClock
 
 MAX_RELATIVE_DAYS = 36500  # about a century; keeps date arithmetic far from the calendar limits
 
-_RELATIVE_RE = re.compile(r"^([+-])(\d{1,6})d$")
-_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
+_RELATIVE_RE = re.compile(r"^([+-])(\d{1,6})d\Z")
+_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})\Z")
 _DATETIME_RE = re.compile(
     r"^(\d{4})-(\d{2})-(\d{2})[Tt ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,6}))?)?"
-    r"(Z|z|[+-]\d{2}:\d{2})?$"
+    r"(Z|z|[+-]\d{2}:\d{2})?\Z"
 )
 
 

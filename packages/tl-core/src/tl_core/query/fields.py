@@ -68,12 +68,12 @@ PSET_OPS: frozenset[str] = frozenset({"=", "!=", "~", "<", "<=", ">", ">="})
 #: ``psets.<pset>[.<section>].<property>`` as stored in ``cur_pset_values.path``: at least a pset
 #: and a property after the ``psets`` head; each segment is letters, digits, ``_`` or ``-``.
 _SEGMENT = r"[A-Za-z0-9_][A-Za-z0-9_-]*"
-PSET_PATH_RE = re.compile(rf"^psets(?:\.{_SEGMENT}){{2,6}}$")
+PSET_PATH_RE = re.compile(rf"^psets(?:\.{_SEGMENT}){{2,6}}\Z")
 
 #: A relation code or a record type (aliases may be dotted: ``quality.NCR``).
-RELATION_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
+RELATION_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*\Z")
 TYPE_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)*")
-TYPE_FULL_RE = re.compile(rf"^{TYPE_RE.pattern}$")
+TYPE_FULL_RE = re.compile(rf"^{TYPE_RE.pattern}\Z")
 
 #: Statuses that make a link count as a link (brief 7.1, 7.3): suggestions are not links yet and
 #: retracted links are over. See decision A8 in the plan.

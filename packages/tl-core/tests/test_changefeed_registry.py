@@ -401,3 +401,19 @@ def test_closing_a_queue_subscription_unregisters_it() -> None:
 def test_queue_arguments_are_checked() -> None:
     with pytest.raises(ValueError):
         SubscriptionRegistry().subscribe_queue(maxsize=0)
+
+
+def test_a_queue_subscription_knows_its_resume_point_before_any_event_arrives() -> None:
+    registry = SubscriptionRegistry()
+    assert registry.subscribe_queue(after_seq=7).last_seq == 7
+    registry.dispatch([make_event(9)])
+    assert registry.subscribe_queue().last_seq == 9  # live: from the high-water mark
+    ledger = FakeLedger([make_event(1), make_event(2), make_event(3)])
+    with_ledger = SubscriptionRegistry(ledger)  # type: ignore[arg-type]
+    assert with_ledger.subscribe_queue().last_seq == 3  # live: from the ledger head
+    # a filter that rejects everything still leaves the resume point at the subscribe point
+    idle = with_ledger.subscribe_queue(SubscriptionFilter.of(event_types=["Nope.*"]), after_seq=1)
+    assert idle.last_seq == 1
+    with_ledger.dispatch([make_event(4)])
+    assert idle.last_seq == 1
+    assert idle.get() is None
