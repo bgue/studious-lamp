@@ -1,0 +1,331 @@
+{
+    "$defs": {
+        "Any": {
+            "additionalProperties": true,
+            "description": "Any JSON value. Used with `tl:json` for slots stored as JSON columns.",
+            "title": "Any",
+            "type": [
+                "null",
+                "boolean",
+                "object",
+                "number",
+                "string"
+            ]
+        },
+        "ConformanceStatus": {
+            "description": "Result of evaluating a record against its effective schema (brief 6.3).",
+            "enum": [
+                "ok",
+                "warning",
+                "nonconformant",
+                "waived"
+            ],
+            "title": "ConformanceStatus",
+            "type": "string"
+        },
+        "Event": {
+            "additionalProperties": false,
+            "description": "One immutable ledger event.",
+            "properties": {
+                "actor": {
+                    "description": "`user:<id>`, `svc:<name>` or `agent:<id>`.",
+                    "type": "string"
+                },
+                "causation_id": {
+                    "description": "Identifier of the event or command that caused this one; may be null.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "correlation_id": {
+                    "description": "Ties a command chain, import, or automated process together.",
+                    "type": "string"
+                },
+                "effective_at": {
+                    "description": "Business (valid) time.",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "event_id": {
+                    "description": "Unique event identifier (ULID).",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "event_type": {
+                    "description": "`<Class>.<PastTenseVerb>`, for example `Record.Created`.",
+                    "type": "string"
+                },
+                "hash": {
+                    "description": "Hash of this event chained to `prev_hash`.",
+                    "type": "string"
+                },
+                "payload": {
+                    "$ref": "#/$defs/Any",
+                    "description": "Event payload, a JSON object validated against the event type's schema."
+                },
+                "prev_hash": {
+                    "description": "Hash of the previous event in the same scope; null for the first.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "recorded_at": {
+                    "description": "System (transaction) time.",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "schema_version": {
+                    "description": "Version of the event payload schema, for upcasting.",
+                    "type": "integer"
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "seq": {
+                    "description": "Global monotonic sequence; the ordering backbone.",
+                    "type": "integer"
+                },
+                "source": {
+                    "description": "`tui`, `api`, `mcp:<agent>`, `cli`, `import:<job>` or `sim:<run>`.",
+                    "type": "string"
+                },
+                "stream_id": {
+                    "description": "The record (aggregate) the event belongs to.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "stream_type": {
+                    "description": "Record type of the stream, for example `core.Record`.",
+                    "type": "string"
+                },
+                "stream_version": {
+                    "description": "Per-stream version, used for optimistic concurrency.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "seq",
+                "event_id",
+                "stream_id",
+                "stream_type",
+                "stream_version",
+                "event_type",
+                "schema_version",
+                "scope",
+                "payload",
+                "actor",
+                "recorded_at",
+                "effective_at",
+                "correlation_id",
+                "source",
+                "hash"
+            ],
+            "title": "Event",
+            "type": "object"
+        },
+        "Record": {
+            "additionalProperties": false,
+            "description": "The generic Phase 0 record type, `core.Record`.",
+            "properties": {
+                "conformance": {
+                    "$ref": "#/$defs/ConformanceStatus",
+                    "description": "Conformance of the current values to the effective schema."
+                },
+                "created_at": {
+                    "description": "Timestamp of the creating event (system time).",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Longer free-text description.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "effective_schema_hash": {
+                    "description": "Hash of the effective schema in force at the last write; null before Increment 2.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "Immutable global identifier; equals the ledger `stream_id`.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "key": {
+                    "description": "Human-readable number, unique within a scope. Null until numbering assigns one.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "last_seq": {
+                    "description": "Ledger `seq` of the last event applied.",
+                    "type": "integer"
+                },
+                "psets": {
+                    "$ref": "#/$defs/Any",
+                    "description": "Property-set values keyed by pset name, stored as a JSON object."
+                },
+                "scope": {
+                    "description": "`company` or `project:<id>`.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Workflow state; null when the record type has no workflow.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "title": {
+                    "description": "Short human-readable title.",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Fully qualified record type, for example `core.Record`.",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "Timestamp of the last applied event (system time).",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Ledger `stream_version` of the last event applied.",
+                    "type": "integer"
+                },
+                "voided": {
+                    "description": "Set by `Record.Voided`. Voided rows are never deleted.",
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "id",
+                "type",
+                "scope",
+                "title",
+                "psets",
+                "voided",
+                "version",
+                "last_seq",
+                "conformance",
+                "created_at",
+                "updated_at"
+            ],
+            "title": "Record",
+            "type": "object"
+        },
+        "RecordEnvelope": {
+            "additionalProperties": false,
+            "description": "Fields every record type shares (brief 6.2). Mixed into each concrete record class.",
+            "properties": {
+                "conformance": {
+                    "$ref": "#/$defs/ConformanceStatus",
+                    "description": "Conformance of the current values to the effective schema."
+                },
+                "created_at": {
+                    "description": "Timestamp of the creating event (system time).",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Longer free-text description.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "effective_schema_hash": {
+                    "description": "Hash of the effective schema in force at the last write; null before Increment 2.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "Immutable global identifier; equals the ledger `stream_id`.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "key": {
+                    "description": "Human-readable number, unique within a scope. Null until numbering assigns one.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "last_seq": {
+                    "description": "Ledger `seq` of the last event applied.",
+                    "type": "integer"
+                },
+                "psets": {
+                    "$ref": "#/$defs/Any",
+                    "description": "Property-set values keyed by pset name, stored as a JSON object."
+                },
+                "scope": {
+                    "description": "`company` or `project:<id>`.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Workflow state; null when the record type has no workflow.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "title": {
+                    "description": "Short human-readable title.",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Fully qualified record type, for example `core.Record`.",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "Timestamp of the last applied event (system time).",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Ledger `stream_version` of the last event applied.",
+                    "type": "integer"
+                },
+                "voided": {
+                    "description": "Set by `Record.Voided`. Voided rows are never deleted.",
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "id",
+                "type",
+                "scope",
+                "title",
+                "psets",
+                "voided",
+                "version",
+                "last_seq",
+                "conformance",
+                "created_at",
+                "updated_at"
+            ],
+            "title": "RecordEnvelope",
+            "type": "object"
+        }
+    },
+    "$id": "https://example.org/throughline/core",
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "additionalProperties": true,
+    "metamodel_version": "1.12.0",
+    "title": "tl_core",
+    "type": "object",
+    "version": null
+}
