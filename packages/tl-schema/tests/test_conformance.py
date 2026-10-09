@@ -193,18 +193,36 @@ def test_strict_is_the_default_mode(effective: EffectiveSchema) -> None:
     assert run(effective, BAD).status == "nonconformant"
 
 
-def test_lenient_mode_downgrades_everything_to_warnings(build_docs: Build) -> None:
+def test_lenient_mode_relaxes_required_ness_only(build_docs: Build) -> None:
     schema = with_conformance(build_docs, {"mode": "lenient"})
-    report = run(schema, BAD, state="Design")
-    assert report.status == "warning"
-    assert {i.level for i in report.issues} == {"warning"}
-    assert len(report.issues) >= 2
+    missing = run(schema, {"valve_data": {"manufacturer": "Acme"}}, state="Design")
+    assert missing.status == "warning"
+    assert {(i.rule, i.level) for i in missing.issues} == {("required_in_state", "warning")}
+    assert len(missing.issues) == 2  # size_in and body_material, both enforcement required
+    strict = run(
+        compose(build_docs(), "project:P123"), {"valve_data": {"manufacturer": "A"}}, state="Design"
+    )
+    assert strict.status == "nonconformant"
+
+
+def test_lenient_mode_keeps_data_errors_nonconformant(build_docs: Build) -> None:
+    schema = with_conformance(build_docs, {"mode": "lenient"})
+    report = run(schema, BAD)
+    assert report.status == "nonconformant"
+    assert summary(report) == [("psets.valve_data.size_in", "range", "nonconformant")]
+    company = compose([d for d in build_docs() if d.kind == "company"], "company")
+    lenient_company = company.model_copy(
+        update={"conformance": schema.conformance, "hash": "lenient-company"}
+    )
+    locked = run(lenient_company, {"safety_data": {"sil_rating": 2, "x": {"a": 1}}})
+    assert summary(locked) == [("psets.safety_data.x", "locked", "nonconformant")]
 
 
 def test_lenient_mode_ends_on_its_date(build_docs: Build) -> None:
     schema = with_conformance(build_docs, {"mode": "lenient", "lenient_until": "2026-12-31"})
-    assert run(schema, BAD, on=date(2026, 12, 31)).status == "warning"
-    assert run(schema, BAD, on=date(2027, 1, 1)).status == "nonconformant"
+    psets = {"valve_data": {"manufacturer": "A"}}
+    assert run(schema, psets, state="Design", on=date(2026, 12, 31)).status == "warning"
+    assert run(schema, psets, state="Design", on=date(2027, 1, 1)).status == "nonconformant"
 
 
 def waiver(path: str, expires: str | None = None) -> dict[str, Any]:

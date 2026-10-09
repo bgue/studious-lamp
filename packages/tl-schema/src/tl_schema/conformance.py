@@ -24,9 +24,13 @@ an engaged pset with no value, a ``required_in_state`` issue arises when the pro
 
 Level: an issue on a property takes the property's enforcement (``advisory`` gives ``warning``;
 ``required`` and ``locked`` give ``nonconformant``); an issue with no property takes its pset's
-enforcement. Project mode then adjusts: ``lenient`` (until ``lenient_until``, if set) turns every
-level into ``warning``; ``strict_with_waivers`` drops issues on the exact path of a waiver that has
-not expired. If waivers dropped issues and none remain the status is ``waived``.
+enforcement. Project mode then adjusts: ``lenient`` (until ``lenient_until``, if set) relaxes
+required-ness only, so a missing value for a ``required`` or ``locked`` property is a ``warning``;
+type, range, pattern, value-list and locked-extension issues keep their level in every mode (they
+are data or governance errors, and waivers are the tool for them); ``strict_with_waivers`` drops
+issues on the exact path of a waiver that has not expired. If waivers dropped issues and none
+remain the status is ``waived``. (A waiver that drops an issue while others remain is not shown:
+``ConformanceReport`` has no waived list.)
 
 Crosswalks do not change conformance: a project-added code is in the property's list and so valid;
 the crosswalk is for cross-project reporting.
@@ -42,6 +46,7 @@ from tl_schema.effective import (
     ALWAYS,
     EffectivePset,
     EffectiveSchema,
+    required_in,
     resolve_path,
 )
 from tl_schema.forms import ConformanceIssue, ConformanceReport
@@ -129,10 +134,9 @@ def _missing_issues(
         for prop in pset.all_properties():
             if _lookup(psets, pset.name, prop.relative_key()) is not None:
                 continue
-            always = ALWAYS in prop.required_in_states
-            if not always and (state is None or state not in prop.required_in_states):
+            if not required_in(prop.required_in_states, state):
                 continue
-            where = "" if always else f" in state {state}"
+            where = "" if ALWAYS in prop.required_in_states else f" in state {state}"
             found.append(
                 (
                     f"psets.{pset.name}.{prop.relative_key()}",
@@ -176,7 +180,8 @@ def evaluate(
         if path in waived_paths:
             suppressed += 1
             continue
-        level: Level = "warning" if lenient else _level(enforcement)
+        relaxed = lenient and rule == "required_in_state"
+        level: Level = "warning" if relaxed else _level(enforcement)
         issues.append(ConformanceIssue(path=path, level=level, rule=rule, message=message))
 
     status: Literal["ok", "warning", "nonconformant", "waived"]
