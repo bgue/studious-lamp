@@ -1,6 +1,6 @@
 # P0-I1-T01 — Monorepo scaffold
 
-Status: ready
+Status: in-review (merged state: orchestrator decision applied, see plan D9)
 Tier: haiku
 Labels: tooling
 Depends on: —
@@ -65,6 +65,7 @@ tl-cli = { workspace = true }
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+include = ["*.py", "*.pyi", "**/pyproject.toml"]
 extend-exclude = ["packages/tl-schema/src/tl_schema/generated"]
 
 [tool.ruff.lint]

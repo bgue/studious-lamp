@@ -38,7 +38,7 @@ tl projections rebuild                       # rebuilt from the ledger; show out
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| T01 | Monorepo scaffold | H | — | ready | |
+| T01 | Monorepo scaffold | H | — | in-review (blocked once on ruff docs check, fixed by D9) | |
 | T02 | Core LinkML | S | T01 | built | committed on `p0/i1`; awaiting schema approval |
 | T03 | Codegen wiring (pydantic, JSON Schema, `--check` drift gate) | H | T01, T02 | draft | |
 | T04a | DDL type mapping | H | T01 | draft | |
@@ -68,6 +68,7 @@ taken over (recorded here). T12 is split by package group if the file count exce
 | D6 | pyright strict covers `packages/*/src` for `tl_core`, `tl_schema`, `tl_adapters`; tests are checked in standard mode | Tests stay cheap to write; engines stay strict |
 | D7 | Modules that import `linkml` start with `# pyright: basic` | linkml has no type stubs |
 | D8 | `SqliteLedger` exposes `append_in(conn, ...)`; `make_engine` begins write transactions with `BEGIN IMMEDIATE` | The unit of work needs ledger append and projectors in one transaction |
+| D9 | `[tool.ruff] include = ["*.py", "*.pyi", "**/pyproject.toml"]` | ruff 0.16 formats Markdown too and flagged three docs files; ruff governs Python only (orchestrator decision after the T01 implementer stopped, correctly) |
 
 ## Order of work (relay rounds)
 | Round | Ticket batch | Supervisor work in the same turn |

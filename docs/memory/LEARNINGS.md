@@ -116,3 +116,9 @@ test or a generated artefact already enforces, or narrative history (that belong
   `E501` applies to docstrings and comments at 100 columns, so wrap prose when writing modules. Provided test files
   must be ruff-clean before commit because implementers may not edit them.
   Evidence: scratch builds of T04b and T07. Status: active
+
+- **L-P0-I1-7** · 2026-10-09 · tags: tooling
+  ruff 0.16 formats Markdown as well as Python, so `ruff format --check .` flags files under `docs/`. The root
+  `[tool.ruff]` therefore sets `include = ["*.py", "*.pyi", "**/pyproject.toml"]`. A scratch build without `docs/`
+  missed this; verify scaffold tickets in a checkout that contains the whole repo.
+  Evidence: T01 implementer report `docs/reports/P0-I1/P0-I1-T01.md`. Status: active
