@@ -47,9 +47,9 @@ tl projections rebuild                       # rebuilt from the ledger; show out
 | T06 | SQLite ledger adapter | H | T05 | merged | Review pass round 3 |
 | T07 | Projector engine + SQLite UnitOfWork | S | T05, T06 | merged | Review finding fixes applied (bus ordering, test helper table); awaiting orchestrator review of part 2 |
 | T08 | `core.Record` projector | H | T04b, T07 (projection types) | merged | Review pass round 3 |
-| T09 | Record command handlers | H | T07, T08 | ready | |
-| T10 | `tl` CLI | H | T09, T11 | planned | |
-| T11 | Query helpers | H | T08 | ready | |
+| T09 | Record command handlers | H | T07, T08 | merged | Review pass round 4 |
+| T10 | `tl` CLI | H | T09, T11 | draft (ready when T11 merges) | |
+| T11 | Query helpers | H | T08 | in-review | Implementer stopped on a Protocol typing defect; fixed by D14; re-review only |
 | T12 | Package READMEs and AGENTS.md | H | T10 (interfaces known) | planned | |
 
 Haiku-ability notes (`01-tiers.md` §6): T01 exceeds the 5-file guideline (about 25 near-identical boilerplate files, every
