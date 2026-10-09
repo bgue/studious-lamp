@@ -44,14 +44,14 @@ tl wf transition --project P123 P123-REC-0001 approve        # allowed; Workflow
 | T02 | Link commands: suggest, add, accept, decline, repin, verify, flag, retract, stale-by-revision (`services/links.py`) | H | T01, T03 | ready (batch 2) | |
 | T02b | `tl link` CLI (add, suggest, accept, decline, repin, verify, flag, retract, list) | H | T02, T03b | draft (batch 4) | |
 | T03 | `LinkProjector`: `cur_links`, `cur_link_counts` | H | S2 | merged | pass, 1 round |
-| T03b | Link read queries: `links_of` (both directions, labels), counts, `search_linkable` | H | T01, T03 | draft (batch 2) | |
+| T03b | Link read queries: `links_of` (both directions, labels), counts, `search_linkable` | H | T01, T03 | ready (batch 2) | |
 | T04 | Expected links: `tl:expects_link` loader and missing list | H | S1 | merged | pass, 1 round; supervisor fixed self-link count and empty file (D19) |
 | T05 | Numbering pattern parser | S | — | built | |
 | T06 | Numbering allocator | S | T05 | built | |
-| T07 | Key detection: find keys in text, resolve to records (suggestion chips) | H | T05 | draft (batch 2) | |
+| T07 | Key detection: find keys in text, resolve to records (suggestion chips) | H | T05 | ready (batch 2) | |
 | T08 | Workflow definition loader and registry | H | S2 | merged | pass, 1 round |
 | T09 | Workflow engine | S | T04, T08 | built (23 tests, mutation-checked) | |
-| T10 | `tl wf show|transition` CLI | H | T09 | draft (batch 4) | |
+| T10 | `tl wf show|transition` CLI | H | T09 | ready (batch 2) | |
 | T11 | Command palette widget | H | ClientInterface | held for batch 3 | |
 | T12 | Link picker modal | H | T02, ClientInterface | held for batch 3 | |
 | T13 | Links tab, reference tray, back/forward history | H | T03b, T12 | held | |
@@ -94,9 +94,9 @@ reference implementation before dispatch (kept in the supervisor's scratch area 
 | Round | Ticket batch | Supervisor work in the same turn |
 |---|---|---|
 | 1 | T01, T03, T04, T08 | Plan; schema; lifecycle; T05, T06; stubs, provided tests, fixtures; trunk merge |
-| 2 | T02, T03b, T07, T14a | Merge batch 1; T09 engine and `WorkflowProjector`; `ClientInterface` additions, fake and embedded client |
-| 3 | T11, T12, T13, T14 (TUI) | Merge batch 2; key-map entries |
-| 4 | T02b, T10, T15 | Merge batch 3; T00 atomic edit |
+| 2 | T02, T03b, T07, T10 | Merge batch 1; T09 engine and `WorkflowProjector`; `ClientInterface` additions, fake and embedded client; review fixes |
+| 3 | T11, T12, T13, T14a (TUI first batch; trace query) | Merge batch 2; TUI tickets; key-map entries |
+| 4 | T02b, T14, T15 | Merge batch 3; T00 atomic edit |
 | 5 | T16 | Merge batch 4; demo, docs, report |
 
 ## Risks and escalation triggers
