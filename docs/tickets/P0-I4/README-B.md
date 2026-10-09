@@ -43,6 +43,7 @@ tl file reconcile                                                              #
 | D10 | Completing the same upload (same record, slot, bytes) twice returns the existing file with `already_attached` | Safe retries; resumable clients |
 | D12 | `object_secret()` fails closed: `TL_OBJECT_SECRET`, else the public dev secret only when `TL_ENV=dev`, else `ValueError`. `just` exports `TL_ENV=dev`; the root `conftest.py` sets it for tests | A deployment that forgets the secret must not sign upload ids and presigned URLs with a value that is public in the repository (finding 3) |
 | D13 | Upload-id verification compares bytes (`hmac.compare_digest` on encoded values) and maps any malformed token, including non-ASCII, to `UploadTokenError` | `compare_digest` raises `TypeError` on a non-ASCII `str`; a client controls that text (finding 2) |
+| D14 | A presigned PUT can never target a content key: `presign_put` (fs, s3) and fs `put_via_url` refuse `sha256/` keys; only `put`, which verifies, writes them | Defence in depth for §5.2 (orchestrator ruling on T20 review) |
 | D11 | The object-store write happens before the unit of work commits. A rollback leaves an unreferenced object | Harmless (content-addressed); the reconciliation job lists orphans (runbook) |
 
 ## Upload-service signatures (for WS-C: REST and MCP; frozen for Phase 0 except by escalation)
@@ -108,13 +109,13 @@ filename, status: "quarantined", deduplicated}`; `File.Processed {file_id, statu
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| T20 | `FsObjectStore` (atomic verified writes, presigned file URLs) | H | S3 | ready (batch 1) | |
-| T21 | `S3ObjectStore` (boto3, moto) | H | S3 | ready (batch 1) | |
-| T22 | `tl:file_slots` parse and load (`files/slots.py`) | H | S1 | ready (batch 1) | |
-| T23 | Required file slots: missing list (`files/required.py`) | H | S2 | ready (batch 1) | |
-| T24 | `tl file put|get|ls` CLI | H | T20, T22, S2 | draft (batch 2) | |
-| T25 | Reconciliation: referenced hashes versus the store (`files/reconcile.py`) and `tl file reconcile` | H | T20 | draft (batch 2) | |
-| T26 | Docs: package READMEs and AGENTS.md for the object store and files | H | T24, T25 | draft (batch 2/3) | |
+| T20 | `FsObjectStore` (atomic verified writes, presigned file URLs) | H | S3 | merged | pass, 1 round; supervisor added the content-key guard on `put_via_url`/`presign_put` (review ruling) |
+| T21 | `S3ObjectStore` (boto3, moto) | H | S3 | merged | pass, 1 round; same guard on `presign_put` |
+| T22 | `tl:file_slots` parse and load (`files/slots.py`) | H | S1 | merged | pass, 1 round |
+| T23 | Required file slots: missing list (`files/required.py`) | H | S2 | merged | pass, 1 round |
+| T24 | `tl file put|get|ls` CLI | H | T20, T22, S2 | ready (batch 2) | |
+| T25 | Reconciliation: referenced hashes versus the store (`files/reconcile.py`) and `tl file reconcile` | H | T20 | ready (batch 2) | |
+| T26 | Docs: package READMEs and AGENTS.md for the object store and files | — | T24, T25 | abandoned as a ticket: the supervisor wrote the READMEs, AGENTS.md and the runbook, because the text is mostly security-relevant operating rules and needs the final behaviour | |
 
 ## Order of work
 1. Round 1: S1–S4 built; dispatch T20–T23 (disjoint paths).

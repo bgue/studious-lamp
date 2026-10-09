@@ -14,7 +14,8 @@ NotImplementedError`` is the ticket. Remove this paragraph when done.
 
 from __future__ import annotations
 
-from typing import Literal
+from collections.abc import Iterator
+from typing import Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -23,6 +24,13 @@ from tl_core.files.types import ObjectStore
 from tl_core.uow import UnitOfWork
 
 _ROWS_SQL = text("SELECT sha256, size, file_id FROM cur_files ORDER BY sha256, file_id")
+
+
+@runtime_checkable
+class _Listing(Protocol):
+    """A store that can list its keys (the fs and s3 backends; not part of ``ObjectStore``)."""
+
+    def iter_keys(self) -> Iterator[str]: ...
 
 
 class ObjectProblem(BaseModel):
@@ -63,7 +71,7 @@ def reconcile_objects(
     byte count gives ``"<n> bytes, expected <size>"``. The stream is always closed. Without
     ``verify`` nothing is read.
 
-    If ``getattr(store, "iter_keys", None)`` is callable the store is listed: keys starting with
+    If ``isinstance(store, _Listing)`` the store is listed: keys starting with
     ``sha256/`` that are not the key of a referenced hash are ``orphans``; keys starting with
     ``staging/`` are ``staging``; other keys are ignored. Otherwise ``listed`` is false and both
     lists are empty.
