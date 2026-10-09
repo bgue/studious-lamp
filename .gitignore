@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.venv/
+.uv-cache/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+*.egg-info/
+dist/
+build/
+.env
+*.db
+*.db-wal
+*.db-shm
+dev/data/
+.worktrees/
