@@ -1,4 +1,4 @@
-"""Read queries over the feed projection (brief 21.3): lists, suggestions and completion.
+"""Read queries over the feed projection (brief 21.3): the feed lists and the result types.
 
 Plain dataclasses only: clients (CLI, TUI, API) never write SQL. Every function reads in the
 caller's transaction (usually a read-only unit of work).
@@ -6,12 +6,13 @@ caller's transaction (usually a read-only unit of work).
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
 from tl_core.feed.types import FeedItem, TagKind
 from tl_core.uow import UnitOfWork
+
+CARD_SUBJECTS_SHOWN = 20  # record ids a card item lists, in the order the events touched them
 
 
 @dataclass(frozen=True)
@@ -67,32 +68,31 @@ def list_feed(
 ) -> FeedPage:
     """Feed items of ``scope``, newest first (``occurred_at`` then ``seq``, both descending).
 
-    STUB: replace this paragraph and the body (P0-I6-T02). See the ticket for the filters.
+    Filters (all optional, combined with AND):
+
+    * ``item_type``: only posts or only cards.
+    * ``record_id``: items about that record (a post that tags it, a card whose events touched it).
+      With ``include_linked``, also items about records one link away: links in status active,
+      stale or broken, either direction, to a record (suggested and retracted links do not count).
+    * ``tag``: a hashtag (``hold``, ``#hold``, ``area:A12``; case-insensitive; matches signal, code
+      and topic tags, never mentions) or, with a leading ``@``, a mention (``@party:fab-a``).
+    * ``before_seq``: only items with a smaller ``seq`` (the previous page's ``next_before``).
+
+    Retracted posts are listed as tombstones (``retracted`` true, summary ``[retracted]``), except
+    in a ``tag`` feed (their non-record tags are gone). ``labels`` maps each record id of the items
+    to its key, else its title. ``suggestions`` stays empty (see ``feed_suggestions``).
+    ``next_before`` is the last item's ``seq`` when more items follow, else None.
+
+    STUB: replace this paragraph and the body (P0-I6-T02).
     """
     raise NotImplementedError
 
 
 def get_post(uow: UnitOfWork, scope: str, post_id: str) -> FeedItem:
-    """One post as a ``FeedItem`` (with its tags and reactions).
+    """One post as a ``FeedItem`` (with its tags and reaction counts).
 
-    STUB: replace this paragraph and the body (P0-I6-T02). Raises ``PostNotFoundError``.
-    """
-    raise NotImplementedError
+    Raises ``PostNotFoundError`` when no post has this id in ``scope``.
 
-
-def feed_suggestions(uow: UnitOfWork, items: Sequence[FeedItem]) -> dict[str, list[FeedSuggestion]]:
-    """Suggestions for the posts among ``items`` (see ``FeedSuggestion``).
-
-    STUB: replace this paragraph and the body (P0-I6-T03).
-    """
-    raise NotImplementedError
-
-
-def complete_tags(
-    uow: UnitOfWork, scope: str, sigil: Literal["#", "@"], prefix: str, *, limit: int = 8
-) -> list[Completion]:
-    """Candidates for the composer after ``sigil`` and the typed ``prefix`` (case-insensitive).
-
-    STUB: replace this paragraph and the body (P0-I6-T03).
+    STUB: replace this paragraph and the body (P0-I6-T02).
     """
     raise NotImplementedError

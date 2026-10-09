@@ -17,7 +17,15 @@ from tl_core.links.expected import MissingLink, missing_expected_links
 from tl_core.links.provider import get_vocabulary
 from tl_core.links.vocabulary import default_relation
 from tl_core.numbering.detect import KeyChip, suggest_chips
-from tl_core.services import feed_queries, link_queries, link_trace, links, psets, queries
+from tl_core.services import (
+    feed_completion,
+    feed_queries,
+    link_queries,
+    link_trace,
+    links,
+    psets,
+    queries,
+)
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
 from tl_core.services.feed import EditPost, PostToFeed, handle_edit_post, handle_post
@@ -258,7 +266,7 @@ class EmbeddedClient:
                 limit=limit,
                 before_seq=before_seq,
             )
-            suggestions = feed_queries.feed_suggestions(uow, page.items)
+            suggestions = feed_completion.feed_suggestions(uow, page.items)
             return dataclasses.replace(page, suggestions=suggestions)
 
     def feed_post(self, cmd: PostToFeed) -> CommandResult:
@@ -281,4 +289,4 @@ class EmbeddedClient:
         self, scope: str, sigil: Literal["#", "@"], prefix: str, *, limit: int = 8
     ) -> list[Completion]:
         with self._uow(True) as uow:
-            return feed_queries.complete_tags(uow, scope, sigil, prefix, limit=limit)
+            return feed_completion.complete_tags(uow, scope, sigil, prefix, limit=limit)

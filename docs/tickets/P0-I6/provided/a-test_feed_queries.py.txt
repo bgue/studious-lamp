@@ -1,0 +1,209 @@
+"""Feed list queries against a real SQLite ledger (P0-I6-T02). Provided; do not edit."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import pytest
+from tl_adapters.sqlite.uow import create_schema, open_uow
+from tl_core.services.commands import CreateRecord
+from tl_core.services.errors import PostNotFoundError
+from tl_core.services.feed import PostToFeed, handle_post
+from tl_core.services.feed_actions import (
+    ReactToPost,
+    RetractPost,
+    handle_react_to_post,
+    handle_retract_post,
+)
+from tl_core.services.feed_queries import get_post, list_feed
+from tl_core.services.links import AddLink, handle_add_link
+from tl_core.services.records import handle_create_record
+
+P1 = "project:P123"
+P2 = "project:P999"
+K1, K2, K3 = "P123-REC-0001", "P123-REC-0002", "P123-REC-0003"
+
+
+@pytest.fixture
+def db(tmp_path: Path) -> Path:
+    path = tmp_path / "tl.db"
+    create_schema(path)
+    return path
+
+
+def record(db: Path, key: str, scope: str = P1, actor: str = "user:jo") -> str:
+    cmd = CreateRecord(
+        actor=actor, source="t", scope=scope, record_type="core.Record", title=f"T {key}", key=key
+    )
+    with open_uow(db) as uow:
+        return handle_create_record(uow, cmd).stream_id
+
+
+def post(db: Path, body: str, actor: str = "user:mlee", scope: str = P1, **kw: Any) -> str:
+    with open_uow(db) as uow:
+        cmd = PostToFeed(actor=actor, source="t", scope=scope, body=body, **kw)
+        return handle_post(uow, cmd).stream_id
+
+
+def feed(db: Path, scope: str = P1, **kw: Any) -> Any:
+    with open_uow(db, readonly=True) as uow:
+        return list_feed(uow, scope, **kw)
+
+
+def ids(page: Any) -> list[str]:
+    return [item.id for item in page.items]
+
+
+def test_the_project_feed_lists_posts_and_cards_newest_first(db: Path) -> None:
+    record(db, K1)
+    first = post(db, "first")
+    second = post(db, "second")
+    page = feed(db)
+    assert [i.item_type for i in page.items] == ["post", "post", "card"]
+    assert ids(page)[:2] == [second, first]
+    assert page.items[0].seq > page.items[1].seq > page.items[2].seq
+    assert page.next_before is None and page.suggestions == {}
+
+
+def test_item_type_filter(db: Path) -> None:
+    record(db, K1)
+    pid = post(db, "hello")
+    assert ids(feed(db, item_type="post")) == [pid]
+    cards = feed(db, item_type="card")
+    assert [i.item_type for i in cards.items] == ["card"]
+
+
+def test_other_scopes_are_not_listed(db: Path) -> None:
+    post(db, "mine")
+    post(db, "theirs", scope=P2)
+    assert [i.summary for i in feed(db).items] == ["mine"]
+    assert [i.summary for i in feed(db, P2).items] == ["theirs"]
+
+
+def test_a_post_item_carries_tags_reactions_and_record_ids(db: Path) -> None:
+    rec = record(db, K1)
+    pid = post(db, f"Spool #{K1} #hold @party:fab-a", importance="low")
+    with open_uow(db) as uow:
+        for actor in ("user:a", "user:b"):
+            cmd = ReactToPost(actor=actor, source="t", scope=P1, post_id=pid, reaction="ack")
+            handle_react_to_post(uow, cmd)
+    item = feed(db, item_type="post").items[0]
+    assert (item.id, item.item_type, item.scope, item.actor) == (pid, "post", P1, "user:mlee")
+    assert item.summary == f"Spool #{K1} #hold @party:fab-a"
+    assert item.importance == "high" and item.event_count == 1 and not item.retracted
+    assert item.record_ids == (rec,)
+    assert [(t.kind, t.text, t.start) for t in item.tags] == [
+        ("record", K1, 6),
+        ("signal", "hold", 21),
+        ("mention", "party:fab-a", 27),
+    ]
+    assert item.tags[0].record_id == rec and item.tags[2].namespace == "party"
+    assert item.reactions == {"ack": 2}
+
+
+def test_a_card_item_carries_its_count_and_subjects(db: Path) -> None:
+    r1, r2 = record(db, K1), record(db, K2)
+    (card,) = feed(db, item_type="card").items
+    assert card.id.startswith("card:")
+    assert (card.actor, card.importance, card.event_count) == ("user:jo", "low", 2)
+    assert card.summary == "jo created 2 records"
+    assert card.record_ids == (r1, r2) and card.tags == ()
+
+
+def test_a_retracted_post_is_a_tombstone(db: Path) -> None:
+    rec = record(db, K1)
+    pid = post(db, f"oops #{K1} #hold")
+    with open_uow(db) as uow:
+        handle_retract_post(
+            uow, RetractPost(actor="user:mlee", source="t", scope=P1, post_id=pid, reason="x")
+        )
+    item = feed(db, item_type="post").items[0]
+    assert item.retracted and item.summary == "[retracted]"
+    assert item.record_ids == (rec,) and [t.kind for t in item.tags] == ["record"]
+    assert ids(feed(db, tag="hold")) == []
+    assert ids(feed(db, record_id=rec, item_type="post")) == [pid]
+
+
+def test_the_record_feed_has_posts_and_cards_about_the_record(db: Path) -> None:
+    r1 = record(db, K1)
+    r2 = record(db, K2, actor="user:al")
+    about_1 = post(db, f"on #{K1}")
+    post(db, f"on #{K2}")
+    post(db, "on nothing")
+    page = feed(db, record_id=r1)
+    assert about_1 in ids(page)
+    assert all(r1 in i.record_ids for i in page.items)
+    assert [i.item_type for i in page.items].count("card") == 1
+    assert r2 not in {rid for i in page.items for rid in i.record_ids}
+
+
+def test_the_one_hop_toggle_adds_items_of_linked_records(db: Path) -> None:
+    r1, r2, r3 = record(db, K1), record(db, K2), record(db, K3)
+    with open_uow(db) as uow:
+        link = AddLink(actor="user:jo", source="t", scope=P1, from_id=r1, to_id=r2)
+        handle_add_link(uow, link)
+    on_2 = post(db, f"on #{K2}")
+    on_3 = post(db, f"on #{K3}")
+    plain = feed(db, record_id=r1, item_type="post")
+    hop = feed(db, record_id=r1, include_linked=True, item_type="post")
+    assert ids(plain) == []
+    assert ids(hop) == [on_2]
+    assert on_3 not in ids(feed(db, record_id=r1, include_linked=True))
+    assert r3
+
+
+def test_a_suggested_link_does_not_count_as_one_hop(db: Path) -> None:
+    r1 = record(db, K1)
+    record(db, K2)
+    post(db, f"on #{K1}")  # makes a suggested link post -> r1; the post is not a record
+    on_2 = post(db, f"on #{K2}")
+    assert on_2 not in ids(feed(db, record_id=r1, include_linked=True))
+
+
+def test_hashtag_feeds(db: Path) -> None:
+    record(db, K1)
+    held = post(db, f"stop #hold #{K1}")
+    topic = post(db, "bevels #Bevel-Damage and #area:A12")
+    mention = post(db, "ping @party:fab-a")
+    assert ids(feed(db, tag="hold")) == [held]
+    assert ids(feed(db, tag="#HOLD")) == [held]
+    assert ids(feed(db, tag="bevel-damage")) == [topic]
+    assert ids(feed(db, tag="area:a12")) == [topic]
+    assert ids(feed(db, tag="@party:fab-a")) == [mention]
+    assert ids(feed(db, tag="party:fab-a")) == []
+    assert ids(feed(db, tag=K1.lower())) == []  # a record tag is found through its record
+    assert ids(feed(db, tag="nothing")) == []
+
+
+def test_pages_follow_before_seq(db: Path) -> None:
+    made = [post(db, f"post {n}") for n in range(5)]
+    first = feed(db, limit=2)
+    assert ids(first) == [made[4], made[3]] and first.next_before == first.items[-1].seq
+    second = feed(db, limit=2, before_seq=first.next_before)
+    assert ids(second) == [made[2], made[1]]
+    last = feed(db, limit=2, before_seq=second.next_before)
+    assert ids(last) == [made[0]] and last.next_before is None
+    assert feed(db, limit=5).next_before is None
+
+
+def test_labels_map_record_ids_to_keys(db: Path) -> None:
+    r1 = record(db, K1)
+    page = feed(db)
+    assert page.labels == {r1: K1}
+    post(db, "no records")
+    assert feed(db, item_type="post").labels == {}
+
+
+def test_get_post(db: Path) -> None:
+    pid = post(db, "hello #bevel")
+    with open_uow(db, readonly=True) as uow:
+        item = get_post(uow, P1, pid)
+        assert (item.id, item.summary, item.importance) == (pid, "hello #bevel", "normal")
+        assert [t.kind for t in item.tags] == ["topic"]
+        with pytest.raises(PostNotFoundError):
+            get_post(uow, P1, "nope")
+        with pytest.raises(PostNotFoundError):
+            get_post(uow, P2, pid)
+        card = feed(db, item_type="card")
+        assert card.items == []
