@@ -8,8 +8,9 @@ link's life but keeps its row and history. Which event may happen in which statu
 A link is its own ledger stream (``core.Link``, stream id = ``link_id``) in the scope of its
 ``from`` record. The ``to`` record must be in the same scope or in ``company`` (brief 3).
 
-STUB (P0-I3-T02): the models, SQL constants and signatures are final; the nine handler bodies marked
-``raise NotImplementedError`` are the ticket, plus any private helpers you add. Remove this paragraph when done.
+STUB (P0-I3-T02): the models, SQL constants and signatures are final; the nine handler bodies
+marked ``raise NotImplementedError`` are the ticket, plus any private helpers you add. Remove this
+paragraph when done.
 """
 
 from __future__ import annotations
