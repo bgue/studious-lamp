@@ -1,6 +1,6 @@
 # Increment plan — P0-I2 workstream A: Schema packages, effective schema, psets, conformance
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-09
 Brief sections: §6.3, §6.4, §27.1–§27.5, §5.4, §5.1 (event model)
 Branch: `p0/i2a` (integration branch `p0/i2`; trunk `claude/wizardly-allen-m2v96s`). Fanout: `docs/tickets/P0-I2/FANOUT.md`.
@@ -30,7 +30,7 @@ tl pset get --project P123 V-0001            # psets, effective_schema_hash, con
 |---|---|---|---|---|
 | T02 | Package models (`packages.py`), pset compilation and the "projects cannot" rules (`compile.py`), LinkML rendering (`linkml_render.py`), fixtures | Effective-schema compiler and package merge (`01-tiers.md` §3); `schema/**` | Orchestrator | built (55 compile tests) |
 | T03 | Effective schema model and hash (`effective.py`), composition and adoption filter, conformance settings, cache by hash (`compose.py`) | Effective-schema compiler | Orchestrator | built |
-| T05 | Conformance evaluator (`conformance.py`) | Conformance rules are Sonnet-authored by rule (`01-tiers.md` §3); the plan's "H (rules pasted)" fails Haiku-ability item 5 | Orchestrator | built on `p0/i2a-t05-conformance` (22 tests); merges after T04, which provides the validator it calls |
+| T05 | Conformance evaluator (`conformance.py`) | Conformance rules are supervisor-authored by rule (`01-tiers.md` §3); the plan's "H (rules pasted)" fails Haiku-ability checklist item 5 (build spec 01 section 6) | Orchestrator | built on `p0/i2a-t05-conformance` (22 tests); merges after T04, which provides the validator it calls |
 | T07 | `PsetProjector` (`cur_pset_values`, `psets_json` merge, promoted columns), `tl:table` generator extension, `schema/core/psets.yaml` | Projector transaction rules, DDL generator (§5.4) | Orchestrator | built (27e2e54; 18 tests) |
 | — | Schema provider (`schema_provider.py`), `form_metadata` and `conformance` services (`psets.py`), error types | Glue over T01, T04b and T05 | Orchestrator | built (d4feec7) |
 
@@ -47,12 +47,12 @@ tl pset get --project P123 V-0001            # psets, effective_schema_hash, con
 | T07 | `PsetProjector`, `cur_pset_values`, promoted columns | S | T03 | built | |
 | T08 | `tl schema hash|lint|validate` | H | T01, T08a | merged | pass, 1 round; the supervisor added `tl schema reload` |
 | T08a | Lint rules (added; split from T08) | H | T03 | merged | pass, 1 round; context gap: the ticket did not list `schema/fixtures` |
-| T08b | `tl pset set|get` (added; split from T08) | H | T06, T08 | ready | round 3 |
+| T08b | `tl pset set|get` (added; split from T08) | H | T06, T08 | merged | pass, 1 round; the supervisor wrapped `get` in the error handler and added `PackageError`/`SchemaCompileError` handling |
 | T09 | Fixture-driven matrix: every row of the §6.3 "projects can / cannot" table | H (taken by the supervisor) | T06 | done (`tests/schema/test_projects_can_cannot.py`, 29 tests) | Tests-only ticket written directly to save a relay round; mutation check: disabling waivers fails the waiver test |
 | T10 | `Schema.EffectiveChanged` event and hot-reload hook | H | T03, T07 | merged | pass, 1 round |
 
 Haiku-ability (`01-tiers.md` §6): T01, T04, T04b, T08a ship a provided test file plus a precise specification, touch two files each, and
-avoid every row of the Sonnet-authored table (the conformance rules, which T04 only feeds, are T05). T06 writes layer-aware
+avoid every row of the supervisor-authored table (the conformance rules, which T04 only feeds, are T05). T06 writes layer-aware
 validation for one command against a pasted rule table; it passes item 5 because the permission-like rules are schema semantics
 (locked, custom section, read-only layers), not auth. T08 and T08b are CLI wrappers; the rules they call exist. Anything that fails a
 check is split (T08 became T08, T08a, T08b; T04b was added because form metadata did not fit the plan's T04) or built by the supervisor.
@@ -70,7 +70,7 @@ check is split (T08 became T08, T08a, T08b; T04b was added because form metadata
 | A8 | Conformance mode, lenient end date and waivers are declared in a project package (`conformance:`), not ledgered records | Ledgered waivers need the registry and approvals (later increments); the evaluator reads the same data either way |
 | A9 | Promoted columns are named `pset__<pset>__<property>` and added to `cur_core_record` by generated `ALTER TABLE` DDL; names may not contain `__`. Existing rows are backfilled from `psets_json` | `cur_core_record` is generated from core LinkML; promotion is runtime (§5.4, §27.7) |
 | A10 | `cur_pset_values` comes from a LinkML class in `schema/core/psets.yaml` with `tl:table: cur_pset_values`; the generator learns `tl:table` | The brief names the table `cur_pset_values`; the generator derives `cur_core_pset_value` otherwise |
-| A11 | T05 is supervisor-built; T04b, T08a, T08b are additions | See Haiku-ability notes |
+| A11 | T05 is supervisor-built; T04b, T08a, T08b are additions | See the ability notes above |
 | A13 | Hash content: the resolved psets (properties, constraints, code-list values with labels, crosswalks and `meaning` IRIs, enforcement, adoption, custom-section limits), packages and versions, conformance settings and waivers, and the core digest. Not hashed: code-list descriptions, unused code lists, package titles and descriptions | Meaning is append-only (§27.1): editing a value's meaning must change the hash; text that no runtime reader sees must not |
 | A14 | Ruling (orchestrator): pset engagement (A4) stays for Phase 0. Class-filter evaluation needs a record class, which arrives with Tag/TagClass in P1-I1 (T08 class binding); follow-up there. Known Phase 0 gap: a valve with `psets={}` reports `ok` | Recorded in the report |
 | A15 | Ruling (orchestrator): lenient mode downgrades required-ness only. A missing value for a `required` or `locked` property becomes a warning; type, range, pattern, value-list and locked-extension violations stay at their enforcement level in every mode, and waivers are the tool for them | They are data or governance errors, not enforcement levels |
@@ -80,6 +80,7 @@ check is split (T08 became T08, T08a, T08b; T04b was added because form metadata
 | A19 | Schema provider: change detection hashes file bytes (a same-size edit in one mtime tick is noticed; touch alone is not a change). `reload()` compares against what the previous `reload()` reported, so an edit that `effective()` noticed first is still reported, and it is all-or-nothing. A project scope with no project packages uses the company effective schema composed for that scope (orchestrator ruling; the scope is in the hash). A malformed scope raises `InvalidScopeError`, a `ServiceError`. `effective_by_hash` exists on the directory provider | Review of d4feec7/00291bd |
 | A20 | Ruling (orchestrator): `None` in `SetPsetValues.values` unsets the property. The handler accepts `None` for any writable key (layer and unknown-key rules still apply, no type check); the event carries the key with null as the ledgered clear; the projector removes the key (and any section left empty) from `psets_json` and deletes the `cur_pset_values` row; no null rows are kept; a `None` for a property with no value is a no-op, and if every key is a no-op `NoChangesError` applies. `tl pset set NAME=null` unsets | The TUI sends a cleared field as `None` (§5.2: corrections are events) |
 | A21 | `tl schema lint` counts errors and warnings by exact severity string (`error` and `warning`); the summary line always uses the plural words | T08 implementation; confirmed |
+| A22 | Ruling (orchestrator): §6.3 `locked` restricts the schema (projects cannot extend or tighten it), not data edits. Clearing a value in a locked pset or a locked property is allowed; conformance then reports `required_in_state` where the property is required in the record's state. Because a pset is engaged only while it holds a value (A4), clearing the last value of an optional pset reports `ok`. Open product question: should locked values be non-clearable? That would be a new handler rule | Review of the null-unsets change |
 | A12 | JSON Schema is generated from `EffectiveSchema` directly, not by the LinkML generator | The LinkML generator cannot express the policy annotations and would lose layer information; the LinkML view stays for lint and export |
 
 ## Order of work (relay rounds)

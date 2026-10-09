@@ -165,7 +165,7 @@ test or a generated artefact already enforces, or narrative history (that belong
 
 - **L-P0-I2-3** · 2026-10-09 · tags: process, tests
   A supervisor-written stub (names, signatures, docstrings) plus a provided test file under `docs/tickets/<inc>/provided/`
-  plus a spec verified against a scratch reference implementation gave first-attempt passes for 6 of 7 Haiku tickets (the seventh, T04b, was flagged only for committing its report file). Keep
+  plus a spec verified against a scratch reference implementation gave first-attempt passes for 6 of 7 implementer tickets (the seventh, T04b, was flagged only for committing its report file). Keep
   the reference implementation until the ticket merges; it is the takeover path. State in the ticket that the stub's
   `STUB:` docstring paragraph must be removed (T01 left it).
   Evidence: P0-I2 reports T01, T04, T04b, T06, T08, T08a, T10. Status: active

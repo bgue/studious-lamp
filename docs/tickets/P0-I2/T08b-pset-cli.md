@@ -1,6 +1,6 @@
 # P0-I2-T08b — `tl pset set|get`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: cli
 Depends on: P0-I2-T06, P0-I2-T08 (merged into the base of this branch)

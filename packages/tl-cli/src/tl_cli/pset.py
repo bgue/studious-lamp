@@ -19,6 +19,8 @@ from tl_core.ledger import ConcurrencyError, canonical_json
 from tl_core.services.errors import ServiceError
 from tl_core.services.psets import SetPsetValues, conformance, handle_set_pset_values
 from tl_core.services.queries import get_record
+from tl_schema.compile import SchemaCompileError
+from tl_schema.registry import PackageError
 
 app = typer.Typer(help="Set and read pset values.", no_args_is_help=True)
 
@@ -36,7 +38,7 @@ def _service_errors() -> Iterator[None]:
     """Turn a service, concurrency or input-validation failure into `error:` on stderr, exit 1."""
     try:
         yield
-    except (ServiceError, ConcurrencyError) as exc:
+    except (ServiceError, ConcurrencyError, PackageError, SchemaCompileError) as exc:
         _fail(str(exc))
     except ValidationError as exc:
         _fail("; ".join(f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors()))
@@ -112,7 +114,7 @@ def get_values(
     """Show a record's pset values, stored schema hash and live conformance."""
     db: Path = ctx.obj
     scope = f"project:{project}"
-    with open_uow(db, readonly=True) as uow:
+    with _service_errors(), open_uow(db, readonly=True) as uow:
         row = get_record(uow, scope, key)
         if row is None:
             _fail(f"no record with key {key!r} in project {project!r}")

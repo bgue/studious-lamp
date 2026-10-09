@@ -436,3 +436,22 @@ def test_replay_with_a_clear_gives_identical_rows(engine: Engine) -> None:
     apply(engine, *events)
     assert (rows(engine), record(engine)) == first
     assert json.loads(first[1]["psets_json"]) == {}
+
+
+def test_set_unset_set_replays_identically(engine: Engine) -> None:
+    ev = Events()
+    events = [
+        ev.created(),
+        ev.values_set("valve_data", {"size_in": 4}, units={"size_in": "[in_i]"}),
+        ev.values_set("valve_data", {"size_in": None}),
+        ev.values_set("valve_data", {"size_in": 6}),
+    ]
+    apply(engine, *events)
+    first = (rows(engine), record(engine))
+    assert json.loads(first[1]["psets_json"]) == {"valve_data": {"size_in": 6}}
+    assert first[0]["psets.valve_data.size_in"]["unit"] is None  # the clear dropped the old unit
+    with engine.begin() as conn:
+        for projector in default_registry().all():
+            projector.reset(conn)
+    apply(engine, *events)
+    assert (rows(engine), record(engine)) == first
