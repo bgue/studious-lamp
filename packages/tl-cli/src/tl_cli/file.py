@@ -3,14 +3,12 @@
 Each subcommand parses options, makes one call into `tl_core.files` and prints. No rules live here.
 Storage comes from the environment (`make_object_store`: TL_OBJECT_STORE, TL_OBJECT_ROOT,
 TL_OBJECT_SECRET or TL_ENV=dev); the ledger from `--db` / TL_DB like every other group.
-
-STUB (P0-I4-T24): the helpers, options and registration are final; the three command bodies
-(`put`, `get`, `ls`) marked `raise NotImplementedError` are the ticket. `reconcile` is T25's, in
-`file_reconcile.py`. Remove this paragraph when done.
 """
 
 from __future__ import annotations
 
+import hashlib
+import mimetypes
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -19,15 +17,19 @@ from typing import Annotated, NoReturn
 import typer
 from pydantic import ValidationError
 from tl_adapters.objectstore import make_object_store, object_secret
-from tl_core.files.service import FileService
+from tl_adapters.sqlite.uow import open_uow
+from tl_core.files.queries import list_files
+from tl_core.files.service import CompleteUpload, FileService, RegisterUpload
 from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import ServiceError
+from tl_core.services.queries import get_record
 
 from tl_cli import file_reconcile
 
 app = typer.Typer(help="Attach, fetch, list and reconcile files.", no_args_is_help=True)
 
 _DEFAULT_ACTOR = "user:dev"
+_CHUNK = 1024 * 1024
 
 
 def _fail(message: str) -> NoReturn:
@@ -75,7 +77,50 @@ def put(
     ),
 ) -> None:
     """Attach a file to a record: hash it, upload it (or dedupe) and print the result."""
-    raise NotImplementedError
+    db: Path = ctx.obj
+    scope = f"project:{project}"
+    media = content_type or mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(_CHUNK):
+            digest.update(chunk)
+    size = path.stat().st_size
+    service = _service()
+    with _service_errors(), open_uow(db) as uow:
+        found = get_record(uow, scope, record)
+        if found is None:
+            _fail(f"no record with key {record!r} in project {project!r}")
+        ticket = service.register_upload(
+            uow,
+            RegisterUpload(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                record_id=found["id"],
+                slot=slot,
+                filename=path.name,
+                content_type=media,
+                size=size,
+                sha256=digest.hexdigest(),
+            ),
+        )
+        complete = CompleteUpload(
+            actor=actor, source="cli", scope=scope, upload_id=ticket.upload_id
+        )
+        if ticket.exists:
+            result = service.complete_upload(uow, complete)
+        else:
+            with path.open("rb") as source_file:
+                result = service.complete_upload(uow, complete, source_file)
+    typer.echo(f"file {result.file_id}")
+    typer.echo(f"slot {result.slot or '-'}")
+    typer.echo(f"revision {result.revision}")
+    typer.echo(f"status {result.status}")
+    typer.echo(f"size {result.size}")
+    typer.echo(f"sha256 {result.sha256}")
+    typer.echo(f"deduplicated {'true' if result.deduplicated else 'false'}")
+    if result.already_attached:
+        typer.echo("already attached")
 
 
 @app.command("get")
@@ -90,7 +135,35 @@ def get(
     ),
 ) -> None:
     """Write a file's bytes to a path, checking them against the recorded SHA-256."""
-    raise NotImplementedError
+    db: Path = ctx.obj
+    scope = f"project:{project}"
+    if out.exists() and not force:
+        _fail(f"{out} already exists; use --force to overwrite it")
+    service = _service()
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        opened = service.open_file(uow, scope, file_id, actor=actor)
+    digest = hashlib.sha256()
+    count = 0
+    try:
+        with out.open("wb") as sink:
+            while chunk := opened.data.read(_CHUNK):
+                digest.update(chunk)
+                count += len(chunk)
+                sink.write(chunk)
+    except BaseException:
+        out.unlink(missing_ok=True)
+        raise
+    finally:
+        opened.data.close()
+    if digest.hexdigest() != opened.info.sha256 or count != opened.info.size:
+        out.unlink(missing_ok=True)
+        _fail(
+            f"the stored object for {file_id} does not match its recorded SHA-256; "
+            "see the object-store reconciliation runbook"
+        )
+    typer.echo(f"wrote {out}")
+    typer.echo(f"size {count}")
+    typer.echo(f"sha256 {digest.hexdigest()}")
 
 
 @app.command("ls")
@@ -105,4 +178,14 @@ def ls(
     ] = False,
 ) -> None:
     """List a record's files: the current file per slot, or every file with --all."""
-    raise NotImplementedError
+    db: Path = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        found = get_record(uow, scope, record)
+        if found is None:
+            _fail(f"no record with key {record!r} in project {project!r}")
+        files = list_files(uow, scope, found["id"], slot=slot, current_only=not all_files)
+    for info in files:
+        status = "superseded" if info.superseded_by else info.status
+        fields = (info.file_id, info.slot or "-", str(info.revision), status, str(info.size))
+        typer.echo("\t".join((*fields, info.filename)))
