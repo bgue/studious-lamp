@@ -9,3 +9,6 @@ Read the root `AGENTS.md` first. These rules add to it.
 - Publish order equals commit order. Never publish while holding a lock a subscriber could need; use `OrderedPublisher`.
 - Test-only helpers (`projection/testing.py`) are never registered by default.
 - pyright strict applies to `src/`. No ignores.
+- Pset events: `Pset.ValuesSet` payload is `pset, layer, values, effective_schema_hash, conformance, units`; the projector reads only the payload and the rows already in the database, never the schema provider. A `None` value in `values` is a ledgered clear.
+- Services get the effective schema from `tl_core.schema_provider.get_provider()`; tests install a provider with `use_provider`.
+- `psets.py` signatures (`SetPsetValues`, `handle_set_pset_values`, `form_metadata`, `conformance`) are a contract with the TUI; change them only through an orchestrator decision.

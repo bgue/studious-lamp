@@ -154,3 +154,79 @@ test or a generated artefact already enforces, or narrative history (that belong
   Allowed paths. One reviewer flagged it and forced a retry that deleted the report. The review prompt now says that
   path is always allowed. Supervisors may also add it to every ticket's Allowed paths.
   Evidence: P0-I2-T12 attempt 1 review. Status: active
+- **L-P0-I2-B1** · 2026-10-09 · tags: tests, tui
+  pytest runs in importlib mode, so a test cannot `import` a sibling helper file. `packages/tl-tui/tests/conftest.py`
+  puts its own directory on `sys.path`, which lets tests write `from fakes import FakeClient`; pyright resolves the
+  same import from the file's directory. Do not add `__init__.py` to test directories.
+  Evidence: `packages/tl-tui/tests/conftest.py`, `test_grid.py`. Status: active
+
+- **L-P0-I2-B2** · 2026-10-09 · tags: tests, tui
+  No async pytest plugin is installed, and none may be added without a ticket. Drive a Textual app with
+  `tests/helpers.run_pilot(app, scenario, size=(120, 40))` (a plain `asyncio.run` around `app.run_test`) and assert on
+  `screen_text(app)`. Snapshot tests use `snap_compare(app_instance, terminal_size=(120, 40))`; the plugin writes
+  `__snapshots__/<module>/<test>.raw` beside the test file and passes across separate processes.
+  Evidence: `packages/tl-tui/tests/helpers.py`; a spike snapshot test ran twice with identical output. Status: active
+
+- **L-P0-I2-B3** · 2026-10-09 · tags: tooling, tui
+  `App[None]` is not assignable to `App[object]` (the type parameter is invariant), so test helpers take `App[Any]`
+  and `Pilot[Any]`. `ScrollView` widgets draw only in `render_line(y)`, with `y` relative to the viewport; add
+  `scroll_offset.y` yourself and keep a sticky header on line 0 by adding one to `virtual_size.height`.
+  Evidence: pyright errors in the first `test_grid.py`; `widgets/grid.py`. Status: active
+
+- **L-P0-I2-B4** · 2026-10-09 · tags: tui, tooling
+  Do not name a widget or screen attribute after a Textual DOM property: `self.visible = [...]` on a `ModalScreen`
+  raised `TypeError: unhashable type: 'list'` at runtime because `visible` is a DOM property (`shown` works). Textual
+  `Static` also parses `[...]` as markup, so any text that can hold user data needs `markup=False` or `rich.text.Text`.
+  Evidence: T13b scratch build; `widgets/column_chooser.py`. Status: active
+
+- **L-P0-I2-B5** · 2026-10-09 · tags: tui, process
+  A grid must never load every page on the UI thread: the first `RecordGrid` did, and froze for 2.7 s at 20k rows
+  (about 15 s at 50k). Sort goes to the server (`order_by`), and "go to end" pages in a `run_worker(thread=True)`
+  worker that reports through `post_message` and applies results with `call_from_thread`, guarded by a generation
+  counter. A moving cursor must not trigger paging inside that apply step or the cap is overshot.
+  Evidence: supervisor-pieces review of 73bb88c; `test_grid.py::test_end_pages_in_a_worker_reports_progress_and_caps`. Status: active
+
+- **L-P0-I2-B6** · 2026-10-09 · tags: tui, tooling
+  In Textual 8.2.8 an `Input` built with a non-empty value raises `NoActiveAppError` outside a running app, so a widget
+  that wraps one must create it in `compose()`, not `__init__`. An `Input` also posts `Changed` once at mount with its
+  initial value; compare against the last seen raw value so that echo is not treated as an edit.
+  Evidence: `widgets/form_fields.py`, T16a review. Status: active
+- **L-P0-I2-1** · 2026-10-09 · tags: tests, tooling
+  With `--import-mode=importlib` a test module cannot `from conftest import ...`; share helpers between test files as
+  pytest fixtures (`build_docs`, `effective`, `fixture_dir` in `packages/tl-schema/tests/conftest.py`). pyright strict
+  also rejects partly typed third-party calls: annotate `jsonschema` validators and errors as `Any`, and linkml
+  metamodel objects as `Any` (their dict/list unions make every attribute access an error).
+  Evidence: `docs/tickets/P0-I2/provided/test_registry.py.txt`; `tl_schema/linkml_render.py`. Status: active
+
+- **L-P0-I2-2** · 2026-10-09 · tags: schema, tooling
+  To render an effective schema as LinkML, load `core.yaml` with `SchemaView`, call `merge_imports()`, mutate the
+  `SchemaDefinition` (classes, enums, annotations), then wrap it in a fresh `SchemaView(definition)`; renaming the
+  root schema of the original view breaks its import resolution. Annotations assigned in memory must be `Annotation`
+  objects (`tag`, `value`) to match what a YAML load produces.
+  Evidence: `packages/tl-schema/src/tl_schema/linkml_render.py`, `tests/test_linkml_render.py`. Status: active
+
+- **L-P0-I2-3** · 2026-10-09 · tags: process, tests
+  A supervisor-written stub (names, signatures, docstrings) plus a provided test file under `docs/tickets/<inc>/provided/`
+  plus a spec verified against a scratch reference implementation gave first-attempt passes for 6 of 7 implementer tickets (the seventh, T04b, was flagged only for committing its report file). Keep
+  the reference implementation until the ticket merges; it is the takeover path. State in the ticket that the stub's
+  `STUB:` docstring paragraph must be removed (T01 left it).
+  Evidence: P0-I2 reports T01, T04, T04b, T06, T08, T08a, T10. Status: active
+
+- **L-P0-I2-4** · 2026-10-09 · tags: tooling
+  `ruff format` moves a trailing `# type: ignore[...]` off a call it re-wraps, so the ignore stops working. Type the helper
+  parameter instead (`layer: Literal[...]`). pyright strict also widens tuple elements to `str`, so build typed values
+  (`FieldKind`) through a helper with annotated parameters rather than a list of tuples.
+  Evidence: `docs/tickets/P0-I2/provided/test_pset_commands.py.txt`; T04b ticket text. Status: active
+
+- **L-P0-I2-5** · 2026-10-09 · tags: schema, ledger
+  Runtime schema changes that add columns (promoted pset properties) are dialect-neutral when the existing columns are found
+  with `sqlalchemy.inspect(conn).get_columns(...)` and the `ALTER TABLE ... ADD COLUMN` text is generated per dialect in
+  `tl_schema` (SQLite has no `ADD COLUMN IF NOT EXISTS`). Projectors stay deterministic by reading only the event payload
+  and existing rows: schema-derived facts (conformance, units) are computed by the command handler and carried in the event.
+  Evidence: `tl_core/projection/promoted.py`, `pset.py`; decisions A5, A9. Status: active
+
+- **L-P0-I2-B7** · 2026-10-09 · tags: process
+  The ticket workflow tells implementers to commit their report, so list `docs/reports/<inc>/<ticket-id>.md` in every
+  ticket's *Allowed paths* and say "commit your report". A ticket that says "return it in your final message" produced one
+  review round lost to a committed report (T12) and one report left uncommitted in a worktree (T15).
+  Evidence: T12 attempt 1; T15 worktree; tickets T16b onward. Status: active

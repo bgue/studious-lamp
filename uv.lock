@@ -2335,6 +2335,7 @@ dependencies = [
     { name = "rich" },
     { name = "tl-adapters" },
     { name = "tl-core" },
+    { name = "tl-schema" },
     { name = "typer" },
 ]
 
@@ -2344,6 +2345,7 @@ requires-dist = [
     { name = "rich" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
     { name = "typer" },
 ]
 
@@ -2390,6 +2392,7 @@ dependencies = [
     { name = "linkml" },
     { name = "linkml-runtime" },
     { name = "pydantic" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
@@ -2398,6 +2401,7 @@ requires-dist = [
     { name = "linkml", specifier = ">=1.8" },
     { name = "linkml-runtime", specifier = ">=1.8" },
     { name = "pydantic", specifier = ">=2" },
+    { name = "pyyaml", specifier = ">=6" },
 ]
 
 [[package]]
@@ -2405,14 +2409,20 @@ name = "tl-tui"
 version = "0.0.1"
 source = { editable = "packages/tl-tui" }
 dependencies = [
+    { name = "pydantic" },
     { name = "textual" },
+    { name = "tl-adapters" },
     { name = "tl-core" },
+    { name = "tl-schema" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
     { name = "textual" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 
 [[package]]

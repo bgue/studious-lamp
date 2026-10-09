@@ -23,9 +23,9 @@ test *args:
 test-parity:
     @echo "test-parity: not yet (arrives with P0-I5)"
 
-# TUI snapshot tests (arrives with P0-I2)
-test-tui:
-    @echo "test-tui: not yet (arrives with P0-I2)"
+# TUI tests: widget behaviour and snapshot tests, with terminal sizes pinned in the tests
+test-tui *args:
+    uv run pytest packages/tl-tui -q {{args}}
 
 # Synthetic project into the dev ledger (arrives with P0-I6)
 seed scale="xs":
@@ -35,9 +35,10 @@ seed scale="xs":
 serve:
     @echo "serve: not yet (arrives with P0-I4)"
 
-# TUI in embedded mode against the dev ledger (arrives with P0-I2)
+# TUI in embedded mode against the dev ledger (TL_DB, default ./dev/data/tl.db; TL_PROJECT, default P123)
 tui:
-    @echo "tui: not yet (arrives with P0-I2)"
+    uv run tl init
+    uv run python -m tl_tui
 
 # Rebuild projections from the ledger: all of them, or one by projector name (e.g. core_record)
 rebuild-projections name="":

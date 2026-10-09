@@ -1,0 +1,103 @@
+id: https://example.org/throughline/core/psets
+name: tl_core_psets
+title: Throughline pset projection
+description: >-
+  The long-form index of pset values (brief 5.4, `cur_pset_values`). One row per record and value path,
+  so filters and sorts work on any property of any layer, including project custom ones. Pset
+  definitions themselves are not authored here: company and project packages compile into the effective
+  schema at runtime (brief 27.3). This file only declares the projection table.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+default_range: string
+annotations:
+  tl:module: core
+
+enums:
+  PsetLayer:
+    description: Layer a pset value belongs to (brief 6.3).
+    permissible_values:
+      standard:
+      custom:
+      project:
+      enrichment:
+      source:
+  PsetValueType:
+    description: Which typed value column holds the value.
+    permissible_values:
+      string:
+      number:
+      boolean:
+      json:
+
+classes:
+  PsetValue:
+    description: One current pset value of one record, addressed by its layer-aware path.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_pset_values
+    unique_keys:
+      record_path:
+        description: A record has one current value per path.
+        unique_key_slots:
+          - record_id
+          - path
+    attributes:
+      record_id:
+        range: Ulid
+        required: true
+        description: The record (ledger stream) the value belongs to.
+        annotations:
+          tl:indexed: true
+      scope:
+        range: ScopeId
+        required: true
+        description: Scope of the record, repeated so scope-wide filters need no join.
+      path:
+        required: true
+        description: "Layer-aware path, for example `psets.valve_data.x.fat_witness_by`."
+        annotations:
+          tl:indexed: true
+      pset:
+        required: true
+        description: "Pset name, for example `valve_data` or `prj.shutdown_tie_in`."
+      property_name:
+        required: true
+        description: "Property relative to the pset; custom-section properties start with `x.`."
+      layer:
+        range: PsetLayer
+        required: true
+        description: Layer derived from the path.
+      value_type:
+        range: PsetValueType
+        required: true
+        description: Which of the typed value columns is set.
+      value_text:
+        description: String values.
+      value_num:
+        range: float
+        description: Integer and decimal values.
+      value_bool:
+        range: boolean
+        description: Boolean values.
+      value_json:
+        range: Any
+        description: Lists and other structured values.
+        annotations:
+          tl:json: true
+          tl:column: value_json
+      unit:
+        description: UCUM unit recorded with the value, when the schema declared one.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the event that last set the row.
+      updated_at:
+        range: datetime
+        required: true
+        description: Timestamp of that event (system time).

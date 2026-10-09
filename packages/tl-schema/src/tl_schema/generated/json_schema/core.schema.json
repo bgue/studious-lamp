@@ -126,6 +126,126 @@
             "title": "Event",
             "type": "object"
         },
+        "PsetLayer": {
+            "description": "Layer a pset value belongs to (brief 6.3).",
+            "enum": [
+                "standard",
+                "custom",
+                "project",
+                "enrichment",
+                "source"
+            ],
+            "title": "PsetLayer",
+            "type": "string"
+        },
+        "PsetValue": {
+            "additionalProperties": false,
+            "description": "One current pset value of one record, addressed by its layer-aware path.",
+            "properties": {
+                "last_seq": {
+                    "description": "Ledger `seq` of the event that last set the row.",
+                    "type": "integer"
+                },
+                "layer": {
+                    "$ref": "#/$defs/PsetLayer",
+                    "description": "Layer derived from the path."
+                },
+                "path": {
+                    "description": "Layer-aware path, for example `psets.valve_data.x.fat_witness_by`.",
+                    "type": "string"
+                },
+                "property_name": {
+                    "description": "Property relative to the pset; custom-section properties start with `x.`.",
+                    "type": "string"
+                },
+                "pset": {
+                    "description": "Pset name, for example `valve_data` or `prj.shutdown_tie_in`.",
+                    "type": "string"
+                },
+                "record_id": {
+                    "description": "The record (ledger stream) the value belongs to.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "scope": {
+                    "description": "Scope of the record, repeated so scope-wide filters need no join.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "unit": {
+                    "description": "UCUM unit recorded with the value, when the schema declared one.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "updated_at": {
+                    "description": "Timestamp of that event (system time).",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "value_bool": {
+                    "description": "Boolean values.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "value_json": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Lists and other structured values."
+                },
+                "value_num": {
+                    "description": "Integer and decimal values.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "value_text": {
+                    "description": "String values.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "value_type": {
+                    "$ref": "#/$defs/PsetValueType",
+                    "description": "Which of the typed value columns is set."
+                }
+            },
+            "required": [
+                "record_id",
+                "scope",
+                "path",
+                "pset",
+                "property_name",
+                "layer",
+                "value_type",
+                "last_seq",
+                "updated_at"
+            ],
+            "title": "PsetValue",
+            "type": "object"
+        },
+        "PsetValueType": {
+            "description": "Which typed value column holds the value.",
+            "enum": [
+                "string",
+                "number",
+                "boolean",
+                "json"
+            ],
+            "title": "PsetValueType",
+            "type": "string"
+        },
         "Record": {
             "additionalProperties": false,
             "description": "The generic Phase 0 record type, `core.Record`.",

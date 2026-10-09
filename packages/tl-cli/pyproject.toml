@@ -7,6 +7,7 @@ dependencies = [
   "rich",
   "pydantic>=2",
   "tl-core",
+  "tl-schema",
   "tl-adapters",
 ]
 

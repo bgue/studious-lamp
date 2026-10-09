@@ -26,6 +26,7 @@ Purpose: rebuild the current-state tables (`cur_*`) from the append-only ledger 
    just rebuild-projections core_record
    ```
    Expected: `replayed <n> events`, where `<n>` equals the number of events in the ledger.
+   Rebuild `core_record` and `pset_values` together (the default): `pset_values` replays pset events over whatever `cur_core_record` holds, so a rebuild of only `pset_values` can resurrect older values.
 
 ## Verify
 - `uv run tl record show --project P123 DEMO-0001` prints the same values as before when nothing was corrupted, or the values the events imply when a row had drifted.

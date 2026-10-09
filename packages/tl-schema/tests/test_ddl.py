@@ -53,8 +53,19 @@ def outputs() -> dict[str, str]:
 def test_only_current_state_classes_get_tables(outputs: dict[str, str]) -> None:
     assert sorted(outputs) == [
         "ddl/postgres/cur_core_record.sql",
+        "ddl/postgres/cur_pset_values.sql",
         "ddl/sqlite/cur_core_record.sql",
+        "ddl/sqlite/cur_pset_values.sql",
     ]
+
+
+def test_table_annotation_overrides_the_derived_name(outputs: dict[str, str]) -> None:
+    sqlite = outputs["ddl/sqlite/cur_pset_values.sql"]
+    assert sqlite.startswith("CREATE TABLE IF NOT EXISTS cur_pset_values (")
+    assert "value_json TEXT" in sqlite
+    assert "UNIQUE INDEX IF NOT EXISTS ux_cur_pset_values_record_path" in sqlite
+    postgres = outputs["ddl/postgres/cur_pset_values.sql"]
+    assert "value_json JSONB" in postgres and "value_bool BOOLEAN" in postgres
 
 
 @pytest.mark.parametrize("dialect", ["sqlite", "postgres"])
