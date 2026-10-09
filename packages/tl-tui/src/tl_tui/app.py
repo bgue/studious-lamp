@@ -7,7 +7,7 @@ F2/F3; at 80 columns or less they become overlays (sketch 11).
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from textual import events
 from textual.app import App, ComposeResult
@@ -17,6 +17,7 @@ from textual.screen import ModalScreen
 from textual.widget import Widget
 
 from tl_tui.client import ClientInterface
+from tl_tui.commands import command_by_id
 from tl_tui.messages import (
     CloseRecord,
     NavSelected,
@@ -24,13 +25,17 @@ from tl_tui.messages import (
     RecordChanged,
     RecordHighlighted,
     SelectionChanged,
+    Severity,
     StatusMessage,
     StepRecord,
 )
+from tl_tui.navigation import NavHistory
+from tl_tui.tray import ReferenceTray, TrayItem
 from tl_tui.widgets.context_panel import ContextPanel
 from tl_tui.widgets.footer import TlFooter, hints_for
 from tl_tui.widgets.grid import RecordGrid
 from tl_tui.widgets.header import TlHeader
+from tl_tui.widgets.links_tab import LinksTab
 from tl_tui.widgets.main_area import MainArea
 from tl_tui.widgets.nav_tree import NavTree
 from tl_tui.widgets.record_view import RecordView
@@ -42,6 +47,7 @@ class TlApp(App[None]):
     """Throughline TUI. ``scope`` is ``project:<id>``; ``record_type`` filters the grid."""
 
     TITLE = "Throughline"
+    ENABLE_COMMAND_PALETTE = False  # ours (Ctrl+P and `:`) replaces Textual's
     CSS_PATH = "app.tcss"
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -53,6 +59,15 @@ class TlApp(App[None]):
         Binding("n", "new_record", "New", show=False),
         Binding("f1", "help", "Help", show=False),
         Binding("question_mark", "help", "Help", show=False),
+        Binding("ctrl+p", "palette", "Palette", show=False),
+        Binding("colon", "palette", "Palette", show=False),
+        Binding("l", "link", "Link", show=False),
+        Binding("R", "tray_add", "Add to tray", show=False),
+        Binding("f4", "tray_open", "Tray", show=False),
+        Binding("w", "workflow", "Workflow", show=False),
+        Binding("t", "trace", "Trace", show=False),
+        Binding("alt+left", "back", "Back", show=False),
+        Binding("alt+right", "forward", "Forward", show=False),
     ]
 
     def __init__(
@@ -64,6 +79,7 @@ class TlApp(App[None]):
         record_type: str | None = "core.Record",
         actor: str = "user:dev",
         mode: str = "embedded",
+        roles: tuple[str, ...] = (),
     ) -> None:
         super().__init__()
         self.client = client
@@ -72,6 +88,10 @@ class TlApp(App[None]):
         self.record_type = record_type
         self.actor = actor
         self.mode = mode
+        # Roles the user claims for workflow guards: a stub until auth exists (brief 8).
+        self.roles = roles
+        self.tray = ReferenceTray()
+        self.history = NavHistory()
         self._open_key: str | None = None
 
     # --- layout ------------------------------------------------------------------------------
@@ -180,6 +200,171 @@ class TlApp(App[None]):
             created,
         )
 
+    # --- palette, links, tray, workflow, trace, history ---------------------------
+
+    def _modal_open(self) -> bool:
+        # App-level keys stay live under a modal; they must not open a second one on top.
+        return isinstance(self.screen, ModalScreen)
+
+    def _say(self, text: str, severity: Severity = "info") -> None:
+        self.query_one("#footer", TlFooter).show_status(text, severity)
+
+    def _record_view(self) -> RecordView | None:
+        main = self.query_one("#main", MainArea)
+        if not main.showing_record:
+            return None
+        views = list(main.query(RecordView))
+        return views[0] if views else None
+
+    def _changed(self, *record_ids: str) -> None:
+        """Commands run from a modal changed these records: reload the grid and the open view."""
+        self.query_one("#grid", RecordGrid).reload()
+        view = self._record_view()
+        if view is not None and view.record is not None and view.record["id"] in record_ids:
+            view.reload()
+
+    def _focused_records(self) -> list[dict[str, Any]]:
+        """The records a command acts on: the open record, else the grid selection or cursor row."""
+        view = self._record_view()
+        if view is not None:
+            return [view.record] if view.record is not None else []
+        grid = self.query_one("#grid", RecordGrid)
+        cursor = grid.cursor_record
+        return grid.selected_records() or ([cursor] if cursor is not None else [])
+
+    def action_palette(self) -> None:
+        if self._modal_open():
+            return
+        from tl_tui.widgets.palette import CommandPalette, PaletteChoice
+
+        async def chosen(choice: PaletteChoice | None) -> None:
+            if choice is None:
+                return
+            if choice.kind == "record" and choice.key is not None:
+                await self._show_record(self.scope, choice.key, follow=True)
+            elif choice.command_id is not None:
+                command = command_by_id(choice.command_id)
+                if command is not None:
+                    await self.run_action(command.action)
+
+        self.push_screen(CommandPalette(self.client, self.scope), chosen)
+
+    def action_link(self) -> None:
+        if self._modal_open():
+            return
+        from tl_tui.widgets.link_picker import LinkPicker, LinkPickerResult, PickerSource
+
+        sources = self._focused_records()
+        if not sources:
+            self._say("Nothing to link: select a record or open one", "warning")
+            return
+
+        def done(result: LinkPickerResult | None) -> None:
+            if result is None:
+                return
+            if result.created:
+                self._changed(*(str(source["id"]) for source in sources))
+                self._say(f"Linked {result.created}", "info")
+            if result.messages:
+                self._say("; ".join(result.messages), "error")
+
+        self.push_screen(
+            LinkPicker(
+                self.client,
+                self.scope,
+                [PickerSource.from_record(r) for r in sources],
+                actor=self.actor,
+            ),
+            done,
+        )
+
+    def action_tray_add(self) -> None:
+        if self._modal_open():
+            return
+        view = self._record_view()
+        records = self._focused_records()
+        if view is not None:
+            other = view.query_one("#links-tab", LinksTab).highlighted_other()
+            if other is not None and view.query_one("#rv-tabs").has_focus_within:
+                records = [other]
+        if not records:
+            self._say("Nothing to add to the tray", "warning")
+            return
+        added = [r["key"] for r in records if self.tray.add(TrayItem.from_record(r))]
+        if added:
+            self._say(f"Added {', '.join(added)} to the tray ({len(self.tray)})", "info")
+        else:
+            self._say(f"Already in the tray ({len(self.tray)})", "info")
+
+    def action_tray_open(self) -> None:
+        if self._modal_open():
+            return
+        from tl_tui.widgets.ref_tray import ReferenceTrayScreen
+
+        view = self._record_view()
+        target = view.record if view is not None else None
+
+        def done(linked: int | None) -> None:
+            if linked and target is not None:
+                self._changed(str(target["id"]))
+                self._say(f"Linked {linked} from the tray", "info")
+
+        self.push_screen(
+            ReferenceTrayScreen(self.client, self.scope, self.tray, target, actor=self.actor), done
+        )
+
+    def action_workflow(self) -> None:
+        if self._modal_open():
+            return
+        from tl_tui.widgets.workflow_menu import WorkflowMenu
+
+        records = self._focused_records()
+        if len(records) != 1:
+            self._say("Open a record (or put the cursor on one) for workflow actions", "warning")
+            return
+        record = records[0]
+
+        def done(ran: bool | None) -> None:
+            if ran:
+                self._changed(str(record["id"]))
+
+        self.push_screen(
+            WorkflowMenu(self.client, self.scope, record, roles=self.roles, actor=self.actor), done
+        )
+
+    def action_trace(self) -> None:
+        if self._modal_open():
+            return
+        view = self._record_view()
+        if view is None:
+            self._say("Open a record first to trace it", "warning")
+            return
+        view.show_tab("trace")
+
+    async def action_back(self) -> None:
+        if self._modal_open():
+            return
+        entry = self.history.back()
+        if entry is None:
+            self._say("Nothing to go back to", "info")
+            return
+        await self._show_record(entry[0], entry[1], navigate=False)
+
+    async def action_forward(self) -> None:
+        if self._modal_open():
+            return
+        entry = self.history.forward()
+        if entry is None:
+            self._say("Nothing to go forward to", "info")
+            return
+        await self._show_record(entry[0], entry[1], navigate=False)
+
+    def action_toggle_nav(self) -> None:
+        self.action_toggle_panel("nav")
+
+    def action_toggle_context(self) -> None:
+        self.action_toggle_panel("context")
+
     def action_help(self) -> None:
         # The app-level `F1` and `?` bindings stay live under a modal; help must not open over
         # a form or stack on top of another help screen.
@@ -210,7 +395,7 @@ class TlApp(App[None]):
             self.call_later(self._show_grid)
 
     async def on_open_record(self, message: OpenRecord) -> None:
-        await self._show_record(message.scope, message.key)
+        await self._show_record(message.scope, message.key, follow=message.follow)
 
     async def on_close_record(self, message: CloseRecord) -> None:
         await self._show_grid()
@@ -227,9 +412,22 @@ class TlApp(App[None]):
     def on_record_changed(self, message: RecordChanged) -> None:
         self.query_one("#grid", RecordGrid).reload()
 
-    async def _show_record(self, scope: str, key: str) -> None:
+    async def _show_record(
+        self, scope: str, key: str, *, follow: bool = False, navigate: bool = True
+    ) -> None:
+        """Open a record. ``navigate`` is false for back/forward, which only move in the history.
+
+        Following a reference extends the trail; any other opening (the grid, ``[`` and ``]``,
+        a record just created) starts a new one.
+        """
+        if navigate:
+            if follow:
+                self.history.visit(scope, key)
+            else:
+                self.history.start(scope, key)
         self._open_key = key
-        self.query_one("#header", TlHeader).set_view(key)
+        trail = self.history.trail()
+        self.query_one("#header", TlHeader).set_view(trail or key)
         await self.query_one("#main", MainArea).show_record(RecordView(self.client, scope, key))
 
     async def _show_grid(self) -> None:

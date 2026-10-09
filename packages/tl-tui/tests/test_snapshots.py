@@ -140,7 +140,7 @@ def test_edit_form(snap_compare: Any) -> None:
 
 def test_new_record_form(snap_compare: Any) -> None:
     app = _app()
-    step = _expect(app, "New record", "Key ●", "Title ●", keys=("n",))
+    step = _expect(app, "New record", "Key", "Title ●", keys=("n",))
     assert snap_compare(app, terminal_size=WIDE, run_before=step)
 
 

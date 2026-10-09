@@ -368,6 +368,8 @@ class FakeClient(FakeLinkSupport):
 
     def create_record(self, cmd: CreateRecord) -> CommandResult:
         self.calls.append("create_record")
+        if cmd.key is None:  # the numbering service: the next number of a fake pattern
+            cmd = cmd.model_copy(update={"key": f"NEW-{self._id + 1:04d}"})
         if any(r["scope"] == cmd.scope and r["key"] == cmd.key for r in self._records.values()):
             raise DuplicateKeyError(f"key {cmd.key!r} is already used in scope {cmd.scope!r}")
         self._id += 1
