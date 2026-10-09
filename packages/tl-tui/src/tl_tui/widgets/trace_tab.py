@@ -4,16 +4,13 @@
 theirs, down to a depth the user can change (`+` and `-`). `o` cycles the direction followed
 (both, outbound, inbound). Enter on a record opens it as a followed reference. Everything comes from
 `ClientInterface.trace`; the tab never touches the services.
-
-STUB (P0-I3-T14): the layout (`compose`), constructor, attributes and key bindings are final; the
-functions and methods marked `raise NotImplementedError` (and the line marked `STUB`) are the
-ticket. Remove this paragraph when done.
 """
 
 from __future__ import annotations
 
 from typing import Any, ClassVar, Literal
 
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Vertical
@@ -22,6 +19,9 @@ from textual.widgets.tree import TreeNode
 from tl_core.services.link_trace import TraceNode
 
 from tl_tui.client import ClientInterface
+from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.messages import OpenRecord, StatusMessage
+from tl_tui.text import EMPTY
 
 Direction = Literal["both", "out", "in"]
 DIRECTIONS: tuple[Direction, ...] = ("both", "out", "in")
@@ -35,13 +35,26 @@ def node_text(node: TraceNode) -> str:
     (for example ``raised against: NCR-1  Bevel damage``). Then, when they apply, ``  ! stale`` or
     ``  ✗ broken`` for a link in that state, ``  (voided)`` for a voided record, and
     ``  +N more`` when ``node.more`` records are linked but not shown."""
-    raise NotImplementedError
+    base = f"{node.key or EMPTY}  {node.title}"
+    text = f"{node.label}: {base}" if node.label else base
+    if node.link_status == "stale":
+        text += "  ! stale"
+    elif node.link_status == "broken":
+        text += "  ✗ broken"
+    if node.voided:
+        text += "  (voided)"
+    if node.more:
+        text += f"  +{node.more} more"
+    return text
 
 
 def tree_lines(root: TraceNode) -> list[str]:
     """The tree as plain lines, depth first, children in their given order, two spaces of indent
     per level: ``"  " * node.depth + node_text(node)``."""
-    raise NotImplementedError
+    lines = ["  " * root.depth + node_text(root)]
+    for child in root.children:
+        lines.extend(tree_lines(child))
+    return lines
 
 
 def head_text(depth: int, direction: str) -> str:
@@ -87,20 +100,50 @@ class TraceTab(Vertical, can_focus=True):
         self.query_one("#trace-tree", Tree).focus()
 
     def show_record(self, record: dict[str, Any]) -> None:
-        self.record = record  # STUB: the ticket also calls ``self.reload()`` here
+        self.record = record
+        self.reload()
 
     def reload(self) -> None:
         """Read the trace again and redraw. On a client error the display is kept."""
-        raise NotImplementedError
+        if self.record is None:
+            return
+        head = self.query_one("#trace-head", Static)
+        try:
+            root = self.client.trace(self.record["id"], depth=self.depth, direction=self.direction)
+        except NotImplementedError:
+            head.update("Trace unavailable: the link services are not installed yet")
+            return
+        except CLIENT_ERRORS as exc:
+            self.post_message(StatusMessage(describe_error(exc), "error"))
+            return
+        head.update(head_text(self.depth, self.direction))
+        tree: Tree[str] = self.query_one("#trace-tree", Tree)
+        tree.clear()
+        tree.root.set_label(Text(node_text(root)))
+        tree.root.data = root.key
+        self._fill(tree.root, root)
+        tree.root.expand()
+        self.lines = tree_lines(root)
 
     def _fill(self, parent: TreeNode[str], node: TraceNode) -> None:
-        raise NotImplementedError
+        for child in node.children:
+            branch = parent.add(Text(node_text(child)), data=child.key, expand=True)
+            self._fill(branch, child)
 
     def action_depth(self, delta: int) -> None:
-        raise NotImplementedError
+        depth = max(MIN_DEPTH, min(MAX_DEPTH, self.depth + delta))
+        if depth != self.depth:
+            self.depth = depth
+            self.reload()
 
     def action_direction(self) -> None:
-        raise NotImplementedError
+        index = DIRECTIONS.index(self.direction)
+        self.direction = DIRECTIONS[(index + 1) % len(DIRECTIONS)]
+        self.reload()
 
     def on_tree_node_selected(self, event: Tree.NodeSelected[str]) -> None:
-        raise NotImplementedError
+        event.stop()
+        key = event.node.data
+        if event.node.is_root or key is None:
+            return
+        self.post_message(OpenRecord(self.scope, key, follow=True))
