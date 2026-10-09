@@ -1,4 +1,4 @@
-"""A local webhook receiver for development, tests and the demo (brief 18.4, "local tunnel support").
+"""A local webhook receiver for development, tests and the demo (brief 18.4, local tunnels).
 
 ``DevReceiver`` runs an HTTP server on 127.0.0.1 in a background thread. It verifies the Standard
 Webhooks signature of every POST (any configured secret may match, so a rotation overlap works),
@@ -7,8 +7,8 @@ as a duplicate (still 200, as a real receiver that dedupes would), and can be to
 requests with chosen statuses to exercise retries. It is allow-listed explicitly by whoever uses it
 (``EgressPolicy(("127.0.0.1",))``); production egress never reaches loopback.
 
-STUB (P0-I5-T23): the method bodies raise ``NotImplementedError``. The specification is the ticket and
-the provided test.
+STUB (P0-I5-T23): the method bodies raise ``NotImplementedError``. The specification is the
+ticket and the provided test.
 """
 
 from __future__ import annotations
