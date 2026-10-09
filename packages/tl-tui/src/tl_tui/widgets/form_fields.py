@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.message import Message
@@ -129,6 +130,9 @@ class FieldEditor(Vertical):
     def __init__(self, meta: FieldMeta, value: Any = None, *, id: str | None = None) -> None:
         super().__init__(id=id)
         self.meta = meta
+        codes = {option.code for option in meta.enum_values or []}
+        if value == "" or (meta.kind == "enum" and value not in codes):
+            value = None  # empty and unknown initial values are "unset", so they start unchanged
         self.initial = value
         self._error: str | None = None
         # Child widgets are built in compose: an Input with text needs a running app.
@@ -148,7 +152,10 @@ class FieldEditor(Vertical):
             codes = [option.code for option in enum_values]
             selected: Any = value if value in codes else Select.NULL
             options = [
-                (option.label + (f" → {option.crosswalk}" if option.crosswalk else ""), option.code)
+                (
+                    Text(option.label + (f" → {option.crosswalk}" if option.crosswalk else "")),
+                    option.code,
+                )
                 for option in enum_values
             ]
             self._last_raw = selected

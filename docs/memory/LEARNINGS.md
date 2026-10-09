@@ -180,3 +180,9 @@ test or a generated artefact already enforces, or narrative history (that belong
   worker that reports through `post_message` and applies results with `call_from_thread`, guarded by a generation
   counter. A moving cursor must not trigger paging inside that apply step or the cap is overshot.
   Evidence: supervisor-pieces review of 73bb88c; `test_grid.py::test_end_pages_in_a_worker_reports_progress_and_caps`. Status: active
+
+- **L-P0-I2-B6** · 2026-10-09 · tags: tui, tooling
+  In Textual 8.2.8 an `Input` built with a non-empty value raises `NoActiveAppError` outside a running app, so a widget
+  that wraps one must create it in `compose()`, not `__init__`. An `Input` also posts `Changed` once at mount with its
+  initial value; compare against the last seen raw value so that echo is not treated as an edit.
+  Evidence: `widgets/form_fields.py`, T16a review. Status: active

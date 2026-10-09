@@ -222,3 +222,30 @@ def test_label_is_shown_literally() -> None:
         assert "[odd] label" in screen_text(app)
 
     run_pilot(app, scenario, size=(80, 12))
+
+
+def test_empty_and_unknown_initial_values_start_unchanged() -> None:
+    text_editor = FieldEditor(_meta("string"), "")
+    enum_editor = FieldEditor(
+        _meta("enum", enum_values=[EnumValue(code="A", label="Alpha")]), "ZZZ"
+    )
+    app = Host(text_editor, enum_editor)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        assert text_editor.initial is None and not text_editor.changed
+        assert enum_editor.initial is None and not enum_editor.changed
+
+    run_pilot(app, scenario, size=(80, 16))
+
+
+def test_select_option_labels_are_not_parsed_as_markup() -> None:
+    meta = _meta("enum", enum_values=[EnumValue(code="A", label="[bold]Alpha[/bold]")])
+    editor = FieldEditor(meta, "A")
+    app = Host(editor)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        assert "[bold]Alpha[/bold]" in screen_text(app)
+
+    run_pilot(app, scenario, size=(80, 16))
