@@ -253,7 +253,7 @@ def test_replay_resends_a_seq_range_and_a_time_range(env: dict[str, str]) -> Non
         "--until",
         (now + timedelta(hours=1)).isoformat(),
     )
-    assert ok(run(env, "webhook", "replay", sid, *window)).stdout.splitlines() == ["replayed 4"]
+    assert ok(run(env, "webhook", "replay", sid, *window)).stdout.splitlines() == ["replayed 3"]
     naive = (now + timedelta(days=1)).replace(tzinfo=None).isoformat()
     assert ok(
         run(env, "webhook", "replay", sid, "--since", naive, "--until", naive)

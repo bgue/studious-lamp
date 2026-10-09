@@ -1,0 +1,202 @@
+"""`tl webhook dlq|disable|enable|rotate-secret` on a temporary ledger (P0-I5-T26)."""
+
+from __future__ import annotations
+
+import sqlite3
+from collections.abc import Iterator
+from pathlib import Path
+
+import pytest
+from tl_adapters.sqlite.factory import SqliteUowFactory
+from tl_cli.main import app
+from tl_core.webhooks.dispatch import Dispatcher
+from tl_core.webhooks.receiver import DevReceiver
+from tl_core.webhooks.subscriptions import CreateWebhookSubscription, create_subscription
+from tl_core.webhooks.wiring import make_engine
+from typer.testing import CliRunner
+from typer.testing import Result as RunResult
+
+runner = CliRunner()
+
+
+def run(env: dict[str, str], *args: str) -> RunResult:
+    return runner.invoke(app, list(args), env=env)
+
+
+def ok(result: RunResult) -> RunResult:
+    assert result.exit_code == 0, result.output
+    assert result.exception is None
+    return result
+
+
+def refused(result: RunResult, text: str) -> None:
+    assert result.exit_code == 1, result.output
+    assert not isinstance(result.exception, (NotImplementedError, AttributeError, TypeError))
+    assert "error:" in result.stderr and text in result.stderr
+
+
+def fields(result: RunResult) -> dict[str, str]:
+    found: dict[str, str] = {}
+    for line in result.stdout.splitlines():
+        name, _, value = line.partition(" ")
+        found[name] = value
+    return found
+
+
+def sql(env: dict[str, str], query: str) -> list[tuple[object, ...]]:
+    with sqlite3.connect(env["TL_DB"]) as conn:
+        return conn.execute(query).fetchall()
+
+
+@pytest.fixture
+def env(tmp_path: Path) -> dict[str, str]:
+    env = {"TL_DB": str(tmp_path / "tl.db"), "TL_ENV": "dev", "TL_WEBHOOK_ALLOWLIST": ""}
+    ok(run(env, "init"))
+    return env
+
+
+def add(env: dict[str, str], url: str = "https://hook.example.net/in") -> dict[str, str]:
+    """Create a subscription through the service API (not the CLI), as `tl webhook add` does."""
+    factory = SqliteUowFactory(Path(env["TL_DB"]))
+    try:
+        with factory() as uow:
+            issued = create_subscription(
+                uow,
+                CreateWebhookSubscription(
+                    actor="user:dev",
+                    source="cli",
+                    scope="project:P123",
+                    name="NDE",
+                    target_url=url,
+                    filter={"event_types": ["Record.*"]},
+                ),
+            )
+    finally:
+        factory.dispose()
+    return {"subscription": issued.subscription_id, "secret": issued.secret}
+
+
+def send_test(env: dict[str, str], subscription_id: str) -> None:
+    """What `tl webhook test --allow-host 127.0.0.1` does."""
+    factory = SqliteUowFactory(Path(env["TL_DB"]))
+    try:
+        result = make_engine(factory, allow_hosts=("127.0.0.1",)).send_test(subscription_id)
+    finally:
+        factory.dispose()
+    assert result.ok, result
+
+
+def seed_dead_letters(env: dict[str, str], count: int) -> None:
+    for n in range(count):
+        ok(run(env, "record", "create", "--project", "P123", "--key", f"R-{n}", "--title", "r"))
+    factory = SqliteUowFactory(Path(env["TL_DB"]))
+    try:
+        Dispatcher(factory).run_until_idle()
+    finally:
+        factory.dispose()
+    with sqlite3.connect(env["TL_DB"]) as conn:
+        conn.execute(
+            "UPDATE wh_delivery SET status = 'dead', attempts = 3, last_status = 503, "
+            "dead_at = '2026-10-09T03:00:00.000000Z', dead_reason = 'retries_exhausted'"
+        )
+
+
+def test_dlq_ls_lists_dead_letters_oldest_first_and_can_filter(env: dict[str, str]) -> None:
+    first = add(env)["subscription"]
+    other = add(env, "https://other.example.net/in")["subscription"]
+    assert ok(run(env, "webhook", "dlq", "ls")).stdout == ""
+    seed_dead_letters(env, 2)
+    lines = [line.split("\t") for line in ok(run(env, "webhook", "dlq", "ls")).stdout.splitlines()]
+    assert len(lines) == 4  # two records, two subscriptions
+    assert [int(line[2]) for line in lines] == sorted(int(line[2]) for line in lines)
+    for line in lines:
+        assert len(line) == 8
+        assert line[4:] == ["3", "503", "retries_exhausted", "2026-10-09T03:00:00.000000Z"]
+    only = ok(run(env, "webhook", "dlq", "ls", "--subscription", other)).stdout.splitlines()
+    assert len(only) == 2 and all(line.split("\t")[1] == other for line in only)
+    assert first not in "".join(only)
+
+
+def test_dlq_redrive_re_enqueues_all_or_the_named_deliveries(env: dict[str, str]) -> None:
+    sid = add(env)["subscription"]
+    seed_dead_letters(env, 3)
+    ids = [row[0] for row in sql(env, "SELECT delivery_id FROM wh_delivery ORDER BY seq")]
+    result = ok(run(env, "webhook", "dlq", "redrive", sid, "--delivery", str(ids[0])))
+    assert result.stdout.splitlines() == ["redriven 1"]
+    assert sql(env, "SELECT COUNT(*) FROM wh_delivery WHERE status = 'pending'") == [(1,)]
+    assert sql(env, "SELECT COUNT(*) FROM wh_delivery WHERE status = 'redriven'") == [(1,)]
+    assert ok(run(env, "webhook", "dlq", "redrive", sid, "--delivery", "NOSUCH")).stdout == (
+        "redriven 0\n"
+    )
+    assert ok(run(env, "webhook", "dlq", "redrive", sid)).stdout.splitlines() == ["redriven 2"]
+    assert ok(run(env, "webhook", "dlq", "redrive", sid)).stdout.splitlines() == ["redriven 0"]
+    assert ok(run(env, "webhook", "dlq", "ls")).stdout == ""
+
+
+def test_disable_and_enable_change_the_status_and_refuse_repeats(env: dict[str, str]) -> None:
+    sid = add(env)["subscription"]
+    assert (
+        ok(run(env, "webhook", "disable", sid, "--project", "P123")).stdout == f"disabled {sid}\n"
+    )
+    assert ok(run(env, "webhook", "ls")).stdout.split("\t")[1] == "disabled"
+    assert sql(env, "SELECT disabled_reason FROM cur_webhook_subscription") == [("owner",)]
+    refused(run(env, "webhook", "disable", sid, "--project", "P123"), "already disabled")
+    assert ok(run(env, "webhook", "enable", sid, "--project", "P123")).stdout == f"enabled {sid}\n"
+    assert ok(run(env, "webhook", "ls")).stdout.split("\t")[1] == "active"
+    refused(run(env, "webhook", "enable", sid, "--project", "P123"), "already active")
+
+
+def test_lifecycle_commands_need_the_right_scope_and_a_known_subscription(
+    env: dict[str, str],
+) -> None:
+    sid = add(env)["subscription"]
+    for command in ("disable", "enable", "rotate-secret"):
+        refused(run(env, "webhook", command, sid), "exactly one")
+        refused(run(env, "webhook", command, sid, "--project", "P999"), "no webhook")
+        refused(run(env, "webhook", command, sid, "--company"), "no webhook")
+        refused(
+            run(env, "webhook", command, "01J9Z6Q4W3X2Y1V0T9S8R7Q6ZZ", "--project", "P123"),
+            "no webhook",
+        )
+
+
+@pytest.fixture
+def receiver() -> Iterator[DevReceiver]:
+    with DevReceiver() as running:
+        yield running
+
+
+def test_rotate_secret_prints_the_new_secret_once_and_both_sign_during_the_overlap(
+    env: dict[str, str], receiver: DevReceiver
+) -> None:
+    created = add(env, receiver.url)
+    sid, old = created["subscription"], created["secret"]
+    rotated = ok(
+        run(env, "webhook", "rotate-secret", sid, "--project", "P123", "--overlap-hours", "2")
+    )
+    printed = fields(rotated)
+    assert printed["secret"].startswith("whsec_") and printed["secret"] != old
+    assert len(printed["secret_id"]) == 26
+    assert "not shown again" in rotated.stderr
+    assert sql(env, "SELECT current_secret_id FROM cur_webhook_subscription") == [
+        (printed["secret_id"],)
+    ]
+    states = sql(env, "SELECT state, expires_at IS NOT NULL FROM wh_secret ORDER BY created_at")
+    assert states == [("active", 1), ("active", 0)]
+    # During the overlap a test event carries both signatures: either secret verifies it.
+    receiver.set_secrets([old])
+    send_test(env, sid)
+    receiver.set_secrets([printed["secret"]])
+    send_test(env, sid)
+    assert len(receiver.messages()) == 2
+    assert len(receiver.messages()[0].headers["webhook-signature"].split()) == 2
+    # The old secret was never printed again, and the ledger holds neither secret.
+    ledger = str(sql(env, "SELECT payload FROM events"))
+    assert old not in ledger and printed["secret"] not in ledger
+    assert old not in ok(run(env, "webhook", "ls")).stdout
+
+
+def test_a_negative_overlap_is_refused(env: dict[str, str]) -> None:
+    sid = add(env)["subscription"]
+    result = run(env, "webhook", "rotate-secret", sid, "--project", "P123", "--overlap-hours", "-1")
+    refused(result, "overlap_hours")

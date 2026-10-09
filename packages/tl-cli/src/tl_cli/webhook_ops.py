@@ -62,7 +62,7 @@ def register(app: typer.Typer) -> None:
         raise NotImplementedError
 
     @app.command("rotate-secret")
-    def rotate_secret(
+    def rotate_secret_command(
         ctx: typer.Context,
         subscription_id: Annotated[str, typer.Argument(help="Subscription id.")],
         project: Annotated[str | None, typer.Option("--project")] = None,
