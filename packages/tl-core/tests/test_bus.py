@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import threading
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 import pytest
-from tl_core.bus import InProcessBus
+from tl_core.bus import InProcessBus, OrderedPublisher
 from tl_core.ledger import AppendResult, Event, NewEvent
 
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
@@ -183,3 +184,93 @@ def test_concurrent_publishers_are_serialised_and_keep_each_batch_ordered() -> N
     # whole (its seqs are below the cursor) with warnings, never interleaved
     assert seen == sorted(seen)
     assert len(seen) in (50, 100)
+
+
+def test_ordered_publisher_delivers_batches_in_enqueue_order() -> None:
+    bus = InProcessBus()
+    seen: list[int] = []
+    bus.subscribe(lambda e: seen.append(e.seq))
+    publisher = OrderedPublisher(bus)
+    publisher.enqueue([make_event(1), make_event(2)])
+    publisher.enqueue([make_event(3)])
+    publisher.drain()
+    assert seen == [1, 2, 3]
+    publisher.drain()  # idle drain is harmless
+    assert seen == [1, 2, 3]
+
+
+def test_enqueue_from_inside_a_callback_is_deferred_until_the_callback_returns() -> None:
+    bus = InProcessBus()
+    publisher = OrderedPublisher(bus)
+    trace: list[str] = []
+
+    def first(event: Event) -> None:
+        trace.append(f"first-start-{event.seq}")
+        if event.seq == 1:
+            publisher.enqueue([make_event(2)])
+            publisher.drain()  # nested: returns at once, the running drain delivers seq 2
+            trace.append("first-nested-returned")
+        trace.append(f"first-end-{event.seq}")
+
+    other: list[int] = []
+    bus.subscribe(first)
+    bus.subscribe(lambda e: other.append(e.seq))
+    publisher.enqueue([make_event(1)])
+    publisher.drain()
+    assert trace == [
+        "first-start-1",
+        "first-nested-returned",
+        "first-end-1",
+        "first-start-2",
+        "first-end-2",
+    ]
+    assert other == [1, 2]
+
+
+def test_a_second_thread_does_not_wait_for_a_slow_drain() -> None:
+    bus = InProcessBus()
+    publisher = OrderedPublisher(bus)
+    started, release = threading.Event(), threading.Event()
+    seen: list[int] = []
+
+    def slow(event: Event) -> None:
+        seen.append(event.seq)
+        if event.seq == 1:
+            started.set()
+            assert release.wait(5)
+
+    bus.subscribe(slow)
+    publisher.enqueue([make_event(1)])
+    drainer = threading.Thread(target=publisher.drain)
+    drainer.start()
+    assert started.wait(5)
+    publisher.enqueue([make_event(2)])
+    publisher.drain()  # returns immediately although the first callback is still running
+    assert seen == [1]
+    release.set()
+    drainer.join(5)
+    assert not drainer.is_alive()
+    assert seen == [1, 2]
+
+
+def test_a_failing_publish_is_logged_and_does_not_stop_later_batches(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    class ExplodingBus(InProcessBus):
+        def publish(self, events: Sequence[Event]) -> None:
+            if events[0].seq == 1:
+                raise RuntimeError("bus bug")
+            super().publish(events)
+
+    bus = ExplodingBus()
+    seen: list[int] = []
+    bus.subscribe(lambda e: seen.append(e.seq))
+    publisher = OrderedPublisher(bus)
+    publisher.enqueue([make_event(1)])
+    publisher.enqueue([make_event(2)])
+    publisher.drain()
+    assert seen == [2]
+    assert "bus publish failed" in caplog.text
+    publisher.enqueue([make_event(3)])
+    publisher.drain()  # the drainer flag was reset
+    assert seen == [2, 3]

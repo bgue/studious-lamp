@@ -222,3 +222,70 @@ def test_concurrent_writers_publish_in_commit_order_without_loss(db: Path) -> No
         thread.join()
     assert seen == list(range(1, 31))
     assert sum(counter(db).values()) == 30
+
+
+def test_a_write_from_inside_a_callback_completes_and_is_delivered_in_order(db: Path) -> None:
+    bus = InProcessBus()
+    first: list[int] = []
+    second: list[int] = []
+    nested = {"done": False}
+
+    def on_event(event: Event) -> None:
+        first.append(event.seq)
+        if event.seq == 1 and not nested["done"]:
+            nested["done"] = True
+            with open_uow(db, registry=registry(), bus=bus) as inner:  # same bus, from a callback
+                bump(inner, "inner", 0)
+
+    bus.subscribe(on_event)
+    bus.subscribe(lambda e: second.append(e.seq))
+
+    def outer() -> None:
+        with open_uow(db, registry=registry(), bus=bus) as uow:
+            bump(uow, "outer", 0)
+
+    thread = threading.Thread(target=outer)
+    thread.start()
+    thread.join(10)
+    assert not thread.is_alive(), "nested write deadlocked"
+    assert first == [1, 2]
+    assert second == [1, 2]
+    assert counter(db) == {"outer": 1, "inner": 1}
+
+
+def test_a_slow_subscriber_does_not_block_another_writers_commit(db: Path) -> None:
+    bus = InProcessBus()
+    seen: list[int] = []
+    started, release = threading.Event(), threading.Event()
+
+    def slow(event: Event) -> None:
+        seen.append(event.seq)
+        if event.seq == 1:
+            started.set()
+            assert release.wait(10)
+
+    bus.subscribe(slow)
+
+    def writer_a() -> None:
+        with open_uow(db, registry=registry(), bus=bus) as uow:
+            bump(uow, "a", 0)
+
+    thread_a = threading.Thread(target=writer_a)
+    thread_a.start()
+    assert started.wait(10)  # A has committed and its subscriber is now blocked
+    done_b = threading.Event()
+
+    def writer_b() -> None:
+        with open_uow(db, registry=registry(), bus=bus) as uow:
+            bump(uow, "b", 0)
+        done_b.set()
+
+    thread_b = threading.Thread(target=writer_b)
+    thread_b.start()
+    assert done_b.wait(10), "writer B was blocked by a slow subscriber"
+    assert counter(db) == {"a": 1, "b": 1}  # B committed while A's callback still runs
+    assert seen == [1]
+    release.set()
+    thread_a.join(10)
+    thread_b.join(10)
+    assert seen == [1, 2]

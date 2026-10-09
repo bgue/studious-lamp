@@ -131,7 +131,13 @@ test or a generated artefact already enforces, or narrative history (that belong
 
 - **L-P0-I1-9** · 2026-10-09 · tags: ledger, tests
   A bus with per-subscriber `seq` cursors drops any event published after a later one, so publish order must equal
-  commit order. The SQLite unit of work commits and publishes under one lock; a test that delays every third publish
-  proves it (it fails when the lock is removed). A plain concurrent-writer test did not catch the bug until the
+  commit order. Do not publish while holding a lock (a nested write from a subscriber deadlocks, and re-entrancy would
+  reorder); commit and enqueue under the lock, then drain from a single drainer (`OrderedPublisher`). A test that delays
+  every third publish proves the ordering; a nested-write test and a slow-subscriber test prove liveness. A plain concurrent-writer test did not catch the bug until the
   delay was added. Projector test helpers use portable SQL (UPDATE then INSERT) and non-`cur_` table names.
   Evidence: `packages/tl-adapters/tests/test_sqlite_uow.py` `SlowBus`; reviewer finding on `bus.py`. Status: active
+
+- **L-P0-I1-10** · 2026-10-09 · tags: tooling
+  A Protocol attribute (`ledger: Ledger`) is invariant, so an adapter that narrows it (`SqliteLedger`) fails pyright
+  strict; declare Protocol attributes that implementers may narrow as read-only `@property`.
+  Evidence: T11 blocked on 11 pyright errors; `tl_core/uow.py`. Status: active

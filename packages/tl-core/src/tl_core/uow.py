@@ -18,7 +18,10 @@ class UnitOfWork(Protocol):
     rows survive and nothing is published.
     """
 
-    ledger: Ledger
+    @property
+    def ledger(self) -> Ledger:
+        """The ledger this transaction appends to (read-only, so adapters may narrow its type)."""
+        ...
 
     def __enter__(self) -> UnitOfWork: ...
 

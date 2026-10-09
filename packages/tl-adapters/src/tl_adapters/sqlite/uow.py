@@ -1,8 +1,9 @@
-"""SQLite unit of work: ledger append, inline projectors, and bus publish in one transaction."""
+"""SQLite unit of work: ledger append and inline projectors in one transaction, then bus publish."""
 
 from __future__ import annotations
 
 import threading
+import weakref
 from collections.abc import Callable, Generator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
@@ -10,7 +11,7 @@ from types import TracebackType
 from typing import Any
 
 from sqlalchemy import Connection, Engine
-from tl_core.bus import Bus
+from tl_core.bus import Bus, OrderedPublisher
 from tl_core.ledger import AppendResult, Event
 from tl_core.projection.defaults import default_registry
 from tl_core.projection.registry import InMemoryRegistry
@@ -21,9 +22,19 @@ from tl_adapters.sqlite.ledger import SqliteLedger
 
 REPLAY_PAGE = 1000
 
-# Commit and publish happen under this lock, so events reach the bus in commit (seq) order even when
-# several threads write. SQLite allows one writer at a time, so the lock is only held briefly.
-_COMMIT_AND_PUBLISH = threading.Lock()
+# Commits are ordered by this lock: a writer commits and enqueues its events for the bus while
+# holding it, so the publish queue is in commit (seq) order. Subscribers run after it is released.
+_COMMIT_LOCK = threading.Lock()
+_publishers: weakref.WeakKeyDictionary[Bus, OrderedPublisher] = weakref.WeakKeyDictionary()
+_publishers_lock = threading.Lock()
+
+
+def _publisher_for(bus: Bus) -> OrderedPublisher:
+    with _publishers_lock:
+        publisher = _publishers.get(bus)
+        if publisher is None:
+            publisher = _publishers[bus] = OrderedPublisher(bus)
+        return publisher
 
 
 class SqliteUnitOfWork:
@@ -67,9 +78,11 @@ class SqliteUnitOfWork:
         if exc_type is not None or not pending or self._bus is None:
             tx.__exit__(exc_type, exc, tb)  # rolls back on an exception, otherwise commits
             return
-        with _COMMIT_AND_PUBLISH:
-            tx.__exit__(exc_type, exc, tb)  # commit
-            self._bus.publish(pending)
+        publisher = _publisher_for(self._bus)
+        with _COMMIT_LOCK:
+            tx.__exit__(exc_type, exc, tb)  # commit; if it fails nothing is enqueued
+            publisher.enqueue(pending)
+        publisher.drain()
 
     def append(self, **kwargs: Any) -> AppendResult:
         if self._readonly:
