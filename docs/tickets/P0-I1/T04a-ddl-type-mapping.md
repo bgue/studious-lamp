@@ -4,7 +4,7 @@ Status: draft (ready when T01 merges)
 Tier: haiku
 Labels: schema-tooling
 Depends on: P0-I1-T01
-Branch: `p0/i1/t04a-ddl-types`
+Branch: `p0/i1-t04a-ddl-types`
 
 ## Goal
 A pure, table-driven module that maps a LinkML built-in type to a SQL column type for SQLite and Postgres, and renders

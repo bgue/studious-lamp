@@ -4,7 +4,7 @@ Status: draft (ready when T01 merges; T02 is already on the branch)
 Tier: haiku
 Labels: tooling
 Depends on: P0-I1-T01, P0-I1-T02
-Branch: `p0/i1/t03-codegen-wiring`
+Branch: `p0/i1-t03-codegen-wiring`
 
 ## Goal
 `just gen` runs the LinkML generators over `schema/core/core.yaml` and writes Pydantic models and JSON Schema into
