@@ -42,6 +42,7 @@ deduplicating on the event id. It also shows a failing endpoint going through re
 | D11 | Egress: public addresses only unless the host (name, `host:port`, IP or CIDR) is on `webhooks.egress.allowlist`; `http` only for allow-listed hosts; DNS resolved once per attempt and the IP pinned; redirects never followed. A refusal dead-letters at once (`egress_denied`) | Brief 18.4 and 30.5; the dev receiver is allow-listed explicitly in dev and tests |
 | D12 | Retry: base 5 s, factor 2, cap 1 h, "equal jitter" (50 percent to 100 percent of the ceiling), deadline `created_at + webhooks.retry.max_hours` (24 h), `Retry-After` honoured up to the cap, `410 Gone` dead at once. Auto-disable at 5 dead letters since the last success or 72 h failing. All constants until P0-I8 settings; `RetryPolicy.from_settings` is the plug point | Brief 18.4 "~24 h"; thresholds are documented defaults |
 | D13 | Restricted confidentiality: `ConfidentialityPolicy` (`forced_mode`, `allows`) in `envelope.py`, default open, applied before any body is built; a policy may lower the mode, never raise it | Brief 18.3; classes arrive in Phase 1 |
+| D15 | `wh_secret` holds signing secrets in plaintext, which HMAC needs. Accepted for Phase 0 dev only. Before any non-dev deployment wrap them with envelope encryption under a per-company KMS key (brief 24.1); this is a human-gate follow-up next to ADR-0005 | Secrets must never be in the ledger or logs; at-rest protection needs a key service that does not exist yet |
 | D14 | The record selector of a filter is a query-language expression evaluated against the subject record's current state at dispatch time | Cheap and uses the P0-I4 compiler; point-in-time matching is a follow-up |
 
 ## Supervisor-built pieces (in order)
@@ -96,4 +97,5 @@ REVIEW-SUPERVISOR-PIECES: items 2 to 8 are in the Sonnet-authored list (webhook 
 (none yet)
 
 ## Follow-ups (candidate next-increment tickets)
+Human gate: envelope-encrypt `wh_secret` under per-company KMS keys before any non-dev deployment (D15, next to ADR-0005).
 Batching (single or N / T seconds), per-subscription rate limit, mTLS, per-company egress lists, JSON-LD `@context`, point-in-time `record` for `full` mode, `old` values for `Pset.ValuesSet`, owner notification channel for auto-disable, delivery-log screens (TUI and web), receiver service in `tl-api`, `Webhook.*` ops events if ever wanted, saved-query / module / correspondence-domain selectors, hashtag events once `Feed.*` exists, an index on `wh_delivery (subscription_id, subject_id, status)` if the 100k measurement needs it.

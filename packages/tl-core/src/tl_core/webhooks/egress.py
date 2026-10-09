@@ -89,10 +89,33 @@ def _normalise(address: str) -> IpAddress:
     return parsed
 
 
+_NAT64 = ipaddress.ip_network("64:ff9b::/96")
+_NAT64_LOCAL = ipaddress.ip_network("64:ff9b:1::/48")
+_TEREDO = ipaddress.ip_network("2001::/32")
+_SIX_TO_FOUR = ipaddress.ip_network("2002::/16")
+
+
 def is_public(address: str) -> bool:
-    """Whether the address is globally routable (and so allowed without an allow-list entry)."""
+    """Whether the address is globally routable (and so allowed without an allow-list entry).
+
+    IPv6 forms that wrap an IPv4 address are judged by the address inside: IPv4-mapped
+    (``::ffff:a.b.c.d``), NAT64 (``64:ff9b::/96``) and 6to4 (``2002::/16``). Local-use NAT64
+    (``64:ff9b:1::/48``) and Teredo (``2001::/32``) are refused: they tunnel to addresses we
+    cannot see.
+    """
     parsed = _normalise(address)
+    if isinstance(parsed, ipaddress.IPv6Address):
+        if parsed in _NAT64_LOCAL or parsed in _TEREDO:
+            return False
+        if parsed in _NAT64:
+            return _is_public_v4(ipaddress.IPv4Address(parsed.packed[-4:]))
+        if parsed in _SIX_TO_FOUR:
+            return _is_public_v4(ipaddress.IPv4Address(parsed.packed[2:6]))
     return parsed.is_global and not parsed.is_multicast
+
+
+def _is_public_v4(inner: ipaddress.IPv4Address) -> bool:
+    return inner.is_global and not inner.is_multicast
 
 
 @dataclass(frozen=True)

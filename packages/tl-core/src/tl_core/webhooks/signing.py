@@ -134,7 +134,10 @@ def verify(
     current = time.time() if now is None else now
     if abs(current - timestamp) > tolerance_s:
         raise SignatureError("the webhook timestamp is outside the tolerance window")
-    text = body.decode("utf-8") if isinstance(body, bytes) else body
+    try:
+        text = body.decode("utf-8") if isinstance(body, bytes) else body
+    except UnicodeDecodeError:
+        raise SignatureError("the webhook body is not valid UTF-8") from None
     keys = list(secrets)
     if not keys:
         raise SignatureError("no signing secret to verify with")

@@ -113,3 +113,9 @@ def test_verify_never_raises_anything_but_signature_error_for_hostile_input() ->
     headers["webhook-timestamp"] = "0"
     with pytest.raises(SignatureError):
         verify(headers, "{}", [SECRET], now=0)
+
+
+def test_a_body_that_is_not_utf8_is_a_signature_error_not_a_crash() -> None:
+    headers = sign_headers(MESSAGE_ID, TIMESTAMP, BODY, [SECRET])
+    with pytest.raises(SignatureError, match="UTF-8"):
+        verify(headers, b"\xff\xfe\x00{", [SECRET], now=TIMESTAMP)

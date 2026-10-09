@@ -26,6 +26,9 @@ def policy(mapping: dict[str, list[str]], allow: tuple[str, ...] = ()) -> Egress
         "10.0.0.1", "172.16.5.4", "192.168.1.1", "127.0.0.1", "127.1.2.3", "169.254.169.254",
         "100.64.0.1", "0.0.0.0", "224.0.0.1", "255.255.255.255", "::1", "fe80::1", "fc00::1",
         "::", "::ffff:10.0.0.1", "::ffff:127.0.0.1", "192.0.2.1", "198.51.100.7",
+        "64:ff9b::7f00:1", "64:ff9b::a00:1", "64:ff9b::a9fe:a9fe", "64:ff9b:1::1",
+        "64:ff9b:1::808:808",
+        "2001::1", "2001:0:4136:e378:8000:63bf:3fff:fdd2", "2002:7f00:1::1", "2002:a00:1::1",
     ],
 )  # fmt: skip
 def test_non_public_addresses_are_refused(address: str) -> None:
@@ -34,7 +37,10 @@ def test_non_public_addresses_are_refused(address: str) -> None:
         policy({"hook.test": [address]}).check("https://hook.test/x")
 
 
-@pytest.mark.parametrize("address", ["8.8.8.8", "93.184.216.34", "2606:4700:4700::1111"])
+@pytest.mark.parametrize(
+    "address",
+    ["8.8.8.8", "93.184.216.34", "2606:4700:4700::1111", "64:ff9b::808:808", "2002:808:808::1"],
+)
 def test_public_addresses_are_allowed_and_pinned(address: str) -> None:
     target = policy({"hook.test": [address]}).check("https://hook.test:8443/in?x=1")
     assert (target.scheme, target.host, target.port, target.ip) == (

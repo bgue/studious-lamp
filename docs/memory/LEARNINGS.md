@@ -372,3 +372,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   Reference implementations for T20 to T23 were checked with `/tmp`-style scripts that copy the reference over the stub, run
   `ruff`, `pyright` and the provided test, then `git checkout -- packages` (commit supervisor edits first: the checkout also reverts them).
   Evidence: `packages/tl-core/src/tl_core/webhooks/filters.py`; docs/tickets/P0-I5/T22-webhook-filter-match.md. Status: active
+
+- **L-P0-I5-B4** · 2026-10-09 · tags: api, tests
+  An address allow/deny check must unwrap every IPv6 form that carries an IPv4 address, not only `::ffff:x`: NAT64
+  `64:ff9b::/96` and 6to4 `2002::/16` are judged by the address inside, local-use NAT64 `64:ff9b:1::/48` and Teredo
+  `2001::/32` are refused. `verify` must also turn non-UTF-8 body bytes into `SignatureError`. Both were found by the
+  orchestrator's review of 7b6c704; the cases are rows in `test_webhook_egress.py` and `test_webhook_signing.py`.
+  Evidence: `egress.is_public`; orchestrator review at 7b6c704. Status: active
