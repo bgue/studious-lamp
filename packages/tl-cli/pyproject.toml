@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
   "typer",
   "rich",
+  "pydantic>=2",
   "tl-core",
   "tl-adapters",
 ]

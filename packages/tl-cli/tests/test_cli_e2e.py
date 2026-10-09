@@ -152,3 +152,26 @@ def test_create_without_key_is_a_usage_error(env: dict[str, str]) -> None:
 
     assert result.exit_code != 0
     assert "--key" in result.output
+
+
+def test_invalid_input_is_an_error_line_not_a_traceback(env: dict[str, str]) -> None:
+    empty_title = _create(env, title="")
+    assert empty_title.exit_code == 1
+    assert "error:" in empty_title.stderr
+    assert "title" in empty_title.stderr
+    assert empty_title.exception is None or isinstance(empty_title.exception, SystemExit)
+
+    bad_project = _run(
+        env, "record", "create", "--project", "bad id", "--key", "K-1", "--title", "T"
+    )
+    assert bad_project.exit_code == 1
+    assert "error:" in bad_project.stderr
+    assert "scope" in bad_project.stderr
+
+    assert _create(env).exit_code == 0
+    blank_reason = _run(env, "record", "void", "--project", "P123", "DEMO-0001", "--reason", "  ")
+    assert blank_reason.exit_code == 1
+    assert "error:" in blank_reason.stderr
+    assert "reason" in blank_reason.stderr
+    shown = _run(env, "record", "show", "--project", "P123", "DEMO-0001")
+    assert "voided: false" in shown.stdout

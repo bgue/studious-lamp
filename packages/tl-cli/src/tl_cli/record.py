@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Annotated, NoReturn
 
 import typer
+from pydantic import ValidationError
 from tl_adapters.sqlite.uow import open_uow
 from tl_core.ledger import ConcurrencyError, canonical_json
 from tl_core.services.commands import CreateRecord, VoidRecord
@@ -41,11 +42,13 @@ def _fail(message: str) -> NoReturn:
 
 @contextmanager
 def _service_errors() -> Iterator[None]:
-    """Turn a service or concurrency failure into `error: <message>` on stderr and exit 1."""
+    """Turn a service, concurrency, or input-validation failure into `error:` on stderr, exit 1."""
     try:
         yield
     except (ServiceError, ConcurrencyError) as exc:
         _fail(str(exc))
+    except ValidationError as exc:
+        _fail("; ".join(f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors()))
 
 
 def _show_value(value: object) -> str:
