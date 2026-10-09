@@ -80,3 +80,7 @@ TYPE_FULL_RE = re.compile(rf"^{TYPE_RE.pattern}$")
 LIVE_LINK_STATUSES: tuple[str, ...] = ("active", "stale", "broken")
 
 MAX_INT = 2**63 - 1
+
+#: Characters that end a field name or start an operator, and the two quote characters.
+OP_CHARS = ":=!<>~"
+QUOTES = "\"'"

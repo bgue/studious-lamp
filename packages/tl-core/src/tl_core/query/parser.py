@@ -50,9 +50,11 @@ from tl_core.query.ast import (
 from tl_core.query.fields import (
     ENVELOPE_FIELDS,
     MAX_INT,
+    OP_CHARS,
     OPS_BY_KIND,
     PSET_OPS,
     PSET_PATH_RE,
+    QUOTES,
     TYPE_RE,
     Field,
 )
@@ -62,13 +64,11 @@ MAX_QUERY_LENGTH = 2000
 MAX_DEPTH = 32
 MAX_NODES = 200
 
-_OP_CHARS = ":=!<>~"
-_QUOTES = "\"'"
 _INT_RE = re.compile(r"-?\d+")
 _PSET_INT_RE = re.compile(r"-?(?:0|[1-9]\d*)")
 _PSET_FLOAT_RE = re.compile(r"-?(?:0|[1-9]\d*)\.\d+")
 _REL_RE = re.compile(r"\*|[A-Za-z_][A-Za-z0-9_-]*")
-_WORD_STOP = frozenset("()" + _QUOTES + _OP_CHARS)
+_WORD_STOP = frozenset("()" + QUOTES + OP_CHARS)
 
 
 def parse_text(text: str) -> Expr | None:
@@ -217,10 +217,10 @@ class _Parser:
             raise self.err("unmatched ')'")
         if self.at_keyword("or") or self.at_keyword("and"):
             raise self.err("expected a term, found a keyword; quote the word to search for it")
-        if char in _QUOTES:
+        if char in QUOTES:
             start = self.i
             quoted = self.read_quoted()
-            if self.peek() != "" and self.peek() in _OP_CHARS:
+            if self.peek() != "" and self.peek() in OP_CHARS:
                 raise self.err("a quoted text cannot be a field name", self.i)
             if not quoted.strip():
                 raise self.err("empty search text", start)
@@ -245,7 +245,7 @@ class _Parser:
             return self.missing_term()
         if lower == "path" and following == "(":
             raise self.err("path(...) is not supported yet", start)
-        if following != "" and following in _OP_CHARS:
+        if following != "" and following in OP_CHARS:
             return self.field_term(word, start)
         self.count()
         return Text(word)
@@ -313,16 +313,14 @@ class _Parser:
         if self.i >= self.n or self.s[self.i].isspace() or self.s[self.i] == ")":
             raise self.err("expected a value after the operator")
         char = self.s[self.i]
-        if char in _QUOTES:
+        if char in QUOTES:
             return self.read_quoted(), True, position
         if char == "(":
             raise self.err("a value cannot start with '('; quote it")
-        if char in _OP_CHARS:
+        if char in OP_CHARS:
             raise self.err(f"unexpected {char!r} in the value; quote the value to use it as text")
         while (
-            self.i < self.n
-            and not self.s[self.i].isspace()
-            and self.s[self.i] not in "()" + _QUOTES
+            self.i < self.n and not self.s[self.i].isspace() and self.s[self.i] not in "()" + QUOTES
         ):
             self.i += 1
         return self.s[position : self.i], False, position
@@ -462,7 +460,7 @@ class _Parser:
             raise self.err("expected a record type after ':'")
         word = match.group()
         following = self.s[match.end()] if match.end() < self.n else ""
-        if following == "" or following not in _OP_CHARS:
+        if following == "" or following not in OP_CHARS:
             self.i = match.end()
             return word, None
         segments = word.split(".")
@@ -487,7 +485,7 @@ class _Parser:
         linked = self.linked(allow_where=True)
         self.ws()
         self.expect(")", "to close count(")
-        if self.i >= self.n or self.s[self.i] not in _OP_CHARS:
+        if self.i >= self.n or self.s[self.i] not in OP_CHARS:
             raise self.err("expected a comparison after count(...), for example >0")
         op, _ = self.read_op(allow_tilde=False)
         raw, _quoted, value_position = self.read_value()
