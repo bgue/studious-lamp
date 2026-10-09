@@ -103,3 +103,16 @@ test or a generated artefact already enforces, or narrative history (that belong
   Git cannot hold a branch `p0/i1` and a branch `p0/i1/t01-…` at the same time (ref namespace clash). Ticket branches are
   siblings: `p0/i1-t01-<slug>`. The branch passed by the orchestrator overrides a ticket's Branch field.
   Evidence: `fatal: cannot lock ref 'refs/heads/p0/i1/t01-monorepo-scaffold'` in the first ticket-batch run. Status: active
+
+- **L-P0-I1-5** · 2026-10-09 · tags: tooling, ledger
+  SQLite through SQLAlchemy: pysqlite's legacy transaction control breaks an explicit `BEGIN IMMEDIATE`. Set
+  `dbapi_connection.isolation_level = None` on connect and issue `BEGIN IMMEDIATE` (writes) or `BEGIN` (reads) from the
+  SQLAlchemy `begin` event, chosen by a connection execution option. `executescript` (via `engine.raw_connection()`)
+  is needed to run schema files whose trigger bodies contain semicolons.
+  Evidence: `docs/tickets/P0-I1/T06-sqlite-ledger-adapter.md` (`engine.py`); two-thread race test passes. Status: active
+
+- **L-P0-I1-6** · 2026-10-09 · tags: tooling
+  pyright strict flags `@contextmanager` functions annotated `Iterator[X]` (use `Generator[X]`), and ruff's
+  `E501` applies to docstrings and comments at 100 columns, so wrap prose when writing modules. Provided test files
+  must be ruff-clean before commit because implementers may not edit them.
+  Evidence: scratch builds of T04b and T07. Status: active

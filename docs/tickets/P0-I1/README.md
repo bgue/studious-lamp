@@ -31,8 +31,8 @@ tl projections rebuild                       # rebuilt from the ledger; show out
 | # | Piece | Why supervisor-tier | Reviewer | Status |
 |---|---|---|---|---|
 | T02 | Core LinkML: `schema/core/{annotations,record,ledger,core}.yaml` | Schema semantics (`01-tiers.md` §3, human gate on `schema/**`) | Orchestrator approves schema | built, committed (needs `SCHEMA_APPROVALS`) |
-| T04b | DDL generator core: LinkML class to `cur_<module>_<class>` DDL per dialect, golden test equals `03` §9 | Cross-dialect generator core (§5.4) | Orchestrator or human | planned (after T04a, T03) |
-| T07 | Projector engine, `UnitOfWork` Protocol and SQLite implementation, in-process bus, rebuild | Ledger append plus inline projector transaction (§5) | Orchestrator or human | planned (after T05, T06) |
+| T04b | DDL generator core: LinkML class to `cur_<module>_<class>` DDL per dialect, golden test equals `03` §9 | Cross-dialect generator core (§5.4) | Orchestrator or human | built on `p0/i1-t04b-ddl-core` (`b74d268`); registration in `generate.py` and generated output land after T03/T04a merge |
+| T07 | Projector engine, `UnitOfWork` Protocol and SQLite implementation, in-process bus, rebuild | Ledger append plus inline projector transaction (§5) | Orchestrator or human | built on `p0/i1-t07-projector-engine` (`537e866`); verified against a scratch T05/T06; merge after T06 |
 | Demo | `dev/demos/P0-I1.sh`, wired to `just demo` | Supervisor deliverable | Orchestrator | planned (after T10) |
 
 ## Tickets
@@ -42,10 +42,10 @@ tl projections rebuild                       # rebuilt from the ledger; show out
 | T02 | Core LinkML | S | T01 | built | committed on `p0/i1`; awaiting schema approval |
 | T03 | Codegen wiring (pydantic, JSON Schema, `--check` drift gate) | H | T01, T02 | draft | |
 | T04a | DDL type mapping | H | T01 | draft | |
-| T04b | DDL generator core | S | T04a, T03 | planned | |
+| T04b | DDL generator core | S | T04a, T03 | built (side branch) | |
 | T05 | Ledger types and hashing | H | T01 | draft | |
-| T06 | SQLite ledger adapter | H | T05 | draft | |
-| T07 | Projector engine + SQLite UnitOfWork | S | T05, T06 | planned | |
+| T06 | SQLite ledger adapter | H | T05 | draft (ticket final; provided test waits for T05) | |
+| T07 | Projector engine + SQLite UnitOfWork | S | T05, T06 | built (side branch) | |
 | T08 | `core.Record` projector | H | T04b, T07 (projection types) | planned | |
 | T09 | Record command handlers | H | T07, T08 | planned | |
 | T10 | `tl` CLI | H | T09, T11 | planned | |
@@ -73,7 +73,7 @@ taken over (recorded here). T12 is split by package group if the file count exce
 | Round | Ticket batch | Supervisor work in the same turn |
 |---|---|---|
 | 1 | T01 | Plan, T02, tickets T03/T04a/T05 |
-| 2 | T05, T04a, T03 | Merge T01; T04b and T07 drafts on a side branch |
+| 2 | T05, T04a, T03 | Merge T01; T04b and T07 were already built on side branches (round 1 interim) |
 | 3 | T06, T08 | Merge round 2; finish T04b; projection types; provided test for T06 |
 | 4 | T09, T11 | Merge round 3; finish T07 (SQLite UnitOfWork) |
 | 5 | T10, T12 | Merge round 4; demo script |
