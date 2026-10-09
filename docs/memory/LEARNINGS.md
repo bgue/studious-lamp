@@ -389,3 +389,18 @@ test or a generated artefact already enforces, or narrative history (that belong
   showed in about an hour that production code needed three fixes and the tests needed only mechanical changes, which made the
   tickets small and their acceptance counts exact. The same worktree is the takeover path; keep it until the tickets merge.
   Evidence: `/home/user/wt/p0-i5a-refs`; README-A "Order of work". Status: active
+
+- **L-P0-I5-A7** · 2026-10-09 · tags: process, env
+  Check a dependency's licence before adding it. psycopg 3 is LGPL-3.0; a copyleft dependency is a human gate (`04-gates.md` §2) that
+  the orchestrator's delegation does not cover, and "pre-approved" in a fanout plan named a driver, not a licence. The Postgres driver is
+  `pg8000` (BSD-3-Clause; deps scramp MIT-0, asn1crypto MIT, python-dateutil Apache-2.0/BSD). A new dependency line in a ticket or plan
+  names the package and its licence.
+  Evidence: orchestrator ruling on P0-I5 WS-A; `packages/tl-adapters/pyproject.toml`. Status: active
+
+- **L-P0-I5-A8** · 2026-10-09 · tags: tooling, ledger
+  pg8000 differences that the adapter hides: it ignores libpq `options` (the schema goes in as the startup parameter `search_path`);
+  it raises `IntegrityError` only for SQLSTATE 23505, so `engine.py` re-raises every class-23 error as `IntegrityError` (the append-only
+  trigger, NOT NULL); it has no blocking wait for `LISTEN`, so `NotifyListener` runs `SELECT 1` every 50 ms and drains
+  `conn.notifications`; result coercions are `register_in_adapter(oid, fn)` with fn taking the text value. The loader behaviour that
+  `tl_core` relies on (canonical JSON text, ISO UTC timestamps, 0/1 booleans, int sums) is the same under both drivers.
+  Evidence: `postgres/engine.py`, `postgres/notify.py`; 150 adapter tests pass on both adapters. Status: active

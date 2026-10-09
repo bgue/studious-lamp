@@ -1,3 +1,4 @@
+# pyright: basic
 """LISTEN/NOTIFY wake-ups for pollers (brief 5.3, 14).
 
 Every ledger append sends ``NOTIFY tl_events`` with the payload ``<schema>:<last seq>``; Postgres
@@ -15,28 +16,22 @@ import logging
 import threading
 from types import TracebackType
 
-import psycopg
-from psycopg import sql
-from sqlalchemy.engine import make_url
+import pg8000.native
+from pg8000.native import identifier
 
-from tl_adapters.postgres.engine import NOTIFY_CHANNEL, sqlalchemy_url
+from tl_adapters.postgres.engine import NOTIFY_CHANNEL, split_url
 
 log = logging.getLogger(__name__)
 
 _RETRY_S = 1.0
-_POLL_S = 0.25
-
-
-def _libpq_url(url: str) -> str:
-    parsed = make_url(sqlalchemy_url(url))
-    return parsed.set(drivername="postgresql").render_as_string(hide_password=False)
+_POLL_S = 0.05
 
 
 class NotifyListener:
     """Sets ``wake`` whenever a commit announces new events in this connection's schema."""
 
     def __init__(self, url: str, wake: threading.Event, *, channel: str = NOTIFY_CHANNEL) -> None:
-        self._url = _libpq_url(url)
+        self._url = url
         self._wake = wake
         self._channel = channel
         self._stop = threading.Event()
@@ -81,20 +76,37 @@ class NotifyListener:
                 self._wake.set()  # events may have been missed while disconnected: poll now
                 self._stop.wait(_RETRY_S)
 
+    def _connect(self) -> pg8000.native.Connection:
+        parsed, connect_args = split_url(self._url)
+        return pg8000.native.Connection(
+            user=parsed.username or "postgres",
+            host=parsed.host or "localhost",
+            port=parsed.port or 5432,
+            database=parsed.database,
+            password=parsed.password,
+            startup_params=connect_args.get("startup_params"),
+        )
+
     def _listen(self) -> None:
-        with psycopg.connect(self._url, autocommit=True) as conn:
-            row = conn.execute("SELECT current_schema()").fetchone()
-            schema = row[0] if row else ""
-            conn.execute(sql.SQL("LISTEN {}").format(sql.Identifier(self._channel)))
+        # pg8000 has no blocking wait for notifications: they are queued on the connection while
+        # it runs a statement, so a cheap round trip every few milliseconds collects them.
+        conn = self._connect()
+        try:
+            rows = conn.run("SELECT current_schema()") or [[""]]
+            schema = rows[0][0]
+            conn.run(f"LISTEN {identifier(self._channel)}")
             self._ready.set()
             self._wake.set()  # anything committed before LISTEN began is found by the first poll
             while not self._stop.is_set():
-                for notice in conn.notifies(timeout=_POLL_S):
-                    if notice.payload.split(":", 1)[0] == schema:
+                conn.run("SELECT 1")
+                while conn.notifications:
+                    _pid, _channel, payload = conn.notifications.popleft()
+                    if payload.split(":", 1)[0] == schema:
                         self.notifications += 1
                         self._wake.set()
-                    if self._stop.is_set():
-                        break
+                self._stop.wait(_POLL_S)
+        finally:
+            conn.close()
 
     def __enter__(self) -> NotifyListener:
         self.start()

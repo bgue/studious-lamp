@@ -30,7 +30,7 @@ def schema_url(url: str, schema: str) -> str:
         {"options": f"-csearch_path={_checked(schema)}"}
     )
     return parsed.render_as_string(hide_password=False).replace(
-        "postgresql+psycopg://", "postgresql://"
+        "postgresql+pg8000://", "postgresql://"
     )
 
 
@@ -47,7 +47,7 @@ def drop_schema_namespace(url: str, schema: str) -> None:
 def reachable(url: str, *, timeout_s: int = 3) -> bool:
     """True when a connection to ``url`` can be opened and ``SELECT 1`` runs."""
     engine = create_engine(
-        sqlalchemy_url(url), poolclass=NullPool, connect_args={"connect_timeout": timeout_s}
+        sqlalchemy_url(url), poolclass=NullPool, connect_args={"timeout": timeout_s}
     )
     try:
         with engine.connect() as conn:
@@ -72,7 +72,7 @@ def database_url(url: str, database: str) -> str:
     """``url`` pointing at another database on the same server."""
     parsed = make_url(sqlalchemy_url(url)).set(database=_checked(database))
     return parsed.render_as_string(hide_password=False).replace(
-        "postgresql+psycopg://", "postgresql://"
+        "postgresql+pg8000://", "postgresql://"
     )
 
 

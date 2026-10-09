@@ -39,6 +39,7 @@ Expected: all green, `TL_REQUIRE_POSTGRES=1` set by the recipe, no skips.
 | D11 | Not done: a unique constraint on `cur_files (record_id, slot, revision)` (P0-I4 follow-up) | It is a `schema/**` change, and a rejected upload followed by a re-upload may legitimately reuse a revision number, so the constraint needs a service review; the ledger lock already makes duplicates impossible. Left as a follow-up |
 | D12 | `tl` CLI, TUI embedded mode and the API keep opening SQLite paths | `tl_cli` / `tl_tui` import `tl_adapters.sqlite.uow` directly; switching them to `tl_adapters.db` is mechanical but outside this increment's exit criteria. Follow-up |
 | D13 | `LOWER()` folds only ASCII on SQLite and by the server's ctype on Postgres, so a search for `é` can match `É` on Postgres only | Known, not fixable portably without a registered SQLite function; documented in `packages/tl-adapters/README.md` |
+| D14 | The Postgres driver is pg8000 through `postgresql+pg8000`. `postgresql://` URLs are accepted everywhere and rewritten inside `postgres/engine.py`; a schema is selected with the startup parameter `search_path` (from the URL's `options=-csearch_path=...`, which `admin.schema_url` writes). Result coercions are `register_in_adapter` functions; class-23 SQLSTATEs are re-raised as `IntegrityError` (pg8000 does that only for unique violations); `NotifyListener` polls `conn.notifications` after a `SELECT 1` every 50 ms | Orchestrator ruling: psycopg is LGPL. Hash chain and all ledger behaviour are unchanged |
 
 ## Supervisor-built pieces (in order)
 REVIEW-SUPERVISOR-PIECES: S1 to S6 below are Sonnet-authored by rule (ledger append, hash chain, transaction isolation) and need orchestrator or human review before WS-A is merged into `p0/i5`.
@@ -90,7 +91,7 @@ public-interface change; (7) a reviewer verifies from the diff plus the commands
 
 ## SCHEMA_APPROVALS
 None. WS-A changes no file under `schema/**`; the generator change (D6) regenerates only `packages/tl-schema/src/tl_schema/generated/ddl/postgres/`.
-New dependency: `psycopg[binary]>=3.2` in `packages/tl-adapters/pyproject.toml` (pre-approved in FANOUT; `uv.lock` updated).
+New dependency: `pg8000>=1.31` (BSD-3-Clause; pulls `scramp` MIT-0, `asn1crypto` MIT, `python-dateutil` Apache-2.0/BSD) in `packages/tl-adapters/pyproject.toml`, `uv.lock` updated. Approved by the orchestrator, logged in `docs/reports/APPROVALS.md` on the trunk. `psycopg` was refused: it is LGPL-3.0, a copyleft dependency, which is a human gate (`04-gates.md` §2).
 
 ## Blocked / Decision
 (none)

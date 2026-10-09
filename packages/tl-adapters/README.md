@@ -26,7 +26,7 @@ Storage adapters that implement the `tl_core` Protocols: SQLite, PostgreSQL 16 a
 | `tl_adapters.objectstore.object_secret(env=None)` | function | Signing secret for upload ids and fs URLs; fails closed (see Configuration) |
 
 ## Depends on / used by
-- Depends on: `tl_core`, `sqlalchemy`, `psycopg[binary]` (Postgres driver), `python-ulid`, `boto3` (s3 backend; tests use `moto`, no MinIO).
+- Depends on: `tl_core`, `sqlalchemy`, `pg8000` (Postgres driver, BSD-3-Clause), `python-ulid`, `boto3` (s3 backend; tests use `moto`, no MinIO).
 - Used by: `tl_cli`, tests, later the API and TUI embedded mode.
 
 ## Commands
