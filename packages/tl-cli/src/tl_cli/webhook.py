@@ -4,23 +4,31 @@ Each subcommand parses options, makes one call into `tl_core.webhooks`, and prin
 secrets and delivery rules live in the services; the secret is printed once by `add` and can
 never be shown again. Part 2 (dlq, disable, enable, rotate-secret) is `webhook_ops.py`,
 registered at the bottom.
-
-STUB (P0-I5-T25): the four command bodies marked `raise NotImplementedError` are the ticket. Remove
-this paragraph when done.
 """
 
 from __future__ import annotations
 
-from typing import Annotated
+from datetime import UTC, datetime
+from typing import Annotated, Any
 
 import typer
+from tl_core.webhooks import queries
+from tl_core.webhooks.subscriptions import CreateWebhookSubscription, create_subscription
+from tl_core.webhooks.wiring import make_dispatcher, make_engine
 
 from tl_cli import webhook_ops
+from tl_cli.webhook_common import ACTOR, SOURCE, factory, fail, scope_of, service_errors
 
 app = typer.Typer(help="Outbound webhooks: subscriptions, tests, replay.", no_args_is_help=True)
 
 PROJECT = Annotated[str | None, typer.Option("--project", help="Project ID; scope project:<ID>.")]
 COMPANY = Annotated[bool, typer.Option("--company", help="Company scope instead of a project.")]
+
+
+def _moment(text: str) -> datetime:
+    """An ISO-8601 time as an aware datetime; without an offset it is UTC (bad text: ValueError)."""
+    moment = datetime.fromisoformat(text)
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
 
 
 @app.command("add")
@@ -63,13 +71,62 @@ def add(
     ] = None,
 ) -> None:
     """Create a subscription. Prints its id and its signing secret, once."""
-    raise NotImplementedError
+    scope = scope_of(project, company)
+    given: dict[str, Any] = {
+        "event_types": event_type,
+        "record_selector": selector,
+        "record_ids": record_id,
+        "changed_fields": changed_field,
+        "transitions": transition,
+        "link_relations": link_relation,
+        "file_slots": file_slot,
+        "hashtags": hashtag,
+        "scope_selector": scope_selector,
+    }
+    flt = {key: value for key, value in given.items() if value is not None and value != []}
+    with factory(ctx) as opened:
+        with service_errors():
+            expires_at = None if expires is None else _moment(expires)
+            with opened() as uow:
+                issued = create_subscription(
+                    uow,
+                    CreateWebhookSubscription(
+                        actor=ACTOR,
+                        source=SOURCE,
+                        scope=scope,
+                        name=name,
+                        target_url=url,
+                        filter=flt,
+                        payload_mode=mode,
+                        expires_at=expires_at,
+                    ),
+                )
+            typer.echo(f"subscription {issued.subscription_id}")
+            typer.echo(f"secret_id {issued.secret_id}")
+            typer.echo(f"secret {issued.secret}")
+            typer.echo("keep the secret: it is not shown again", err=True)
 
 
 @app.command("ls")
 def ls(ctx: typer.Context, project: PROJECT = None, company: COMPANY = False) -> None:
     """List subscriptions (every scope without --project / --company), one line each."""
-    raise NotImplementedError
+    scope = scope_of(project, company) if project is not None or company else None
+    columns = (
+        "subscription_id",
+        "status",
+        "payload_mode",
+        "name",
+        "target_url",
+        "delivered_total",
+        "pending",
+        "dead",
+    )
+    with factory(ctx) as opened:
+        with service_errors():
+            with opened(readonly=True) as uow:
+                rows = queries.list_subscriptions(uow, scope)
+            for row in rows:
+                typer.echo("\t".join(str(row[column]) for column in columns))
 
 
 @app.command("test")
@@ -85,7 +142,21 @@ def test(
     ] = None,
 ) -> None:
     """Send a signed catalog sample to the subscription's URL and report the answer."""
-    raise NotImplementedError
+    with factory(ctx) as opened:
+        with service_errors():
+            result = make_engine(opened, allow_hosts=allow_host or ()).send_test(
+                subscription_id, event_type
+            )
+            typer.echo(f"event_id {result.event_id}")
+            typer.echo(f"status {'-' if result.status is None else result.status}")
+            typer.echo(f"latency_ms {result.latency_ms}")
+            if result.blocked:
+                fail(
+                    "the target is blocked by the egress policy; "
+                    "allow-list it with --allow-host or TL_WEBHOOK_ALLOWLIST"
+                )
+            if not result.ok:
+                fail(result.error or f"the receiver answered HTTP {result.status}")
 
 
 @app.command("replay")
@@ -98,7 +169,20 @@ def replay(
     until: Annotated[str | None, typer.Option("--until", help="ISO-8601 end time.")] = None,
 ) -> None:
     """Re-send a seq range or a time range to one subscription."""
-    raise NotImplementedError
+    if from_seq is not None and to_seq is not None and since is None and until is None:
+        with factory(ctx) as opened:
+            with service_errors():
+                count = make_dispatcher(opened).replay(subscription_id, from_seq, to_seq)
+                typer.echo(f"replayed {count}")
+    elif since is not None and until is not None and from_seq is None and to_seq is None:
+        with factory(ctx) as opened:
+            with service_errors():
+                count = make_dispatcher(opened).replay_between(
+                    subscription_id, _moment(since), _moment(until)
+                )
+                typer.echo(f"replayed {count}")
+    else:
+        fail("give --from-seq and --to-seq, or --since and --until")
 
 
 webhook_ops.register(app)
