@@ -4,16 +4,13 @@
 matching events after a cursor together with the cursor to continue from. The cursor also moves
 past events the filter rejected, so a selective filter never makes a client re-scan the same
 stretch of the log.
-
-STUB (P0-I4-T01): the names, signatures and docstrings are final; the body of
-``fetch_changes`` is the ticket. Remove this paragraph when done.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from tl_core.changefeed.filters import SubscriptionFilter
+from tl_core.changefeed.filters import ANY, SubscriptionFilter
 from tl_core.ledger import Event, Ledger
 
 DEFAULT_LIMIT = 500
@@ -43,4 +40,22 @@ def fetch_changes(
     and each event is tested with ``flt.matches``. At most ``MAX_SCAN_PAGES`` pages are read per
     call. Raises ``ValueError`` when ``limit`` is below 1 or ``after_seq`` is negative.
     """
-    raise NotImplementedError
+    if limit < 1:
+        raise ValueError(f"limit must be at least 1, got {limit}")
+    if after_seq < 0:
+        raise ValueError(f"after_seq must not be negative, got {after_seq}")
+    active = ANY if flt is None else flt
+    events: list[Event] = []
+    cursor = after_seq
+    for _ in range(MAX_SCAN_PAGES):
+        page = ledger.read_after(cursor, scope=active.scope, limit=PAGE)
+        for event in page:
+            if active.matches(event):
+                if len(events) == limit:
+                    # The extra event is not consumed; the next call finds it again.
+                    return ChangePage(events, events[-1].seq, True)
+                events.append(event)
+            cursor = event.seq
+        if len(page) < PAGE:
+            return ChangePage(events, cursor, False)
+    return ChangePage(events, cursor, True)
