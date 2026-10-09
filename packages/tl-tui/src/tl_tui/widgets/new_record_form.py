@@ -1,8 +1,8 @@
 """New-record modal: Key, Title and Description, created through `ClientInterface` (brief 10.2).
 
-The form only collects values and reports the outcome. Keys are typed by the user in Phase 0;
-the numbering service arrives in Increment 3. Errors stay on screen and the form stays open so
-the user can correct them.
+The form only collects values and reports the outcome. A blank key lets the numbering service
+allocate one (brief 8); a typed key is used as given. Errors stay on screen and the form stays
+open so the user can correct them.
 """
 
 from __future__ import annotations
@@ -26,12 +26,11 @@ FIELDS: tuple[FieldMeta, ...] = (
     FieldMeta(
         path="key",
         label="Key",
-        description="Record key, unique in the project scope",
+        description="Record key, unique in the project scope; leave blank to take the next number",
         kind="string",
         layer="core",
         group="details",
         order=1,
-        enforcement="required",
     ),
     FieldMeta(
         path="title",
@@ -115,12 +114,8 @@ class NewRecordForm(ModalScreen[str | None]):
         key = self._editor("key")
         title = self._editor("title")
         description = self._editor("description")
-        missing = False
-        for editor in (key, title):
-            if editor.value is None:
-                editor.set_error("Required")
-                missing = True
-        if missing:
+        if title.value is None:
+            title.set_error("Required")
             self._status("Fill in the required fields")
             return
         cmd = CreateRecord(
@@ -128,7 +123,7 @@ class NewRecordForm(ModalScreen[str | None]):
             source="tui",
             scope=self.scope,
             record_type=self.record_type,
-            key=str(key.value),
+            key=None if key.value is None else str(key.value),
             title=str(title.value),
             description=description.value,
         )

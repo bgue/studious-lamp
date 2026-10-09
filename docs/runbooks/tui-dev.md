@@ -14,14 +14,14 @@ Purpose: start the Textual TUI in embedded mode against the SQLite dev ledger, l
    ```
    uv run tl init
    uv run tl record create --project P123 --key V-0001 --title "Valve 1"
-   uv run tl record create --project P123 --key V-0002 --title "Valve 2"
+   uv run tl record create --project P123 --title "Valve 2"
    ```
-   Expected: `created <id>` and `key V-0001`.
+   Expected: `created <id>` and `key V-0001`; the second record, given no key, gets `P123-REC-0001` from the numbering pattern.
 2. Start the TUI:
    ```
    just tui
    ```
-   Expected: the grid lists V-0001 and V-0002. `Enter` opens a record, `e` edits it (Ctrl+S saves), `n` creates one, `F1` shows the key map, `Ctrl+Q` quits.
+   Expected: the grid lists V-0001 and P123-REC-0001. `Enter` opens a record, `e` edits it (Ctrl+S saves), `n` creates one, `F1` shows the key map, `Ctrl+Q` quits. In a record: `l` links it to another, `w` shows workflow actions, `t` traces its links, `R` adds it to the reference tray (`F4` opens the tray), `Alt+Left` goes back. `Ctrl+P` opens the command palette.
 3. Use another ledger or project with environment variables:
    ```
    TL_DB=/tmp/other.db TL_PROJECT=P124 just tui

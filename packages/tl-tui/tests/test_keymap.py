@@ -14,8 +14,14 @@ from tl_tui.widgets.edit_form import EditForm
 from tl_tui.widgets.footer import DEFAULT_HINTS
 from tl_tui.widgets.grid import RecordGrid
 from tl_tui.widgets.help_screen import HelpScreen
+from tl_tui.widgets.link_picker import LinkPicker
+from tl_tui.widgets.links_tab import LinksTab
 from tl_tui.widgets.new_record_form import NewRecordForm
+from tl_tui.widgets.palette import CommandPalette
 from tl_tui.widgets.record_view import RecordView
+from tl_tui.widgets.ref_tray import ReferenceTrayScreen
+from tl_tui.widgets.trace_tab import TraceTab
+from tl_tui.widgets.workflow_menu import WorkflowMenu
 
 OWNERS: dict[str, Any] = {
     "TlApp": TlApp,
@@ -23,6 +29,12 @@ OWNERS: dict[str, Any] = {
     "RecordView": RecordView,
     "EditForm": EditForm,
     "NewRecordForm": NewRecordForm,
+    "LinksTab": LinksTab,
+    "TraceTab": TraceTab,
+    "CommandPalette": CommandPalette,
+    "LinkPicker": LinkPicker,
+    "ReferenceTrayScreen": ReferenceTrayScreen,
+    "WorkflowMenu": WorkflowMenu,
 }
 
 
@@ -46,14 +58,26 @@ def test_every_documented_binding_exists_on_its_owner() -> None:
 
 
 def test_every_context_has_entries_and_every_entry_has_a_known_context() -> None:
-    assert CONTEXTS == ("App", "Grid", "Record view", "Forms")
+    assert CONTEXTS == (
+        "App",
+        "Grid",
+        "Record view",
+        "Links tab",
+        "Trace tab",
+        "Palette",
+        "Link picker",
+        "Reference tray",
+        "Workflow menu",
+        "Forms",
+    )
     assert {e.context for e in KEYMAP} == set(CONTEXTS)
     assert all(isinstance(e, KeyEntry) and e.keys and e.description for e in KEYMAP)
 
 
 def test_the_brief_keys_that_exist_today_are_documented() -> None:
     documented = " ".join(e.keys for e in KEYMAP)
-    for key in ("n", "e", "Ctrl+S", "Esc", "Enter", "Space", "Ctrl+A", "F6", "[  ]", "F1"):
+    keys = ("n", "e", "Ctrl+S", "Esc", "Enter", "Space", "Ctrl+A", "F6", "[  ]", "F1")
+    for key in (*keys, "Ctrl+P", "l", "R", "F4", "w", "t", "Alt+Left"):
         assert key in documented
 
 
