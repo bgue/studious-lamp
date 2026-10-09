@@ -30,9 +30,9 @@ tl pset get --project P123 V-0001            # psets, effective_schema_hash, con
 |---|---|---|---|---|
 | T02 | Package models (`packages.py`), pset compilation and the "projects cannot" rules (`compile.py`), LinkML rendering (`linkml_render.py`), fixtures | Effective-schema compiler and package merge (`01-tiers.md` §3); `schema/**` | Orchestrator | built (55 compile tests) |
 | T03 | Effective schema model and hash (`effective.py`), composition and adoption filter, conformance settings, cache by hash (`compose.py`) | Effective-schema compiler | Orchestrator | built |
-| T05 | Conformance evaluator (`conformance.py`) | Conformance rules are Sonnet-authored by rule (`01-tiers.md` §3); the plan's "H (rules pasted)" fails Haiku-ability item 5 | Orchestrator | planned |
-| T07 | `PsetProjector` (`cur_pset_values`, `psets_json` merge, promoted columns), `tl:table` generator extension, `schema/core/psets.yaml` | Projector transaction rules, DDL generator (§5.4) | Orchestrator | planned |
-| — | Schema provider, `form_metadata` and `conformance` services (`tl_core`) | Glue over the above | Orchestrator | planned |
+| T05 | Conformance evaluator (`conformance.py`) | Conformance rules are Sonnet-authored by rule (`01-tiers.md` §3); the plan's "H (rules pasted)" fails Haiku-ability item 5 | Orchestrator | built on `p0/i2a-t05-conformance` (22 tests); merges after T04, which provides the validator it calls |
+| T07 | `PsetProjector` (`cur_pset_values`, `psets_json` merge, promoted columns), `tl:table` generator extension, `schema/core/psets.yaml` | Projector transaction rules, DDL generator (§5.4) | Orchestrator | built (27e2e54; 18 tests) |
+| — | Schema provider, `form_metadata` and `conformance` services (`tl_core`) | Glue over T01, T04b and T05; written at the start of round 2 when those are merged | Orchestrator | planned (round 2) |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
@@ -42,9 +42,9 @@ tl pset get --project P123 V-0001            # psets, effective_schema_hash, con
 | T03 | Effective schema, hash, cache | S | T02 | built | |
 | T04 | JSON Schema per record type and psets validator | H | T03 | ready | |
 | T04b | Form metadata from the effective schema (added) | H | T03 | ready | |
-| T05 | Conformance evaluator | S (plan: H) | T03, T04 | planned | |
+| T05 | Conformance evaluator | S (plan: H) | T03, T04 | built (side branch) | |
 | T06 | `SetPsetValues` handler and `Pset.ValuesSet` | H | T04, T05, T07 | planned | |
-| T07 | `PsetProjector`, `cur_pset_values`, promoted columns | S | T03 | planned | |
+| T07 | `PsetProjector`, `cur_pset_values`, promoted columns | S | T03 | built | |
 | T08 | `tl schema hash|lint|validate` | H | T01, T08a | planned | |
 | T08a | Lint rules (added; split from T08) | H | T03 | ready | |
 | T08b | `tl pset set|get` (added; split from T08) | H | T06, T08 | planned | |
@@ -76,8 +76,8 @@ check is split (T08 became T08, T08a, T08b; T04b was added because form metadata
 ## Order of work (relay rounds)
 | Round | Ticket batch | Supervisor work in the same turn |
 |---|---|---|
-| 1 | T01, T04, T04b, T08a | Plan; T02, T03; fixtures; provided tests; T05; T07; provider and services; `schema/core/psets.yaml` |
-| 2 | T06, T10, T08 | Merge round 1; fix review findings; handler hooks |
+| 1 | T01, T04, T04b, T08a | Plan; T02, T03; fixtures; provided tests; T05 (side branch); T07; `schema/core/psets.yaml` |
+| 2 | T06, T10, T08 | Merge round 1 and T05; provider; `form_metadata` and `conformance` services; handler hooks |
 | 3 | T08b, T09 | Merge round 2; READMEs, AGENTS.md; learnings |
 | Final | — | Gates, report `docs/reports/P0-I2-A.md` |
 
