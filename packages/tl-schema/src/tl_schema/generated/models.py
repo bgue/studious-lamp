@@ -79,7 +79,8 @@ linkml_meta = LinkMLMeta({'default_prefix': 'throughline',
                  'psets',
                  'links',
                  'numbering',
-                 'workflow'],
+                 'workflow',
+                 'files'],
      'name': 'tl_core',
      'prefixes': {'linkml': {'prefix_prefix': 'linkml',
                              'prefix_reference': 'https://w3id.org/linkml/'},
@@ -165,6 +166,47 @@ class LinkRelation(str, Enum):
     same_as = "same_as"
 
 
+class FileStatus(str, Enum):
+    """
+    Where a file is in its quarantine lifecycle (brief 20.2).
+    """
+    quarantined = "quarantined"
+    """
+    Stored and verified, scan not yet passed. Only the uploader can read it.
+    """
+    available = "available"
+    """
+    The scan passed (`File.Processed`). Readable by anyone who can read the record.
+    """
+    rejected = "rejected"
+    """
+    The scan or a processing step refused it (`File.Rejected`). Unreadable; terminal.
+    """
+
+
+class FileSlotCardinality(str, Enum):
+    """
+    How many current files a slot holds (brief 20.1).
+    """
+    one = "one"
+    """
+    A new available file supersedes the previous current file.
+    """
+    many = "many"
+    """
+    Every available file is current.
+    """
+
+
+class CaptureHint(str, Enum):
+    """
+    How a client should capture a file for a slot (brief 20.1).
+    """
+    camera = "camera"
+    scan = "scan"
+    file = "file"
+
+
 
 class RecordEnvelope(ConfiguredBaseModel):
     """
@@ -181,24 +223,30 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
+                       'WorkflowState',
+                       'File']} })
     title: str = Field(default=..., description="""Short human-readable title.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope']} })
     description: Optional[str] = Field(default=None, description="""Longer free-text description.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope']} })
-    status: Optional[str] = Field(default=None, description="""Workflow state; null when the record type has no workflow.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link']} })
+    status: Optional[str] = Field(default=None, description="""Workflow state; null when the record type has no workflow.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link', 'File']} })
     psets: Any = Field(default=..., description="""Property-set values keyed by pset name, stored as a JSON object.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['RecordEnvelope']} })
     voided: bool = Field(default=False, description="""Set by `Record.Voided`. Voided rows are never deleted.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope'], 'ifabsent': 'false'} })
-    version: int = Field(default=..., description="""Ledger `stream_version` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link', 'NumberingCounter']} })
+    version: int = Field(default=..., description="""Ledger `stream_version` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link', 'NumberingCounter', 'File']} })
     last_seq: int = Field(default=..., description="""Ledger `seq` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
+                       'WorkflowState',
+                       'File']} })
     effective_schema_hash: Optional[str] = Field(default=None, description="""Hash of the effective schema in force at the last write; null before Increment 2.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope']} })
     conformance: ConformanceStatus = Field(default=ConformanceStatus("ok"), description="""Conformance of the current values to the effective schema.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope'], 'ifabsent': 'string(ok)'} })
     created_at: datetime  = Field(default=..., description="""Timestamp of the creating event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link']} })
-    updated_at: datetime  = Field(default=..., description="""Timestamp of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'PsetValue', 'Link', 'NumberingCounter']} })
+    updated_at: datetime  = Field(default=..., description="""Timestamp of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'PsetValue',
+                       'Link',
+                       'NumberingCounter',
+                       'File']} })
 
 
 class Record(RecordEnvelope):
@@ -222,24 +270,30 @@ class Record(RecordEnvelope):
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
+                       'WorkflowState',
+                       'File']} })
     title: str = Field(default=..., description="""Short human-readable title.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope']} })
     description: Optional[str] = Field(default=None, description="""Longer free-text description.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope']} })
-    status: Optional[str] = Field(default=None, description="""Workflow state; null when the record type has no workflow.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link']} })
+    status: Optional[str] = Field(default=None, description="""Workflow state; null when the record type has no workflow.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link', 'File']} })
     psets: Any = Field(default=..., description="""Property-set values keyed by pset name, stored as a JSON object.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['RecordEnvelope']} })
     voided: bool = Field(default=False, description="""Set by `Record.Voided`. Voided rows are never deleted.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope'], 'ifabsent': 'false'} })
-    version: int = Field(default=..., description="""Ledger `stream_version` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link', 'NumberingCounter']} })
+    version: int = Field(default=..., description="""Ledger `stream_version` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link', 'NumberingCounter', 'File']} })
     last_seq: int = Field(default=..., description="""Ledger `seq` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
+                       'WorkflowState',
+                       'File']} })
     effective_schema_hash: Optional[str] = Field(default=None, description="""Hash of the effective schema in force at the last write; null before Increment 2.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope']} })
     conformance: ConformanceStatus = Field(default=ConformanceStatus("ok"), description="""Conformance of the current values to the effective schema.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope'], 'ifabsent': 'string(ok)'} })
     created_at: datetime  = Field(default=..., description="""Timestamp of the creating event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link']} })
-    updated_at: datetime  = Field(default=..., description="""Timestamp of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'PsetValue', 'Link', 'NumberingCounter']} })
+    updated_at: datetime  = Field(default=..., description="""Timestamp of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'PsetValue',
+                       'Link',
+                       'NumberingCounter',
+                       'File']} })
 
 
 class Event(ConfiguredBaseModel):
@@ -261,7 +315,8 @@ class Event(ConfiguredBaseModel):
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
+                       'WorkflowState',
+                       'File']} })
     payload: Any = Field(default=..., description="""Event payload, a JSON object validated against the event type's schema.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['Event']} })
     actor: str = Field(default=..., description="""`user:<id>`, `svc:<name>` or `agent:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event']} })
@@ -287,14 +342,15 @@ class PsetValue(ConfiguredBaseModel):
                                          'unique_key_slots': ['record_id', 'path']}}})
 
     record_id: str = Field(default=..., description="""The record (ledger stream) the value belongs to.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
-         'domain_of': ['PsetValue', 'LinkCount', 'WorkflowState']} })
+         'domain_of': ['PsetValue', 'LinkCount', 'WorkflowState', 'File']} })
     scope: str = Field(default=..., description="""Scope of the record, repeated so scope-wide filters need no join.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Event',
                        'PsetValue',
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
+                       'WorkflowState',
+                       'File']} })
     path: str = Field(default=..., description="""Layer-aware path, for example `psets.valve_data.x.fat_witness_by`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['PsetValue']} })
     pset: str = Field(default=..., description="""Pset name, for example `valve_data` or `prj.shutdown_tie_in`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue']} })
@@ -313,8 +369,13 @@ class PsetValue(ConfiguredBaseModel):
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
-    updated_at: datetime  = Field(default=..., description="""Timestamp of that event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'PsetValue', 'Link', 'NumberingCounter']} })
+                       'WorkflowState',
+                       'File']} })
+    updated_at: datetime  = Field(default=..., description="""Timestamp of that event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'PsetValue',
+                       'Link',
+                       'NumberingCounter',
+                       'File']} })
 
 
 class Link(ConfiguredBaseModel):
@@ -333,31 +394,37 @@ class Link(ConfiguredBaseModel):
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
+                       'WorkflowState',
+                       'File']} })
     from_id: str = Field(default=..., description="""The record the link starts at (the subject of the relation).""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Link']} })
     to_id: str = Field(default=..., description="""The record the link points to.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Link']} })
     relation: str = Field(default=..., description="""Forward relation code, for example `raised_against`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
-    status: LinkStatus = Field(default=LinkStatus("active"), description="""Lifecycle state.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link'], 'ifabsent': 'string(active)'} })
+    status: LinkStatus = Field(default=LinkStatus("active"), description="""Lifecycle state.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link', 'File'], 'ifabsent': 'string(active)'} })
     pin: Optional[str] = Field(default=None, description="""Revision the link is pinned to; null means floating to the current revision.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
     note: Optional[str] = Field(default=None, description="""Optional free text.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
     source: LinkSource = Field(default=..., description="""How the link was created.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'Link']} })
     confidence: Optional[float] = Field(default=None, description="""Confidence of a suggested link, between 0 and 1.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
-    reason: Optional[str] = Field(default=None, description="""Reason given with the last flag, decline, or retraction.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
+    reason: Optional[str] = Field(default=None, description="""Reason given with the last flag, decline, or retraction.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'File']} })
     declined: bool = Field(default=False, description="""True when the link was a suggestion that a person declined. Declines are remembered.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link'], 'ifabsent': 'false'} })
     verified_by: Optional[str] = Field(default=None, description="""Actor of the last `Link.Verified` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
     verified_at: Optional[datetime ] = Field(default=None, description="""Time of the last `Link.Verified` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
     created_by: str = Field(default=..., description="""Actor of the creating event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
     created_at: datetime  = Field(default=..., description="""Time of the creating event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link']} })
-    updated_at: datetime  = Field(default=..., description="""Time of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'PsetValue', 'Link', 'NumberingCounter']} })
-    version: int = Field(default=..., description="""Ledger `stream_version` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link', 'NumberingCounter']} })
+    updated_at: datetime  = Field(default=..., description="""Time of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'PsetValue',
+                       'Link',
+                       'NumberingCounter',
+                       'File']} })
+    version: int = Field(default=..., description="""Ledger `stream_version` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link', 'NumberingCounter', 'File']} })
     last_seq: int = Field(default=..., description="""Ledger `seq` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
+                       'WorkflowState',
+                       'File']} })
 
 
 class LinkCount(ConfiguredBaseModel):
@@ -368,14 +435,15 @@ class LinkCount(ConfiguredBaseModel):
                          'tl:table': {'tag': 'tl:table', 'value': 'cur_link_counts'}},
          'from_schema': 'https://example.org/throughline/core/links'})
 
-    record_id: str = Field(default=..., description="""The record the counts belong to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue', 'LinkCount', 'WorkflowState']} })
+    record_id: str = Field(default=..., description="""The record the counts belong to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue', 'LinkCount', 'WorkflowState', 'File']} })
     scope: str = Field(default=..., description="""Scope of the record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Event',
                        'PsetValue',
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
+                       'WorkflowState',
+                       'File']} })
     active_out: int = Field(default=0, description="""Active links that start at the record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['LinkCount'], 'ifabsent': 'int(0)'} })
     active_in: int = Field(default=0, description="""Active links that point to the record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['LinkCount'], 'ifabsent': 'int(0)'} })
     stale: int = Field(default=0, description="""Stale links in either direction.""", json_schema_extra = { "linkml_meta": {'domain_of': ['LinkCount'], 'ifabsent': 'int(0)'} })
@@ -386,7 +454,8 @@ class LinkCount(ConfiguredBaseModel):
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
+                       'WorkflowState',
+                       'File']} })
 
 
 class NumberingCounter(ConfiguredBaseModel):
@@ -404,21 +473,27 @@ class NumberingCounter(ConfiguredBaseModel):
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
+                       'WorkflowState',
+                       'File']} })
     pattern: str = Field(default=..., description="""Identifier of the numbering pattern.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter']} })
     prefix: str = Field(default=..., description="""The rendered key without its sequence number, for example `P123-REC-`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter']} })
     last_sequence: int = Field(default=..., description="""The highest sequence number allocated so far.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter']} })
     last_key: str = Field(default=..., description="""The key built from `last_sequence`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter']} })
     last_record_id: Optional[str] = Field(default=None, description="""The record the last number was allocated for; null for a standalone allocation.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter']} })
     allocations: int = Field(default=..., description="""Number of allocations made from this counter.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter']} })
-    version: int = Field(default=..., description="""Ledger `stream_version` of the counter after the last allocation.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link', 'NumberingCounter']} })
+    version: int = Field(default=..., description="""Ledger `stream_version` of the counter after the last allocation.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link', 'NumberingCounter', 'File']} })
     last_seq: int = Field(default=..., description="""Ledger `seq` of the last allocation.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
-    updated_at: datetime  = Field(default=..., description="""Time of the last allocation (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'PsetValue', 'Link', 'NumberingCounter']} })
+                       'WorkflowState',
+                       'File']} })
+    updated_at: datetime  = Field(default=..., description="""Time of the last allocation (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'PsetValue',
+                       'Link',
+                       'NumberingCounter',
+                       'File']} })
 
 
 class WorkflowState(ConfiguredBaseModel):
@@ -430,14 +505,15 @@ class WorkflowState(ConfiguredBaseModel):
                                       'value': 'cur_workflow_state'}},
          'from_schema': 'https://example.org/throughline/core/workflow'})
 
-    record_id: str = Field(default=..., description="""The record (ledger stream) the state belongs to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue', 'LinkCount', 'WorkflowState']} })
+    record_id: str = Field(default=..., description="""The record (ledger stream) the state belongs to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue', 'LinkCount', 'WorkflowState', 'File']} })
     scope: str = Field(default=..., description="""Scope of the record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Event',
                        'PsetValue',
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
+                       'WorkflowState',
+                       'File']} })
     workflow: str = Field(default=..., description="""Identifier of the workflow definition, for example `core.review`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WorkflowState']} })
     workflow_version: int = Field(default=..., description="""Version of the workflow definition that was in force.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WorkflowState']} })
     state: str = Field(default=..., description="""Current state name.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
@@ -450,7 +526,60 @@ class WorkflowState(ConfiguredBaseModel):
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
-                       'WorkflowState']} })
+                       'WorkflowState',
+                       'File']} })
+
+
+class File(ConfiguredBaseModel):
+    """
+    One file attached to a record, in its current lifecycle state.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table', 'value': 'cur_files'}},
+         'from_schema': 'https://example.org/throughline/core/files'})
+
+    file_id: str = Field(default=..., description="""Immutable file identifier; equals the ledger `stream_id` of the file.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
+    scope: str = Field(default=..., description="""Scope of the file, which is the scope of its record.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['RecordEnvelope',
+                       'Event',
+                       'PsetValue',
+                       'Link',
+                       'LinkCount',
+                       'NumberingCounter',
+                       'WorkflowState',
+                       'File']} })
+    record_id: str = Field(default=..., description="""The record the file is attached to.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['PsetValue', 'LinkCount', 'WorkflowState', 'File']} })
+    slot: Optional[str] = Field(default=None, description="""Name of the record type's file slot; null for a generic attachment.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
+    revision: int = Field(default=1, description="""Position of the file among the attachments of its record and slot, starting at 1.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File'], 'ifabsent': 'int(1)'} })
+    sha256: str = Field(default=..., description="""Lower-case SHA-256 hex digest of the bytes; the object key derives from it.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['File']} })
+    size: int = Field(default=..., description="""Size in bytes, verified by the server.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
+    content_type: str = Field(default=..., description="""Declared media type.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
+    filename: str = Field(default=..., description="""Original file name, kept for display and download.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
+    status: FileStatus = Field(default=FileStatus("quarantined"), description="""Quarantine lifecycle state.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link', 'File'],
+         'ifabsent': 'string(quarantined)'} })
+    deduplicated: bool = Field(default=False, description="""True when the object already existed in the store at upload time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File'], 'ifabsent': 'false'} })
+    superseded_by: Optional[str] = Field(default=None, description="""The file that replaced this one in a cardinality-one slot; null while it is current.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
+    report: Optional[Any] = Field(default=None, description="""Scan or processing report of the last `File.Processed` or `File.Rejected`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['File']} })
+    reason: Optional[str] = Field(default=None, description="""Why the file was rejected.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'File']} })
+    uploaded_by: str = Field(default=..., description="""Actor of the `File.Uploaded` event; the only reader while the file is quarantined.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
+    uploaded_at: datetime  = Field(default=..., description="""Time of the `File.Uploaded` event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
+    processed_at: Optional[datetime ] = Field(default=None, description="""Time of the `File.Processed` or `File.Rejected` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
+    updated_at: datetime  = Field(default=..., description="""Time of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'PsetValue',
+                       'Link',
+                       'NumberingCounter',
+                       'File']} })
+    version: int = Field(default=..., description="""Ledger `stream_version` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'Link', 'NumberingCounter', 'File']} })
+    last_seq: int = Field(default=..., description="""Ledger `seq` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'PsetValue',
+                       'Link',
+                       'LinkCount',
+                       'NumberingCounter',
+                       'WorkflowState',
+                       'File']} })
 
 
 # Model rebuild
@@ -463,3 +592,4 @@ Link.model_rebuild()
 LinkCount.model_rebuild()
 NumberingCounter.model_rebuild()
 WorkflowState.model_rebuild()
+File.model_rebuild()

@@ -1,0 +1,137 @@
+id: https://example.org/throughline/core/files
+name: tl_core_files
+title: Throughline files projection
+description: >-
+  The current state of files attached to records (brief 6.2, 20). A file is its own ledger stream
+  (`core.File`, stream id = `file_id`); `cur_files` holds one row per attachment. The bytes live in the
+  object store under a content-addressed key (`sha256/<aa>/<bb>/<digest>`, brief 5.2) and are never
+  replaced: a new revision is a new object and a new row. Two rows may share one `sha256` (the same bytes
+  attached twice); the object is stored once. A file starts `quarantined` (unreadable by others until the
+  scan passes), then becomes `available` (`File.Processed`) or `rejected` (`File.Rejected`). The current
+  file of a slot is the row with status `available` and no `superseded_by`. Slots themselves are declared
+  per record type with the `tl:file_slots` annotation (see annotations.yaml); a row with no `slot` is a
+  generic, unslotted attachment.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+default_range: string
+annotations:
+  tl:module: core
+
+enums:
+  FileStatus:
+    description: Where a file is in its quarantine lifecycle (brief 20.2).
+    permissible_values:
+      quarantined:
+        description: Stored and verified, scan not yet passed. Only the uploader can read it.
+      available:
+        description: The scan passed (`File.Processed`). Readable by anyone who can read the record.
+      rejected:
+        description: The scan or a processing step refused it (`File.Rejected`). Unreadable; terminal.
+  FileSlotCardinality:
+    description: How many current files a slot holds (brief 20.1).
+    permissible_values:
+      one:
+        description: A new available file supersedes the previous current file.
+      many:
+        description: Every available file is current.
+  CaptureHint:
+    description: How a client should capture a file for a slot (brief 20.1).
+    permissible_values:
+      camera:
+      scan:
+      file:
+
+classes:
+  File:
+    description: One file attached to a record, in its current lifecycle state.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_files
+    attributes:
+      file_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Immutable file identifier; equals the ledger `stream_id` of the file.
+      scope:
+        range: ScopeId
+        required: true
+        description: Scope of the file, which is the scope of its record.
+        annotations:
+          tl:indexed: true
+      record_id:
+        range: Ulid
+        required: true
+        description: The record the file is attached to.
+        annotations:
+          tl:indexed: true
+      slot:
+        description: Name of the record type's file slot; null for a generic attachment.
+      revision:
+        range: integer
+        required: true
+        ifabsent: int(1)
+        description: Position of the file among the attachments of its record and slot, starting at 1.
+      sha256:
+        required: true
+        description: Lower-case SHA-256 hex digest of the bytes; the object key derives from it.
+        annotations:
+          tl:indexed: true
+      size:
+        range: integer
+        required: true
+        description: Size in bytes, verified by the server.
+      content_type:
+        required: true
+        description: Declared media type.
+      filename:
+        required: true
+        description: Original file name, kept for display and download.
+      status:
+        range: FileStatus
+        required: true
+        ifabsent: string(quarantined)
+        description: Quarantine lifecycle state.
+      deduplicated:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: True when the object already existed in the store at upload time.
+      superseded_by:
+        range: Ulid
+        description: The file that replaced this one in a cardinality-one slot; null while it is current.
+      report:
+        range: Any
+        description: Scan or processing report of the last `File.Processed` or `File.Rejected`.
+        annotations:
+          tl:json: true
+      reason:
+        description: Why the file was rejected.
+      uploaded_by:
+        required: true
+        description: Actor of the `File.Uploaded` event; the only reader while the file is quarantined.
+      uploaded_at:
+        range: datetime
+        required: true
+        description: Time of the `File.Uploaded` event (system time).
+      processed_at:
+        range: datetime
+        description: Time of the `File.Processed` or `File.Rejected` event.
+      updated_at:
+        range: datetime
+        required: true
+        description: Time of the last applied event (system time).
+      version:
+        range: integer
+        required: true
+        description: Ledger `stream_version` of the last event applied.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied.

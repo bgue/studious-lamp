@@ -112,3 +112,47 @@ class GuardFailedError(ServiceError):
     def __init__(self, message: str, results: list[Any] | None = None) -> None:
         super().__init__(message)
         self.results: list[Any] = results if results is not None else []
+
+
+# --- files (P0-I4) -----------------------------------------------------------------------------
+
+
+class FileError(ServiceError): ...  # base class for upload and file failures
+
+
+class UnknownSlotError(FileError): ...  # the record type declares no such slot
+
+
+class FileTypeNotAcceptedError(FileError): ...  # content type not in the slot's accepted types
+
+
+class FileTooLargeError(FileError): ...  # size above the slot's (or the generic) limit
+
+
+class UploadTokenError(FileError): ...  # upload id is malformed, forged, expired, or someone else's
+
+
+class UploadIncompleteError(FileError): ...  # complete called before any bytes arrived
+
+
+class UploadVerificationError(
+    FileError
+): ...  # received bytes differ from the declared size or hash
+
+
+class ContentRejectedError(FileError): ...  # these bytes were rejected by a scan before
+
+
+class UnknownFileError(FileError): ...  # file_id unknown, or it belongs to another scope
+
+
+class FileQuarantinedError(FileError): ...  # unreadable by others until the scan passes
+
+
+class FileRejectedError(FileError): ...  # the file was rejected and cannot be read
+
+
+class InvalidFileTransitionError(FileError): ...  # the file's status does not allow this event
+
+
+class ObjectMissingError(FileError): ...  # the ledger has the file but the store does not

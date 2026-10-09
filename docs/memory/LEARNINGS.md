@@ -270,6 +270,67 @@ test or a generated artefact already enforces, or narrative history (that belong
   meets the same refusals as on the embedded client.
   Evidence: `tests/test_fakes_links.py` (10 tests). Status: active
 
+- **L-P0-I4-B1** · 2026-10-09 · tags: env, tooling
+  A fresh `git worktree` has no `.venv` of its own; `uv sync` (without `--all-packages`) installs only the root and leaves
+  the workspace packages out, so `just check` shows about 1500 pyright "import could not be resolved" errors and `just test`
+  fails at collection. Run `uv sync --all-packages` once per new worktree.
+  Evidence: first `just check` in `/home/user/wt/p0-i4b`; `.claude/hooks/session-start.sh` line 60. Status: active
+
+- **L-P0-I4-B2** · 2026-10-09 · tags: tests, tooling
+  moto's in-process `mock_aws()` is enough for the s3 backend: no server, no network, and a presigned URL can be used with
+  `requests` inside the mock. Bucket names must be at least 3 characters (`"b"` raises `InvalidBucketName`); set fake
+  `AWS_*` variables with `monkeypatch`. A same-content `put_object` keeps the same ETag, so "never replaced" cannot be proved
+  by comparing object metadata: spy on `client.put_object` (a first version of the test survived a mutation).
+  Evidence: `docs/tickets/P0-I4/provided/test_objectstore_s3.py.txt`. Status: active
+
+- **L-P0-I4-B3** · 2026-10-09 · tags: tests
+  Test doubles for `io.BufferedReader` must subclass `io.RawIOBase` and implement `readinto`, not `read`: the buffered wrapper
+  never calls `read` on the raw object. To prove a store does not read an endless stream to the end, count the bytes asked of
+  `readinto`.
+  Evidence: `test_objectstore_fs.py.txt` `CountingReader`. Status: active
+
+- **L-P0-I4-B4** · 2026-10-09 · tags: ledger, process
+  The `ObjectStore` Protocol has no delete, list or size call. Consequences already handled: presigned uploads go to a
+  `staging/` key and are streamed into the content key through `put` (which verifies), staging leftovers need a bucket
+  lifecycle rule, and reconciliation uses `iter_keys` on the concrete backends. An object is written before the database
+  commit, so a rolled-back upload leaves an unreferenced object; that is harmless because keys are content-addressed.
+  Evidence: `tl_core/files/service.py` module docstring, `docs/tickets/P0-I4/README-B.md` D7, D11. Status: active
+
+- **L-P0-I4-B5** · 2026-10-09 · tags: process, tests
+  Stub-plus-provided-test tickets again passed the supervisor's verification on the first try because the check dropped a
+  scratch reference over the stub and ran `ruff`, `pyright` and the provided test; three references needed a fix at that stage
+  (a RawIOBase double, an over-long docstring line, a test that could not fail). Keep the references outside the repo
+  (`/home/user/wt/p0-i4b-refs/`) until the tickets merge.
+  Evidence: this round's verification runs. Status: active
+
+- **L-P0-I4-B6** · 2026-10-09 · tags: process, api
+  Security review of the upload service found four fixable things a test-by-mutation pass had not: a dedupe gate that counted
+  quarantined rows (so a second user could read a file before its scan), `hmac.compare_digest` on a client-controlled `str`
+  (raises on non-ASCII), a silent public fallback secret, and a global rejected-hash check (kept on purpose, recorded as a
+  decision). Rules: gate any "no bytes needed" shortcut on the state that grants read access, compare secrets as bytes, fail
+  closed on missing secrets, and serve client-typed files as attachments with `nosniff`.
+  Evidence: `docs/tickets/P0-I4/README-B.md` D8, D9, D12, D13; `tests/services/test_file_service.py`. Status: active
+
+- **L-P0-I4-B7** · 2026-10-09 · tags: process, ledger
+  Writing a recovery runbook step by step exposed a real defect: an idempotent-retry shortcut ("already attached") returned
+  before checking that the object still existed, so re-uploading could not heal a lost object. Every recovery step in a runbook
+  needs a test or a demo line that performs it (`test_reuploading_to_the_same_slot_restores_a_lost_object`).
+  Also: when restoring stubs over scratch references, `git checkout <dir>` reverts uncommitted doc edits in that directory too;
+  commit docs first or restore file by file.
+  Evidence: `docs/runbooks/object-store-reconciliation.md` step 3; commit 34fe583. Status: active
+
+- **L-P0-I4-B8** · 2026-10-09 · tags: tests, cli
+  `typer.testing.CliRunner.invoke` catches exceptions and returns them on the result, so a CLI test that only asserts "nothing
+  changed" passes against a command that crashes (it passed against a `NotImplementedError` stub). Assert `exit_code` and
+  `result.exception is None` in every CLI test, including negative-space ones. Implementer-found, T25.
+  Evidence: `docs/reports/P0-I4/P0-I4-T25.md`; `packages/tl-cli/tests/test_cli_file_reconcile_exit.py`. Status: active
+
+- **L-P0-I4-B9** · 2026-10-09 · tags: ledger, process
+  A spec that says two different things about one case ("a content key is never replaced" for `put`, "always replacing" for
+  `put_via_url`) makes the implementer follow the literal text and flag it; the review then rules. Write the invariant once
+  at the top of a ticket and derive per-method wording from it. Also: `FsObjectStore` objects are mode 0600 (from
+  `mkstemp`), which is kept on purpose: a service running as another user must be given access explicitly.
+  Evidence: `docs/reports/P0-I4/P0-I4-T20.md`; orchestrator ruling D14 in README-B. Status: active
 - **L-P0-I4-A1** · 2026-10-09 · tags: ledger, tests
   A SQL comparison against a NULL column is NULL, so `NOT (status = 'open')` silently drops records with no status. Compile every
   query predicate two-valued (`col IS NOT NULL AND col = :v`, `NOT EXISTS (...)` for psets) so `-x` and `x!=v` agree and a record
