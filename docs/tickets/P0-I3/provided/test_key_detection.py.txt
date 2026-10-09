@@ -32,7 +32,7 @@ def pattern(
 
 
 REC = pattern("rec", "{project}-{type}-{seq:4}")
-NCR = pattern("ncr", "NCR-{project}-{seq:4}", "NCR")
+NCR = pattern("ncr", "NCR/{project}/{seq:4}", "NCR")
 DOC = pattern("doc", "DOC-{seq}", "DOC")
 
 
@@ -40,25 +40,25 @@ DOC = pattern("doc", "DOC-{seq}", "DOC")
 
 
 def test_finds_keys_with_their_offsets() -> None:
-    body = "See P123-REC-0001 and NCR-P123-0042."
+    body = "See P123-REC-0001 and NCR/P123/0042."
     found = detect_keys(body, [REC, NCR])
     assert found == [
         KeyMatch(start=4, end=17, key="P123-REC-0001", pattern_id="rec"),
-        KeyMatch(start=22, end=35, key="NCR-P123-0042", pattern_id="ncr"),
+        KeyMatch(start=22, end=35, key="NCR/P123/0042", pattern_id="ncr"),
     ]
     for match in found:
         assert body[match.start : match.end] == match.key
 
 
 def test_matches_come_back_in_text_order_whatever_the_pattern_order() -> None:
-    body = "NCR-P123-0042 then P123-REC-0001"
-    assert [m.key for m in detect_keys(body, [REC, NCR])] == ["NCR-P123-0042", "P123-REC-0001"]
-    assert [m.key for m in detect_keys(body, [NCR, REC])] == ["NCR-P123-0042", "P123-REC-0001"]
+    body = "NCR/P123/0042 then P123-REC-0001"
+    assert [m.key for m in detect_keys(body, [REC, NCR])] == ["NCR/P123/0042", "P123-REC-0001"]
+    assert [m.key for m in detect_keys(body, [NCR, REC])] == ["NCR/P123/0042", "P123-REC-0001"]
 
 
 def test_the_same_key_twice_gives_two_matches() -> None:
     found = detect_keys("P123-REC-0001, again P123-REC-0001", [REC])
-    assert [(m.start, m.key) for m in found] == [(0, "P123-REC-0001"), (20, "P123-REC-0001")]
+    assert [(m.start, m.key) for m in found] == [(0, "P123-REC-0001"), (21, "P123-REC-0001")]
 
 
 def test_no_patterns_or_no_keys_gives_nothing() -> None:
@@ -252,5 +252,5 @@ def test_suggest_chips_uses_the_patterns_of_the_scope(uow: UnitOfWork) -> None:
 
 def test_suggest_chips_accepts_explicit_patterns(uow: UnitOfWork) -> None:
     with use_numbering(NumberingRegistry()):
-        chips = suggest_chips(uow, P1, "NCR-P123-0042", patterns=[NCR])
-    assert [c.key for c in chips] == ["NCR-P123-0042"]
+        chips = suggest_chips(uow, P1, "NCR/P123/0042", patterns=[NCR])
+    assert [c.key for c in chips] == ["NCR/P123/0042"]
