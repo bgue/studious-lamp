@@ -31,7 +31,8 @@ class SqliteUowFactory:
 
     Events committed through any unit of work from this factory are published on ``bus`` in commit
     order. Events written by another process reach subscribers through a change-feed poller on
-    ``ledger``. ``close()`` disposes the engine; call it at shutdown.
+    ``ledger``. ``close()`` (alias ``dispose()``) disposes the engine; call it at shutdown.
+    ``readonly`` may be passed positionally or by keyword.
     """
 
     def __init__(
@@ -54,3 +55,7 @@ class SqliteUowFactory:
 
     def close(self) -> None:
         self.engine.dispose()
+
+    def dispose(self) -> None:
+        """Alias of :meth:`close` (the name P0-I5 callers use)."""
+        self.close()

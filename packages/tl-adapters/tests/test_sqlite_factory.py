@@ -82,3 +82,23 @@ def test_units_share_one_engine_and_see_each_others_commits(factory: SqliteUowFa
     with factory(True) as uow:
         assert uow.ledger.head_seq() == 1
     assert factory.ledger.read_after(0)[0].payload["key"] == "A"
+
+
+def test_readonly_may_be_passed_by_position_or_keyword(factory: SqliteUowFactory) -> None:
+    for call in (lambda: factory(True), lambda: factory(readonly=True)):
+        with pytest.raises(RuntimeError, match="read-only"), call() as uow:
+            uow.append()
+    with factory() as uow:  # the default is a write unit
+        assert uow.ledger.head_seq() == 0
+    with factory(readonly=False) as uow:
+        assert uow.ledger.head_seq() == 0
+
+
+def test_close_and_dispose_both_release_the_engine(tmp_path: Path) -> None:
+    db = tmp_path / "tl.db"
+    create_schema(db)
+    for name in ("close", "dispose"):
+        made = SqliteUowFactory(db)
+        assert made.engine is not None and made.ledger is not None and made.bus is not None
+        getattr(made, name)()
+        getattr(made, name)()  # harmless twice
