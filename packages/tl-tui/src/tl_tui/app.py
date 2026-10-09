@@ -51,6 +51,8 @@ class TlApp(App[None]):
         Binding("shift+f6", "cycle_panels(-1)", "Panels back", show=False),
         Binding("escape", "close_overlay", "Close", show=False),
         Binding("n", "new_record", "New", show=False),
+        Binding("f1", "help", "Help", show=False),
+        Binding("question_mark", "help", "Help", show=False),
     ]
 
     def __init__(
@@ -177,6 +179,15 @@ class TlApp(App[None]):
             ),
             created,
         )
+
+    def action_help(self) -> None:
+        # The app-level `F1` and `?` bindings stay live under a modal; help must not open over
+        # a form or stack on top of another help screen.
+        if isinstance(self.screen, ModalScreen):
+            return
+        from tl_tui.widgets.help_screen import HelpScreen
+
+        self.push_screen(HelpScreen())
 
     # --- hints -------------------------------------------------------------------------------
 
