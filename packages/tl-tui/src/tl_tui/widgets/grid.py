@@ -8,7 +8,6 @@ first loads every page (up to `MAX_ROWS`). The grid posts `RecordHighlighted`, `
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from typing import Any, ClassVar, Literal
 
@@ -26,12 +25,11 @@ from tl_tui.client import ClientInterface
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.messages import OpenRecord, RecordHighlighted, SelectionChanged, StatusMessage
 from tl_tui.paths import pset_value
+from tl_tui.text import CONFORMANCE_MARK, format_value, timestamp
 
 MAX_ROWS = 50_000
 MARKER_WIDTH = 5  # cursor mark, "[x]", and a space
 GAP = " "
-EMPTY = "—"
-CONFORMANCE_MARK = {"ok": "✓ ok", "warning": "! warning", "nonconformant": "✗ nonconformant"}
 
 Align = Literal["left", "right"]
 
@@ -73,18 +71,6 @@ def available_columns(meta: FormMetadata | None) -> list[GridColumn]:
     return columns
 
 
-def format_value(value: Any) -> str:
-    if value is None or value == "":
-        return EMPTY
-    if isinstance(value, bool):
-        return "yes" if value else "no"
-    if isinstance(value, float):
-        return f"{value:g}"
-    if isinstance(value, (dict, list)):
-        return json.dumps(value, sort_keys=True, separators=(",", ":"))
-    return str(value)
-
-
 def cell_text(record: dict[str, Any], column: GridColumn) -> str:
     """The display text of one cell. No colour carries meaning; status also reads as a symbol."""
     if column.key.startswith("psets."):
@@ -93,7 +79,7 @@ def cell_text(record: dict[str, Any], column: GridColumn) -> str:
     if column.key == "conformance":
         return CONFORMANCE_MARK.get(str(value), format_value(value))
     if column.key in ("updated_at", "created_at") and isinstance(value, str) and value:
-        return value[:16].replace("T", " ")
+        return timestamp(value)
     return format_value(value)
 
 

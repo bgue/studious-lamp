@@ -30,4 +30,4 @@ class RecordView(Vertical, can_focus=True):
         self.key = key
 
     def compose(self) -> ComposeResult:
-        yield Static(f"Record {self.key}")
+        yield Static(f"Record {self.key}", markup=False)

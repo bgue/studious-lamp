@@ -19,7 +19,7 @@ class ContextPanel(VerticalScroll, can_focus=True):
         self.record: dict[str, Any] | None = None
 
     def compose(self):  # noqa: ANN201
-        yield Static("No record", id="context-body")
+        yield Static("No record", id="context-body", markup=False)
 
     def show_record(self, record: dict[str, Any] | None) -> None:
         self.record = record

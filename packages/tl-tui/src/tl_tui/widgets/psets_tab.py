@@ -31,7 +31,7 @@ class PsetsTab(VerticalScroll, can_focus=True):
         self.record: dict[str, Any] | None = None
 
     def compose(self) -> ComposeResult:
-        yield Static("Psets", id="psets-body")
+        yield Static("Psets", id="psets-body", markup=False)
 
     def show_record(self, record: dict[str, Any]) -> None:
         self.record = record

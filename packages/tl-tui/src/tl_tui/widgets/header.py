@@ -21,7 +21,7 @@ class TlHeader(Static):
         actor: str = "user:dev",
         id: str | None = None,  # noqa: A002
     ) -> None:
-        super().__init__(id=id)
+        super().__init__(markup=False, id=id)
         self.company = company
         self.scope = scope
         self.view = view

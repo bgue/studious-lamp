@@ -30,7 +30,7 @@ class TlFooter(Static):
     """Two lines: key hints; then status text on the left and ``N selected`` on the right."""
 
     def __init__(self, *, id: str | None = None) -> None:  # noqa: A002
-        super().__init__(id=id)
+        super().__init__(markup=False, id=id)
         self.hints = DEFAULT_HINTS
         self.status = ""
         self.severity: Severity = "info"
