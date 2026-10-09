@@ -461,3 +461,45 @@ def test_l_in_the_record_view_links_the_open_record() -> None:
         assert [s.key for s in picker.sources] == ["FV-1001"]
 
     run_pilot(app, scenario, size=(120, 40))
+
+
+class TypedClient(FakeClient):
+    """A fake whose default relation depends on the target type, as the real vocabulary can."""
+
+    def default_relation(self, from_type: str, to_type: str) -> str:
+        return "requires" if to_type == "other.Type" else "references"
+
+
+def test_the_relation_follows_the_highlighted_record_until_the_user_changes_it() -> None:
+    client = TypedClient.with_valve_example()
+    client._records_by_key("FV-1003")["type"] = "other.Type"  # pyright: ignore[reportPrivateUsage]
+    app = Host(client, [_src(client)])
+
+    def relation() -> str:
+        return str(app.screen.query_one("#picker-relation", Select).value)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        assert relation() == "references"  # FV-1002 is highlighted
+        await pilot.press("down")  # FV-1003, of the other type
+        await pilot.pause()
+        await pilot.pause()
+        assert relation() == "requires"
+        await pilot.press("up")
+        await pilot.pause()
+        await pilot.pause()
+        assert (
+            relation() == "references"
+        )  # still following: the picker's own changes are not the user's
+        app.screen.query_one("#picker-relation", Select).value = "blocks"
+        await pilot.pause()
+        await pilot.press("down")
+        await pilot.pause()
+        await pilot.pause()
+        assert relation() == "blocks"  # the user chose: it stays fixed
+        await pilot.press("up")
+        await pilot.pause()
+        await pilot.pause()
+        assert relation() == "blocks"
+
+    run_pilot(app, scenario, size=(110, 40))

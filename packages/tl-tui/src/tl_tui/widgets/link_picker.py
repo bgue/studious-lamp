@@ -173,7 +173,9 @@ class LinkPicker(ModalScreen[LinkPickerResult | None]):
         self.found: list[LinkTarget] = []
         self.selected: dict[str, LinkTarget] = {}
         self._manual_relation = False
-        self._setting_relation = False
+        # The relation the picker itself last chose. Textual delivers Select.Changed later, so a
+        # flag cannot tell the picker's own change from the user's; the value can.
+        self._auto_relation: str | None = None
 
     # --- layout --------------------------------------------------------------------------------
 
@@ -182,10 +184,11 @@ class LinkPicker(ModalScreen[LinkPickerResult | None]):
         with Vertical():
             yield Static(title_text(self.sources), id="picker-title", markup=False)
             with Horizontal(id="picker-options"):
+                self._auto_relation = self._default_relation(None)
                 yield Select(
                     relations,
                     allow_blank=False,
-                    value=self._default_relation(None),
+                    value=self._auto_relation,
                     id="picker-relation",
                 )
                 yield Input(placeholder="pin (blank: floating)", id="picker-pin")
@@ -257,13 +260,11 @@ class LinkPicker(ModalScreen[LinkPickerResult | None]):
     def _set_relation(self, code: str) -> None:
         select: Select[str] = self.query_one("#picker-relation", Select)
         if select.value != code:
-            self._setting_relation = True
+            self._auto_relation = code
             try:
                 select.value = code
             except InvalidSelectValueError:
                 pass  # a code missing from the options keeps the old value
-            finally:
-                self._setting_relation = False
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "picker-search":
@@ -272,7 +273,7 @@ class LinkPicker(ModalScreen[LinkPickerResult | None]):
 
     def on_select_changed(self, event: Select.Changed) -> None:
         event.stop()
-        if not self._setting_relation:
+        if event.value != self._auto_relation:
             self._manual_relation = True
 
     def on_option_list_option_highlighted(self, event: OptionList.OptionHighlighted) -> None:

@@ -284,3 +284,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   `app.post_message(RecordChanged)` is delivered to the app only, never to a child `RecordView`: after a modal command call
   `view.reload()` (`TlApp._changed`).
   Evidence: `tests/test_palette.py::test_the_l_w_t_keys_are_typed_into_the_palette_not_run`, workflow-menu refresh test. Status: active
+
+- **L-P0-I3-9** · 2026-10-09 · tags: tui, process
+  Textual delivers `Select.Changed` asynchronously, after a programmatic `select.value = ...` has returned, so a reentrancy flag
+  (`_setting = True ... False`) never covers the event: the picker's own change was read as the user's and froze the relation. Remember
+  the value the code assigned and compare `event.value` with it. A review that probes with a second record type found it; the
+  provided test only used one type and could not see it.
+  Evidence: T12 escalation; `tests/test_link_picker.py::test_the_relation_follows_the_highlighted_record_until_the_user_changes_it`. Status: active

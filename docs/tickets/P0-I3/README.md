@@ -95,6 +95,7 @@ reference implementation before dispatch (kept in the supervisor's scratch area 
 | D21 | The reference tray is session state in `TlApp` (not saved between sessions in Phase 0). `OpenRecord(follow=True)` extends the back/forward trail; opening from the grid, `[` `]` or a new record starts a new trail; the header breadcrumb shows the trail | Brief 7.2/7.5; persistence needs a user store |
 | D22 | Link counts and the state-entered time reach the record view through `ClientInterface.link_counts` and `workflow_status` (joins in the services), shown as header badges (`since <time>`, `N links`, `N stale`, `N suggested`). A grid column for link counts waits for the query language (P0-I4), which needs sorting and filtering on them | Orchestrator ruling on D5/D11 |
 | D23 | `NewRecordForm` takes a blank key and lets the numbering service allocate it | Brief 8 |
+| D24 | T12 review: Textual delivers `Select.Changed` after a programmatic change, so a reentrancy flag cannot tell the picker's own change from the user's; the picker now stores the relation it chose (`_auto_relation`) and treats a `Changed` with another value as the user's. The defect was in the ticket text, so the supervisor fixed it and added a test with a second record type | Review of T12 |
 
 ## Order of work (relay rounds)
 | Round | Ticket batch | Supervisor work in the same turn |
