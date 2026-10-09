@@ -76,9 +76,21 @@ def database_url(url: str, database: str) -> str:
     )
 
 
-def create_database(url: str, database: str) -> None:
-    """``CREATE DATABASE`` on the server ``url`` names."""
-    _run(url, f"CREATE DATABASE {_checked(database)}")
+def create_database(url: str, database: str, *, icu_locale: str | None = None) -> None:
+    """``CREATE DATABASE`` on the server ``url`` names.
+
+    ``icu_locale`` (for example ``"en-US"``) makes a database whose default text ordering is
+    locale-aware, like the default of most server images; tests use it to prove that ordering does
+    not depend on the cluster's locale.
+    """
+    options = ""
+    if icu_locale is not None:
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", icu_locale):
+            raise ValueError(f"not a safe ICU locale: {icu_locale!r}")
+        options = (
+            f" TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER icu ICU_LOCALE '{icu_locale}'"
+        )
+    _run(url, f"CREATE DATABASE {_checked(database)}{options}")
 
 
 def drop_database(url: str, database: str) -> None:

@@ -20,11 +20,12 @@ from __future__ import annotations
 import json
 from typing import Any, cast
 
-from sqlalchemy import Connection, inspect, text
+from sqlalchemy import Connection, text
 from tl_schema.ddl_loader import statements
 from tl_schema.generators.promoted import TABLE, split_column
 
 from tl_core.ledger import Event, canonical_json, iso_utc
+from tl_core.projection.promoted import table_columns
 
 VALUES_SET = "Pset.ValuesSet"
 _HANDLED = frozenset({VALUES_SET, "Record.Created", "Record.Updated", "Record.Corrected"})
@@ -255,8 +256,8 @@ class PsetProjector:
     def _update_promoted(conn: Connection, record_id: str, psets: dict[str, Any]) -> None:
         assignments: list[str] = []
         params: dict[str, Any] = {"id": record_id}
-        for column in inspect(conn).get_columns(TABLE):
-            split = split_column(column["name"])
+        for name in table_columns(conn, TABLE):
+            split = split_column(name)
             if split is None:
                 continue
             pset, prop = split
@@ -265,7 +266,7 @@ class PsetProjector:
                 cast(dict[str, Any], section).get(prop) if isinstance(section, dict) else None
             )
             param = f"p{len(assignments)}"
-            assignments.append(f"{column['name']} = :{param}")
+            assignments.append(f"{name} = :{param}")
             params[param] = None if isinstance(value, (dict, list)) else value
         if assignments:
             conn.execute(

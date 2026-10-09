@@ -91,7 +91,9 @@ def test_sqlite_reproduces_spec_section_9(outputs: dict[str, str]) -> None:
 
 def test_postgres_differs_only_in_the_documented_types(outputs: dict[str, str]) -> None:
     sqlite_sql = outputs["ddl/sqlite/cur_core_record.sql"].splitlines()
-    pg_sql = outputs["ddl/postgres/cur_core_record.sql"].splitlines()
+    # Postgres TEXT columns also carry COLLATE "C" (bytewise order, like SQLite); the rest differs
+    # only in the types below.
+    pg_sql = outputs["ddl/postgres/cur_core_record.sql"].replace(' COLLATE "C"', "").splitlines()
     assert len(sqlite_sql) == len(pg_sql)
     changed = {a.split()[0] for a, b in zip(sqlite_sql, pg_sql, strict=True) if a != b}
     assert changed == {"psets_json", "voided", "version", "last_seq", "created_at", "updated_at"}
@@ -99,6 +101,7 @@ def test_postgres_differs_only_in_the_documented_types(outputs: dict[str, str]) 
     assert "psets_json JSONB NOT NULL DEFAULT '{}'" in joined
     assert "voided BOOLEAN NOT NULL DEFAULT FALSE" in joined
     assert "created_at TIMESTAMPTZ NOT NULL" in joined
+    assert outputs["ddl/postgres/cur_core_record.sql"].count('TEXT COLLATE "C"') == 9
 
 
 def test_generation_is_deterministic() -> None:
