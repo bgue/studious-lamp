@@ -165,9 +165,9 @@ def test_search_regex_does_not_match_inside_a_longer_dashed_token() -> None:
         ("{Project}-{seq:4}", "invalid segment"),
         ("{pro ject}-{seq:4}", "invalid segment"),
         ("{}-{seq:4}", "invalid segment"),
-        ("{project-{seq:4}", "invalid segment"),
+        ("{project-{seq:4}", "unbalanced"),
         ("{project}}-{seq:4}", "unbalanced"),
-        ("{project}-{{seq:4}", "invalid segment"),
+        ("{project}-{{seq:4}", "unbalanced"),
     ],
 )
 def test_parse_pattern_rejects_a_bad_template(template: str, message: str) -> None:
