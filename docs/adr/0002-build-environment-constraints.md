@@ -38,3 +38,11 @@ natively (`pg_ctlcluster 16 main start`, user `postgres`/`postgres`, db `tl_test
 |---|---|
 | Block until Docker is available | Stalls every increment from I4 on |
 | Skip object storage until prod | Files are first-class (§20); the `fs` backend keeps the contract exercised |
+
+## Addendum, 2026-10-09: probes for P0-I7 (orchestrator)
+| Need | Probe result | Use |
+|---|---|---|
+| DuckLake extension | `INSTALL ducklake` fails because extensions.duckdb.org is refused by the proxy. The PyPI packages `duckdb-extensions` and `duckdb-extension-ducklake` (both MIT) install. With them, `duckdb_extensions.import_extension('ducklake')` and `LOAD ducklake` work, and so do ATTACH and CREATE TABLE. | Pin `duckdb==1.5.5`: the extension wheel's version must equal duckdb's. Never call `INSTALL` from code; use `import_extension`. |
+| Parquet, JSON in DuckDB | Built into the duckdb wheel, already loaded. | No install needed. |
+| pgBackRest | `apt-get install pgbackrest` resolves (2.50, Ubuntu noble; MIT). | P0-I7 may run a real local backup and restore drill against the native cluster, instead of writing config only. |
+| Litestream | Not packaged by apt or PyPI. The GitHub release tarball download returns 200 (Apache-2.0). | The supervisor may fetch the pinned release once, per the download rule above. The fallback is the SQLite online backup API. |

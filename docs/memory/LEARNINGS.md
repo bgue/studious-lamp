@@ -323,3 +323,9 @@ test or a generated artefact already enforces, or narrative history (that belong
   Postgres, and keep the root `override-dependencies` that swaps in `jsonschema[format-nongpl]`. Name the licence in
   the relay NOTE and in APPROVALS.md. Policy and allow-list: ADR-0006.
   Evidence: orchestrator licence scan during P0-I5. Status: active
+- **L-P0-I5-O2** · 2026-10-09 · tags: environment, lake
+  DuckDB cannot `INSTALL` extensions here because extensions.duckdb.org is refused. Install the PyPI packages
+  `duckdb-extensions` and `duckdb-extension-ducklake`, with `duckdb` pinned to the same version (1.5.5), and call
+  `duckdb_extensions.import_extension('ducklake')` before `LOAD ducklake`. Parquet and JSON are built in. pgBackRest is
+  installable with apt. GitHub release downloads work. Details: the ADR-0002 addendum.
+  Evidence: orchestrator probes before P0-I7. Status: active
