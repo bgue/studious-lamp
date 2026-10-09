@@ -150,7 +150,8 @@ def link(uow: UnitOfWork, link_id: str, from_id: str, to_id: str, status: str = 
         text(
             "INSERT INTO cur_links (link_id, scope, from_id, to_id, relation, status, source, "
             "declined, created_by, created_at, updated_at, version, last_seq) VALUES "
-            "(:id, 'project:P123', :f, :t, 'references', :s, 'manual', 0, 'u', '2026', '2026', 1, 1)"
+            "(:id, 'project:P123', :f, :t, 'references', :s, 'manual', 0, 'u', '2026', '2026', "
+            "1, 1)"
         ),
         {"id": link_id, "f": from_id, "t": to_id, "s": status},
     )
