@@ -1,5 +1,119 @@
-"""STUB (P0-I4-T40)."""
+"""Record reads: list and query, count, lookup by key, one record, its history (brief 11.1, 10.2).
 
-from fastapi import APIRouter
+STUB (P0-I4-T40): the helpers and route bodies below raise ``NotImplementedError``. Signatures,
+decorators, parameters and response models are final (the committed OpenAPI document depends on
+them); implement the bodies only, then delete this paragraph.
+
+The query language is parsed here with ``tl_core.query.parse``; a syntax error is the table's 400
+``query_syntax`` with its position (O3). Listing always runs through ``run_query``, so ``q``,
+``status``, ``record_type`` and ``order_by`` combine in one place.
+"""
+
+from __future__ import annotations
+
+from typing import Annotated, Literal
+
+from fastapi import APIRouter, Depends, Query, Response
+from tl_core.ledger import Event
+from tl_core.query import QuerySpec
+
+from tl_api.auth import guard
+from tl_api.context import ApiContext, get_ctx
+from tl_api.models import CountOut, RecordOut
 
 router = APIRouter(tags=["records"])
+
+Ctx = Annotated[ApiContext, Depends(get_ctx)]
+Reader = Annotated[str, Depends(guard("record.read"))]
+ScopeParam = Annotated[str, Query(description="`company` or `project:<id>`.")]
+QueryParam = Annotated[
+    str | None,
+    Query(description="Filter in the query language (`status:open linked:NCR`)."),
+]
+Direction = Literal["asc", "desc"]
+
+
+def parse_order_by(text: str | None) -> list[tuple[str, Direction]]:
+    """``"title:desc,psets.v.size"`` to ``[("title", "desc"), ("psets.v.size", "asc")]``.
+
+    Items are separated by commas; each is a column or pset path, optionally followed by `:asc` or
+    `:desc` (default asc). Blank or ``None`` gives ``[]``. Raises ``ApiError(422,
+    "invalid_argument", ...)`` for an empty item or a direction other than asc or desc.
+    """
+    raise NotImplementedError("STUB (P0-I4-T40)")
+
+
+def build_spec(
+    scope: str,
+    q: str | None,
+    *,
+    record_type: str | None = None,
+    status: str | None = None,
+    include_voided: bool = False,
+    limit: int | None = 500,
+    offset: int = 0,
+    order_by: str | None = None,
+) -> QuerySpec:
+    """The ``QuerySpec`` for the request parameters. ``status`` is ANDed with the parsed ``q``.
+
+    Raises ``QuerySyntaxError`` (from ``parse``) and ``ApiError`` 422 (from ``parse_order_by``).
+    """
+    raise NotImplementedError("STUB (P0-I4-T40)")
+
+
+@router.get("/records", operation_id="list_records")
+def list_records(
+    ctx: Ctx,
+    actor: Reader,
+    scope: ScopeParam,
+    q: QueryParam = None,
+    record_type: Annotated[str | None, Query()] = None,
+    status: Annotated[str | None, Query(description="Same as `status:<value>` in `q`.")] = None,
+    include_voided: Annotated[bool, Query()] = False,
+    limit: Annotated[int, Query(ge=1, le=5000)] = 500,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    order_by: Annotated[
+        str | None,
+        Query(description="Comma-separated `column[:asc|:desc]`; psets as `psets.<pset>.<prop>`."),
+    ] = None,
+) -> list[RecordOut]:
+    """Records of a scope, filtered by the query language, ordered and paged."""
+    raise NotImplementedError("STUB (P0-I4-T40)")
+
+
+@router.get("/records/count", operation_id="count_records")
+def count_records(
+    ctx: Ctx,
+    actor: Reader,
+    scope: ScopeParam,
+    q: QueryParam = None,
+    record_type: Annotated[str | None, Query()] = None,
+    status: Annotated[str | None, Query()] = None,
+    include_voided: Annotated[bool, Query()] = False,
+) -> CountOut:
+    """How many records match (`limit`, `offset` and ordering do not apply)."""
+    raise NotImplementedError("STUB (P0-I4-T40)")
+
+
+@router.get("/records/lookup", operation_id="lookup_record")
+def lookup_record(
+    ctx: Ctx,
+    actor: Reader,
+    scope: ScopeParam,
+    key: Annotated[str, Query(description="The record's key, e.g. `P123-NCR-0042`.")],
+    response: Response,
+) -> RecordOut:
+    """The record with this key in this scope (voided ones included). 404 when there is none."""
+    raise NotImplementedError("STUB (P0-I4-T40)")
+
+
+@router.get("/records/{record_id}", operation_id="get_record")
+def get_record(ctx: Ctx, actor: Reader, record_id: str, response: Response) -> RecordOut:
+    """One record by id. The `ETag` header is the stream version (brief 11.1)."""
+    raise NotImplementedError("STUB (P0-I4-T40)")
+
+
+@router.get("/records/{record_id}/history", operation_id="get_record_history")
+def get_record_history(ctx: Ctx, actor: Reader, record_id: str) -> list[Event]:
+    """Every event of the record's stream, oldest first. 404 when the record is unknown."""
+    raise NotImplementedError("STUB (P0-I4-T40)")

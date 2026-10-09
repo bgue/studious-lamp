@@ -324,6 +324,83 @@
         "title": "CommandResult",
         "type": "object"
       },
+      "ConformanceIssue": {
+        "properties": {
+          "level": {
+            "enum": [
+              "warning",
+              "nonconformant"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "rule": {
+            "title": "Rule",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "level",
+          "rule",
+          "message"
+        ],
+        "title": "ConformanceIssue",
+        "type": "object"
+      },
+      "ConformanceReport": {
+        "properties": {
+          "effective_schema_hash": {
+            "title": "Effective Schema Hash",
+            "type": "string"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ConformanceIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "warning",
+              "nonconformant",
+              "waived"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "issues",
+          "effective_schema_hash"
+        ],
+        "title": "ConformanceReport",
+        "type": "object"
+      },
+      "CountOut": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "CountOut",
+        "type": "object"
+      },
       "CreateRecordBody": {
         "additionalProperties": false,
         "properties": {
@@ -504,6 +581,49 @@
         "title": "DeclineLinkBody",
         "type": "object"
       },
+      "DefaultRelationOut": {
+        "properties": {
+          "relation": {
+            "title": "Relation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "relation"
+        ],
+        "title": "DefaultRelationOut",
+        "type": "object"
+      },
+      "DetectKeysBody": {
+        "description": "Body of ``POST /keys/detect`` (a read: it only looks keys up).",
+        "properties": {
+          "linked_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked To"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "text"
+        ],
+        "title": "DetectKeysBody",
+        "type": "object"
+      },
       "EditRecordBody": {
         "additionalProperties": false,
         "properties": {
@@ -579,6 +699,35 @@
           "expected_version"
         ],
         "title": "EditRecordBody",
+        "type": "object"
+      },
+      "EnumValue": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "crosswalk": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crosswalk"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "label"
+        ],
+        "title": "EnumValue",
         "type": "object"
       },
       "ErrorBody": {
@@ -782,6 +931,188 @@
           "has_more"
         ],
         "title": "EventPage",
+        "type": "object"
+      },
+      "ExpectedLink": {
+        "additionalProperties": false,
+        "description": "One declared expectation.",
+        "properties": {
+          "by_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By State"
+          },
+          "direction": {
+            "default": "out",
+            "enum": [
+              "out",
+              "in",
+              "either"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "min_count": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Min Count",
+            "type": "integer"
+          },
+          "relation": {
+            "title": "Relation",
+            "type": "string"
+          },
+          "target_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Type"
+          }
+        },
+        "required": [
+          "relation"
+        ],
+        "title": "ExpectedLink",
+        "type": "object"
+      },
+      "FieldMeta": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "enforcement": {
+            "anyOf": [
+              {
+                "enum": [
+                  "advisory",
+                  "required",
+                  "locked"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enforcement"
+          },
+          "enum_values": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EnumValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enum Values"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "string",
+              "text",
+              "int",
+              "decimal",
+              "bool",
+              "date",
+              "datetime",
+              "enum",
+              "quantity",
+              "ref",
+              "json"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "layer": {
+            "enum": [
+              "core",
+              "standard",
+              "custom",
+              "project",
+              "enrichment",
+              "source"
+            ],
+            "title": "Layer",
+            "type": "string"
+          },
+          "order": {
+            "title": "Order",
+            "type": "integer"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "readonly": {
+            "default": false,
+            "title": "Readonly",
+            "type": "boolean"
+          },
+          "required_in_states": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Required In States",
+            "type": "array"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "path",
+          "label",
+          "description",
+          "kind",
+          "layer",
+          "group",
+          "order"
+        ],
+        "title": "FieldMeta",
         "type": "object"
       },
       "FileInfo": {
@@ -1062,6 +1393,69 @@
         "title": "FlagLinkBody",
         "type": "object"
       },
+      "FormMetadata": {
+        "properties": {
+          "core_fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldMeta"
+            },
+            "title": "Core Fields",
+            "type": "array"
+          },
+          "effective_schema_hash": {
+            "title": "Effective Schema Hash",
+            "type": "string"
+          },
+          "psets": {
+            "items": {
+              "$ref": "#/components/schemas/PsetGroupMeta"
+            },
+            "title": "Psets",
+            "type": "array"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_type",
+          "effective_schema_hash",
+          "core_fields",
+          "psets"
+        ],
+        "title": "FormMetadata",
+        "type": "object"
+      },
+      "GuardResult": {
+        "properties": {
+          "details": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Details",
+            "type": "object"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "passed",
+          "message"
+        ],
+        "title": "GuardResult",
+        "type": "object"
+      },
       "Health": {
         "properties": {
           "status": {
@@ -1073,6 +1467,389 @@
           "status"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "KeyChip": {
+        "description": "A detected key and what it refers to.",
+        "properties": {
+          "end": {
+            "title": "End",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "link_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Status"
+          },
+          "pattern_id": {
+            "title": "Pattern Id",
+            "type": "string"
+          },
+          "record_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Id"
+          },
+          "record_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Type"
+          },
+          "start": {
+            "title": "Start",
+            "type": "integer"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "voided": {
+            "default": false,
+            "title": "Voided",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "key",
+          "pattern_id",
+          "record_id"
+        ],
+        "title": "KeyChip",
+        "type": "object"
+      },
+      "LinkCounts": {
+        "properties": {
+          "active_in": {
+            "default": 0,
+            "title": "Active In",
+            "type": "integer"
+          },
+          "active_out": {
+            "default": 0,
+            "title": "Active Out",
+            "type": "integer"
+          },
+          "broken": {
+            "default": 0,
+            "title": "Broken",
+            "type": "integer"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "string"
+          },
+          "stale": {
+            "default": 0,
+            "title": "Stale",
+            "type": "integer"
+          },
+          "suggested": {
+            "default": 0,
+            "title": "Suggested",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "record_id"
+        ],
+        "title": "LinkCounts",
+        "type": "object"
+      },
+      "LinkTarget": {
+        "description": "A record offered by the link picker.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "link_total": {
+            "title": "Link Total",
+            "type": "integer"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "type",
+          "title",
+          "status",
+          "scope",
+          "link_total"
+        ],
+        "title": "LinkTarget",
+        "type": "object"
+      },
+      "LinkView": {
+        "description": "One link as seen from one record.",
+        "properties": {
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "declined": {
+            "title": "Declined",
+            "type": "boolean"
+          },
+          "direction": {
+            "enum": [
+              "out",
+              "in"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "link_id": {
+            "title": "Link Id",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "other_id": {
+            "title": "Other Id",
+            "type": "string"
+          },
+          "other_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Other Key"
+          },
+          "other_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Other Status"
+          },
+          "other_title": {
+            "title": "Other Title",
+            "type": "string"
+          },
+          "other_type": {
+            "title": "Other Type",
+            "type": "string"
+          },
+          "other_voided": {
+            "title": "Other Voided",
+            "type": "boolean"
+          },
+          "pin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pin"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "relation": {
+            "title": "Relation",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          },
+          "verified_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified By"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "link_id",
+          "direction",
+          "relation",
+          "label",
+          "other_id",
+          "other_key",
+          "other_title",
+          "other_type",
+          "other_status",
+          "other_voided",
+          "status",
+          "pin",
+          "note",
+          "source",
+          "confidence",
+          "reason",
+          "declined",
+          "verified_by",
+          "verified_at",
+          "created_at",
+          "version"
+        ],
+        "title": "LinkView",
+        "type": "object"
+      },
+      "MissingLink": {
+        "description": "An expectation that is not met: how many matching links exist and how many are needed.",
+        "properties": {
+          "expectation": {
+            "$ref": "#/components/schemas/ExpectedLink"
+          },
+          "found": {
+            "title": "Found",
+            "type": "integer"
+          },
+          "needed": {
+            "title": "Needed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectation",
+          "found",
+          "needed"
+        ],
+        "title": "MissingLink",
         "type": "object"
       },
       "PsetEdit": {
@@ -1103,6 +1880,185 @@
           "values"
         ],
         "title": "PsetEdit",
+        "type": "object"
+      },
+      "PsetGroupMeta": {
+        "properties": {
+          "enforcement": {
+            "anyOf": [
+              {
+                "enum": [
+                  "advisory",
+                  "required",
+                  "locked"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enforcement"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldMeta"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "layer": {
+            "enum": [
+              "core",
+              "standard",
+              "custom",
+              "project",
+              "enrichment",
+              "source"
+            ],
+            "title": "Layer",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "package": {
+            "title": "Package",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "package",
+          "version",
+          "enforcement",
+          "layer",
+          "fields"
+        ],
+        "title": "PsetGroupMeta",
+        "type": "object"
+      },
+      "RecordOut": {
+        "description": "A record envelope (brief 6.2): the dict ``tl_core.services.queries`` returns.",
+        "properties": {
+          "conformance": {
+            "title": "Conformance",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "effective_schema_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Schema Hash"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "last_seq": {
+            "title": "Last Seq",
+            "type": "integer"
+          },
+          "psets": {
+            "additionalProperties": true,
+            "title": "Psets",
+            "type": "object"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "voided": {
+            "title": "Voided",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "type",
+          "scope",
+          "title",
+          "description",
+          "status",
+          "psets",
+          "voided",
+          "version",
+          "last_seq",
+          "effective_schema_hash",
+          "conformance",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "RecordOut",
         "type": "object"
       },
       "RegisterUploadBody": {
@@ -1195,6 +2151,35 @@
           "sha256"
         ],
         "title": "RegisterUploadBody",
+        "type": "object"
+      },
+      "RelationOut": {
+        "description": "A relation of the link vocabulary (brief 7.1).",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "inverse_code": {
+            "title": "Inverse Code",
+            "type": "string"
+          },
+          "inverse_label": {
+            "title": "Inverse Label",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "label",
+          "inverse_code",
+          "inverse_label"
+        ],
+        "title": "RelationOut",
         "type": "object"
       },
       "RepinLinkBody": {
@@ -1561,6 +2546,176 @@
         "title": "SuggestLinkBody",
         "type": "object"
       },
+      "TraceNode": {
+        "properties": {
+          "children": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TraceNode"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "depth": {
+            "title": "Depth",
+            "type": "integer"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "enum": [
+                  "out",
+                  "in"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "link_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Id"
+          },
+          "link_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Status"
+          },
+          "more": {
+            "default": 0,
+            "title": "More",
+            "type": "integer"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "string"
+          },
+          "relation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relation"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "voided": {
+            "title": "Voided",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "record_id",
+          "key",
+          "title",
+          "type",
+          "status",
+          "voided",
+          "depth"
+        ],
+        "title": "TraceNode",
+        "type": "object"
+      },
+      "TransitionOption": {
+        "properties": {
+          "allowed": {
+            "title": "Allowed",
+            "type": "boolean"
+          },
+          "from_state": {
+            "title": "From State",
+            "type": "string"
+          },
+          "guards": {
+            "items": {
+              "$ref": "#/components/schemas/GuardResult"
+            },
+            "title": "Guards",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "to_state": {
+            "title": "To State",
+            "type": "string"
+          },
+          "transition": {
+            "title": "Transition",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transition",
+          "label",
+          "from_state",
+          "to_state",
+          "allowed",
+          "guards"
+        ],
+        "title": "TransitionOption",
+        "type": "object"
+      },
       "TransitionWorkflowBody": {
         "additionalProperties": false,
         "properties": {
@@ -1836,6 +2991,69 @@
           "link_id"
         ],
         "title": "VerifyLinkBody",
+        "type": "object"
+      },
+      "WorkflowStatus": {
+        "properties": {
+          "entered_at": {
+            "title": "Entered At",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/TransitionOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "state_label": {
+            "title": "State Label",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "workflow": {
+            "title": "Workflow",
+            "type": "string"
+          },
+          "workflow_version": {
+            "title": "Workflow Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "record_id",
+          "key",
+          "workflow",
+          "workflow_version",
+          "state",
+          "state_label",
+          "entered_at",
+          "version",
+          "options"
+        ],
+        "title": "WorkflowStatus",
         "type": "object"
       }
     },
@@ -3507,6 +4725,1058 @@
         ]
       }
     },
+    "/keys/detect": {
+      "post": {
+        "description": "Keys found in the text that fit a numbering pattern of the scope, resolved to records.",
+        "operationId": "detect_keys",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DetectKeysBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/KeyChip"
+                  },
+                  "title": "Response Detect Keys",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Detect Keys",
+        "tags": [
+          "reference"
+        ]
+      }
+    },
+    "/links/counts": {
+      "get": {
+        "description": "Link counts for each record id given (zeros for a record with no links).",
+        "operationId": "get_link_counts",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 500,
+              "minItems": 1,
+              "title": "Record Id",
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/LinkCounts"
+                  },
+                  "title": "Response Get Link Counts",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Link Counts",
+        "tags": [
+          "links"
+        ]
+      }
+    },
+    "/links/search": {
+      "get": {
+        "description": "Records the link picker may offer from this scope (its own and the company's).",
+        "operationId": "search_linkable",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Words that must occur in the key or title.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "description": "Words that must occur in the key or title.",
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "record_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Record Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LinkTarget"
+                  },
+                  "title": "Response Search Linkable",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Search Linkable",
+        "tags": [
+          "links"
+        ]
+      }
+    },
+    "/records": {
+      "get": {
+        "description": "Records of a scope, filtered by the query language, ordered and paged.",
+        "operationId": "list_records",
+        "parameters": [
+          {
+            "description": "`company` or `project:<id>`.",
+            "in": "query",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "description": "`company` or `project:<id>`.",
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter in the query language (`status:open linked:NCR`).",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter in the query language (`status:open linked:NCR`).",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "record_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Record Type"
+            }
+          },
+          {
+            "description": "Same as `status:<value>` in `q`.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Same as `status:<value>` in `q`.",
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_voided",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Voided",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 500,
+              "maximum": 5000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Comma-separated `column[:asc|:desc]`; psets as `psets.<pset>.<prop>`.",
+            "in": "query",
+            "name": "order_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma-separated `column[:asc|:desc]`; psets as `psets.<pset>.<prop>`.",
+              "title": "Order By"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RecordOut"
+                  },
+                  "title": "Response List Records",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Records",
+        "tags": [
+          "records"
+        ]
+      }
+    },
+    "/records/count": {
+      "get": {
+        "description": "How many records match (`limit`, `offset` and ordering do not apply).",
+        "operationId": "count_records",
+        "parameters": [
+          {
+            "description": "`company` or `project:<id>`.",
+            "in": "query",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "description": "`company` or `project:<id>`.",
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter in the query language (`status:open linked:NCR`).",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter in the query language (`status:open linked:NCR`).",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "record_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Record Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_voided",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Voided",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Count Records",
+        "tags": [
+          "records"
+        ]
+      }
+    },
+    "/records/lookup": {
+      "get": {
+        "description": "The record with this key in this scope (voided ones included). 404 when there is none.",
+        "operationId": "lookup_record",
+        "parameters": [
+          {
+            "description": "`company` or `project:<id>`.",
+            "in": "query",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "description": "`company` or `project:<id>`.",
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The record's key, e.g. `P123-NCR-0042`.",
+            "in": "query",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "description": "The record's key, e.g. `P123-NCR-0042`.",
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Lookup Record",
+        "tags": [
+          "records"
+        ]
+      }
+    },
+    "/records/{record_id}": {
+      "get": {
+        "description": "One record by id. The `ETag` header is the stream version (brief 11.1).",
+        "operationId": "get_record",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Record",
+        "tags": [
+          "records"
+        ]
+      }
+    },
+    "/records/{record_id}/conformance": {
+      "get": {
+        "description": "Conformance of the record's current values against its scope's effective schema.",
+        "operationId": "get_conformance",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConformanceReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Conformance",
+        "tags": [
+          "reference"
+        ]
+      }
+    },
+    "/records/{record_id}/expected-links": {
+      "get": {
+        "description": "Expected links the record does not have yet.",
+        "operationId": "get_expected_links",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MissingLink"
+                  },
+                  "title": "Response Get Expected Links",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Expected Links",
+        "tags": [
+          "links"
+        ]
+      }
+    },
     "/records/{record_id}/files": {
       "get": {
         "description": "The files of a record (metadata only), including quarantined and superseded ones.",
@@ -3635,6 +5905,699 @@
         "summary": "List Record Files",
         "tags": [
           "files"
+        ]
+      }
+    },
+    "/records/{record_id}/history": {
+      "get": {
+        "description": "Every event of the record's stream, oldest first. 404 when the record is unknown.",
+        "operationId": "get_record_history",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Event"
+                  },
+                  "title": "Response Get Record History",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Record History",
+        "tags": [
+          "records"
+        ]
+      }
+    },
+    "/records/{record_id}/links": {
+      "get": {
+        "description": "Both directions of the record's links, each with its label as read from this record.",
+        "operationId": "get_record_links",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_retracted",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Retracted",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LinkView"
+                  },
+                  "title": "Response Get Record Links",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Record Links",
+        "tags": [
+          "links"
+        ]
+      }
+    },
+    "/records/{record_id}/trace": {
+      "get": {
+        "description": "The tree of records within `depth` link hops of the record (brief 7.5).",
+        "operationId": "get_record_trace",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "depth",
+            "required": false,
+            "schema": {
+              "default": 2,
+              "maximum": 8,
+              "minimum": 0,
+              "title": "Depth",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "default": "both",
+              "enum": [
+                "out",
+                "in",
+                "both"
+              ],
+              "title": "Direction",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceNode"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Record Trace",
+        "tags": [
+          "links"
+        ]
+      }
+    },
+    "/records/{record_id}/workflow": {
+      "get": {
+        "description": "State, state-entered time and every transition with its guard results.",
+        "operationId": "get_workflow_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Roles for the role guards.",
+            "in": "query",
+            "name": "role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Roles for the role guards.",
+              "title": "Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Workflow Status",
+        "tags": [
+          "reference"
+        ]
+      }
+    },
+    "/relations": {
+      "get": {
+        "description": "The relation vocabulary in display order.",
+        "operationId": "list_relations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RelationOut"
+                  },
+                  "title": "Response List Relations",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Relations",
+        "tags": [
+          "reference"
+        ]
+      }
+    },
+    "/relations/default": {
+      "get": {
+        "description": "The relation to pre-select when linking a record of `from_type` to one of `to_type`.",
+        "operationId": "get_default_relation",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from_type",
+            "required": true,
+            "schema": {
+              "title": "From Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_type",
+            "required": true,
+            "schema": {
+              "title": "To Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefaultRelationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Default Relation",
+        "tags": [
+          "reference"
+        ]
+      }
+    },
+    "/schema/forms": {
+      "get": {
+        "description": "Form and grid metadata for a record type under the scope's effective schema.",
+        "operationId": "get_form_metadata",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "record_type",
+            "required": true,
+            "schema": {
+              "title": "Record Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormMetadata"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Form Metadata",
+        "tags": [
+          "reference"
         ]
       }
     },
