@@ -69,6 +69,9 @@ psets.prj.nde.method=RT
 | `>` | Greater than. |
 | `>=` | Greater than or equal. |
 
+On pset values, `~` matches only values stored as text. A number or a boolean never matches `~`: use
+`=`, `<` or `>` for those.
+
 ```query
 key:007
 status=open
