@@ -5,10 +5,6 @@ searches records (key or title), ticks one or more with Ctrl+T, chooses the rela
 from the record types) and an optional pin and note, and presses Enter. Ctrl+N creates a new record
 and links it in place. The picker issues `ClientInterface.add_link` itself and dismisses with a
 `LinkPickerResult`.
-
-STUB (P0-I3-T12): the types, layout (`compose`), constructor and key bindings are final; the
-functions and methods marked `raise NotImplementedError` are the ticket. Remove this paragraph
-when done.
 """
 
 from __future__ import annotations
@@ -18,16 +14,21 @@ from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from pydantic import BaseModel
+from rich.cells import cell_len, set_cell_size
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Input, OptionList, Select, Static
+from textual.widgets.option_list import Option
+from textual.widgets.select import InvalidSelectValueError
 from tl_core.services.link_queries import LinkTarget
 from tl_core.services.links import AddLink
 
 from tl_tui.client import ClientInterface
-from tl_tui.errors import CLIENT_ERRORS
+from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.text import EMPTY
 
 RESULT_LIMIT = 20
 
@@ -60,7 +61,9 @@ class LinkPickerResult(BaseModel):
 
 def title_text(sources: Sequence[PickerSource]) -> str:
     """``Link FV-1001 →`` for one source, ``Link 3 selected records →`` for several."""
-    raise NotImplementedError
+    if len(sources) == 1:
+        return f"Link {sources[0].key} →"
+    return f"Link {len(sources)} selected records →"
 
 
 def result_line(target: LinkTarget, selected: bool, highlighted: bool, width: int) -> str:
@@ -70,12 +73,23 @@ def result_line(target: LinkTarget, selected: bool, highlighted: bool, width: in
     The left part is cut with ``…`` to leave room for the status and one space; a missing key or
     status shows as ``—``.
     """
-    raise NotImplementedError
+    mark = f"{'▶' if highlighted else ' '} [{'x' if selected else ' '}]"
+    left = f"{mark} {target.key or EMPTY}  {target.title}"
+    right = target.status or EMPTY
+    room = width - cell_len(right) - 1
+    if cell_len(left) > room:
+        left = set_cell_size(left, room - 1) + "…" if room > 0 else ""
+    spaces = " " * max(0, width - cell_len(left) - cell_len(right))
+    return set_cell_size(left + spaces + right, width)
 
 
 def preview_text(target: LinkTarget | None) -> str:
     """``KEY · Title · Status · N linked`` for the highlighted record, or a hint when none."""
-    raise NotImplementedError
+    if target is None:
+        return "No record highlighted"
+    key = target.key or EMPTY
+    status = target.status or EMPTY
+    return f"{key} · {target.title} · {status} · {target.link_total} linked"
 
 
 def build_commands(
@@ -92,7 +106,22 @@ def build_commands(
 
     ``source`` of every command is ``tui`` and ``link_source`` is ``manual``.
     """
-    raise NotImplementedError
+    return [
+        AddLink(
+            actor=actor,
+            source="tui",
+            scope=scope,
+            from_id=source.id,
+            to_id=target.id,
+            relation=relation,
+            pin=pin,
+            note=note,
+            link_source="manual",
+        )
+        for source in sources
+        for target in targets
+        if source.id != target.id
+    ]
 
 
 class LinkPicker(ModalScreen[LinkPickerResult | None]):
@@ -180,56 +209,167 @@ class LinkPicker(ModalScreen[LinkPickerResult | None]):
             return "references"
 
     def on_mount(self) -> None:
-        raise NotImplementedError
+        self.query_one("#picker-search", Input).focus()
+        self._search()
 
     # --- searching and selecting ---------------------------------------------------------------
 
     def _search(self) -> None:
-        raise NotImplementedError
+        query = self.query_one("#picker-search", Input).value
+        try:
+            rows = self.client.search_linkable(self.scope, query, limit=RESULT_LIMIT)
+        except CLIENT_ERRORS as exc:
+            self._say(describe_error(exc))
+            rows = []
+        source_ids = {source.id for source in self.sources}
+        self.found = [target for target in rows if target.id not in source_ids]
+        self._draw()
 
     def _draw(self, keep: int = 0) -> None:
-        raise NotImplementedError
+        results = self.query_one("#picker-results", OptionList)
+        width = max(results.size.width, 60)
+        highlighted = results.highlighted if results.highlighted is not None else keep
+        rows = [
+            Option(
+                Text(result_line(t, t.id in self.selected, i == highlighted, width)),
+                id=t.id,
+            )
+            for i, t in enumerate(self.found)
+        ]
+        results.clear_options()
+        results.add_options(rows)
+        if self.found:
+            results.highlighted = min(highlighted, len(self.found) - 1)
+        self._on_highlight()
 
     def _highlighted(self) -> LinkTarget | None:
-        raise NotImplementedError
+        index = self.query_one("#picker-results", OptionList).highlighted
+        if index is None or not 0 <= index < len(self.found):
+            return None
+        return self.found[index]
 
     def _on_highlight(self) -> None:
-        raise NotImplementedError
+        target = self._highlighted()
+        self.query_one("#picker-preview", Static).update(preview_text(target))
+        if target is not None and not self._manual_relation:
+            self._set_relation(self._default_relation(target))
 
     def _set_relation(self, code: str) -> None:
-        raise NotImplementedError
+        select: Select[str] = self.query_one("#picker-relation", Select)
+        if select.value != code:
+            self._setting_relation = True
+            try:
+                select.value = code
+            except InvalidSelectValueError:
+                pass  # a code missing from the options keeps the old value
+            finally:
+                self._setting_relation = False
 
     def on_input_changed(self, event: Input.Changed) -> None:
-        raise NotImplementedError
+        if event.input.id == "picker-search":
+            event.stop()
+            self._search()
 
     def on_select_changed(self, event: Select.Changed) -> None:
-        raise NotImplementedError
+        event.stop()
+        if not self._setting_relation:
+            self._manual_relation = True
 
     def on_option_list_option_highlighted(self, event: OptionList.OptionHighlighted) -> None:
-        raise NotImplementedError
+        event.stop()
+        self._on_highlight()
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        raise NotImplementedError
+        event.stop()
+        self.action_toggle_select()
 
     def action_move(self, delta: int) -> None:
-        raise NotImplementedError
+        results = self.query_one("#picker-results", OptionList)
+        if delta > 0:
+            results.action_cursor_down()
+        elif delta < 0:
+            results.action_cursor_up()
+        self._draw(results.highlighted or 0)
 
     def action_toggle_select(self) -> None:
-        raise NotImplementedError
+        target = self._highlighted()
+        if target is not None:
+            if target.id in self.selected:
+                del self.selected[target.id]
+            else:
+                self.selected[target.id] = target
+        results = self.query_one("#picker-results", OptionList)
+        self._draw(results.highlighted or 0)
 
     # --- linking -------------------------------------------------------------------------------
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        raise NotImplementedError
+        event.stop()
+        targets = list(self.selected.values())
+        if not targets:
+            highlighted = self._highlighted()
+            targets = [] if highlighted is None else [highlighted]
+        self._link(targets)
 
     def _say(self, text: str) -> None:
-        raise NotImplementedError
+        self.query_one("#picker-status", Static).update(text)
 
     def _link(self, targets: Sequence[LinkTarget]) -> None:
-        raise NotImplementedError
+        if not targets:
+            self._say("Choose a record to link")
+            return
+        relation = str(self.query_one("#picker-relation", Select).value)
+        pin = self.query_one("#picker-pin", Input).value.strip() or None
+        note = self.query_one("#picker-note", Input).value.strip() or None
+        commands = build_commands(
+            self.sources,
+            targets,
+            relation=relation,
+            pin=pin,
+            note=note,
+            scope=self.scope,
+            actor=self.actor,
+        )
+        keys = {source.id: source.key for source in self.sources}
+        keys.update({target.id: target.key or target.id for target in targets})
+        created = 0
+        messages: list[str] = []
+        for cmd in commands:
+            try:
+                self.client.add_link(cmd)
+            except CLIENT_ERRORS as exc:
+                messages.append(f"{keys[cmd.from_id]} → {keys[cmd.to_id]}: {describe_error(exc)}")
+            else:
+                created += 1
+        if created == 0:
+            self._say("; ".join(messages) or "Nothing to link")
+            return
+        self.dismiss(LinkPickerResult(created=created, messages=messages))
 
     def action_create_and_link(self) -> None:
-        raise NotImplementedError
+        from tl_tui.widgets.new_record_form import NewRecordForm
+
+        def linked_new_record(key: str | None) -> None:
+            if key is None:
+                return
+            record = self.client.get_record(self.scope, key)
+            if record is None:
+                self._say(f"Created {key} but could not read it back")
+                return
+            target = LinkTarget(
+                id=str(record["id"]),
+                key=record.get("key"),
+                type=str(record["type"]),
+                title=str(record["title"]),
+                status=record.get("status"),
+                scope=str(record["scope"]),
+                link_total=0,
+            )
+            self._link([target])
+
+        self.app.push_screen(
+            NewRecordForm(self.client, self.scope, actor=self.actor), linked_new_record
+        )
 
     def action_cancel(self) -> None:
-        raise NotImplementedError
+        self.dismiss(None)
