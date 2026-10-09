@@ -2335,6 +2335,7 @@ dependencies = [
     { name = "rich" },
     { name = "tl-adapters" },
     { name = "tl-core" },
+    { name = "tl-schema" },
     { name = "typer" },
 ]
 
@@ -2344,6 +2345,7 @@ requires-dist = [
     { name = "rich" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
     { name = "typer" },
 ]
 

@@ -31,6 +31,12 @@ class SchemaProvider(Protocol):
         ...
 
 
+class ReloadableSchemaProvider(SchemaProvider, Protocol):
+    def reload(self) -> list[SchemaChange]:
+        """Re-read the packages now; report scopes whose effective hash changed."""
+        ...
+
+
 @dataclass(frozen=True)
 class SchemaChange:
     scope: str

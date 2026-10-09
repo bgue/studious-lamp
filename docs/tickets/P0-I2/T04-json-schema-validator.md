@@ -1,6 +1,6 @@
 # P0-I2-T04 — JSON Schema per record type and psets validator
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: P0-I2-T03 (merged into the base of this branch)

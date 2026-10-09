@@ -1,6 +1,6 @@
 # P0-I2-T04b — Form metadata from the effective schema
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: P0-I2-T03 (merged into the base of this branch)

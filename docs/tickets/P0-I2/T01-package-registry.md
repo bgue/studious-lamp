@@ -1,6 +1,6 @@
 # P0-I2-T01 — Package loader and registry
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: —

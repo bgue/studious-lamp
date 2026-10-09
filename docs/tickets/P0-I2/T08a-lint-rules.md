@@ -1,6 +1,6 @@
 # P0-I2-T08a — Lint rules for package documents
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: P0-I2-T03 (merged into the base of this branch)

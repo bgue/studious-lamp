@@ -32,24 +32,24 @@ tl pset get --project P123 V-0001            # psets, effective_schema_hash, con
 | T03 | Effective schema model and hash (`effective.py`), composition and adoption filter, conformance settings, cache by hash (`compose.py`) | Effective-schema compiler | Orchestrator | built |
 | T05 | Conformance evaluator (`conformance.py`) | Conformance rules are Sonnet-authored by rule (`01-tiers.md` §3); the plan's "H (rules pasted)" fails Haiku-ability item 5 | Orchestrator | built on `p0/i2a-t05-conformance` (22 tests); merges after T04, which provides the validator it calls |
 | T07 | `PsetProjector` (`cur_pset_values`, `psets_json` merge, promoted columns), `tl:table` generator extension, `schema/core/psets.yaml` | Projector transaction rules, DDL generator (§5.4) | Orchestrator | built (27e2e54; 18 tests) |
-| — | Schema provider, `form_metadata` and `conformance` services (`tl_core`) | Glue over T01, T04b and T05; written at the start of round 2 when those are merged | Orchestrator | planned (round 2) |
+| — | Schema provider (`schema_provider.py`), `form_metadata` and `conformance` services (`psets.py`), error types | Glue over T01, T04b and T05 | Orchestrator | built (d4feec7) |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| T01 | Package registry: parse, load, versions, adoption, checks | H | models | ready | |
+| T01 | Package registry: parse, load, versions, adoption, checks | H | models | merged | pass, 1 round; six adoption interpretations confirmed (A17) |
 | T02 | Compile psets, enforce the "cannot" rules | S | T01 interface | built | |
 | T03 | Effective schema, hash, cache | S | T02 | built | |
-| T04 | JSON Schema per record type and psets validator | H | T03 | ready | |
-| T04b | Form metadata from the effective schema (added) | H | T03 | ready | |
-| T05 | Conformance evaluator | S (plan: H) | T03, T04 | built (side branch) | |
-| T06 | `SetPsetValues` handler and `Pset.ValuesSet` | H | T04, T05, T07 | planned | |
+| T04 | JSON Schema per record type and psets validator | H | T03 | merged | pass, 1 round; empty-enum follow-up fixed by the supervisor (A18) |
+| T04b | Form metadata from the effective schema (added) | H | T03 | merged | pass on attempt 2 (attempt 1 committed its report file) |
+| T05 | Conformance evaluator | S (plan: H) | T03, T04 | merged | 23 tests green on the real validator |
+| T06 | `SetPsetValues` handler and `Pset.ValuesSet` | H | T04, T05, T07 | ready | round 2 |
 | T07 | `PsetProjector`, `cur_pset_values`, promoted columns | S | T03 | built | |
-| T08 | `tl schema hash|lint|validate` | H | T01, T08a | planned | |
-| T08a | Lint rules (added; split from T08) | H | T03 | ready | |
+| T08 | `tl schema hash|lint|validate` | H | T01, T08a | ready | round 2 |
+| T08a | Lint rules (added; split from T08) | H | T03 | merged | pass, 1 round; context gap: the ticket did not list `schema/fixtures` |
 | T08b | `tl pset set|get` (added; split from T08) | H | T06, T08 | planned | |
 | T09 | Fixture-driven matrix: every row of the §6.3 "projects can / cannot" table | H | T06 | planned | |
-| T10 | `Schema.EffectiveChanged` event and hot-reload hook | H | T03, T07 | planned | |
+| T10 | `Schema.EffectiveChanged` event and hot-reload hook | H | T03, T07 | ready | round 2 |
 
 Haiku-ability (`01-tiers.md` §6): T01, T04, T04b, T08a ship a provided test file plus a precise specification, touch two files each, and
 avoid every row of the Sonnet-authored table (the conformance rules, which T04 only feeds, are T05). T06 writes layer-aware
@@ -75,13 +75,15 @@ check is split (T08 became T08, T08a, T08b; T04b was added because form metadata
 | A14 | Ruling (orchestrator): pset engagement (A4) stays for Phase 0. Class-filter evaluation needs a record class, which arrives with Tag/TagClass in P1-I1 (T08 class binding); follow-up there. Known Phase 0 gap: a valve with `psets={}` reports `ok` | Recorded in the report |
 | A15 | Ruling (orchestrator): lenient mode downgrades required-ness only. A missing value for a `required` or `locked` property becomes a warning; type, range, pattern, value-list and locked-extension violations stay at their enforcement level in every mode, and waivers are the tool for them | They are data or governance errors, not enforcement levels |
 | A16 | Reserved names: psets `x`, `prj`, `enrich`, `src`; property `x`. `required_in_states` containing `*` covers every state (one helper, `states_cover`/`required_in`, for compiler and evaluator). A `json` property keeps a dict value as one `cur_pset_values` row; an empty dict leaves a row | The projector classifies paths by those markers and depth |
+| A17 | T01 interpretations confirmed: the highest version is taken among the project's own documents; "those documents" are the ones chosen by that rule; a pin to a stored non-company package is skipped by `adopted` and reported by `check`; a pin to an unstored version raises `PackageError` from `adopted`; an error with no location reads `(document)`; `load_package` also wraps read and decode errors; `projects()` returns the distinct non-null `project` values. Tests: `test_registry_pins.py` | The reviewer found them consistent with the ticket |
+| A18 | An enum property with no values is unconstrained in JSON Schema (no `"enum": []`), and the compiler rejects a code list without values | An empty list would reject every value |
 | A12 | JSON Schema is generated from `EffectiveSchema` directly, not by the LinkML generator | The LinkML generator cannot express the policy annotations and would lose layer information; the LinkML view stays for lint and export |
 
 ## Order of work (relay rounds)
 | Round | Ticket batch | Supervisor work in the same turn |
 |---|---|---|
 | 1 | T01, T04, T04b, T08a | Plan; T02, T03; fixtures; provided tests; T05 (side branch); T07; `schema/core/psets.yaml` |
-| 2 | T06, T10, T08 | Merge round 1 and T05; provider; `form_metadata` and `conformance` services; handler hooks |
+| 2 | T06, T10, T08 (round 2 supervisor work done: merges, provider, services, tickets) | Merge round 1 and T05; provider; `form_metadata` and `conformance` services; handler hooks |
 | 3 | T08b, T09 | Merge round 2; READMEs, AGENTS.md; learnings |
 | Final | — | Gates, report `docs/reports/P0-I2-A.md` |
 
