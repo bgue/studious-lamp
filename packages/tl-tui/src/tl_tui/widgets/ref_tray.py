@@ -4,10 +4,6 @@
 this screen. It lists the tray, lets the user tick or remove entries, and links the ticked ones to
 the open record with the chosen relation and pin. It dismisses with the number of links created,
 or ``None`` when closed without linking. Links are made with `ClientInterface.add_link`.
-
-STUB (P0-I3-T13b): the layout (`compose`), constructor, key bindings, `title_text` and the
-relation helpers are final; the functions and methods marked `raise NotImplementedError` are the
-ticket. Remove this paragraph when done.
 """
 
 from __future__ import annotations
@@ -15,15 +11,19 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, ClassVar
 
+from rich.cells import cell_len, set_cell_size
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Input, OptionList, Select, Static
+from textual.widgets.option_list import Option
 from tl_core.services.links import AddLink
 
 from tl_tui.client import ClientInterface
-from tl_tui.errors import CLIENT_ERRORS
+from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.text import EMPTY
 from tl_tui.tray import ReferenceTray, TrayItem
 
 
@@ -34,7 +34,14 @@ def tray_line(item: TrayItem, checked: bool, highlighted: bool, width: int) -> s
     The left part is cut with ``…`` to leave room for the type and one space; an empty type
     shows as ``—``.
     """
-    raise NotImplementedError
+    mark = f"{'▶' if highlighted else ' '} [{'x' if checked else ' '}]"
+    left = f"{mark} {item.key}  {item.title}"
+    right = item.type or EMPTY
+    room = width - cell_len(right) - 1
+    if cell_len(left) > room:
+        left = set_cell_size(left, room - 1) + "…" if room > 0 else ""
+    spaces = " " * max(0, width - cell_len(left) - cell_len(right))
+    return set_cell_size(left + spaces + right, width)
 
 
 def title_text(tray: ReferenceTray) -> str:
@@ -48,7 +55,9 @@ def target_text(target: dict[str, Any] | None, ticked: int) -> str:
     With a target: ``Link N ticked to <key> as:``; without one: ``Open a record to link the ticked
     ones to it``.
     """
-    raise NotImplementedError
+    if target is None:
+        return "Open a record to link the ticked ones to it"
+    return f"Link {ticked} ticked to {target.get('key') or target['id']} as:"
 
 
 def build_commands(
@@ -64,7 +73,20 @@ def build_commands(
 
     ``source`` is ``tui`` and ``link_source`` is ``tray`` (how the link arose, brief 7.1).
     """
-    raise NotImplementedError
+    return [
+        AddLink(
+            actor=actor,
+            source="tui",
+            scope=scope,
+            from_id=target_id,
+            to_id=item.record_id,
+            relation=relation,
+            pin=pin,
+            link_source="tray",
+        )
+        for item in items
+        if item.record_id != target_id
+    ]
 
 
 class TrayList(OptionList):
@@ -155,34 +177,113 @@ class ReferenceTrayScreen(ModalScreen[int | None]):
             return "references"
 
     def on_mount(self) -> None:
-        raise NotImplementedError
+        self.query_one("#tray-list", OptionList).focus()
+        self._draw()
 
     def _say(self, text: str) -> None:
-        raise NotImplementedError
+        self.query_one("#tray-status", Static).update(text)
 
     def _draw(self, keep: int = 0) -> None:
-        raise NotImplementedError
+        results = self.query_one("#tray-list", OptionList)
+        width = max(results.size.width, 60)
+        highlighted = results.highlighted if results.highlighted is not None else keep
+        items = self.tray.items
+        results.clear_options()
+        results.add_options(
+            [
+                Option(
+                    Text(
+                        tray_line(
+                            item,
+                            self.tray.is_checked(item.record_id),
+                            n == highlighted,
+                            width,
+                        )
+                    ),
+                    id=item.record_id,
+                )
+                for n, item in enumerate(items)
+            ]
+        )
+        if items:
+            results.highlighted = min(highlighted, len(items) - 1)
+        self.query_one("#tray-title", Static).update(title_text(self.tray))
+        self.query_one("#tray-target", Static).update(
+            target_text(self.target, len(self.tray.checked_items()))
+        )
+        if not items:
+            self._say("The tray is empty. Press R on a record to add it.")
 
     def _highlighted(self) -> TrayItem | None:
-        raise NotImplementedError
+        index = self.query_one("#tray-list", OptionList).highlighted
+        items = self.tray.items
+        if index is None or not 0 <= index < len(items):
+            return None
+        return items[index]
 
     def action_move(self, delta: int) -> None:
-        raise NotImplementedError
+        results = self.query_one("#tray-list", OptionList)
+        if delta > 0:
+            results.action_cursor_down()
+        else:
+            results.action_cursor_up()
+        self._draw(results.highlighted or 0)
 
     def action_toggle_select(self) -> None:
-        raise NotImplementedError
+        item = self._highlighted()
+        if item is not None:
+            self.tray.toggle(item.record_id)
+        results = self.query_one("#tray-list", OptionList)
+        self._draw(results.highlighted or 0)
 
     def action_remove(self) -> None:
-        raise NotImplementedError
+        item = self._highlighted()
+        if item is not None:
+            self.tray.remove(item.record_id)
+        results = self.query_one("#tray-list", OptionList)
+        self._draw(results.highlighted or 0)
 
     def action_clear(self) -> None:
-        raise NotImplementedError
+        self.tray.clear()
+        self._draw()
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        raise NotImplementedError
+        event.stop()
+        self._link()
 
     def _link(self) -> None:
-        raise NotImplementedError
+        if self.target is None:
+            self._say("Open a record first: the ticked records link to it")
+            return
+        ticked = self.tray.checked_items()
+        if not ticked:
+            self._say("Tick at least one record")
+            return
+        select: Select[str] = self.query_one("#tray-relation", Select)
+        pin = self.query_one("#tray-pin", Input).value.strip() or None
+        commands = build_commands(
+            ticked,
+            str(self.target["id"]),
+            relation=str(select.value),
+            pin=pin,
+            scope=self.scope,
+            actor=self.actor,
+        )
+        keys = {item.record_id: item.key for item in ticked}
+        created = 0
+        messages: list[str] = []
+        for cmd in commands:
+            try:
+                self.client.add_link(cmd)
+            except CLIENT_ERRORS as exc:
+                messages.append(f"{keys.get(cmd.to_id, cmd.to_id)}: {describe_error(exc)}")
+            else:
+                created += 1
+                self.tray.remove(cmd.to_id)
+        if created == 0:
+            self._say("; ".join(messages) or "Nothing to link")
+            return
+        self.dismiss(created)
 
     def action_close(self) -> None:
-        raise NotImplementedError
+        self.dismiss(None)
