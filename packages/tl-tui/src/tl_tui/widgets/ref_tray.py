@@ -4,6 +4,8 @@
 this screen. It lists the tray, lets the user tick or remove entries, and links the ticked ones to
 the open record with the chosen relation and pin. It dismisses with the number of links created,
 or ``None`` when closed without linking. Links are made with `ClientInterface.add_link`.
+When some links are refused the screen stays open with those records still ticked and the
+reasons shown; closing it then reports the links already made.
 """
 
 from __future__ import annotations
@@ -145,6 +147,7 @@ class ReferenceTrayScreen(ModalScreen[int | None]):
         self.tray = tray
         self.target = target
         self.actor = actor
+        self._created = 0  # links made so far, including before a refusal kept the screen open
 
     def compose(self) -> ComposeResult:
         with Vertical():
@@ -270,7 +273,6 @@ class ReferenceTrayScreen(ModalScreen[int | None]):
             actor=self.actor,
         )
         keys = {item.record_id: item.key for item in ticked}
-        created = 0
         messages: list[str] = []
         for cmd in commands:
             try:
@@ -278,12 +280,14 @@ class ReferenceTrayScreen(ModalScreen[int | None]):
             except CLIENT_ERRORS as exc:
                 messages.append(f"{keys.get(cmd.to_id, cmd.to_id)}: {describe_error(exc)}")
             else:
-                created += 1
+                self._created += 1
                 self.tray.remove(cmd.to_id)
-        if created == 0:
-            self._say("; ".join(messages) or "Nothing to link")
+        if not messages:
+            self.dismiss(self._created)
             return
-        self.dismiss(created)
+        # Some links were refused: stay open with the refused records still ticked and say why.
+        self._draw()
+        self._say("; ".join(messages))
 
     def action_close(self) -> None:
-        self.dismiss(None)
+        self.dismiss(self._created or None)

@@ -219,6 +219,29 @@ def test_a_refused_link_stays_open_and_says_why() -> None:
     run_pilot(app, scenario, size=(110, 40))
 
 
+def test_a_partly_refused_batch_stays_open_with_the_refused_records_ticked() -> None:
+    client = FakeClient.with_valve_example()
+    client.seed_link("FV-1001", "FV-1003")
+    app = Host(client, _tray(client, "FV-1002", "FV-1003"), "FV-1001")
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+        text = screen_text(app)
+        assert app.results == []  # still open
+        assert "FV-1003: " in text and "already exists" in text
+        assert "Reference tray (1)" in text and "[x] FV-1003" in text
+        assert [i.key for i in app.tray.checked_items()] == ["FV-1003"]
+        source = client.get_record(SCOPE, "FV-1001")
+        assert source is not None and len(client.links_of(source["id"])) == 2
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.results == [1]  # closing reports the link that was made
+
+    run_pilot(app, scenario, size=(110, 40))
+
+
 def test_escape_closes_with_none() -> None:
     client = FakeClient.with_valve_example()
     app = Host(client, _tray(client, "FV-1002"), "FV-1001")

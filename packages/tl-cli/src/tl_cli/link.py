@@ -20,6 +20,7 @@ from tl_core.links.expected import ExpectedLinkError, missing_expected_links
 from tl_core.services.commands import CommandResult
 from tl_core.services.errors import ServiceError
 from tl_core.services.link_queries import links_of
+from tl_core.services.link_trace import TraceDirection, TraceNode, trace
 from tl_core.services.links import (
     AcceptLink,
     AddLink,
@@ -348,3 +349,33 @@ def flag(
             ),
         ),
     )
+
+
+def _trace_lines(node: TraceNode) -> list[str]:
+    head = f"{node.label}: " if node.label else ""
+    suffix = {"stale": "  ! stale", "broken": "  ✗ broken"}.get(node.link_status or "", "")
+    more = f"  +{node.more} more" if node.more else ""
+    lines = [f"{'  ' * node.depth}{head}{node.key or '—'}  {node.title}{suffix}{more}"]
+    for child in node.children:
+        lines.extend(_trace_lines(child))
+    return lines
+
+
+@app.command("trace")
+def trace_command(
+    ctx: typer.Context,
+    project: _Project,
+    key: Annotated[str, typer.Argument(help="Record key.")],
+    depth: Annotated[int, typer.Option("--depth", min=0, max=10, help="Hops to follow.")] = 2,
+    direction: Annotated[str, typer.Option("--direction", help="out, in or both.")] = "both",
+) -> None:
+    """Show the records reachable from KEY through links, as an indented tree."""
+    db: Path = ctx.obj
+    scope = f"project:{project}"
+    if direction not in ("out", "in", "both"):
+        _fail(f"--direction must be out, in or both, not {direction!r}")
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        row = _record(uow, scope, project, key)
+        root = trace(uow, str(row["id"]), depth=depth, direction=cast(TraceDirection, direction))
+    for line in _trace_lines(root):
+        typer.echo(line)
