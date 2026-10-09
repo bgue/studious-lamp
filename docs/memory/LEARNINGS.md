@@ -256,3 +256,16 @@ test or a generated artefact already enforces, or narrative history (that belong
   defends itself. The second line of defence (the counter stream's expected version) is tested by monkeypatching the counter read
   to a stale value and expecting `ConcurrencyError`; mutating the allocator to ignore the version makes that test fail.
   Evidence: `tests/services/test_numbering.py::test_a_stale_counter_read_is_stopped_by_the_ledger_version_check`. Status: active
+
+- **L-P0-I3-5** · 2026-10-09 · tags: tooling, tests
+  ruff's import sorting treats `tl_*` packages as first-party inside a package's `src` tree (a blank line separates them from
+  third-party imports) but as third-party in test files. A reference implementation written outside the repo gets the wrong
+  grouping; run `ruff check --fix` on it in place before using it to verify a ticket.
+  Evidence: T07 reference failed `I001` on first verification. Status: active
+
+- **L-P0-I3-6** · 2026-10-09 · tags: tui, tests, process
+  Growing `ClientInterface` forces every test double to follow, so the fake's new behaviour went into one mixin
+  (`packages/tl-tui/tests/fakes_links.py`, tested by `test_fakes_links.py`) before any TUI ticket was cut; tickets then use the
+  fake without editing `fakes.py`. The fake reuses the real vocabulary, `next_status` and error types, so a screen tested on it
+  meets the same refusals as on the embedded client.
+  Evidence: `tests/test_fakes_links.py` (10 tests). Status: active
