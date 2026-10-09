@@ -1,6 +1,6 @@
 # P0-I5-T23 — Dev webhook receiver
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core, tests
 Depends on: — (signing, the stub and the provided test are on the base branch)

@@ -48,7 +48,10 @@ def asyncapi_document(
             "title": event.title,
             "messages": {name: {"$ref": f"#/components/messages/{name}"}},
         }
-        operations["receive" + name.replace(".", "")] = {
+        operation = "receive" + name.replace(".", "")
+        if operation in operations:
+            raise ValueError(f"event types collide on the operation key {operation!r}")
+        operations[operation] = {
             "action": "receive",
             "channel": {"$ref": f"#/channels/{name}"},
             "summary": event.title,

@@ -65,10 +65,10 @@ REVIEW-SUPERVISOR-PIECES: items 2 to 8 are in the Sonnet-authored list (webhook 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| P0-I5-T20 | AsyncAPI 3 document builder (pure function) | haiku | pieces 9 types | ready | |
-| P0-I5-T21 | Markdown catalog page renderer (pure function) | haiku | pieces 9 types | ready | |
-| P0-I5-T22 | `WebhookFilter.matches_row` | haiku | piece 2, 3 | ready | |
-| P0-I5-T23 | Dev webhook receiver (verifies signatures, dedupes, scripted failures) | haiku | piece 4 | ready | |
+| P0-I5-T20 | AsyncAPI 3 document builder (pure function) | haiku | pieces 9 types | merged | merged (1 review round); operation-key collisions raise ValueError, added by the supervisor with a new test file |
+| P0-I5-T21 | Markdown catalog page renderer (pure function) | haiku | pieces 9 types | merged | merged (1 review round) |
+| P0-I5-T22 | `WebhookFilter.matches_row` | haiku | piece 2, 3 | merged | merged (1 review round) |
+| P0-I5-T23 | Dev webhook receiver (verifies signatures, dedupes, scripted failures) | haiku | piece 4 | merged | merged (1 review round) |
 | P0-I5-T24 | Worker loop: `WebhookWorker` (threads, dispatch plus deliver cycles) | haiku | piece 5 | planned (round 2) | |
 | P0-I5-T25 | `tl webhook add\|ls\|test\|replay\|dlq` | haiku | pieces 5, 7, T24 | planned (round 2) | |
 | P0-I5-T26 | Contract tests: delivered payloads against the catalog | haiku | piece 9 | planned (round 2) | |

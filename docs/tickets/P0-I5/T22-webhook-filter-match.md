@@ -1,6 +1,6 @@
 # P0-I5-T22 — `WebhookFilter.matches_row`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: — (the dataclass, the stub and the provided test are on the base branch)

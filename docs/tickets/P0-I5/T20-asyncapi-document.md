@@ -1,6 +1,6 @@
 # P0-I5-T20 — AsyncAPI 3 document builder
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: — (the stub, `EventTypeInfo` and the provided test are on the base branch)

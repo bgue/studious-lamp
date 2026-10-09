@@ -1,6 +1,6 @@
 # P0-I5-T21 — Markdown catalog page renderer
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core, docs
 Depends on: — (the stub, `EventTypeInfo` and the provided test are on the base branch)
