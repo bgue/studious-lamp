@@ -39,9 +39,9 @@ serve:
 tui:
     @echo "tui: not yet (arrives with P0-I2)"
 
-# Shadow rebuild of projections from the ledger (arrives with P0-I1-T10)
-rebuild-projections *types:
-    @echo "rebuild-projections: not yet (arrives with P0-I1-T10)"
+# Rebuild projections from the ledger: all of them, or one by projector name (e.g. core_record)
+rebuild-projections name="":
+    uv run tl projections rebuild {{ if name == "" { "" } else { "--only " + name } }}
 
 # Dev services: `just dev up` or `just dev down`. No Docker daemon is assumed (ADR-0002).
 dev action:

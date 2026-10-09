@@ -1,6 +1,6 @@
 # P0-I1-T10 — `tl` CLI
 
-Status: draft (ready when T11 merges)
+Status: ready
 Tier: haiku
 Labels: cli
 Depends on: P0-I1-T09, P0-I1-T11
