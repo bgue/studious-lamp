@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS cur_pset_values (
   layer TEXT NOT NULL,
   value_type TEXT NOT NULL,
   value_text TEXT,
-  value_num REAL,
+  value_num DOUBLE PRECISION,
   value_bool BOOLEAN,
   value_json JSONB,
   unit TEXT,

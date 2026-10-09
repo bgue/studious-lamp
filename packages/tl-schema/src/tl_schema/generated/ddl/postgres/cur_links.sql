@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS cur_links (
   pin TEXT,
   note TEXT,
   source TEXT NOT NULL,
-  confidence REAL,
+  confidence DOUBLE PRECISION,
   reason TEXT,
   declined BOOLEAN NOT NULL DEFAULT FALSE,
   verified_by TEXT,

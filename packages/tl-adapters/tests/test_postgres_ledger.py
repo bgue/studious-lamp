@@ -194,13 +194,14 @@ def test_the_driver_hands_back_what_sqlite_would(engine: Engine) -> None:
     with pg_engine.read_tx(engine) as conn:
         row = conn.execute(
             text(
-                "SELECT TIMESTAMPTZ '2026-01-01 02:00:00+02' AS ts, '{\"a\": 1}'::jsonb AS j, "
+                "SELECT TIMESTAMPTZ '2026-01-01 02:00:00+02' AS ts, "
+                '\'{"bb": 1, "a": [1.5, null], "é": true}\'::jsonb AS j, '
                 "TRUE AS b, (SELECT SUM(x) FROM (VALUES (1), (2)) AS t(x)) AS total, "
                 "1.5::numeric AS frac"
             )
         ).one()
     assert row.ts == "2026-01-01T00:00:00.000000+00:00"
-    assert row.j == '{"a": 1}' and isinstance(row.j, str)
+    assert row.j == '{"a":[1.5,null],"bb":1,"é":true}'  # canonical compact text, like SQLite's
     assert row.b == 1 and type(row.b) is int
     assert row.total == 3 and type(row.total) is int
     assert row.frac == 1.5 and type(row.frac) is float

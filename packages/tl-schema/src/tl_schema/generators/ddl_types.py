@@ -26,7 +26,7 @@ TYPE_TABLE: Final[dict[str, dict[Dialect, str]]] = {
     "enum": {"sqlite": "TEXT", "postgres": "TEXT"},
     "integer": {"sqlite": "INTEGER", "postgres": "BIGINT"},
     "boolean": {"sqlite": "INTEGER", "postgres": "BOOLEAN"},
-    "float": {"sqlite": "REAL", "postgres": "REAL"},
+    "float": {"sqlite": "REAL", "postgres": "DOUBLE PRECISION"},
     "double": {"sqlite": "REAL", "postgres": "DOUBLE PRECISION"},
     "decimal": {"sqlite": "NUMERIC", "postgres": "NUMERIC"},
     "date": {"sqlite": "TEXT", "postgres": "DATE"},

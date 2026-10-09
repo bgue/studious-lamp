@@ -8,12 +8,13 @@ guards, numbering counters) is safe from a concurrent writer (L-P0-I3-O2). Read 
 read-only snapshots (``REPEATABLE READ``) and never wait for the lock.
 
 The driver is configured so rows look like SQLite's to ``tl_core``: JSON columns and timestamps
-come back as text (timestamps in the canonical ``iso_utc`` form), booleans as 0/1 and sums of
+come back as canonical text (timestamps in the ``iso_utc`` form), booleans as 0/1 and sums of
 integers as ints. Dialect differences stay in this package.
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import Generator
 from contextlib import contextmanager
 from decimal import Decimal
@@ -23,7 +24,6 @@ from psycopg import adapt
 from psycopg.abc import AdaptContext
 from psycopg.postgres import types as pg_types
 from psycopg.types.datetime import TimestamptzLoader
-from psycopg.types.string import TextLoader
 from sqlalchemy import Connection, Engine, create_engine, event, text
 from sqlalchemy.pool import NullPool
 from tl_core.ledger import iso_utc
@@ -46,6 +46,19 @@ class _IsoTimestamptzLoader(adapt.Loader):
 
     def load(self, data: Any) -> str:
         return iso_utc(self._inner.load(data))
+
+
+class _CanonicalJsonLoader(adapt.Loader):
+    """``json`` and ``jsonb`` as canonical compact text, like the text SQLite stores.
+
+    JSONB re-renders its content (``{"a": 1}`` with spaces, keys ordered by length); callers that
+    compare or hash the text expect the canonical form the projectors write on SQLite.
+    """
+
+    def load(self, data: Any) -> str:
+        return json.dumps(
+            json.loads(bytes(data)), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        )
 
 
 class _IntBoolLoader(adapt.Loader):
@@ -87,7 +100,7 @@ def make_engine(url: str, *, pooled: bool = False) -> Engine:
     def _on_connect(dbapi_connection: Any, _record: Any) -> None:
         adapters = dbapi_connection.adapters
         for name in ("json", "jsonb"):
-            adapters.register_loader(pg_types[name].oid, TextLoader)
+            adapters.register_loader(pg_types[name].oid, _CanonicalJsonLoader)
         adapters.register_loader(pg_types["timestamptz"].oid, _IsoTimestamptzLoader)
         adapters.register_loader(pg_types["bool"].oid, _IntBoolLoader)
         adapters.register_loader(pg_types["numeric"].oid, _NumericLoader)

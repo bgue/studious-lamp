@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
+from sqlalchemy import Engine
 
 # Tests sign with the public dev secret: object_secret() fails closed without TL_OBJECT_SECRET or
 # TL_ENV=dev (P0-I4). A test of the fail-closed behaviour passes its own mapping instead.
@@ -130,6 +131,35 @@ def adapter(adapter_name: str, tmp_path: Path, request: pytest.FixtureRequest) -
 def new_db(adapter: Adapter) -> Callable[[], str | Path]:
     """Call it for an empty database target on the adapter under test."""
     return adapter.new_db
+
+
+@pytest.fixture
+def dialect(adapter: Adapter) -> str:
+    """``"sqlite"`` or ``"postgres"``: the argument projector ``ddl()`` methods take."""
+    return "postgres" if adapter.name == "postgres" else "sqlite"
+
+
+@pytest.fixture
+def new_engine(new_db: Callable[[], str | Path]) -> Iterator[Callable[[], Engine]]:
+    """Call it for an engine on a fresh, empty database of the adapter under test.
+
+    For tests that drive projectors with plain ``engine.begin()`` and need no unit of work.
+    Every engine is disposed after the test.
+    """
+    from tl_adapters.db import make_engine
+
+    engines: list[Engine] = []
+
+    def make() -> Engine:
+        engine = make_engine(new_db())
+        engines.append(engine)
+        return engine
+
+    try:
+        yield make
+    finally:
+        for engine in engines:
+            engine.dispose()
 
 
 @pytest.fixture
