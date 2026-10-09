@@ -183,7 +183,12 @@ def test_the_header_shows_link_badges_and_the_state_time() -> None:
         await pilot.press("enter")
         await pilot.pause()
         text = screen_text(app)
-        assert "1 links" in text and "1 stale" in text and "1 suggested" in text
+        assert (
+            "1 link ·" in text
+            and "1 links" not in text
+            and "1 stale" in text
+            and "1 suggested" in text
+        )
         assert "since 2026-10-09" in text
 
     run_pilot(app, scenario, size=(140, 40))

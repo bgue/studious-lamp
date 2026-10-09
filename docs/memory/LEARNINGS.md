@@ -298,3 +298,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   share one `correlation_id`, and let the caller's rollback undo everything when a part raises. No new write path was needed for
   `EditRecord`. A part that changes nothing raises `NoChangesError` before it appends, so it can be skipped safely.
   Evidence: `services/edit.py`, `tests/services/test_edit_record.py` (rollback and stale-version cases). Status: active
+
+- **L-P0-I3-11** · 2026-10-09 · tags: process, tickets
+  A ticket that tells the implementer to implement a questionable behaviour "as written" and to raise it as an open question works: T13b's
+  spec ended the tray on the first successful link and hid the refusals of the rest; the implementer kept the spec, reported the
+  question, and the supervisor decided with the orchestrator. Two Haiku tickets that run in one batch cannot depend on each other's code
+  (T02b `trace` needed T14a): leave the dependent piece out of the ticket and add it after the merge.
+  Evidence: `docs/reports/P0-I3/P0-I3-T13b.md`, decisions D26 and D27. Status: active

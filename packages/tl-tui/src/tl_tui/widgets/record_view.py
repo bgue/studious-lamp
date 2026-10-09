@@ -173,7 +173,7 @@ class RecordView(Vertical, can_focus=True):
             counts = None
         if counts is not None:
             if counts.active:
-                parts.append(f"{counts.active} links")
+                parts.append(f"{counts.active} link{'' if counts.active == 1 else 's'}")
             for label, number in (
                 ("stale", counts.stale),
                 ("broken", counts.broken),

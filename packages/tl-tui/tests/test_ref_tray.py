@@ -304,6 +304,7 @@ def test_f4_opens_the_tray_and_linking_refreshes_the_open_record() -> None:
         view = app.query_one(RecordView)
         assert view.record is not None
         assert [v.other_key for v in client.links_of(view.record["id"])] == ["FV-1002"]
-        assert "1 links" in screen_text(app)
+        text = screen_text(app)
+        assert "1 link" in text and "1 links" not in text
 
     run_pilot(app, scenario, size=(140, 40))
