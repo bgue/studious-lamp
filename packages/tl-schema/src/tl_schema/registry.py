@@ -3,8 +3,6 @@
 ``PackageRegistry`` holds every known ``PackageDoc`` and answers "which packages does scope X
 adopt?". It does no schema resolution: that is ``tl_schema.compose``. It is rebuilt from the
 directory when files change; nothing here writes to disk.
-
-STUB: the bodies below are implemented by P0-I2-T01. Signatures and docstrings are the contract.
 """
 
 from __future__ import annotations

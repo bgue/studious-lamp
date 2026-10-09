@@ -109,6 +109,10 @@ def _resolve_property(
         kind = "enum"
         code_list = pdef.range
         listing = lists[pdef.range]
+        if not listing.values:
+            raise SchemaCompileError(
+                "invalid", f"{origin} {name}: code list {pdef.range} has no values"
+            )
         enum_values = _enum_values(listing)
         enum_meanings = _enum_meanings(listing.values)
         policy = policy or listing.value_list_policy

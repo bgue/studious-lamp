@@ -513,3 +513,10 @@ def test_document_structure_errors(build_docs: Build, mutate_text: str) -> None:
 
     with pytest.raises(ValidationError):
         build_docs(mutate)
+
+
+def test_a_code_list_without_values_is_rejected(build_docs: Build) -> None:
+    def mutate(raw: Raw) -> None:
+        raw["co.acme.engineering"]["code_lists"]["FailAction"]["values"] = []
+
+    _expect(build_docs, mutate, "invalid")

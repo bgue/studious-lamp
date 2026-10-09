@@ -60,7 +60,8 @@ def _property_schema(prop: EffectiveProperty) -> dict[str, Any]:
         out["pattern"] = DATETIME_PATTERN
     elif kind == "enum":
         out["type"] = "string"
-        out["enum"] = [v.code for v in prop.enum_values or []]
+        if prop.enum_values:  # an empty list would reject every value; leave it unconstrained
+            out["enum"] = [v.code for v in prop.enum_values]
     # "json" adds nothing: any JSON value is accepted.
     if kind in _NUMERIC_KINDS:
         if prop.minimum is not None:
