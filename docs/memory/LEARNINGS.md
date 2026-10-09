@@ -310,3 +310,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   decision). Rules: gate any "no bytes needed" shortcut on the state that grants read access, compare secrets as bytes, fail
   closed on missing secrets, and serve client-typed files as attachments with `nosniff`.
   Evidence: `docs/tickets/P0-I4/README-B.md` D8, D9, D12, D13; `tests/services/test_file_service.py`. Status: active
+
+- **L-P0-I4-B7** · 2026-10-09 · tags: process, ledger
+  Writing a recovery runbook step by step exposed a real defect: an idempotent-retry shortcut ("already attached") returned
+  before checking that the object still existed, so re-uploading could not heal a lost object. Every recovery step in a runbook
+  needs a test or a demo line that performs it (`test_reuploading_to_the_same_slot_restores_a_lost_object`).
+  Also: when restoring stubs over scratch references, `git checkout <dir>` reverts uncommitted doc edits in that directory too;
+  commit docs first or restore file by file.
+  Evidence: `docs/runbooks/object-store-reconciliation.md` step 3; commit 34fe583. Status: active
