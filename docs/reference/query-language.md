@@ -154,10 +154,10 @@ not count. Both directions count.
 | `linked(raised_against)` | A live link with that relation. `*` means any relation. |
 | `linked(raised_against):NCR` | A live link with that relation to a record of that type. |
 | `linked:NCR.status:open` | A live link to an `NCR` whose linked record also matches the condition after the dot. |
-| `linked(raised_against).(status:open type:NCR)` | A live link with that relation to a record matching every condition in the group. |
+| `linked(raised_against).(status:open type:quality.NCR)` | A live link with that relation to a record matching every condition in the group. Inside the group `type:` is an exact match, so write the full type; the `NCR` shorthand applies only to `linked:`. |
 | `count(linked:NCR)>0` | The number of matching live links, compared with `=`, `!=`, `<`, `<=`, `>` or `>=`. |
 | `missing(link:permit)` | No live link to a `permit`. |
-| `missing(link)` | No links at all. |
+| `missing(link)` | No live links (suggested and retracted links do not count). |
 
 ```query
 linked
@@ -167,7 +167,7 @@ linked(raised_against)
 linked(*)
 linked(raised_against):NCR
 linked:NCR.status:open
-linked(raised_against).(status:open type:NCR)
+linked(raised_against).(status:open type:quality.NCR)
 count(linked:NCR)>0
 count(linked:NCR)>=2
 count(linked(raised_against):NCR)=0
