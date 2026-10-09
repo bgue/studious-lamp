@@ -115,6 +115,8 @@ class EffectiveCache:
 
     def get_or_build(self, schema: EffectiveSchema, kind: str, build: Callable[[], T]) -> T:
         """The artefact ``kind`` for ``schema.hash``, built once with ``build``."""
+        if not schema.hash:
+            raise ValueError("cannot cache artefacts of an un-hashed schema; use with_hash()")
         key = (schema.hash, kind)
         with self._lock:
             if key in self._items:

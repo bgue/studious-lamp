@@ -148,9 +148,25 @@ def test_set_nested_creates_and_replaces() -> None:
     assert root == {"a": {"b": 1}, "c": {"d": {"e": 2}}}
 
 
-def test_flatten_descends_dicts_and_keeps_lists() -> None:
+def test_flatten_descends_to_property_depth_and_keeps_lists() -> None:
     leaves = flatten({"b": {"y": 1, "x": {"z": [1, 2]}}, "a": True, "e": {}})
     assert leaves == [(["a"], True), (["b", "x", "z"], [1, 2]), (["b", "y"], 1)]
+
+
+def test_flatten_stores_a_dict_value_whole_and_keeps_empty_dicts() -> None:
+    psets = {
+        "valve_data": {"notes": {"a": {"b": 1}}, "x": {"extra": {}}, "empty": {}},
+        "prj": {"shutdown_tie_in": {"plan": {"steps": [1]}}},
+        "src": {"ifc": {"Pset_V": {"Size": {"n": 1}}}},
+        "section": {},
+    }
+    assert flatten(psets) == [
+        (["prj", "shutdown_tie_in", "plan"], {"steps": [1]}),
+        (["src", "ifc", "Pset_V", "Size"], {"n": 1}),
+        (["valve_data", "empty"], {}),
+        (["valve_data", "notes"], {"a": {"b": 1}}),
+        (["valve_data", "x", "extra"], {}),
+    ]
 
 
 @pytest.mark.parametrize(
@@ -222,6 +238,19 @@ def test_values_set_merges_and_projects(engine: Engine) -> None:
     assert found["psets.valve_data.x.fat_witness_by"]["property_name"] == "x.fat_witness_by"
     assert found["psets.prj.shutdown_tie_in.approved"]["value_bool"] == 1
     assert found["psets.prj.shutdown_tie_in.window"]["layer"] == "project"
+
+
+def test_a_json_property_is_one_row_and_an_empty_dict_leaves_a_row(engine: Engine) -> None:
+    ev = Events()
+    apply(
+        engine,
+        ev.created(),
+        ev.values_set("valve_data", {"notes": {"a": {"b": 1}}, "empty": {}}),
+    )
+    found = rows(engine)
+    assert list(found) == ["psets.valve_data.empty", "psets.valve_data.notes"]
+    assert found["psets.valve_data.empty"]["value_type"] == "json"
+    assert json.loads(found["psets.valve_data.notes"]["value_json"]) == {"a": {"b": 1}}
 
 
 def test_a_later_set_replaces_the_value_and_keeps_the_unit(engine: Engine) -> None:

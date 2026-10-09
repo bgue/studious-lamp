@@ -126,6 +126,8 @@ def _enum_for(prop: EffectiveProperty, pset: EffectivePset, enums: dict[str, Any
             value = _new(PermissibleValue, text=code, description=label)
             if crosswalk is not None:
                 _set_annotation(value, "tl:crosswalk", crosswalk)
+            if code in prop.enum_meanings:
+                value.meaning = prop.enum_meanings[code]
             enum.permissible_values[code] = value
         enums[name] = enum
     return name

@@ -42,6 +42,7 @@ from tl_schema.effective import (
     EffectiveProperty,
     EffectivePset,
     PropertyLayer,
+    states_cover,
 )
 from tl_schema.forms import EnumValue, FieldKind
 from tl_schema.packages import (
@@ -74,6 +75,10 @@ def humanise(name: str) -> str:
     return name.replace("_", " ").capitalize()
 
 
+def _enum_meanings(values: Sequence[CodeValue]) -> dict[str, str]:
+    return {v.code: v.meaning for v in values if v.meaning is not None}
+
+
 def _enum_values(code_list: CodeList) -> list[EnumValue]:
     return [EnumValue(code=v.code, label=v.label, crosswalk=v.crosswalk) for v in code_list.values]
 
@@ -92,6 +97,7 @@ def _resolve_property(
     kind: str
     code_list: str | None = None
     enum_values: list[EnumValue] | None = None
+    enum_meanings: dict[str, str] = {}
     policy = pdef.value_list_policy
     if pdef.range in PROPERTY_KINDS:
         kind = pdef.range
@@ -104,6 +110,7 @@ def _resolve_property(
         code_list = pdef.range
         listing = lists[pdef.range]
         enum_values = _enum_values(listing)
+        enum_meanings = _enum_meanings(listing.values)
         policy = policy or listing.value_list_policy
     else:
         raise SchemaCompileError(
@@ -132,6 +139,7 @@ def _resolve_property(
         unit=pdef.unit.ucum if pdef.unit else None,
         code_list=code_list,
         enum_values=enum_values,
+        enum_meanings=enum_meanings,
         value_list_policy=policy,
         required_in_states=states,
         enforcement=pdef.enforcement or cast(Any, pset_enforcement),
@@ -249,11 +257,11 @@ def _tighten(prop: EffectiveProperty, change: TightenDef, ext: PackageDoc) -> Ef
     where = f"{ext.key()} {prop.name}"
     update: dict[str, Any] = {}
     if change.required_in_states is not None:
-        missing = [s for s in prop.required_in_states if s not in change.required_in_states]
-        if missing:
+        if not states_cover(change.required_in_states, prop.required_in_states):
+            dropped = [s for s in prop.required_in_states if s not in change.required_in_states]
             raise SchemaCompileError(
                 "loosen",
-                f"{where}: required_in_states drops {', '.join(missing)}",
+                f"{where}: required_in_states drops {', '.join(dropped)}",
                 package=ext.key(),
             )
         update["required_in_states"] = list(change.required_in_states)
@@ -329,6 +337,7 @@ def _add_values(
                 package=ext.key(),
             )
         existing = list(prop.enum_values or [])
+        meanings = dict(prop.enum_meanings)
         codes = {v.code for v in existing}
         company_codes = set(codes)
         for value in values:
@@ -360,7 +369,10 @@ def _add_values(
             existing.append(
                 EnumValue(code=value.code, label=value.label, crosswalk=value.crosswalk)
             )
-        properties[prop.name] = prop.model_copy(update={"enum_values": existing})
+            meanings.update(_enum_meanings([value]))
+        properties[prop.name] = prop.model_copy(
+            update={"enum_values": existing, "enum_meanings": meanings}
+        )
     return pset.model_copy(update={"properties": properties})
 
 

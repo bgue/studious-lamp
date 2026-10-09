@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Sequence
 from datetime import date
 from typing import Any, Literal
 
@@ -28,6 +29,21 @@ ALWAYS = "*"
 ENFORCEMENT_RANK: dict[str, int] = {"advisory": 0, "required": 1, "locked": 2}
 
 
+def states_cover(new: Sequence[str], old: Sequence[str]) -> bool:
+    """Whether ``new`` requires a value in every state ``old`` does (``ALWAYS`` covers all)."""
+    if ALWAYS in new:
+        return True
+    return ALWAYS not in old and all(state in new for state in old)
+
+
+def required_in(states: Sequence[str], state: str | None) -> bool:
+    """Whether a property with these ``required_in_states`` needs a value in ``state``.
+
+    ``ALWAYS`` means every state, including no state at all.
+    """
+    return ALWAYS in states or (state is not None and state in states)
+
+
 class PackageRef(BaseModel):
     name: str
     version: str
@@ -42,6 +58,7 @@ class EffectiveProperty(BaseModel):
     unit: str | None = None  # UCUM code
     code_list: str | None = None  # name of the code list when kind == "enum"
     enum_values: list[EnumValue] | None = None
+    enum_meanings: dict[str, str] = {}  # code -> meaning IRI; part of the hash (brief 27.1, 27.6)
     value_list_policy: ValueListPolicy | None = None
     required_in_states: list[str] = []  # ALWAYS means every state
     enforcement: Enforcement
