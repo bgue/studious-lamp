@@ -76,4 +76,3 @@ class WebhookWorker:
 
     def __exit__(self, *exc: object) -> None:
         raise NotImplementedError
-
