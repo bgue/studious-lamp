@@ -1,0 +1,256 @@
+"""Key detection in text and chip resolution (P0-I3-T07; brief 7.2)."""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from pathlib import Path
+
+import pytest
+from sqlalchemy import text
+from tl_adapters.sqlite.uow import create_schema, open_uow
+from tl_core.numbering.config import NumberingPattern, NumberingRegistry, use_numbering
+from tl_core.numbering.detect import KeyMatch, detect_keys, resolve_chips, suggest_chips
+from tl_core.services.commands import CreateRecord
+from tl_core.services.records import handle_create_record
+from tl_core.uow import UnitOfWork
+
+P1 = "project:P123"
+
+
+def pattern(
+    pattern_id: str, template: str, type_code: str = "REC", **kw: object
+) -> NumberingPattern:
+    data: dict[str, object] = {
+        "id": pattern_id,
+        "record_type": "core.Record",
+        "template": template,
+        "type_code": type_code,
+        "scope": "project:*",
+    }
+    data.update(kw)
+    return NumberingPattern.model_validate(data)
+
+
+REC = pattern("rec", "{project}-{type}-{seq:4}")
+NCR = pattern("ncr", "NCR-{project}-{seq:4}", "NCR")
+DOC = pattern("doc", "DOC-{seq}", "DOC")
+
+
+# --- detect_keys ----------------------------------------------------------------------------
+
+
+def test_finds_keys_with_their_offsets() -> None:
+    body = "See P123-REC-0001 and NCR-P123-0042."
+    found = detect_keys(body, [REC, NCR])
+    assert found == [
+        KeyMatch(start=4, end=17, key="P123-REC-0001", pattern_id="rec"),
+        KeyMatch(start=22, end=35, key="NCR-P123-0042", pattern_id="ncr"),
+    ]
+    for match in found:
+        assert body[match.start : match.end] == match.key
+
+
+def test_matches_come_back_in_text_order_whatever_the_pattern_order() -> None:
+    body = "NCR-P123-0042 then P123-REC-0001"
+    assert [m.key for m in detect_keys(body, [REC, NCR])] == ["NCR-P123-0042", "P123-REC-0001"]
+    assert [m.key for m in detect_keys(body, [NCR, REC])] == ["NCR-P123-0042", "P123-REC-0001"]
+
+
+def test_the_same_key_twice_gives_two_matches() -> None:
+    found = detect_keys("P123-REC-0001, again P123-REC-0001", [REC])
+    assert [(m.start, m.key) for m in found] == [(0, "P123-REC-0001"), (20, "P123-REC-0001")]
+
+
+def test_no_patterns_or_no_keys_gives_nothing() -> None:
+    assert detect_keys("P123-REC-0001", []) == []
+    assert detect_keys("nothing to see here", [REC, NCR]) == []
+    assert detect_keys("", [REC]) == []
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "pre-P123-REC-0001",  # glued to a dash before
+        "P123-REC-0001x",  # glued to a letter after
+        "P123-REC-0001_",  # glued to an underscore after
+        "P123-REC-00012",  # not the canonical spelling of sequence 12
+        "P123-REC-0000",  # sequence 0 does not exist
+        "P123-REC-12",  # too few digits
+    ],
+)
+def test_a_key_must_be_whole_and_spelled_canonically(body: str) -> None:
+    assert detect_keys(body, [REC]) == []
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "(P123-REC-0001)",
+        "P123-REC-0001.",
+        "P123-REC-0001, ok",
+        "[P123-REC-0001]",
+        '"P123-REC-0001"',
+    ],
+)
+def test_punctuation_around_a_key_is_fine(body: str) -> None:
+    (match,) = detect_keys(body, [REC])
+    assert match.key == "P123-REC-0001"
+
+
+def test_overflow_keys_are_detected() -> None:
+    (match,) = detect_keys("see P123-REC-10000", [REC])
+    assert match.key == "P123-REC-10000"
+
+
+def test_unpadded_sequences_must_not_have_leading_zeros() -> None:
+    assert [m.key for m in detect_keys("DOC-7 DOC-07 DOC-12", [DOC])] == ["DOC-7", "DOC-12"]
+
+
+def test_overlapping_matches_keep_the_longer_one() -> None:
+    short = pattern("short", "{project}-{seq:4}")
+    long = pattern("long", "{project}-{type}-{seq:4}")
+    found = detect_keys("P123-REC-0001", [short, long])
+    assert [(m.key, m.pattern_id) for m in found] == [("P123-REC-0001", "long")]
+
+
+def test_equal_length_overlaps_prefer_the_earlier_pattern() -> None:
+    first = pattern("first", "{project}-{type}-{seq:4}")
+    second = pattern("second", "{type}-{project}-{seq:4}")
+    found = detect_keys("P123-REC-0001", [first, second])
+    assert [(m.key, m.pattern_id) for m in found] == [("P123-REC-0001", "first")]
+
+
+# --- resolve_chips / suggest_chips ------------------------------------------------------------
+
+
+@pytest.fixture
+def uow(tmp_path: Path) -> Iterator[UnitOfWork]:
+    db = tmp_path / "tl.db"
+    create_schema(db)
+    with use_numbering(NumberingRegistry([REC, NCR])), open_uow(db) as handle:
+        yield handle
+
+
+def make(uow: UnitOfWork, key: str, scope: str = P1, title: str | None = None) -> str:
+    return handle_create_record(
+        uow,
+        CreateRecord(
+            actor="u",
+            source="t",
+            scope=scope,
+            record_type="core.Record",
+            title=title or f"title of {key}",
+            key=key,
+        ),
+    ).stream_id
+
+
+def link(uow: UnitOfWork, link_id: str, from_id: str, to_id: str, status: str = "active") -> None:
+    uow.conn().execute(
+        text(
+            "INSERT INTO cur_links (link_id, scope, from_id, to_id, relation, status, source, "
+            "declined, created_by, created_at, updated_at, version, last_seq) VALUES "
+            "(:id, 'project:P123', :f, :t, 'references', :s, 'manual', 0, 'u', '2026', '2026', 1, 1)"
+        ),
+        {"id": link_id, "f": from_id, "t": to_id, "s": status},
+    )
+
+
+def test_a_chip_for_a_key_with_a_record(uow: UnitOfWork) -> None:
+    rid = make(uow, "P123-REC-0001", title="Pour slab")
+    (chip,) = suggest_chips(uow, P1, "see P123-REC-0001 please")
+    assert (chip.start, chip.end, chip.key, chip.pattern_id) == (4, 17, "P123-REC-0001", "rec")
+    assert chip.record_id == rid
+    assert (chip.record_type, chip.title, chip.voided) == ("core.Record", "Pour slab", False)
+    assert chip.status is None
+    assert chip.link_status is None
+
+
+def test_a_key_nobody_has_gives_a_chip_without_a_record(uow: UnitOfWork) -> None:
+    (chip,) = suggest_chips(uow, P1, "P123-REC-0099")
+    assert chip.record_id is None
+    assert chip.title is None
+
+
+def test_company_records_resolve_when_the_project_has_none(uow: UnitOfWork) -> None:
+    rid = make(uow, "P123-REC-0001", scope="company")
+    (chip,) = suggest_chips(uow, P1, "P123-REC-0001")
+    assert chip.record_id == rid
+
+
+def test_the_project_record_wins_over_a_company_record_with_the_same_key(uow: UnitOfWork) -> None:
+    make(uow, "P123-REC-0001", scope="company")
+    mine = make(uow, "P123-REC-0001")
+    (chip,) = suggest_chips(uow, P1, "P123-REC-0001")
+    assert chip.record_id == mine
+
+
+def test_records_of_other_projects_do_not_resolve(uow: UnitOfWork) -> None:
+    make(uow, "P123-REC-0001", scope="project:OTHER")
+    (chip,) = suggest_chips(uow, P1, "P123-REC-0001")
+    assert chip.record_id is None
+
+
+def test_a_voided_record_still_resolves_and_is_flagged(uow: UnitOfWork) -> None:
+    rid = make(uow, "P123-REC-0001")
+    uow.conn().execute(text("UPDATE cur_core_record SET voided = 1 WHERE id = :i"), {"i": rid})
+    (chip,) = suggest_chips(uow, P1, "P123-REC-0001")
+    assert (chip.record_id, chip.voided) == (rid, True)
+
+
+def test_link_status_shows_an_existing_link_in_either_direction(uow: UnitOfWork) -> None:
+    here = make(uow, "P123-REC-0001")
+    there = make(uow, "P123-REC-0002")
+    third = make(uow, "P123-REC-0003")
+    link(uow, "L1", here, there)  # outbound from here
+    link(uow, "L2", third, here, status="stale")  # inbound
+    chips = suggest_chips(uow, P1, "P123-REC-0002 P123-REC-0003", linked_to=here)
+    assert [(c.key, c.link_status) for c in chips] == [
+        ("P123-REC-0002", "active"),
+        ("P123-REC-0003", "stale"),
+    ]
+
+
+def test_retracted_links_do_not_count_and_the_best_status_wins(uow: UnitOfWork) -> None:
+    here, there = make(uow, "P123-REC-0001"), make(uow, "P123-REC-0002")
+    link(uow, "L1", here, there, status="retracted")
+    (chip,) = suggest_chips(uow, P1, "P123-REC-0002", linked_to=here)
+    assert chip.link_status is None
+    link(uow, "L2", here, there, status="broken")
+    link(uow, "L3", there, here, status="active")
+    (chip,) = suggest_chips(uow, P1, "P123-REC-0002", linked_to=here)
+    assert chip.link_status == "active"
+
+
+def test_without_linked_to_no_link_status_is_computed(uow: UnitOfWork) -> None:
+    here, there = make(uow, "P123-REC-0001"), make(uow, "P123-REC-0002")
+    link(uow, "L1", here, there)
+    (chip,) = suggest_chips(uow, P1, "P123-REC-0002")
+    assert chip.link_status is None
+
+
+def test_the_record_itself_is_not_suggested(uow: UnitOfWork) -> None:
+    here = make(uow, "P123-REC-0001")
+    make(uow, "P123-REC-0002")
+    chips = suggest_chips(uow, P1, "P123-REC-0001 and P123-REC-0002", linked_to=here)
+    assert [c.key for c in chips] == ["P123-REC-0002"]
+
+
+def test_resolve_chips_exclude_id_drops_that_record(uow: UnitOfWork) -> None:
+    rid = make(uow, "P123-REC-0001")
+    matches = detect_keys("P123-REC-0001 P123-REC-0002", [REC])
+    chips = resolve_chips(uow, P1, matches, exclude_id=rid)
+    assert [c.key for c in chips] == ["P123-REC-0002"]
+
+
+def test_suggest_chips_uses_the_patterns_of_the_scope(uow: UnitOfWork) -> None:
+    only_here = NumberingRegistry([pattern("x", "{project}-{type}-{seq:4}", scope="project:OTHER")])
+    with use_numbering(only_here):
+        assert suggest_chips(uow, P1, "P123-REC-0001") == []
+        assert len(suggest_chips(uow, "project:OTHER", "OTHER-REC-0001")) == 1
+
+
+def test_suggest_chips_accepts_explicit_patterns(uow: UnitOfWork) -> None:
+    with use_numbering(NumberingRegistry()):
+        chips = suggest_chips(uow, P1, "NCR-P123-0042", patterns=[NCR])
+    assert [c.key for c in chips] == ["NCR-P123-0042"]
