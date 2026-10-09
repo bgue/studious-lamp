@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import threading
+import time
+import uuid
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -58,7 +62,7 @@ def bump(uow: SqliteUnitOfWork, stream: str, expected: int, n: int = 1) -> None:
 
 def counter(db: Path) -> dict[str, int]:
     with open_uow(db, readonly=True, registry=registry()) as uow:
-        rows = uow.conn().execute(text("SELECT stream_id, n FROM cur_test_counter")).all()
+        rows = uow.conn().execute(text("SELECT stream_id, n FROM test_counter_rows")).all()
     return {r.stream_id: r.n for r in rows}
 
 
@@ -66,7 +70,7 @@ def test_append_updates_projection_in_the_same_transaction(db: Path) -> None:
     with open_uow(db, registry=registry()) as uow:
         bump(uow, "s1", 0, n=2)
         # read-your-writes: visible on the transaction's own connection before commit
-        row = uow.conn().execute(text("SELECT n, last_seq FROM cur_test_counter")).one()
+        row = uow.conn().execute(text("SELECT n, last_seq FROM test_counter_rows")).one()
         assert (row.n, row.last_seq) == (2, 2)
         # but not to a different connection until commit
         assert uow.ledger.head_seq() == 0
@@ -150,7 +154,7 @@ def test_create_schema_is_idempotent_and_builds_projector_tables(tmp_path: Path)
     create_schema(path, registry=reg)
     with open_uow(path, readonly=True, registry=reg) as uow:
         names = {r[0] for r in uow.conn().execute(text("SELECT name FROM sqlite_master"))}
-    assert {"events", "cur_test_counter"} <= names
+    assert {"events", "test_counter_rows"} <= names
 
 
 def test_rebuild_replays_the_ledger_into_reset_projections(db: Path) -> None:
@@ -158,8 +162,8 @@ def test_rebuild_replays_the_ledger_into_reset_projections(db: Path) -> None:
         bump(uow, "s1", 0, n=3)
         bump(uow, "s2", 0, n=1)
     with open_uow(db, registry=registry()) as uow:
-        uow.conn().execute(text("UPDATE cur_test_counter SET n = 99"))  # corrupt the read model
-        uow.conn().execute(text("INSERT INTO cur_test_counter VALUES ('ghost', 7, 0)"))
+        uow.conn().execute(text("UPDATE test_counter_rows SET n = 99"))  # corrupt the read model
+        uow.conn().execute(text("INSERT INTO test_counter_rows VALUES ('ghost', 7, 0)"))
     assert counter(db)["s1"] == 99
     replayed = rebuild_projections(db, registry=registry())
     assert replayed == 4
@@ -184,3 +188,37 @@ def test_failed_rebuild_leaves_old_rows(db: Path) -> None:
     with pytest.raises(RuntimeError, match="replay bug"):
         rebuild_projections(db, registry=InMemoryRegistry([ExplodingOnReplay()]))
     assert counter(db) == {"s1": 2}
+
+
+class SlowBus(InProcessBus):
+    """Widens the gap between commit and publish so an ordering bug would show."""
+
+    calls = 0
+
+    def publish(self, events: Sequence[Event]) -> None:
+        SlowBus.calls += 1
+        if SlowBus.calls % 3 == 1:  # every third publish is slow, so later commits overtake it
+            time.sleep(0.02)
+        super().publish(events)
+
+
+def test_concurrent_writers_publish_in_commit_order_without_loss(db: Path) -> None:
+    SlowBus.calls = 0
+    bus = SlowBus()
+    seen: list[int] = []
+    bus.subscribe(lambda e: seen.append(e.seq))
+    barrier = threading.Barrier(2)
+
+    def writer(name: str) -> None:
+        barrier.wait()
+        for _ in range(15):
+            with open_uow(db, registry=registry(), bus=bus) as uow:
+                bump(uow, f"{name}-{uuid.uuid4().hex}", 0)
+
+    threads = [threading.Thread(target=writer, args=(n,)) for n in ("a", "b")]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert seen == list(range(1, 31))
+    assert sum(counter(db).values()) == 30

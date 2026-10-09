@@ -46,11 +46,9 @@ class _Subscription:
         self.event_types = event_types
         self.last_seq = last_seq
 
-    def wants(self, event: Event) -> bool:
-        return (
-            event.seq > self.last_seq
-            and (self.scope is None or event.scope == self.scope)
-            and (self.event_types is None or event.event_type in self.event_types)
+    def matches(self, event: Event) -> bool:
+        return (self.scope is None or event.scope == self.scope) and (
+            self.event_types is None or event.event_type in self.event_types
         )
 
     def close(self) -> None:
@@ -60,10 +58,15 @@ class _Subscription:
 class InProcessBus:
     """Synchronous, in-process delivery with a per-subscriber ``seq`` cursor.
 
-    Delivery is at-least-once from the subscriber's point of view but never repeats or reorders: a
-    subscription ignores any event whose ``seq`` is not greater than the last one it saw. A callback
-    that raises is logged and skipped; it cannot affect the publisher or other subscribers. When the
-    bus is given a ledger, ``subscribe(after_seq=n)`` first replays committed events after ``n``.
+    A subscription never sees a ``seq`` that is not greater than the last one delivered to it, so
+    delivery is ordered and never repeats. ``publish`` sorts each batch by ``seq`` and delivers it
+    while holding the bus lock, so concurrent publishers are serialised. An event that is skipped
+    because its ``seq`` is at or below the cursor (a duplicate of a replayed event, or one that
+    arrived after a later event) is logged as a warning, never dropped silently. Publishers must
+    publish in commit order; the SQLite unit of work guarantees that by committing and publishing
+    under one lock. A callback that raises is logged and skipped; it cannot affect the publisher or
+    other subscribers. When the bus is given a ledger, ``subscribe(after_seq=n)`` first replays
+    committed events after ``n``.
     """
 
     def __init__(self, ledger: Ledger | None = None) -> None:
@@ -97,11 +100,11 @@ class InProcessBus:
         return sub
 
     def publish(self, events: Sequence[Event]) -> None:
+        batch = sorted(events, key=lambda event: event.seq)
         with self._lock:
-            subs = list(self._subs)
-        for event in events:
-            for sub in subs:
-                self._deliver(sub, event)
+            for event in batch:
+                for sub in list(self._subs):
+                    self._deliver(sub, event)
 
     def remove(self, sub: _Subscription) -> None:
         with self._lock:
@@ -110,7 +113,14 @@ class InProcessBus:
 
     @staticmethod
     def _deliver(sub: _Subscription, event: Event) -> None:
-        if not sub.wants(event):
+        if not sub.matches(event):
+            return
+        if event.seq <= sub.last_seq:
+            log.warning(
+                "bus skipped seq %s: subscriber is already at seq %s (duplicate or late event)",
+                event.seq,
+                sub.last_seq,
+            )
             return
         sub.last_seq = event.seq
         try:

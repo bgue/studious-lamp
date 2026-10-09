@@ -128,3 +128,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   red on every other ticket branch cut from the same base. Store provided tests under
   `docs/tickets/<inc>/provided/<name>.py.txt` and have the ticket `cp` them into place; the reviewer `diff`s the pair.
   Evidence: attempted commit of `test_sqlite_ledger.py` failed pyright with unresolved imports. Status: active
+
+- **L-P0-I1-9** · 2026-10-09 · tags: ledger, tests
+  A bus with per-subscriber `seq` cursors drops any event published after a later one, so publish order must equal
+  commit order. The SQLite unit of work commits and publishes under one lock; a test that delays every third publish
+  proves it (it fails when the lock is removed). A plain concurrent-writer test did not catch the bug until the
+  delay was added. Projector test helpers use portable SQL (UPDATE then INSERT) and non-`cur_` table names.
+  Evidence: `packages/tl-adapters/tests/test_sqlite_uow.py` `SlowBus`; reviewer finding on `bus.py`. Status: active

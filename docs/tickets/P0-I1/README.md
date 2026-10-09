@@ -69,6 +69,9 @@ taken over (recorded here). T12 is split by package group if the file count exce
 | D7 | Modules that import `linkml` start with `# pyright: basic` | linkml has no type stubs |
 | D8 | `SqliteLedger` exposes `append_in(conn, ...)`; `make_engine` begins write transactions with `BEGIN IMMEDIATE` | The unit of work needs ledger append and projectors in one transaction |
 | D10 | Supervisor-provided test files for a ticket live in `docs/tickets/<inc>/provided/*.txt`; the ticket says `cp` them into place and the reviewer diffs | A failing test file on the base breaks pyright (`just check`) for every other ticket branch |
+| D11 | Postgres maps LinkML `integer` to `BIGINT` (SQLite `INTEGER`) | `seq` is a bigint in the brief (§5.1) and versions/sequences should not overflow; `03` §9 only names JSONB, BOOLEAN and TIMESTAMPTZ as the Postgres differences, so this widens one more type |
+| D12 | Every generated DDL statement uses `IF NOT EXISTS` (`03` §9 shows plain `CREATE`) | `Projector.ddl` must be idempotent (`03` §7); the test compares the generated SQLite DDL with §9 after adding `IF NOT EXISTS` |
+| D13 | Commit and bus publish run under one process-wide lock in the SQLite UoW; `InProcessBus` sorts each batch and warns on skipped events | Per-subscriber seq cursors would otherwise silently drop events published out of commit order (supervisor-piece review finding 1) |
 | D9 | `[tool.ruff] include = ["*.py", "*.pyi", "**/pyproject.toml"]` | ruff 0.16 formats Markdown too and flagged three docs files; ruff governs Python only (orchestrator decision after the T01 implementer stopped, correctly) |
 
 ## Order of work (relay rounds)

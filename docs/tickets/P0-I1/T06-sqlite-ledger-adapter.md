@@ -193,7 +193,7 @@ just check
 diff docs/tickets/P0-I1/provided/test_sqlite_ledger.py.txt packages/tl-adapters/tests/test_sqlite_ledger.py
 uv run pytest packages/tl-adapters/tests/test_sqlite_ledger.py -q
 ```
-Expected: the provided file passes in full (17 tests). It covers: new stream append and field filling; explicit `effective_at`; version
+Expected: the provided file passes in full (16 tests). It covers: new stream append and field filling; explicit `effective_at`; version
 increments; `ConcurrencyError` on stale or wrong `expected_version` with nothing written; empty batch rejected; chain continuity per scope
 (`prev_hash` of the 2nd event in scope A equals the hash of the 1st in scope A, not scope B); a batch of 3 chains internally; stored hash
 recomputes from the row; `read_after` ordering, `limit`, `scope`; `read_stream(from_version)`; `head_seq`/`stream_version` on an empty

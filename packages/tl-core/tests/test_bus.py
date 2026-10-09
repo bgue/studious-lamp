@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from datetime import UTC, datetime
 
 import pytest
@@ -129,3 +130,56 @@ def test_without_after_seq_there_is_no_replay() -> None:
 
 def test_new_event_is_importable_for_type_checkers() -> None:
     assert NewEvent(event_type="x", payload={}).schema_version == 1
+
+
+def test_out_of_order_batch_is_delivered_in_seq_order() -> None:
+    bus = InProcessBus()
+    seen: list[int] = []
+    bus.subscribe(lambda e: seen.append(e.seq))
+    bus.publish([make_event(3), make_event(2), make_event(4)])
+    assert seen == [2, 3, 4]
+
+
+def test_a_late_event_is_skipped_with_a_warning_not_silently(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    bus = InProcessBus()
+    seen: list[int] = []
+    bus.subscribe(lambda e: seen.append(e.seq))
+    bus.publish([make_event(5)])
+    bus.publish([make_event(4)])
+    assert seen == [5]
+    assert "bus skipped seq 4" in caplog.text
+
+
+def test_concurrent_publishers_are_serialised_and_keep_each_batch_ordered() -> None:
+    bus = InProcessBus()
+    seen: list[int] = []
+    inside = 0
+    overlaps = 0
+
+    def on_event(event: Event) -> None:
+        nonlocal inside, overlaps
+        inside += 1
+        if inside > 1:
+            overlaps += 1
+        seen.append(event.seq)
+        inside -= 1
+
+    bus.subscribe(on_event)
+    barrier = threading.Barrier(2)
+
+    def publisher(first: int) -> None:
+        barrier.wait()
+        bus.publish([make_event(seq) for seq in reversed(range(first, first + 50))])
+
+    threads = [threading.Thread(target=publisher, args=(first,)) for first in (1, 51)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert overlaps == 0
+    # whichever batch ran first is complete and ordered; the other is delivered after it or skipped
+    # whole (its seqs are below the cursor) with warnings, never interleaved
+    assert seen == sorted(seen)
+    assert len(seen) in (50, 100)

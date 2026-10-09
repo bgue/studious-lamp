@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable, Generator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
@@ -19,6 +20,10 @@ from tl_adapters.sqlite.engine import make_engine, read_tx, write_tx
 from tl_adapters.sqlite.ledger import SqliteLedger
 
 REPLAY_PAGE = 1000
+
+# Commit and publish happen under this lock, so events reach the bus in commit (seq) order even when
+# several threads write. SQLite allows one writer at a time, so the lock is only held briefly.
+_COMMIT_AND_PUBLISH = threading.Lock()
 
 
 class SqliteUnitOfWork:
@@ -59,8 +64,11 @@ class SqliteUnitOfWork:
         tx, self._tx, self._conn = self._tx, None, None
         pending, self._pending = self._pending, []
         assert tx is not None
-        tx.__exit__(exc_type, exc, tb)  # commits when exc_type is None, otherwise rolls back
-        if exc_type is None and pending and self._bus is not None:
+        if exc_type is not None or not pending or self._bus is None:
+            tx.__exit__(exc_type, exc, tb)  # rolls back on an exception, otherwise commits
+            return
+        with _COMMIT_AND_PUBLISH:
+            tx.__exit__(exc_type, exc, tb)  # commit
             self._bus.publish(pending)
 
     def append(self, **kwargs: Any) -> AppendResult:

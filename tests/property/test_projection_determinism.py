@@ -24,7 +24,7 @@ def registry() -> InMemoryRegistry:
 def rows(db: Path) -> list[tuple[str, int, int]]:
     with open_uow(db, readonly=True, registry=registry()) as uow:
         found = uow.conn().execute(
-            text("SELECT stream_id, n, last_seq FROM cur_test_counter ORDER BY stream_id")
+            text("SELECT stream_id, n, last_seq FROM test_counter_rows ORDER BY stream_id")
         )
         return [(r.stream_id, r.n, r.last_seq) for r in found]
 
