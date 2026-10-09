@@ -5,9 +5,6 @@ A slot is declared on a LinkML class with the ``tl:file_slots`` annotation (see
 upload service checks a file against its slot before accepting it; the workflow layer asks which
 required slots are still empty. A file with no slot is a generic attachment and needs no
 declaration.
-
-STUB (P0-I4-T22): the models, the registry and ``FileSlot.accepts`` are final; the three functions
-marked ``raise NotImplementedError`` are the ticket. Remove this paragraph when done.
 """
 
 from __future__ import annotations
@@ -15,9 +12,11 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from fnmatch import fnmatchcase
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field
+import yaml
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from tl_schema.registry import default_schema_dir
 
 
 class FileSlot(BaseModel):
@@ -92,6 +91,13 @@ class FileSlotRegistry:
                 self.add(record_type, slot)
 
 
+def _as_mapping(value: object) -> dict[str, Any] | None:
+    """``value`` as a mapping, or None when it is not one."""
+    if not isinstance(value, dict):
+        return None
+    return cast(dict[str, Any], value)
+
+
 def parse_file_slots(text: str, *, source: str = "<string>") -> FileSlotRegistry:
     """Read the ``tl:file_slots`` annotations of every class in one LinkML YAML document.
 
@@ -100,7 +106,55 @@ def parse_file_slots(text: str, *, source: str = "<string>") -> FileSlotRegistry
     single mapping is also accepted. An empty file declares nothing. Raises ``FileSlotError``
     (message starts with ``source``) for the cases listed in the ticket.
     """
-    raise NotImplementedError
+    try:
+        loaded: Any = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise FileSlotError(f"{source}: invalid YAML: {exc}") from exc
+    registry = FileSlotRegistry()
+    if loaded is None:
+        return registry  # an empty file declares nothing
+    document = _as_mapping(loaded)
+    if document is None:
+        raise FileSlotError(f"{source}: a schema file must be a YAML mapping")
+    classes = _as_mapping(document.get("classes"))
+    if classes is None:
+        return registry
+    schema_annotations = _as_mapping(document.get("annotations"))
+    module: Any = schema_annotations.get("tl:module") if schema_annotations is not None else None
+    for class_key, class_value in classes.items():
+        class_name = str(class_key)
+        class_def = _as_mapping(class_value)
+        if class_def is None:
+            continue
+        class_annotations = _as_mapping(class_def.get("annotations"))
+        if class_annotations is None or "tl:file_slots" not in class_annotations:
+            continue
+        if not isinstance(module, str) or not module:
+            raise FileSlotError(
+                f"{source}: class {class_name} has tl:file_slots but the schema has no tl:module"
+            )
+        entries: Any = class_annotations["tl:file_slots"]
+        if isinstance(entries, dict):
+            entries = [entries]
+        if not isinstance(entries, list):
+            raise FileSlotError(
+                f"{source}: {class_name}.tl:file_slots must be a mapping or a list of mappings"
+            )
+        for index, entry in enumerate(cast(list[Any], entries)):
+            try:
+                slot = FileSlot.model_validate(entry)
+            except ValidationError as exc:
+                problems = "; ".join(
+                    f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors()
+                )
+                raise FileSlotError(
+                    f"{source}: {class_name}.tl:file_slots[{index}]: {problems}"
+                ) from exc
+            try:
+                registry.add(f"{module}.{class_name}", slot)
+            except FileSlotError as exc:
+                raise FileSlotError(f"{source}: {exc}") from exc
+    return registry
 
 
 def load_file_slots(path: Path) -> FileSlotRegistry:
@@ -108,9 +162,26 @@ def load_file_slots(path: Path) -> FileSlotRegistry:
 
     A missing path gives an empty registry.
     """
-    raise NotImplementedError
+    registry = FileSlotRegistry()
+    if path.is_dir():
+        files = sorted((p for p in path.glob("*.yaml") if p.is_file()), key=lambda p: p.name)
+    elif path.is_file():
+        files = [path]
+    else:
+        return registry
+    for file in files:
+        try:
+            content = file.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise FileSlotError(f"{file.name}: cannot read file: {exc}") from exc
+        parsed = parse_file_slots(content, source=file.name)
+        try:
+            registry.merge(parsed)
+        except FileSlotError as exc:
+            raise FileSlotError(f"{file.name}: {exc}") from exc
+    return registry
 
 
 def default_file_slots() -> FileSlotRegistry:
     """The slots in ``<schema dir>/files`` (``TL_SCHEMA_DIR`` or ``schema/fixtures``)."""
-    raise NotImplementedError
+    return load_file_slots(default_schema_dir() / "files")
