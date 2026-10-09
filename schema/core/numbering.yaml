@@ -1,0 +1,67 @@
+id: https://example.org/throughline/core/numbering
+name: tl_core_numbering
+title: Throughline numbering counters
+description: >-
+  The current state of the numbering service (brief 8). Each counter is a ledger stream
+  (`numbering.Counter`) whose `Numbering.Allocated` events are the source of truth; `cur_numbering` is
+  the projection that allocation reads. One counter exists per scope, pattern, and resolved prefix (the
+  rendered key without its sequence number).
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+default_range: string
+annotations:
+  tl:module: core
+
+classes:
+  NumberingCounter:
+    description: The last sequence number allocated for one counter.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_numbering
+    attributes:
+      counter_id:
+        identifier: true
+        required: true
+        description: Ledger stream id of the counter, `numbering:<scope>:<pattern>:<prefix>`.
+      scope:
+        range: ScopeId
+        required: true
+        description: Scope the counter belongs to.
+      pattern:
+        required: true
+        description: Identifier of the numbering pattern.
+      prefix:
+        required: true
+        description: The rendered key without its sequence number, for example `P123-REC-`.
+      last_sequence:
+        range: integer
+        required: true
+        description: The highest sequence number allocated so far.
+      last_key:
+        required: true
+        description: The key built from `last_sequence`.
+      last_record_id:
+        range: Ulid
+        description: The record the last number was allocated for; null for a standalone allocation.
+      allocations:
+        range: integer
+        required: true
+        description: Number of allocations made from this counter.
+      version:
+        range: integer
+        required: true
+        description: Ledger `stream_version` of the counter after the last allocation.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last allocation.
+      updated_at:
+        range: datetime
+        required: true
+        description: Time of the last allocation (system time).

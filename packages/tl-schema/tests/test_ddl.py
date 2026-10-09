@@ -53,9 +53,17 @@ def outputs() -> dict[str, str]:
 def test_only_current_state_classes_get_tables(outputs: dict[str, str]) -> None:
     assert sorted(outputs) == [
         "ddl/postgres/cur_core_record.sql",
+        "ddl/postgres/cur_link_counts.sql",
+        "ddl/postgres/cur_links.sql",
+        "ddl/postgres/cur_numbering.sql",
         "ddl/postgres/cur_pset_values.sql",
+        "ddl/postgres/cur_workflow_state.sql",
         "ddl/sqlite/cur_core_record.sql",
+        "ddl/sqlite/cur_link_counts.sql",
+        "ddl/sqlite/cur_links.sql",
+        "ddl/sqlite/cur_numbering.sql",
         "ddl/sqlite/cur_pset_values.sql",
+        "ddl/sqlite/cur_workflow_state.sql",
     ]
 
 

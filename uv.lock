@@ -2356,6 +2356,7 @@ source = { editable = "packages/tl-core" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-ulid" },
+    { name = "pyyaml" },
     { name = "sqlalchemy" },
     { name = "tl-schema" },
 ]
@@ -2364,6 +2365,7 @@ dependencies = [
 requires-dist = [
     { name = "pydantic", specifier = ">=2" },
     { name = "python-ulid", specifier = ">=2" },
+    { name = "pyyaml", specifier = ">=6" },
     { name = "sqlalchemy", specifier = ">=2" },
     { name = "tl-schema", editable = "packages/tl-schema" },
 ]
