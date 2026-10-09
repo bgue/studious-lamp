@@ -74,3 +74,21 @@ test or a generated artefact already enforces, or narrative history (that belong
   Workflow agent concurrency is min(16, CPUs - 2); this container has 4 CPUs, so 2 agents run at once. Size DISPATCH
   batches at 2–4 tickets.
   Evidence: workflow-authoring reference; `nproc` = 4. Status: active
+
+- **L-P0-I1-1** · 2026-10-09 · tags: tests, tooling
+  A `conftest.py` only applies to tests beneath its directory, so shared fixtures live in a root `conftest.py`
+  (not `tests/conftest.py`), and pytest runs with `--import-mode=importlib` so identically named test files in
+  different packages (`test_import.py`) do not collide.
+  Evidence: root `pyproject.toml` `[tool.pytest.ini_options]`; `03` §10. Status: active
+
+- **L-P0-I1-2** · 2026-10-09 · tags: tooling
+  pyright strict rejects a pydantic subclass that narrows a base field type (`datetime | None` to `datetime`), so
+  `Event` is not a subclass of `NewEvent`. `linkml` ships no type stubs, so modules importing it start with
+  `# pyright: basic`. Strict applies to `src` directories only; tests use standard mode.
+  Evidence: `docs/tickets/P0-I1/T05-ledger-types-and-hashing.md`, `T03-codegen-wiring.md`. Status: active
+
+- **L-P0-I1-3** · 2026-10-09 · tags: tooling
+  Codegen drift is checked by comparing generator output with the committed files (`python -m tl_schema.generate
+  --check`), not by `git diff`, because a diff fails on any dirty tree and misses untracked files. LinkML generators
+  embed the schema path they were given, so they must run inside `schema/core/` with a relative file name.
+  Evidence: `justfile` `check` recipe; `docs/tickets/P0-I1/T03-codegen-wiring.md`. Status: active
