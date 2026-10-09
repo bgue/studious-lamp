@@ -4,19 +4,18 @@ A slot with ``required_in_states`` must hold a current file (available, not supe
 those workflow states. The workflow layer uses ``missing_required_files`` as a guard, the same way
 it uses expected links. A quarantined or rejected file never counts: only a file that passed its
 scan.
-
-STUB (P0-I4-T23): the models and signatures are final; the two functions marked
-``raise NotImplementedError`` are the ticket. Remove this paragraph when done.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import cast
 
 from pydantic import BaseModel
 from sqlalchemy import text
 
-from tl_core.files.slots import FileSlot, FileSlotRegistry
+from tl_core.files.slots import FileSlot, FileSlotRegistry, default_file_slots
+from tl_core.services.errors import RecordNotFoundError
 from tl_core.uow import UnitOfWork
 
 _COUNT_SQL = text(
@@ -42,7 +41,13 @@ def unmet_file_slots(
     Counts rows of ``cur_files`` with ``status = 'available'`` and ``superseded_by IS NULL`` for
     the record and slot name (``_COUNT_SQL``). A slot with at least one such row is met.
     """
-    raise NotImplementedError
+    missing: list[MissingFile] = []
+    for slot in slots:
+        params = {"record_id": record_id, "slot": slot.name}
+        found = int(uow.conn().execute(_COUNT_SQL, params).scalar_one())
+        if found < 1:
+            missing.append(MissingFile(slot=slot, found=found, needed=1))
+    return missing
 
 
 def missing_required_files(
@@ -59,4 +64,13 @@ def missing_required_files(
     contains that state are checked; without it, every required slot is. Raises
     ``RecordNotFoundError`` (message ``no record <id!r>``) when the record does not exist.
     """
-    raise NotImplementedError
+    row = uow.conn().execute(_TYPE_SQL, {"id": record_id}).first()
+    if row is None:
+        raise RecordNotFoundError(f"no record {record_id!r}")
+    record_type = cast(str, row[0])
+    if registry is None:
+        registry = default_file_slots()
+    slots = [slot for slot in registry.for_type(record_type) if slot.required_in_states]
+    if by_state is not None:
+        slots = [slot for slot in slots if by_state in slot.required_in_states]
+    return unmet_file_slots(uow, record_id, slots)
