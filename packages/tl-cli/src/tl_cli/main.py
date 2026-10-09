@@ -12,7 +12,7 @@ from typing import Annotated
 import typer
 from tl_adapters.sqlite.uow import create_schema, rebuild_projections
 
-from tl_cli import events, pset, record, schema, wf
+from tl_cli import events, link, pset, record, schema, wf
 
 app = typer.Typer(
     name="tl",
@@ -24,6 +24,7 @@ app.add_typer(events.app, name="events")
 app.add_typer(schema.app, name="schema")
 app.add_typer(pset.app, name="pset")
 app.add_typer(wf.app, name="wf")
+app.add_typer(link.app, name="link")
 
 projections = typer.Typer(help="Maintain projections from the ledger.", no_args_is_help=True)
 app.add_typer(projections, name="projections")
