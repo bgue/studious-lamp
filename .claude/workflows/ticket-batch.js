@@ -59,7 +59,8 @@ Read ${wt}/AGENTS.md, then the ticket at ${wt}/${t.path}, then only the files it
 Your branch is ${t.branch}; if the ticket's Branch field says something else, ${t.branch} supersedes it (convention fix, LEARNINGS L-P0-SETUP-10) and that is not a deviation.
 Do exactly what the ticket says inside its Allowed paths. Run every Acceptance command and keep the decisive output lines.
 
-Commit on ${t.branch} with message "${t.id}: <imperative summary>" and a body, ending with these exact lines:
+Commit on ${t.branch} with message "${t.id}: <imperative summary>" and a body, ending with the attribution trailer your
+harness requires (a Co-Authored-By line naming your own model, then this session line):
 ${A.trailer}
 Write your report (template docs/templates/haiku-report.md) to ${wt}/docs/reports/${A.inc}/${t.id}.md and include it in a commit.
 Do not push, do not merge, do not remove the worktree, do not touch other branches.
