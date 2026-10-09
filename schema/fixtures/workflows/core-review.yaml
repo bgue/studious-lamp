@@ -1,0 +1,37 @@
+# Sample company workflow for the generic Phase 0 record type (brief 8). Read by tl_core.workflow.
+# Guards: `approve` needs the expected links declared for the Approved state (links/core-record.yaml)
+# and a record that conforms to the effective schema in that state; `issue` needs the `manager` role.
+id: core.review
+version: 1
+record_type: core.Record
+scope: company
+initial_state: Draft
+states:
+  - name: Draft
+  - name: Review
+  - name: Approved
+  - name: Issued
+transitions:
+  - name: submit
+    label: Submit for review
+    from: [Draft]
+    to: Review
+  - name: approve
+    label: Approve
+    from: [Review]
+    to: Approved
+    guards:
+      - kind: expected_links
+      - kind: conformance
+        max_status: warning
+  - name: issue
+    label: Issue
+    from: [Approved]
+    to: Issued
+    guards:
+      - kind: roles
+        any_of: [manager]
+  - name: reject
+    label: Send back to draft
+    from: [Review, Approved]
+    to: Draft

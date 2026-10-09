@@ -1,0 +1,22 @@
+# Expected links of the generic Phase 0 record type (brief 7.1). LinkML-shaped; the only part read at
+# runtime is the `tl:expects_link` annotation (see schema/core/annotations.yaml), as plain YAML.
+id: https://example.org/throughline/fixtures/links/core-record
+name: tl_fixture_core_record_links
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+default_range: string
+annotations:
+  tl:module: core
+
+classes:
+  Record:
+    annotations:
+      tl:expects_link:
+        - relation: references
+          direction: out
+          by_state: Approved
+          label: supporting record
