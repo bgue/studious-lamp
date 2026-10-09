@@ -230,3 +230,29 @@ test or a generated artefact already enforces, or narrative history (that belong
   ticket's *Allowed paths* and say "commit your report". A ticket that says "return it in your final message" produced one
   review round lost to a committed report (T12) and one report left uncommitted in a worktree (T15).
   Evidence: T12 attempt 1; T15 worktree; tickets T16b onward. Status: active
+
+- **L-P0-I3-1** · 2026-10-09 · tags: tests, process
+  A provided `*.py.txt` is not covered by `ruff format`, so a hand-written one fails `just check` the moment an implementer
+  copies it. Format provided files before committing: copy to a temp `.py`, `ruff format --config pyproject.toml`, copy back. Verify
+  a ticket by dropping a scratch reference implementation over the stub in a clean tree, running the provided test, `ruff` and
+  `pyright`, then `git checkout . && git clean -fd`; formatting and E501 problems in the reference show up the same way.
+  Evidence: `docs/tickets/P0-I3/provided/`, T03 and T05 verification runs. Status: active
+
+- **L-P0-I3-2** · 2026-10-09 · tags: process, ledger
+  A stub projector that is registered in `default_registry()` must implement `ddl` and `reset` (only `apply` may raise
+  `NotImplementedError`), or every test that calls `create_schema` fails on every ticket branch cut from the base. Decouple
+  tickets that read a projection from the ticket that writes it by letting the provided test INSERT projection rows with SQL (T04
+  does this for `cur_links`).
+  Evidence: `projection/links.py` stub, `test_expected_links.py.txt`. Status: active
+
+- **L-P0-I3-3** · 2026-10-09 · tags: tests, schema
+  Adding a `tl:current_state` class to `schema/core` changes the generated file list, so two tests that enumerate it must be
+  edited in the same commit: `packages/tl-schema/tests/test_generate.py` (`EXPECTED_KEYS`) and `test_ddl.py`
+  (`test_only_current_state_classes_get_tables`).
+  Evidence: first `just test` after adding links.yaml failed 4 tests. Status: active
+
+- **L-P0-I3-4** · 2026-10-09 · tags: ledger, tests
+  Numbering is safe under SQLite because a write transaction is exclusive, so a thread test alone cannot show that the allocator
+  defends itself. The second line of defence (the counter stream's expected version) is tested by monkeypatching the counter read
+  to a stale value and expecting `ConcurrencyError`; mutating the allocator to ignore the version makes that test fail.
+  Evidence: `tests/services/test_numbering.py::test_a_stale_counter_read_is_stopped_by_the_ledger_version_check`. Status: active
