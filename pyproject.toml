@@ -46,6 +46,8 @@ addopts = "--import-mode=importlib"
 include = ["packages", "tests"]
 exclude = ["**/generated", "**/.venv"]
 pythonVersion = "3.12"
+# tests/contract reuses the helper module in tests/webhooks (world.py)
+extraPaths = ["tests/webhooks"]
 typeCheckingMode = "standard"
 strict = [
   "packages/tl-core/src",

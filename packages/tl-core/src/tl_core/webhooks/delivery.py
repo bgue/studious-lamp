@@ -48,7 +48,7 @@ from tl_core.webhooks.subscription_projector import (
     DISABLED,
     SUBSCRIPTION_STREAM_TYPE,
 )
-from tl_core.webhooks.subscriptions import SubscriptionNotActiveError
+from tl_core.webhooks.subscriptions import SubscriptionNotActiveError, current_version
 from tl_core.webhooks.transport import Transport, TransportResult
 
 log = logging.getLogger(__name__)
@@ -426,7 +426,7 @@ class DeliveryEngine:
             stream_id=sid,
             stream_type=SUBSCRIPTION_STREAM_TYPE,
             scope=claim.scope,
-            expected_version=uow.ledger.stream_version(sid),
+            expected_version=current_version(uow, sid),
             events=[
                 NewEvent(
                     event_type=DISABLED,

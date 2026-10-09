@@ -379,3 +379,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   `2001::/32` are refused. `verify` must also turn non-UTF-8 body bytes into `SignatureError`. Both were found by the
   orchestrator's review of 7b6c704; the cases are rows in `test_webhook_egress.py` and `test_webhook_signing.py`.
   Evidence: `egress.is_public`; orchestrator review at 7b6c704. Status: active
+
+- **L-P0-I5-B5** · 2026-10-09 · tags: ledger, tests
+  `uow.ledger.stream_version()` reads through another connection, so it misses events appended earlier in the same unit of
+  work and chained commands on one stream fail with `ConcurrencyError`. Read the version with `SELECT MAX(stream_version)`
+  on `uow.conn()` (`webhooks.subscriptions.current_version`). The contract scenario chains update, rotate, disable and enable
+  in one unit of work on purpose. Also: pyright does not see a sibling test helper in another directory; the root
+  `extraPaths = ["tests/webhooks"]` lets `tests/contract` import `world.py`.
+  Evidence: `tests/contract/test_webhook_catalog_contract.py`; first run raised `expected version 1, found 2`. Status: active

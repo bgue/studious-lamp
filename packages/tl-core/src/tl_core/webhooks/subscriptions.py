@@ -159,6 +159,19 @@ def _check_version(version: str) -> str:
     return version
 
 
+def current_version(uow: UnitOfWork, stream_id: str) -> int:
+    """The stream's version **inside this transaction** (0 for a new stream).
+
+    ``uow.ledger.stream_version`` reads through another connection and misses events appended
+    earlier in the same unit of work; commands on one subscription may be chained in one.
+    """
+    found = uow.conn().execute(
+        text("SELECT COALESCE(MAX(stream_version), 0) FROM events WHERE stream_id = :s"),
+        {"s": stream_id},
+    )
+    return int(found.scalar_one())
+
+
 def _load(uow: UnitOfWork, scope: str, subscription_id: str) -> dict[str, Any]:
     row = (
         uow.conn()
@@ -284,7 +297,7 @@ def update_subscription(uow: UnitOfWork, cmd: UpdateWebhookSubscription) -> Subs
         uow,
         cmd,
         cmd.subscription_id,
-        uow.ledger.stream_version(cmd.subscription_id),
+        current_version(uow, cmd.subscription_id),
         NewEvent(event_type=UPDATED, payload={"changes": changes}),
     )
     return SubscriptionResult(subscription_id=cmd.subscription_id, version=version, events=events)
@@ -300,7 +313,7 @@ def disable_subscription(uow: UnitOfWork, cmd: DisableWebhookSubscription) -> Su
         uow,
         cmd,
         cmd.subscription_id,
-        uow.ledger.stream_version(cmd.subscription_id),
+        current_version(uow, cmd.subscription_id),
         NewEvent(event_type=DISABLED, payload={"reason": cmd.reason, "detail": cmd.detail}),
     )
     return SubscriptionResult(subscription_id=cmd.subscription_id, version=version, events=events)
@@ -315,7 +328,7 @@ def enable_subscription(uow: UnitOfWork, cmd: EnableWebhookSubscription) -> Subs
         uow,
         cmd,
         cmd.subscription_id,
-        uow.ledger.stream_version(cmd.subscription_id),
+        current_version(uow, cmd.subscription_id),
         NewEvent(event_type=ENABLED, payload={}),
     )
     return SubscriptionResult(subscription_id=cmd.subscription_id, version=version, events=events)
@@ -351,7 +364,7 @@ def rotate_secret(
         uow,
         cmd,
         cmd.subscription_id,
-        uow.ledger.stream_version(cmd.subscription_id),
+        current_version(uow, cmd.subscription_id),
         NewEvent(
             event_type=SECRET_ROTATED,
             payload={
