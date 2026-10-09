@@ -1,5 +1,7 @@
 """Expected, user-correctable command failures (brief 5.1). Each takes a human-readable message."""
 
+from typing import Any
+
 
 class ServiceError(Exception):
     """Base class for expected, user-correctable command failures."""
@@ -107,6 +109,6 @@ class InvalidStateError(ServiceError): ...  # the record's status is not a state
 class GuardFailedError(ServiceError):
     """One or more guards of a transition failed. ``results`` lists every guard, passed or not."""
 
-    def __init__(self, message: str, results: list[object] | None = None) -> None:
+    def __init__(self, message: str, results: list[Any] | None = None) -> None:
         super().__init__(message)
-        self.results: list[object] = results if results is not None else []
+        self.results: list[Any] = results if results is not None else []

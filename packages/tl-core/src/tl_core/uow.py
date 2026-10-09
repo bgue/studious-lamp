@@ -16,6 +16,12 @@ class UnitOfWork(Protocol):
     Used as a context manager. Leaving the block normally commits and then publishes the appended
     events on the bus; leaving it with an exception rolls back, so neither events nor projection
     rows survive and nothing is published.
+
+    Handlers rely on that: they raise to refuse a command, and the numbering allocator relies on it
+    to stay gap-free (a number is allocated inside the same transaction as its record). Code that
+    catches an exception *inside* the ``with`` block and carries on commits what was written so
+    far, including an allocated number whose record never got written. Let the exception leave
+    the block.
     """
 
     @property
