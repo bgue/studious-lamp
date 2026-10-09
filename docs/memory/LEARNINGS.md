@@ -403,3 +403,41 @@ test or a generated artefact already enforces, or narrative history (that belong
   Postgres, and keep the root `override-dependencies` that swaps in `jsonschema[format-nongpl]`. Name the licence in
   the relay NOTE and in APPROVALS.md. Policy and allow-list: ADR-0006.
   Evidence: orchestrator licence scan during P0-I5. Status: active
+
+- **L-P0-I4-C1** · 2026-10-09 · tags: api, tests
+  FastAPI 0.143 keeps included routers lazy: `app.routes` holds `_IncludedRouter` objects, not `APIRoute`s. To visit every
+  operation (for example to prove each route calls the authorise hook) iterate `app.openapi()["paths"]`. Dependencies with `yield`
+  exit after the response is built, so a command route opens its unit of work inside the handler, never in a `yield` dependency.
+  Evidence: `packages/tl-api/tests/test_auth.py::test_every_route_calls_the_hook`; `routes/files.py`. Status: active
+
+- **L-P0-I4-C2** · 2026-10-09 · tags: api, tests
+  Starlette's `TestClient` (an httpx2 client) and httpx's ASGI transport return only when the whole response is complete, so an SSE
+  stream never reaches the test. Run the app under uvicorn on `127.0.0.1:0` in a daemon thread (`Harness.live()`), read it with an
+  `httpx2.Client.stream(...)` and a short `Timeout`, and stop it with `server.should_exit`. Give the app a lifespan so the change-feed
+  poller runs there; a `TestClient` used without `with` runs no lifespan.
+  Evidence: `packages/tl-api/tests/harness.py`, `test_stream.py` (10 tests, stable over repeated runs). Status: active
+
+- **L-P0-I4-C3** · 2026-10-09 · tags: api, tooling
+  A module that builds FastAPI endpoints in a loop must not use `from __future__ import annotations`: FastAPI evaluates the string
+  annotations in the module's globals, so `Annotated[str, Depends(guard(action))]` fails with `NameError` when `action` is a closure
+  variable. `tl_api/commands.py` omits the import; body models are set through `endpoint.__annotations__["body"] = model`. A body
+  model built at run time also needs `# pyright: ignore[reportInvalidTypeForm]` where it is used as an annotation.
+  Evidence: `packages/tl-api/src/tl_api/commands.py`, `routes/files.py`. Status: active
+
+- **L-P0-I4-C4** · 2026-10-09 · tags: env, mcp, api
+  This environment resolves `mcp` 2.x and `httpx2`: `FastMCP` is now `mcp.server.mcpserver.MCPServer`, `mcp.Client(server)` talks to
+  a server in memory, and there is no `httpx` module (use `httpx2`; Starlette's `TestClient` already does). `fastapi.sse` exists but
+  the API hand-rolls its SSE framing (`tl_api/feed.py`) so the wire format is fixed by our tests, not a library default.
+  Evidence: `uv run python -c "import httpx"` fails; `.venv/.../mcp/server/fastmcp.py` raises ModuleNotFoundError. Status: active
+
+- **L-P0-I4-C5** · 2026-10-09 · tags: process, env
+  Licence check for a new dependency (ADR-0006): walk `Requires-Dist` from the new roots through `importlib.metadata` and print
+  `License-Expression` or the classifiers for every distribution in the closure, then list `uv.lock` entries that exist only behind
+  platform markers. fastapi, uvicorn, httpx2 and mcp pull MIT, BSD-3-Clause, Apache-2.0 and PSF-2.0 distributions only.
+  Evidence: scratch scan of 27 distributions, no GPL, LGPL, AGPL or MPL. Status: active
+
+- **L-P0-I4-C6** · 2026-10-09 · tags: process, api
+  A route stub ticket must keep every decorator, parameter, annotation and docstring that reaches the OpenAPI document, because the
+  document is committed and drift-checked. Dropping the scratch reference over the stub and running `python -m tl_api.openapi --check`
+  caught a description that differed between reference and stub (it would have turned `just check` red on every ticket branch).
+  Evidence: T42 `role` query description; `docs/tickets/P0-I4/T42-reference-routes.md`. Status: active
