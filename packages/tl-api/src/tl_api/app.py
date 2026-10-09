@@ -10,16 +10,23 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import FastAPI, Request, Response
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from tl_core.files.service import FileService
 
 from tl_api import commands
-from tl_api.auth import Authorizer, Forbidden, Unauthorized, authorize
+from tl_api.auth import (
+    AuthenticationMiddleware,
+    Authorizer,
+    Forbidden,
+    Unauthorized,
+    authorize,
+    guard,
+)
 from tl_api.backend import Backend
 from tl_api.context import ApiContext
 from tl_api.errors import ApiError, ErrorBody, body_for
@@ -134,6 +141,7 @@ def create_app(
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,
+        openapi_url=None,  # served below, behind the token; docs/reference/openapi.json is public
         responses=_ERROR_RESPONSES,
         generate_unique_id_function=lambda route: route.name,
     )
@@ -146,6 +154,14 @@ def create_app(
         files=files_service,
     )
     install_error_handlers(app)
+    token_store = app.state.ctx.tokens
+    app.add_middleware(AuthenticationMiddleware, tokens=token_store)
+
+    @app.get("/openapi.json", include_in_schema=False)
+    def openapi_document(
+        actor: Annotated[str, Depends(guard("openapi.read"))],
+    ) -> JSONResponse:
+        return JSONResponse(app.openapi())
 
     if cfg.insecure_dev:
 

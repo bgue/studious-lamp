@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from collections.abc import AsyncIterator, Callable
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from starlette.types import Receive, Send
+from starlette.types import Scope as AsgiScope
 from tl_core.changefeed import SubscriptionFilter, fetch_changes
 from tl_core.ledger import Event
 
@@ -15,6 +18,25 @@ from tl_api.context import ApiContext, get_ctx
 from tl_api.errors import ApiError
 
 router = APIRouter(tags=["events"])
+
+
+class SlotResponse(StreamingResponse):
+    """A streaming response that gives its stream slot back when the response is over.
+
+    The slot is released here, not in the generator: a client that disconnects before the first
+    chunk may leave the generator unstarted, and an unstarted generator never runs its ``finally``.
+    """
+
+    def __init__(self, content: AsyncIterator[str], release: Callable[[], None], **kw: Any) -> None:
+        super().__init__(content, **kw)
+        self._release = release
+
+    async def __call__(self, scope: AsgiScope, receive: Receive, send: Send) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            self._release()
+
 
 Ctx = Annotated[ApiContext, Depends(get_ctx)]
 Scope = Annotated[str | None, Query(description="Only this scope: `company` or `project:<id>`.")]
@@ -102,8 +124,9 @@ async def stream_events(
     flt = build_filter(scope, types, record_id)
     if not ctx.feed.try_open_stream():
         raise ApiError(503, "unavailable", "too many open event streams; try again later")
-    return StreamingResponse(
+    return SlotResponse(
         ctx.feed.stream(flt, cursor),
+        ctx.feed.release_stream,
         media_type="text/event-stream",
         headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
     )

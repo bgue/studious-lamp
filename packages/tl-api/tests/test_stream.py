@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 import time
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator, MutableMapping
 from contextlib import contextmanager
 from dataclasses import replace
 from typing import Any
@@ -200,3 +200,52 @@ def test_too_many_streams_are_refused_and_a_closed_stream_frees_its_slot(
 def test_the_stream_is_cut_off_cleanly_when_the_server_stops(harness: Harness) -> None:
     with harness.live() as server, open_stream(server):
         pass  # leaving both blocks must not hang
+
+
+def test_a_client_that_hangs_up_before_the_first_chunk_frees_its_slot(harness: Harness) -> None:
+    """End to end smoke test. Depending on timing the server may drop the connection before the
+    route runs, so the guarantee itself is the deterministic test below (a response whose body
+    never starts still releases its slot)."""
+    import socket
+
+    feed = harness.app.state.ctx.feed
+    with harness.live() as server:
+        port = int(server.base_url.rsplit(":", 1)[1])
+        for _ in range(5):
+            sock = socket.create_connection(("127.0.0.1", port), timeout=5)
+            request = (
+                f"GET /stream HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer {server.token}\r\n\r\n"
+            )
+            sock.sendall(request.encode())
+            sock.close()  # gone before the server wrote anything
+        deadline = time.monotonic() + 5
+        while feed.open_streams and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert feed.open_streams == 0
+
+
+def test_the_slot_is_released_even_when_the_response_never_starts() -> None:
+    import asyncio
+
+    from starlette.requests import ClientDisconnect
+    from tl_api.routes.events import SlotResponse
+
+    released: list[int] = []
+
+    async def unused() -> AsyncIterator[str]:
+        yield "never iterated"
+
+    async def receive() -> dict[str, str]:
+        return {"type": "http.disconnect"}
+
+    async def send(message: MutableMapping[str, Any]) -> None:
+        raise OSError("client is gone")
+
+    async def run() -> None:
+        response = SlotResponse(unused(), lambda: released.append(1), media_type="text/plain")
+        scope = {"type": "http", "asgi": {"spec_version": "2.4"}, "method": "GET", "headers": []}
+        with pytest.raises(ClientDisconnect):
+            await response(scope, receive, send)
+
+    asyncio.run(run())
+    assert released == [1]

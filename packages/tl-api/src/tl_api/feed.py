@@ -111,14 +111,15 @@ class FeedHub:
 
     def release_stream(self) -> None:
         with self._lock:
-            self._open -= 1
+            self._open = max(0, self._open - 1)
 
     async def stream(
         self, flt: SubscriptionFilter, after_seq: int | None = None
     ) -> AsyncIterator[str]:
         """SSE text chunks for the matching events, until the consumer stops iterating.
 
-        The caller reserved a slot with :meth:`try_open_stream`; it is released here.
+        The caller reserved a slot with :meth:`try_open_stream` and releases it when the response
+        ends (``SlotResponse`` in ``routes/events.py``), whether or not this generator ever ran.
         """
         loop = asyncio.get_running_loop()
         sub: QueueSubscription | None = None
@@ -165,4 +166,3 @@ class FeedHub:
         finally:
             if sub is not None:
                 sub.close()
-            self.release_stream()

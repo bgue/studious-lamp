@@ -68,6 +68,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 2
 
+    from tl_api.tokens import TokenStore
+
+    try:
+        TokenStore(settings.tokens_path).check()
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
     import uvicorn
 
     from tl_api.app import create_app

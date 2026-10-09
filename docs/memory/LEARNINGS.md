@@ -441,3 +441,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   document is committed and drift-checked. Dropping the scratch reference over the stub and running `python -m tl_api.openapi --check`
   caught a description that differed between reference and stub (it would have turned `just check` red on every ticket branch).
   Evidence: T42 `role` query description; `docs/tickets/P0-I4/T42-reference-routes.md`. Status: active
+
+- **L-P0-I4-C7** · 2026-10-09 · tags: api, security
+  FastAPI reads and decodes the request body before it runs dependencies, so a `guard` dependency alone answers an unauthenticated request
+  with a broken JSON body 422, not 401 (the security review found it on 14 routes). Authenticate in an ASGI middleware that runs before the
+  route, keep `guard` for the per-route `authorize` call, and serve `/openapi.json` ourselves (`openapi_url=None` plus a guarded route
+  with `include_in_schema=False`) so no default route sits outside the token. A streaming response releases its resources in the response
+  object (`SlotResponse.__call__`), not in the generator: a generator the server never starts never runs its `finally`.
+  Evidence: `test_authentication_comes_before_the_body_is_read`, `test_the_slot_is_released_even_when_the_response_never_starts`; each fails when its fix is removed. Status: active

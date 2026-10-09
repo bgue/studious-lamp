@@ -14,8 +14,11 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from tl_api.context import ApiContext, get_ctx
+from tl_api.tokens import TokenStore
 
 Authorizer = Callable[[str, str, str], None]
 
@@ -57,3 +60,46 @@ def guard(action: str) -> Callable[..., str]:
         return actor
 
     return dependency
+
+
+#: Paths that need no token. Everything else, including paths that do not exist, needs one.
+OPEN_PATHS = frozenset({"/health"})
+
+
+def bearer_token(headers: list[tuple[bytes, bytes]]) -> str | None:
+    """The token of an ``Authorization: Bearer <token>`` header, else ``None``."""
+    for name, value in headers:
+        if name.lower() == b"authorization":
+            scheme, _, token = value.decode("latin-1").partition(" ")
+            if scheme.lower() == "bearer" and token.strip():
+                return token.strip()
+    return None
+
+
+class AuthenticationMiddleware:
+    """Resolves the bearer token before anything else reads the request (ADR-0005).
+
+    A request without a known token is answered 401 here, so a malformed body, an unknown path
+    or a bad query string cannot be told apart from a missing token by an unauthenticated caller.
+    ``guard`` still runs per route to call ``authorize`` with the route's action.
+    """
+
+    def __init__(self, app: ASGIApp, tokens: TokenStore) -> None:
+        self.app = app
+        self._tokens = tokens
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["path"] in OPEN_PATHS:
+            await self.app(scope, receive, send)
+            return
+        token = bearer_token(scope["headers"])
+        if token is None or self._tokens.actor_for(token) is None:
+            message = "a bearer token is required" if token is None else "unknown token"
+            response = JSONResponse(
+                {"error": "unauthorized", "message": message},
+                status_code=401,
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+            await response(scope, receive, send)
+            return
+        await self.app(scope, receive, send)

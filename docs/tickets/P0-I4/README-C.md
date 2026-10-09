@@ -92,8 +92,13 @@ events written by another process (an embedded TUI on the same SQLite file) arri
 
 ### Dev identity (ADR-0005)
 `Authorization: Bearer <token>`; `dev/data/tokens.json` maps token to actor (`user:<id>` or `agent:<id>`), mode 0600, re-read when it changes.
-Every route depends on `guard(action)`, which authenticates and calls `authorize(actor, action, request path)` once; `test_every_route_calls_the_hook`
-proves it with a deny-all hook. `python -m tl_api` refuses a non-loopback `--host` unless `--insecure-dev`, which logs a warning on every request.
+A file readable by group or others is refused: nobody authenticates, `add_token` raises and `python -m tl_api` will not start (`chmod 600`).
+`add_token` holds an `flock` on `<file>.lock` and renames a unique scratch file into place, so concurrent callers keep every token.
+An ASGI middleware (`AuthenticationMiddleware`) resolves the token before anything reads the request: no or unknown token is 401 for every path
+except `/health`, including unknown paths, `/openapi.json` and bodies that are not JSON. Every route also depends on `guard(action)`, which calls
+`authorize(actor, action, request path)` once; `test_every_route_calls_the_hook` proves it with a deny-all hook, `/openapi.json` included (it is
+served by the app behind a token and left out of its own document; `docs/reference/openapi.json` is the public description).
+`python -m tl_api` refuses a non-loopback `--host` unless `--insecure-dev`, which logs a warning on every request.
 
 ### Dependencies and licences (O7; ADR-0006 scan of the full closure)
 Declared: `tl-api` fastapi, uvicorn, httpx2, pydantic, tl-core, tl-schema, tl-adapters; `tl-mcp` mcp, pydantic, tl-core, tl-schema, tl-adapters; `tl-cli`
@@ -104,7 +109,7 @@ starlette, httpx2, httpcore2, sse-starlette, click, idna), Apache-2.0 (opentelem
 ## Supervisor-built pieces (in order)
 | # | Piece | Why supervisor-tier | Reviewer | Status |
 |---|---|---|---|---|
-| S1 | `tl_api.errors` table, `tokens.py`, `auth.py` (hook and `guard`), `settings.py`, `backend.py`, `tl_adapters.sqlite.factory.SqliteUowFactory` | Auth, identity and the error contract (`01-tiers.md` §3: auth is Sonnet-tier with a human gate; this is the dev stub of ADR-0005) | Orchestrator | built; 77 tests |
+| S1 | `tl_api.errors` table, `tokens.py`, `auth.py` (hook, `guard`, `AuthenticationMiddleware`), `settings.py`, `backend.py`, `tl_adapters.sqlite.factory.SqliteUowFactory` | Auth, identity and the error contract (`01-tiers.md` §3: auth is Sonnet-tier with a human gate; this is the dev stub of ADR-0005) | Orchestrator | built; 77 tests |
 | S2 | `app.py` (factory, handlers, lifespan, insecure-dev warning), `openapi.py` and the `just check` drift gate, `main.py` and `just serve` | Wires every route to auth and the error table | Orchestrator | built |
 | S3 | `feed.py` (hub, SSE framing, catch-up then live, overflow resume, stream cap), `routes/events.py` | Delivery ordering and concurrency (L-P0-I1-9, L-P0-I4-A2) | Orchestrator | built; 14 tests incl. resume, poller, backlog paging |
 | S4 | `commands.py` (command table and generated routes), `routes/files.py` (upload flow, download headers, quarantine rule) | Security surface (O2) and the contract with the services | Orchestrator | built; 34 tests |
