@@ -14,14 +14,23 @@ from tl_schema.compose import EffectiveCache
 from tl_schema.conformance import evaluate
 from tl_schema.formgen import form_metadata as build_form_metadata
 from tl_schema.forms import ConformanceReport, FormMetadata
+from tl_schema.validation import validate_psets
 
+from tl_core.ledger import NewEvent
+from tl_core.projection.promoted import ensure_promoted_columns
+from tl_core.projection.pset import set_nested
 from tl_core.schema_provider import get_provider
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import (
+    LayerError,
+    NoChangesError,
+    PsetValidationError,
     RecordNotFoundError,
+    RecordVoidedError,
+    UnknownPsetError,
 )
 from tl_core.uow import UnitOfWork
-from tl_core.util import utcnow
+from tl_core.util import new_ulid, utcnow
 
 _CACHE = EffectiveCache()
 #: Validator keywords that stop a write. Range, pattern and value-list issues are accepted and
@@ -50,12 +59,113 @@ def load_row(uow: UnitOfWork, stream_id: str, scope: str) -> Any:
     return row
 
 
+def _nest(pset: str, values: dict[str, Any], into: dict[str, Any]) -> None:
+    """Write ``values`` into ``into`` at their pset-qualified paths (``valve_data.x.a``)."""
+    for key, value in values.items():
+        set_nested(into, [*pset.split("."), *key.split(".")], value)
+
+
 def handle_set_pset_values(uow: UnitOfWork, cmd: SetPsetValues) -> CommandResult:
     """Validate against the scope's effective schema and emit ``Pset.ValuesSet``.
 
-    STUB: implemented by P0-I2-T06. The rules are in the ticket.
+    Structural problems (wrong layer, unknown key, wrong type, null) refuse the write. Range,
+    pattern and value-list problems are stored and show up as conformance. Every refusal raises
+    before anything is appended; the handler never commits.
     """
-    raise NotImplementedError
+    row = load_row(uow, cmd.stream_id, cmd.scope)
+    if row.voided:
+        raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot be updated")
+    schema = get_provider().effective(cmd.scope)
+
+    if cmd.pset.split(".")[0] in READ_ONLY_ROOTS:
+        raise LayerError(f"{cmd.pset} is in an enrichment or source layer and is not writable")
+    pset = schema.find_pset(cmd.pset)
+    if pset is None:
+        raise UnknownPsetError(f"pset {cmd.pset!r} is not in the effective schema")
+    if row.type not in pset.applies_to:
+        raise UnknownPsetError(f"pset {cmd.pset!r} does not apply to {row.type!r}")
+    if not cmd.values:
+        raise NoChangesError(f"no values given for {cmd.pset}")
+    if cmd.layer == "project" and pset.layer != "project":
+        raise LayerError(f"{cmd.pset} is a company standard pset; write it with layer 'standard'")
+    if cmd.layer in ("standard", "custom") and pset.layer != "standard":
+        raise LayerError(f"{cmd.pset} is a project pset; write it with layer 'project'")
+    for key in cmd.values:
+        is_custom = key.startswith("x.")
+        if cmd.layer == "custom":
+            if not pset.custom_allowed:
+                raise LayerError(f"{cmd.pset} has no custom section")
+            if not is_custom:
+                raise LayerError(f"{cmd.pset}.{key} is not in the custom section (keys start 'x.')")
+        elif is_custom or key == "x":
+            raise LayerError(f"{cmd.pset}.{key} is in the custom section; use layer 'custom'")
+        if pset.find(key) is None:
+            raise PsetValidationError(
+                f"{cmd.pset}.{key} is not defined in the effective schema",
+                [f"psets.{cmd.pset}.{key}: not defined"],
+            )
+
+    nulls = sorted(key for key, value in cmd.values.items() if value is None)
+    if nulls:
+        raise PsetValidationError(
+            "null values are not supported",
+            [f"{cmd.pset}.{key}: null" for key in nulls],
+        )
+
+    incoming: dict[str, Any] = {}
+    _nest(cmd.pset, cmd.values, incoming)
+    issues = validate_psets(schema, row.type, incoming)
+    kept = [issue for issue in issues if issue.keyword in BLOCKING_KEYWORDS]
+    if kept:
+        raise PsetValidationError(
+            f"values for {cmd.pset} are invalid",
+            [f"{issue.path}: {issue.message}" for issue in kept],
+        )
+
+    current: dict[str, Any] = json.loads(row.psets_json)
+    merged: dict[str, Any] = json.loads(json.dumps(current))
+    _nest(cmd.pset, cmd.values, merged)
+    if merged == current:
+        raise NoChangesError(f"no value of {cmd.pset} differs from the record")
+
+    ensure_promoted_columns(uow.conn(), schema)
+    report = evaluate(schema, row.type, merged, state=row.status, on=utcnow().date())
+
+    units: dict[str, str] = {}
+    for key in cmd.values:
+        prop = pset.find(key)
+        if prop is not None and prop.unit is not None:
+            units[key] = prop.unit
+
+    result = uow.append(
+        stream_id=cmd.stream_id,
+        stream_type=row.type,
+        scope=cmd.scope,
+        expected_version=cmd.expected_version,
+        events=[
+            NewEvent(
+                event_type="Pset.ValuesSet",
+                payload={
+                    "pset": cmd.pset,
+                    "layer": cmd.layer,
+                    "values": cmd.values,
+                    "effective_schema_hash": schema.hash,
+                    "conformance": report.status,
+                    "units": units,
+                },
+            )
+        ],
+        actor=cmd.actor,
+        source=cmd.source,
+        correlation_id=cmd.correlation_id or new_ulid(),
+        causation_id=cmd.causation_id,
+    )
+    return CommandResult(
+        stream_id=cmd.stream_id,
+        key=row.key,
+        version=result.new_version,
+        events=result.events,
+    )
 
 
 def form_metadata(uow: UnitOfWork, scope: str, record_type: str) -> FormMetadata:
