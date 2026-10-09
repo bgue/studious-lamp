@@ -19,7 +19,7 @@ from collections.abc import Iterator
 from typing import Any, BinaryIO, cast
 
 from botocore.exceptions import ClientError
-from tl_core.files import ObjectIntegrityError, ObjectNotFound
+from tl_core.files import InvalidObjectKey, ObjectIntegrityError, ObjectNotFound
 from tl_core.files.keys import check_key, is_content_key
 
 _MISSING_CODES = frozenset({"NoSuchKey", "404", "NotFound"})
@@ -123,7 +123,11 @@ class S3ObjectStore:
         return True
 
     def presign_put(self, key: str, *, expires_s: int) -> str:
+        """A one-upload URL. Content keys (``sha256/...``) are refused: they are written only by
+        ``put``, which verifies the bytes, so an unverified URL upload can never create one."""
         full = self._full(key)
+        if is_content_key(key):
+            raise InvalidObjectKey(f"presigned uploads cannot target a content key: {key!r}")
         return str(
             self._client.generate_presigned_url(
                 "put_object",

@@ -81,6 +81,10 @@ class FsObjectStore:
         return self.path_for(key).is_file()
 
     def presign_put(self, key: str, *, expires_s: int) -> str:
+        """A one-upload URL. Content keys (``sha256/...``) are refused: they are written only by
+        ``put``, which verifies the bytes, so an unverified URL upload can never create one."""
+        if is_content_key(check_key(key)):
+            raise InvalidObjectKey(f"presigned uploads cannot target a content key: {key!r}")
         return self._presign("put", key, expires_s)
 
     def presign_get(self, key: str, *, expires_s: int) -> str:
@@ -130,6 +134,8 @@ class FsObjectStore:
         For staging keys, whose content is verified later by the upload service.
         """
         key = self.redeem(url, op="put")
+        if is_content_key(key):
+            raise InvalidObjectKey(f"a URL upload cannot write a content key: {key!r}")
         self._store(self.path_for(key), data, expected=None, overwrite=True)
 
     def get_via_url(self, url: str) -> BinaryIO:
