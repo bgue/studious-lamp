@@ -4,7 +4,7 @@ Status: ready
 Tier: haiku
 Labels: tooling
 Depends on: —
-Branch: `p0/i1/t01-monorepo-scaffold`
+Branch: `p0/i1-t01-monorepo-scaffold`
 
 ## Goal
 A `uv` workspace with seven empty but importable packages, a `justfile` whose `check` and `test` recipes run clean,

@@ -4,7 +4,7 @@ Status: ready
 Tier: haiku
 Labels: adapter
 Depends on: P0-I1-T05
-Branch: `p0/i1/t06-sqlite-ledger`
+Branch: `p0/i1-t06-sqlite-ledger`
 
 ## Goal
 `tl_adapters.sqlite.ledger.SqliteLedger` implements the `Ledger` Protocol on a SQLite file (WAL mode): an

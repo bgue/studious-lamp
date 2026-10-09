@@ -4,7 +4,7 @@ Status: draft | ready | in-progress | in-review | changes-requested | escalated 
 Tier: haiku
 Labels: <adapter | core | tui | api | mcp | cli | docs | tests | schema>
 Depends on: <ticket ids or —>
-Branch: `p<n>/i<m>/t<nn>-<slug>`
+Branch: `p<n>/i<m>-t<nn>-<slug>`
 Approver (schema tickets only): <human name>
 
 ## Goal

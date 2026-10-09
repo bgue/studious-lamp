@@ -28,7 +28,7 @@ RELAY PROTOCOL (ADR-0004): you cannot spawn agents. Each round you:
   3. End your turn with exactly one relay block (and at most 15 lines of prose before it).
 Ticket batches: 2–4 tickets with disjoint Allowed paths, all dependencies already merged. Every ticket must pass the
 Haiku-ability checklist (01-tiers.md §6); paste brief excerpts, interfaces, and needed LEARNINGS entries into it.
-Ticket branches: `{BRANCH}/t<nn>-<slug>`. Implementer worktrees live at /home/user/wt/<ticket-id-lowercase>; after you
+Ticket branches: `{BRANCH}-t<nn>-<slug>` (sibling of {BRANCH}; git cannot nest refs under an existing branch). Implementer worktrees live at /home/user/wt/<ticket-id-lowercase>; after you
 merge a ticket, remove its worktree (`git worktree remove --force`). Never merge a ticket without a `pass` verdict;
 a `two-strikes` ticket is yours to finish on its branch (note it as taken over).
 

@@ -99,3 +99,7 @@ test or a generated artefact already enforces, or narrative history (that belong
   when the prefix `tl` is mapped to a non-canonical namespace, so schemas declare the prefix `throughline` and use
   `tl:` only as the annotation tag namespace.
   Evidence: `schema/core/record.yaml`, `annotations.yaml`; `linkml-lint schema/core/core.yaml` clean. Status: active
+- **L-P0-SETUP-10** · 2026-10-09 · tags: process, tooling
+  Git cannot hold a branch `p0/i1` and a branch `p0/i1/t01-…` at the same time (ref namespace clash). Ticket branches are
+  siblings: `p0/i1-t01-<slug>`. The branch passed by the orchestrator overrides a ticket's Branch field.
+  Evidence: `fatal: cannot lock ref 'refs/heads/p0/i1/t01-monorepo-scaffold'` in the first ticket-batch run. Status: active

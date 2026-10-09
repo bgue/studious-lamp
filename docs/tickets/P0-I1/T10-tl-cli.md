@@ -4,7 +4,7 @@ Status: draft (ready when T09 merges)
 Tier: haiku
 Labels: cli
 Depends on: P0-I1-T09
-Branch: `p0/i1/t10-tl-cli`
+Branch: `p0/i1-t10-tl-cli`
 
 ## Goal
 A `tl` command (typer) that opens the dev ledger and calls service functions: `tl init`, `tl record create|show|void`,
