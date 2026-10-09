@@ -12,13 +12,14 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from tl_schema.generators import jsonschema_gen, pydantic_gen
+from tl_schema.generators import ddl, jsonschema_gen, pydantic_gen
 
 GENERATED_DIR: Path = Path(__file__).resolve().parent / "generated"
 SCHEMA_DIR: Path = Path(__file__).resolve().parents[4] / "schema" / "core"
 GENERATORS: list[Callable[[Path], dict[str, str]]] = [
     pydantic_gen.generate,
     jsonschema_gen.generate,
+    ddl.generate,
 ]
 
 INIT_TEXT = '"""Generated from schema/ by `just gen`. Do not edit by hand."""\n'

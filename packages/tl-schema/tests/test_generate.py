@@ -9,7 +9,13 @@ import pytest
 from tl_schema import generate
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-EXPECTED_KEYS = {"__init__.py", "json_schema/core.schema.json", "models.py"}
+EXPECTED_KEYS = {
+    "__init__.py",
+    "ddl/postgres/cur_core_record.sql",
+    "ddl/sqlite/cur_core_record.sql",
+    "json_schema/core.schema.json",
+    "models.py",
+}
 
 
 def test_outputs_has_expected_keys_and_is_deterministic() -> None:
@@ -45,7 +51,7 @@ def test_main_writes_then_checks_clean(tmp_path: Path, capsys: pytest.CaptureFix
     assert generate.main(["--out", str(tmp_path)]) == 0
     assert generate.existing(tmp_path) == EXPECTED_KEYS
     assert generate.main(["--check", "--out", str(tmp_path)]) == 0
-    assert "generated files are up to date (3 files)" in capsys.readouterr().out
+    assert f"generated files are up to date ({len(EXPECTED_KEYS)} files)" in capsys.readouterr().out
 
 
 def test_check_reports_differs_missing_stale_and_repair(
