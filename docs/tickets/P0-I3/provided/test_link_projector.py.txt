@@ -69,9 +69,7 @@ class Events:
             stream_type="core.Record",
         )
 
-    def suggested(
-        self, link_id: str = L1, from_id: str = A, to_id: str = B, **extra: Any
-    ) -> Event:
+    def suggested(self, link_id: str = L1, from_id: str = A, to_id: str = B, **extra: Any) -> Event:
         payload: dict[str, Any] = {
             "link_id": link_id,
             "from_ref": from_id,
@@ -129,18 +127,24 @@ def apply(engine: Engine, *events: Event) -> None:
 
 def link(engine: Engine, link_id: str = L1) -> dict[str, Any]:
     with engine.connect() as conn:
-        row = conn.execute(
-            text("SELECT * FROM cur_links WHERE link_id = :id"), {"id": link_id}
-        ).mappings().first()
+        row = (
+            conn.execute(text("SELECT * FROM cur_links WHERE link_id = :id"), {"id": link_id})
+            .mappings()
+            .first()
+        )
     assert row is not None, f"no cur_links row {link_id}"
     return dict(row)
 
 
 def counts(engine: Engine, record_id: str) -> dict[str, Any]:
     with engine.connect() as conn:
-        row = conn.execute(
-            text("SELECT * FROM cur_link_counts WHERE record_id = :id"), {"id": record_id}
-        ).mappings().first()
+        row = (
+            conn.execute(
+                text("SELECT * FROM cur_link_counts WHERE record_id = :id"), {"id": record_id}
+            )
+            .mappings()
+            .first()
+        )
     assert row is not None, f"no cur_link_counts row {record_id}"
     return dict(row)
 
