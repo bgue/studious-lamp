@@ -2,10 +2,10 @@
 
 Same behaviour as ``SqliteLedger``: optimistic concurrency per stream, a hash chain per scope
 that is byte-identical for the same events, and an append-only table. Every append runs inside a
-write transaction that already holds the ledger lock (``engine.write_tx``), so no other transaction
-can commit between reading the scope's last hash and inserting. An append also sends ``NOTIFY`` on
-``tl_events`` with the last ``seq`` (delivered at commit) so pollers can wake early; cursor reads
-stay authoritative.
+write transaction that already holds the ledger lock (``engine.write_tx``), so no other
+transaction can commit between reading the scope's last hash and inserting. An append also sends
+``NOTIFY`` on ``tl_events`` with ``<schema>:<last seq>`` (delivered at commit) so pollers can wake
+early; cursor reads stay authoritative.
 """
 
 from __future__ import annotations
@@ -225,8 +225,8 @@ class PostgresLedger:
             prev_hash = current_hash
 
         conn.execute(
-            text("SELECT pg_notify(:channel, :payload)"),
-            {"channel": NOTIFY_CHANNEL, "payload": str(last_seq)},
+            text("SELECT pg_notify(:channel, current_schema() || ':' || :seq)"),
+            {"channel": NOTIFY_CHANNEL, "seq": str(last_seq)},
         )
         return AppendResult(events=stored, new_version=version, last_seq=last_seq)
 
