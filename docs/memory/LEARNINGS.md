@@ -219,3 +219,9 @@ test or a generated artefact already enforces, or narrative history (that belong
   `tl_schema` (SQLite has no `ADD COLUMN IF NOT EXISTS`). Projectors stay deterministic by reading only the event payload
   and existing rows: schema-derived facts (conformance, units) are computed by the command handler and carried in the event.
   Evidence: `tl_core/projection/promoted.py`, `pset.py`; decisions A5, A9. Status: active
+
+- **L-P0-I2-B7** · 2026-10-09 · tags: process
+  The ticket workflow tells implementers to commit their report, so list `docs/reports/<inc>/<ticket-id>.md` in every
+  ticket's *Allowed paths* and say "commit your report". A ticket that says "return it in your final message" produced one
+  review round lost to a committed report (T12) and one report left uncommitted in a worktree (T15).
+  Evidence: T12 attempt 1; T15 worktree; tickets T16b onward. Status: active
