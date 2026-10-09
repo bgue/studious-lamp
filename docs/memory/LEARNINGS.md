@@ -230,3 +230,16 @@ test or a generated artefact already enforces, or narrative history (that belong
   ticket's *Allowed paths* and say "commit your report". A ticket that says "return it in your final message" produced one
   review round lost to a committed report (T12) and one report left uncommitted in a worktree (T15).
   Evidence: T12 attempt 1; T15 worktree; tickets T16b onward. Status: active
+
+- **L-P0-I3-O1** · 2026-10-09 · tags: env, process
+  A container restart stops background workflows and agents, but the filesystem (repo, worktrees, branches, ~/.local/bin,
+  the Postgres data dir) survives. Recover a ticket batch with `Workflow({scriptPath, resumeFromRunId, args})` using
+  the same args: finished implementer and reviewer calls replay from the journal and only the interrupted ones rerun.
+  Read `<transcriptDir>/journal.jsonl` first to see which agents finished.
+  Evidence: P0-I3 batch 2 restart; resumed wf_3b2e992f-50a. Status: active
+
+- **L-P0-I3-O2** · 2026-10-09 · tags: ledger, sync
+  Workflow guards are safe on SQLite only because they read inside the BEGIN IMMEDIATE write transaction. On Postgres
+  (P0-I5) the guard reads need `SELECT ... FOR UPDATE` on the record row or SERIALIZABLE isolation, or a concurrent
+  link retraction can slip between the guard check and the append.
+  Evidence: P0-I3 workflow engine review. Status: active
