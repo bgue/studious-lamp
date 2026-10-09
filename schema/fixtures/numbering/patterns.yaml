@@ -1,0 +1,10 @@
+# Numbering patterns (brief 8). Read by tl_core.numbering.config; see its docstring for the fields.
+# `gap_free: true` (the default) allocates a number only inside the transaction that creates the
+# record it names. `reserved` lists inclusive sequence ranges the allocator skips.
+patterns:
+  - id: core.Record
+    record_type: core.Record
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: REC
+    gap_free: true
