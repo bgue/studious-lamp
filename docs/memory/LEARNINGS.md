@@ -568,3 +568,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   T02, feed_completion.py for T03). Generate stubs by hand from the reference implementation: a regex stubifier mangled docstrings. Keep
   long docstrings under 100 columns (E501 applies), and keep the verified reference implementations in the scratchpad for takeover.
   Evidence: `docs/tickets/P0-I6/T02-*.md`, `T03-*.md`. Status: active
+- **L-P0-I6A-5** · 2026-10-10 · tags: process, tickets
+  A batch may hold only tickets whose dependencies are already merged on the base. T02 and T03 were verified against reference
+  implementations that included T01, and their provided tests call T01's handlers (and T03's call T02's queries), so in one batch of
+  four three came back BLOCKED on a test they could not make pass. Before dispatch list for each ticket the code its provided test
+  imports and calls; if another ticket owns it, the two are not independent. After the fact the fix was an integration merge of the
+  base into the ticket branch and a re-run of its tests on both adapters.
+  Evidence: relay outcomes of workflow wkzasjo4a; T03 passes 13 of 13 only with T02 merged. Status: active
