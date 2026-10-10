@@ -19,8 +19,8 @@ One working day (``act``), in this order, drawing from ``ctx.rng`` only where st
 
 from __future__ import annotations
 
-from tl_sim.actors.base import BaseActor, Recorder
-from tl_sim.scenario import CrewParams
+from tl_sim.actors.base import BaseActor, Rec, Recorder
+from tl_sim.scenario import CrewParams, draw
 from tl_sim.types import SimContext
 
 SIZES_IN = (2, 3, 4, 6, 8)
@@ -32,4 +32,43 @@ class Crew(BaseActor):
     params: CrewParams
 
     def act(self, ctx: SimContext, rec: Recorder) -> None:
-        raise NotImplementedError("STUB (P0-I6-T42)")
+        lines = rec.records(title_prefix="Line ")
+        if not lines:
+            return
+        if self.params.announce is not None:
+            rec.post(f"#urgent {self.params.announce}")
+        count = draw(self.params.valves_per_day, ctx.rng)
+        serial_base = len(rec.records(title_prefix="Valve "))
+        installed = self._install(ctx, rec, lines, count, serial_base)
+        if installed:
+            refs = " ".join(f"#{valve.key}" for valve in installed)
+            rec.post(f"Installed {len(installed)} valves: {refs}")
+        roll = ctx.rng.random()
+        if installed and roll < self.params.reject_rate:
+            flagged = ctx.rng.choice(installed)
+            rec.post(f"Inspection failed on #{flagged.key}, needs rework #hold")
+
+    def _install(
+        self,
+        ctx: SimContext,
+        rec: Recorder,
+        lines: list[Rec],
+        count: int,
+        serial_base: int,
+    ) -> list[Rec]:
+        """Create, data and link one valve per draw, in creation order."""
+        installed: list[Rec] = []
+        for _ in range(count):
+            line = ctx.rng.choice(lines)
+            size = ctx.rng.choice(SIZES_IN)
+            maker = ctx.rng.choice(MAKERS)
+            serial = serial_base + len(installed) + 1
+            designation = line.title.removeprefix("Line ")
+            valve = rec.create(f"Valve V{serial:03d} {size}in on {designation}")
+            rec.set_psets(
+                valve,
+                {"valve_data": {"size_in": size, "body_material": "CS", "manufacturer": maker}},
+            )
+            rec.link(valve, line, "belongs_to")
+            installed.append(valve)
+        return installed
