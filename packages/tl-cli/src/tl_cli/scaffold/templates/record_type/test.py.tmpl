@@ -1,0 +1,50 @@
+"""Tests for ${qualified}."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from linkml_runtime.utils.schemaview import SchemaView
+from tl_adapters.sqlite.uow import create_schema, open_uow
+from ${package}.handlers.${snake} import (
+    RECORD_TYPE,
+    Create${cls},
+    handle_create_${snake},
+)
+
+ROOT = Path(__file__).resolve().parents[4]
+SCHEMA = ROOT.joinpath(
+    "schema",
+    "modules",
+    "${module}",
+    "${snake}.yaml",
+)
+
+
+def test_the_schema_stub_defines_the_class_on_the_record_envelope() -> None:
+    view = SchemaView(str(SCHEMA))
+    definition: Any = view.get_class("${cls}")
+    assert definition is not None
+    assert definition.is_a == "RecordEnvelope"
+    slots = {slot.name for slot in view.class_induced_slots("${cls}")}
+    assert {"id", "scope", "title", "example_field"} <= slots
+
+
+def test_the_create_handler_appends_one_event(tmp_path: Path) -> None:
+    db = tmp_path / "tl.db"
+    create_schema(db)
+    command = Create${cls}(
+        actor="user:test",
+        source="test",
+        scope="project:P1",
+        title="Example",
+        key="K-1",
+    )
+    with open_uow(db) as uow:
+        result = handle_create_${snake}(uow, command)
+    assert (result.key, result.version) == ("K-1", 1)
+    (event,) = result.events
+    assert event.event_type == "${cls}.Created"
+    assert event.stream_type == RECORD_TYPE
+    assert event.payload["title"] == "Example"
