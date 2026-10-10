@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Secret scan over the files git tracks (04-gates section 1, "Security scan"; root AGENTS.md rule 10).
+"""Secret scan over the files git tracks (04-gates section 1 "Security scan"; AGENTS.md rule 10).
 
     uv run python dev/tools/scan_secrets.py
 
