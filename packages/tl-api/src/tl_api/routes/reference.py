@@ -1,9 +1,5 @@
 """Reference reads: relations, key detection, workflow status, form metadata, conformance.
 
-STUB (P0-I4-T42): the route bodies below raise ``NotImplementedError``. Signatures, decorators,
-parameters and response models are final (the committed OpenAPI document depends on them);
-implement the bodies only, then delete this paragraph.
-
 Thin: one tl_core call per route. These are what a remote client needs besides records and links
 to run the same screens as an embedded one.
 """
@@ -13,8 +9,11 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from tl_core.numbering.detect import KeyChip
-from tl_core.services.workflow import WorkflowStatus
+from tl_core.links.provider import get_vocabulary
+from tl_core.links.vocabulary import default_relation
+from tl_core.numbering.detect import KeyChip, suggest_chips
+from tl_core.services import psets
+from tl_core.services.workflow import WorkflowStatus, workflow_status
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 from tl_api.auth import guard
@@ -30,7 +29,19 @@ Reader = Annotated[str, Depends(guard("reference.read"))]
 @router.get("/relations", operation_id="list_relations")
 def list_relations(ctx: Ctx, actor: Reader) -> list[RelationOut]:
     """The relation vocabulary in display order."""
-    raise NotImplementedError("STUB (P0-I4-T42)")
+    vocabulary = get_vocabulary()
+    out: list[RelationOut] = []
+    for code in vocabulary.codes():
+        r = vocabulary.get(code)
+        out.append(
+            RelationOut(
+                code=r.code,
+                label=r.label,
+                inverse_code=r.inverse_code,
+                inverse_label=r.inverse_label,
+            )
+        )
+    return out
 
 
 @router.get("/relations/default", operation_id="get_default_relation")
@@ -41,13 +52,14 @@ def get_default_relation(
     to_type: Annotated[str, Query()],
 ) -> DefaultRelationOut:
     """The relation to pre-select when linking a record of `from_type` to one of `to_type`."""
-    raise NotImplementedError("STUB (P0-I4-T42)")
+    return DefaultRelationOut(relation=default_relation(from_type, to_type))
 
 
 @router.post("/keys/detect", operation_id="detect_keys")
 def detect_keys(ctx: Ctx, actor: Reader, body: DetectKeysBody) -> list[KeyChip]:
     """Keys found in the text that fit a numbering pattern of the scope, resolved to records."""
-    raise NotImplementedError("STUB (P0-I4-T42)")
+    with ctx.backend(True) as uow:
+        return suggest_chips(uow, body.scope, body.text, linked_to=body.linked_to)
 
 
 @router.get("/records/{record_id}/workflow", operation_id="get_workflow_status")
@@ -58,7 +70,8 @@ def get_workflow_status(
     role: Annotated[list[str] | None, Query(description="Roles for the role guards.")] = None,
 ) -> WorkflowStatus:
     """State, state-entered time and every transition with its guard results."""
-    raise NotImplementedError("STUB (P0-I4-T42)")
+    with ctx.backend(True) as uow:
+        return workflow_status(uow, record_id, roles=tuple(role or ()))
 
 
 @router.get("/schema/forms", operation_id="get_form_metadata")
@@ -69,10 +82,12 @@ def get_form_metadata(
     record_type: Annotated[str, Query()],
 ) -> FormMetadata:
     """Form and grid metadata for a record type under the scope's effective schema."""
-    raise NotImplementedError("STUB (P0-I4-T42)")
+    with ctx.backend(True) as uow:
+        return psets.form_metadata(uow, scope, record_type)
 
 
 @router.get("/records/{record_id}/conformance", operation_id="get_conformance")
 def get_conformance(ctx: Ctx, actor: Reader, record_id: str) -> ConformanceReport:
     """Conformance of the record's current values against its scope's effective schema."""
-    raise NotImplementedError("STUB (P0-I4-T42)")
+    with ctx.backend(True) as uow:
+        return psets.conformance(uow, record_id)
