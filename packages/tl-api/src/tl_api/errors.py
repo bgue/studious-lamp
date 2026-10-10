@@ -104,6 +104,8 @@ subclass is a bug (``test_error_table.py``), not a silent 500."""
 HTTP_ERRORS: dict[str, int] = {
     "validation_error": 422,
     "invalid_argument": 422,
+    "effective_time_forbidden": 400,
+    "invalid_effective_time": 400,
     "unauthorized": 401,
     "forbidden": 403,
     "not_found": 404,

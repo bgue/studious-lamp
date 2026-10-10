@@ -14,7 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel, ConfigDict, Field, create_model
 from tl_core.services import links, psets
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
@@ -22,9 +22,11 @@ from tl_core.services.edit import EditRecord, handle_edit_record
 from tl_core.services.records import handle_create_record, handle_update_record
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.uow import UnitOfWork
+from tl_core.util import effective_time
 
 from tl_api.auth import guard
 from tl_api.context import get_ctx
+from tl_api.effective import EFFECTIVE_AT_HEADER, resolve_effective_at
 
 Handler = Callable[[UnitOfWork, Any], CommandResult]
 SOURCE_PATTERN = r"^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$"
@@ -89,10 +91,20 @@ def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[.
         request: Request,
         body: Any,
         actor: Annotated[str, Depends(guard(action))],
+        effective_at: Annotated[
+            str | None,
+            Header(
+                alias=EFFECTIVE_AT_HEADER,
+                description="Simulated time (ISO-8601 with offset) stamped as the events' "
+                "effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other "
+                "scope is a 400 `effective_time_forbidden`.",
+            ),
+        ] = None,
     ) -> CommandResult:
         ctx = get_ctx(request)
         command = spec.model(**body.model_dump(), actor=actor)
-        with ctx.backend(False) as uow:
+        when = resolve_effective_at(effective_at, command.scope)
+        with effective_time(when), ctx.backend(False) as uow:
             return spec.handler(uow, command)
 
     endpoint.__name__ = f"command_{spec.name}"
