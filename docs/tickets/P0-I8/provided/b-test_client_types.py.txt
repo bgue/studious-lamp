@@ -126,7 +126,8 @@ def test_create_instance_of_an_object_backed_type_stores_the_body(env: Env) -> N
     stored = env.api.get_record_body(made.stream_id)
     assert isinstance(stored, BodyView)
     assert stored.record_id == made.stream_id and stored.body == LIFT_BODY
-    assert env.api.get_record_by_id(made.stream_id)["description"] == "A lift"
+    record = env.api.get_record_by_id(made.stream_id)
+    assert record is not None and record["description"] == "A lift"
 
 
 def test_create_instance_errors_raise_the_embedded_classes(env: Env) -> None:
