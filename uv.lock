@@ -2676,6 +2676,7 @@ dependencies = [
     { name = "tl-core" },
     { name = "tl-lake" },
     { name = "tl-schema" },
+    { name = "tl-tui" },
 ]
 
 [package.metadata]
@@ -2688,6 +2689,7 @@ requires-dist = [
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-lake", editable = "packages/tl-lake" },
     { name = "tl-schema", editable = "packages/tl-schema" },
+    { name = "tl-tui", editable = "packages/tl-tui" },
 ]
 
 [[package]]
