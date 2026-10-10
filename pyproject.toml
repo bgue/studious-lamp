@@ -56,7 +56,7 @@ include = ["packages", "tests"]
 exclude = ["**/generated", "**/.venv"]
 pythonVersion = "3.12"
 # tests/contract reuses the helper module in tests/webhooks (world.py)
-extraPaths = ["tests/webhooks", "packages/tl-api/tests"]
+extraPaths = ["tests/webhooks", "tests/settings", "packages/tl-api/tests"]
 typeCheckingMode = "standard"
 strict = [
   "packages/tl-core/src",
