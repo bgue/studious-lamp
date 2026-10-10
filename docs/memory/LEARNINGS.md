@@ -648,3 +648,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   drop. Each has a test that forces the order (a hook after the first load, a gated fake, a scripted API) and fails when the fix is removed. Also: a refresh applied
   during shutdown posts messages to a screen that is gone, so handlers that query the DOM must tolerate it.
   Evidence: `tests/test_live_handoff.py`, `test_live_app.py`; `app.py` `on_record_highlighted` (a 1-in-6 flake in the full-file run). Status: active
+
+- **L-P0-I4-D6** · 2026-10-10 · tags: tests, tui
+  An intermittent test failure is two readers of one fact racing, not noise: the outage test asserted "row is marked" at the first moment the row existed, but the row
+  can arrive through the read after "connection restored" and the mark through the replayed event a few milliseconds later. Fix the assertion to wait for the end state
+  (the claim is that both orders end marked), prove it 20 of 20 and 30 of 30 in a loop, and write down which two events race. A failing test on the base also blocks every
+  ticket's whole-suite acceptance command (T60 was reported blocked by it).
+  Evidence: `test_live_remote_app.py::test_remote_the_banner_shows_during_an_outage_and_the_feed_resumes` failed 7 of 20 before, 0 of 50 after. Status: active
