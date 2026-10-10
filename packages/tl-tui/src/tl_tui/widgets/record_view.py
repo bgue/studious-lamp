@@ -237,6 +237,7 @@ class RecordView(Vertical, can_focus=True):
     def on_record_changed(self, message: RecordChanged) -> None:
         # Not stopped: the message keeps bubbling so the app can refresh the grid.
         if self.record is not None and message.record_id == self.record["id"]:
+            self.clear_remote_update()  # the user's own change: the notice is about older news
             self.reload()
 
     # --- actions (keys) ----------------------------------------------------------------------

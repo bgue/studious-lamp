@@ -17,11 +17,14 @@ from fakes import SCOPE, FakeClient
 from fakes_live import FakeFeed
 from helpers import run_pilot, screen_text
 from textual.pilot import Pilot
+from textual.widgets import Input
 from tl_core.ledger import Event
 from tl_core.services.commands import UpdateRecord
 from tl_tui.app import TlApp
 from tl_tui.live import OwnWrites
+from tl_tui.messages import RecordChanged
 from tl_tui.widgets.connection_banner import ConnectionBanner
+from tl_tui.widgets.edit_form import EditForm
 from tl_tui.widgets.grid import RecordGrid
 from tl_tui.widgets.record_view import RecordView
 
@@ -369,3 +372,92 @@ def test_marks_of_a_result_dropped_after_a_sort_land_on_the_rows_now_shown() -> 
         await until(pilot, lambda: grid.is_marked(record_id))
 
     run_pilot(app, scenario)
+
+
+def test_a_change_made_elsewhere_adds_the_updated_by_line_to_the_open_record() -> None:
+    app, client, feed = build()
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+        view = app.query_one(RecordView)
+        assert not view.query_one("#rv-banner").display
+        feed.push(*bob_updates(client, "FV-1001", title="Bob's title"))
+        await until(pilot, lambda: bool(view.query_one("#rv-banner").display))
+        text = screen_text(app)
+        assert "! Updated by user:bob at" in text and "(now v" in text
+        # The user's own change takes the notice away.
+        view.post_message(RecordChanged(str(view.record["id"])))  # type: ignore[index]
+        await until(pilot, lambda: not view.query_one("#rv-banner").display)
+
+    run_pilot(app, scenario)
+
+
+def test_no_line_for_a_change_this_client_made_itself() -> None:
+    client = FakeClient.with_valve_example()
+    own = OwnWrites()
+    setattr(client, "own_writes", own)  # noqa: B010
+    app, _, feed = build(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+        view = app.query_one(RecordView)
+        events = bob_updates(client, "FV-1001", title="mine")
+        own.note(type("R", (), {"events": events})())  # pyright: ignore
+        feed.push(*events)
+        await until(pilot, lambda: view.record is not None and view.record["title"] == "mine")
+        assert not view.query_one("#rv-banner").display
+
+    run_pilot(app, scenario)
+
+
+def open_edit_form(app: TlApp) -> EditForm:
+    form = app.screen
+    assert isinstance(form, EditForm)
+    return form
+
+
+def test_a_change_under_an_open_edit_form_shows_the_conflict_and_blocks_the_save() -> None:
+    app, client, feed = build()
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.press("e")
+        await pilot.pause()
+        form = open_edit_form(app)
+        version = form.opened_version
+        form.query_one("#f_title Input", Input).value = "Mine"
+        feed.push(*bob_updates(client, "FV-1001", title="Bob first"))
+        await until(pilot, lambda: form.conflict)
+        text = screen_text(app)
+        assert "✗ Conflict: user:bob changed this record" in text
+        assert f"you opened v{version}" in text
+        client.calls.clear()
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        assert "edit_record" not in client.calls  # no silent overwrite
+        assert form.query_one("#f_title Input", Input).value == "Mine"
+
+    run_pilot(app, scenario, size=(120, 50))
+
+
+def test_a_change_to_another_record_does_not_flag_the_open_form() -> None:
+    app, client, feed = build()
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+        await pilot.press("e")
+        await pilot.pause()
+        form = open_edit_form(app)
+        feed.push(*bob_updates(client, "FV-1002", title="elsewhere"))
+        await pilot.pause(0.5)
+        assert not form.conflict
+
+    run_pilot(app, scenario, size=(120, 50))

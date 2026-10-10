@@ -20,7 +20,12 @@ def tui(
     ] = None,
     token: Annotated[
         str | None,
-        typer.Option("--token", envvar="TL_TOKEN", help="Dev token for --remote."),
+        typer.Option(
+            "--token",
+            envvar="TL_TOKEN",
+            help="Dev token for --remote; prefer TL_TOKEN "
+            "(command-line arguments are visible in ps).",
+        ),
     ] = None,
     project: Annotated[
         str | None,

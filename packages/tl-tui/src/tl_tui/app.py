@@ -24,6 +24,7 @@ from tl_tui.live import (
     LiveUpdates,
     OwnWrites,
     describe_changes,
+    detect_conflict,
     latest_by_record,
     touched_record_ids,
 )
@@ -31,6 +32,8 @@ from tl_tui.messages import (
     CloseRecord,
     ConnectionChanged,
     ConnectionState,
+    FilterClosed,
+    FilterSubmitted,
     LedgerReset,
     LiveEvents,
     NavSelected,
@@ -46,6 +49,7 @@ from tl_tui.navigation import NavHistory
 from tl_tui.tray import ReferenceTray, TrayItem
 from tl_tui.widgets.connection_banner import ConnectionBanner
 from tl_tui.widgets.context_panel import ContextPanel
+from tl_tui.widgets.filter_bar import FilterBar
 from tl_tui.widgets.footer import TlFooter, hints_for
 from tl_tui.widgets.grid import RecordGrid
 from tl_tui.widgets.header import TlHeader
@@ -71,6 +75,7 @@ class TlApp(App[None]):
         Binding("shift+f6", "cycle_panels(-1)", "Panels back", show=False),
         Binding("escape", "close_overlay", "Close", show=False),
         Binding("n", "new_record", "New", show=False),
+        Binding("slash", "filter", "Filter", show=False),
         Binding("f1", "help", "Help", show=False),
         Binding("question_mark", "help", "Help", show=False),
         Binding("ctrl+p", "palette", "Palette", show=False),
@@ -124,6 +129,7 @@ class TlApp(App[None]):
             company=self.company, scope=self.scope, mode=self.mode, actor=self.actor, id="header"
         )
         yield ConnectionBanner(id="connection")
+        yield FilterBar(id="filter")
         with Horizontal(id="body"):
             yield NavTree(company=self.company, scope=self.scope, id="nav")
             with MainArea(id="main"):
@@ -214,6 +220,31 @@ class TlApp(App[None]):
 
     def _focus_main(self) -> None:
         self._main_focus_target().focus()
+
+    async def action_filter(self) -> None:
+        """`/`: open the filter bar above the grid (back to the grid first if a record is open)."""
+        if self._modal_open():
+            return
+        if self._record_view() is not None:
+            await self._show_grid()
+        self.query_one("#filter", FilterBar).show_bar()
+
+    def on_filter_submitted(self, message: FilterSubmitted) -> None:
+        """Enter in the bar: filter the grid; show the count, or the error and its position."""
+        bar = self.query_one("#filter", FilterBar)
+        result = self.query_one("#grid", RecordGrid).apply_filter(message.text)
+        bar.show_result(result)
+        if result.ok:
+            if not message.text.strip():
+                bar.hide_bar()
+            self.query_one("#grid", RecordGrid).focus()
+
+    def on_filter_closed(self, message: FilterClosed) -> None:
+        """Esc in the bar: back to the grid; the bar stays visible while a filter is in force."""
+        grid = self.query_one("#grid", RecordGrid)
+        if not grid.filter_text:
+            self.query_one("#filter", FilterBar).hide_bar()
+        grid.focus()
 
     def action_new_record(self) -> None:
         # The app-level `n` binding stays live under a modal; a form already open must keep it.
@@ -496,6 +527,7 @@ class TlApp(App[None]):
         if self._held:
             self.set_timer(0.1, self._release_held)
         self._mark_foreign(foreign)
+        self._flag_conflict(foreign)
         view = self._record_view()
         if view is None or view.record is None:
             return
@@ -505,8 +537,24 @@ class TlApp(App[None]):
         newest = latest_by_record(message.events).get(record_id)
         moved = newest is not None and newest.stream_version > int(view.record["version"])
         linked = any(e.event_type.startswith("Link.") for e in message.events)
-        if moved or linked:
-            view.reload()
+        if not (moved or linked):
+            return
+        view.reload()
+        elsewhere = [e for e in foreign if record_id in touched_record_ids([e])]
+        if elsewhere and view.record is not None:  # someone else did it: say who and when
+            last = elsewhere[-1]
+            view.note_remote_update(last.actor, int(view.record["version"]), last.recorded_at)
+
+    def _flag_conflict(self, foreign: list[Event]) -> None:
+        """An open edit form whose record moved past the version it was opened at: say so now."""
+        from tl_tui.widgets.edit_form import EditForm  # noqa: PLC0415
+
+        form = self.screen
+        if not isinstance(form, EditForm) or form.conflict:
+            return
+        newer = detect_conflict(str(form.record["id"]), form.opened_version, foreign)
+        if newer is not None:
+            form.mark_conflict(newer.actor, newer.stream_version)
 
     def _mark_foreign(self, events: list[Event]) -> None:
         ids = touched_record_ids(events)
