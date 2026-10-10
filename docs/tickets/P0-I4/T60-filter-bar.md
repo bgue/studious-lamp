@@ -1,6 +1,6 @@
 # P0-I4-T60 — Filter bar widget
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: tui
 Depends on: — (the stub, the messages and `RecordGrid.apply_filter` are on the base branch)

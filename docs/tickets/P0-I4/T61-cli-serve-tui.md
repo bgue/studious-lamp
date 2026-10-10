@@ -1,6 +1,6 @@
 # P0-I4-T61 — `tl serve` and `tl tui`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: cli
 Depends on: — (`tl_tui.main.run` and `tl_api.main.main` are on the base branch; `main.py` already registers both commands)

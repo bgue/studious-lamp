@@ -1,6 +1,6 @@
 # P0-I4-T62 — Record view "updated by" line
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: tui
 Depends on: —

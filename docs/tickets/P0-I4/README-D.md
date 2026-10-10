@@ -1,6 +1,6 @@
 # Increment plan — P0-I4 workstream D: Live TUI
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-10
 Brief sections: §4 (embedded vs remote client), §5.3, §7.5, §10.2, §10.3
 Branch: `p0/i4d` (integration branch `p0/i4`; trunk `claude/wizardly-allen-m2v96s`). Ticket branches `p0/i4d-t<nn>-<slug>`. Fanout: `docs/tickets/P0-I4/FANOUT.md`; the API it consumes: `README-C.md`; the query language and change feed: `README-A.md`.
@@ -42,21 +42,21 @@ Messages (`tl_tui.messages`): `LiveEvents`, `ConnectionChanged`, `FilterSubmitte
 | S23 | Review fixes: feed hand-off, own-write ordering, ledger reset, mark retention, interactive timeout, token help | Concurrency findings of the fresh review | Orchestrator (re-review of the first two) | built; 8 + 3 + 1 tests, mutation-checked |
 | S20 | Conflict detection: `detect_conflict` (a record-stream event past the version the form opened at) | Defines when a save is blocked | Orchestrator | rule built and tested; screen wiring in round 2 |
 | S21 | Grid filter (`apply_filter`, `FilterResult`), `tl_tui.main` (`make_app`, `run`, `--remote`) | Ties the query contract to the grid | — | built; 5 tests |
-| S22 | App wiring of the filter bar (`/`), "updated by" line and edit-form conflict; demo `dev/demos/P0-I4.sh`; READMEs, AGENTS.md, runbook; learnings; report `docs/reports/P0-I4.md` | Closing work | — | round 2 |
+| S24 | App wiring of the filter bar (`/`), "updated by" line and edit-form conflict (`detect_conflict`); demo `dev/demos/P0-I4.sh`; READMEs, AGENTS.md, runbook; report `docs/reports/P0-I4.md` | Closing work | — | built; 14 tests, mutation-checked |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| P0-I4-T60 | Filter bar widget (12 provided tests) | H | S21 | ready | — |
-| P0-I4-T61 | `tl serve` and `tl tui` (8 provided tests) | H | S21 | ready | — |
-| P0-I4-T62 | Record view "updated by" line (5 provided tests) | H | S20 | ready | — |
-| P0-I4-T63 | Edit form conflict banner (5 provided tests) | H | S20 | ready | — |
+| P0-I4-T60 | Filter bar widget (12 provided tests) | H | S21 | merged | pass, 1 round (reported blocked by the supervisor's flaky outage test, see S23; its own tests and `just check` were clean) |
+| P0-I4-T61 | `tl serve` and `tl tui` (8 provided tests) | H | S21 | merged | pass, 1 round; the supervisor changed the `--token` help text afterwards (review ruling 6) |
+| P0-I4-T62 | Record view "updated by" line (5 provided tests) | H | S20 | merged | pass, 1 round |
+| P0-I4-T63 | Edit form conflict banner (5 provided tests) | H | S20 | merged | pass, 1 round |
 
 Haiku-ability (`01-tiers.md` §6), all four: (1) three or four files to read; (2) the stubs, the messages, `FilterResult` and `tl_tui.main.run` are in the repository; (3) each ships a provided test (12, 8, 5, 5 tests) verified against a scratch reference (kept in `/home/user/wt/p0-i4d-refs/` until the tickets merge) with `ruff` and `pyright` clean; (4) diffs of 20 to 90 lines plus the copied test; (5) none is in the Sonnet-authored table (a widget, two thin CLI commands, two small additions to existing widgets); (6) no schema, migration, dependency or public-interface change (the workspace dependency lines are committed on the base); (7) a reviewer verifies from the diff and the commands.
 
 ## Order of work
 1. Round 1 (done): plan, S20 and S21, stubs, provided tests and tickets T60 to T63.
-2. Round 2: merge batch 1; wire the filter bar, the "updated by" line and the conflict banner into `TlApp` with tests; snapshot tests; `dev/demos/P0-I4.sh`; READMEs, AGENTS.md, runbook; learnings; run `just check`, `just test`, `just test-tui`, `just demo P0-I4`; report.
+2. Round 2 (done): review fixes S23; merge batch 1; wire the filter bar, the "updated by" line and the conflict banner into `TlApp` with tests; `dev/demos/P0-I4.sh`; READMEs, AGENTS.md, runbook; gates; report.
 
 ## Design decisions taken by the supervisor (within the plan's scope)
 | # | Decision | Why |

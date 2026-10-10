@@ -1,6 +1,6 @@
 # P0-I4-T63 — Edit form conflict banner
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: tui
 Depends on: —
