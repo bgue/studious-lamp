@@ -60,8 +60,13 @@ from tl_core.services.workflow import (
     handle_transition_workflow,
     workflow_status,
 )
+from tl_core.settings import history as settings_history
+from tl_core.settings import lock_setting as lock_in_force
+from tl_core.settings import reset_setting as reset_in_force
+from tl_core.settings import revert_setting as revert_in_force
+from tl_core.settings import set_setting as set_in_force
 from tl_core.settings.types import SettingChange
-from tl_core.settings.views import SettingView
+from tl_core.settings.views import SettingView, get_view, list_views, view_at
 from tl_core.uow import UnitOfWork
 from tl_schema.forms import ConformanceReport, FormMetadata
 
@@ -363,28 +368,25 @@ class EmbeddedClient:
         prefix: str | None = None,
         modified_only: bool = False,
     ) -> list[SettingView]:
-        """STUB (P0-I8-T09): remove this paragraph when you implement the body.
-
-        ``list_views(uow.conn(), project=, user=, prefix=, modified_only=)`` in a
+        """``list_views(uow.conn(), project=, user=, prefix=, modified_only=)`` in a
         read-only unit of work.
         """
-        raise NotImplementedError("STUB: P0-I8-T09")
+        with self._uow(True) as uow:
+            return list_views(
+                uow.conn(), project=project, user=user, prefix=prefix, modified_only=modified_only
+            )
 
     def get_setting(
         self, key: str, *, project: str | None = None, user: str | None = None
     ) -> SettingView:
-        """STUB (P0-I8-T09): remove this paragraph when you implement the body.
-
-        ``get_view(uow.conn(), key, project=, user=)`` in a read-only unit of work.
-        """
-        raise NotImplementedError("STUB: P0-I8-T09")
+        """``get_view(uow.conn(), key, project=, user=)`` in a read-only unit of work."""
+        with self._uow(True) as uow:
+            return get_view(uow.conn(), key, project=project, user=user)
 
     def setting_history(self, key: str, *, layer: str | None = None) -> list[SettingChange]:
-        """STUB (P0-I8-T09): remove this paragraph when you implement the body.
-
-        ``settings_history(uow.conn(), key, layer=layer)`` in a read-only unit of work.
-        """
-        raise NotImplementedError("STUB: P0-I8-T09")
+        """``settings_history(uow.conn(), key, layer=layer)`` in a read-only unit of work."""
+        with self._uow(True) as uow:
+            return settings_history(uow.conn(), key, layer=layer)
 
     def set_setting(
         self,
@@ -396,13 +398,23 @@ class EmbeddedClient:
         accept_risk: bool = False,
         applies_at: datetime | None = None,
     ) -> SettingView:
-        """STUB (P0-I8-T09): remove this paragraph when you implement the body.
-
-        One writable unit of work: ``set_in_force(uow, key=, layer=, value=,
+        """One writable unit of work: ``set_in_force(uow, key=, layer=, value=,
         actor=self.actor, source=SOURCE, reason=, accept_risk=, applies_at=)``, then
         ``view_at(uow.conn(), key, layer)`` (still inside the unit of work) is the answer.
         """
-        raise NotImplementedError("STUB: P0-I8-T09")
+        with self._uow(False) as uow:
+            set_in_force(
+                uow,
+                key=key,
+                layer=layer,
+                value=value,
+                actor=self.actor,
+                source=SOURCE,
+                reason=reason,
+                accept_risk=accept_risk,
+                applies_at=applies_at,
+            )
+            return view_at(uow.conn(), key, layer)
 
     def reset_setting(
         self,
@@ -413,11 +425,19 @@ class EmbeddedClient:
         accept_risk: bool = False,
         applies_at: datetime | None = None,
     ) -> SettingView:
-        """STUB (P0-I8-T09): remove this paragraph when you implement the body.
-
-        As ``set_setting`` with ``reset_in_force`` (no value).
-        """
-        raise NotImplementedError("STUB: P0-I8-T09")
+        """As ``set_setting`` with ``reset_in_force`` (no value)."""
+        with self._uow(False) as uow:
+            reset_in_force(
+                uow,
+                key=key,
+                layer=layer,
+                actor=self.actor,
+                source=SOURCE,
+                reason=reason,
+                accept_risk=accept_risk,
+                applies_at=applies_at,
+            )
+            return view_at(uow.conn(), key, layer)
 
     def lock_setting(
         self,
@@ -427,12 +447,20 @@ class EmbeddedClient:
         reason: str,
         bounds: dict[str, Any] | None = None,
     ) -> SettingView:
-        """STUB (P0-I8-T09): remove this paragraph when you implement the body.
-
-        As ``set_setting`` with ``lock_in_force(uow, key=, locked=, bounds=, actor=,
+        """As ``set_setting`` with ``lock_in_force(uow, key=, locked=, bounds=, actor=,
         source=, reason=)``; the answer is ``view_at(uow.conn(), key, "company")``.
         """
-        raise NotImplementedError("STUB: P0-I8-T09")
+        with self._uow(False) as uow:
+            lock_in_force(
+                uow,
+                key=key,
+                locked=locked,
+                bounds=bounds,
+                actor=self.actor,
+                source=SOURCE,
+                reason=reason,
+            )
+            return view_at(uow.conn(), key, "company")
 
     def revert_setting(
         self,
@@ -443,9 +471,18 @@ class EmbeddedClient:
         reason: str | None = None,
         accept_risk: bool = False,
     ) -> SettingView:
-        """STUB (P0-I8-T09): remove this paragraph when you implement the body.
-
-        As ``set_setting`` with ``revert_in_force(uow, key=, layer=, seq=, actor=,
+        """As ``set_setting`` with ``revert_in_force(uow, key=, layer=, seq=, actor=,
         source=, reason=, accept_risk=)``.
         """
-        raise NotImplementedError("STUB: P0-I8-T09")
+        with self._uow(False) as uow:
+            revert_in_force(
+                uow,
+                key=key,
+                layer=layer,
+                seq=seq,
+                actor=self.actor,
+                source=SOURCE,
+                reason=reason,
+                accept_risk=accept_risk,
+            )
+            return view_at(uow.conn(), key, layer)
