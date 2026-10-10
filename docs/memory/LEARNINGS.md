@@ -449,3 +449,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   with `include_in_schema=False`) so no default route sits outside the token. A streaming response releases its resources in the response
   object (`SlotResponse.__call__`), not in the generator: a generator the server never starts never runs its `finally`.
   Evidence: `test_authentication_comes_before_the_body_is_read`, `test_the_slot_is_released_even_when_the_response_never_starts`; each fails when its fix is removed. Status: active
+
+- **L-P0-I4-C8** · 2026-10-09 · tags: process, tests
+  Making a stub ticket from a finished reference is mechanical: copy the reference outside the repo, replace every function body with
+  `raise NotImplementedError("STUB (<ticket>)")` using `ast` line numbers (`/home/user/wt/p0-i4c-refs/stubify.py`), let `ruff check --fix`
+  drop the imports the stub no longer uses, then diff the import lines of stub and reference: that diff is the "imports to add" list the
+  ticket must carry (without it an implementer meets `F401`/`F821` and guesses). Run the OpenAPI check before committing the stubs: the
+  `EventPage` docstring I added while moving it changed the committed document and I had committed it red once.
+  Evidence: S9/S10 commits; ticket texts T43, T46-T48. Status: active

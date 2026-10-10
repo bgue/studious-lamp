@@ -113,21 +113,21 @@ starlette, httpx2, httpcore2, sse-starlette, click, idna), Apache-2.0 (opentelem
 | S2 | `app.py` (factory, handlers, lifespan, insecure-dev warning), `openapi.py` and the `just check` drift gate, `main.py` and `just serve` | Wires every route to auth and the error table | Orchestrator | built |
 | S3 | `feed.py` (hub, SSE framing, catch-up then live, overflow resume, stream cap), `routes/events.py` | Delivery ordering and concurrency (L-P0-I1-9, L-P0-I4-A2) | Orchestrator | built; 14 tests incl. resume, poller, backlog paging |
 | S4 | `commands.py` (command table and generated routes), `routes/files.py` (upload flow, download headers, quarantine rule) | Security surface (O2) and the contract with the services | Orchestrator | built; 34 tests |
-| S5 | `tl_api.client.base` (transport, auth header, error mapping, command helper) | Error contract on the client side | Orchestrator | round 2 |
-| S6 | `tl_mcp` server skeleton: `build_server(backend, actor)`, context, error mapping, in-process test helper | Identity on MCP (actor from the command line) | Orchestrator | round 2 |
+| S5 | `tl_api.client.base` (transport, auth header, error mapping, command helper), the `ApiClient` assembly | Error contract on the client side | Orchestrator | built; method groups are T46–T48 |
+| S6 | `tl_mcp` server: `build_server(factory, actor=...)`, tool schemas, authorise hook, error mapping, `python -m tl_mcp`, test harness | Identity on MCP (actor from the command line) and the error contract | Orchestrator | built; 7 tests |
 | S7 | Demo `dev/demos/P0-I4-C.sh`, READMEs, AGENTS, report | Closing work | — | round 3 |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| P0-I4-T40 | Record read routes (14 provided tests) | H | S2 | ready | |
-| P0-I4-T41 | Link read routes (9 provided tests) | H | S2 | ready | |
-| P0-I4-T42 | Reference read routes (9 provided tests) | H | S2 | ready | |
-| P0-I4-T45 | `tl dev token add` (6 provided tests) | H | S1 | ready | |
-| P0-I4-T43 | MCP read tools and resources | H | S6 | planned (batch 2) | |
-| P0-I4-T46 | HTTP client: records, queries and commands | H | S5, T40 | planned (batch 2) | |
-| P0-I4-T47 | HTTP client: links, workflow, schema and reference | H | S5, T41, T42 | planned (batch 2) | |
-| P0-I4-T48 | HTTP client: files and events (SSE with resume) | H | S5 | planned (batch 2) | |
+| P0-I4-T40 | Record read routes (14 provided tests) | H | S2 | merged | pass, 1 round (implementer passed `core.hooksPath=/dev/null` to one commit; no hooks are installed, so nothing was skipped) |
+| P0-I4-T41 | Link read routes (9 provided tests) | H | S2 | merged | pass, 1 round |
+| P0-I4-T42 | Reference read routes (9 provided tests) | H | S2 | merged | pass, 1 round |
+| P0-I4-T45 | `tl dev token add` (6 provided tests) | H | S1 | merged | pass, 1 round |
+| P0-I4-T43 | MCP read tool and resource bodies (14 provided tests) | H | S6 | ready (batch 2) | |
+| P0-I4-T46 | HTTP client: records, queries and commands (11 provided tests) | H | S5, T40 | ready (batch 2) | |
+| P0-I4-T47 | HTTP client: links, workflow, schema and reference (10 provided tests) | H | S5, T41, T42 | ready (batch 2) | |
+| P0-I4-T48 | HTTP client: files and events, SSE with resume (7 + 8 provided tests) | H | S5 | ready (batch 2) | |
 
 Haiku-ability (`01-tiers.md` §6), batch 1: (1) three or four files to read; (2) the stubs, the harness and every service signature are in the
 repository; (3) each ships a provided test (14, 9, 9 and 6 tests) verified against a scratch reference with `ruff`, `pyright` and the OpenAPI
@@ -136,8 +136,8 @@ calls one function; identity and the error table are supervisor-built); (6) no s
 dependency edits and the OpenAPI document are committed on the base); (7) a reviewer verifies from the diff and the commands.
 
 ## Order of work
-1. Round 1 (done): dependencies and licence scan, S1–S4, stubs and provided tests, tickets T40, T41, T42, T45. Dispatch them.
-2. Round 2: merge batch 1; S5 and S6; provided tests for T43, T46–T48; dispatch.
+1. Round 1 (done): dependencies and licence scan, S1–S4, stubs and provided tests, tickets T40, T41, T42, T45. Dispatched and merged (review pass).
+2. Round 2 (this relay): S5 and S6; stubs, provided tests and tickets for T43, T46, T47, T48; dispatch.
 3. Round 3: merge batch 2; ApiClient assembly and a round-trip test through the whole `ClientInterface`; demo, READMEs, AGENTS, runbook, report; publish the final client signatures here; DONE.
 
 ## Design decisions taken by the supervisor (within the plan's scope)
