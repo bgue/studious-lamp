@@ -135,8 +135,11 @@ def sync_lines(db: Path, root: Path, actor: str) -> list[str]:
 
     ``root`` must be a directory (``_fail`` with ``no such directory: <root>`` otherwise). Call
     ``registry.sync(_factory(db), root, actor=actor, source="cli")`` inside ``_service_errors``.
-    For each returned view, in order: ``registered <type_ref>`` when its status is ``active``;
-    otherwise ``quarantined <type_ref>`` followed by ``issue_line`` for each issue of that
+    For each returned view, in order: ``registered <type_ref>`` when its status is ``active`` and
+    nothing was refused; ``conflict <type_ref> (kept <12 characters of the registered hash>)``
+    followed by ``issue_line`` for each issue when the version is registered but its files changed
+    (its entry in ``list_quarantined`` has a ``registered_hash``); otherwise ``quarantined
+    <type_ref>`` followed by ``issue_line`` for each issue of that
     version's entry in ``registry.list_quarantined`` (read in a read-only unit of work). When
     nothing changed the only line is ``up to date (<n> packages)``, ``n = len(scan(root))``.
     """
@@ -151,11 +154,14 @@ def sync_lines(db: Path, root: Path, actor: str) -> list[str]:
     lines: list[str] = []
     for view in views:
         ref = view.registration.type_ref
-        if view.registration.status == "active":
+        entry = entries.get(ref)
+        if entry is not None and entry.registered_hash is not None:
+            lines.append(f"conflict {ref} (kept {entry.registered_hash[:12]})")
+        elif view.registration.status == "active":
             lines.append(f"registered {ref}")
             continue
-        lines.append(f"quarantined {ref}")
-        entry = entries.get(ref)
+        else:
+            lines.append(f"quarantined {ref}")
         if entry is not None:
             lines.extend(issue_line(issue) for issue in entry.report)
     return lines
