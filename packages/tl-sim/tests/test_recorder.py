@@ -92,3 +92,29 @@ def test_a_base_actor_derives_its_identity_from_its_name() -> None:
         name = "planner"
 
     assert Noisy(None).identity == "user:sim-planner"
+
+
+def test_only_a_duplicate_link_refusal_is_shrugged_off_any_other_is_raised(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tl_sim.mcp_caller import ProposalRefusedError
+    from tl_sim.testing import FakeClient
+
+    world = FakeWorld("r1", "project:sim-r1")
+    rec = Recorder(make_context(world, "agent:sim-assistant", propose=True), "agent:sim-assistant")
+
+    def refuse(text: str):
+        def propose(self: FakeClient, tool: str, arguments: dict[str, object]) -> dict[str, object]:
+            raise ProposalRefusedError(text)
+
+        return propose
+
+    monkeypatch.setattr(
+        FakeClient, "propose", refuse("a references link already exists between these records")
+    )
+    assert rec.propose("link_records", {}) is None and rec.truth == []
+    for budget in ("agent:sim-assistant has used its 500 proposals today", "no record 'K'"):
+        monkeypatch.setattr(FakeClient, "propose", refuse(budget))
+        with pytest.raises(ProposalRefusedError):
+            rec.propose("link_records", {})
+    assert rec.truth == []

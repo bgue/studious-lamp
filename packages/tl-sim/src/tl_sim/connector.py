@@ -21,6 +21,8 @@ from tl_sim.clock import SimClock
 from tl_sim.mcp_caller import stdio_caller
 from tl_sim.orchestrator import ASSISTANT, ORCHESTRATOR
 from tl_sim.reader import HttpReader, SimReader
+from tl_sim.scenario import Scenario
+from tl_sim.state import RunError
 from tl_sim.types import SimClient
 
 
@@ -43,6 +45,16 @@ class HttpConnector:
     @property
     def scope(self) -> str:
         return f"project:sim-{self.run_id}"
+
+    def check(self, scenario: Scenario) -> None:
+        """The agent's MCP server opens the ledger file; without it nothing could be proposed."""
+        if scenario.actors.assistant is None or self._mcp is not None:
+            return
+        if self.db_path is None or not self.db_path.is_file():
+            raise RunError(
+                f"the scenario has an assistant (an agent that proposes over MCP) but there is "
+                f"no ledger file at {self.db_path}; run `tl init`, or set TL_DB or `tl --db`"
+            )
 
     def provision(self, identities: Sequence[str]) -> dict[str, str]:
         return {identity: add_token(self.tokens_path, identity) for identity in identities}

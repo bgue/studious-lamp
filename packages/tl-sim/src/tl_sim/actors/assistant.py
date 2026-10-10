@@ -7,10 +7,13 @@ working day (``act``), in this order, drawing from ``ctx.rng`` only where stated
 1. Draw ``n = draw(params.proposals_per_day, ctx.rng)``. If ``n`` is 0, stop.
 2. Read the valves (title starts ``Valve ``) and the documents (title starts ``Doc ``) in key
    order. Without both, stop.
-3. For each of the ``n`` proposals draw ``ctx.rng.choice(valves)`` and ``ctx.rng.choice(documents)``
-   and propose ``link_records`` with ``scope``, ``from_record`` the valve key, ``to_record`` the
-   document key, ``relation`` ``references`` and ``note`` ``Valve data sheet reference``. When the
-   server refuses (the link already exists) nothing is recorded and the day goes on.
+3. Draw ``k = min(n, len(valves) * len(documents))`` distinct pairs with
+   ``ctx.rng.sample(range(len(valves) * len(documents)), k)`` (pair ``i`` is valve
+   ``i // len(documents)`` and document ``i % len(documents)``, so a day never proposes the same
+   pair twice). For each pair, in the order drawn, propose ``link_records`` with ``scope``,
+   ``from_record`` the valve key, ``to_record`` the document key, ``relation`` ``references`` and
+   ``note`` ``Valve data sheet reference``. When the server refuses because the link already
+   exists, nothing is recorded and the day goes on; any other refusal is raised.
 """
 
 from __future__ import annotations
@@ -37,9 +40,11 @@ class Assistant(BaseActor):
         documents = rec.records(title_prefix="Doc ")
         if not valves or not documents:
             return
-        for _ in range(count):
-            valve = ctx.rng.choice(valves)
-            document = ctx.rng.choice(documents)
+        pairs = ctx.rng.sample(
+            range(len(valves) * len(documents)), min(count, len(valves) * len(documents))
+        )
+        for index in pairs:
+            valve, document = valves[index // len(documents)], documents[index % len(documents)]
             rec.propose(
                 "link_records",
                 {

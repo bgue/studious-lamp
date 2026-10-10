@@ -12,7 +12,7 @@ from typing import Any, Protocol, cast
 from tl_api.client import ApiClient
 
 PAGE = 500  # the event pager's limit
-PROPOSAL_PAGE = 200  # the proposals route's limit
+PROPOSAL_PAGE = 500  # the proposals route's maximum (`le=500`); a run beyond it needs paging
 FEED_PAGE = 200  # the feed route's limit (GET /feed answers 422 above it)
 
 
