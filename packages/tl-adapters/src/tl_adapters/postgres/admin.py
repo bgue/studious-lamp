@@ -7,6 +7,7 @@ schema the connection's ``search_path`` names.
 
 from __future__ import annotations
 
+import os
 import re
 import time
 import uuid
@@ -21,7 +22,7 @@ DEFAULT_URL = "postgresql://postgres:postgres@localhost:5432/tl_test"
 """The dev cluster of ADR-0002; ``TL_PG_URL`` overrides it."""
 
 TEST_DATABASE_PREFIX = "tl_pytest_"
-_TEST_DATABASE = re.compile(r"^tl_pytest_(?:icu_)?([0-9a-f]{8})_[0-9a-f]{6}$")
+_TEST_DATABASE = re.compile(r"^tl_pytest_(?:icu_)?([0-9a-f]{8})_(\d+)_[0-9a-f]{6}$")
 _SCHEMA_NAME = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 
 
@@ -108,18 +109,32 @@ def drop_database(url: str, database: str) -> None:
 def test_database_name(kind: str = "") -> str:
     """A unique throw-away database name that records its creation time.
 
-    ``tl_pytest_<unix time, 8 hex>_<6 hex>``, or ``tl_pytest_icu_...`` for ``kind="icu"``. The time
-    lets :func:`sweep_stale_databases` tell a crashed session's leftovers from a live one.
+    ``tl_pytest_<unix time, 8 hex>_<pid>_<6 hex>``, or ``tl_pytest_icu_...`` for ``kind="icu"``. The
+    time and the creating process id let :func:`sweep_stale_databases` tell a crashed session's
+    leftovers from a live one, even when that session holds no connection at the moment.
     """
     middle = f"{kind}_" if kind else ""
-    return f"{TEST_DATABASE_PREFIX}{middle}{int(time.time()):08x}_{uuid.uuid4().hex[:6]}"
+    stamp = f"{int(time.time()):08x}_{os.getpid()}_{uuid.uuid4().hex[:6]}"
+    return f"{TEST_DATABASE_PREFIX}{middle}{stamp}"
+
+
+def _process_alive(pid: int) -> bool:
+    """True when ``pid`` is a running process on this host (a signal-0 probe)."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
 
 
 def sweep_stale_databases(url: str, *, older_than_s: float = 3 * 3600) -> list[str]:
     """Drop test databases left behind by crashed sessions; return their names.
 
-    Only names made by :func:`test_database_name`, created more than ``older_than_s`` ago, and with
-    no connection open are dropped, so another session's live database is never touched.
+    Only names made by :func:`test_database_name`, created more than ``older_than_s`` ago, with no
+    connection open, and whose creating process (the pid in the name) is no longer running on this
+    host are dropped, so another session's live database is never touched.
     """
     engine = create_engine(sqlalchemy_url(url), poolclass=NullPool, isolation_level="AUTOCOMMIT")
     dropped: list[str] = []
@@ -137,6 +152,8 @@ def sweep_stale_databases(url: str, *, older_than_s: float = 3 * 3600) -> list[s
                 if match is None or backends != 0:
                     continue
                 if time.time() - int(match.group(1), 16) < older_than_s:
+                    continue
+                if _process_alive(int(match.group(2))):
                     continue
                 conn.exec_driver_sql(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
                 dropped.append(str(name))

@@ -157,7 +157,8 @@ def typed_columns(value: Any) -> dict[str, Any]:
     if isinstance(value, bool):
         columns.update(value_type="boolean", value_bool=value)
     elif isinstance(value, (int, float)):
-        columns.update(value_type="number", value_num=float(value))
+        # `+ 0.0` turns a negative zero into 0.0, so both adapters store the same number
+        columns.update(value_type="number", value_num=float(value) + 0.0)
     elif isinstance(value, str):
         columns.update(value_type="string", value_text=value)
     else:

@@ -54,7 +54,8 @@ Local Postgres: `docs/runbooks/postgres-local-setup.md`.
 - Writers queue on one advisory lock (like SQLite's write lock) and fail with a lock timeout after 10 s; readers never wait; `seq` has no gaps.
 - Rows come back SQLite-shaped (canonical JSON text, ISO UTC timestamps, 0/1 booleans). Text columns are byte-ordered (`COLLATE "C"`).
 - `LOWER()` folds ASCII letters only on both adapters (generated Postgres `TEXT` columns are `COLLATE "C"`), so case-insensitive matching of `É` against `é` fails identically on both; `tests/parity/test_text_folding.py` pins it.
-- Edge cases of Postgres JSON columns (`cur_*` tables; ledger payloads are TEXT and unaffected): a float of 1e16 or more is stored as a whole number and reads back as an integer, `-0.0` reads back as `0.0`, and a NUL character in a string is rejected (SQLite accepts it).
+- Edge cases of Postgres JSON columns (`cur_*` tables; ledger payloads are TEXT and unaffected): a float of 1e16 or more is stored as a whole number and reads back as an integer, `-0.0` reads back as `0.0`, and a NUL character in a string is rejected (SQLite accepts it). A pset number (`cur_pset_values.value_num`) is normalised by the projector, so `-0.0` is stored as `0.0` on both adapters (`tests/parity/test_negative_zero.py`).
+- Errors: a busy write lock raises `LockTimeoutError`; a deadlock or serialization failure raises `RetryableTransactionError` (`LockTimeoutError` is one); nothing was written in either case and the command may be run again.
 - Not done yet: the `tl` CLI, TUI and API still open SQLite paths; `tl migrate` is filed as `docs/tickets/P0-I5/T99-migrate-sqlite-to-postgres.md` (needs a human).
 
 ## Rules specific to this package

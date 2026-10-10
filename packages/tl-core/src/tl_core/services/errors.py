@@ -7,9 +7,15 @@ class ServiceError(Exception):
     """Base class for expected, user-correctable command failures."""
 
 
-class LockTimeoutError(
-    ServiceError
-): ...  # the write lock was not free in time; nothing was written, retry
+class RetryableTransactionError(ServiceError):
+    """The database rolled the transaction back (deadlock, serialization failure, busy lock).
+
+    Nothing was written; running the command again may succeed.
+    """
+
+
+class LockTimeoutError(RetryableTransactionError):
+    """The write lock was not free in time; nothing was written, retry."""
 
 
 class KeyRequiredError(ServiceError): ...  # CreateRecord without a key

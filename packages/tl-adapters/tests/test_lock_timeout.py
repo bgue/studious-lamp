@@ -11,7 +11,7 @@ from tl_adapters._unit import BaseUnitOfWork
 from tl_adapters.db import DbTarget, create_schema, make_engine, make_ledger, write_tx
 from tl_adapters.postgres import engine as pg_engine
 from tl_core.projection.defaults import default_registry
-from tl_core.services.errors import LockTimeoutError
+from tl_core.services.errors import LockTimeoutError, RetryableTransactionError
 
 
 def test_a_busy_write_lock_raises_lock_timeout_and_the_unit_of_work_stays_usable(
@@ -35,8 +35,9 @@ def test_a_busy_write_lock_raises_lock_timeout_and_the_unit_of_work_stays_usable
         with write_tx(engine):  # another writer holds the lock
             with pytest.raises(LockTimeoutError):
                 uow.__enter__()
-            with pytest.raises(LockTimeoutError), write_tx(engine):
+            with pytest.raises(RetryableTransactionError) as raised, write_tx(engine):
                 pass
+            assert isinstance(raised.value, LockTimeoutError)  # a retryable kind of error
         with uow:  # the failed enter left the unit of work reusable
             assert uow.conn() is not None
     finally:

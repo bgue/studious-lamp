@@ -18,6 +18,7 @@ import uuid
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import FrameType
 
 import pytest
 from sqlalchemy import Engine
@@ -93,8 +94,11 @@ def pg_base_url() -> Iterator[str | None]:
     atexit.register(drop)
     previous = signal.getsignal(signal.SIGTERM)
 
-    def on_sigterm(signum: int, frame: object) -> None:
+    def on_sigterm(signum: int, frame: FrameType | None) -> None:
         drop()
+        if callable(previous) and previous not in (signal.SIG_DFL, signal.SIG_IGN):
+            previous(signum, frame)  # whoever handled SIGTERM before us still gets it
+            return
         signal.signal(signal.SIGTERM, signal.SIG_DFL)
         os.kill(os.getpid(), signal.SIGTERM)
 

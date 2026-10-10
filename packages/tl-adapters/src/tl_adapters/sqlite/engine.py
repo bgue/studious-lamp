@@ -9,13 +9,14 @@ writer.
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
 from sqlalchemy import Connection, Engine, create_engine, event
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.engine import ExceptionContext
 from tl_core.services.errors import LockTimeoutError
 
 WRITE_OPTION = "tl_write"
@@ -40,6 +41,16 @@ def make_engine(path: str | Path) -> Engine:
         mode = "IMMEDIATE" if conn.get_execution_options().get(WRITE_OPTION) else "DEFERRED"
         conn.exec_driver_sql(f"BEGIN {mode}")
 
+    @event.listens_for(engine, "handle_error")
+    def _classify(context: ExceptionContext) -> Exception | None:
+        # SQLITE_BUSY / SQLITE_LOCKED after the busy timeout: nothing was written; retry.
+        message = str(context.original_exception).lower()
+        if isinstance(context.original_exception, sqlite3.OperationalError) and (
+            "database is locked" in message or "database table is locked" in message
+        ):
+            return LockTimeoutError("the ledger write lock was busy; retry")
+        return None
+
     return engine
 
 
@@ -55,15 +66,8 @@ def write_tx(engine: Engine) -> Generator[Connection]:
     Waiting longer than the busy timeout for the write lock raises ``LockTimeoutError`` (nothing
     was written; retry), the same error the Postgres adapter raises.
     """
-    with engine.connect().execution_options(**{WRITE_OPTION: True}) as conn:
-        try:
-            transaction = conn.begin()  # BEGIN IMMEDIATE runs here
-        except OperationalError as exc:
-            if "locked" in str(exc.orig).lower():
-                raise LockTimeoutError("the ledger write lock was busy; retry") from exc
-            raise
-        with transaction:
-            yield conn
+    with engine.connect().execution_options(**{WRITE_OPTION: True}) as conn, conn.begin():
+        yield conn
 
 
 @contextmanager

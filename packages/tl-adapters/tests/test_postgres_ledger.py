@@ -442,3 +442,33 @@ def test_a_listener_reconnects_after_its_backend_is_killed(pg_db: str, engine: E
         wake.clear()
         append(ledger, "after", 0, "company")
         assert wake.wait(WAIT)
+
+
+def test_a_deadlock_is_reported_as_a_retryable_error_and_the_other_side_commits(
+    engine: Engine,
+) -> None:
+    """Two transactions lock two rows in opposite orders: Postgres aborts one (40P01)."""
+    from tl_core.services.errors import RetryableTransactionError
+
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE dl (id int PRIMARY KEY)"))
+        conn.execute(text("INSERT INTO dl VALUES (1), (2)"))
+    barrier = threading.Barrier(2, timeout=WAIT)
+    outcomes: list[str] = []
+
+    def cross(first: int, second: int) -> None:
+        try:
+            with engine.begin() as conn:  # plain transactions: write_tx would serialise them
+                conn.execute(text("SELECT id FROM dl WHERE id = :i FOR UPDATE"), {"i": first})
+                barrier.wait()
+                conn.execute(text("SELECT id FROM dl WHERE id = :i FOR UPDATE"), {"i": second})
+            outcomes.append("committed")
+        except RetryableTransactionError:
+            outcomes.append("retryable")
+
+    threads = [threading.Thread(target=cross, args=pair) for pair in ((1, 2), (2, 1))]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(WAIT * 2)
+    assert sorted(outcomes) == ["committed", "retryable"]
