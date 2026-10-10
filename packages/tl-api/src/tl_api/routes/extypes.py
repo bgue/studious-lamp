@@ -24,8 +24,15 @@ from pydantic import BaseModel, ConfigDict, Field
 from tl_core.extypes import body as bodies
 from tl_core.extypes import registry
 from tl_core.extypes.errors import BodyNotFoundError
-from tl_core.extypes.service import BodyView, TypeDetail, TypeSummary, summarise, type_detail
-from tl_core.extypes.types import BodyPointer, TypeStatus
+from tl_core.extypes.service import (
+    BodyStoredOut,
+    BodyView,
+    TypeDetail,
+    TypeSummary,
+    summarise,
+    type_detail,
+)
+from tl_core.extypes.types import TypeStatus
 from tl_core.files.types import ObjectStore
 from tl_core.services import queries
 from tl_core.services.commands import CommandResult, CreateRecord
@@ -52,11 +59,6 @@ class PutBodyIn(BaseModel):
     expected_version: int | None = Field(
         default=None, ge=1, description="The record version the editor saw; a newer one is a 409."
     )
-
-
-class BodyStoredOut(BaseModel):
-    pointer: BodyPointer
-    version: int
 
 
 class CreateInstanceIn(BaseModel):

@@ -174,6 +174,13 @@ def summarise(view: TypeView) -> TypeSummary:
     )
 
 
+class BodyStoredOut(BaseModel):
+    """What storing a body answers: its pointer, and the record's version after the write."""
+
+    pointer: BodyPointer
+    version: int
+
+
 class BodyView(BaseModel):
     """A verified body with the pointer it was verified against."""
 

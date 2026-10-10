@@ -20,6 +20,7 @@ from tl_cli import (
     dev,
     events,
     extypes,
+    extypes_quarantine,
     feed,
     file,
     lake,
@@ -51,6 +52,7 @@ app.add_typer(link.app, name="link")
 app.add_typer(feed.app, name="feed")
 app.add_typer(proposal.app, name="proposal")
 app.add_typer(extypes.app, name="types")
+extypes.app.add_typer(extypes_quarantine.app, name="quarantine")
 app.add_typer(lake.app, name="lake")
 app.add_typer(dev.app, name="dev")
 app.add_typer(webhook.app, name="webhook")

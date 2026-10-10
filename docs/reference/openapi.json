@@ -334,6 +334,7 @@
         "type": "object"
       },
       "BodyStoredOut": {
+        "description": "What storing a body answers: its pointer, and the record's version after the write.",
         "properties": {
           "pointer": {
             "$ref": "#/components/schemas/BodyPointer"

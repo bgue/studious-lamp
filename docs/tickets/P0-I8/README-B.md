@@ -73,6 +73,9 @@ the record quarantined; `tl types quarantine ls` shows it; storing the body agai
 | P0-I8-T21 | API: `/types`, `/types/{ref}`, `POST /types/{name}/records`, `GET\|PUT /records/{id}/body` | haiku | S23, S24 | merged | pass, 1 round, no findings |
 | P0-I8-T22 | MCP: `list_record_types`, `get_record_type`, `get_record_body`, `tl://types` resources | haiku | S23, S24 | merged | implementation passed; provided test corrected by supervisor (pyright: `assert row is not None`) |
 
+| P0-I8-T23 | `ApiClient` type and body methods (9 provided tests) | haiku | T21 | ready | |
+| P0-I8-T26 | `tl types quarantine ls\|recheck` (8 provided tests) | haiku | S23, T20 | ready | |
+
 Later rounds (tickets written when their dependencies are merged): `ApiClient` and `RemoteClient` type and body methods; the `ClientInterface` growth and fakes (supervisor), then the TUI grid
 for a type and the generated form with `form.yaml` hints; `tl types quarantine ls\|recheck`; the runbook; cross-surface parity tests; the demo; and, once WS-A is merged, registering a
 package's `settings.yaml` through `tl_core.settings.register_definitions`.
