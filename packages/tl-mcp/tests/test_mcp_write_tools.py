@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_harness import ACTOR, SCOPE, McpHarness
+from mcp_types import CallToolResult
 from sqlalchemy import text
 from tl_api.auth import Forbidden
 from tl_core.proposals.types import ProposalView
