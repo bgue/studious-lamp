@@ -1,8 +1,5 @@
 """Filter bar: query-language text above the grid, with its result line (brief 10.2, P0-I4).
 
-STUB (P0-I4-T60): names, signatures and docstrings are final; the bodies raise
-``NotImplementedError``. Remove this paragraph when you implement it.
-
 The bar only collects text and shows a result. `Enter` posts `FilterSubmitted(text)`; `Esc` posts
 `FilterClosed`. The app sends the text to `RecordGrid.apply_filter` and hands the `FilterResult`
 back through `show_result`: a count, or the parser's message with a caret under the character it
@@ -13,11 +10,13 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+from rich.cells import cell_len
 from textual.app import ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Vertical
-from textual.widgets import Input
+from textual.widgets import Input, Static
 
+from tl_tui.messages import FilterClosed, FilterSubmitted
 from tl_tui.widgets.grid import FilterResult
 
 INPUT_OFFSET = 1  # cells between the bar's left edge and the first character of the text
@@ -26,12 +25,22 @@ PLACEHOLDER = "status:open  title~bevel  linked:NCR  psets.nde.method=RT   (Ente
 
 def result_line(result: FilterResult) -> str:
     """ "" for a cleared filter, "3 matches", or "✗ <message> (position n)"."""
-    raise NotImplementedError("STUB (P0-I4-T60)")
+    if not result.ok:
+        line = f"✗ {result.message}"
+        if result.position is not None:
+            line += f" (position {result.position})"
+        return line
+    if result.count is None:
+        return ""
+    return f"{result.count} match" if result.count == 1 else f"{result.count} matches"
 
 
 def caret_line(text: str, position: int | None) -> str:
     """Spaces up to the column of ``text[position]`` in the input, then ``^``; "" without one."""
-    raise NotImplementedError("STUB (P0-I4-T60)")
+    if position is None:
+        return ""
+    position = min(max(position, 0), len(text))
+    return " " * (INPUT_OFFSET + cell_len(text[:position])) + "^"
 
 
 class FilterBar(Vertical):
@@ -52,30 +61,38 @@ class FilterBar(Vertical):
         self._text = ""
 
     def compose(self) -> ComposeResult:
-        raise NotImplementedError("STUB (P0-I4-T60)")
+        yield Input(value=self._text, placeholder=PLACEHOLDER, id="filter-input")
+        yield Static("", id="filter-result", markup=False)
+        yield Static("", id="filter-caret", markup=False)
 
     @property
     def value(self) -> str:
         """The text in the input."""
-        raise NotImplementedError("STUB (P0-I4-T60)")
+        return self.query_one("#filter-input", Input).value
 
     def set_text(self, text: str) -> None:
-        raise NotImplementedError("STUB (P0-I4-T60)")
+        self._text = text
+        if self.is_mounted:
+            self.query_one("#filter-input", Input).value = text
 
     def show_bar(self) -> None:
         """Show the bar and put the cursor in the input."""
-        raise NotImplementedError("STUB (P0-I4-T60)")
+        self.display = True
+        self.query_one("#filter-input", Input).focus()
 
     def hide_bar(self) -> None:
         """Hide the bar (the text and the last result stay for the next `show_bar`)."""
-        raise NotImplementedError("STUB (P0-I4-T60)")
+        self.display = False
 
     def show_result(self, result: FilterResult) -> None:
         """Show the count, or the error with a caret under the character the parser stopped at."""
-        raise NotImplementedError("STUB (P0-I4-T60)")
+        self.query_one("#filter-result", Static).update(result_line(result))
+        caret = "" if result.ok else caret_line(self.value, result.position)
+        self.query_one("#filter-caret", Static).update(caret)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        raise NotImplementedError("STUB (P0-I4-T60)")
+        event.stop()
+        self.post_message(FilterSubmitted(event.value))
 
     def action_close_bar(self) -> None:
-        raise NotImplementedError("STUB (P0-I4-T60)")
+        self.post_message(FilterClosed())
