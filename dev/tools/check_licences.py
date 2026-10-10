@@ -11,13 +11,11 @@ Rules (ADR-0006, decision 1 to 3):
   least one of them is permissive.
 * MPL-2.0 is allowed only for the distributions in ``MPL_ALLOWED``.
 * A distribution with no licence information is refused.
-
-STUB (P0-I5-T13): the constants, ``Dist`` and the signatures are final; the bodies raise
-``NotImplementedError``. Remove this paragraph when the bodies are written.
 """
 
 from __future__ import annotations
 
+import importlib.metadata as metadata
 import re
 import sys
 from collections.abc import Iterable
@@ -50,29 +48,60 @@ def collect() -> list[Dist]:
     ``license`` is the ``License`` header or ``""``; ``classifiers`` are the ``Classifier`` headers
     that start with ``License``.
     """
-    raise NotImplementedError
+    dists: list[Dist] = []
+    for installed in metadata.distributions():
+        meta = installed.metadata
+        dists.append(
+            Dist(
+                name=meta["Name"],
+                expression=meta.get("License-Expression") or "",
+                license=meta.get("License") or "",
+                classifiers=tuple(
+                    c for c in (meta.get_all("Classifier") or ()) if c.startswith("License")
+                ),
+            )
+        )
+    return dists
 
 
 def term_ok(term: str, name: str) -> bool:
     """One licence name. False if ``COPYLEFT`` matches (copyleft wins over everything). Otherwise,
     if ``MPL`` matches: True only when ``name.lower()`` is in ``MPL_ALLOWED``. Otherwise True when
     ``PERMISSIVE`` matches, else False (an unrecognised licence is refused)."""
-    raise NotImplementedError
+    if COPYLEFT.search(term):
+        return False
+    if MPL.search(term):
+        return name.lower() in MPL_ALLOWED
+    return PERMISSIVE.search(term) is not None
 
 
 def statement_ok(statement: str, name: str) -> bool:
     """A licence statement. Replace ``(`` and ``)`` with spaces. If the result is longer than
     ``SHORT`` it is licence text: return ``term_ok`` of its first 300 characters. Otherwise split on
-    ``OR`` (``re.split(r"\s+OR\s+", ...)``): the statement passes when any alternative passes; an
+    ``OR`` (``re.split(r"\\s+OR\\s+", ...)``): the statement passes when any alternative passes; an
     alternative is split on ``AND`` and passes when every part passes ``term_ok``."""
-    raise NotImplementedError
+    text = statement.replace("(", " ").replace(")", " ")
+    if len(text) > SHORT:
+        return term_ok(text[:300], name)
+    return any(
+        all(term_ok(part.strip(), name) for part in re.split(r"\s+AND\s+", alternative))
+        for alternative in re.split(r"\s+OR\s+", text)
+    )
 
 
 def statements(dist: Dist) -> list[str]:
     """The statements a distribution makes about its licence, in order: its ``expression`` if it
     has one, otherwise its ``license`` field unless that is empty or ``UNKNOWN`` (any case); then
     the last ``::``-separated segment of every classifier (stripped). Empty strings are dropped."""
-    raise NotImplementedError
+    found: list[str] = []
+    expression = dist.expression.strip()
+    license_field = dist.license.strip()
+    if expression:
+        found.append(expression)
+    elif license_field and license_field.upper() != "UNKNOWN":
+        found.append(license_field)
+    found.extend(c.split("::")[-1].strip() for c in dist.classifiers)
+    return [s for s in found if s]
 
 
 def problems(dists: Iterable[Dist]) -> list[str]:
@@ -83,14 +112,32 @@ def problems(dists: Iterable[Dist]) -> list[str]:
     When no statement passes ``statement_ok`` (a distribution offered under several licences passes
     if any one does) the line is ``"<Name>: licence not allowed (<statements joined by '; '>)"``.
     ``<Name>`` is ``dist.name`` as given."""
-    raise NotImplementedError
+    refused: list[tuple[str, str]] = []
+    for dist in dists:
+        if dist.name.lower().replace("_", "-").startswith(EXEMPT_PREFIX):
+            continue
+        found = statements(dist)
+        if not found:
+            refused.append((dist.name, f"{dist.name}: no licence declared"))
+        elif not any(statement_ok(s, dist.name) for s in found):
+            joined = "; ".join(found)
+            refused.append((dist.name, f"{dist.name}: licence not allowed ({joined})"))
+    refused.sort(key=lambda item: item[0].lower())
+    return [line for _, line in refused]
 
 
 def main() -> int:
     """Print every line of ``problems(collect())``. When there are any, also print
     ``"<n> licence problem(s); see docs/adr/0006-dependency-licences.md"`` and return 1.
     Otherwise print ``"licences ok"`` and return 0."""
-    raise NotImplementedError
+    lines = problems(collect())
+    for line in lines:
+        print(line)
+    if lines:
+        print(f"{len(lines)} licence problem(s); see docs/adr/0006-dependency-licences.md")
+        return 1
+    print("licences ok")
+    return 0
 
 
 if __name__ == "__main__":

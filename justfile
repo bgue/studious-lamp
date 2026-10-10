@@ -18,6 +18,7 @@ check:
     uv run ruff format --check .
     uv run pyright
     uv run python -m tl_schema.generate --check
+    uv run python dev/tools/check_licences.py
 
 # Unit and integration tests on SQLite
 test *args:
