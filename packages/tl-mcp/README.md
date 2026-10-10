@@ -14,6 +14,8 @@ The MCP server for AI agents: read tools and resources over the same query langu
 | tool `update_psets(record, pset, values, scope=None, layer="standard", expected_version=None, summary=None)` | tool | **Propose** property values; `expected_version` defaults to the version now, and a stale proposal fails on acceptance |
 | tool `link_records(from_record, to_record, scope=None, relation=None, note=None, summary=None)` | tool | **Propose** a link |
 | tool `transition_workflow(record, transition, scope=None, expected_version=None, reason=None, summary=None)` | tool | **Propose** a transition; guards other than role guards are checked now, role guards for the person who accepts |
+| tool `get_settings(key=None, prefix=None, project=None, modified_only=False)` | tool | Read-only: each setting with its definition and effective state for a project, one by `key` or a list narrowed by `prefix` and `modified_only` (not both) |
+| tool `propose_setting_change(key, layer, value=None, reset=False, reason=None, applies_at=None, summary=None)` | tool | **Propose** a setting change (`ChangeSetting`); a person accepts, giving `accept_risk` for a dangerous key. The tool takes no risk acceptance: an argument it does not declare is ignored |
 | tool `post_feed(scope, body, importance="normal")` | tool | **Post directly** to a project feed, labelled `agent:<id>` (source `mcp:<id>`); a `#<record key>` tag only suggests a `references` link |
 | `python -m tl_mcp --tool-mode TOOL=propose` | option | `propose` is the only mode; `write` exits 2 with the human-gate message |
 | tool `lake_query(sql, limit=100)` | tool | Read-only SQL over the DuckLake copy (`tl-lake`): one SELECT, row limit (at most 1000), 1 MiB answer cap, 30 s timeout, one audit line per call with the acting agent; returns `{columns, rows, row_count, truncated, truncated_by, limit, as_of_seq, snapshot_id, as_of}`; a refusal is a `ToolError` starting `refused:` |
@@ -68,4 +70,4 @@ Runbook: `docs/runbooks/api-and-mcp-dev.md`.
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I4 (workstream C); the dev server (`tl_mcp.dev`) was added in P0-I8 workstream C; write tools added in P0-I6 workstream B (decisions B1 to B14: `docs/tickets/P0-I6/README-B.md`). Per-role tool permissions and a direct-write mode are the permission model, a human gate, and are not built. Resource-change notifications through the change feed (brief 11.3) are a follow-up.
+Introduced in P0-I4 (workstream C); `get_settings` and `propose_setting_change` added in P0-I8 workstream A; the dev server (`tl_mcp.dev`) was added in P0-I8 workstream C; write tools added in P0-I6 workstream B (decisions B1 to B14: `docs/tickets/P0-I6/README-B.md`). Per-role tool permissions and a direct-write mode are the permission model, a human gate, and are not built. Resource-change notifications through the change feed (brief 11.3) are a follow-up.

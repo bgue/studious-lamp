@@ -95,6 +95,60 @@ _TEREDO = ipaddress.ip_network("2001::/32")
 _SIX_TO_FOUR = ipaddress.ip_network("2002::/16")
 
 
+#: Never reachable, even when allow-listed: link-local (which holds the cloud metadata services),
+#: "this host" and the unspecified address. An allow-list entry is for a partner's host or your own
+#: network, never for these (P0-I8 review of the egress allow-list setting).
+ALWAYS_REFUSED: tuple[IpNetwork, ...] = tuple(
+    ipaddress.ip_network(text)
+    for text in (
+        "169.254.0.0/16",
+        "fe80::/10",
+        "0.0.0.0/8",
+        "::/128",
+        "fd00:ec2::254/128",
+        "100.100.100.200/32",
+    )
+)
+#: Host names that stand for a metadata service.
+REFUSED_NAMES = frozenset({"metadata", "metadata.google.internal", "instance-data"})
+
+
+_NAT64_V6 = ipaddress.IPv6Network("64:ff9b::/96")
+_SIX_TO_FOUR_V6 = ipaddress.IPv6Network("2002::/16")
+
+
+def _embedded(network: IpNetwork) -> list[IpNetwork]:
+    """The IPv4 networks an IPv6 network stands for when it is a mapped, NAT64 or 6to4 range."""
+    found: list[IpNetwork] = []
+    if isinstance(network, ipaddress.IPv6Network):
+        base = network.network_address
+        if base.ipv4_mapped is not None and network.prefixlen >= 96:
+            found.append(ipaddress.ip_network((base.ipv4_mapped, min(32, network.prefixlen - 96))))
+        if network.subnet_of(_NAT64_V6) and network.prefixlen >= 96:
+            inner = ipaddress.IPv4Address(base.packed[-4:])
+            found.append(ipaddress.ip_network((inner, min(32, network.prefixlen - 96))))
+        if network.subnet_of(_SIX_TO_FOUR_V6) and network.prefixlen >= 48:
+            inner = ipaddress.IPv4Address(base.packed[2:6])
+            found.append(ipaddress.ip_network((inner, min(32, network.prefixlen - 16))))
+    return found
+
+
+def always_refused(address: str | IpNetwork) -> bool:
+    """Whether the address (or any address of the network) is in :data:`ALWAYS_REFUSED`.
+
+    IPv6 forms that carry an IPv4 address (mapped, NAT64, 6to4) are judged by the address inside.
+    """
+    if isinstance(address, str):
+        parsed = _normalise(address)
+        network: IpNetwork = ipaddress.ip_network(parsed)
+        if isinstance(parsed, ipaddress.IPv6Address):
+            network = ipaddress.ip_network(parsed)
+    else:
+        network = address
+    candidates = [network, *_embedded(network)]
+    return any(c.version == r.version and c.overlaps(r) for c in candidates for r in ALWAYS_REFUSED)
+
+
 def is_public(address: str) -> bool:
     """Whether the address is globally routable (and so allowed without an allow-list entry).
 
@@ -176,6 +230,9 @@ class EgressPolicy:
         addresses = [host] if _is_ip(host) else self.resolver(host, port)
         if not addresses:
             raise ResolutionFailed(f"cannot resolve {host}")
+        for address in addresses:
+            if always_refused(address):
+                raise EgressDenied(f"{host} resolves to an address that is never reachable")
         allowed = self.is_allowlisted(host, port, addresses)
         if scheme == "http" and not allowed:
             raise EgressDenied("plain http is only allowed for allow-listed hosts")

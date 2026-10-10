@@ -5,6 +5,12 @@
         "additionalProperties": false,
         "description": "Body of ``POST /proposals/{id}/accept``.",
         "properties": {
+          "accept_risk": {
+            "default": false,
+            "description": "\"I accept the risk\": needed to accept a change to a `dangerous` setting.",
+            "title": "Accept Risk",
+            "type": "boolean"
+          },
           "roles": {
             "description": "Workflow roles the accepting person holds (a stub until auth, brief 8).",
             "items": {
@@ -303,6 +309,105 @@
           "sha256"
         ],
         "title": "AttachFileBody",
+        "type": "object"
+      },
+      "ChangeSettingBody": {
+        "additionalProperties": false,
+        "properties": {
+          "accept_risk": {
+            "default": false,
+            "title": "Accept Risk",
+            "type": "boolean"
+          },
+          "applies_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applies At"
+          },
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "layer": {
+            "title": "Layer",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "reset": {
+            "default": false,
+            "title": "Reset",
+            "type": "boolean"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "scope",
+          "key",
+          "layer"
+        ],
+        "title": "ChangeSettingBody",
         "type": "object"
       },
       "CommandResult": {
@@ -823,6 +928,83 @@
           "expected_version"
         ],
         "title": "EditRecordBody",
+        "type": "object"
+      },
+      "EffectiveSetting": {
+        "properties": {
+          "bounds": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bounds"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "modified_here": {
+            "title": "Modified Here",
+            "type": "boolean"
+          },
+          "origin": {
+            "enum": [
+              "default",
+              "company",
+              "project",
+              "user"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "pending_effect": {
+            "anyOf": [
+              {
+                "enum": [
+                  "live",
+                  "reindex",
+                  "rebuild",
+                  "restart"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Effect"
+          },
+          "scheduled": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduledChange"
+            },
+            "title": "Scheduled",
+            "type": "array"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "value",
+          "origin",
+          "modified_here",
+          "locked",
+          "bounds",
+          "scheduled",
+          "pending_effect"
+        ],
+        "title": "EffectiveSetting",
         "type": "object"
       },
       "EnumValue": {
@@ -1773,6 +1955,71 @@
         "title": "Health",
         "type": "object"
       },
+      "ImportBody": {
+        "additionalProperties": false,
+        "description": "Body of ``POST /settings/import``.",
+        "properties": {
+          "accept_risk": {
+            "default": false,
+            "description": "\"I accept the risk\": required for `dangerous` keys.",
+            "title": "Accept Risk",
+            "type": "boolean"
+          },
+          "document": {
+            "description": "The YAML document.",
+            "maxLength": 262144,
+            "title": "Document",
+            "type": "string"
+          },
+          "layer": {
+            "description": "`company`, `project:<id>` or `user:<id>`.",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Layer",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required for `advanced` and `dangerous` keys.",
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "layer",
+          "document"
+        ],
+        "title": "ImportBody",
+        "type": "object"
+      },
+      "ImportResult": {
+        "properties": {
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Keys",
+            "type": "array"
+          },
+          "layer": {
+            "title": "Layer",
+            "type": "string"
+          }
+        },
+        "required": [
+          "layer",
+          "keys"
+        ],
+        "title": "ImportResult",
+        "type": "object"
+      },
       "KeyChip": {
         "description": "A detected key and what it refers to.",
         "properties": {
@@ -2133,6 +2380,42 @@
         "title": "LinkView",
         "type": "object"
       },
+      "LockBody": {
+        "additionalProperties": false,
+        "description": "Body of ``POST /settings/{key}/lock``.",
+        "properties": {
+          "bounds": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`minimum`, `maximum` and/or `choices` for project values.",
+            "title": "Bounds"
+          },
+          "locked": {
+            "description": "True: projects may not override the key.",
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "locked",
+          "reason"
+        ],
+        "title": "LockBody",
+        "type": "object"
+      },
       "MissingLink": {
         "description": "An expectation that is not met: how many matching links exist and how many are needed.",
         "properties": {
@@ -2352,6 +2635,16 @@
           "seq": {
             "title": "Seq",
             "type": "integer"
+          },
+          "setting": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SettingProposalInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "status": {
             "enum": [
@@ -2897,6 +3190,55 @@
         "title": "RepinLinkBody",
         "type": "object"
       },
+      "ResetBody": {
+        "additionalProperties": false,
+        "description": "Body of ``POST /settings/{key}/reset``.",
+        "properties": {
+          "accept_risk": {
+            "default": false,
+            "description": "\"I accept the risk\": required for `dangerous` keys.",
+            "title": "Accept Risk",
+            "type": "boolean"
+          },
+          "applies_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applies At"
+          },
+          "layer": {
+            "description": "`company`, `project:<id>` or `user:<id>`.",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Layer",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required for `advanced` and `dangerous` keys.",
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "layer"
+        ],
+        "title": "ResetBody",
+        "type": "object"
+      },
       "RetractLinkBody": {
         "additionalProperties": false,
         "properties": {
@@ -3045,6 +3387,127 @@
         "title": "RetractPostBody",
         "type": "object"
       },
+      "RevertBody": {
+        "additionalProperties": false,
+        "description": "Body of ``POST /settings/{key}/revert``.",
+        "properties": {
+          "accept_risk": {
+            "default": false,
+            "description": "\"I accept the risk\": required for `dangerous` keys.",
+            "title": "Accept Risk",
+            "type": "boolean"
+          },
+          "layer": {
+            "description": "`company`, `project:<id>` or `user:<id>`.",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Layer",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required for `advanced` and `dangerous` keys.",
+            "title": "Reason"
+          },
+          "seq": {
+            "description": "The change number from the key's history.",
+            "minimum": 1.0,
+            "title": "Seq",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "layer",
+          "seq"
+        ],
+        "title": "RevertBody",
+        "type": "object"
+      },
+      "ScheduledChange": {
+        "properties": {
+          "applies_at": {
+            "title": "Applies At",
+            "type": "string"
+          },
+          "new_value": {
+            "title": "New Value"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "applies_at",
+          "new_value",
+          "seq"
+        ],
+        "title": "ScheduledChange",
+        "type": "object"
+      },
+      "SetBody": {
+        "additionalProperties": false,
+        "description": "Body of ``PUT /settings/{key}``.",
+        "properties": {
+          "accept_risk": {
+            "default": false,
+            "description": "\"I accept the risk\": required for `dangerous` keys.",
+            "title": "Accept Risk",
+            "type": "boolean"
+          },
+          "applies_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A time with a zone, in the future: schedule the change.",
+            "title": "Applies At"
+          },
+          "layer": {
+            "description": "`company`, `project:<id>` or `user:<id>`.",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Layer",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required for `advanced` and `dangerous` keys.",
+            "title": "Reason"
+          },
+          "value": {
+            "description": "The new value, as JSON of the setting's type.",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "layer",
+          "value"
+        ],
+        "title": "SetBody",
+        "type": "object"
+      },
       "SetPsetValuesBody": {
         "additionalProperties": false,
         "properties": {
@@ -3127,6 +3590,352 @@
           "values"
         ],
         "title": "SetPsetValuesBody",
+        "type": "object"
+      },
+      "SettingChange": {
+        "description": "One row of a key's history at one layer (brief §30.3 full per-key history).",
+        "properties": {
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "applies_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applies At"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "layer": {
+            "title": "Layer",
+            "type": "string"
+          },
+          "new_value": {
+            "title": "New Value"
+          },
+          "old_value": {
+            "title": "Old Value"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "recorded_at": {
+            "title": "Recorded At",
+            "type": "string"
+          },
+          "reset": {
+            "title": "Reset",
+            "type": "boolean"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seq",
+          "key",
+          "layer",
+          "old_value",
+          "new_value",
+          "reset",
+          "actor",
+          "reason",
+          "recorded_at",
+          "applies_at"
+        ],
+        "title": "SettingChange",
+        "type": "object"
+      },
+      "SettingDefinition": {
+        "description": "Mirrors the LinkML class; the generated model and this one must agree (test).",
+        "properties": {
+          "default": {
+            "title": "Default"
+          },
+          "deprecated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deprecated"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "docs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docs"
+          },
+          "effect": {
+            "default": "live",
+            "enum": [
+              "live",
+              "reindex",
+              "rebuild",
+              "restart"
+            ],
+            "title": "Effect",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "lockable": {
+            "default": false,
+            "title": "Lockable",
+            "type": "boolean"
+          },
+          "owner": {
+            "default": "platform",
+            "title": "Owner",
+            "type": "string"
+          },
+          "risk": {
+            "default": "normal",
+            "enum": [
+              "normal",
+              "advanced",
+              "dangerous"
+            ],
+            "title": "Risk",
+            "type": "string"
+          },
+          "scopes": {
+            "items": {
+              "enum": [
+                "platform",
+                "company",
+                "project",
+                "user"
+              ],
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          },
+          "sensitivity": {
+            "default": "normal",
+            "enum": [
+              "normal",
+              "secret"
+            ],
+            "title": "Sensitivity",
+            "type": "string"
+          },
+          "since": {
+            "title": "Since",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "bool",
+              "int",
+              "decimal",
+              "string",
+              "enum",
+              "list",
+              "duration",
+              "size",
+              "date",
+              "json"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "validation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SettingValidation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "type",
+          "default",
+          "description",
+          "scopes",
+          "since"
+        ],
+        "title": "SettingDefinition",
+        "type": "object"
+      },
+      "SettingDiff": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "left": {
+            "$ref": "#/components/schemas/EffectiveSetting"
+          },
+          "right": {
+            "$ref": "#/components/schemas/EffectiveSetting"
+          }
+        },
+        "required": [
+          "key",
+          "left",
+          "right"
+        ],
+        "title": "SettingDiff",
+        "type": "object"
+      },
+      "SettingProposalInfo": {
+        "description": "What a person needs to see before accepting a ``ChangeSetting`` proposal.\n\nRead from the setting's definition and the ledger when the proposal is shown, never from text\nthe agent wrote: ``risk`` and ``effect`` are the definition's, ``current_value`` is the\neffective value at the layer now, ``owner`` is the user whose preference a ``user:<id>`` layer\nchanges (None for the company and project layers). ``risk`` is ``unknown`` when the key has\nno definition any more.",
+        "properties": {
+          "current_value": {
+            "title": "Current Value"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "effect": {
+            "default": "unknown",
+            "title": "Effect",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "layer": {
+            "title": "Layer",
+            "type": "string"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "proposed_value": {
+            "title": "Proposed Value"
+          },
+          "reset": {
+            "default": false,
+            "title": "Reset",
+            "type": "boolean"
+          },
+          "risk": {
+            "default": "unknown",
+            "title": "Risk",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "layer"
+        ],
+        "title": "SettingProposalInfo",
+        "type": "object"
+      },
+      "SettingValidation": {
+        "properties": {
+          "choices": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern"
+          }
+        },
+        "title": "SettingValidation",
+        "type": "object"
+      },
+      "SettingView": {
+        "properties": {
+          "definition": {
+            "$ref": "#/components/schemas/SettingDefinition"
+          },
+          "effective": {
+            "$ref": "#/components/schemas/EffectiveSetting"
+          }
+        },
+        "required": [
+          "definition",
+          "effective"
+        ],
+        "title": "SettingView",
         "type": "object"
       },
       "SuggestLinkBody": {
@@ -3990,6 +4799,113 @@
           }
         ],
         "summary": "AddLink",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/ChangeSetting": {
+      "post": {
+        "description": "Run the ChangeSetting command.",
+        "operationId": "command_ChangeSetting",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeSettingBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "ChangeSetting",
         "tags": [
           "commands"
         ]
@@ -8922,6 +9838,1066 @@
         "summary": "Get Form Metadata",
         "tags": [
           "reference"
+        ]
+      }
+    },
+    "/settings": {
+      "get": {
+        "description": "Every setting with its definition and effective state, sorted by key.",
+        "operationId": "list_settings",
+        "parameters": [
+          {
+            "description": "View as this project.",
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "View as this project.",
+              "title": "Project"
+            }
+          },
+          {
+            "description": "View as this user.",
+            "in": "query",
+            "name": "user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "View as this user.",
+              "title": "User"
+            }
+          },
+          {
+            "description": "Only keys starting with this.",
+            "in": "query",
+            "name": "prefix",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only keys starting with this.",
+              "title": "Prefix"
+            }
+          },
+          {
+            "description": "Only keys set at the viewed layer (●).",
+            "in": "query",
+            "name": "modified",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Only keys set at the viewed layer (●).",
+              "title": "Modified",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SettingView"
+                  },
+                  "title": "Response List Settings",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/settings/diff": {
+      "get": {
+        "description": "The keys whose effective value differs between two layers.",
+        "operationId": "diff_settings",
+        "parameters": [
+          {
+            "description": "default, company, project:<id> or user:<id>.",
+            "in": "query",
+            "name": "left",
+            "required": true,
+            "schema": {
+              "description": "default, company, project:<id> or user:<id>.",
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Left",
+              "type": "string"
+            }
+          },
+          {
+            "description": "default, company, project:<id> or user:<id>.",
+            "in": "query",
+            "name": "right",
+            "required": true,
+            "schema": {
+              "description": "default, company, project:<id> or user:<id>.",
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Right",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SettingDiff"
+                  },
+                  "title": "Response Diff Settings",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Diff Settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/settings/export": {
+      "get": {
+        "description": "What a layer holds (and, for the company, its locks) as a YAML document.",
+        "operationId": "export_settings",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "layer",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Layer",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/yaml": {}
+            },
+            "description": "A YAML document."
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/settings/import": {
+      "post": {
+        "description": "Apply a YAML document to a layer, all or nothing.",
+        "operationId": "import_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/settings/{key}": {
+      "get": {
+        "description": "One setting with its definition and effective state.",
+        "operationId": "get_setting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Setting",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "description": "Set a key at a layer; answers with the key as seen there.",
+        "operationId": "set_setting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Setting",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/settings/{key}/history": {
+      "get": {
+        "description": "Every change of the key, oldest first.",
+        "operationId": "get_setting_history",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "layer",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Layer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SettingChange"
+                  },
+                  "title": "Response Get Setting History",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Setting History",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/settings/{key}/lock": {
+      "post": {
+        "description": "Lock a key for projects (or unlock it) and/or bound their values; company layer only.",
+        "operationId": "lock_setting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LockBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Lock Setting",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/settings/{key}/reset": {
+      "post": {
+        "description": "Take the layer's own value away so it inherits again.",
+        "operationId": "reset_setting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reset Setting",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/settings/{key}/revert": {
+      "post": {
+        "description": "Undo the latest change of the key at a layer (409 `setting_revert_not_latest` otherwise).",
+        "operationId": "revert_setting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevertBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revert Setting",
+        "tags": [
+          "settings"
         ]
       }
     },

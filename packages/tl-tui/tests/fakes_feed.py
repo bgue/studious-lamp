@@ -14,9 +14,8 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, Protocol
 
-from tl_core.feed.config import reactions_enabled, signal_tags
 from tl_core.feed.tags import effective_importance, parse_tags, record_ids_of, tag_key
-from tl_core.feed.types import FeedItem, Importance, ParsedTag, TagKind
+from tl_core.feed.types import DEFAULT_SIGNAL_TAGS, FeedItem, Importance, ParsedTag, TagKind
 from tl_core.numbering.config import NumberingPattern
 from tl_core.numbering.detect import KeyMatch
 from tl_core.services.commands import CommandResult
@@ -25,7 +24,6 @@ from tl_core.services.errors import (
     NoChangesError,
     PostNotFoundError,
     PostRetractedError,
-    ReactionsDisabledError,
 )
 from tl_core.services.feed import EditPost, PostToFeed
 from tl_core.services.feed_actions import ReactToPost, RetractPost
@@ -105,7 +103,10 @@ class FakeFeedSupport:
             return by_key.get(match.key)
 
         return parse_tags(
-            body, patterns=host.key_patterns, resolve=resolve, signal_tags=signal_tags()
+            body,
+            patterns=host.key_patterns,
+            resolve=resolve,
+            signal_tags=DEFAULT_SIGNAL_TAGS,
         )
 
     def _post_item(
@@ -166,8 +167,6 @@ class FakeFeedSupport:
     def feed_react(self, cmd: ReactToPost) -> CommandResult:
         self._fhost().calls.append("feed_react")
         self.feed_commands.append(cmd)
-        if not reactions_enabled():
-            raise ReactionsDisabledError("reactions are switched off")
         item = self._post(cmd.scope, cmd.post_id)
         if item.retracted:
             raise PostRetractedError(f"post {cmd.post_id!r} was retracted")
@@ -276,7 +275,7 @@ class FakeFeedSupport:
             for r in self._fhost()._records.values():
                 if r["scope"] == scope and r["key"] and r["key"].lower().startswith(low):
                     found.append(Completion(r["key"], "record", r["title"]))
-            for word in signal_tags():
+            for word in DEFAULT_SIGNAL_TAGS:
                 if word.startswith(low):
                     found.append(Completion(word, "signal", "signal tag"))
             used: dict[str, TagKind] = {}

@@ -42,6 +42,10 @@ class AcceptBody(BaseModel):
         max_length=20,
         description="Workflow roles the accepting person holds (a stub until auth, brief 8).",
     )
+    accept_risk: bool = Field(
+        default=False,
+        description='"I accept the risk": needed to accept a change to a `dangerous` setting.',
+    )
 
 
 class RejectBody(BaseModel):
@@ -119,10 +123,16 @@ def accept_proposal(
     could not be applied (the record changed, a guard failed); nothing of the command is kept then.
     """
     roles = body.roles if body is not None else []
+    accept_risk = body.accept_risk if body is not None else False
     when = simulated_time(ctx, proposal_id, effective_at)
     with effective_time(when):
         return proposals.accept_or_fail(
-            ctx.backend, proposal_id=proposal_id, by=actor, roles=roles, source=API_SOURCE
+            ctx.backend,
+            proposal_id=proposal_id,
+            by=actor,
+            roles=roles,
+            accept_risk=accept_risk,
+            source=API_SOURCE,
         )
 
 

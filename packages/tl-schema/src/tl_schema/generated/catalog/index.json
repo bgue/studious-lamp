@@ -244,6 +244,24 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Setting.Changed.v1",
+      "event_type": "Setting.Changed",
+      "payload_class": "SettingChangedPayload",
+      "sample": "samples/Setting.Changed.v1.json",
+      "schema": "schemas/Setting.Changed.v1.json",
+      "title": "One key was set, or reset to what the layer above gives, at one layer.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Setting.Locked.v1",
+      "event_type": "Setting.Locked",
+      "payload_class": "SettingLockedPayload",
+      "sample": "samples/Setting.Locked.v1.json",
+      "schema": "schemas/Setting.Locked.v1.json",
+      "title": "The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.WebhookSubscription.Created.v1",
       "event_type": "WebhookSubscription.Created",
       "payload_class": "WebhookSubscriptionCreatedPayload",

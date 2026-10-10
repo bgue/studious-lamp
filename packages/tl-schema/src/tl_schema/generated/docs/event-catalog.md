@@ -33,6 +33,8 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Record.Voided`](#recordvoided) | `tl.core.Record.Voided.v1` | A record was voided. |
 | [`Schema.EffectiveChanged`](#schemaeffectivechanged) | `tl.core.Schema.EffectiveChanged.v1` | The effective schema of a scope changed. |
 | [`SchemaPackage.Published`](#schemapackagepublished) | `tl.core.SchemaPackage.Published.v1` | A schema package version was published. |
+| [`Setting.Changed`](#settingchanged) | `tl.core.Setting.Changed.v1` | One key was set, or reset to what the layer above gives, at one layer. |
+| [`Setting.Locked`](#settinglocked) | `tl.core.Setting.Locked.v1` | The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to. |
 | [`WebhookSubscription.Created`](#webhooksubscriptioncreated) | `tl.core.WebhookSubscription.Created.v1` | A webhook subscription was created. |
 | [`WebhookSubscription.Disabled`](#webhooksubscriptiondisabled) | `tl.core.WebhookSubscription.Disabled.v1` | A subscription stopped receiving events. |
 | [`WebhookSubscription.Enabled`](#webhooksubscriptionenabled) | `tl.core.WebhookSubscription.Enabled.v1` | A disabled subscription started receiving events again, from this event on. |
@@ -1550,6 +1552,126 @@ A schema package version was published.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.SchemaPackage.Published.v1"
+}
+```
+
+## Setting.Changed
+
+One key was set, or reset to what the layer above gives, at one layer. The stream is `setting:<layer>:<key>`. A change with `applies_at` in the future takes effect then (and not before): resolution is time-based, so no job applies it.
+
+- CloudEvents type: `tl.core.Setting.Changed.v1`
+- Ledger payload class: `SettingChangedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `accept_risk` | boolean or null | no | The person confirmed "I accept the risk" (a `dangerous` key). |
+| `applies_at` | string or null | no | When the change takes effect, if later than the time it was recorded. |
+| `key` | string | yes | The setting key. |
+| `layer` | string | yes | `company`, `project:<id>` or `user:<id>`. |
+| `new_value` | any | no | The new value; null with `reset` true. |
+| `old_set` | boolean or null | no | Whether the layer held a value of its own before (false: it was inheriting). |
+| `old_value` | any | no | The value the layer held when the change was recorded (null when it held none). |
+| `reason` | string or null | no | Why. Required for `advanced` and `dangerous` keys. |
+| `reset` | boolean or null | no | True when the layer goes back to inheriting. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "accept_risk": false,
+      "applies_at": null,
+      "key": "feed.reactions.enabled",
+      "layer": "project:P123",
+      "new_value": false,
+      "old_set": false,
+      "old_value": null,
+      "reason": null,
+      "reset": false
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Setting.Changed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Setting.Changed.v1"
+}
+```
+
+## Setting.Locked
+
+The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to. The stream is `setting:company:<key>`.
+
+- CloudEvents type: `tl.core.Setting.Locked.v1`
+- Ledger payload class: `SettingLockedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `bounds` | any | no | Limits for project values: `minimum`, `maximum` and/or `choices`; null for none. |
+| `key` | string | yes |  |
+| `layer` | string | yes | Always `company`; only the company layer locks or bounds a key. |
+| `locked` | boolean | yes | True when projects may not override the key. |
+| `reason` | string | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "bounds": null,
+      "key": "ai.agents.default_mode",
+      "layer": "company",
+      "locked": true,
+      "reason": "Company policy: agents propose, people decide"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Setting.Locked/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Setting.Locked.v1"
 }
 ```
 

@@ -1,0 +1,135 @@
+# Platform setting definitions (brief 30.1, 30.5; P0-I8 decision D2).
+# Validated against the LinkML class `SettingDefinition` in schema/core/settings.yaml and loaded by
+# `tl_core.settings.definitions`. A key is listed here only when the platform has behaviour behind it.
+# Keys of modules that do not exist yet are added with their module.
+settings:
+  - key: feed.reactions.enabled
+    type: bool
+    default: true
+    description: Whether people can react to posts in the activity feed.
+    docs: >-
+      When off, a reaction is refused with "reactions are switched off". Reactions already recorded stay in the
+      ledger and in the feed.
+    scopes: [platform, company, project]
+    lockable: true
+    since: "0.1.0"
+
+  - key: feed.signal_tags
+    type: list
+    default: [safety, hold, decision, urgent, fyi]
+    description: Hash-tags that mark a post as a signal and raise its importance.
+    docs: >-
+      Lower-case words without the leading hash. A post that uses one of them is shown with high importance.
+      The change applies to posts written after it; posts already written keep the tags they were parsed with.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      pattern: "^[a-z][a-z0-9_-]{0,31}$"
+    since: "0.1.0"
+
+  - key: webhooks.retry.max_hours
+    type: decimal
+    default: 24
+    description: How many hours a webhook delivery is retried before it goes to the dead-letter queue.
+    docs: >-
+      The deadline is counted from when the delivery was queued. Raising it keeps receivers that are down for a
+      long time catching up; lowering it moves failing deliveries to the dead-letter queue sooner.
+    scopes: [platform, company]
+    lockable: true
+    validation:
+      minimum: 0.1
+      maximum: 720
+    risk: advanced
+    since: "0.1.0"
+
+  - key: webhooks.egress.allowlist
+    type: list
+    default: []
+    description: Hosts, host:port pairs, IP addresses and CIDR ranges that webhooks may reach even when they are private or plain http.
+    docs: >-
+      By default a webhook may only reach public addresses over https. Every entry here lifts that guard for one
+      destination, so widening the list lets the platform call into your own network. Dangerous to widen.
+      An entry is a host name, host:port, an IP address or a CIDR range of at least /8 (IPv4) or /16 (IPv6).
+      Link-local and cloud-metadata addresses (169.254.0.0/16, fe80::/10, 100.100.100.200) and the names of
+      metadata services are never allowed, and the delivery engine refuses them even for an allowed host.
+    scopes: [platform, company]
+    lockable: true
+    validation:
+      pattern: "^[A-Za-z0-9._:\\[\\]/-]{1,255}$"
+    risk: dangerous
+    since: "0.1.0"
+
+  - key: lake.sync.interval
+    type: duration
+    default: 5m
+    description: How often `tl lake sync --watch` copies new ledger events into the lake.
+    docs: >-
+      Read again before every wait, so a change applies to a running watcher without a restart. Between 10 seconds
+      and 1 day.
+    scopes: [platform, company]
+    validation:
+      minimum: 10
+      maximum: 86400
+    since: "0.1.0"
+
+  - key: ai.agents.default_mode
+    type: enum
+    default: propose
+    description: What an AI agent's record-changing tools do.
+    docs: >-
+      Only `propose` exists: a tool call records a proposal and a person accepts it. Direct writes are not available
+      until the permission model is decided (a human gate). Typically company-locked.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      choices: [propose]
+    risk: advanced
+    since: "0.1.0"
+
+  - key: ai.agents.daily_proposals
+    type: int
+    default: 500
+    description: How many proposals one AI agent may create per UTC day.
+    docs: >-
+      Accepted, rejected and failed proposals count too. 0 stops every agent from proposing. The environment
+      variable TL_AGENT_DAILY_PROPOSALS, when set, overrides this value for the process.
+    scopes: [platform, company]
+    validation:
+      minimum: 0
+      maximum: 100000
+    risk: advanced
+    since: "0.1.0"
+
+  - key: project.mode
+    type: enum
+    default: live
+    description: What kind of project this is.
+    docs: >-
+      `live` is a real project. `sandbox` and `simulated` hold practice and generated data, and `mirror` follows a
+      project kept in another suite. Phase 0 stores and shows the mode; it changes no behaviour yet.
+    scopes: [platform, project]
+    lockable: true
+    validation:
+      choices: [live, sandbox, simulated, mirror]
+    risk: advanced
+    since: "0.1.0"
+
+  - key: ui.tui.keymap
+    type: enum
+    default: default
+    description: The key bindings of the terminal UI.
+    docs: A personal preference. Phase 0 stores and shows it; `vim` bindings arrive with the key map work.
+    scopes: [platform, user]
+    validation:
+      choices: [default, vim]
+    since: "0.1.0"
+
+  - key: ui.tui.graphics
+    type: enum
+    default: auto
+    description: How the terminal UI draws images and charts.
+    docs: A personal preference. `auto` picks the best protocol the terminal reports.
+    scopes: [platform, user]
+    validation:
+      choices: [auto, kitty, iterm2, sixel, "off"]
+    since: "0.1.0"

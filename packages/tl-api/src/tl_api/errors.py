@@ -100,6 +100,20 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.InvalidProposalError, "invalid_proposal", 422),
         s(svc.BudgetExceededError, "budget_exceeded", 429),
         s(svc.ProposalDeciderError, "proposal_decider", 403),
+        # --- settings (P0-I8 workstream A) ---------------------------------------------------
+        s(svc.SettingError, "setting_error", 422),
+        s(svc.UnknownSettingError, "unknown_setting", 404),
+        s(svc.InvalidSettingValueError, "invalid_setting_value", 422),
+        s(svc.SettingScopeError, "setting_scope", 422),
+        s(svc.SettingLockedError, "setting_locked", 409),
+        s(svc.SettingOutOfBoundsError, "setting_out_of_bounds", 422),
+        s(svc.ReasonRequiredError, "reason_required", 422),
+        s(svc.RiskNotAcceptedError, "risk_not_accepted", 422),
+        s(svc.SecretSettingUnavailableError, "secret_setting_unavailable", 422),
+        s(svc.SettingNotLockableError, "setting_not_lockable", 422),
+        s(svc.SettingChangeNotFoundError, "setting_change_not_found", 404),
+        s(svc.SettingsDocumentError, "settings_document", 422),
+        s(svc.SettingRevertNotLatestError, "setting_revert_not_latest", 409),
     )
 
 

@@ -27,6 +27,7 @@ Purpose: start the Textual TUI in embedded mode against the SQLite dev ledger, l
    TL_DB=/tmp/other.db TL_PROJECT=P124 just tui
    ```
 4. Filter the list: `/` opens the filter bar; type query-language text (`status:open title~bevel linked:NCR`, reference: `docs/reference/query-language.md`) and press Enter. The bar shows `N matches`, or the parser's message with a caret under the character it stopped at. A blank filter clears it; Esc leaves the bar.
+4b. Open about:config with `F9` (or `about:config` in the command palette): every setting with its value, type, origin and lock; `/` filters, `m` shows only what is set here, `e` edits (the form asks for a reason, and for a dangerous key the box "I accept the risk"), `r` resets, `h` shows the history (`u` undoes the latest change at a layer), `k` locks for projects, `L` sends changes to the company instead of the project. See `settings.md`.
 5. Run against a server instead of the file (remote mode). In one terminal start the API, in another the TUI:
    ```
    export TL_TOKEN="$(uv run tl dev token add user:alice)"

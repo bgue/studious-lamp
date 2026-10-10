@@ -31,13 +31,36 @@ ProposalStatus = Literal["pending", "accepted", "rejected", "failed"]
 ToolMode = Literal["propose"]
 
 # The command types a proposal may carry, mapped by tool. The command model is the shared one
-# from tl_core.services (CreateRecord, SetPsetValues, AddLink, TransitionWorkflow).
+# from tl_core.services (CreateRecord, SetPsetValues, AddLink, TransitionWorkflow, ChangeSetting).
 PROPOSABLE_TOOLS: dict[str, str] = {
     "create_record": "CreateRecord",
     "update_psets": "SetPsetValues",
     "link_records": "AddLink",
     "transition_workflow": "TransitionWorkflow",
+    # P0-I8 decision D3: settings follow the proposal rules; accepting runs ChangeSetting.
+    "propose_setting_change": "ChangeSetting",
 }
+
+
+class SettingProposalInfo(BaseModel):
+    """What a person needs to see before accepting a ``ChangeSetting`` proposal.
+
+    Read from the setting's definition and the ledger when the proposal is shown, never from text
+    the agent wrote: ``risk`` and ``effect`` are the definition's, ``current_value`` is the
+    effective value at the layer now, ``owner`` is the user whose preference a ``user:<id>`` layer
+    changes (None for the company and project layers). ``risk`` is ``unknown`` when the key has
+    no definition any more.
+    """
+
+    key: str
+    layer: str
+    owner: str | None = None
+    current_value: Any = None
+    proposed_value: Any = None
+    reset: bool = False
+    risk: str = "unknown"
+    effect: str = "unknown"
+    description: str = ""
 
 
 class ProposalView(BaseModel):
@@ -53,6 +76,7 @@ class ProposalView(BaseModel):
     reason: str | None = None
     result_stream_id: str | None = None
     seq: int
+    setting: SettingProposalInfo | None = None  # set for a ChangeSetting proposal (P0-I8)
 
 
 # Service signatures (implemented in tl_core.services.proposals):
@@ -66,6 +90,6 @@ class ProposalView(BaseModel):
 #   reject_proposal(uow, *, proposal_id: str, by: str, reason: str) -> ProposalView
 #   list_proposals(conn, scope: str, *, status: ProposalStatus | None = "pending")
 #       -> list[ProposalView]
-# Budgets: at most AGENT_DAILY_PROPOSALS proposals created per agent per UTC day, else
-# BudgetExceededError(ServiceError).
+# Budgets: at most `ai.agents.daily_proposals` (default AGENT_DAILY_PROPOSALS) proposals created
+# per agent per UTC day, else BudgetExceededError(ServiceError). P0-I8 made the number a setting.
 AGENT_DAILY_PROPOSALS = 500

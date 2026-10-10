@@ -14,19 +14,23 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from tl_tui.app import TlApp
-from tl_tui.embedded import EmbeddedClient
+from tl_tui.embedded import DEFAULT_ACTOR, EmbeddedClient
 from tl_tui.remote import RemoteClient
 
 DEFAULT_DB = "./dev/data/tl.db"
 DEFAULT_PROJECT = "P123"
-DEFAULT_ACTOR = "user:dev"
 
 
-def build_app(db: str | Path, project: str = DEFAULT_PROJECT, *, live: bool = True) -> TlApp:
-    """The app over the SQLite dev ledger at ``db``, showing project ``project`` (embedded)."""
+def build_app(
+    db: str | Path, project: str = DEFAULT_PROJECT, *, live: bool = True, actor: str = DEFAULT_ACTOR
+) -> TlApp:
+    """The app over the SQLite dev ledger at ``db``, showing project ``project`` (embedded).
+
+    ``actor`` is shown in the header and recorded on the settings the screens change.
+    """
     scope = f"project:{project}"
-    client = EmbeddedClient.for_sqlite(db)
-    return TlApp(client, scope=scope, feed=client.change_feed(scope) if live else None)
+    client = EmbeddedClient.for_sqlite(db, actor=actor)
+    return TlApp(client, scope=scope, actor=actor, feed=client.change_feed(scope) if live else None)
 
 
 def build_remote_app(
@@ -68,7 +72,9 @@ def make_app(
     url = remote or os.environ.get("TL_REMOTE") or None
     proj = project or os.environ.get("TL_PROJECT", DEFAULT_PROJECT)
     if url is None:
-        return build_app(db or os.environ.get("TL_DB", DEFAULT_DB), proj)
+        return build_app(
+            db or os.environ.get("TL_DB", DEFAULT_DB), proj, actor=actor or DEFAULT_ACTOR
+        )
     secret = token or os.environ.get("TL_TOKEN")
     if not secret:
         raise ValueError("remote mode needs a dev token: pass --token or set TL_TOKEN")

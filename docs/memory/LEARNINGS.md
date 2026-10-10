@@ -950,6 +950,42 @@ test or a generated artefact already enforces, or narrative history (that belong
   file, no permission) are not LakeError, and the MCP SDK masks them as a bare "Error executing tool". That safety
   depends on the SDK. P0-I8 hardening: catch Exception in `guarded`, log the error server-side, and return a fixed sentence.
   Evidence: re-review at 07ad1b0. Status: active
+
+- **L-P0-I8A-1** · 2026-10-10 · tags: tooling
+  A package `__init__` that exports a function with the name of one of its submodules hides the module: `from tl_core.settings import definitions as defs` returned the function `definitions()`, not the module. The contract names the function, so the module is `tl_core.settings.registry`. Check `__all__` against the submodule names before naming a module.
+  Evidence: first run of `test_settings_definitions.py` (13 errors, `'function' object has no attribute 'PLATFORM_FILE_ENV'`). Status: active
+
+- **L-P0-I8A-2** · 2026-10-10 · tags: schema, tests
+  The generated `json_schema/core.schema.json` renders the LinkML `Any` class without arrays, so a list default (`feed.signal_tags`) fails validation against `SettingDefinition`. The event catalog generator widens `Any` for its own schemas; a test that validates data against the core schema must replace `$defs.Any` with `{}`. A `required` slot of range `Any` is how a nullable JSON value is made mandatory (`default` of a definition).
+  Evidence: `packages/tl-core/tests/test_settings_definitions.py::test_the_generated_json_schema_accepts_every_platform_entry`. Status: active
+
+- **L-P0-I8A-3** · 2026-10-10 · tags: ledger
+  Scheduled settings need the resolver to order by effective time, not by `seq`: the entry in force is the greatest `(max(recorded_at, applies_at), seq)` not after "now", so a change recorded later but applying earlier wins until the earlier-recorded one applies, and nothing is applied by a job. Cancelling a pending change is recording the old state for the same instant (the later `seq` wins the tie). `cur_setting` therefore keeps one row per event, not one per key.
+  Evidence: `packages/tl-core/tests/test_settings_resolver.py` (oracle property), `tests/settings/test_service.py::test_reverting_a_scheduled_change_cancels_it`. Status: active
+
+- **L-P0-I8A-4** · 2026-10-10 · tags: tests
+  Extends L-P0-I5-B6. A fake clock handed to code that compares it with event times must be the real clock plus an offset: a fixed fake "now" taken at set-up was already behind the `recorded_at` of every event the test wrote, so every entry looked "not yet in force" (8 of 12 reader tests failed with the default value). Move time in such a test by changing the offset.
+  Evidence: `tests/settings/test_reader.py` `Clock`. Status: active
+
+- **L-P0-I8A-5** · 2026-10-10 · tags: cli, process
+  Typer's `app.add_typer(other)` without a `name` flattens the other app's commands into the parent group, so two tickets can own two files of one command group (`tl config` in `config.py`, `diff|export|import` in `config_exchange.py`) with disjoint Allowed paths. A ticket's provided test must seed state with the service, not with the other ticket's commands (extends L-P0-I6A-5).
+  Evidence: scratch probe; `docs/tickets/P0-I8/provided/t02-test_cli_config_exchange.py.txt`. Status: active
+
+- **L-P0-I8A-6** · 2026-10-10 · tags: mcp, security
+  An MCP tool ignores arguments it does not declare (pydantic does not forbid extras), so `accept_risk=True` sent to `propose_setting_change` neither fails nor takes effect. The test that proves an agent cannot accept a risk asserts the stored command (`accept_risk` false) and that the person's accept still fails without the flag, not an error.
+  Evidence: `packages/tl-mcp/tests/test_mcp_setting_proposals.py::test_the_tool_cannot_carry_a_risk_acceptance`. Status: active
+
+- **L-P0-I8A-7** · 2026-10-10 · tags: tests, process
+  Adding a command to the API table, a tool to `PROPOSABLE_TOOLS` or an event type to the catalog breaks tests that assert literal counts or lists elsewhere: `len(COMMANDS) == 17` and the agent-refusal count of 13 in `tl-api`, `PROPOSE_TOOLS` and `PROPOSING` in `tl-mcp`, `register_write_tools`' assertion on the tool modes, the table lists of `test_generate.py` and `test_ddl.py`, and the webhook scenario. Run `just test` once after the contract amendment and fix all of them in the same commit.
+  Evidence: the first full `just test` of P0-I8-A (3 failures, then 1 more in `tl-api`). Status: active
+
+- **L-P0-I8A-8** · 2026-10-10 · tags: process
+  A ticket's test count must be counted from the provided file (`grep -c "^def test_"`), not remembered: two of the first six tickets named the wrong number and the implementers had to stop and ask.
+  Evidence: reports `docs/reports/P0-I8/P0-I8-T04.md` (8 named, 7 in the file) and `P0-I8-T05.md`. Status: active
+
+- **L-P0-I8A-9** · 2026-10-10 · tags: tooling, security
+  Hostile numbers and nesting raise errors other than the ones a parser documents: `yaml.safe_load` raises `RecursionError` (50,000 nested levels) and `ValueError` (integers over 4300 digits); `float(huge_int)` raises `OverflowError`; `json.dumps` of such an integer raises `ValueError`. Wrap the parse, the float conversion and the message formatting, and turn each into the domain error.
+  Evidence: `tests/settings/test_exchange.py::test_a_file_that_breaks_the_yaml_reader_is_a_document_error`, `packages/tl-core/tests/test_settings_values.py::test_a_number_too_large_for_a_float_is_out_of_range_not_an_error`. Status: active
 - **L-P0-I6C-12** · 2026-10-10 · tags: tests, process
   A check that fails only on an empty log still passes a run in which the interesting actor did nothing: swallowing every refusal (a budget, a bad argument) in the actor and asserting only what
   was logged made "the assistant proposed nothing" green. Tell the assertion which actors are enabled and bound to act (`Expected`), narrow what an actor may shrug off to the one benign refusal, and
@@ -1002,3 +1038,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   printed counts. `just check` stops at its first failing step, so one lint error hides the pyright, codegen, openapi and licence steps; run the
   steps one by one when diagnosing.
   Evidence: T50, T47 and T48 reports. Status: active
+
+- **L-P0-I8A-10** · 2026-10-10 · tags: tui, tests
+  `pytest --snapshot-update` rewrites the tracked `snapshot_report.html` at the repository root as well as the `.raw` files: restore it with `git checkout snapshot_report.html` before committing. A new palette command or key map entry changes the palette snapshot (`test_snapshots_links.py::test_command_palette`) and the key map context list in `test_keymap.py`.
+  Evidence: P0-I8-S19 (`git status` after the update). Status: active
+
+- **L-P0-I8A-11** · 2026-10-10 · tags: cli, process
+  Typer prints a command function's whole docstring as its `--help`. A stub docstring that carries implementation steps ("call `list_views(...)` and print `view_line`") stays in the file when the implementer only deletes the STUB paragraph, and then reaches the user. For a CLI ticket, tell the implementer to rewrite each command docstring as user help, and look at `tl <group> <command> --help` before merging.
+  Evidence: `tl config set --help` after the T01 and T02 merges showed unit-of-work instructions; fixed in P0-I8-S20. Status: active

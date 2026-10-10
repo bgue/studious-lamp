@@ -2716,6 +2716,512 @@
             "title": "SecretState",
             "type": "string"
         },
+        "SettingChangeRow": {
+            "additionalProperties": false,
+            "description": "One `Setting.Changed` event: the history of a key at a layer, and the entries the resolver reads. The row in force at time t is the one with the greatest `effective_us` (then `seq`) not after t.",
+            "properties": {
+                "accept_risk": {
+                    "type": "boolean"
+                },
+                "actor": {
+                    "type": "string"
+                },
+                "applies_at": {
+                    "description": "Set only for a change that was scheduled for later.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "change_id": {
+                    "description": "Event id of the `Setting.Changed` event.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "effective_us": {
+                    "description": "Microseconds since the epoch at which the change takes effect (`applies_at`, else the time it was recorded).",
+                    "type": "integer"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "layer": {
+                    "description": "`company`, `project:<id>` or `user:<id>`.",
+                    "type": "string"
+                },
+                "old_set": {
+                    "type": "boolean"
+                },
+                "old_value": {
+                    "$ref": "#/$defs/Any",
+                    "description": "The value the layer held before, as JSON."
+                },
+                "reason": {
+                    "description": "Why the change was made.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "recorded_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "reset": {
+                    "type": "boolean"
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "seq": {
+                    "type": "integer"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "value": {
+                    "$ref": "#/$defs/Any",
+                    "description": "The new value as JSON; `null` for a reset."
+                },
+                "version": {
+                    "description": "Ledger `stream_version` of the setting stream after this event.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "change_id",
+                "key",
+                "layer",
+                "scope",
+                "value",
+                "reset",
+                "old_value",
+                "old_set",
+                "actor",
+                "source",
+                "accept_risk",
+                "effective_us",
+                "recorded_at",
+                "seq",
+                "version"
+            ],
+            "title": "SettingChangeRow",
+            "type": "object"
+        },
+        "SettingChangedPayload": {
+            "additionalProperties": false,
+            "description": "One key was set, or reset to what the layer above gives, at one layer. The stream is `setting:<layer>:<key>`. A change with `applies_at` in the future takes effect then (and not before): resolution is time-based, so no job applies it.",
+            "examples": [
+                "{\"accept_risk\": false, \"applies_at\": null, \"key\": \"feed.reactions.enabled\", \"layer\": \"project:P123\", \"new_value\": false, \"old_set\": false, \"old_value\": null, \"reason\": null, \"reset\": false}"
+            ],
+            "properties": {
+                "accept_risk": {
+                    "description": "The person confirmed \"I accept the risk\" (a `dangerous` key).",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "applies_at": {
+                    "description": "When the change takes effect, if later than the time it was recorded.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "key": {
+                    "description": "The setting key.",
+                    "type": "string"
+                },
+                "layer": {
+                    "description": "`company`, `project:<id>` or `user:<id>`.",
+                    "type": "string"
+                },
+                "new_value": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "The new value; null with `reset` true."
+                },
+                "old_set": {
+                    "description": "Whether the layer held a value of its own before (false: it was inheriting).",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "old_value": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "The value the layer held when the change was recorded (null when it held none)."
+                },
+                "reason": {
+                    "description": "Why. Required for `advanced` and `dangerous` keys.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "reset": {
+                    "description": "True when the layer goes back to inheriting.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "key",
+                "layer"
+            ],
+            "title": "SettingChangedPayload",
+            "type": "object"
+        },
+        "SettingDefinition": {
+            "additionalProperties": false,
+            "description": "One setting (brief 30.1). Definitions are data: `schema/settings/platform.yaml` and the `settings.yaml` of an extension type package list them under a top-level `settings:` key.",
+            "properties": {
+                "default": {
+                    "$ref": "#/$defs/Any",
+                    "description": "The platform default (a JSON value that satisfies `type` and `validation`)."
+                },
+                "deprecated": {
+                    "description": "Set when the key is going away; says what replaces it.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "description": {
+                    "description": "One sentence shown beside the key.",
+                    "type": "string"
+                },
+                "docs": {
+                    "description": "Longer explanation shown in the detail pane.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "effect": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/SettingEffect"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "key": {
+                    "description": "Dotted and namespaced, lower-case words, for example `feed.reactions.enabled`.",
+                    "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+                    "type": "string"
+                },
+                "lockable": {
+                    "description": "Whether the company can lock the key, or bound its values, for its projects.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "owner": {
+                    "description": "`platform`, or `<namespace>.<TypeName>` for the extension type that defines the key.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "risk": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/SettingRisk"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "scopes": {
+                    "description": "Which layers may set the key.",
+                    "items": {
+                        "$ref": "#/$defs/SettingScope"
+                    },
+                    "type": "array"
+                },
+                "sensitivity": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/SettingSensitivity"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "since": {
+                    "description": "The platform or package version that introduced the key.",
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/SettingType"
+                },
+                "validation": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/SettingValidation"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "key",
+                "type",
+                "default",
+                "description",
+                "scopes",
+                "since"
+            ],
+            "title": "SettingDefinition",
+            "type": "object"
+        },
+        "SettingEffect": {
+            "description": "What a change needs before it is fully in force (brief 30.3).",
+            "enum": [
+                "live",
+                "reindex",
+                "rebuild",
+                "restart"
+            ],
+            "title": "SettingEffect",
+            "type": "string"
+        },
+        "SettingEffectApplied": {
+            "additionalProperties": false,
+            "description": "Operational, not a projection (no event produces it and a rebuild never clears it): the last point at which each follow-up effect (`reindex`, `rebuild`, `restart`) was carried out. A key whose effect is not `live` owes that effect while it has a change newer than this point. `tl projections rebuild` and the server start write it.",
+            "properties": {
+                "applied_by": {
+                    "description": "What did it (`rebuild`, `reindex`, `server`).",
+                    "type": "string"
+                },
+                "applied_seq": {
+                    "description": "The ledger head when the effect was carried out.",
+                    "type": "integer"
+                },
+                "applied_us": {
+                    "description": "Microseconds since the epoch when it was carried out.",
+                    "type": "integer"
+                },
+                "effect": {
+                    "description": "`reindex`, `rebuild` or `restart`.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "effect",
+                "applied_seq",
+                "applied_us",
+                "applied_by"
+            ],
+            "title": "SettingEffectApplied",
+            "type": "object"
+        },
+        "SettingLockRow": {
+            "additionalProperties": false,
+            "description": "The lock and bounds of one key, as the latest `Setting.Locked` event left them.",
+            "properties": {
+                "actor": {
+                    "type": "string"
+                },
+                "bounds": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "The bounds as JSON, or null for none."
+                },
+                "key": {
+                    "type": "string"
+                },
+                "locked": {
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "recorded_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "seq": {
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "key",
+                "locked",
+                "reason",
+                "actor",
+                "seq",
+                "version",
+                "recorded_at"
+            ],
+            "title": "SettingLockRow",
+            "type": "object"
+        },
+        "SettingLockedPayload": {
+            "additionalProperties": false,
+            "description": "The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to. The stream is `setting:company:<key>`.",
+            "examples": [
+                "{\"bounds\": null, \"key\": \"ai.agents.default_mode\", \"layer\": \"company\", \"locked\": true, \"reason\": \"Company policy: agents propose, people decide\"}"
+            ],
+            "properties": {
+                "bounds": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Limits for project values: `minimum`, `maximum` and/or `choices`; null for none."
+                },
+                "key": {
+                    "type": "string"
+                },
+                "layer": {
+                    "description": "Always `company`; only the company layer locks or bounds a key.",
+                    "type": "string"
+                },
+                "locked": {
+                    "description": "True when projects may not override the key.",
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "key",
+                "layer",
+                "locked",
+                "reason"
+            ],
+            "title": "SettingLockedPayload",
+            "type": "object"
+        },
+        "SettingRisk": {
+            "description": "`advanced` needs a reason with every change; `dangerous` also needs the explicit \"I accept the risk\".",
+            "enum": [
+                "normal",
+                "advanced",
+                "dangerous"
+            ],
+            "title": "SettingRisk",
+            "type": "string"
+        },
+        "SettingScope": {
+            "description": "Which layers may set a key. `platform` is the shipped default only; nobody sets it at run time.",
+            "enum": [
+                "platform",
+                "company",
+                "project",
+                "user"
+            ],
+            "title": "SettingScope",
+            "type": "string"
+        },
+        "SettingSensitivity": {
+            "description": "A `secret` setting would live in the vault; Phase 0 has none and refuses to set one.",
+            "enum": [
+                "normal",
+                "secret"
+            ],
+            "title": "SettingSensitivity",
+            "type": "string"
+        },
+        "SettingType": {
+            "description": "The value type of a setting (brief 30.1).",
+            "enum": [
+                "bool",
+                "int",
+                "decimal",
+                "string",
+                "enum",
+                "list",
+                "duration",
+                "size",
+                "date",
+                "json"
+            ],
+            "title": "SettingType",
+            "type": "string"
+        },
+        "SettingValidation": {
+            "additionalProperties": false,
+            "description": "Range, choices or pattern of a value. For `list` values `choices` and `pattern` apply to each item; for `duration` and `size` the range is in seconds and bytes.",
+            "properties": {
+                "choices": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "The allowed values (a JSON list), for an enum or the items of a list."
+                },
+                "maximum": {
+                    "description": "Largest allowed value.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "minimum": {
+                    "description": "Smallest allowed value.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "pattern": {
+                    "description": "Regular expression a string value (or each list item) must match in full.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "SettingValidation",
+            "type": "object"
+        },
         "SubscriptionFilter": {
             "additionalProperties": false,
             "description": "Which events a subscription (or rule, or stream) wants (brief 18.2). Every part that is set must match; a part that is absent matches everything. Globs use `*` and `?` and are case-sensitive.",
