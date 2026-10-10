@@ -21,7 +21,8 @@ def test_the_outbox_is_registered_last_and_sees_every_event_type() -> None:
     registry = default_registry()
     names = [p.name for p in registry.all()]
     assert names[-1] == "outbox"
-    assert [p.name for p in registry.for_event("Something.Unheard")] == ["outbox"]
+    # The feed projector also sees every event (it makes event cards) and is registered just before.
+    assert [p.name for p in registry.for_event("Something.Unheard")] == ["feed", "outbox"]
     assert names.index("core_record") < names.index("outbox")
 
 
