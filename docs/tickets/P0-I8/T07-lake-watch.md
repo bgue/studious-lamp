@@ -1,6 +1,6 @@
 # P0-I8-T07 — `tl lake sync --watch` waits `lake.sync.interval`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: cli
 Depends on: — (the setting and the lake sync are on the base)
@@ -111,4 +111,4 @@ Standard report.
 (implementer writes here)
 
 ## Decision
-(supervisor writes here)
+Reviewed in a fresh context: pass. Merged into p0/i8a as fb25d32.

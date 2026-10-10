@@ -46,6 +46,7 @@ accepts it; the API returns 403 `agent_must_propose` for an agent token; the TUI
 | A18 | **The `tl config` write commands refuse `--actor agent:*`** (`tl_cli/actors.py`, an option callback; exit 1, `error: agent_must_propose: ...`), matching the API (D3 is absolute). The service functions still take any actor (A9). |
 | A19 | **YAML import hygiene**: no anchors or aliases (a 280-byte file expanded to a million items), only JSON-typed values (dates, timestamps, sets and bytes are refused naming the key), text keys, nesting up to 12 levels. Values returned by the resolver and the reader are copies. No-op detection and choices compare canonical JSON (`true` is not `1`). `pending_effect` counts only the layers of the view being read. |
 | A20 | **The about:config screen opens with `F9` (and the palette command `about:config`), not `Ctrl+,`**: most terminals do not deliver `Ctrl+,`. It writes through `ClientInterface` only, asks the form for the reason and the risk, and shows the service's refusal. Scheduled changes and company bounds are not editable from the screen (use `tl config`). The embedded client refuses an `agent:` actor (WS-B review ruling). |
+| A21 | **A missing ledger ends `tl lake sync --watch`** (exit 1, `error: no ledger at ...: run `tl init``), because `_ledger_snapshot` exits the command: the ledger is the thing being copied, so a watcher without one has nothing to wait for. A busy or failing sync is not fatal: the watcher prints `error:` and tries again after the wait; an unreadable interval keeps the last good one. |
 
 ## Supervisor-built pieces (in order)
 | # | Piece | Why supervisor-tier | Reviewer | Status |
@@ -73,9 +74,9 @@ accepts it; the API returns 403 `agent_must_propose` for an agent token; the TUI
 | P0-I8-T04 | MCP `get_settings` | haiku | S4 | merged (pass) | 9235f2a |
 | P0-I8-T05 | feed reads `feed.reactions.enabled` and `feed.signal_tags` | haiku | S4 | merged (pass) | 44de0d7 |
 | P0-I8-T06 | webhook retry window and egress allow-list read the settings | haiku | S5 | merged (pass) | 9fe5587 |
-| P0-I8-T07 | `tl lake sync --watch` reads `lake.sync.interval` | haiku | S5 | ready | |
-| P0-I8-T08 | `ApiClient` settings methods | haiku | T03 | ready | |
-| P0-I8-T09 | TUI client: embedded settings calls (the remote client passes the ApiClient methods through; the contract and the fake are S18) | haiku | S18 | ready | |
+| P0-I8-T07 | `tl lake sync --watch` reads `lake.sync.interval` | haiku | S5 | merged (pass) | fb25d32 |
+| P0-I8-T08 | `ApiClient` settings methods | haiku | T03 | merged (pass) | e86f9ea |
+| P0-I8-T09 | TUI client: embedded settings calls (the remote client passes the ApiClient methods through; the contract and the fake are S18) | haiku | S18 | merged (pass) | 4c4feea |
 | P0-I8-T10 | TUI about:config screen (`F9`) with snapshots | supervisor | S18 | built (S19) | modal flows with edit, reason and risk; a ticket would need the whole design pasted |
 | P0-I8-T11 | effects: `tl projections rebuild` and the server start write `setting_effect_applied` | supervisor | S2 | built (S18) | a ticket would have been longer than the change (about 15 lines and one test file); reviewed with the S-commits |
 | P0-I8-T12 | `docs/runbooks/settings.md` and the runbook edits | supervisor | T01 to T09 | todo (S21) | |

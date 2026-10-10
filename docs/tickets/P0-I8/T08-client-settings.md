@@ -1,6 +1,6 @@
 # P0-I8-T08 — `ApiClient` settings methods
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: api
 Depends on: — (the `/settings` routes are on the base; `SettingsApi` is already mixed into `ApiClient`)
@@ -242,4 +242,4 @@ Standard report.
 (implementer writes here)
 
 ## Decision
-(supervisor writes here)
+Reviewed in a fresh context: pass. Merged into p0/i8a as e86f9ea.

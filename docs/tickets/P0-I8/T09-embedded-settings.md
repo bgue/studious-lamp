@@ -1,6 +1,6 @@
 # P0-I8-T09 — The embedded TUI client serves settings
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: tui
 Depends on: — (the contract in `tl_tui/client.py`, the fake and the remote pass-through are on the base)
@@ -185,4 +185,4 @@ Standard report.
 (implementer writes here)
 
 ## Decision
-(supervisor writes here)
+Reviewed in a fresh context: pass. Merged into p0/i8a as 4c4feea.
