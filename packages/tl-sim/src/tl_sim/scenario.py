@@ -19,6 +19,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 Weekday = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 INJECT_EVENTS = ("material_late", "design_revision", "post")
+MAX_INJECT_COUNT = 20  # revisions one design_revision injection may force
+MAX_INJECT_KEYS = 16
+MAX_INJECT_TEXT = 2000  # characters in any string argument, a post body included
 ACTOR_NAMES = ("document_controller", "planner", "crew")  # the order they act in each day
 
 
@@ -116,6 +119,26 @@ class InjectSpec(BaseModel):
             args[key] = raw.pop(key)
         raw["args"] = args
         return raw
+
+    @model_validator(mode="after")
+    def _bounded(self) -> InjectSpec:
+        """Caps that stop a runaway: few keys, short strings, scalars only, a small count."""
+        if len(self.args) > MAX_INJECT_KEYS:
+            raise ValueError(f"an injection takes at most {MAX_INJECT_KEYS} arguments")
+        for name, value in self.args.items():
+            if not isinstance(value, str | int | float | bool):
+                raise ValueError(f"argument {name!r} must be a string, number or boolean")
+            if isinstance(value, str) and len(value) > MAX_INJECT_TEXT:
+                raise ValueError(f"argument {name!r} is longer than {MAX_INJECT_TEXT} characters")
+        for name in ("count", "days"):
+            if name in self.args:
+                number = self.args[name]
+                if isinstance(number, bool) or not isinstance(number, int) or number < 0:
+                    raise ValueError(f"{name} must be a whole number of 0 or more")
+        count = self.args.get("count", 1)
+        if self.event == "design_revision" and count > MAX_INJECT_COUNT:
+            raise ValueError(f"count must be at most {MAX_INJECT_COUNT}")
+        return self
 
     @model_validator(mode="after")
     def _check_args(self) -> InjectSpec:

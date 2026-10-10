@@ -69,6 +69,14 @@ runs `sim_assert` (green), re-runs the same seed on a fresh ledger and compares 
 | 5 | `RunState.created_at` read the wall clock; a docstring named the wrong test file | the caller supplies it (the scenario start at 00:00 UTC); docstring fixed |
 | 6 | `HttpReader.proposals()` returns `[]` until WS-B merges | accepted (fails closed: a logged proposal is then reported missing) |
 
+## Review of T44 and T45 (fresh reviewer, changes requested; fixed in S49)
+| # | Finding | Fix |
+|---|---|---|
+| 1 | HIGH: `sim_create` over MCP read any YAML path, and errors echoed paths and parser text | MCP accepts a bundled name matching `[a-z0-9._-]{1,64}` only (`load_bundled_scenario`, real path inside the scenarios directory, symlinks followed); `ScenarioError.public` and path-free `RunError` text; tests for absolute paths, `../`, `.yaml`, symlinks |
+| 2 | MEDIUM: injection arguments unbounded (`count` of 10**9) | `InjectSpec`: count at most 20, strings 2000 characters, 16 keys, scalars only; 100 queued per run (`RunError`) |
+| 3 | MEDIUM: `seed.sh` left `tl serve` running (`$!` was the wrapper) | `setsid` and a group kill, then wait until `/health` stops answering; same in the demo. Checked on the failure path (the run dies at the first post, the server is gone) |
+| 4 | LOW: no authorise hook in the sim MCP tools | `sim.create|advance|inject|status|assert` hook first, deny-all test |
+
 ## Risks and escalation triggers
 - The feed post and feed read need workstream B (`ApiClient.feed_post`, `feed_page`, the `PostToFeed` route). Until it is merged the real-API tests cover every write except `post`, and `HttpReader.posts` is only exercised on `FakeWorld`.
 - A change to `Command`, `Event`, `Ledger` or `event_hash` would be a stop condition. D5 needed none.

@@ -10,8 +10,15 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 root="$(mktemp -d)"
 server_pid=""
-stop_server() {
-  if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true; fi
+stop_server() { # the server has its own process group (setsid), so the whole group is stopped
+  [ -n "$server_pid" ] || return 0
+  kill -TERM -- "-$server_pid" 2>/dev/null || true
+  for _ in $(seq 1 50); do
+    curl -fs "$TL_API_URL/health" >/dev/null 2>&1 || break
+    sleep 0.1
+  done
+  kill -KILL -- "-$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
   server_pid=""
 }
 trap 'stop_server; rm -rf "$root"' EXIT
@@ -40,7 +47,7 @@ new_world() {
   local port
   port="$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')"
   export TL_API_URL="http://127.0.0.1:$port"
-  quiet uv run tl serve --port "$port" >"$dir/server.log" 2>&1 &
+  setsid uv run tl serve --port "$port" >"$dir/server.log" 2>&1 &
   server_pid=$!
   for _ in $(seq 1 100); do
     curl -fs "$TL_API_URL/health" >/dev/null 2>&1 && break

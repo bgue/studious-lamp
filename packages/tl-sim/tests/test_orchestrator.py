@@ -297,3 +297,22 @@ def test_a_scenario_with_every_actor_off_still_counts_days(
     result = sim.advance(3)
     assert (sim.state.day, result.steps, len(sim.truth())) == (3, 0, before)
     assert connector.world.posts() == []
+
+
+def test_the_queue_of_injections_is_capped_per_run(tmp_path: Path) -> None:
+    sim, _ = make(tmp_path)
+    for n in range(orch.MAX_PENDING):
+        sim.inject("post", actor="crew", body=f"note {n}")
+    with pytest.raises(RunError, match="100 injections are already queued"):
+        sim.inject("post", actor="crew", body="one too many")
+    assert len(sim.status().pending) == orch.MAX_PENDING
+    sim.advance(1)  # playing the day empties the queue
+    sim.inject("post", actor="crew", body="room again")
+    assert len(sim.status().pending) == 1
+
+
+def test_an_oversized_injection_is_refused_and_not_queued(tmp_path: Path) -> None:
+    sim, _ = make(tmp_path)
+    with pytest.raises(ValueError, match="at most 20"):
+        sim.inject("design_revision", count=10**9)
+    assert sim.status().pending == []

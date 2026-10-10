@@ -91,7 +91,7 @@ class RunStore:
         path = self.run_dir(run_id) / "run.json"
         if not path.exists():
             known = ", ".join(self.runs()) or "none"
-            raise RunError(f"no run {run_id!r} in {self.base} (runs: {known})")
+            raise RunError(f"no run {run_id!r} (runs: {known})")
         data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
         return RunState.model_validate(data)
 

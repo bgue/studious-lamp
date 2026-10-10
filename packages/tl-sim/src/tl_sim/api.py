@@ -9,18 +9,22 @@ server reads) and returns plain JSON-able data, so the ``tl sim`` CLI and the MC
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 from tl_sim.connector import HttpConnector
 from tl_sim.orchestrator import Simulation, default_run_id
-from tl_sim.scenario_loader import load_scenario, load_template
+from tl_sim.scenario_loader import load_bundled_scenario, load_scenario, load_template
 from tl_sim.state import RunStore
 
 DEFAULT_SIM_DIR = "./dev/data/sim"
 DEFAULT_API_URL = "http://127.0.0.1:8765"
 DEFAULT_TOKENS = "./dev/data/tokens.json"
+
+Authorizer = Callable[[str, str, str], None]
+"""``hook(actor, action, resource)``: raises to refuse (the shape of ``tl_api.auth.authorize``)."""
 
 
 @dataclass(frozen=True)
@@ -47,9 +51,14 @@ def _open(env: SimEnv, run_id: str | None) -> Simulation:
     return Simulation.open(rid, store=store, connector=connector)
 
 
-def sim_create(env: SimEnv, scenario: str | Path, *, run_id: str | None = None) -> dict[str, Any]:
-    """Create a run from a scenario (a YAML path or a bundled name) and write the seed records."""
-    loaded = load_scenario(scenario)
+def sim_create(
+    env: SimEnv, scenario: str | Path, *, run_id: str | None = None, bundled_only: bool = False
+) -> dict[str, Any]:
+    """Create a run from a scenario (a YAML path or a bundled name) and write the seed records.
+
+    ``bundled_only`` (the MCP server) accepts a bundled name and nothing else: never a path.
+    """
+    loaded = load_bundled_scenario(str(scenario)) if bundled_only else load_scenario(scenario)
     rid = run_id or default_run_id(loaded)
     connector = HttpConnector(env.api_url, env.tokens_path, run_id=rid)
     sim = Simulation.create(

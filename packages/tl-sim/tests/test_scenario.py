@@ -96,3 +96,49 @@ def test_a_template_needs_an_area_with_a_line() -> None:
         Template.model_validate({"template": "t", "areas": []})
     with pytest.raises(ValidationError):
         Template.model_validate({"template": "t", "areas": [{"name": "A", "lines": []}]})
+
+
+# --- caps that stop a runaway (reviewer finding) -------------------------------------------------
+
+
+def inject(event: str, **args: object) -> InjectSpec:
+    return InjectSpec.model_validate({"day": 0, "event": event, "args": args})
+
+
+def test_a_design_revision_count_is_capped_at_twenty() -> None:
+    assert inject("design_revision", count=20).args["count"] == 20
+    for bad in (21, 10**9, -1, 2.5, "3", True):
+        with pytest.raises(ValidationError):
+            inject("design_revision", count=bad)
+
+
+def test_days_must_be_a_whole_number_of_zero_or_more() -> None:
+    assert inject("material_late", item="flange", days=0).args["days"] == 0
+    for bad in (-1, 1.5, "21", None):
+        with pytest.raises(ValidationError):
+            inject("material_late", item="flange", days=bad)
+
+
+def test_a_string_argument_or_a_post_body_is_capped_at_2000_characters() -> None:
+    assert inject("post", actor="crew", body="x" * 2000)
+    with pytest.raises(ValidationError, match="2000"):
+        inject("post", actor="crew", body="x" * 2001)
+    with pytest.raises(ValidationError, match="2000"):
+        inject("material_late", item="y" * 2001, days=1)
+
+
+def test_an_injection_takes_at_most_sixteen_arguments_and_only_scalars() -> None:
+    many = {f"k{n}": n for n in range(14)}
+    assert inject("post", actor="crew", body="x", **many)  # 16 in all
+    with pytest.raises(ValidationError, match="at most 16"):
+        inject("post", actor="crew", body="x", extra=1, **many)
+    for nested in ({"a": 1}, [1], None):
+        with pytest.raises(ValidationError, match="string, number or boolean"):
+            inject("post", actor="crew", body="x", more=nested)
+
+
+def test_the_scenario_file_is_covered_by_the_same_caps() -> None:
+    with pytest.raises(ValidationError):
+        Scenario.model_validate(
+            {**BASE, "inject": [{"day": 1, "event": "design_revision", "count": 10**9}]}
+        )

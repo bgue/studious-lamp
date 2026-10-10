@@ -742,3 +742,9 @@ test or a generated artefact already enforces, or narrative history (that belong
   loaded by string. Test the dotted name of every `from` import, follow aliases through attribute chains, forbid `importlib`/`__import__`, and keep negative fixtures that prove each
   spelling is caught. A timestamp parser also needs a range: `datetime.astimezone(UTC)` raises `OverflowError` at year 1 or 9999, which became a 500 until it was caught.
   Evidence: review of S40 to S43; `tests/test_contract_and_boundary.py`, `packages/tl-api/tests/test_effective_time.py`. Status: active
+- **L-P0-I6C-10** · 2026-10-10 · tags: security, tooling
+  A tool that lets a caller name a file is a file-read door: `load_scenario("/etc/hostname")` worked through MCP because "contains a slash" meant "is a path". A remote door takes names
+  only (a pattern, then a real-path containment check that follows symlinks), and shows the caller a message that has no path, file text or parser snippet (`ScenarioError.public`).
+  In shell, `quiet cmd &` backgrounds the wrapper function's subshell, so `$!` is not the server and the EXIT trap leaves it running: start it with `setsid`, kill `-$pid` (the group), and
+  wait until its port stops answering.
+  Evidence: review of T44 and T45; `tests/test_mcp_server.py`, `dev/seed/seed.sh`. Status: active

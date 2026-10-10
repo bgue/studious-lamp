@@ -16,6 +16,7 @@ A deterministic simulated project team that plays working days against a running
 | `tl_sim.actors` | package | `BaseActor`, `Recorder`, and the document controller, planner and crew (acting as `user:sim-<role>`; `agent:sim-assistant` proposes) |
 | `tl_sim.scenario_loader.load_scenario(source)` | function | A scenario from YAML (`dev/seed/scenarios`) |
 | `tl_sim.testing.FakeWorld` | class | An in-memory suite for tests |
+| `tl_sim.mcp_server.build_server(env, actor=..., authorize_hook=...)` | function | The five operations as MCP tools (`sim.<tool>` hook first; `sim_create` takes a bundled scenario name, never a path) |
 | `tl sim ...` | CLI | The five operations plus `run` and `seed` (see Commands) |
 
 ## Depends on / used by

@@ -34,6 +34,7 @@ from tl_sim.state import RunError, RunInterruptedError, RunState, RunStore
 from tl_sim.types import Actor, GroundTruth, SimClient, SimContext
 
 ORCHESTRATOR = "user:sim-orchestrator"
+MAX_PENDING = 100  # queued injections per run; more would be a runaway, not a scenario
 ASSISTANT = "agent:sim-assistant"
 """The one simulated agent. The API refuses record-changing commands from any ``agent:*`` token
 (WB B15, FANOUT D4: agents propose, people accept), so the role actors, which stand in for people,
@@ -110,7 +111,7 @@ class Simulation:
     ) -> Simulation:
         run_id = run_id or default_run_id(scenario)
         if store.exists(run_id):
-            raise RunError(f"run {run_id!r} already exists in {store.base}; choose another run id")
+            raise RunError(f"run {run_id!r} already exists; choose another run id")
         created = datetime.combine(scenario.start, time(0), tzinfo=UTC)  # simulated, not the clock
         state = RunState(run_id=run_id, scenario=scenario, created_at=created)
         state.tokens = connector.provision(all_identities())
@@ -209,6 +210,8 @@ class Simulation:
 
     def inject(self, event: str, **args: Any) -> InjectSpec:
         """Queue an event for the next day that is played (``sim_advance``)."""
+        if len(self.state.pending) >= MAX_PENDING:
+            raise RunError(f"{MAX_PENDING} injections are already queued; advance the run first")
         spec = InjectSpec.model_validate({"day": self.state.day, "event": event, "args": args})
         self.state.pending = [*self.state.pending, spec]
         self.store.save(self.state)

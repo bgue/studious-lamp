@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +10,10 @@ import httpx2
 import pytest
 from tl_api.client.base import ApiUnavailableError
 from tl_sim import api, cli
-from tl_sim.state import RunError
+from tl_sim.orchestrator import Simulation
+from tl_sim.scenario import AreaSpec, Scenario, Template
+from tl_sim.state import RunError, RunStore
+from tl_sim.testing import FakeConnector
 from typer.testing import CliRunner
 
 RUNNER = CliRunner()
@@ -265,3 +269,23 @@ def test_an_unknown_scenario_name_is_an_error_line(calls: Calls) -> None:
     result = invoke("run", "no-such-scenario")
     assert result.exit_code == 1 and result.stderr.startswith("error: ")
     assert calls.log == []
+
+
+def test_the_cli_refuses_an_oversized_injection_on_a_real_run(tmp_path: Path) -> None:
+    """No fakes here: a run on disk, and the cap in ``InjectSpec`` answers through the CLI."""
+    scenario = Scenario(scenario="t", seed=1, start=date(2026, 11, 2))
+    template = Template(template="t", areas=[AreaSpec(name="A", lines=["1-CS-1"])])
+    store = RunStore(tmp_path)
+    sim = Simulation.create(scenario, template, store=store, connector=FakeConnector("rcli"))
+    env = {"TL_SIM_DIR": str(tmp_path)}
+    bad = RUNNER.invoke(
+        cli.app, ["inject", "design_revision", "--arg", "count=1000000000"], env=env
+    )
+    assert bad.exit_code == 1 and "count must be at most 20" in bad.stderr
+    ok = RUNNER.invoke(cli.app, ["inject", "design_revision", "--arg", "count=20"], env=env)
+    assert ok.exit_code == 0 and "queued design_revision" in ok.stdout
+    assert (
+        Simulation.open(sim.state.run_id, store=store, connector=FakeConnector("rcli"))
+        .status()
+        .pending
+    )
