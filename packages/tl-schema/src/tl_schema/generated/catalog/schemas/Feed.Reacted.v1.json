@@ -1,0 +1,211 @@
+{
+  "$id": "https://tl.example.com/schema/events/Feed.Reacted/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+  "properties": {
+    "data": {
+      "additionalProperties": true,
+      "description": "The `data` member of a webhook CloudEvent.",
+      "properties": {
+        "changes": {
+          "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+        },
+        "detail": {
+          "additionalProperties": true,
+          "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+          "properties": {
+            "on": {
+              "description": "True to set the reaction, false to clear it.",
+              "type": "boolean"
+            },
+            "post_id": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "reaction": {
+              "description": "One of `ack`, `+1`, `resolved`.",
+              "pattern": "^(ack|\\+1|resolved)$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "post_id",
+            "reaction",
+            "on"
+          ],
+          "title": "FeedReactedPayload",
+          "type": "object"
+        },
+        "links": {
+          "description": "Delta and full modes. Immediate links.",
+          "items": {
+            "additionalProperties": false,
+            "description": "One immediate link of the origin record (delta mode).",
+            "properties": {
+              "id": {
+                "description": "`urn:tl:<ulid>` of the record at the other end.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "key": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rel": {
+                "type": "string"
+              },
+              "type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "uri": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "rel"
+            ],
+            "title": "EventLinkRef",
+            "type": "object"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "origin": {
+          "additionalProperties": false,
+          "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+          "properties": {
+            "api": {
+              "description": "API URL of the record.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "id": {
+              "description": "`urn:tl:<ulid>` of the record.",
+              "type": "string"
+            },
+            "key": {
+              "description": "Human-readable key.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "description": "Record type.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "uri": {
+              "description": "Resolvable URI of the record at this version (`...@v7`).",
+              "type": "string"
+            },
+            "version": {
+              "description": "Version of the record after the event.",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "uri",
+            "version"
+          ],
+          "title": "EventOrigin",
+          "type": "object"
+        },
+        "record": {
+          "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+        }
+      },
+      "required": [
+        "origin"
+      ],
+      "title": "CloudEventData",
+      "type": "object"
+    },
+    "datacontenttype": {
+      "const": "application/json",
+      "type": "string"
+    },
+    "dataschema": {
+      "const": "https://tl.example.com/schema/events/Feed.Reacted/1",
+      "description": "URI of the catalog schema of this event type.",
+      "type": "string"
+    },
+    "id": {
+      "description": "The ledger event id. Receivers dedupe on it.",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "type": "string"
+    },
+    "source": {
+      "description": "URI of the company and project the event came from.",
+      "type": "string"
+    },
+    "specversion": {
+      "const": "1.0",
+      "type": "string"
+    },
+    "subject": {
+      "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+      "type": "string"
+    },
+    "time": {
+      "description": "When the ledger committed the event (UTC).",
+      "format": "date-time",
+      "type": "string"
+    },
+    "tlactor": {
+      "type": "string"
+    },
+    "tlcorrelationid": {
+      "type": "string"
+    },
+    "tlseq": {
+      "description": "Ledger `seq`.",
+      "type": "integer"
+    },
+    "tlstreamversion": {
+      "description": "Version within the event's stream.",
+      "type": "integer"
+    },
+    "type": {
+      "const": "tl.core.Feed.Reacted.v1",
+      "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+      "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "specversion",
+    "id",
+    "source",
+    "type",
+    "time",
+    "subject",
+    "dataschema",
+    "datacontenttype",
+    "tlseq",
+    "tlstreamversion",
+    "tlcorrelationid",
+    "tlactor",
+    "data"
+  ],
+  "title": "CloudEvent",
+  "type": "object"
+}

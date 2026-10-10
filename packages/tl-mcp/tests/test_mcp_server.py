@@ -15,17 +15,20 @@ from tl_mcp.errors import guarded, resource_name
 from tl_mcp.main import main, parse_args
 from tl_mcp.server import build_server
 
-TOOLS = {"search_records", "get_record", "get_links", "trace", "lake_query"}
+READ_TOOLS = {"search_records", "get_record", "get_links", "trace", "lake_query"}
+PROPOSE_TOOLS = {"create_record", "update_psets", "link_records", "transition_workflow"}
+TOOLS = READ_TOOLS | PROPOSE_TOOLS | {"post_feed"}
 
 
-def test_the_phase_0_surface_is_read_tools_only_and_no_write_tool(env: McpHarness) -> None:
+def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
+    env: McpHarness,
+) -> None:
     tools = asyncio.run(env.server.list_tools())
     assert {t.name for t in tools} == TOOLS
     for tool in tools:
         assert tool.annotations is not None
-        assert (
-            tool.annotations.read_only_hint is True and tool.annotations.destructive_hint is False
-        )
+        assert tool.annotations.destructive_hint is False
+        assert (tool.annotations.read_only_hint is True) == (tool.name in READ_TOOLS)
         assert tool.description
     by_name = {t.name: t for t in tools}
     search = by_name["search_records"].input_schema

@@ -26,7 +26,7 @@ from tl_core.ledger import (
     event_hash,
     iso_utc,
 )
-from tl_core.util import new_ulid, utcnow
+from tl_core.util import current_effective_time, new_ulid, utcnow
 
 from tl_adapters.postgres.ddl import EVENTS_DDL
 from tl_adapters.postgres.engine import (
@@ -168,7 +168,9 @@ class PostgresLedger:
             version += 1
             event_id = self._id_gen()
             recorded_at = self._clock()
-            effective_at = new.effective_at if new.effective_at is not None else recorded_at
+            effective_at = new.effective_at
+            if effective_at is None:  # the simulated clock (D5), else the moment it was recorded
+                effective_at = current_effective_time() or recorded_at
             payload_json = canonical_json(new.payload)
             recorded_iso = iso_utc(recorded_at)
             current_hash = event_hash(

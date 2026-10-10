@@ -6,6 +6,10 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 
 | Event type | CloudEvents type | Summary |
 |---|---|---|
+| [`Feed.Edited`](#feededited) | `tl.core.Feed.Edited.v1` | A post was edited. |
+| [`Feed.Posted`](#feedposted) | `tl.core.Feed.Posted.v1` | A post was made in a project feed. |
+| [`Feed.Reacted`](#feedreacted) | `tl.core.Feed.Reacted.v1` | A reaction was set or cleared on a post. |
+| [`Feed.Retracted`](#feedretracted) | `tl.core.Feed.Retracted.v1` | A post was retracted. |
 | [`File.Processed`](#fileprocessed) | `tl.core.File.Processed.v1` | A file passed its scan and is available. |
 | [`File.Rejected`](#filerejected) | `tl.core.File.Rejected.v1` | A file failed its scan and was rejected. |
 | [`File.Uploaded`](#fileuploaded) | `tl.core.File.Uploaded.v1` | A file was uploaded and attached to a record; it is quarantined until its scan finishes. |
@@ -18,6 +22,10 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Link.Suggested`](#linksuggested) | `tl.core.Link.Suggested.v1` | A link was suggested and waits for a person to accept or decline. |
 | [`Link.Verified`](#linkverified) | `tl.core.Link.Verified.v1` | A person verified an active link. |
 | [`Numbering.Allocated`](#numberingallocated) | `tl.core.Numbering.Allocated.v1` | A number was allocated from a counter. |
+| [`Proposal.Accepted`](#proposalaccepted) | `tl.core.Proposal.Accepted.v1` | A person accepted a proposal and its command ran in the same transaction. |
+| [`Proposal.Created`](#proposalcreated) | `tl.core.Proposal.Created.v1` | An agent proposed a change. |
+| [`Proposal.Failed`](#proposalfailed) | `tl.core.Proposal.Failed.v1` | A person accepted a proposal, but the command was refused (the record changed since, a guard failed). |
+| [`Proposal.Rejected`](#proposalrejected) | `tl.core.Proposal.Rejected.v1` | A person rejected a proposal. |
 | [`Pset.ValuesSet`](#psetvaluesset) | `tl.core.Pset.ValuesSet.v1` | Values of a property set were written on a record. |
 | [`Record.Corrected`](#recordcorrected) | `tl.core.Record.Corrected.v1` | A recorded value was corrected after the fact; history keeps the original. |
 | [`Record.Created`](#recordcreated) | `tl.core.Record.Created.v1` | A record was created. |
@@ -31,6 +39,239 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`WebhookSubscription.SecretRotated`](#webhooksubscriptionsecretrotated) | `tl.core.WebhookSubscription.SecretRotated.v1` | A new signing secret was issued; the previous one keeps signing until the overlap ends. |
 | [`WebhookSubscription.Updated`](#webhooksubscriptionupdated) | `tl.core.WebhookSubscription.Updated.v1` | A subscription's name, target, filter or payload mode changed. |
 | [`Workflow.Transitioned`](#workflowtransitioned) | `tl.core.Workflow.Transitioned.v1` | A record moved from one workflow state to another. |
+
+## Feed.Edited
+
+A post was edited. The payload is a full replacement of the body and its tags; the earlier text stays in the ledger, so edits are visible history (brief 21.1).
+
+- CloudEvents type: `tl.core.Feed.Edited.v1`
+- Ledger payload class: `FeedEditedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `body` | string | yes |  |
+| `post_id` | string | yes |  |
+| `record_ids` | array or null | no |  |
+| `tags` | array or null | no |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "body": "Spool arrived, bevels damaged",
+      "post_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "record_ids": [],
+      "tags": []
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Feed.Edited/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Feed.Edited.v1"
+}
+```
+
+## Feed.Posted
+
+A post was made in a project feed. It is the first event of the post stream. The projection derives the effective importance from `importance` and the tags.
+
+- CloudEvents type: `tl.core.Feed.Posted.v1`
+- Ledger payload class: `FeedPostedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `author` | string | yes | Actor that posted. |
+| `body` | string | yes | Text of the post. |
+| `importance` | string | yes | Importance the author gave. The projection derives the effective level from it and the tags. |
+| `post_id` | string | yes |  |
+| `record_ids` | array or null | no | Records the post references, without repeats. |
+| `tags` | array or null | no | Tags found in the body, after resolution. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "author": "user:mlee",
+      "body": "Spool arrived #P123-REC-0003 #hold",
+      "importance": "normal",
+      "post_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "record_ids": [
+        "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+      ],
+      "tags": [
+        {
+          "end": 28,
+          "kind": "record",
+          "namespace": null,
+          "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+          "start": 14,
+          "text": "P123-REC-0003"
+        },
+        {
+          "end": 34,
+          "kind": "signal",
+          "namespace": null,
+          "record_id": null,
+          "start": 29,
+          "text": "hold"
+        }
+      ]
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Feed.Posted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Feed.Posted.v1"
+}
+```
+
+## Feed.Reacted
+
+A reaction was set or cleared on a post. The actor of the event sets (`on` true) or clears (`on` false) one acknowledgement. Reactions are limited to `ack`, `+1` and `resolved` (brief 21.1).
+
+- CloudEvents type: `tl.core.Feed.Reacted.v1`
+- Ledger payload class: `FeedReactedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `on` | boolean | yes | True to set the reaction, false to clear it. |
+| `post_id` | string | yes |  |
+| `reaction` | string | yes | One of `ack`, `+1`, `resolved`. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "on": true,
+      "post_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "reaction": "ack"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Feed.Reacted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Feed.Reacted.v1"
+}
+```
+
+## Feed.Retracted
+
+A post was retracted. The projection keeps a tombstone row and drops the body.
+
+- CloudEvents type: `tl.core.Feed.Retracted.v1`
+- Ledger payload class: `FeedRetractedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `post_id` | string | yes |  |
+| `reason` | string | yes | Why the post was retracted. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "post_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "reason": "Wrong project"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Feed.Retracted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Feed.Retracted.v1"
+}
+```
 
 ## File.Processed
 
@@ -681,6 +922,230 @@ A number was allocated from a counter.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Numbering.Allocated.v1"
+}
+```
+
+## Proposal.Accepted
+
+A person accepted a proposal and its command ran in the same transaction.
+
+- CloudEvents type: `tl.core.Proposal.Accepted.v1`
+- Ledger payload class: `ProposalAcceptedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `by` | string | yes | The accepting person, `user:<id>`. |
+| `proposal_id` | string | yes |  |
+| `result_stream_id` | string | yes | Stream the command wrote to (the new record, the changed record, the link). |
+| `result_version` | integer | yes | Stream version after the command. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "by": "user:mlee",
+      "proposal_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "result_stream_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "result_version": 1
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Proposal.Accepted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Proposal.Accepted.v1"
+}
+```
+
+## Proposal.Created
+
+An agent proposed a change. `command` is the command model as the agent built it, with `actor` set to the agent and `source` to `mcp:<agent>`; accepting re-runs it as the accepting person.
+
+- CloudEvents type: `tl.core.Proposal.Created.v1`
+- Ledger payload class: `ProposalCreatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `agent` | string | yes | The proposing actor, `agent:<id>`. |
+| `command` | any | yes |  |
+| `command_type` | string | yes | Name of the command model (`CreateRecord`, `SetPsetValues`, `AddLink`, `TransitionWorkflow`). |
+| `proposal_id` | string | yes |  |
+| `summary` | string | yes | One line for the review queue. |
+| `tool` | string | yes | The MCP tool that was called (`create_record`, `update_psets`, `link_records`, `transition_workflow`). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "agent": "agent:triage",
+      "command": {
+        "actor": "agent:triage",
+        "numbering": {},
+        "psets": {},
+        "record_type": "core.Record",
+        "scope": "project:P123",
+        "source": "mcp:triage",
+        "title": "Weld NCR"
+      },
+      "command_type": "CreateRecord",
+      "proposal_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "summary": "Create record: Weld NCR",
+      "tool": "create_record"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Proposal.Created/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Proposal.Created.v1"
+}
+```
+
+## Proposal.Failed
+
+A person accepted a proposal, but the command was refused (the record changed since, a guard failed). The command's own writes were rolled back; this event is written in a fresh transaction.
+
+- CloudEvents type: `tl.core.Proposal.Failed.v1`
+- Ledger payload class: `ProposalFailedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `by` | string | yes |  |
+| `error` | string | yes | `<ErrorClass>: <message>` of the refusal. |
+| `proposal_id` | string | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "by": "user:mlee",
+      "error": "ConcurrencyError: expected version 3, stream is at 4",
+      "proposal_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Proposal.Failed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Proposal.Failed.v1"
+}
+```
+
+## Proposal.Rejected
+
+A person rejected a proposal. Nothing else was written.
+
+- CloudEvents type: `tl.core.Proposal.Rejected.v1`
+- Ledger payload class: `ProposalRejectedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `by` | string | yes |  |
+| `proposal_id` | string | yes |  |
+| `reason` | string | yes | Why, for the agent and the audit trail. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "by": "user:mlee",
+      "proposal_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "reason": "Duplicate of NCR-0042"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Proposal.Rejected/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Proposal.Rejected.v1"
 }
 ```
 

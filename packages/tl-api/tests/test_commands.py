@@ -27,7 +27,7 @@ def create(h: Harness, key: str = "REC-1", **extra: Any) -> dict[str, Any]:
 def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     paths = harness.app.openapi()["paths"]
     assert {f"/commands/{spec.name}" for spec in COMMANDS} <= set(paths)
-    assert len(COMMANDS) == 13
+    assert len(COMMANDS) == 17
 
 
 def test_create_record_returns_the_command_result(harness: Harness) -> None:

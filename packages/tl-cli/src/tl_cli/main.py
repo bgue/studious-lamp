@@ -11,16 +11,19 @@ from typing import Annotated
 
 import typer
 from tl_adapters.sqlite.uow import create_schema, rebuild_projections
+from tl_sim import cli as sim_cli
 
 from tl_cli import (
     archive,
     backup,
     dev,
     events,
+    feed,
     file,
     lake,
     ledger,
     link,
+    proposal,
     pset,
     record,
     restore,
@@ -43,9 +46,12 @@ app.add_typer(pset.app, name="pset")
 app.add_typer(wf.app, name="wf")
 app.add_typer(file.app, name="file")
 app.add_typer(link.app, name="link")
+app.add_typer(feed.app, name="feed")
+app.add_typer(proposal.app, name="proposal")
 app.add_typer(lake.app, name="lake")
 app.add_typer(dev.app, name="dev")
 app.add_typer(webhook.app, name="webhook")
+app.add_typer(sim_cli.app, name="sim")
 app.command("serve")(serve.serve)
 app.command("tui")(tui.tui)
 app.add_typer(backup.app, name="backup")

@@ -158,3 +158,37 @@ def test_interactive_calls_time_out_after_a_few_seconds() -> None:
         assert timeout.read == INTERACTIVE_TIMEOUT_S and timeout.connect == INTERACTIVE_TIMEOUT_S
     finally:
         remote.close()
+
+
+def test_the_feed_methods_go_to_the_api_and_count_as_this_clients_own_writes(
+    harness: Harness,
+) -> None:
+    from tl_core.services.feed import PostToFeed
+    from tl_tui.embedded import EmbeddedClient
+
+    remote = RemoteClient(harness.api())
+    posted = remote.feed_post(
+        PostToFeed(actor="user:ignored", source="tui", scope=SCOPE, body="Hello #hold")
+    )
+    assert posted.events[0].event_id in remote.own_writes
+    page = remote.feed_page(SCOPE, item_type="post")
+    assert [(i.id, i.actor, i.summary) for i in page.items] == [
+        (posted.stream_id, "user:alice", "Hello #hold")
+    ]
+    assert page == EmbeddedClient(harness.backend).feed_page(SCOPE, item_type="post")
+    assert [c.text for c in remote.feed_complete(SCOPE, "#", "ho")] == ["hold"]
+
+
+def test_a_missing_post_raises_the_embedded_error_class_for_the_feed_pane(
+    harness: Harness,
+) -> None:
+    from tl_core.services.errors import PostNotFoundError
+    from tl_core.services.feed import EditPost
+
+    remote = RemoteClient(harness.api())
+    with pytest.raises(PostNotFoundError) as raised:
+        remote.feed_edit(
+            EditPost(actor="user:x", source="tui", scope=SCOPE, post_id="01NO", body="x")
+        )
+    assert isinstance(raised.value, CLIENT_ERRORS)  # a screen shows it and keeps its state
+    assert "01NO" in describe_error(raised.value)

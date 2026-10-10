@@ -10,7 +10,9 @@ from textual.binding import Binding
 from textual.pilot import Pilot
 from tl_tui.app import TlApp
 from tl_tui.keymap import CONTEXTS, KEYMAP, KeyEntry, help_text
+from tl_tui.widgets.composer import ComposerScreen
 from tl_tui.widgets.edit_form import EditForm
+from tl_tui.widgets.feed_pane import FeedPane
 from tl_tui.widgets.footer import DEFAULT_HINTS
 from tl_tui.widgets.grid import RecordGrid
 from tl_tui.widgets.help_screen import HelpScreen
@@ -35,6 +37,8 @@ OWNERS: dict[str, Any] = {
     "LinkPicker": LinkPicker,
     "ReferenceTrayScreen": ReferenceTrayScreen,
     "WorkflowMenu": WorkflowMenu,
+    "FeedPane": FeedPane,
+    "ComposerScreen": ComposerScreen,
 }
 
 
@@ -68,6 +72,8 @@ def test_every_context_has_entries_and_every_entry_has_a_known_context() -> None
         "Link picker",
         "Reference tray",
         "Workflow menu",
+        "Feed pane",
+        "Composer",
         "Forms",
     )
     assert {e.context for e in KEYMAP} == set(CONTEXTS)

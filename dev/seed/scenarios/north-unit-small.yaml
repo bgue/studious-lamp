@@ -1,0 +1,26 @@
+# Scenario for simulator v0 (brief 29.5 excerpt, scaled down): a small piping project for a week.
+# Counts are an integer, {min, max} or {dist: normal, mean, sd}. null switches an actor off.
+scenario: north-unit-small
+seed: 4711
+start: 2026-11-02
+duration_days: 5
+template: small-piping
+actors:
+  document_controller:
+    documents_per_day: {min: 1, max: 2}
+    revision_rate: 0.25
+  planner:
+    approvals_per_day: 2
+    activities_per_day: {min: 1, max: 2}
+    lookahead_day: mon
+  crew:
+    valves_per_day: {dist: normal, mean: 3, sd: 1}
+    reject_rate: 0.1
+  # One simulated agent proposes valve-to-document references over MCP; a person works the queue.
+  assistant:
+    proposals_per_day: 1
+  approver:
+    accept_rate: 0.7
+inject:
+  - {day: 2, event: material_late, item: "6in CL300 WN flange", days: 21}
+  - {day: 3, event: design_revision, count: 2}

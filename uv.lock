@@ -16,6 +16,7 @@ members = [
     "tl-lake",
     "tl-mcp",
     "tl-schema",
+    "tl-sim",
     "tl-tui",
 ]
 overrides = [{ name = "jsonschema", extras = ["format-nongpl"], specifier = ">=4.26" }]
@@ -2591,6 +2592,7 @@ dependencies = [
     { name = "tl-core" },
     { name = "tl-lake" },
     { name = "tl-schema" },
+    { name = "tl-sim" },
     { name = "tl-tui" },
     { name = "typer" },
 ]
@@ -2604,6 +2606,7 @@ requires-dist = [
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-lake", editable = "packages/tl-lake" },
     { name = "tl-schema", editable = "packages/tl-schema" },
+    { name = "tl-sim", editable = "packages/tl-sim" },
     { name = "tl-tui", editable = "packages/tl-tui" },
     { name = "typer" },
 ]
@@ -2707,12 +2710,40 @@ requires-dist = [
 ]
 
 [[package]]
+name = "tl-sim"
+version = "0.0.1"
+source = { editable = "packages/tl-sim" }
+dependencies = [
+    { name = "httpx2" },
+    { name = "mcp" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "tl-api" },
+    { name = "tl-core" },
+    { name = "tl-mcp" },
+    { name = "typer" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx2" },
+    { name = "mcp" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "pyyaml" },
+    { name = "tl-api", editable = "packages/tl-api" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mcp", editable = "packages/tl-mcp" },
+    { name = "typer" },
+]
+
+[[package]]
 name = "tl-tui"
 version = "0.0.1"
 source = { editable = "packages/tl-tui" }
 dependencies = [
     { name = "httpx2" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "textual" },
     { name = "tl-adapters" },
     { name = "tl-api" },
@@ -2724,6 +2755,7 @@ dependencies = [
 requires-dist = [
     { name = "httpx2" },
     { name = "pydantic", specifier = ">=2" },
+    { name = "rich" },
     { name = "textual" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-api", editable = "packages/tl-api" },

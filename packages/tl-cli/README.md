@@ -22,6 +22,13 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl link list --project ID KEY [--all]` | command | Links in both directions (`out`/`in`, label, other key, status, pin, id) and the expected links still missing |
 | `tl link accept|decline|verify|repin|retract|flag --project ID LINK_ID ...` | command | Link lifecycle; `retract` and `flag` need `--reason`; a declined suggestion is not made again |
 | `tl link trace --project ID KEY [--depth N] [--direction out|in|both]` | command | Records reachable through links, as an indented tree with stale and broken marks |
+| `tl feed post --project ID BODY [--importance low|normal|high] [--actor A]` | command | Post to the project feed; prints the post id, its tags and how many links were suggested (a `#KEY` tag suggests a `references` link, nothing else changes) |
+| `tl feed ls --project ID [--record KEY [--linked]] [--tag T] [--posts|--events] [-n N]` | command | The feed newest first: `id  kind  time  author  text`, cards with their records, posts with their reactions; a retracted post reads `[retracted]` |
+| `tl feed retract --project ID POST_ID --reason R`, `tl feed react --project ID POST_ID [--reaction ack|+1|resolved] [--off]` | command | Tombstone a post; set or clear an acknowledgement |
+| `tl proposal ls (--project ID \| --company) [--status pending\|accepted\|rejected\|failed\|all] [--agent A] [-n N]` | command | The review queue of agent proposals, oldest first: `id  status  agent  tool  summary` |
+| `tl proposal show ID` | command | One proposal and the command it would run (`command CreateRecord`, then `  field json` lines) |
+| `tl proposal accept ID [--role R]... [--actor user:ID]` | command | Run the proposal's command as you, tagged with the agent as source; a command that cannot be applied prints `failed ID` and `error: ...`, exits 1, and changes nothing; an `agent:` actor is refused |
+| `tl proposal reject ID --reason R [--actor user:ID]` | command | Close a pending proposal; the command never runs |
 | `tl wf show --project ID KEY [--role R]...` | command | Workflow state and, for each transition, whether its guards pass |
 | `tl wf transition --project ID KEY NAME [--role R]... [--reason T]` | command | Run a transition; a blocked one prints every guard and exits 1 |
 | `tl lake sync` | command | Calls `sync_lake`; copies new ledger events into the lake as one snapshot, prints the seq range and silver row counts |
@@ -35,6 +42,7 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl file put PATH --project ID --record KEY [--slot S] [--content-type T]` | command | Hash, upload (or dedupe) and attach a file; prints `file`, `slot`, `revision`, `status`, `size`, `sha256`, `deduplicated`, and `already attached` on a repeat |
 | `tl file get FILE_ID --project ID --out PATH [--force]` | command | Write a file's bytes, checked against the recorded SHA-256 |
 | `tl file ls --project ID --record KEY [--slot S] [--all]` | command | The current file per slot, or every file with `--all`; tab-separated `file_id, slot, revision, status, size, filename` |
+| `tl sim create|advance|inject|status|assert|run|seed` | command | The simulator (`tl_sim.cli`): create a seeded simulated project, play working days through the API, queue events, show the ground-truth digest, check the suite against the log (exit 1 on a difference); `seed --scale xs|s|m` is what `just seed` runs. See `docs/runbooks/simulator.md` |
 | `tl webhook add --project ID --name N --url U [--mode M] [--event-type T]... [filters]` | command | Create a subscription; prints `subscription`, `secret_id`, `secret` (the secret once, on stdout) |
 | `tl webhook ls [--project ID \| --company]` | command | One tab-separated line per subscription: id, status (`needs_secret` for an active subscription without a signing secret, as after a restore), mode, name, URL, delivered, pending, dead |
 | `tl webhook test ID [--event-type T] [--allow-host H]...` | command | Send a signed catalog sample (header `webhook-test: 1`); exit 1 on a failure or a blocked target |
@@ -76,4 +84,4 @@ just demo P0-I1
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `dev` group added in P0-I4 workstream C; `webhook` group added in P0-I5 workstream B; `backup`, `archive`, `ledger` groups and `restore` added in P0-I7 workstream A. `--role` is a stub list (no auth yet).
+Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `dev` group added in P0-I4 workstream C; `webhook` group added in P0-I5 workstream B; `feed` group added in P0-I6 workstream A; `proposal` group added in P0-I6 workstream B; `backup`, `archive`, `ledger` groups and `restore` added in P0-I7 workstream A. `--role` is a stub list (no auth yet).

@@ -8,6 +8,7 @@ over HTTP. `for_sqlite` keeps one engine and one in-process bus for the life of 
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
 from pathlib import Path
@@ -19,9 +20,25 @@ from tl_core.links.provider import get_vocabulary
 from tl_core.links.vocabulary import default_relation
 from tl_core.numbering.detect import KeyChip, suggest_chips
 from tl_core.query import QuerySpec, count_query, parse, run_query
-from tl_core.services import link_queries, link_trace, links, psets, queries
+from tl_core.services import (
+    feed_completion,
+    feed_queries,
+    link_queries,
+    link_trace,
+    links,
+    psets,
+    queries,
+)
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
+from tl_core.services.feed import EditPost, PostToFeed, handle_edit_post, handle_post
+from tl_core.services.feed_actions import (
+    ReactToPost,
+    RetractPost,
+    handle_react_to_post,
+    handle_retract_post,
+)
+from tl_core.services.feed_queries import Completion, FeedPage
 from tl_core.services.link_queries import LinkCounts, LinkTarget, LinkView
 from tl_core.services.link_trace import TraceDirection, TraceNode
 from tl_core.services.links import (
@@ -274,3 +291,52 @@ class EmbeddedClient:
     def transition(self, cmd: TransitionWorkflow) -> CommandResult:
         with self._uow(False) as uow:
             return self.own_writes.note(handle_transition_workflow(uow, cmd))
+
+    # --- feed -----------------------------------------------------------------------------------
+
+    def feed_page(
+        self,
+        scope: str,
+        *,
+        record_id: str | None = None,
+        include_linked: bool = False,
+        tag: str | None = None,
+        item_type: Literal["post", "card"] | None = None,
+        limit: int = 50,
+        before_seq: int | None = None,
+    ) -> FeedPage:
+        with self._uow(True) as uow:
+            page = feed_queries.list_feed(
+                uow,
+                scope,
+                record_id=record_id,
+                include_linked=include_linked,
+                tag=tag,
+                item_type=item_type,
+                limit=limit,
+                before_seq=before_seq,
+            )
+            suggestions = feed_completion.feed_suggestions(uow, page.items)
+            return dataclasses.replace(page, suggestions=suggestions)
+
+    def feed_post(self, cmd: PostToFeed) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_post(uow, cmd))
+
+    def feed_edit(self, cmd: EditPost) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_edit_post(uow, cmd))
+
+    def feed_retract(self, cmd: RetractPost) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_retract_post(uow, cmd))
+
+    def feed_react(self, cmd: ReactToPost) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_react_to_post(uow, cmd))
+
+    def feed_complete(
+        self, scope: str, sigil: Literal["#", "@"], prefix: str, *, limit: int = 8
+    ) -> list[Completion]:
+        with self._uow(True) as uow:
+            return feed_completion.complete_tags(uow, scope, sigil, prefix, limit=limit)

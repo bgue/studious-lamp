@@ -1,6 +1,42 @@
 {
   "events": [
     {
+      "ce_type": "tl.core.Feed.Edited.v1",
+      "event_type": "Feed.Edited",
+      "payload_class": "FeedEditedPayload",
+      "sample": "samples/Feed.Edited.v1.json",
+      "schema": "schemas/Feed.Edited.v1.json",
+      "title": "A post was edited.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Feed.Posted.v1",
+      "event_type": "Feed.Posted",
+      "payload_class": "FeedPostedPayload",
+      "sample": "samples/Feed.Posted.v1.json",
+      "schema": "schemas/Feed.Posted.v1.json",
+      "title": "A post was made in a project feed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Feed.Reacted.v1",
+      "event_type": "Feed.Reacted",
+      "payload_class": "FeedReactedPayload",
+      "sample": "samples/Feed.Reacted.v1.json",
+      "schema": "schemas/Feed.Reacted.v1.json",
+      "title": "A reaction was set or cleared on a post.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Feed.Retracted.v1",
+      "event_type": "Feed.Retracted",
+      "payload_class": "FeedRetractedPayload",
+      "sample": "samples/Feed.Retracted.v1.json",
+      "schema": "schemas/Feed.Retracted.v1.json",
+      "title": "A post was retracted.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.File.Processed.v1",
       "event_type": "File.Processed",
       "payload_class": "FileProcessedPayload",
@@ -106,6 +142,42 @@
       "sample": "samples/Numbering.Allocated.v1.json",
       "schema": "schemas/Numbering.Allocated.v1.json",
       "title": "A number was allocated from a counter.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Proposal.Accepted.v1",
+      "event_type": "Proposal.Accepted",
+      "payload_class": "ProposalAcceptedPayload",
+      "sample": "samples/Proposal.Accepted.v1.json",
+      "schema": "schemas/Proposal.Accepted.v1.json",
+      "title": "A person accepted a proposal and its command ran in the same transaction.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Proposal.Created.v1",
+      "event_type": "Proposal.Created",
+      "payload_class": "ProposalCreatedPayload",
+      "sample": "samples/Proposal.Created.v1.json",
+      "schema": "schemas/Proposal.Created.v1.json",
+      "title": "An agent proposed a change.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Proposal.Failed.v1",
+      "event_type": "Proposal.Failed",
+      "payload_class": "ProposalFailedPayload",
+      "sample": "samples/Proposal.Failed.v1.json",
+      "schema": "schemas/Proposal.Failed.v1.json",
+      "title": "A person accepted a proposal, but the command was refused (the record changed since, a guard failed).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Proposal.Rejected.v1",
+      "event_type": "Proposal.Rejected",
+      "payload_class": "ProposalRejectedPayload",
+      "sample": "samples/Proposal.Rejected.v1.json",
+      "schema": "schemas/Proposal.Rejected.v1.json",
+      "title": "A person rejected a proposal.",
       "version": 1
     },
     {

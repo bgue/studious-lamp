@@ -15,6 +15,7 @@ from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
+from fakes_feed import FakeFeedSupport
 from fakes_links import FakeLinkSupport
 from fakes_query import FakeQuerySupport
 from tl_core.ledger import ConcurrencyError, Event
@@ -201,7 +202,7 @@ def set_path(data: dict[str, Any], dotted: str, value: Any) -> None:
     node[parts[-1]] = value
 
 
-class FakeClient(FakeQuerySupport, FakeLinkSupport):
+class FakeClient(FakeQuerySupport, FakeLinkSupport, FakeFeedSupport):
     """Implements `tl_tui.client.ClientInterface` in memory."""
 
     def __init__(self, scope: str = SCOPE) -> None:
@@ -216,6 +217,7 @@ class FakeClient(FakeQuerySupport, FakeLinkSupport):
         self._seq = 0
         self._id = 0
         self._init_links()
+        self._init_feed()
 
     # --- seeding -----------------------------------------------------------------------------
 

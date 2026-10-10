@@ -34,7 +34,7 @@ Purpose: start the REST API with an SSE stream and the MCP read server against t
    ```
    uv run python -m tl_mcp --actor agent:triage
    ```
-   Expected: it waits on stdin. An MCP client config runs this command; the read tools are `search_records`, `get_record`, `get_links`, `trace` and `lake_query` (see "Give an agent `lake_query`" below).
+   Expected: it waits on stdin. An MCP client config runs this command; the read tools are `search_records`, `get_record`, `get_links`, `trace` and `lake_query` (see "Give an agent `lake_query`" below); `create_record`, `update_psets`, `link_records` and `transition_workflow` only file proposals for a person to accept (`docs/runbooks/proposal-review-queue.md`); `post_feed` posts directly, labelled with the agent.
 5. Python client:
    ```
    from tl_api.client import ApiClient
@@ -96,4 +96,4 @@ The MCP server also exposes `lake_query`, a read-only SQL tool over the DuckLake
 - 503 `unavailable` on `/stream`: 32 streams are open; close idle ones.
 
 ## Related
-- ADR-0005 (dev-only identity), `docs/tickets/P0-I4/README-C.md` (contracts), `docs/reference/openapi.json`, `docs/runbooks/tui-dev.md`, `docs/runbooks/object-store-reconciliation.md`.
+- `docs/runbooks/proposal-review-queue.md`, ADR-0005 (dev-only identity), `docs/tickets/P0-I4/README-C.md` (contracts), `docs/reference/openapi.json`, `docs/runbooks/tui-dev.md`, `docs/runbooks/object-store-reconciliation.md`.

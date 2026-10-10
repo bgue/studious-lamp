@@ -1,14 +1,17 @@
 """``build_server``: the MCP server, its tool schemas and its resources (§11.3, ADR-0005).
 
-Phase 0 has read tools only (``search_records``, ``get_record``, ``get_links``, ``trace``); write
-tools are propose-only and arrive in P0-I6. The actor is fixed per server (``--actor`` on the
-command line); every tool and resource calls the shared ``authorize`` hook first (allow-all
-today). The bodies live in ``tools.py`` and ``resources.py``; this module owns names, parameter
-schemas, the text agents read, and error handling.
+Five read tools (``search_records``, ``get_record``, ``get_links``, ``trace``, ``lake_query``),
+four tools that only *propose* a change (``create_record``, ``update_psets``, ``link_records``,
+``transition_workflow``) and ``post_feed``, which posts directly, labelled with the agent
+(``write_tools.py``). The actor is fixed per server (``--actor`` on the command line); every tool
+and resource calls the shared ``authorize`` hook first (allow-all today). The read bodies live in
+``tools.py`` and ``resources.py``; this module owns the read tools' names, parameter schemas, the
+text agents read, and error handling.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Annotated
 
@@ -28,15 +31,20 @@ from tl_mcp import resources, tools
 from tl_mcp.context import Authorizer, McpContext, UowFactory
 from tl_mcp.errors import MAX_PART, guarded, resource_name
 from tl_mcp.models import LakeQueryOutput, SearchResult
+from tl_mcp.modes import resolve_tool_modes
+from tl_mcp.write_tools import register_write_tools
 
 INSTRUCTIONS = (
-    "Read-only access to a Throughline construction ledger. Records live in a scope: `company` or "
-    "`project:<id>`. Use `search_records` with the query language (for example "
+    "Access to a Throughline construction ledger. Records live in a scope: `company` or "
+    "`project:<id>`. Read with `search_records` and the query language (for example "
     "`status:Review linked:NCR`), then `get_record`, `get_links` and `trace` with a record id or a "
     "key plus its scope. For analytics over everything (counts, trends, joins) use `lake_query`, "
-    "read-only SQL over the lake copy; read `tl://lake/schema` for its tables first. Resources: "
-    "tl://record/{scope}/{key}, tl://schema/{scope}/{record_type}, tl://relations, "
-    "tl://lake/schema."
+    "read-only SQL over the lake copy; read `tl://lake/schema` for its tables first. You cannot "
+    "change a record: `create_record`, `update_psets`, `link_records` and `transition_workflow` "
+    "each file a proposal that a person reviews and accepts, and they return the pending "
+    "proposal. Each agent has a daily proposal budget. `post_feed` posts to a project feed "
+    "directly, labelled as you. Resources: tl://record/{scope}/{key}, "
+    "tl://schema/{scope}/{record_type}, tl://relations, tl://lake/schema."
 )
 
 LAKE_DEFAULT_LIMIT = 100
@@ -77,14 +85,18 @@ def build_server(
     *,
     actor: str,
     authorize_hook: Authorizer = authorize,
+    tool_modes: Mapping[str, str] | None = None,
     lake_dir: str | Path | None = None,
 ) -> MCPServer:
     """An MCP server over ``factory`` acting as ``actor`` (``agent:<id>`` or ``user:<id>``).
 
+    ``tool_modes`` maps a record-changing tool to its mode. The only mode is ``propose``; asking for
+    ``write`` raises ``ToolModeError`` with the human-gate message (see ``tl_mcp.modes``).
     ``lake_dir`` is the DuckLake directory ``lake_query`` reads (default ``TL_LAKE_DIR``, else
     ``./dev/data/lake``). The lake is opened per call, so it may not exist yet.
     """
     check_actor(actor)
+    modes = resolve_tool_modes(tool_modes)
     lake = LakeQueryService(
         LakeConfig.at(lake_dir),
         default_limit=LAKE_DEFAULT_LIMIT,
@@ -93,6 +105,7 @@ def build_server(
     )
     ctx = McpContext(factory=factory, actor=actor, authorize=authorize_hook, lake=lake)
     server = MCPServer("throughline", instructions=INSTRUCTIONS)
+    register_write_tools(server, ctx, modes)
 
     @server.tool(annotations=READ_ONLY)
     def search_records(

@@ -89,6 +89,17 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(wh.InvalidSubscriptionError, "invalid_subscription", 422),
         s(wh.AlreadyInStateError, "already_in_state", 409),
         s(wh.SubscriptionNotActiveError, "subscription_not_active", 409),
+        # --- activity feed (P0-I6) -----------------------------------------------------------
+        s(svc.PostNotFoundError, "post_not_found", 404),
+        s(svc.PostRetractedError, "post_retracted", 409),
+        s(svc.ReactionsDisabledError, "reactions_disabled", 403),
+        s(svc.NotPostAuthorError, "not_post_author", 403),
+        # --- proposals (P0-I6 workstream B) --------------------------------------------------
+        s(svc.ProposalNotFoundError, "proposal_not_found", 404),
+        s(svc.ProposalNotPendingError, "proposal_not_pending", 409),
+        s(svc.InvalidProposalError, "invalid_proposal", 422),
+        s(svc.BudgetExceededError, "budget_exceeded", 429),
+        s(svc.ProposalDeciderError, "proposal_decider", 403),
     )
 
 
@@ -100,8 +111,11 @@ subclass is a bug (``test_error_table.py``), not a silent 500."""
 HTTP_ERRORS: dict[str, int] = {
     "validation_error": 422,
     "invalid_argument": 422,
+    "effective_time_forbidden": 400,
+    "invalid_effective_time": 400,
     "unauthorized": 401,
     "forbidden": 403,
+    "agent_must_propose": 403,  # an agent token ran a record-changing command (tl_api.auth)
     "not_found": 404,
     "method_not_allowed": 405,
     "unavailable": 503,
