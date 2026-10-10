@@ -1,6 +1,6 @@
 # Increment plan — P0-I7 workstream A (Ops): ledger archive, restore, backup drills
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-10
 Brief sections: §24.3 (backup), §24.4 (restore), §24.5 (tampering suspicion); ADR-0002 and its addendum; fanout `docs/tickets/P0-I7/FANOUT.md` (D1 to D6)
 Branch: `p0/i7a` (base `p0/i7`, bc02e5c)
@@ -30,10 +30,10 @@ WS-B owns `dev/demos/P0-I7.sh`. This workstream's own check is the drill (`bash 
 | P0-I7-T02 | `tl backup sqlite` and `backup_database` | haiku | none | merged (f4236e7) | passed review first attempt; hard-link OSError wrapped by supervisor (452ef1e) per ruling |
 | P0-I7-T03 | `tl archive keygen\|seal\|verify` | haiku | T01, S10 | merged (5e16010) | passed review first attempt |
 | P0-I7-T04 | `tl restore --from-archive` | haiku | T01, S11 | merged (05f13ae) | passed review first attempt; seq 0 prints as 0 (accepted) |
-| P0-I7-T05 | Runbook: seal and verify the archive | haiku | T03, S12 | ready | |
-| P0-I7-T06 | Runbook: restore from the archive | haiku | T04 | ready | |
-| P0-I7-T07 | Runbook: pgBackRest backup and restore | haiku | S12 | ready | |
-| P0-I7-T08 | Runbook: SQLite snapshots and Litestream | haiku | S12, T02 | ready | |
+| P0-I7-T05 | Runbook: seal and verify the archive | haiku | T03, S12 | merged | passed review first attempt |
+| P0-I7-T06 | Runbook: restore from the archive | haiku | T04 | merged | passed review first attempt |
+| P0-I7-T07 | Runbook: pgBackRest backup and restore | haiku | S12 | merged | passed review first attempt |
+| P0-I7-T08 | Runbook: SQLite snapshots and Litestream | haiku | S12, T02 | merged | passed review first attempt |
 
 ## Order of work
 1. Plan, S10, S11 (done). Tickets T01 and T02 (batch 1), because nothing else they need is missing.
