@@ -67,6 +67,10 @@ classes:
     annotations:
       tl:current_state: true
       tl:table: cur_links
+      # `linked(...)`, `count(linked(...))` and `missing(link)` read the live links of one relation
+      # as sets of ids; these cover both ends without touching the table (P0-I8 D13).
+      tl:ix_relation_status_from: "relation, status, from_id, to_id"
+      tl:ix_relation_status_to: "relation, status, to_id, from_id"
     attributes:
       link_id:
         identifier: true

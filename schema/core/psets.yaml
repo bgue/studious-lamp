@@ -41,6 +41,10 @@ classes:
     annotations:
       tl:current_state: true
       tl:table: cur_pset_values
+      # Filters read "records whose <path> has this value": the query compiler builds the set of
+      # record ids from these covering indexes (P0-I8 D13).
+      tl:ix_path_text: "path, value_text, record_id"
+      tl:ix_path_num: "path, value_num, record_id"
     unique_keys:
       record_path:
         description: A record has one current value per path.

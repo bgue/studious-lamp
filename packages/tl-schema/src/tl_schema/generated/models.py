@@ -449,8 +449,21 @@ class Record(RecordEnvelope):
     """
     The generic Phase 0 record type, `core.Record`.
     """
-    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state',
-                                              'value': True}},
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:ix_scope_voided_created': {'tag': 'tl:ix_scope_voided_created',
+                                                        'value': 'scope, voided, '
+                                                                 'created_at, id'},
+                         'tl:ix_scope_voided_key_asc': {'tag': 'tl:ix_scope_voided_key_asc',
+                                                        'value': 'scope, voided, '
+                                                                 'empty_last(key), '
+                                                                 'key, id'},
+                         'tl:ix_scope_voided_key_desc': {'tag': 'tl:ix_scope_voided_key_desc',
+                                                         'value': 'scope, voided, '
+                                                                  'empty_last(key), '
+                                                                  'key desc, id'},
+                         'tl:ix_scope_voided_updated': {'tag': 'tl:ix_scope_voided_updated',
+                                                        'value': 'scope, voided, '
+                                                                 'updated_at, id'}},
          'from_schema': 'https://example.org/throughline/core/record',
          'unique_keys': {'scope_key': {'description': 'A key is unique within its '
                                                       'scope.',
@@ -592,6 +605,10 @@ class PsetValue(ConfiguredBaseModel):
     One current pset value of one record, addressed by its layer-aware path.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:ix_path_num': {'tag': 'tl:ix_path_num',
+                                            'value': 'path, value_num, record_id'},
+                         'tl:ix_path_text': {'tag': 'tl:ix_path_text',
+                                             'value': 'path, value_text, record_id'},
                          'tl:table': {'tag': 'tl:table', 'value': 'cur_pset_values'}},
          'from_schema': 'https://example.org/throughline/core/psets',
          'unique_keys': {'record_path': {'description': 'A record has one current '
@@ -659,6 +676,12 @@ class Link(ConfiguredBaseModel):
     One link between two records, in its current lifecycle state.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:ix_relation_status_from': {'tag': 'tl:ix_relation_status_from',
+                                                        'value': 'relation, status, '
+                                                                 'from_id, to_id'},
+                         'tl:ix_relation_status_to': {'tag': 'tl:ix_relation_status_to',
+                                                      'value': 'relation, status, '
+                                                               'to_id, from_id'},
                          'tl:table': {'tag': 'tl:table', 'value': 'cur_links'}},
          'from_schema': 'https://example.org/throughline/core/links'})
 
