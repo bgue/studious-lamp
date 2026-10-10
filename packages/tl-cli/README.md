@@ -17,10 +17,6 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl schema reload` | command | Record `Schema.EffectiveChanged` for scopes whose effective schema changed |
 | `tl pset set --project ID KEY PSET NAME=VALUE... [--layer L]` | command | Calls `handle_set_pset_values`; `NAME=null` unsets a value |
 | `tl pset get --project ID KEY [PSET]` | command | Psets, stored schema hash and live conformance with issues |
-| `tl file put PATH --project ID --record KEY [--slot S] [--content-type T]` | command | Hash, upload (or dedupe) and attach a file; prints `file`, `slot`, `revision`, `status`, `size`, `sha256`, `deduplicated`, and `already attached` on a repeat |
-| `tl file get FILE_ID --project ID --out PATH [--force]` | command | Write a file's bytes, checked against the recorded SHA-256 |
-| `tl file ls --project ID --record KEY [--slot S] [--all]` | command | The current file per slot, or every file with `--all`; tab-separated `file_id, slot, revision, status, size, filename` |
-| `tl file reconcile [--verify]` | command | Ledger hashes versus the object store; exit 1 on a missing or corrupt object (runbook: `docs/runbooks/object-store-reconciliation.md`) |
 | `tl record create --project ID --title TITLE [--key KEY] [--segment NAME=VALUE]...` | command | Without `--key` the numbering pattern allocates the key (`P123-REC-0001`) |
 | `tl link add|suggest --project ID FROM TO [--relation R] [--pin P] [--note N]` | command | Create an active link, or a suggestion with `--confidence`; prints the link id, relation and status |
 | `tl link list --project ID KEY [--all]` | command | Links in both directions (`out`/`in`, label, other key, status, pin, id) and the expected links still missing |
@@ -28,6 +24,10 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl link trace --project ID KEY [--depth N] [--direction out|in|both]` | command | Records reachable through links, as an indented tree with stale and broken marks |
 | `tl wf show --project ID KEY [--role R]...` | command | Workflow state and, for each transition, whether its guards pass |
 | `tl wf transition --project ID KEY NAME [--role R]... [--reason T]` | command | Run a transition; a blocked one prints every guard and exits 1 |
+| `tl file put PATH --project ID --record KEY [--slot S] [--content-type T]` | command | Hash, upload (or dedupe) and attach a file; prints `file`, `slot`, `revision`, `status`, `size`, `sha256`, `deduplicated`, and `already attached` on a repeat |
+| `tl file get FILE_ID --project ID --out PATH [--force]` | command | Write a file's bytes, checked against the recorded SHA-256 |
+| `tl file ls --project ID --record KEY [--slot S] [--all]` | command | The current file per slot, or every file with `--all`; tab-separated `file_id, slot, revision, status, size, filename` |
+| `tl file reconcile [--verify]` | command | Ledger hashes versus the object store; exit 1 on a missing or corrupt object (runbook: `docs/runbooks/object-store-reconciliation.md`) |
 | `tl_cli.main:app` | typer app | The `tl` entry point |
 
 ## Depends on / used by

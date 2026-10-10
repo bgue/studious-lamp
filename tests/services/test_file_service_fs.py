@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import io
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_adapters.objectstore.fs import FsObjectStore
-from tl_adapters.sqlite.uow import create_schema, open_uow
 from tl_core.files.required import missing_required_files
 from tl_core.files.service import CompleteUpload, FileService, RegisterUpload
 from tl_core.services.commands import CreateRecord
@@ -20,9 +21,11 @@ PDF = b"%PDF-1.7 integration"
 
 
 @pytest.fixture
-def setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, FileService, str]:
+def setup(
+    tmp_path: Path, new_db: Callable[[], DbTarget], monkeypatch: pytest.MonkeyPatch
+) -> tuple[DbTarget, FileService, str]:
     monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)  # the repository fixture slots
-    db = tmp_path / "tl.db"
+    db = new_db()
     create_schema(db)
     store = FsObjectStore(tmp_path / "objects", secret=b"k")
     service = FileService(store, secret=b"s")  # slots=None: default_file_slots()
@@ -56,7 +59,7 @@ def declared(record: str, body: bytes, slot: str, content_type: str) -> Register
 
 
 def test_presigned_upload_into_a_default_slot_satisfies_the_requirement(
-    setup: tuple[Path, FileService, str],
+    setup: tuple[DbTarget, FileService, str],
 ) -> None:
     db, service, record = setup
     with open_uow(db) as uow:
@@ -79,7 +82,7 @@ def test_presigned_upload_into_a_default_slot_satisfies_the_requirement(
     assert len([k for k in store.iter_keys() if k.startswith("sha256/")]) == 1
 
 
-def test_the_default_slots_refuse_a_wrong_type(setup: tuple[Path, FileService, str]) -> None:
+def test_the_default_slots_refuse_a_wrong_type(setup: tuple[DbTarget, FileService, str]) -> None:
     db, service, record = setup
     with open_uow(db) as uow, pytest.raises(FileTypeNotAcceptedError):
         service.register_upload(uow, declared(record, PDF, "photo", "application/pdf"))

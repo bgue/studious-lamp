@@ -44,6 +44,10 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 testpaths = ["packages", "tests"]
 addopts = "--import-mode=importlib"
+markers = [
+  "parity: runs once per adapter named by --adapters (see conftest.py)",
+  "requires_postgres: needs the Postgres server at TL_PG_URL",
+]
 
 [tool.pyright]
 include = ["packages", "tests"]

@@ -362,6 +362,60 @@ test or a generated artefact already enforces, or narrative history (that belong
   correctly stopped as *Blocked*. A *Blocked* caused by the base is not a strike; fix the base, merge it into the ticket branch.
   Evidence: `docs/reports/P0-I4/P0-I4-T03.md` (Blocked, then Decision), commits 56bb651 and 34e109f. Status: active
 
+
+- **L-P0-I5-A1** · 2026-10-09 · tags: ledger, sync
+  On Postgres every write transaction takes one advisory lock first (`engine.write_tx`), the analogue of `BEGIN IMMEDIATE`. That
+  resolves L-P0-I4-A2 (commit order equals seq order, so a poller needs no lag window) and L-P0-I3-O2 (guard reads inside a write
+  transaction cannot go stale; no `SELECT ... FOR UPDATE` is needed). `seq` is `MAX(seq)+1` under the lock, so it stays gap-free like
+  SQLite's; an identity column would burn values on rollback. Writers queue; one that waits more than 10 s fails with a lock timeout.
+  Evidence: `test_postgres_ledger.py` (dropping the lock fails five tests); `docs/tickets/P0-I5/README-A.md` D1 to D3. Status: active
+
+- **L-P0-I5-A2** · 2026-10-09 · tags: tooling, ledger
+  The Postgres adapter registers driver loaders so `tl_core` sees SQLite-shaped values: JSON as canonical compact text, `timestamptz` as
+  `iso_utc` strings, booleans as 0/1, integer sums as ints. Consequence: do not use `sqlalchemy.inspect(conn).get_columns` (SQLAlchemy's
+  reflection expects parsed JSON and crashes on a column with a non-default collation); read column names with
+  `promoted.table_columns(conn, table)`. `events.payload` stays TEXT because JSONB re-renders numbers and would break re-hashing.
+  Evidence: `postgres/engine.py`; the crash appeared in `test_postgres_collation.py`. Status: active
+
+- **L-P0-I5-A3** · 2026-10-09 · tags: schema, tests
+  Text sorts by the server locale on Postgres (`en_US.utf8` in the default image, `C.UTF-8` in this container, so a local run hides it)
+  and bytewise on SQLite. The generator pins Postgres `TEXT` columns to `COLLATE "C"`; `test_postgres_collation.py` creates an ICU-locale
+  database to prove it. Also: LinkML `float` maps to `DOUBLE PRECISION` (Postgres `REAL` is 4 bytes). A dialect property that depends on
+  the server's configuration needs a test that creates the unfriendly configuration.
+  Evidence: `ddl_types.collated`, `tests/schema/test_generated_ddl_parity.py` precision test fails on `REAL`. Status: active
+
+- **L-P0-I5-A4** · 2026-10-09 · tags: tests
+  Hand-written SQL in tests must run on both databases: a boolean column takes `TRUE`/`FALSE` or a bound Python bool (never `0`/`1`),
+  a timestamp column takes a full ISO string (never `'x'`), binds are `text(...)` with `:name` (`exec_driver_sql` with `?` fails on
+  Postgres), and there is no `sqlite_master`. Of about 80 Postgres failures in the first parity run, all but three were these.
+  Evidence: reference conversion in the P0-I5 WS-A refs worktree; tickets T01 to T09 recipe item 4. Status: active
+
+- **L-P0-I5-A5** · 2026-10-09 · tags: tests, tooling
+  Parity fixtures: `new_db` is a function-scoped factory; a module-scoped fixture cannot depend on the adapter parameter, so shared
+  databases become per-test, and a Hypothesis test calls `new_db()` once per example and adds `HealthCheck.function_scoped_fixture`.
+  A killed pytest run leaves its `tl_pytest_<hex>` database behind (the runbook has the cleanup); a `timeout`-killed run did exactly that.
+  Evidence: `conftest.py`; `docs/runbooks/postgres-local-setup.md`. Status: active
+
+- **L-P0-I5-A6** · 2026-10-09 · tags: process
+  Triage by reference conversion paid off: converting every test module with a script in a scratch worktree and running it on Postgres
+  showed in about an hour that production code needed three fixes and the tests needed only mechanical changes, which made the
+  tickets small and their acceptance counts exact. The same worktree is the takeover path; keep it until the tickets merge.
+  Evidence: `/home/user/wt/p0-i5a-refs`; README-A "Order of work". Status: active
+
+- **L-P0-I5-A7** · 2026-10-09 · tags: process, env
+  Check a dependency's licence before adding it. psycopg 3 is LGPL-3.0; a copyleft dependency is a human gate (`04-gates.md` §2) that
+  the orchestrator's delegation does not cover, and "pre-approved" in a fanout plan named a driver, not a licence. The Postgres driver is
+  `pg8000` (BSD-3-Clause; deps scramp MIT-0, asn1crypto MIT, python-dateutil Apache-2.0/BSD). A new dependency line in a ticket or plan
+  names the package and its licence.
+  Evidence: orchestrator ruling on P0-I5 WS-A; `packages/tl-adapters/pyproject.toml`. Status: active
+
+- **L-P0-I5-A8** · 2026-10-09 · tags: tooling, ledger
+  pg8000 differences that the adapter hides: it ignores libpq `options` (the schema goes in as the startup parameter `search_path`);
+  it raises `IntegrityError` only for SQLSTATE 23505, so `engine.py` re-raises every class-23 error as `IntegrityError` (the append-only
+  trigger, NOT NULL); it has no blocking wait for `LISTEN`, so `NotifyListener` runs `SELECT 1` every 50 ms and drains
+  `conn.notifications`; result coercions are `register_in_adapter(oid, fn)` with fn taking the text value. The loader behaviour that
+  `tl_core` relies on (canonical JSON text, ISO UTC timestamps, 0/1 booleans, int sums) is the same under both drivers.
+  Evidence: `postgres/engine.py`, `postgres/notify.py`; 150 adapter tests pass on both adapters. Status: active
 - **L-P0-I3-7** · 2026-10-09 · tags: tui, tooling
   Textual `OptionList` prompts and `DataTable` cells that are plain `str` are parsed as Rich markup, so `[x]` vanished from a
   row (`▶ [x] KEY` rendered as `▶  KEY`). Wrap row text in `rich.text.Text(...)`. `query_one("#id", Select[str])` raises
@@ -416,3 +470,17 @@ test or a generated artefact already enforces, or narrative history (that belong
   re-creates its own detached worktree. Resume reviewers and supervisors with SendMessage, and tell them their
   background test runs are gone.
   Evidence: second restart during P0-I4/I5; resumed three workflows and four agents. Status: active
+
+- **L-P0-I5-A9** · 2026-10-10 · tags: tests, process
+  Parity costs time: tests/query takes about 70 s on SQLite and about 7 minutes on both adapters under load, the Hypothesis property
+  tests are about ten times slower on Postgres (each example makes a schema), and the full `just test-parity` (1214 tests) took 11 minutes on a loaded container. Give a
+  CI job and any `timeout` a budget of 20 minutes, and do not wrap these runs in a 2-minute tool timeout. `just test-parity` also deselects the
+  tests that never use a database fixture, so its total is lower than a `--adapters sqlite,postgres` count by design; a ticket that quotes
+  both numbers says so.
+  Evidence: reports P0-I5-T04, T06, T07, T08, T09; `docs/reports/P0-I5-A.md`. Status: active
+
+- **L-P0-I5-A10** · 2026-10-10 · tags: tooling
+  A docstring copied from a spec into a Python file must escape backslashes (`\\s`), or the module compiles with a `SyntaxWarning` on every
+  run; a ticket that renames a test must say so in *Tests to add* when it also says "every test keeps its name"; a provided-test ticket's
+  `git diff --stat` only lists new files once they are committed.
+  Evidence: reports P0-I5-T13 and T09. Status: active

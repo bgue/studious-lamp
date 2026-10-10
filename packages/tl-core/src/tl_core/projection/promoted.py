@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from typing import Any, cast
 
-from sqlalchemy import Connection, inspect, text
+from sqlalchemy import Connection, text
 from tl_schema.effective import EffectiveSchema
 from tl_schema.generators.ddl_types import Dialect
 from tl_schema.generators.promoted import TABLE, PromotedColumn, column_ddl, promoted_columns
@@ -29,12 +29,21 @@ def _dialect(conn: Connection) -> Dialect:
     raise ValueError(f"unsupported dialect: {name}")
 
 
+def table_columns(conn: Connection, table: str) -> list[str]:
+    """The column names of ``table`` in table order, read with a query that returns no rows.
+
+    Not ``sqlalchemy.inspect(conn).get_columns``: on Postgres its reflection parses JSON values the
+    adapter deliberately returns as text, and it fails on a column with a non-default collation.
+    """
+    return list(conn.execute(text(f"SELECT * FROM {table} WHERE 1 = 0")).keys())
+
+
 def ensure_promoted_columns(conn: Connection, schema: EffectiveSchema) -> list[str]:
     """Add the schema's missing promoted columns and backfill them. Returns the names added."""
     wanted = promoted_columns(schema)
     if not wanted:
         return []
-    present = {column["name"] for column in inspect(conn).get_columns(TABLE)}
+    present = set(table_columns(conn, TABLE))
     missing = [column for column in wanted if column.name not in present]
     if not missing:
         return []

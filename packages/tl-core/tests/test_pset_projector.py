@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
-from sqlalchemy import Engine, create_engine, inspect, text
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import Engine, text
 from tl_core.ledger import Event
 from tl_core.projection.defaults import default_registry
-from tl_core.projection.promoted import ensure_promoted_columns
+from tl_core.projection.promoted import ensure_promoted_columns, table_columns
 from tl_core.projection.pset import (
     apply_values,
     classify,
@@ -107,12 +106,12 @@ class Events:
 
 
 @pytest.fixture
-def engine() -> Iterator[Engine]:
-    eng = create_engine("sqlite://", poolclass=StaticPool)
+def engine(new_engine: Callable[[], Engine], dialect: str) -> Iterator[Engine]:
+    eng = new_engine()
     registry = default_registry()
     with eng.begin() as conn:
         for projector in registry.all():
-            for statement in projector.ddl("sqlite"):
+            for statement in projector.ddl(dialect):
                 conn.exec_driver_sql(statement)
     yield eng
     eng.dispose()
@@ -364,7 +363,7 @@ def test_ensure_adds_columns_once_and_backfills(engine: Engine) -> None:
     assert record(engine, "other")["pset__valve_data__size_in"] is None
     with engine.begin() as conn:
         assert ensure_promoted_columns(conn, schema) == []
-        names = {c["name"] for c in inspect(conn).get_columns("cur_core_record")}
+        names = set(table_columns(conn, "cur_core_record"))
     assert "pset__valve_data__size_in" in names
 
 

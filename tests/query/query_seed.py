@@ -27,11 +27,11 @@ Links (written straight into ``cur_links``; the base has no link services to lea
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from sqlalchemy import text
-from tl_adapters.sqlite.uow import SqliteUnitOfWork, create_schema, open_uow
+from tl_adapters._unit import BaseUnitOfWork
+from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_core.ledger import NewEvent
 
 SCOPE = "project:P123"
@@ -97,7 +97,7 @@ def record_id(key: str, scope: str = SCOPE) -> str:
 
 
 def create_record(
-    uow: SqliteUnitOfWork,
+    uow: BaseUnitOfWork,
     key: str,
     *,
     scope: str = SCOPE,
@@ -129,7 +129,7 @@ def create_record(
     )
 
 
-def build_db(path: Path) -> None:
+def build_db(path: DbTarget) -> None:
     """Create the schema at ``path`` and load the records and links described above."""
     create_schema(path)
     with open_uow(path) as uow:
@@ -168,7 +168,8 @@ def build_db(path: Path) -> None:
                 text(
                     "INSERT INTO cur_links (link_id, scope, from_id, to_id, relation, status, "
                     "source, created_by, created_at, updated_at, version, last_seq) VALUES "
-                    "(:l, :scope, :f, :t, :r, :s, 'manual', 'user:t', 'x', 'x', 1, 1)"
+                    "(:l, :scope, :f, :t, :r, :s, 'manual', 'user:t', "
+                    "'2026-10-01T00:00:00+00:00', '2026-10-01T00:00:00+00:00', 1, 1)"
                 ),
                 {
                     "l": link_id,

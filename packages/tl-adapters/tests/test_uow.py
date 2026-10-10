@@ -1,21 +1,16 @@
-"""Tests for the SQLite unit of work, schema creation, and rebuild (P0-I1-T07)."""
+"""The unit of work, schema creation and rebuild on every adapter (P0-I1-T07, parity P0-I5)."""
 
 from __future__ import annotations
 
 import threading
 import time
 import uuid
-from collections.abc import Sequence
-from pathlib import Path
+from collections.abc import Callable, Sequence
 
 import pytest
-from sqlalchemy import Connection, text
-from tl_adapters.sqlite.uow import (
-    SqliteUnitOfWork,
-    create_schema,
-    open_uow,
-    rebuild_projections,
-)
+from sqlalchemy import Connection, inspect, text
+from tl_adapters._unit import BaseUnitOfWork
+from tl_adapters.db import DbTarget, create_schema, open_uow, rebuild_projections
 from tl_core.bus import InProcessBus
 from tl_core.ledger import ConcurrencyError, Event, NewEvent
 from tl_core.projection import InMemoryRegistry
@@ -37,17 +32,17 @@ class FailingProjector:
 
 
 @pytest.fixture
-def db(tmp_path: Path) -> Path:
-    path = tmp_path / "tl.db"
-    create_schema(path, registry=InMemoryRegistry([CounterProjector()]))
-    return path
+def db(new_db: Callable[[], DbTarget]) -> DbTarget:
+    target = new_db()
+    create_schema(target, registry=InMemoryRegistry([CounterProjector()]))
+    return target
 
 
 def registry() -> InMemoryRegistry:
     return InMemoryRegistry([CounterProjector()])
 
 
-def bump(uow: SqliteUnitOfWork, stream: str, expected: int, n: int = 1) -> None:
+def bump(uow: BaseUnitOfWork, stream: str, expected: int, n: int = 1) -> None:
     uow.append(
         stream_id=stream,
         stream_type="test.Thing",
@@ -60,13 +55,13 @@ def bump(uow: SqliteUnitOfWork, stream: str, expected: int, n: int = 1) -> None:
     )
 
 
-def counter(db: Path) -> dict[str, int]:
+def counter(db: DbTarget) -> dict[str, int]:
     with open_uow(db, readonly=True, registry=registry()) as uow:
         rows = uow.conn().execute(text("SELECT stream_id, n FROM test_counter_rows")).all()
     return {r.stream_id: r.n for r in rows}
 
 
-def test_append_updates_projection_in_the_same_transaction(db: Path) -> None:
+def test_append_updates_projection_in_the_same_transaction(db: DbTarget) -> None:
     with open_uow(db, registry=registry()) as uow:
         bump(uow, "s1", 0, n=2)
         # read-your-writes: visible on the transaction's own connection before commit
@@ -79,7 +74,7 @@ def test_append_updates_projection_in_the_same_transaction(db: Path) -> None:
         assert uow.ledger.head_seq() == 2
 
 
-def test_exception_rolls_back_events_and_projection_and_publishes_nothing(db: Path) -> None:
+def test_exception_rolls_back_events_and_projection_and_publishes_nothing(db: DbTarget) -> None:
     bus = InProcessBus()
     seen: list[int] = []
     bus.subscribe(lambda e: seen.append(e.seq))
@@ -93,7 +88,7 @@ def test_exception_rolls_back_events_and_projection_and_publishes_nothing(db: Pa
         assert uow.ledger.head_seq() == 0
 
 
-def test_projector_failure_rolls_back_the_whole_transaction(db: Path) -> None:
+def test_projector_failure_rolls_back_the_whole_transaction(db: DbTarget) -> None:
     reg = InMemoryRegistry([CounterProjector(), FailingProjector()])
     with pytest.raises(RuntimeError, match="projector bug"):
         with open_uow(db, registry=reg) as uow:
@@ -113,7 +108,7 @@ def test_projector_failure_rolls_back_the_whole_transaction(db: Path) -> None:
         assert uow.ledger.head_seq() == 0
 
 
-def test_commit_publishes_events_after_the_transaction(db: Path) -> None:
+def test_commit_publishes_events_after_the_transaction(db: DbTarget) -> None:
     bus = InProcessBus()
     seen: list[tuple[int, int]] = []
 
@@ -129,7 +124,7 @@ def test_commit_publishes_events_after_the_transaction(db: Path) -> None:
     assert seen == [(1, 2), (2, 2)]
 
 
-def test_stale_expected_version_raises_and_rolls_back(db: Path) -> None:
+def test_stale_expected_version_raises_and_rolls_back(db: DbTarget) -> None:
     with open_uow(db, registry=registry()) as uow:
         bump(uow, "s1", 0)
     with pytest.raises(ConcurrencyError):
@@ -139,7 +134,7 @@ def test_stale_expected_version_raises_and_rolls_back(db: Path) -> None:
     assert counter(db) == {"s1": 1}
 
 
-def test_readonly_uow_refuses_append_and_closed_uow_refuses_conn(db: Path) -> None:
+def test_readonly_uow_refuses_append_and_closed_uow_refuses_conn(db: DbTarget) -> None:
     with open_uow(db, readonly=True, registry=registry()) as uow:
         with pytest.raises(RuntimeError, match="read-only"):
             bump(uow, "s1", 0)
@@ -147,17 +142,19 @@ def test_readonly_uow_refuses_append_and_closed_uow_refuses_conn(db: Path) -> No
         uow.conn()
 
 
-def test_create_schema_is_idempotent_and_builds_projector_tables(tmp_path: Path) -> None:
-    path = tmp_path / "x.db"
+def test_create_schema_is_idempotent_and_builds_projector_tables(
+    new_db: Callable[[], DbTarget],
+) -> None:
+    path = new_db()
     reg = registry()
     create_schema(path, registry=reg)
     create_schema(path, registry=reg)
     with open_uow(path, readonly=True, registry=reg) as uow:
-        names = {r[0] for r in uow.conn().execute(text("SELECT name FROM sqlite_master"))}
+        names = set(inspect(uow.conn()).get_table_names())
     assert {"events", "test_counter_rows"} <= names
 
 
-def test_rebuild_replays_the_ledger_into_reset_projections(db: Path) -> None:
+def test_rebuild_replays_the_ledger_into_reset_projections(db: DbTarget) -> None:
     with open_uow(db, registry=registry()) as uow:
         bump(uow, "s1", 0, n=3)
         bump(uow, "s2", 0, n=1)
@@ -170,7 +167,7 @@ def test_rebuild_replays_the_ledger_into_reset_projections(db: Path) -> None:
     assert counter(db) == {"s1": 3, "s2": 1}
 
 
-def test_rebuild_with_names_only_touches_those_projectors(db: Path) -> None:
+def test_rebuild_with_names_only_touches_those_projectors(db: DbTarget) -> None:
     with open_uow(db, registry=registry()) as uow:
         bump(uow, "s1", 0)
     with pytest.raises(KeyError):
@@ -178,7 +175,7 @@ def test_rebuild_with_names_only_touches_those_projectors(db: Path) -> None:
     assert rebuild_projections(db, types=["test_counter"], registry=registry()) == 1
 
 
-def test_failed_rebuild_leaves_old_rows(db: Path) -> None:
+def test_failed_rebuild_leaves_old_rows(db: DbTarget) -> None:
     class ExplodingOnReplay(CounterProjector):
         def apply(self, conn: Connection, event: Event) -> None:
             raise RuntimeError("replay bug")
@@ -202,7 +199,7 @@ class SlowBus(InProcessBus):
         super().publish(events)
 
 
-def test_concurrent_writers_publish_in_commit_order_without_loss(db: Path) -> None:
+def test_concurrent_writers_publish_in_commit_order_without_loss(db: DbTarget) -> None:
     SlowBus.calls = 0
     bus = SlowBus()
     seen: list[int] = []
@@ -224,7 +221,7 @@ def test_concurrent_writers_publish_in_commit_order_without_loss(db: Path) -> No
     assert sum(counter(db).values()) == 30
 
 
-def test_a_write_from_inside_a_callback_completes_and_is_delivered_in_order(db: Path) -> None:
+def test_a_write_from_inside_a_callback_completes_and_is_delivered_in_order(db: DbTarget) -> None:
     bus = InProcessBus()
     first: list[int] = []
     second: list[int] = []
@@ -253,7 +250,7 @@ def test_a_write_from_inside_a_callback_completes_and_is_delivered_in_order(db: 
     assert counter(db) == {"outer": 1, "inner": 1}
 
 
-def test_a_slow_subscriber_does_not_block_another_writers_commit(db: Path) -> None:
+def test_a_slow_subscriber_does_not_block_another_writers_commit(db: DbTarget) -> None:
     bus = InProcessBus()
     seen: list[int] = []
     started, release = threading.Event(), threading.Event()

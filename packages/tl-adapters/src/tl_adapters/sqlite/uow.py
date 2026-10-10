@@ -2,44 +2,31 @@
 
 from __future__ import annotations
 
-import threading
 from collections.abc import Callable, Generator, Sequence
-from contextlib import AbstractContextManager, contextmanager
+from contextlib import contextmanager
 from pathlib import Path
-from types import TracebackType
-from typing import Any
+from typing import cast
 
-from sqlalchemy import Connection, Engine
-from tl_core.bus import Bus, OrderedPublisher
-from tl_core.ledger import AppendResult, Event
+from sqlalchemy import Engine
+from tl_core.bus import Bus
 from tl_core.projection.defaults import default_registry
 from tl_core.projection.registry import InMemoryRegistry
 from tl_core.projection.types import ProjectorRegistry
 
+from tl_adapters._unit import REPLAY_PAGE, BaseUnitOfWork, create_projection_tables, replay
 from tl_adapters.sqlite.engine import make_engine, read_tx, write_tx
 from tl_adapters.sqlite.ledger import SqliteLedger
 
-REPLAY_PAGE = 1000
-
-# Commits are ordered by this lock: a writer commits and enqueues its events for the bus while
-# holding it, so the publish queue is in commit (seq) order. Subscribers run after it is released.
-_COMMIT_LOCK = threading.Lock()
-# One publisher per bus, kept for the life of the process (a bus lives that long in Phase 0).
-# The publisher holds its bus, so keying by id() is safe: the bus is never collected, so its id
-# is never reused.
-_publishers: dict[int, OrderedPublisher] = {}
-_publishers_lock = threading.Lock()
+__all__ = [
+    "REPLAY_PAGE",
+    "SqliteUnitOfWork",
+    "create_schema",
+    "open_uow",
+    "rebuild_projections",
+]
 
 
-def _publisher_for(bus: Bus) -> OrderedPublisher:
-    with _publishers_lock:
-        publisher = _publishers.get(id(bus))
-        if publisher is None:
-            publisher = _publishers[id(bus)] = OrderedPublisher(bus)
-        return publisher
-
-
-class SqliteUnitOfWork:
+class SqliteUnitOfWork(BaseUnitOfWork):
     """One transaction. ``readonly=True`` opens a read snapshot and refuses ``append``."""
 
     def __init__(
@@ -51,56 +38,17 @@ class SqliteUnitOfWork:
         *,
         readonly: bool = False,
     ) -> None:
-        self.ledger = ledger
-        self._engine = engine
-        self._registry = registry
-        self._bus = bus
-        self._readonly = readonly
-        self._tx: AbstractContextManager[Connection] | None = None
-        self._conn: Connection | None = None
-        self._pending: list[Event] = []
+        super().__init__(
+            ledger,
+            registry,
+            bus,
+            (lambda: read_tx(engine)) if readonly else (lambda: write_tx(engine)),
+            readonly=readonly,
+        )
 
-    def __enter__(self) -> SqliteUnitOfWork:
-        if self._tx is not None:
-            raise RuntimeError("unit of work is already open")
-        self._tx = read_tx(self._engine) if self._readonly else write_tx(self._engine)
-        self._conn = self._tx.__enter__()
-        self._pending = []
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        tx, self._tx, self._conn = self._tx, None, None
-        pending, self._pending = self._pending, []
-        assert tx is not None
-        if exc_type is not None or not pending or self._bus is None:
-            tx.__exit__(exc_type, exc, tb)  # rolls back on an exception, otherwise commits
-            return
-        publisher = _publisher_for(self._bus)
-        with _COMMIT_LOCK:
-            tx.__exit__(exc_type, exc, tb)  # commit; if it fails nothing is enqueued
-            publisher.enqueue(pending)
-        publisher.drain()
-
-    def append(self, **kwargs: Any) -> AppendResult:
-        if self._readonly:
-            raise RuntimeError("read-only unit of work cannot append")
-        conn = self.conn()
-        result = self.ledger.append_in(conn, **kwargs)
-        for event in result.events:
-            for projector in self._registry.for_event(event.event_type):
-                projector.apply(conn, event)
-        self._pending.extend(result.events)
-        return result
-
-    def conn(self) -> Connection:
-        if self._conn is None:
-            raise RuntimeError("unit of work is not open; use it as a context manager")
-        return self._conn
+    @property
+    def ledger(self) -> SqliteLedger:
+        return cast(SqliteLedger, self._ledger)
 
 
 def _default_registry() -> InMemoryRegistry:
@@ -143,9 +91,7 @@ def create_schema(path: str | Path, *, registry: ProjectorRegistry | None = None
     try:
         SqliteLedger(engine).create_schema()
         with write_tx(engine) as conn:
-            for projector in reg.all():
-                for statement in projector.ddl("sqlite"):
-                    conn.exec_driver_sql(statement)
+            create_projection_tables(conn, reg, "sqlite")
     finally:
         engine.dispose()
 
@@ -169,27 +115,9 @@ def rebuild_projections(
         selected = reg.named(types)
     else:
         selected = [p for p in reg.all() if p.name in set(types)]
-    names = {p.name for p in selected}
     engine = make_engine(path)
-    replayed = 0
     try:
-        ledger = SqliteLedger(engine)
         with write_tx(engine) as conn:
-            for projector in selected:
-                projector.reset(conn)
-            cursor = 0
-            while True:
-                page = ledger.read_after(cursor, limit=REPLAY_PAGE)
-                if not page:
-                    break
-                for event in page:
-                    for projector in reg.for_event(event.event_type):
-                        if projector.name in names:
-                            projector.apply(conn, event)
-                replayed += len(page)
-                cursor = page[-1].seq
-                if on_progress is not None:
-                    on_progress(replayed)
+            return replay(conn, SqliteLedger(engine), reg, selected, on_progress)
     finally:
         engine.dispose()
-    return replayed

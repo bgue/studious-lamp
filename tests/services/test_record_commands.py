@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import text
-from tl_adapters.sqlite.uow import create_schema, open_uow
+from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.services.commands import (
     CommandResult,
@@ -41,14 +40,14 @@ Run = Callable[[Handler, Any], CommandResult]
 
 
 @pytest.fixture
-def db(tmp_path: Path) -> Path:
-    path = tmp_path / "tl.db"
+def db(new_db: Callable[[], DbTarget]) -> DbTarget:
+    path = new_db()
     create_schema(path)
     return path
 
 
 @pytest.fixture
-def run(db: Path) -> Run:
+def run(db: DbTarget) -> Run:
     def _run(handler: Handler, cmd: Any) -> CommandResult:
         with open_uow(db) as uow:
             return handler(uow, cmd)
@@ -97,7 +96,7 @@ def void_cmd(stream_id: str, expected_version: int, reason: str = "entered in er
     )
 
 
-def read_row(db: Path, stream_id: str) -> dict[str, Any] | None:
+def read_row(db: DbTarget, stream_id: str) -> dict[str, Any] | None:
     with open_uow(db, readonly=True) as uow:
         row = (
             uow.conn()
@@ -114,18 +113,18 @@ def read_row(db: Path, stream_id: str) -> dict[str, Any] | None:
         return None if row is None else dict(row)
 
 
-def count_rows(db: Path) -> int:
+def count_rows(db: DbTarget) -> int:
     with open_uow(db, readonly=True) as uow:
         value: int = uow.conn().execute(text("SELECT COUNT(*) FROM cur_core_record")).scalar_one()
         return value
 
 
-def read_events(db: Path, stream_id: str) -> list[Event]:
+def read_events(db: DbTarget, stream_id: str) -> list[Event]:
     with open_uow(db, readonly=True) as uow:
         return uow.ledger.read_stream(stream_id)
 
 
-def head_seq(db: Path) -> int:
+def head_seq(db: DbTarget) -> int:
     with open_uow(db, readonly=True) as uow:
         return uow.ledger.head_seq()
 
@@ -133,7 +132,7 @@ def head_seq(db: Path) -> int:
 # --- create ---------------------------------------------------------------------------------------
 
 
-def test_create_emits_one_record_created_with_exact_payload(db: Path, run: Run) -> None:
+def test_create_emits_one_record_created_with_exact_payload(db: DbTarget, run: Run) -> None:
     result = run(handle_create_record, create_cmd())
 
     events = read_events(db, result.stream_id)
@@ -150,7 +149,7 @@ def test_create_emits_one_record_created_with_exact_payload(db: Path, run: Run) 
     assert events[0].source == "test"
 
 
-def test_create_writes_row_at_version_one(db: Path, run: Run) -> None:
+def test_create_writes_row_at_version_one(db: DbTarget, run: Run) -> None:
     result = run(handle_create_record, create_cmd())
 
     row = read_row(db, result.stream_id)
@@ -171,7 +170,7 @@ def test_create_result_carries_stream_id_key_and_version(run: Run) -> None:
     assert len(result.events) == 1
 
 
-def test_create_keeps_passed_correlation_id(db: Path, run: Run) -> None:
+def test_create_keeps_passed_correlation_id(db: DbTarget, run: Run) -> None:
     correlation = new_ulid()
     result = run(
         handle_create_record, create_cmd(correlation_id=correlation, causation_id="cause-9")
@@ -182,7 +181,7 @@ def test_create_keeps_passed_correlation_id(db: Path, run: Run) -> None:
     assert event.causation_id == "cause-9"
 
 
-def test_create_generates_correlation_id_when_absent(db: Path, run: Run) -> None:
+def test_create_generates_correlation_id_when_absent(db: DbTarget, run: Run) -> None:
     result = run(handle_create_record, create_cmd())
 
     correlation = read_events(db, result.stream_id)[0].correlation_id
@@ -193,7 +192,7 @@ def test_create_generates_correlation_id_when_absent(db: Path, run: Run) -> None
 # --- create failures ------------------------------------------------------------------------------
 
 
-def test_create_without_key_raises_key_required(db: Path, run: Run) -> None:
+def test_create_without_key_raises_key_required(db: DbTarget, run: Run) -> None:
     with pytest.raises(KeyRequiredError):
         run(handle_create_record, create_cmd(key=None))
     assert count_rows(db) == 0
@@ -201,7 +200,7 @@ def test_create_without_key_raises_key_required(db: Path, run: Run) -> None:
 
 
 def test_duplicate_key_in_same_scope_raises_and_first_record_is_unchanged(
-    db: Path, run: Run
+    db: DbTarget, run: Run
 ) -> None:
     first = run(handle_create_record, create_cmd(title="First"))
     seq_before = head_seq(db)
@@ -217,7 +216,7 @@ def test_duplicate_key_in_same_scope_raises_and_first_record_is_unchanged(
     assert row["version"] == 1
 
 
-def test_same_key_in_another_scope_succeeds(db: Path, run: Run) -> None:
+def test_same_key_in_another_scope_succeeds(db: DbTarget, run: Run) -> None:
     run(handle_create_record, create_cmd(scope="company"))
 
     other = run(handle_create_record, create_cmd(scope="project:p-1"))
@@ -228,7 +227,7 @@ def test_same_key_in_another_scope_succeeds(db: Path, run: Run) -> None:
     assert count_rows(db) == 2
 
 
-def test_unsupported_record_type_raises(db: Path, run: Run) -> None:
+def test_unsupported_record_type_raises(db: DbTarget, run: Run) -> None:
     with pytest.raises(UnsupportedRecordTypeError):
         run(handle_create_record, create_cmd(record_type="qc.Inspection"))
     assert count_rows(db) == 0
@@ -250,7 +249,9 @@ def test_bad_scope_is_a_validation_error() -> None:
 # --- update ---------------------------------------------------------------------------------------
 
 
-def test_update_title_and_description_emits_updated_and_bumps_version(db: Path, run: Run) -> None:
+def test_update_title_and_description_emits_updated_and_bumps_version(
+    db: DbTarget, run: Run
+) -> None:
     created = run(handle_create_record, create_cmd(title="Old", description="old text"))
 
     result = run(
@@ -272,7 +273,7 @@ def test_update_title_and_description_emits_updated_and_bumps_version(db: Path, 
     assert row["version"] == 2
 
 
-def test_update_leaves_unchanged_fields_out_of_changes(db: Path, run: Run) -> None:
+def test_update_leaves_unchanged_fields_out_of_changes(db: DbTarget, run: Run) -> None:
     created = run(handle_create_record, create_cmd(title="Old", description="same"))
 
     run(
@@ -284,7 +285,7 @@ def test_update_leaves_unchanged_fields_out_of_changes(db: Path, run: Run) -> No
     assert update_event.payload == {"changes": {"title": ["Old", "New"]}}
 
 
-def test_update_psets_emits_changed_mapping(db: Path, run: Run) -> None:
+def test_update_psets_emits_changed_mapping(db: DbTarget, run: Run) -> None:
     created = run(handle_create_record, create_cmd(psets={"discipline": "structural"}))
 
     run(
@@ -301,14 +302,14 @@ def test_update_psets_emits_changed_mapping(db: Path, run: Run) -> None:
     assert json.loads(row["psets_json"]) == {"discipline": "mep"}
 
 
-def test_update_psets_compares_as_dicts_not_key_order(db: Path, run: Run) -> None:
+def test_update_psets_compares_as_dicts_not_key_order(db: DbTarget, run: Run) -> None:
     created = run(handle_create_record, create_cmd(psets={"a": 1, "b": 2}))
 
     with pytest.raises(NoChangesError):
         run(handle_update_record, update_cmd(created.stream_id, 1, {"psets": {"b": 2, "a": 1}}))
 
 
-def test_update_with_no_differences_raises_no_changes(db: Path, run: Run) -> None:
+def test_update_with_no_differences_raises_no_changes(db: DbTarget, run: Run) -> None:
     created = run(handle_create_record, create_cmd(title="Same"))
     seq_before = head_seq(db)
 
@@ -318,7 +319,7 @@ def test_update_with_no_differences_raises_no_changes(db: Path, run: Run) -> Non
     assert head_seq(db) == seq_before
 
 
-def test_update_of_unsupported_field_raises(db: Path, run: Run) -> None:
+def test_update_of_unsupported_field_raises(db: DbTarget, run: Run) -> None:
     created = run(handle_create_record, create_cmd())
     seq_before = head_seq(db)
 
@@ -328,7 +329,9 @@ def test_update_of_unsupported_field_raises(db: Path, run: Run) -> None:
     assert head_seq(db) == seq_before
 
 
-def test_stale_expected_version_raises_concurrency_and_writes_nothing(db: Path, run: Run) -> None:
+def test_stale_expected_version_raises_concurrency_and_writes_nothing(
+    db: DbTarget, run: Run
+) -> None:
     created = run(handle_create_record, create_cmd(title="Original"))
     seq_before = head_seq(db)
 
@@ -347,7 +350,7 @@ def test_update_of_unknown_stream_raises_not_found(run: Run) -> None:
         run(handle_update_record, update_cmd(new_ulid(), 1, {"title": "X"}))
 
 
-def test_update_of_stream_in_another_scope_raises_not_found(db: Path, run: Run) -> None:
+def test_update_of_stream_in_another_scope_raises_not_found(db: DbTarget, run: Run) -> None:
     created = run(handle_create_record, create_cmd(scope="company"))
     seq_before = head_seq(db)
 
@@ -360,7 +363,7 @@ def test_update_of_stream_in_another_scope_raises_not_found(db: Path, run: Run) 
     assert head_seq(db) == seq_before
 
 
-def test_update_of_voided_record_raises_voided(db: Path, run: Run) -> None:
+def test_update_of_voided_record_raises_voided(db: DbTarget, run: Run) -> None:
     created = run(handle_create_record, create_cmd())
     run(handle_void_record, void_cmd(created.stream_id, 1))
     seq_before = head_seq(db)
@@ -374,7 +377,7 @@ def test_update_of_voided_record_raises_voided(db: Path, run: Run) -> None:
 # --- void -----------------------------------------------------------------------------------------
 
 
-def test_void_emits_voided_and_keeps_the_row(db: Path, run: Run) -> None:
+def test_void_emits_voided_and_keeps_the_row(db: DbTarget, run: Run) -> None:
     created = run(handle_create_record, create_cmd())
 
     result = run(handle_void_record, void_cmd(created.stream_id, 1, reason="duplicate entry"))
@@ -394,7 +397,7 @@ def test_void_with_blank_reason_is_a_validation_error() -> None:
         void_cmd(new_ulid(), 1, reason="   ")
 
 
-def test_voiding_twice_raises_already_voided(db: Path, run: Run) -> None:
+def test_voiding_twice_raises_already_voided(db: DbTarget, run: Run) -> None:
     created = run(handle_create_record, create_cmd())
     run(handle_void_record, void_cmd(created.stream_id, 1))
     seq_before = head_seq(db)
@@ -408,7 +411,7 @@ def test_voiding_twice_raises_already_voided(db: Path, run: Run) -> None:
 # --- atomicity ------------------------------------------------------------------------------------
 
 
-def test_failed_handler_leaves_ledger_and_table_unchanged(db: Path, run: Run) -> None:
+def test_failed_handler_leaves_ledger_and_table_unchanged(db: DbTarget, run: Run) -> None:
     run(handle_create_record, create_cmd())
     seq_before = head_seq(db)
     rows_before = count_rows(db)
@@ -420,7 +423,7 @@ def test_failed_handler_leaves_ledger_and_table_unchanged(db: Path, run: Run) ->
     assert count_rows(db) == rows_before
 
 
-def test_error_after_a_write_in_the_same_transaction_rolls_back_that_write(db: Path) -> None:
+def test_error_after_a_write_in_the_same_transaction_rolls_back_that_write(db: DbTarget) -> None:
     seq_before = head_seq(db)
 
     with pytest.raises(DuplicateKeyError), open_uow(db) as uow:

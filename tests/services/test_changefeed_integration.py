@@ -1,15 +1,13 @@
-"""The change feed over a real SQLite ledger: bus, poller, paged reads and resume."""
+"""The change feed over a real ledger on every adapter: bus, poller, paged reads and resume."""
 
 from __future__ import annotations
 
 import threading
-from collections.abc import Iterator
-from pathlib import Path
+from collections.abc import Callable, Iterator
 
 import pytest
-from tl_adapters.sqlite.engine import make_engine
-from tl_adapters.sqlite.ledger import SqliteLedger
-from tl_adapters.sqlite.uow import create_schema, open_uow
+from tl_adapters._unit import AppendInLedger
+from tl_adapters.db import DbTarget, create_schema, make_engine, make_ledger, open_uow
 from tl_core.bus import InProcessBus
 from tl_core.changefeed import (
     ChangePoller,
@@ -22,7 +20,7 @@ from tl_core.ledger import Event, NewEvent
 SCOPE = "project:P1"
 
 
-def write(db: Path, key: str, *, scope: str = SCOPE, bus: InProcessBus | None = None) -> None:
+def write(db: DbTarget, key: str, *, scope: str = SCOPE, bus: InProcessBus | None = None) -> None:
     """Create one record, as a writer process would."""
     with open_uow(db, bus=bus) as uow:
         uow.append(
@@ -43,17 +41,17 @@ def write(db: Path, key: str, *, scope: str = SCOPE, bus: InProcessBus | None = 
 
 
 @pytest.fixture
-def db(tmp_path: Path) -> Path:
-    path = tmp_path / "ledger.db"
+def db(new_db: Callable[[], DbTarget]) -> DbTarget:
+    path = new_db()
     create_schema(path)
     return path
 
 
 @pytest.fixture
-def reader(db: Path) -> Iterator[SqliteLedger]:
+def reader(db: DbTarget) -> Iterator[AppendInLedger]:
     """A second connection pool on the same file: what another process would hold."""
     engine = make_engine(db)
-    yield SqliteLedger(engine)
+    yield make_ledger(engine)
     engine.dispose()
 
 
@@ -67,7 +65,7 @@ def wait_for(got: list[int], count: int, seconds: float = 10.0) -> None:
     assert done.is_set(), f"expected {count} events, saw {got}"
 
 
-def test_the_bus_feeds_subscribers_in_commit_order(db: Path) -> None:
+def test_the_bus_feeds_subscribers_in_commit_order(db: DbTarget) -> None:
     bus = InProcessBus()
     registry = SubscriptionRegistry()
     registry.attach(bus)
@@ -79,7 +77,7 @@ def test_the_bus_feeds_subscribers_in_commit_order(db: Path) -> None:
 
 
 def test_a_poller_in_another_connection_sees_writes_that_never_touched_its_bus(
-    db: Path, reader: SqliteLedger
+    db: DbTarget, reader: AppendInLedger
 ) -> None:
     registry = SubscriptionRegistry(reader)
     got: list[int] = []
@@ -91,7 +89,9 @@ def test_a_poller_in_another_connection_sees_writes_that_never_touched_its_bus(
     assert got == [1, 2, 3, 4]
 
 
-def test_bus_and_poller_together_deliver_each_event_once(db: Path, reader: SqliteLedger) -> None:
+def test_bus_and_poller_together_deliver_each_event_once(
+    db: DbTarget, reader: AppendInLedger
+) -> None:
     bus = InProcessBus()
     registry = SubscriptionRegistry(reader)
     registry.attach(bus)
@@ -106,7 +106,7 @@ def test_bus_and_poller_together_deliver_each_event_once(db: Path, reader: Sqlit
 
 
 def test_a_client_resumes_from_its_last_seq_without_loss_or_repeats(
-    db: Path, reader: SqliteLedger
+    db: DbTarget, reader: AppendInLedger
 ) -> None:
     for n in range(10):
         write(db, f"K-{n}")
@@ -124,7 +124,7 @@ def test_a_client_resumes_from_its_last_seq_without_loss_or_repeats(
 
 
 def test_a_restarted_poller_continues_after_its_stored_cursor(
-    db: Path, reader: SqliteLedger
+    db: DbTarget, reader: AppendInLedger
 ) -> None:
     for n in range(3):
         write(db, f"K-{n}")
@@ -141,7 +141,7 @@ def test_a_restarted_poller_continues_after_its_stored_cursor(
     assert got == [1, 2, 3, 4, 5]
 
 
-def test_filters_work_end_to_end_with_scope_pushdown(db: Path, reader: SqliteLedger) -> None:
+def test_filters_work_end_to_end_with_scope_pushdown(db: DbTarget, reader: AppendInLedger) -> None:
     write(db, "A", scope="company")
     write(db, "B", scope=SCOPE)
     write(db, "C", scope="company")
@@ -155,7 +155,7 @@ def test_filters_work_end_to_end_with_scope_pushdown(db: Path, reader: SqliteLed
     assert ([e.seq for e in rest.events], rest.next_seq, rest.has_more) == ([3], 3, False)
 
 
-def test_record_id_filter_selects_one_records_events(db: Path, reader: SqliteLedger) -> None:
+def test_record_id_filter_selects_one_records_events(db: DbTarget, reader: AppendInLedger) -> None:
     write(db, "A")
     write(db, "B")
     flt = SubscriptionFilter.of(record_ids=[f"R-{SCOPE}-B"])
