@@ -1,7 +1,5 @@
 """The `tl feed` group: post, list, retract and react (P0-I6-T05; brief 21).
 
-STUB (P0-I6-T05): ``item_line`` and the four commands raise NotImplementedError.
-
 Each subcommand parses options, makes one call into `tl_core.services`, and prints. Rules (tag
 parsing, link suggestions, tombstones, reactions) live in the services. A post is named by the id
 that `post` and `ls` print.
@@ -11,14 +9,24 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Annotated, NoReturn
+from pathlib import Path
+from typing import Annotated, Literal, NoReturn, cast
 
 import typer
 from pydantic import ValidationError
-from tl_core.feed.types import FeedItem
+from tl_adapters.sqlite.uow import open_uow
+from tl_core.feed.types import FeedItem, Importance, Reaction
 from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import ServiceError
-from tl_core.services.feed_queries import FeedPage
+from tl_core.services.feed import PostToFeed, handle_post
+from tl_core.services.feed_actions import (
+    ReactToPost,
+    RetractPost,
+    handle_react_to_post,
+    handle_retract_post,
+)
+from tl_core.services.feed_queries import FeedPage, list_feed
+from tl_core.services.queries import get_record
 
 app = typer.Typer(
     help="Post to the project feed, list it, retract a post, react.", no_args_is_help=True
@@ -65,10 +73,14 @@ def item_line(item: FeedItem, page: FeedPage) -> str:
     Columns are separated by two spaces: the item id, ``item.item_type``, ``item.at`` as ``%Y-%m-%d
     %H:%M``, ``_author(item)``, then the summary followed by ``_labels_suffix(item, page)``, and for
     a post with reactions ``  [<name> <count>, ...]`` sorted by name (``[+1 1, ack 2]``).
-
-    STUB: replace this paragraph and the body (P0-I6-T05).
     """
-    raise NotImplementedError
+    when = item.at.strftime("%Y-%m-%d %H:%M")
+    line = f"{item.id}  {item.item_type}  {when}  {_author(item)}  {item.summary}"
+    line += _labels_suffix(item, page)
+    if item.item_type == "post" and item.reactions:
+        counts = ", ".join(f"{name} {item.reactions[name]}" for name in sorted(item.reactions))
+        line += f"  [{counts}]"
+    return line
 
 
 @app.command("post")
@@ -90,10 +102,33 @@ def post(
     the posted event's payload has tags, ``tags `` and the tags joined by ``, `` as ``#text (kind)``
     (``@text (kind)`` for a mention); then, when the result holds more events than ``Feed.Posted``,
     ``suggested N link`` or ``suggested N links``.
-
-    STUB: replace this paragraph and the body (P0-I6-T05).
     """
-    raise NotImplementedError
+    db: Path = ctx.obj
+    if importance not in ("low", "normal", "high"):
+        _fail(f"--importance must be low, normal or high, not {importance!r}")
+    level = cast(Importance, importance)
+    with _service_errors(), open_uow(db) as uow:
+        result = handle_post(
+            uow,
+            PostToFeed(
+                actor=actor,
+                source="cli",
+                scope=f"project:{project}",
+                body=body,
+                importance=level,
+            ),
+        )
+    typer.echo(f"posted {result.stream_id}")
+    tags = result.events[0].payload.get("tags") or []
+    if tags:
+        parts = [
+            f"{'@' if tag['kind'] == 'mention' else '#'}{tag['text']} ({tag['kind']})"
+            for tag in tags
+        ]
+        typer.echo(f"tags {', '.join(parts)}")
+    suggested = len(result.events) - 1
+    if suggested:
+        typer.echo(f"suggested {suggested} link" + ("" if suggested == 1 else "s"))
 
 
 @app.command("ls")
@@ -121,10 +156,32 @@ def ls(
     with key {record!r} in project {project!r}")``), then ``list_feed(uow, scope, record_id=...,
     include_linked=linked, tag=tag, item_type="post" for --posts / "card" for --events / None,
     limit=n)``. Print ``item_line(item, page)`` for each item. Nothing is printed for an empty feed.
-
-    STUB: replace this paragraph and the body (P0-I6-T05).
     """
-    raise NotImplementedError
+    db: Path = ctx.obj
+    scope = f"project:{project}"
+    if posts and events:
+        _fail("--posts and --events exclude each other")
+    if linked and record is None:
+        _fail("--linked needs --record")
+    item_type: Literal["post", "card"] | None = "post" if posts else ("card" if events else None)
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        record_id: str | None = None
+        if record is not None:
+            row = get_record(uow, scope, record)
+            if row is None:
+                _fail(f"no record with key {record!r} in project {project!r}")
+            record_id = str(row["id"])
+        page = list_feed(
+            uow,
+            scope,
+            record_id=record_id,
+            include_linked=linked,
+            tag=tag,
+            item_type=item_type,
+            limit=n,
+        )
+    for item in page.items:
+        typer.echo(item_line(item, page))
 
 
 @app.command("retract")
@@ -140,10 +197,20 @@ def retract(
     Write unit of work, ``handle_retract_post(uow, RetractPost(actor=..., source="cli",
     scope=f"project:{project}", post_id=..., reason=...))`` inside ``_service_errors``. Print
     ``retracted <post id>``.
-
-    STUB: replace this paragraph and the body (P0-I6-T05).
     """
-    raise NotImplementedError
+    db: Path = ctx.obj
+    with _service_errors(), open_uow(db) as uow:
+        handle_retract_post(
+            uow,
+            RetractPost(
+                actor=actor,
+                source="cli",
+                scope=f"project:{project}",
+                post_id=post_id,
+                reason=reason,
+            ),
+        )
+    typer.echo(f"retracted {post_id}")
 
 
 @app.command("react")
@@ -161,7 +228,21 @@ def react(
     not 'x'")``. Write unit of work, ``handle_react_to_post(uow, ReactToPost(actor=...,
     source="cli", scope=..., post_id=..., reaction=..., on=not off))`` inside ``_service_errors``.
     Print ``reacted <post id> <reaction>``, or ``cleared <post id> <reaction>`` with ``--off``.
-
-    STUB: replace this paragraph and the body (P0-I6-T05).
     """
-    raise NotImplementedError
+    db: Path = ctx.obj
+    if reaction not in ("ack", "+1", "resolved"):
+        _fail(f"--reaction must be ack, +1 or resolved, not {reaction!r}")
+    with _service_errors(), open_uow(db) as uow:
+        handle_react_to_post(
+            uow,
+            ReactToPost(
+                actor=actor,
+                source="cli",
+                scope=f"project:{project}",
+                post_id=post_id,
+                reaction=cast(Reaction, reaction),
+                on=not off,
+            ),
+        )
+    verb = "cleared" if off else "reacted"
+    typer.echo(f"{verb} {post_id} {reaction}")
