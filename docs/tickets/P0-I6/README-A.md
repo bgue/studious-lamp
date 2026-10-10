@@ -70,12 +70,12 @@ projection derives the effective importance (high when a tag is a signal tag). E
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
 | P0-I6-T01 | Retract and react handlers | haiku | S5 | merged | pass, no findings |
-| P0-I6-T02 | Feed list queries (`list_feed`, `get_post`) | haiku | S4 | ready | |
-| P0-I6-T03 | `#hold` suggestions and composer completion | haiku | S4 | ready | |
+| P0-I6-T02 | Feed list queries (`list_feed`, `get_post`) | haiku | S4 | merged | pass, no findings |
+| P0-I6-T03 | `#hold` suggestions and composer completion | haiku | S4 | merged | pass, no findings |
 | P0-I6-T04 | Feed pane widget | haiku | S6 | merged | pass |
 | P0-I6-T05 | `tl feed post\|ls\|retract\|react` | haiku | T01, T02 | ready | |
-| P0-I6-T06 | Composer with `#` and `@` completion | haiku | S6 | ready | |
-| S8 | Embedded wiring check, app `F`/`p` keys, keymap, help | TUI wiring | T04, T06 | pending | |
+| P0-I6-T06 | Composer with `#` and `@` completion | haiku | S6 | merged | pass |
+| S8 | App `F`/`p` keys, main-area feed view, keymap, palette, embedded-client tests | TUI wiring | T04, T06 | done | |
 
 ## Order of work
 1. Round 1 (done): S1 to S7, tickets T01 to T04, DISPATCH batch 1 (T01 to T04).
