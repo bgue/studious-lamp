@@ -24,6 +24,11 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl link trace --project ID KEY [--depth N] [--direction out|in|both]` | command | Records reachable through links, as an indented tree with stale and broken marks |
 | `tl wf show --project ID KEY [--role R]...` | command | Workflow state and, for each transition, whether its guards pass |
 | `tl wf transition --project ID KEY NAME [--role R]... [--reason T]` | command | Run a transition; a blocked one prints every guard and exits 1 |
+| `tl lake sync` | command | Calls `sync_lake`; copies new ledger events into the lake as one snapshot, prints the seq range and silver row counts |
+| `tl lake rebuild --yes` | command | Deletes the lake's files and loads everything again from the ledger; refuses without `--yes` |
+| `tl lake status` | command | Seq the lake reflects, the snapshot, the sync count and the row count of each table |
+| `tl lake tables` | command | Lake tables and their columns |
+| `tl lake query [--limit N] [--json] SQL` | command | Calls `LakeQueryService.query`; one read-only SELECT, refused queries exit 1 |
 | `tl_cli.main:app` | typer app | The `tl` entry point |
 
 ## Depends on / used by
