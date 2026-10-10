@@ -950,3 +950,8 @@ test or a generated artefact already enforces, or narrative history (that belong
   file, no permission) are not LakeError, and the MCP SDK masks them as a bare "Error executing tool". That safety
   depends on the SDK. P0-I8 hardening: catch Exception in `guarded`, log the error server-side, and return a fixed sentence.
   Evidence: re-review at 07ad1b0. Status: active
+- **L-P0-I6C-12** · 2026-10-10 · tags: tests, process
+  A check that fails only on an empty log still passes a run in which the interesting actor did nothing: swallowing every refusal (a budget, a bad argument) in the actor and asserting only what
+  was logged made "the assistant proposed nothing" green. Tell the assertion which actors are enabled and bound to act (`Expected`), narrow what an actor may shrug off to the one benign refusal, and
+  keep a test where the actor is on and everything is refused. To test a subprocess transport use a real ledger in `tmp_path`, a missing one, and a stub server that reads stdin forever.
+  Evidence: `tests/test_assertions.py::test_an_assistant_whose_every_proposal_is_a_duplicate_leaves_the_run_red`, `tests/test_mcp_caller.py`. Status: active

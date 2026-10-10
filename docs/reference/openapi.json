@@ -7159,6 +7159,24 @@
               "title": "Proposal Id",
               "type": "string"
             }
+          },
+          {
+            "description": "Simulated time stamped as the decision's (and the accepted command's) effective_at. Accepted only when the proposal is in a simulation scope `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time stamped as the decision's (and the accepted command's) effective_at. Accepted only when the proposal is in a simulation scope `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
           }
         ],
         "requestBody": {
@@ -7263,6 +7281,24 @@
             "schema": {
               "title": "Proposal Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Simulated time stamped as the decision's (and the accepted command's) effective_at. Accepted only when the proposal is in a simulation scope `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time stamped as the decision's (and the accepted command's) effective_at. Accepted only when the proposal is in a simulation scope `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
             }
           }
         ],

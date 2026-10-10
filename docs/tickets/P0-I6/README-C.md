@@ -82,6 +82,18 @@ runs `sim_assert` (green), re-runs the same seed on a fresh ledger and compares 
 | 3 | MEDIUM: `seed.sh` left `tl serve` running (`$!` was the wrapper) | `setsid` and a group kill, then wait until `/health` stops answering; same in the demo. Checked on the failure path (the run dies at the first post, the server is gone) |
 | 4 | LOW: no authorise hook in the sim MCP tools | `sim.create|advance|inject|status|assert` hook first, deny-all test |
 
+## Review of the connector, MCP caller, actors and proposal assertions (fixed on `p0/i6f`)
+| # | Finding | Fix |
+|---|---|---|
+| 1 | MEDIUM: every MCP refusal was swallowed, so a run could pass with no proposals | only a duplicate link is shrugged off; `actor_silent` when an enabled assistant (guaranteed at least one proposal a day) or approver left nothing |
+| 2 | MEDIUM: nothing watched the agent | `agent_wrote` (an `agent:*` event other than a proposal, a post or its link suggestion); `rejected_link_made` |
+| 3 | MEDIUM: the stdio path was untested and a missing ledger crashed after seeding | `connector.check` before anything is written; `McpUnavailableError` (a `RunError`) with the server's stderr; tests on a real process |
+| 4 | MEDIUM: a hung server blocked forever | 30 s timeout (`read_timeout_seconds` and `asyncio.wait_for`), tested; one session per call kept (simple) |
+| 5 | LOW: queue capped at 200 | 500, the route's maximum, commented |
+| 6 | LOW: effects of an accept skipped the time check | the accept and reject routes honour `X-TL-Effective-At` for simulation scopes; effects and decisions are checked against the played days; the agent's own `Proposal.Created` and a CLI decision are real time and exempt |
+| 7 | LOW: the same pair could be proposed twice a day | pairs drawn without replacement (`rng.sample`); digests with the actors off are unchanged (checked against the previous commit) |
+| 8 | minor: the CLI ignored `TL_DB` | `SimEnv.from_env()` for the ledger file |
+
 ## Risks and escalation triggers
 - The feed post and feed read need workstream B (`ApiClient.feed_post`, `feed_page`, the `PostToFeed` route). Until it is merged the real-API tests cover every write except `post`, and `HttpReader.posts` is only exercised on `FakeWorld`.
 - A change to `Command`, `Event`, `Ledger` or `event_hash` would be a stop condition. D5 needed none.
