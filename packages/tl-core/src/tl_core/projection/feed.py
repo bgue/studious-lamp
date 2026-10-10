@@ -6,7 +6,7 @@ rows this projector already wrote; no clock, no outside reads):
 * ``Feed.Posted|Edited|Retracted|Reacted`` maintain one row per post. A retracted post keeps its
   row as a tombstone: the body is dropped and so are its non-record tags, so it leaves hashtag
   feeds but stays in the feed of the records it referenced.
-* Every other event (``handles`` matches all event types) goes through the card rules in
+* Every other event (the projector sets ``handles_all``) goes through the card rules in
   ``tl_core.feed.cards``. They decide, per scope, whether the event extends the open card, starts
   a new one, closes it, or is ignored. A card's subject records are rows of ``cur_feed_tags``.
 
@@ -40,14 +40,6 @@ from tl_core.feed.types import (
     ParsedTag,
 )
 from tl_core.ledger import Event, iso_utc
-
-
-class _EveryEvent(frozenset[str]):
-    """A ``handles`` set that contains every event type (cards are made of all of them)."""
-
-    def __contains__(self, item: object) -> bool:
-        return True
-
 
 _INSERT_ITEM_SQL = text(
     "INSERT INTO cur_feed_items (item_id, item_type, scope, actor, occurred_at, seq, summary, "
@@ -142,7 +134,8 @@ def _post_tag_rows(item_id: str, event: Event, tags: Iterable[ParsedTag]) -> lis
 
 class FeedProjector:
     name = "feed"
-    handles: frozenset[str] = _EveryEvent()
+    handles: frozenset[str] = frozenset()
+    handles_all = True  # cards are made of every event type (see tl_core.feed.cards)
 
     def ddl(self, dialect: str) -> list[str]:
         if dialect == "sqlite" or dialect == "postgres":

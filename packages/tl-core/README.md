@@ -8,7 +8,7 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.ledger`: `NewEvent`, `Event`, `AppendResult`, `ConcurrencyError`, `Ledger` | models, Protocol | The event envelope and the ledger contract (`append`, `read_stream`, `read_after`, `head_seq`, `stream_version`) |
 | `tl_core.ledger`: `canonical_json`, `iso_utc`, `event_hash` | functions | Per-scope hash chain input and output |
 | `tl_core.projection`: `Projector`, `ProjectorRegistry`, `InMemoryRegistry` | Protocols, class | Inline read-model builders; unique names; per-event lookup |
-| `tl_core.projection.defaults.default_registry()` | function | Built-in projectors (`core_record`, `pset_values`, `links`, `numbering`, `workflow`, `files`), in dependency order |
+| `tl_core.projection.defaults.default_registry()` | function | Built-in projectors (`core_record`, `pset_values`, `links`, `numbering`, `workflow`, `files`, `feed`, then the webhook projectors), in dependency order |
 | `tl_core.projection.record.RecordProjector` | class | `Record.*` events to `cur_core_record`; rows are never deleted |
 | `tl_core.projection.pset.PsetProjector` | class | `Pset.ValuesSet` and pset-carrying record events to `psets_json`, `cur_pset_values` and promoted columns; `None` values unset |
 | `tl_core.projection.promoted.ensure_promoted_columns` | function | Add and backfill `pset__<pset>__<property>` columns for an effective schema |
@@ -39,6 +39,10 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.files.reconcile`: `reconcile_objects` | function | Ledger hashes versus the store: missing, corrupt, orphans, staging (read-only) |
 | `tl_core.files.scan`: `Scanner`, `PassScanner` | Protocol, class | Malware-scan seam; Phase 0 passes everything |
 | `tl_core.projection.files.FileProjector` | class | `File.*` events to `cur_files`; rows are never deleted |
+| `tl_core.feed`: `types` (frozen contract), `tags.parse_tags`, `cards.disposition`, `config` | module, functions | Activity feed (brief 21, P0-I6 WS-A): the `#tag` and `@mention` parser (precedence mention, record, code, signal, topic; unresolved record-like tags stay topics), the pure event-card rules, and the Phase 0 constants for `feed.signal_tags` and `feed.reactions.enabled` |
+| `tl_core.projection.feed.FeedProjector` | class (`handles_all`) | Posts, tombstones, reactions and event cards into `cur_feed_items`; tags and card subjects into `cur_feed_tags`; rebuild gives the same rows as the live run |
+| `tl_core.services.feed`: `PostToFeed`, `EditPost`, `handle_post`, `handle_edit_post`, `load_post`; `feed_actions`: `RetractPost`, `ReactToPost`, handlers | models, functions | Post to a project feed; a resolved record tag adds a suggested `references` link (post to record) in the same unit of work. Signatures: `docs/tickets/P0-I6/README-A.md` |
+| `tl_core.services.feed_queries`: `list_feed`, `get_post`, `FeedPage`; `feed_completion`: `feed_suggestions`, `complete_tags` | functions, models | Feed by project, record (one-hop toggle) or hashtag; the `#hold` suggestion stub; composer completion after `#` and `@` |
 | `tl_core.services.errors` | exceptions | `ServiceError` and its subclasses (record, pset, link, numbering, workflow, file and lock refusals) |
 | `tl_core.util`: `utcnow`, `new_ulid` | functions | Clock and id helpers |
 
