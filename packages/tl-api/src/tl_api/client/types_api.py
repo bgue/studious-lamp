@@ -1,4 +1,3 @@
-# ruff: noqa: F401  (STUB P0-I8-T23: delete this line when the unused imports are gone)
 """Extension types over HTTP: the registry, instances and bodies (P0-I8-T23).
 
 The same shapes the embedded services return: ``TypeSummary`` rows, ``TypeDetail`` with its form,
@@ -23,11 +22,13 @@ class TypesApi(ApiClientBase):
 
         Decode with ``self._models(TypeSummary, data)``.
         """
-        raise NotImplementedError("STUB (P0-I8-T23)")
+        data = self._get_json("/types", {"status": status})
+        return self._models(TypeSummary, data)
 
     def get_type(self, type_ref: str) -> TypeDetail:
         """One version with its form (``GET /types/{type_ref}``, the ref through ``quote``)."""
-        raise NotImplementedError("STUB (P0-I8-T23)")
+        data = self._get_json(f"/types/{quote(type_ref)}")
+        return self._model(TypeDetail, data)
 
     def create_instance(
         self,
@@ -47,11 +48,25 @@ class TypesApi(ApiClientBase):
         (empty objects when ``None``), and ``key``, ``description`` and ``body`` only when they are
         not ``None``. Decode with ``CommandResult.model_validate``.
         """
-        raise NotImplementedError("STUB (P0-I8-T23)")
+        payload: dict[str, Any] = {
+            "scope": scope,
+            "title": title,
+            "psets": psets if psets is not None else {},
+            "numbering": numbering if numbering is not None else {},
+        }
+        if key is not None:
+            payload["key"] = key
+        if description is not None:
+            payload["description"] = description
+        if body is not None:
+            payload["body"] = body
+        data = self._post_json(f"/types/{quote(type_name)}/records", payload)
+        return CommandResult.model_validate(data)
 
     def get_record_body(self, record_id: str) -> BodyView:
         """The verified body of an object-backed record (``GET /records/{id}/body``)."""
-        raise NotImplementedError("STUB (P0-I8-T23)")
+        data = self._get_json(f"/records/{quote(record_id)}/body")
+        return self._model(BodyView, data)
 
     def put_record_body(
         self,
@@ -67,4 +82,8 @@ class TypesApi(ApiClientBase):
         ``ApiClientBase`` has no ``_put_json``: call ``self._send("PUT", path, json=payload)`` and
         decode ``.json()`` with ``self._model(BodyStoredOut, ...)``.
         """
-        raise NotImplementedError("STUB (P0-I8-T23)")
+        payload: dict[str, Any] = {"scope": scope, "body": body}
+        if expected_version is not None:
+            payload["expected_version"] = expected_version
+        response = self._send("PUT", f"/records/{quote(record_id)}/body", json=payload)
+        return self._model(BodyStoredOut, response.json())
