@@ -26,6 +26,7 @@ from tl_cli import (
     lake,
     ledger,
     link,
+    new,
     proposal,
     pset,
     record,
@@ -55,6 +56,7 @@ app.add_typer(extypes.app, name="types")
 extypes.app.add_typer(extypes_quarantine.app, name="quarantine")
 app.add_typer(lake.app, name="lake")
 app.add_typer(dev.app, name="dev")
+app.add_typer(new.app, name="new")
 app.add_typer(webhook.app, name="webhook")
 app.add_typer(sim_cli.app, name="sim")
 app.command("serve")(serve.serve)

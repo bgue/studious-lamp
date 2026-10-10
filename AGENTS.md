@@ -50,7 +50,8 @@ tickets in `docs/tickets/`, reports in `docs/reports/`, decisions in `docs/adr/`
 ## Commands
 
 `just` is the only entry point. `just gen`, `just check` (lint, types, codegen drift), `just test`, `just test-parity`,
-`just test-tui`, `just seed`, `just serve`, `just rebuild-projections`, `just demo <increment-id>`.
+`just test-tui`, `just seed`, `just serve`, `just rebuild-projections`, `just scan-secrets`, `just audit-deps`,
+`just demo <increment-id>`.
 Details: `docs/build-spec/03-repo-and-toolchain.md`.
 
 ## Where things go
@@ -71,4 +72,6 @@ Details: `docs/build-spec/03-repo-and-toolchain.md`.
 | Backup configs and restore drills (Litestream, pgBackRest; `just drill`) | `dev/backup/`, `dev/drills/`, report template `docs/templates/restore-drill.md` |
 | Reference pages (user-facing language and API references) | `docs/reference/` |
 | Event catalog (generated: schemas, samples, AsyncAPI, page) | `packages/tl-schema/src/tl_schema/generated/catalog/`, `generated/docs/event-catalog.md` |
+| Dev MCP server for coding agents (`python -m tl_mcp.dev`, dev data only; runbook `docs/runbooks/dev-mcp.md`) | `packages/tl-mcp/src/tl_mcp/dev/` |
+| Scaffolded modules (`tl new module`, `record-type`, `projector`) | `packages/tl-modules/<m>/`, `schema/modules/<m>/`, `docs/modules/<m>/` |
 | Docs and memory rules | `.claude/skills/throughline-docs/SKILL.md` |

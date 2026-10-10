@@ -219,6 +219,8 @@ class FieldEditor(Vertical):
         if raw == self._last_raw:
             return
         self._last_raw = raw
+        if not isinstance(self._control, Input):
+            self.set_error(None)  # a choice is always valid: it clears an earlier "Required"
         self.validate()
         self.post_message(self.Edited(self))
 

@@ -20,8 +20,10 @@ from tl_sim.client import Keys, ProposeUnavailableError
 from tl_sim.clock import SimClock
 from tl_sim.mcp_caller import ProposalRefusedError
 from tl_sim.rng import actor_rng
+from tl_sim.scenario import Scenario
 from tl_sim.types import SimContext
 
+REAL_TIME = datetime(2026, 10, 10, 12, 0, tzinfo=UTC)  # "now", outside every played day
 WORKFLOW: dict[str, tuple[tuple[str, ...], str]] = {
     "submit": (("Draft",), "Review"),
     "approve": (("Review",), "Approved"),
@@ -55,6 +57,7 @@ class FakeWorld:
         when: datetime,
         stream: str,
         payload: dict[str, Any] | None = None,
+        recorded: datetime | None = None,
     ) -> None:
         self._seq += 1
         self.event_rows.append(
@@ -64,7 +67,7 @@ class FakeWorld:
                 "actor": actor,
                 "source": source,
                 "effective_at": when.isoformat(),
-                "recorded_at": when.isoformat(),
+                "recorded_at": (recorded or when).isoformat(),
                 "stream_id": stream,
                 "payload": payload or {},
             }
@@ -137,11 +140,18 @@ class FakeClient:
         stream: str,
         payload: dict[str, Any] | None = None,
         source: str | None = None,
+        real_time: bool = False,
     ) -> None:
-        when = self.clock.tick()
-        self.world.emit(
-            event_type, self.identity, source or f"sim:{self.world.run_id}", when, stream, payload
-        )
+        """Append an event. Like the suite: the simulator's own events and a decision made through
+        the API carry simulated time (``effective_at`` is the clock); what the agent does over MCP
+        (``real_time``) has ``effective_at`` equal to ``recorded_at``, the real clock."""
+        simulated = self.clock.tick()
+        src = source or f"sim:{self.world.run_id}"
+        if real_time:
+            self.world.emit(event_type, self.identity, src, REAL_TIME, stream, payload, REAL_TIME)
+        else:
+            recorded = None if src.startswith("sim:") else REAL_TIME
+            self.world.emit(event_type, self.identity, src, simulated, stream, payload, recorded)
 
     def create_record(
         self, *, record_type: str, title: str, psets: dict[str, Any] | None = None
@@ -264,6 +274,7 @@ class FakeClient:
             proposal_id,
             {"agent": self.identity, "tool": tool},
             source=f"mcp:{self.identity.removeprefix('agent:')}",
+            real_time=True,
         )
         return {"proposal": {"proposal_id": proposal_id, "status": "pending"}}
 
@@ -343,6 +354,10 @@ class FakeConnector:
         self.world = FakeWorld(run_id, f"project:sim-{run_id}")
         self.propose = propose
         self.provisioned: list[str] = []
+        self.checked: list[str] = []
+
+    def check(self, scenario: Scenario) -> None:
+        self.checked.append(scenario.scenario)
 
     def provision(self, identities: Sequence[str]) -> dict[str, str]:
         self.provisioned = list(identities)

@@ -63,12 +63,33 @@ def test_stream_events_replays_then_goes_live(harness: Harness) -> None:
 
 
 def test_stream_events_without_a_cursor_is_live_only(harness: Harness) -> None:
+    """Live only: the history (``OLD``) never arrives, whenever the connection is opened.
+
+    ``stream_events`` connects lazily and a loaded machine may take more than any fixed delay, so
+    a writer keeps creating records (``NEW-1``, ``NEW-2``, ...) until the test has its event:
+    whatever is committed before the connection reads the live head is history, and the next one
+    is live. The first event received must be a ``NEW-`` record, never ``OLD``.
+    """
     harness.create_record("OLD")
+    stop = threading.Event()
+
+    def write_until_stopped() -> None:
+        n = 0
+        while not stop.wait(0.2):
+            n += 1
+            harness.create_record(f"NEW-{n}")
+
+    writer = threading.Thread(target=write_until_stopped, daemon=True)
     with harness.live_api() as api:
         stream = api.stream_events()
-        threading.Timer(0.5, lambda: harness.create_record("NEW")).start()
-        (event,) = collect(stream, 1)
-        assert event.payload["key"] == "NEW"
+        writer.start()
+        try:
+            (event,) = collect(stream, 1)
+        finally:
+            stop.set()
+            writer.join(timeout=10)
+        assert event.payload["key"].startswith("NEW-"), event.payload
+        assert event.seq > 1  # the OLD record is seq 1
         stream.close()
 
 
