@@ -1,6 +1,6 @@
 # P0-I8-T02 — `tl config diff|export|import`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: cli
 Depends on: — (the settings service is on the base)
@@ -226,4 +226,4 @@ Standard report. Paste `uv run tl --db /tmp/x.db config diff default company` an
 (implementer writes here)
 
 ## Decision
-(supervisor writes here)
+Reviewed in a fresh context: pass. Merged into p0/i8a as 1922851.

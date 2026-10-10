@@ -217,3 +217,13 @@ def test_keys_that_are_not_text_are_a_document_error(world: World) -> None:
     with pytest.raises(SettingsDocumentError, match="nested deeper"):
         do_import(world, "settings:\n  t.blob: " + "[" * 30 + "]" * 30 + "\n", "company")
     assert world.head() == 0
+
+
+def test_a_file_that_breaks_the_yaml_reader_is_a_document_error(world: World) -> None:
+    deep = "settings:\n  t.blob: " + "[" * 50_000 + "]" * 50_000 + "\n"
+    with pytest.raises(SettingsDocumentError, match="too deep or too large"):
+        do_import(world, deep, "company")
+    long_number = "settings:\n  t.limit: " + "9" * 5000 + "\n"
+    with pytest.raises(SettingsDocumentError, match="too deep or too large"):
+        do_import(world, long_number, "company")
+    assert world.head() == 0

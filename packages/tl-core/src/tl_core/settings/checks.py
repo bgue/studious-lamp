@@ -8,7 +8,8 @@ after the type, the choices and the pattern.
 destination, and one accepted risk must not be able to lift it for everything. An entry must be a
 host name, ``host:port``, an IP address or a CIDR range. A range must be at least a /8 (IPv4) or a
 /16 (IPv6); link-local and cloud-metadata addresses are never allowed, nor are the names of
-metadata services. Loopback stays allowed: the dev receiver, the tests and the demo use it.
+metadata services. IPv6 tunnel ranges (6to4, Teredo, NAT64) are refused too.
+Loopback stays allowed: the dev receiver, the tests and the demo use it.
 """
 
 from __future__ import annotations
@@ -22,6 +23,11 @@ from tl_core.webhooks.egress import REFUSED_NAMES, always_refused
 
 MIN_PREFIX_V4 = 8
 MIN_PREFIX_V6 = 16
+#: IPv6 ranges that tunnel to addresses we cannot see: 6to4, Teredo, NAT64 (well known and local).
+TUNNEL_RANGES = tuple(
+    ipaddress.IPv6Network(text)
+    for text in ("2002::/16", "2001::/32", "64:ff9b::/96", "64:ff9b:1::/48")
+)
 _HOST = re.compile(r"[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?")
 
 
@@ -44,6 +50,13 @@ def check_egress_entry(entry: Any) -> None:
         if always_refused(network):
             raise ValueError(
                 f"{entry!r} includes link-local or metadata addresses, which are never allowed"
+            )
+        if isinstance(network, ipaddress.IPv6Network) and any(
+            network.overlaps(r) for r in TUNNEL_RANGES
+        ):
+            raise ValueError(
+                f"{entry!r} is a 6to4, Teredo or NAT64 range, which tunnels to addresses "
+                "that cannot be checked; list the IPv4 address or range instead"
             )
         return
     host, _, port = text.partition(":")

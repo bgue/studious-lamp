@@ -125,6 +125,11 @@ def _document(text: str) -> dict[str, Any]:
         loaded: Any = yaml.safe_load(text)
     except yaml.YAMLError as exc:
         raise SettingsDocumentError(f"the settings file is not valid YAML: {exc}") from exc
+    except (RecursionError, ValueError, OverflowError) as exc:
+        # Nesting thousands of levels deep, or an integer of more than 4300 digits.
+        raise SettingsDocumentError(
+            f"the settings file cannot be read ({type(exc).__name__}): too deep or too large"
+        ) from exc
     if not isinstance(loaded, dict):
         raise SettingsDocumentError("the settings file must be a mapping with a `settings:` key")
     document: dict[str, Any] = dict(loaded)  # pyright: ignore[reportUnknownArgumentType]

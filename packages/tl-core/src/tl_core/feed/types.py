@@ -28,8 +28,8 @@ TagKind = Literal["record", "code", "signal", "topic", "mention"]
 Reaction = Literal["ack", "+1", "resolved"]
 Importance = Literal["low", "normal", "high"]
 
-# about:config default (§30 `feed.signal_tags`). Phase 0 reads this constant; settings arrive in
-# P0-I8.
+# about:config default (§30 `feed.signal_tags`): the platform default and the tag parser's default
+# argument. Readers get the value in force from `feed.config.signal_tags(conn, scope)`.
 DEFAULT_SIGNAL_TAGS: tuple[str, ...] = ("safety", "hold", "decision", "urgent", "fyi")
 
 

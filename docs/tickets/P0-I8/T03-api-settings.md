@@ -1,6 +1,6 @@
 # P0-I8-T03 — `/settings` routes
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: api
 Depends on: — (the settings service, the route module, `POST /commands/ChangeSetting` and the accept body are on the base)
@@ -365,4 +365,4 @@ Standard report. Paste `git diff --stat` (it must show only the three Allowed pa
 (implementer writes here)
 
 ## Decision
-(supervisor writes here)
+Reviewed in a fresh context: pass. Merged into p0/i8a as 18cd9cc.

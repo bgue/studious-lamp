@@ -64,9 +64,9 @@ accepts it; the API returns 403 `agent_must_propose` for an agent token; the TUI
 | P0-I8-T01 | `tl config ls\|get\|set\|reset\|lock\|history\|revert` | haiku | S4 | merged (pass) | 5fba5de |
 | P0-I8-T02 | `tl config diff\|export\|import` | haiku | S4 | merged (pass) | 1922851 |
 | P0-I8-T03 | `/settings` routes (`POST /commands/ChangeSetting` and the accept body's `accept_risk` are on the base) | haiku | S4, S6 | merged (pass) | 18cd9cc |
-| P0-I8-T04 | MCP `get_settings` | haiku | S4 | ready | |
-| P0-I8-T05 | feed reads `feed.reactions.enabled` and `feed.signal_tags` | haiku | S4 | ready | |
-| P0-I8-T06 | webhook retry window and egress allow-list read the settings | haiku | S5 | ready | |
+| P0-I8-T04 | MCP `get_settings` | haiku | S4 | merged (pass) | 9235f2a |
+| P0-I8-T05 | feed reads `feed.reactions.enabled` and `feed.signal_tags` | haiku | S4 | merged (pass) | 44de0d7 |
+| P0-I8-T06 | webhook retry window and egress allow-list read the settings | haiku | S5 | merged (pass) | 9fe5587 |
 | P0-I8-T07 | `tl lake sync --watch` reads `lake.sync.interval` | haiku | S5 | draft | |
 | P0-I8-T08 | `ApiClient` settings methods | haiku | T03 | draft | |
 | P0-I8-T09 | TUI client: embedded and remote settings calls | haiku | T08 | draft | |

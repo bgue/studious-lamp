@@ -70,14 +70,25 @@ def is_number(value: Any) -> bool:
     )
 
 
+def _as_float(number: int | float) -> float:
+    """``float(number)``; an integer too large for a float becomes infinity of its sign."""
+    try:
+        return float(number)
+    except OverflowError:
+        return math.inf if number > 0 else -math.inf
+
+
 def numeric_of(setting_type: str, value: Any) -> float | None:
-    """The number a range applies to: the value, its seconds, or its bytes; None if not numeric."""
+    """The number a range applies to: the value, its seconds, or its bytes; None if not numeric.
+
+    A number too large for a float is infinity, so it is out of any range rather than an error.
+    """
     if setting_type in ("int", "decimal") and is_number(value):
-        return float(value)
+        return _as_float(value)
     if setting_type == "duration" and isinstance(value, str):
-        return duration_seconds(value)
+        return _as_float(duration_seconds(value))
     if setting_type == "size" and isinstance(value, str):
-        return float(size_bytes(value))
+        return _as_float(size_bytes(value))
     return None
 
 
@@ -110,7 +121,10 @@ def in_choices(value: Any, choices: Any) -> bool:
 
 
 def _describe(value: Any) -> str:
-    text = json.dumps(value, ensure_ascii=False, sort_keys=True, default=repr)
+    try:
+        text = json.dumps(value, ensure_ascii=False, sort_keys=True, default=repr)
+    except (ValueError, OverflowError, RecursionError):  # e.g. an integer of over 4300 digits
+        return f"a {type(value).__name__} too large to show"
     return text if len(text) <= 80 else text[:77] + "..."
 
 
@@ -276,7 +290,7 @@ def _limit_number(defn: SettingDefinition, name: str, raw: Any) -> float:
         return found
     if not is_number(raw):
         raise InvalidSettingValueError(f"{defn.key}: {name} must be a number")
-    return float(raw)
+    return _as_float(raw)
 
 
 def check_bounds_shape(defn: SettingDefinition, bounds: dict[str, Any]) -> dict[str, Any]:

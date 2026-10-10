@@ -1,13 +1,13 @@
 # P0-I8-T04 — MCP `get_settings`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: mcp
 Depends on: — (the tool is registered in `server.py`; its body is the stub)
 Branch: `p0/i8a-t04-mcp-get-settings`
 
 ## Goal
-An AI agent can read settings over MCP: the read tool `get_settings` (already registered in `tl_mcp/server.py`, with its parameter schema and description) returns each setting with its definition and its effective state for a project, one setting by `key` or a list narrowed by `prefix` and `modified_only`. The body `tools.get_settings_impl` raises `NotImplementedError`; a provided test file (8 tests) must pass.
+An AI agent can read settings over MCP: the read tool `get_settings` (already registered in `tl_mcp/server.py`, with its parameter schema and description) returns each setting with its definition and its effective state for a project, one setting by `key` or a list narrowed by `prefix` and `modified_only`. The body `tools.get_settings_impl` raises `NotImplementedError`; a provided test file (7 tests) must pass.
 
 ## Brief references (pasted)
 > **30.4 Interfaces.** MCP: `get_settings` (read), `propose_setting_change` (draft for human approval).
@@ -68,7 +68,7 @@ uv run pytest packages/tl-mcp/tests/test_mcp_get_settings.py -q
 just check
 uv run pytest packages/tl-mcp -q
 ```
-Expected: 8 tests pass; `just check` clean; the MCP package is green (it includes the schema test that every string argument has a `maxLength`).
+Expected: 7 tests pass; `just check` clean; the MCP package is green (it includes the schema test that every string argument has a `maxLength`).
 
 ## Tests to add
 None beyond the provided file.
@@ -83,4 +83,4 @@ Standard report.
 (implementer writes here)
 
 ## Decision
-(supervisor writes here)
+Reviewed in a fresh context: pass. Merged into p0/i8a as 9235f2a.

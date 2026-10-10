@@ -1,6 +1,6 @@
 # P0-I8-T06 — Webhook egress allow-list and retry window follow the settings
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: — (the engine takes policy providers; the reader is on the base)
@@ -244,4 +244,4 @@ Standard report. Note that this is a security-relevant change (where the egress 
 (implementer writes here)
 
 ## Decision
-(supervisor writes here)
+Reviewed in a fresh context: pass. Merged into p0/i8a as 9fe5587.

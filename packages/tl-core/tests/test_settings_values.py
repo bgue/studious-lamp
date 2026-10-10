@@ -257,3 +257,17 @@ def test_format_value_is_one_line() -> None:
 
 def test_the_validation_model_has_only_the_four_documented_fields() -> None:
     assert set(SettingValidation.model_fields) == {"minimum", "maximum", "choices", "pattern"}
+
+
+def test_a_number_too_large_for_a_float_is_out_of_range_not_an_error() -> None:
+    d = defn("int", 5, minimum=1, maximum=10)
+    with pytest.raises(InvalidSettingValueError, match="above the maximum"):
+        normalise(d, 10**400)
+    with pytest.raises(InvalidSettingValueError, match="below the minimum"):
+        normalise(d, -(10**400))
+    with pytest.raises(InvalidSettingValueError):
+        normalise(d, 10**5000)
+    with pytest.raises(SettingOutOfBoundsError, match="above the company maximum"):
+        check_bounds(d, {"maximum": 8}, 10**400)
+    with pytest.raises(SettingOutOfBoundsError, match="below the company minimum"):
+        check_bounds(d, {"minimum": 2}, -(10**400))

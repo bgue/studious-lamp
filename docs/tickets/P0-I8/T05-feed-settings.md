@@ -1,13 +1,13 @@
 # P0-I8-T05 — The feed reads its two settings
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: — (the settings service and the reader functions are on the base)
 Branch: `p0/i8a-t05-feed-settings`
 
 ## Goal
-`feed.reactions.enabled` and `feed.signal_tags` stop being constants: `tl_core/feed/config.py` reads them from the settings in force for the scope, inside the caller's transaction, so a company or project value applies to the next post, completion or reaction with no restart. The three callers pass the connection and scope; the old constants and no-argument functions are gone. A provided test file (6 tests) must pass and the existing feed tests must stay green.
+`feed.reactions.enabled` and `feed.signal_tags` stop being constants: `tl_core/feed/config.py` reads them from the settings in force for the scope, inside the caller's transaction, so a company or project value applies to the next post, completion or reaction with no restart. The three callers pass the connection and scope; the old constants and no-argument functions are gone. A provided test file (5 tests) must pass and the existing feed tests must stay green.
 
 ## Brief references (pasted)
 > **30.5 Representative keys.** `feed.reactions.enabled` = true; `feed.signal_tags` = [safety, hold, decision, urgent, fyi]. **30.3** Changes apply live: no restart.
@@ -122,4 +122,4 @@ Standard report. Say which tests you edited and why (the two above only).
 (implementer writes here)
 
 ## Decision
-(supervisor writes here)
+Reviewed in a fresh context: pass. Merged into p0/i8a as 44de0d7.

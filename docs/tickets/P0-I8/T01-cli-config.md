@@ -1,6 +1,6 @@
 # P0-I8-T01 — `tl config ls|get|history|set|reset|lock|revert`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: cli
 Depends on: — (the settings service is on the base)
@@ -400,4 +400,4 @@ Standard report. Paste the output of `uv run tl --db /tmp/x.db init`, then `uv r
 (implementer writes here)
 
 ## Decision
-(supervisor writes here)
+Reviewed in a fresh context: pass. Merged into p0/i8a as 5fba5de.
