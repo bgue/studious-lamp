@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import ssl
+
+import pytest
 from tl_adapters.postgres.engine import split_url
 
 BASE = "postgresql://u:p@localhost:5432/db"
@@ -13,10 +16,30 @@ def test_sslmode_disable_turns_tls_off_and_leaves_the_url_clean() -> None:
     assert "sslmode" not in parsed.query
 
 
-def test_another_sslmode_is_dropped_and_the_driver_default_stays() -> None:
+def test_require_encrypts_without_checking_the_certificate() -> None:
     parsed, args = split_url(BASE + "?sslmode=require")
-    assert args == {}
+    context = args["ssl_context"]
+    assert isinstance(context, ssl.SSLContext)
+    assert context.verify_mode == ssl.CERT_NONE and context.check_hostname is False
     assert "sslmode" not in parsed.query
+
+
+def test_verify_ca_checks_the_chain_but_not_the_host_name() -> None:
+    context = split_url(BASE + "?sslmode=verify-ca")[1]["ssl_context"]
+    assert isinstance(context, ssl.SSLContext)
+    assert context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname is False
+
+
+def test_verify_full_checks_chain_and_host_name() -> None:
+    context = split_url(BASE + "?sslmode=verify-full")[1]["ssl_context"]
+    assert isinstance(context, ssl.SSLContext)
+    assert context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname is True
+
+
+@pytest.mark.parametrize("mode", ["allow", "prefer", "nonsense"])
+def test_any_other_sslmode_is_refused_not_guessed(mode: str) -> None:
+    with pytest.raises(ValueError, match="disable, require, verify-ca, verify-full"):
+        split_url(BASE + f"?sslmode={mode}")
 
 
 def test_sslmode_combines_with_the_schema_option() -> None:
