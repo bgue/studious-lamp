@@ -1,8 +1,5 @@
 """Links, trace, workflow, schema and reference reads and commands over HTTP (T47).
 
-STUB (P0-I4-T47): function bodies below raise ``NotImplementedError``. Names, signatures and
-docstrings are final; implement the bodies, then delete this paragraph.
-
 Same method names, parameters and return types as ``tl_tui.client.ClientInterface``. The one
 difference: ``relations`` returns ``tl_api.models.RelationOut`` (same fields as the TUI's
 ``RelationInfo``). Failures raise the exception an embedded call raises (see ``ApiClientBase``).
@@ -30,8 +27,8 @@ from tl_core.services.links import (
 from tl_core.services.workflow import TransitionWorkflow, WorkflowStatus
 from tl_schema.forms import ConformanceReport, FormMetadata
 
-from tl_api.client.base import ApiClientBase
-from tl_api.models import RelationOut
+from tl_api.client.base import ApiClientBase, quote
+from tl_api.models import DefaultRelationOut, RelationOut
 
 COUNTS_CHUNK = 200  # the server accepts at most 500 ids per call
 
@@ -39,15 +36,26 @@ COUNTS_CHUNK = 200  # the server accepts at most 500 ids per call
 class LinksApi(ApiClientBase):
     def links_of(self, record_id: str, *, include_retracted: bool = False) -> list[LinkView]:
         """Both directions of a record's links, each with its label as read from the record."""
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        data = self._get_json(
+            f"/records/{quote(record_id)}/links",
+            {"include_retracted": include_retracted},
+        )
+        return self._models(LinkView, data)
 
     def link_counts(self, record_ids: Sequence[str]) -> dict[str, LinkCounts]:
         """Link counts per record id (zeros when none). Large lists are sent in chunks."""
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        ids = list(record_ids)
+        counts: dict[str, LinkCounts] = {}
+        for start in range(0, len(ids), COUNTS_CHUNK):
+            chunk = ids[start : start + COUNTS_CHUNK]
+            data = self._get_json("/links/counts", {"record_id": chunk})
+            counts.update({rid: LinkCounts.model_validate(row) for rid, row in data.items()})
+        return counts
 
     def expected_links(self, record_id: str) -> list[MissingLink]:
         """Expected links the record does not have yet."""
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        data = self._get_json(f"/records/{quote(record_id)}/expected-links")
+        return self._models(MissingLink, data)
 
     def search_linkable(
         self,
@@ -59,62 +67,90 @@ class LinksApi(ApiClientBase):
         limit: int = 20,
     ) -> list[LinkTarget]:
         """Records the link picker may offer (the scope's and the company's, never voided)."""
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        data = self._get_json(
+            "/links/search",
+            {
+                "scope": scope,
+                "q": query,
+                "record_type": record_type,
+                "exclude_id": exclude_id,
+                "limit": limit,
+            },
+        )
+        return self._models(LinkTarget, data)
 
     def trace(
         self, record_id: str, *, depth: int = 2, direction: TraceDirection = "both"
     ) -> TraceNode:
         """The n-hop tree of records reachable through links."""
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        data = self._get_json(
+            f"/records/{quote(record_id)}/trace",
+            {"depth": depth, "direction": direction},
+        )
+        return self._model(TraceNode, data)
 
     def detect_keys(self, scope: str, text: str, *, linked_to: str | None = None) -> list[KeyChip]:
         """Keys found in ``text`` that fit a numbering pattern of the scope, resolved to records."""
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        data = self._post_json(
+            "/keys/detect",
+            {"scope": scope, "text": text, "linked_to": linked_to},
+        )
+        return self._models(KeyChip, data)
 
     def relations(self) -> list[RelationOut]:
         """The relation vocabulary in display order."""
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        return self._models(RelationOut, self._get_json("/relations"))
 
     def default_relation(self, from_type: str, to_type: str) -> str:
         """The relation to pre-select for a pair of record types."""
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        data = self._get_json(
+            "/relations/default",
+            {"from_type": from_type, "to_type": to_type},
+        )
+        return DefaultRelationOut.model_validate(data).relation
 
     def add_link(self, cmd: AddLink) -> CommandResult:
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        return self._command("AddLink", cmd)
 
     def suggest_link(self, cmd: SuggestLink) -> CommandResult:
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        return self._command("SuggestLink", cmd)
 
     def accept_link(self, cmd: AcceptLink) -> CommandResult:
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        return self._command("AcceptLink", cmd)
 
     def decline_link(self, cmd: DeclineLink) -> CommandResult:
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        return self._command("DeclineLink", cmd)
 
     def repin_link(self, cmd: RepinLink) -> CommandResult:
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        return self._command("RepinLink", cmd)
 
     def verify_link(self, cmd: VerifyLink) -> CommandResult:
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        return self._command("VerifyLink", cmd)
 
     def flag_link(self, cmd: FlagLink) -> CommandResult:
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        return self._command("FlagLink", cmd)
 
     def retract_link(self, cmd: RetractLink) -> CommandResult:
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        return self._command("RetractLink", cmd)
 
     def workflow_status(self, record_id: str, *, roles: Sequence[str] = ()) -> WorkflowStatus:
         """State, state-entered time and every transition with its guard results."""
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        data = self._get_json(
+            f"/records/{quote(record_id)}/workflow",
+            {"role": list(roles)},
+        )
+        return self._model(WorkflowStatus, data)
 
     def transition(self, cmd: TransitionWorkflow) -> CommandResult:
         """Run a transition; raises ``GuardFailedError`` (with ``results``) when blocked."""
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        return self._command("TransitionWorkflow", cmd)
 
     def form_metadata(self, scope: str, record_type: str) -> FormMetadata:
         """Form and grid metadata for a record type under the scope's effective schema."""
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        data = self._get_json("/schema/forms", {"scope": scope, "record_type": record_type})
+        return self._model(FormMetadata, data)
 
     def conformance(self, record_id: str) -> ConformanceReport:
         """Conformance of a record's current values against its scope's effective schema."""
-        raise NotImplementedError("STUB (P0-I4-T47)")
+        data = self._get_json(f"/records/{quote(record_id)}/conformance")
+        return self._model(ConformanceReport, data)
