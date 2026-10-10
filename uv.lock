@@ -15,6 +15,7 @@ members = [
     "tl-core",
     "tl-mcp",
     "tl-schema",
+    "tl-sim",
     "tl-tui",
 ]
 overrides = [{ name = "jsonschema", extras = ["format-nongpl"], specifier = ">=4.26" }]
@@ -2534,6 +2535,7 @@ dependencies = [
     { name = "tl-api" },
     { name = "tl-core" },
     { name = "tl-schema" },
+    { name = "tl-sim" },
     { name = "typer" },
 ]
 
@@ -2545,6 +2547,7 @@ requires-dist = [
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-schema", editable = "packages/tl-schema" },
+    { name = "tl-sim", editable = "packages/tl-sim" },
     { name = "typer" },
 ]
 
@@ -2613,6 +2616,31 @@ requires-dist = [
     { name = "linkml-runtime", specifier = ">=1.8" },
     { name = "pydantic", specifier = ">=2" },
     { name = "pyyaml", specifier = ">=6" },
+]
+
+[[package]]
+name = "tl-sim"
+version = "0.0.1"
+source = { editable = "packages/tl-sim" }
+dependencies = [
+    { name = "httpx2" },
+    { name = "mcp" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "tl-api" },
+    { name = "tl-core" },
+    { name = "typer" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx2" },
+    { name = "mcp" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "pyyaml" },
+    { name = "tl-api", editable = "packages/tl-api" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "typer" },
 ]
 
 [[package]]

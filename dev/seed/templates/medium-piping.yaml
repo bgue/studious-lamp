@@ -1,0 +1,12 @@
+# A larger seed template: four areas with six lines each, for `just seed m`.
+template: medium-piping
+description: Four process areas with six piping lines each.
+areas:
+  - name: Unit 100 North
+    lines: ["6-CS-1001", "4-CS-1002", "8-SS-1003", "3-CS-1004", "2-CS-1005", "6-CS-1006"]
+  - name: Unit 200 Utilities
+    lines: ["3-CS-2001", "2-CS-2002", "6-CS-2003", "4-CS-2004", "8-CS-2005", "2-SS-2006"]
+  - name: Unit 300 Tank Farm
+    lines: ["10-CS-3001", "8-CS-3002", "6-CS-3003", "4-CS-3004", "3-CS-3005", "2-CS-3006"]
+  - name: Unit 400 Flare
+    lines: ["12-CS-4001", "8-CS-4002", "6-CS-4003", "4-CS-4004", "3-CS-4005", "2-CS-4006"]

@@ -1,0 +1,18 @@
+# `just seed m`: six working weeks on the medium template.
+scenario: seed-m
+seed: 3
+start: 2026-11-02
+duration_days: 30
+template: medium-piping
+actors:
+  document_controller:
+    documents_per_day: {min: 2, max: 4}
+  planner:
+    approvals_per_day: 3
+    activities_per_day: {min: 2, max: 4}
+  crew:
+    valves_per_day: {dist: normal, mean: 8, sd: 2}
+inject:
+  - {day: 5, event: material_late, item: "10in CL300 WN flange", days: 21}
+  - {day: 12, event: design_revision, count: 3}
+  - {day: 20, event: material_late, item: "Spiral wound gaskets", days: 10}

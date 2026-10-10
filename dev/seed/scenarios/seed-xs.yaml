@@ -1,0 +1,6 @@
+# `just seed xs`: three working days on the small template.
+scenario: seed-xs
+seed: 1
+start: 2026-11-02
+duration_days: 3
+template: small-piping
