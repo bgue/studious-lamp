@@ -18,8 +18,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from tl_schema.compile import SchemaCompileError
 from tl_schema.compose import compose
 from tl_schema.effective import EffectiveSchema
+from tl_schema.packages import PackageDoc
 from tl_schema.registry import PackageRegistry, default_schema_dir
 
 from tl_core.services.errors import InvalidScopeError
@@ -41,6 +43,18 @@ class ReloadableSchemaProvider(SchemaProvider, Protocol):
     def reload(self) -> list[SchemaChange]:
         """Re-read the packages now; report scopes whose effective hash changed."""
         ...
+
+
+class ExtensionSource(Protocol):
+    """Package documents that do not come from the directory: registered extension types.
+
+    ``token()`` must be cheap and change whenever ``documents()`` would; the provider asks it on
+    every call and rebuilds only when it changed (``tl_core.extypes.provider`` implements it).
+    """
+
+    def token(self) -> str: ...
+
+    def documents(self) -> list[PackageDoc]: ...
 
 
 @dataclass(frozen=True)
@@ -80,6 +94,9 @@ class DirectorySchemaProvider:
         self._directory = directory
         self._lock = threading.Lock()
         self._signature: tuple[tuple[str, str], ...] | None = None
+        self._extensions: ExtensionSource | None = None
+        self._extension_token: str | None = None
+        self._extension_docs: list[PackageDoc] = []
         self._registry = PackageRegistry()
         self._cache: dict[str, EffectiveSchema] = {}
         self._reported: dict[
@@ -94,15 +111,52 @@ class DirectorySchemaProvider:
     def _remember(self, schema: EffectiveSchema) -> None:
         self._by_hash[schema.hash] = schema
 
+    def attach_extensions(self, source: ExtensionSource | None) -> None:
+        """Include the documents of ``source`` (registered extension types) in every scope."""
+        with self._lock:
+            self._extensions = source
+            self._extension_token = None
+            self._extension_docs = []
+            self._cache = {}
+
     def _refresh(self) -> None:
         signature = _signature(self.directory)
-        if signature == self._signature:
-            return
-        registry = PackageRegistry.from_directory(self.directory)
-        registry.check()
-        self._registry = registry
-        self._cache = {}
-        self._signature = signature
+        token = self._extensions.token() if self._extensions is not None else None
+        if signature != self._signature:
+            registry = PackageRegistry.from_directory(self.directory)
+            registry.check()
+            self._registry = registry
+            self._cache = {}
+            self._signature = signature
+        if self._extensions is not None and token != self._extension_token:
+            self._extension_docs = self._extensions.documents()
+            self._extension_token = token
+            self._cache = {}
+        elif self._extensions is None and self._extension_docs:
+            self._extension_docs = []
+            self._cache = {}
+
+    def _compose(self, registry: PackageRegistry, scope: str) -> EffectiveSchema:
+        """The scope's schema: directory packages plus the extension documents that compose.
+
+        A type that cannot join (its pset name collides with a package that arrived later) is
+        left out rather than taking the whole scope's schema down.
+        """
+        base = registry.adopted(scope)
+        extra = self._extension_docs
+        if not extra:
+            return compose(base, scope)
+        try:
+            return compose([*base, *extra], scope)
+        except SchemaCompileError:
+            kept: list[PackageDoc] = []
+            for doc in extra:
+                try:
+                    compose([*base, *kept, doc], scope)
+                except SchemaCompileError:
+                    continue
+                kept.append(doc)
+            return compose([*base, *kept], scope)
 
     def registry(self) -> PackageRegistry:
         with self._lock:
@@ -117,7 +171,7 @@ class DirectorySchemaProvider:
             self._refresh()
             cached = self._cache.get(scope)
             if cached is None:
-                cached = compose(self._registry.adopted(scope), scope)
+                cached = self._compose(self._registry, scope)
                 self._cache[scope] = cached
                 self._remember(cached)
             return cached
@@ -143,8 +197,12 @@ class DirectorySchemaProvider:
             signature = _signature(self.directory)
             registry = PackageRegistry.from_directory(self.directory)
             registry.check()
+            if self._extensions is not None:
+                token = self._extensions.token()
+                self._extension_docs = self._extensions.documents()
+                self._extension_token = token
             scopes = ["company", *(f"project:{p}" for p in registry.projects())]
-            fresh = {scope: compose(registry.adopted(scope), scope) for scope in scopes}
+            fresh = {scope: self._compose(registry, scope) for scope in scopes}
             self._registry = registry
             self._signature = signature
             self._cache = dict(fresh)

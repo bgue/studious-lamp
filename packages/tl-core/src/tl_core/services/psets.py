@@ -16,6 +16,7 @@ from tl_schema.formgen import form_metadata as build_form_metadata
 from tl_schema.forms import ConformanceReport, FormMetadata
 from tl_schema.validation import validate_psets
 
+from tl_core.extypes.service import refuse_index_write
 from tl_core.ledger import NewEvent
 from tl_core.projection.promoted import ensure_promoted_columns
 from tl_core.projection.pset import apply_values
@@ -62,14 +63,29 @@ def load_row(uow: UnitOfWork, stream_id: str, scope: str) -> Any:
 def handle_set_pset_values(uow: UnitOfWork, cmd: SetPsetValues) -> CommandResult:
     """Validate against the scope's effective schema and emit ``Pset.ValuesSet``.
 
+    The index fields of an object-backed extension record are copies of its body, so a direct write
+    to its type's pset is refused (``BodyNotAllowedError``); ``tl_core.extypes.body`` writes them
+    through ``apply_index_values``.
+
     Structural problems (wrong layer, unknown key, wrong type) refuse the write. A ``None`` value
     unsets that property (a key with no value is a no-op; if nothing changes at all the write is
     refused with ``NoChangesError``). Range, pattern and value-list problems are stored and show
     up as conformance. Every refusal raises before anything is appended; the handler never commits.
     """
+    return _set_pset_values(uow, cmd, from_body=False)
+
+
+def apply_index_values(uow: UnitOfWork, cmd: SetPsetValues) -> CommandResult:
+    """``handle_set_pset_values`` for the body store: it may write an object-backed type's pset."""
+    return _set_pset_values(uow, cmd, from_body=True)
+
+
+def _set_pset_values(uow: UnitOfWork, cmd: SetPsetValues, *, from_body: bool) -> CommandResult:
     row = load_row(uow, cmd.stream_id, cmd.scope)
     if row.voided:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot be updated")
+    if not from_body:
+        refuse_index_write(uow, row.type, cmd.pset)
     schema = get_provider().effective(cmd.scope)
 
     if cmd.pset.split(".")[0] in READ_ONLY_ROOTS:

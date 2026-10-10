@@ -51,7 +51,13 @@ def describe(exc: BaseException) -> str:
         return f"refused: {exc}"
     if isinstance(exc, ValidationError):
         return "; ".join(f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors())
-    return str(exc) or exc.__class__.__name__
+    message = str(exc) or exc.__class__.__name__
+    issues = getattr(
+        exc, "issues", None
+    )  # a pset or body that failed validation lists its problems
+    if isinstance(issues, list) and issues:
+        message += ": " + "; ".join(str(issue) for issue in issues)  # pyright: ignore[reportUnknownVariableType]
+    return message
 
 
 MAX_PART = 128  # scope, key, record id and record type

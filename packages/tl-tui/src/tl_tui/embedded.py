@@ -14,6 +14,7 @@ from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Any, Literal
 
+from tl_core.extypes.provider import attach as attach_extension_types
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink, missing_expected_links
 from tl_core.links.provider import get_vocabulary
@@ -91,6 +92,8 @@ class EmbeddedClient:
     def __init__(self, uow_factory: UowFactory) -> None:
         self._uow = uow_factory
         self.own_writes = OwnWrites()
+        # the registered extension types of this ledger join the effective schema (brief 31)
+        attach_extension_types(lambda readonly=False: uow_factory(readonly))
 
     @classmethod
     def for_sqlite(cls, path: str | Path) -> EmbeddedClient:

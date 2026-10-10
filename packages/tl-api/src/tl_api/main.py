@@ -19,6 +19,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from tl_core.files.service import FileService
+from tl_core.files.types import ObjectStore
 
 from tl_api.settings import ApiSettings, check_bind
 
@@ -55,6 +56,17 @@ def file_service_from_env() -> FileService | None:
         return None
 
 
+def object_store_from_env() -> ObjectStore | None:
+    """The configured object store (bodies of object-backed extension records), or ``None``."""
+    from tl_adapters.objectstore import make_object_store
+
+    try:
+        return make_object_store()
+    except ValueError as exc:
+        log.warning("extension record bodies disabled: %s", exc)
+        return None
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     settings = parse_args(argv)
     try:
@@ -86,7 +98,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         log.warning("--insecure-dev: bound to %s with no real authentication", settings.host)
     backend = open_sqlite_backend(settings.db_path)
     try:
-        app = create_app(backend, settings=settings, files_service=file_service_from_env())
+        app = create_app(
+            backend,
+            settings=settings,
+            files_service=file_service_from_env(),
+            object_store=object_store_from_env(),
+        )
         uvicorn.run(app, host=settings.host, port=settings.port, log_level="info")
     finally:
         backend.close()

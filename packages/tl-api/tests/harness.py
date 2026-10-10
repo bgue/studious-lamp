@@ -76,6 +76,7 @@ class Harness:
             settings=settings,
             tokens=TokenStore(tokens_path),
             files_service=service if files else None,
+            object_store=store,
         )
         return Harness(root, db, backend, app, service, store, tokens, settings)
 
