@@ -1,4 +1,3 @@
-# ruff: noqa: F401  (STUB P0-I8-T26: delete this line when the unused imports are gone)
 """The `tl types quarantine` group: what the extension type registry refused (P0-I8-T26).
 
 `ls` is the quarantine report: package versions that failed validation, registered versions whose
@@ -59,12 +58,21 @@ def type_lines(entry: QuarantineEntry) -> list[str]:
     ``entry.report``: two spaces, ``issue.kind``, a space, ``issue.path`` (``-`` when ``None``), a
     colon, a space, ``issue.detail``.
     """
-    raise NotImplementedError("STUB (P0-I8-T26)")
+    if entry.registered_hash is None:
+        lines = [f"type {entry.type_ref} quarantined"]
+    else:
+        kept = entry.registered_hash[:12]
+        files = entry.content_hash[:12]
+        lines = [f"type {entry.type_ref} conflict (registered {kept}, files {files})"]
+    for issue in entry.report:
+        path = "-" if issue.path is None else issue.path
+        lines.append(f"  {issue.kind} {path}: {issue.detail}")
+    return lines
 
 
 def body_line(entry: BodyQuarantineEntry) -> str:
     """``body <record_id> <type_name> <reason>`` (single spaces)."""
-    raise NotImplementedError("STUB (P0-I8-T26)")
+    return f"body {entry.record_id} {entry.type_name} {entry.reason}"
 
 
 @app.command("ls")
@@ -75,7 +83,18 @@ def ls(ctx: typer.Context) -> None:
     read ``registry.list_quarantined(uow.conn())`` and ``body.list_body_quarantine(uow.conn())``.
     Print ``type_lines`` of each type entry, then ``body_line`` of each body entry.
     """
-    raise NotImplementedError("STUB (P0-I8-T26)")
+    db: Path = ctx.obj
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        types = registry.list_quarantined(uow.conn())
+        bodies = body.list_body_quarantine(uow.conn())
+    if not types and not bodies:
+        typer.echo("nothing quarantined")
+        return
+    for entry in types:
+        for line in type_lines(entry):
+            typer.echo(line)
+    for body_entry in bodies:
+        typer.echo(body_line(body_entry))
 
 
 @app.command("recheck")
@@ -90,4 +109,15 @@ def recheck(
     ``True`` prints ``restored <record_id>``; ``False`` prints ``still failing <record_id>`` and
     exits 1. A record with no stored body is a service error (``error: ...``, exit 1).
     """
-    raise NotImplementedError("STUB (P0-I8-T26)")
+    db: Path = ctx.obj
+    try:
+        store = make_object_store()
+    except ValueError as exc:
+        _fail(str(exc))
+    with _service_errors():
+        sound = body.recheck_body(_factory(db), store, stream_id=record_id)
+    if sound:
+        typer.echo(f"restored {record_id}")
+        return
+    typer.echo(f"still failing {record_id}")
+    raise typer.Exit(code=1)
