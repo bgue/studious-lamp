@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
+from tl_api.auth import AGENT_MUST_PROPOSE
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink, missing_expected_links
 from tl_core.links.provider import get_vocabulary
@@ -104,7 +105,7 @@ class EmbeddedClient:
     def __init__(self, uow_factory: UowFactory, *, actor: str = DEFAULT_ACTOR) -> None:
         if actor.startswith("agent:"):
             raise ValueError(
-                "agent_must_propose: an agent cannot use the embedded client to change records"
+                f"{AGENT_MUST_PROPOSE}: an agent cannot use the embedded client to change records"
             )
         self._uow = uow_factory
         self.actor = actor
