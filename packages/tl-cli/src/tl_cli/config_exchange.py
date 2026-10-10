@@ -141,7 +141,12 @@ def import_(
     """
     db: Path = ctx.obj
     layer = _layer(project, user, company)
-    text = file.read_text(encoding="utf-8")
+    try:
+        text = file.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        _fail(f"{file} is not UTF-8 text")
+    except OSError as exc:
+        _fail(f"cannot read {file}: {exc.strerror}")
     with _service_errors(), open_uow(db) as uow:
         done = settings.import_yaml(
             uow,
