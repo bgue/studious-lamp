@@ -110,6 +110,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(ext.BodyNotFoundError, "body_not_found", 404),
         s(ext.BodyQuarantinedError, "body_quarantined", 403),
         s(ext.BodyHashMismatchError, "body_hash_mismatch", 502),
+        s(ext.BodyStoreUnavailableError, "body_store_unavailable", 503),
     )
 
 

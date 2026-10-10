@@ -41,6 +41,10 @@ class BodyQuarantinedError(ServiceError):
     """The stored body failed verification earlier; reads wait for a new body or a recheck."""
 
 
+class BodyStoreUnavailableError(ServiceError):
+    """No object store is configured, so record bodies cannot be read or stored."""
+
+
 class BodyHashMismatchError(ServiceError):
     """The stored object does not match the hash the ledger recorded, or is missing (brief 31.4).
 
