@@ -57,10 +57,15 @@ from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import ServiceError
 from tl_core.settings.types import SettingDiff
 
+from tl_cli.actors import refuse_agent
+
 app = typer.Typer(help="Compare layers, export and import settings.", no_args_is_help=True)
 
 _DEFAULT_ACTOR = "user:dev"
-_Actor = Annotated[str, typer.Option("--actor", help="Actor recorded on events.")]
+_Actor = Annotated[
+    str,
+    typer.Option("--actor", help="Actor recorded on events.", callback=refuse_agent),
+]
 _Project = Annotated[str | None, typer.Option("--project", help="Project ID.")]
 _User = Annotated[str | None, typer.Option("--user", help="User ID.")]
 _Company = Annotated[bool, typer.Option("--company", help="The company layer.")]
