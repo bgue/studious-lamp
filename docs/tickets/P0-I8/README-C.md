@@ -1,6 +1,6 @@
 # Increment plan — P0-I8 workstream C: agent-dev baseline
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-10
 Brief sections: §25.1 to §25.4 (agent affordances, scaffolding CLI, dev MCP server, gates); build spec `04-gates.md` §1
 Branch: `p0/i8c` (base `p0/i8`); ticket ids `P0-I8-T40` to `T59`, supervisor pieces `P0-I8-S4n`
@@ -27,12 +27,12 @@ Coding agents can inspect the running system and scaffold new work without break
 ## Supervisor-built pieces (in order)
 | # | Piece | Why supervisor-tier | Reviewer | Status |
 |---|---|---|---|---|
-| S41 | Dev MCP server core: `tl_mcp/dev/` guard, SQL guard, `query_db`, runtime, server, entry point, tests | Security guard for what agents may touch (Sonnet-authored, auth-adjacent); orchestrator relay review in fresh context, security focus | fresh reviewer, then orchestrator | built |
-| S42 | `tl new` scaffold engine and `tl new module` | Shared engine two tickets build on; writes files into the repository | reviewer | built |
-| S43 | Docs audit tool and the AGENTS.md audit | Cross-package read | self | tool built; mechanical findings go to T50, the rules read goes on during the batches |
-| S44 | CI workflow review against `04-gates.md` §1 | Gates policy | self | planned |
-| S45 | Runbook `docs/runbooks/dev-mcp.md`, package READMEs and AGENTS.md for `tl-mcp` and `tl-cli`, learnings | Needs every tool merged | self | planned |
-| S46 | Integration test, demo `dev/demos/P0-I8-C.sh`, report `docs/reports/P0-I8-C.md` | Closes the workstream | self | planned |
+| S41 | Dev MCP server core: `tl_mcp/dev/` guard, SQL guard, `query_db`, runtime, server, entry point, tests | Security guard for what agents may touch (Sonnet-authored, auth-adjacent); orchestrator relay review in fresh context, security focus | fresh reviewer, then orchestrator | done |
+| S42 | `tl new` scaffold engine and `tl new module` | Shared engine two tickets build on; writes files into the repository | reviewer | done |
+| S43 | Docs audit tool and the AGENTS.md audit | Cross-package read | self | done |
+| S44 | CI workflow review against `04-gates.md` §1 | Gates policy | self | done |
+| S45 | Runbook `docs/runbooks/dev-mcp.md`, package READMEs and AGENTS.md for `tl-mcp` and `tl-cli`, learnings | Needs every tool merged | self | done |
+| S46 | Integration test, demo `dev/demos/P0-I8-C.sh`, report `docs/reports/P0-I8-C.md` | Closes the workstream | self | done |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
@@ -43,11 +43,11 @@ Coding agents can inspect the running system and scaffold new work without break
 | T43 | `seed` tool | haiku | S41 | merged | 1 review round; 7 tests; API cleanup after a kill added by the supervisor |
 | T44 | `send_test_webhook` tool | haiku | S41 | merged | 1 review round; 20 tests; userinfo redaction and IPv6 brackets added by the supervisor |
 | T45 | `render_screen` tool | haiku | S41 | merged | 1 review round; 28 tests; deviations accepted (Path.as_uri, key-name check, svg_truncated default) |
-| T46 | resources: schema graph and event catalog | haiku | S41 | in-review | |
-| T47 | resources: ADRs, runbooks, test reports | haiku | S41 | in-review | |
-| T48 | `tl new record-type` | haiku | S42 | in-review | |
-| T49 | `tl new projector` | haiku | S42 | ready | |
-| T50 | docs: modules the audit found undocumented (tl-api, tl-lake, tl-sim, tl-cli) | haiku | S43 | ready | |
+| T46 | resources: schema graph and event catalog | haiku | S41 | merged | 1 review round |
+| T47 | resources: ADRs, runbooks, test reports | haiku | S41 | merged | 1 review round |
+| T48 | `tl new record-type` | haiku | S42 | merged | 1 review round |
+| T49 | `tl new projector` | haiku | S42 | merged | 1 review round |
+| T50 | docs: modules the audit found undocumented (tl-api, tl-lake, tl-sim, tl-cli) | haiku | S43 | merged | 1 review round |
 
 Batches (concurrency cap 3, disjoint *Allowed paths*, dependencies already merged): T40 + T41 + T42; then T43 + T44 + T45; then T46 + T47 + T48; then T49 + T50. T48 and T49 have provided tests (`packages/tl-cli/tests/test_cli_new_record_type.py`, `test_cli_new_projector.py`) and expected output files; the supervisor ran both against a reference implementation (not committed) before dispatch (L-P0-I6A-5).
 

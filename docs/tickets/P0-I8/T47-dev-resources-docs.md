@@ -1,6 +1,6 @@
 # P0-I8-T47 — Dev MCP resources: ADRs, runbooks and test reports
 
-Status: in-review
+Status: merged
 Tier: haiku
 Labels: mcp, tests
 Depends on: P0-I8-S41 (merged into the base of this branch)

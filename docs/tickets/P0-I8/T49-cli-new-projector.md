@@ -1,6 +1,6 @@
 # P0-I8-T49 — `tl new projector <module>.<name>`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: cli, tests, docs
 Depends on: P0-I8-S42 (merged into the base of this branch)

@@ -1,6 +1,6 @@
 # P0-I8-T50 — Docs: modules the audit found undocumented (tl-api, tl-lake, tl-sim, tl-cli)
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: docs
 Depends on: P0-I8-S43 (merged into the base of this branch)

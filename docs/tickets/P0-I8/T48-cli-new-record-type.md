@@ -1,6 +1,6 @@
 # P0-I8-T48 — `tl new record-type <module>.<Class>`
 
-Status: in-review
+Status: merged
 Tier: haiku
 Labels: cli, tests, docs
 Depends on: P0-I8-S42 (merged into the base of this branch)
