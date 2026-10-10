@@ -6,6 +6,7 @@ from tl_core.projection.feed import FeedProjector
 from tl_core.projection.files import FileProjector
 from tl_core.projection.links import LinkProjector
 from tl_core.projection.numbering import NumberingProjector
+from tl_core.projection.proposals import ProposalProjector
 from tl_core.projection.pset import PsetProjector
 from tl_core.projection.record import RecordProjector
 from tl_core.projection.registry import InMemoryRegistry
@@ -28,6 +29,7 @@ def default_registry() -> InMemoryRegistry:
         WebhookSubscriptionProjector()
     )  # independent: subscriptions are their own streams
     registry.register(WebhookStateTables())  # operational tables; never reset by a rebuild
+    registry.register(ProposalProjector())  # independent: proposals are their own streams
     registry.register(FeedProjector())  # sees every event; reads only its own tables
     # Last, on purpose: it reads the rows the projectors above wrote for the same event.
     registry.register(OutboxProjector())

@@ -1,14 +1,17 @@
 """``build_server``: the MCP server, its tool schemas and its resources (§11.3, ADR-0005).
 
-Phase 0 has read tools only (``search_records``, ``get_record``, ``get_links``, ``trace``); write
-tools are propose-only and arrive in P0-I6. The actor is fixed per server (``--actor`` on the
-command line); every tool and resource calls the shared ``authorize`` hook first (allow-all
-today). The bodies live in ``tools.py`` and ``resources.py``; this module owns names, parameter
-schemas, the text agents read, and error handling.
+Four read tools (``search_records``, ``get_record``, ``get_links``, ``trace``), four tools that only
+*propose* a change (``create_record``, ``update_psets``, ``link_records``,
+``transition_workflow``) and ``post_feed``, which posts directly, labelled with the agent
+(``write_tools.py``). The actor is fixed per server (``--actor`` on the command line); every tool
+and resource calls the shared ``authorize`` hook first (allow-all today). The read bodies live in
+``tools.py`` and ``resources.py``; this module owns the read tools' names, parameter schemas, the
+text agents read, and error handling.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Annotated
 
 from mcp.server.mcpserver import MCPServer
@@ -25,13 +28,18 @@ from tl_mcp import resources, tools
 from tl_mcp.context import Authorizer, McpContext, UowFactory
 from tl_mcp.errors import MAX_PART, guarded, resource_name
 from tl_mcp.models import SearchResult
+from tl_mcp.modes import resolve_tool_modes
+from tl_mcp.write_tools import register_write_tools
 
 INSTRUCTIONS = (
-    "Read-only access to a Throughline construction ledger. Records live in a scope: `company` or "
-    "`project:<id>`. Use `search_records` with the query language (for example "
+    "Access to a Throughline construction ledger. Records live in a scope: `company` or "
+    "`project:<id>`. Read with `search_records` and the query language (for example "
     "`status:Review linked:NCR`), then `get_record`, `get_links` and `trace` with a record id or a "
-    "key plus its scope. Resources: tl://record/{scope}/{key}, tl://schema/{scope}/{record_type}, "
-    "tl://relations."
+    "key plus its scope. You cannot change a record: `create_record`, `update_psets`, "
+    "`link_records` and `transition_workflow` each file a proposal that a person reviews and "
+    "accepts, and they return the pending proposal. Each agent has a daily proposal budget. "
+    "`post_feed` posts to a project feed directly, labelled as you. Resources: "
+    "tl://record/{scope}/{key}, tl://schema/{scope}/{record_type}, tl://relations."
 )
 
 MAX_ORDER_BY = 256
@@ -64,12 +72,22 @@ ScopeForKey = Annotated[
 
 
 def build_server(
-    factory: UowFactory, *, actor: str, authorize_hook: Authorizer = authorize
+    factory: UowFactory,
+    *,
+    actor: str,
+    authorize_hook: Authorizer = authorize,
+    tool_modes: Mapping[str, str] | None = None,
 ) -> MCPServer:
-    """An MCP server over ``factory`` acting as ``actor`` (``agent:<id>`` or ``user:<id>``)."""
+    """An MCP server over ``factory`` acting as ``actor`` (``agent:<id>`` or ``user:<id>``).
+
+    ``tool_modes`` maps a record-changing tool to its mode. The only mode is ``propose``; asking for
+    ``write`` raises ``ToolModeError`` with the human-gate message (see ``tl_mcp.modes``).
+    """
     check_actor(actor)
+    modes = resolve_tool_modes(tool_modes)
     ctx = McpContext(factory=factory, actor=actor, authorize=authorize_hook)
     server = MCPServer("throughline", instructions=INSTRUCTIONS)
+    register_write_tools(server, ctx, modes)
 
     @server.tool(annotations=READ_ONLY)
     def search_records(

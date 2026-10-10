@@ -19,7 +19,7 @@ from tl_core.services.errors import (
     PostRetractedError,
     ReactionsDisabledError,
 )
-from tl_core.services.feed import POST_STREAM_TYPE, load_post
+from tl_core.services.feed import POST_STREAM_TYPE, load_post, require_author
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
 
@@ -53,9 +53,11 @@ def handle_retract_post(uow: UnitOfWork, cmd: RetractPost) -> CommandResult:
 
     The post is read in the caller's transaction and refused before anything is appended. Raises
     ``PostNotFoundError`` (unknown post, or a post of another scope), ``PostRetractedError``
-    (already retracted) or ``ConcurrencyError`` (a wrong ``expected_version``).
+    (already retracted), ``NotPostAuthorError`` (the actor did not write the post) or
+    ``ConcurrencyError`` (a wrong ``expected_version``).
     """
     post = load_post(uow, cmd.scope, cmd.post_id)
+    require_author(post, cmd.actor, "retract")
     if post.retracted:
         raise PostRetractedError(f"post {cmd.post_id!r} was already retracted")
     result = uow.append(

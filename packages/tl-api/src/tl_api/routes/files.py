@@ -81,7 +81,7 @@ def _service(ctx: ApiContext) -> FileService:
 def register_upload(
     ctx: Ctx,
     body: RegisterUploadBody,  # pyright: ignore[reportInvalidTypeForm]
-    actor: Annotated[str, Depends(guard("file.upload"))],
+    actor: Annotated[str, Depends(guard("file.upload", changes_records=True))],
 ) -> UploadTicket:
     """Announce a file: the answer is a dedupe hit (`exists`) or an upload id to send bytes to."""
     service = _service(ctx)
@@ -96,7 +96,7 @@ async def upload_content(
     ctx: Ctx,
     upload_id: str,
     scope: ScopeParam,
-    actor: Annotated[str, Depends(guard("file.upload"))],
+    actor: Annotated[str, Depends(guard("file.upload", changes_records=True))],
 ) -> FileResult:
     """Send the bytes (the request body) and complete the upload in one call.
 
@@ -132,7 +132,7 @@ def complete_upload(
     ctx: Ctx,
     upload_id: str,
     scope: ScopeParam,
-    actor: Annotated[str, Depends(guard("file.upload"))],
+    actor: Annotated[str, Depends(guard("file.upload", changes_records=True))],
 ) -> FileResult:
     """Complete an upload whose bytes need no sending: a dedupe hit, or bytes already staged."""
     service = _service(ctx)
@@ -145,7 +145,7 @@ def complete_upload(
 def attach_file(
     ctx: Ctx,
     body: AttachFileBody,  # pyright: ignore[reportInvalidTypeForm]
-    actor: Annotated[str, Depends(guard("file.upload"))],
+    actor: Annotated[str, Depends(guard("file.upload", changes_records=True))],
 ) -> FileResult:
     """Attach bytes this scope already holds to another record or slot, without an upload."""
     service = _service(ctx)

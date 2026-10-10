@@ -145,6 +145,42 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Proposal.Accepted.v1",
+      "event_type": "Proposal.Accepted",
+      "payload_class": "ProposalAcceptedPayload",
+      "sample": "samples/Proposal.Accepted.v1.json",
+      "schema": "schemas/Proposal.Accepted.v1.json",
+      "title": "A person accepted a proposal and its command ran in the same transaction.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Proposal.Created.v1",
+      "event_type": "Proposal.Created",
+      "payload_class": "ProposalCreatedPayload",
+      "sample": "samples/Proposal.Created.v1.json",
+      "schema": "schemas/Proposal.Created.v1.json",
+      "title": "An agent proposed a change.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Proposal.Failed.v1",
+      "event_type": "Proposal.Failed",
+      "payload_class": "ProposalFailedPayload",
+      "sample": "samples/Proposal.Failed.v1.json",
+      "schema": "schemas/Proposal.Failed.v1.json",
+      "title": "A person accepted a proposal, but the command was refused (the record changed since, a guard failed).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Proposal.Rejected.v1",
+      "event_type": "Proposal.Rejected",
+      "payload_class": "ProposalRejectedPayload",
+      "sample": "samples/Proposal.Rejected.v1.json",
+      "schema": "schemas/Proposal.Rejected.v1.json",
+      "title": "A person rejected a proposal.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Pset.ValuesSet.v1",
       "event_type": "Pset.ValuesSet",
       "payload_class": "PsetValuesSetPayload",

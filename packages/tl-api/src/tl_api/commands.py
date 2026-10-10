@@ -19,12 +19,20 @@ from pydantic import BaseModel, ConfigDict, Field, create_model
 from tl_core.services import links, psets
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
+from tl_core.services.feed import EditPost, PostToFeed, handle_edit_post, handle_post
+from tl_core.services.feed_actions import (
+    ReactToPost,
+    RetractPost,
+    handle_react_to_post,
+    handle_retract_post,
+)
+from tl_core.services.proposals import source_for
 from tl_core.services.records import handle_create_record, handle_update_record
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.uow import UnitOfWork
 from tl_core.util import effective_time
 
-from tl_api.auth import guard
+from tl_api.auth import AGENT_DIRECT_COMMANDS, guard
 from tl_api.context import get_ctx
 from tl_api.effective import EFFECTIVE_AT_HEADER, resolve_effective_at
 
@@ -57,6 +65,10 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(links.FlagLink, links.handle_flag_link),
     CommandSpec(links.RetractLink, links.handle_retract_link),
     CommandSpec(TransitionWorkflow, handle_transition_workflow),
+    CommandSpec(PostToFeed, handle_post),
+    CommandSpec(EditPost, handle_edit_post),
+    CommandSpec(RetractPost, handle_retract_post),
+    CommandSpec(ReactToPost, handle_react_to_post),
 )
 """Every command the API accepts. Void, mark-pins-stale and the file commands are not here:
 voiding is not in the Phase 0 client contract, pin staleness is a system command, and files have
@@ -86,11 +98,12 @@ def request_model(model: type[Command], name: str) -> type[BaseModel]:
 
 def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[..., CommandResult]:
     action = f"command.{spec.name}"
+    changes_records = spec.name not in AGENT_DIRECT_COMMANDS
 
     def endpoint(
         request: Request,
         body: Any,
-        actor: Annotated[str, Depends(guard(action))],
+        actor: Annotated[str, Depends(guard(action, changes_records=changes_records))],
         effective_at: Annotated[
             str | None,
             Header(
@@ -102,7 +115,10 @@ def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[.
         ] = None,
     ) -> CommandResult:
         ctx = get_ctx(request)
-        command = spec.model(**body.model_dump(), actor=actor)
+        fields = body.model_dump()
+        if actor.startswith("agent:"):  # an agent cannot claim another source (brief 18.12)
+            fields["source"] = source_for(actor)
+        command = spec.model(**fields, actor=actor)
         when = resolve_effective_at(effective_at, command.scope)
         with effective_time(when), ctx.backend(False) as uow:
             return spec.handler(uow, command)

@@ -23,15 +23,11 @@ import functools
 import threading
 from collections.abc import Callable
 from contextlib import AbstractContextManager, nullcontext
-from typing import Any, Literal, cast
+from typing import Any, cast
 
 import httpx2
 from tl_api.client import ApiClient
-from tl_api.errors import ApiError
 from tl_core.services.commands import Command, CommandResult
-from tl_core.services.feed import EditPost, PostToFeed
-from tl_core.services.feed_actions import ReactToPost, RetractPost
-from tl_core.services.feed_queries import Completion, FeedPage
 
 from tl_tui.client import ClientInterface, RelationInfo
 from tl_tui.live import ChangeFeed, FeedSink, OwnWrites
@@ -44,22 +40,6 @@ UNTRACKED = frozenset({"stream_events", "close", "base_url"})
 #: view, a save), so this is how long the interface can freeze; past it the banner says why.
 #: Moving those calls to workers is the P0-I8 hardening follow-up.
 INTERACTIVE_TIMEOUT_S = 3.0
-
-
-class FeedOverApiUnavailable(ApiError):
-    """The activity feed has no API routes yet (P0-I6 workstream B): the remote TUI cannot show it.
-
-    An ``ApiError`` (status 501), so it is in ``CLIENT_ERRORS``: the feed pane shows the message
-    and keeps its state, and the rest of the remote TUI is unaffected. It is not a
-    ``ServiceError``, which would need a row in the API's error table.
-    """
-
-    def __init__(self) -> None:
-        super().__init__(
-            501,
-            "feed_unavailable",
-            "the activity feed over the API arrives with P0-I6 workstream B",
-        )
 
 
 def find_head(api: ApiClient) -> int:
@@ -251,38 +231,6 @@ class RemoteClient:
     def relations(self) -> list[RelationInfo]:
         found = self._track(self._api.relations)()
         return [RelationInfo.model_validate(r.model_dump()) for r in found]
-
-    # --- the activity feed has no API routes yet (P0-I6 WS-B) -------------------------------
-
-    def feed_page(
-        self,
-        scope: str,
-        *,
-        record_id: str | None = None,
-        include_linked: bool = False,
-        tag: str | None = None,
-        item_type: Literal["post", "card"] | None = None,
-        limit: int = 50,
-        before_seq: int | None = None,
-    ) -> FeedPage:
-        raise FeedOverApiUnavailable
-
-    def feed_post(self, cmd: PostToFeed) -> CommandResult:
-        raise FeedOverApiUnavailable
-
-    def feed_edit(self, cmd: EditPost) -> CommandResult:
-        raise FeedOverApiUnavailable
-
-    def feed_retract(self, cmd: RetractPost) -> CommandResult:
-        raise FeedOverApiUnavailable
-
-    def feed_react(self, cmd: ReactToPost) -> CommandResult:
-        raise FeedOverApiUnavailable
-
-    def feed_complete(
-        self, scope: str, sigil: Literal["#", "@"], prefix: str, *, limit: int = 8
-    ) -> list[Completion]:
-        raise FeedOverApiUnavailable
 
     # --- everything else is the API client's ----------------------------------------------
 

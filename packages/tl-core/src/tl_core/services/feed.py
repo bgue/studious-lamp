@@ -37,6 +37,7 @@ from tl_core.services.errors import (
     DuplicateLinkError,
     InvalidScopeError,
     NoChangesError,
+    NotPostAuthorError,
     PostNotFoundError,
     PostRetractedError,
     RecordVoidedError,
@@ -131,6 +132,18 @@ def load_post(uow: UnitOfWork, scope: str, post_id: str) -> PostRow:
         base_importance=row.base_importance,
         reactions=reactions,
     )
+
+
+def require_author(post: PostRow, actor: str, verb: str) -> None:
+    """Only the author edits or retracts a post (reactions are open to everyone).
+
+    This is a fixed rule of the feed (a post says who wrote it), not a permission model: it grants
+    nobody anything. Raises ``NotPostAuthorError``.
+    """
+    if post.author != actor:
+        raise NotPostAuthorError(
+            f"only the author ({post.author}) can {verb} post {post.post_id!r}"
+        )
 
 
 def _require_project(scope: str) -> None:
@@ -229,10 +242,12 @@ def handle_edit_post(uow: UnitOfWork, cmd: EditPost) -> CommandResult:
     """Replace a post's body and tags; suggest links for records the edit adds.
 
     Appends ``Feed.Edited`` (the earlier text stays in the ledger). Records the edit removes keep
-    whatever link was suggested before: only a person retracts a link. Raises ``PostNotFoundError``,
-    ``PostRetractedError``, ``NoChangesError`` (same body) or ``ConcurrencyError``.
+    whatever link was suggested before: only a person retracts a link. Only the post's author may
+    edit it (``NotPostAuthorError``). Raises ``PostNotFoundError``, ``PostRetractedError``,
+    ``NoChangesError`` (same body) or ``ConcurrencyError``.
     """
     post = load_post(uow, cmd.scope, cmd.post_id)
+    require_author(post, cmd.actor, "edit")
     if post.retracted:
         raise PostRetractedError(f"post {cmd.post_id!r} was retracted and cannot be edited")
     if post.body == cmd.body:

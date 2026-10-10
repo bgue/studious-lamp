@@ -18,6 +18,7 @@ imports:
   - numbering
   - workflow
   - feed
+  - proposals
   - files
   - integration
   - outbox

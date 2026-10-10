@@ -78,7 +78,16 @@ def test_another_actor_or_type_starts_a_new_card() -> None:
 
 
 @pytest.mark.parametrize(
-    "event_type", ["Numbering.Allocated", "Link.Suggested", "Webhook.Delivered"]
+    "event_type",
+    [
+        "Numbering.Allocated",
+        "Link.Suggested",
+        "Webhook.Delivered",
+        "Proposal.Created",
+        "Proposal.Accepted",
+        "Proposal.Rejected",
+        "Proposal.Failed",
+    ],
 )
 def test_plumbing_events_are_ignored(event_type: str) -> None:
     assert disposition(open_card(), ev(2, event_type, at=1)) == "ignore"

@@ -1928,6 +1928,248 @@
             "title": "PayloadMode",
             "type": "string"
         },
+        "ProposalAcceptedPayload": {
+            "additionalProperties": false,
+            "description": "A person accepted a proposal and its command ran in the same transaction.",
+            "examples": [
+                "{\"by\": \"user:mlee\", \"proposal_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"result_stream_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"result_version\": 1}"
+            ],
+            "properties": {
+                "by": {
+                    "description": "The accepting person, `user:<id>`.",
+                    "type": "string"
+                },
+                "proposal_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "result_stream_id": {
+                    "description": "Stream the command wrote to (the new record, the changed record, the link).",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "result_version": {
+                    "description": "Stream version after the command.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "proposal_id",
+                "by",
+                "result_stream_id",
+                "result_version"
+            ],
+            "title": "ProposalAcceptedPayload",
+            "type": "object"
+        },
+        "ProposalCreatedPayload": {
+            "additionalProperties": false,
+            "description": "An agent proposed a change. `command` is the command model as the agent built it, with `actor` set to the agent and `source` to `mcp:<agent>`; accepting re-runs it as the accepting person.",
+            "examples": [
+                "{\"agent\": \"agent:triage\", \"command\": {\"actor\": \"agent:triage\", \"scope\": \"project:P123\", \"source\": \"mcp:triage\", \"record_type\": \"core.Record\", \"title\": \"Weld NCR\", \"psets\": {}, \"numbering\": {}}, \"command_type\": \"CreateRecord\", \"proposal_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"summary\": \"Create record: Weld NCR\", \"tool\": \"create_record\"}"
+            ],
+            "properties": {
+                "agent": {
+                    "description": "The proposing actor, `agent:<id>`.",
+                    "type": "string"
+                },
+                "command": {
+                    "$ref": "#/$defs/Any",
+                    "description": "The command, as JSON."
+                },
+                "command_type": {
+                    "description": "Name of the command model (`CreateRecord`, `SetPsetValues`, `AddLink`, `TransitionWorkflow`).",
+                    "type": "string"
+                },
+                "proposal_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "summary": {
+                    "description": "One line for the review queue.",
+                    "type": "string"
+                },
+                "tool": {
+                    "description": "The MCP tool that was called (`create_record`, `update_psets`, `link_records`, `transition_workflow`).",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "proposal_id",
+                "tool",
+                "agent",
+                "command_type",
+                "command",
+                "summary"
+            ],
+            "title": "ProposalCreatedPayload",
+            "type": "object"
+        },
+        "ProposalFailedPayload": {
+            "additionalProperties": false,
+            "description": "A person accepted a proposal, but the command was refused (the record changed since, a guard failed). The command's own writes were rolled back; this event is written in a fresh transaction.",
+            "examples": [
+                "{\"by\": \"user:mlee\", \"error\": \"ConcurrencyError: expected version 3, stream is at 4\", \"proposal_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\"}"
+            ],
+            "properties": {
+                "by": {
+                    "type": "string"
+                },
+                "error": {
+                    "description": "`<ErrorClass>: <message>` of the refusal.",
+                    "type": "string"
+                },
+                "proposal_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "proposal_id",
+                "by",
+                "error"
+            ],
+            "title": "ProposalFailedPayload",
+            "type": "object"
+        },
+        "ProposalRejectedPayload": {
+            "additionalProperties": false,
+            "description": "A person rejected a proposal. Nothing else was written.",
+            "examples": [
+                "{\"by\": \"user:mlee\", \"proposal_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"reason\": \"Duplicate of NCR-0042\"}"
+            ],
+            "properties": {
+                "by": {
+                    "type": "string"
+                },
+                "proposal_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why, for the agent and the audit trail.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "proposal_id",
+                "by",
+                "reason"
+            ],
+            "title": "ProposalRejectedPayload",
+            "type": "object"
+        },
+        "ProposalRow": {
+            "additionalProperties": false,
+            "description": "One proposal: what was asked, by whom, and how it ended. Oldest first by `seq` is the review queue. `created_day` (UTC, from the `effective_at` of `Proposal.Created`) with `agent` is the budget key.",
+            "properties": {
+                "agent": {
+                    "type": "string"
+                },
+                "command": {
+                    "$ref": "#/$defs/Any"
+                },
+                "command_type": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "created_day": {
+                    "description": "UTC day of creation, `YYYY-MM-DD`.",
+                    "type": "string"
+                },
+                "created_event_id": {
+                    "description": "Event id of `Proposal.Created`; the cause of the accepted command's events.",
+                    "type": "string"
+                },
+                "decided_at": {
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "decided_by": {
+                    "description": "The person who accepted, rejected or failed it.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "proposal_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "The rejection reason, or the error of a failed proposal.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "result_stream_id": {
+                    "description": "Accepted only; the stream the command wrote to.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "seq": {
+                    "description": "`seq` of `Proposal.Created`.",
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/$defs/ProposalStatus"
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "tool": {
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Ledger `stream_version` of the proposal stream after the last event applied.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "proposal_id",
+                "scope",
+                "tool",
+                "agent",
+                "command_type",
+                "command",
+                "summary",
+                "status",
+                "created_day",
+                "created_at",
+                "created_event_id",
+                "seq"
+            ],
+            "title": "ProposalRow",
+            "type": "object"
+        },
+        "ProposalStatus": {
+            "description": "Where a proposal is in its life.",
+            "enum": [
+                "pending",
+                "accepted",
+                "rejected",
+                "failed"
+            ],
+            "title": "ProposalStatus",
+            "type": "string"
+        },
         "PsetLayer": {
             "description": "Layer a pset value belongs to (brief 6.3).",
             "enum": [

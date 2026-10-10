@@ -1,8 +1,9 @@
 """A reusable unit-of-work factory for the Postgres adapter (one pooled engine, many transactions).
 
 Same call shape as ``tl_adapters.sqlite.factory.SqliteUowFactory`` (``factory()`` for a write unit
-of work, ``factory(readonly=True)`` for a read snapshot) so a worker is written once and runs on
-either adapter. It runs the projector registry exactly like ``open_uow`` (fanout contract C2).
+of work, ``factory(readonly=True)`` or positionally ``factory(True)`` for a read snapshot) so a
+worker is written once and runs on either adapter. It runs the projector registry exactly like
+``open_uow`` (fanout contract C2).
 """
 
 from __future__ import annotations
@@ -36,7 +37,7 @@ class PostgresUowFactory:
         self._registry = registry if registry is not None else default_registry()
         self._bus = bus
 
-    def __call__(self, *, readonly: bool = False) -> PostgresUnitOfWork:
+    def __call__(self, readonly: bool = False) -> PostgresUnitOfWork:
         return PostgresUnitOfWork(
             self._engine, self._ledger, self._registry, self._bus, readonly=readonly
         )

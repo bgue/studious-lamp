@@ -25,6 +25,10 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl feed post --project ID BODY [--importance low|normal|high] [--actor A]` | command | Post to the project feed; prints the post id, its tags and how many links were suggested (a `#KEY` tag suggests a `references` link, nothing else changes) |
 | `tl feed ls --project ID [--record KEY [--linked]] [--tag T] [--posts|--events] [-n N]` | command | The feed newest first: `id  kind  time  author  text`, cards with their records, posts with their reactions; a retracted post reads `[retracted]` |
 | `tl feed retract --project ID POST_ID --reason R`, `tl feed react --project ID POST_ID [--reaction ack|+1|resolved] [--off]` | command | Tombstone a post; set or clear an acknowledgement |
+| `tl proposal ls (--project ID \| --company) [--status pending\|accepted\|rejected\|failed\|all] [--agent A] [-n N]` | command | The review queue of agent proposals, oldest first: `id  status  agent  tool  summary` |
+| `tl proposal show ID` | command | One proposal and the command it would run (`command CreateRecord`, then `  field json` lines) |
+| `tl proposal accept ID [--role R]... [--actor user:ID]` | command | Run the proposal's command as you, tagged with the agent as source; a command that cannot be applied prints `failed ID` and `error: ...`, exits 1, and changes nothing; an `agent:` actor is refused |
+| `tl proposal reject ID --reason R [--actor user:ID]` | command | Close a pending proposal; the command never runs |
 | `tl wf show --project ID KEY [--role R]...` | command | Workflow state and, for each transition, whether its guards pass |
 | `tl wf transition --project ID KEY NAME [--role R]... [--reason T]` | command | Run a transition; a blocked one prints every guard and exits 1 |
 | `tl serve [--host H] [--port N] [--tokens PATH] [--insecure-dev]` | command | The REST API and event stream on the dev ledger (`--db`); loopback unless `--insecure-dev` (ADR-0005); same as `just serve` |
@@ -68,4 +72,4 @@ just demo P0-I1
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `dev` group added in P0-I4 workstream C; `webhook` group added in P0-I5 workstream B; `feed` group added in P0-I6 workstream A. `--role` is a stub list (no auth yet).
+Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `dev` group added in P0-I4 workstream C; `webhook` group added in P0-I5 workstream B; `feed` group added in P0-I6 workstream A; `proposal` group added in P0-I6 workstream B. `--role` is a stub list (no auth yet).
