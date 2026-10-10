@@ -51,12 +51,24 @@ def plan(con: sqlite3.Connection, text: str, order: list[tuple[str, str]] | None
     return "\n".join(str(row[3]) for row in rows)
 
 
+# The one temporary b-tree a plan may keep: SQLite sorts only the rows that tie on the indexed
+# prefix (``ORDER BY created_at DESC, id`` over an index on ``(..., created_at, id)``).
+ALLOWED_SORTS = ("USE TEMP B-TREE FOR RIGHT PART OF ORDER BY",)
+
+
+def temp_sorts(found: str) -> list[str]:
+    """The plan lines that sort with a temporary b-tree, except the allowed partial sort."""
+    return [
+        line for line in found.splitlines() if "TEMP B-TREE" in line and line not in ALLOWED_SORTS
+    ]
+
+
 def test_the_default_page_reads_the_created_at_index_and_sorts_nothing(
     con: sqlite3.Connection,
 ) -> None:
     found = plan(con, "")
     assert "ix_cur_core_record_scope_voided_created" in found
-    assert "TEMP B-TREE" not in found
+    assert not temp_sorts(found), found
 
 
 @pytest.mark.parametrize(
@@ -74,7 +86,7 @@ def test_the_common_sorts_are_served_by_an_index(
 ) -> None:
     found = plan(con, "", [(column, direction)])
     assert index in found, found
-    assert "TEMP B-TREE FOR ORDER BY" not in found, found
+    assert not temp_sorts(found), found
 
 
 def test_a_pset_value_filter_reads_the_set_from_the_value_index(con: sqlite3.Connection) -> None:

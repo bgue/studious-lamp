@@ -132,6 +132,7 @@ def _column(view: SchemaView, slot: Any, dialect: Dialect) -> tuple[str, str]:
 
 
 INDEX_TAG = "tl:ix_"
+MAX_IDENTIFIER = 63  # Postgres cuts longer identifiers silently
 _INDEX_NAME = re.compile(r"[a-z][a-z0-9_]*")
 _INDEX_TERM = re.compile(r"(?:empty_last\((?P<fn>\w+)\))|(?:(?P<col>\w+)(?: (?P<dir>asc|desc))?)")
 
@@ -190,14 +191,24 @@ def table_ddl(view: SchemaView, class_name: str, dialect: Dialect) -> str:
         if _annotation(slot, "tl:indexed"):
             col = columns[slot.name][0]
             statements.append(f"CREATE INDEX IF NOT EXISTS ix_{table}_{col} ON {table} ({col});")
+    taken = {
+        f"ix_{table}_{columns[slot.name][0]}" for slot in slots if _annotation(slot, "tl:indexed")
+    }
     by_name = {slot.name: slot for slot in slots}
     for index_name, spec in sorted(_class_indexes(view, class_name).items()):
         if _INDEX_NAME.fullmatch(index_name) is None:
             raise DdlError(f"index name {index_name!r}: use lower-case letters, digits, _")
+        full = f"ix_{table}_{index_name}"
+        if len(full) > MAX_IDENTIFIER:
+            raise DdlError(
+                f"index {full!r} is {len(full)} characters; Postgres keeps {MAX_IDENTIFIER}, "
+                "and a longer name is cut and may collide"
+            )
+        if full in taken:
+            raise DdlError(f"index {full!r} is also the name of a single-column index")
+        taken.add(full)
         terms = _index_terms(spec, by_name, columns, view)
-        statements.append(
-            f"CREATE INDEX IF NOT EXISTS ix_{table}_{index_name} ON {table} ({terms});"
-        )
+        statements.append(f"CREATE INDEX IF NOT EXISTS {full} ON {table} ({terms});")
     return "\n\n".join(statements) + "\n"
 
 

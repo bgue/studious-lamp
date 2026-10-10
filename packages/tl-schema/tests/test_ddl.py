@@ -314,3 +314,27 @@ classes:
 """
     with pytest.raises(ddl.DdlError):
         ddl.generate_from(_schema(tmp_path, body))
+
+
+def test_an_index_name_over_63_characters_or_equal_to_a_column_index_raises(
+    tmp_path: Path,
+) -> None:
+    long_name = "a" * 60
+    for index_lines, message in (
+        (f"      tl:ix_{long_name}:\n        value: scope\n", "63"),
+        ("      tl:ix_scope:\n        value: scope\n", "single-column"),
+    ):
+        body = f"""
+classes:
+  Widget:
+    annotations:
+      tl:current_state: true
+{index_lines}    attributes:
+      id:
+        identifier: true
+      scope:
+        annotations:
+          tl:indexed: true
+"""
+        with pytest.raises(ddl.DdlError, match=message):
+            ddl.generate_from(_schema(tmp_path, body))
