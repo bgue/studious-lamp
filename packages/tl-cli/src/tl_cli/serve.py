@@ -2,9 +2,6 @@
 
 A thin wrapper over ``tl_api.main.main`` (what ``just serve`` runs): it passes the ledger chosen by
 the root ``--db`` option and the options below, and exits with the server's exit code.
-
-STUB (P0-I4-T61): the signature and the help text are final; the body raises
-``NotImplementedError``. Remove this paragraph when you implement it.
 """
 
 from __future__ import annotations
@@ -31,4 +28,9 @@ def serve(
     ] = False,
 ) -> None:
     """Serve the API and the event stream on the dev ledger (loopback unless --insecure-dev)."""
-    raise NotImplementedError("STUB (P0-I4-T61)")
+    from tl_api import main as api_main
+
+    argv = ["--db", str(ctx.obj), "--tokens", str(tokens), "--host", host, "--port", str(port)]
+    if insecure_dev:
+        argv.append("--insecure-dev")
+    raise typer.Exit(code=api_main.main(argv))

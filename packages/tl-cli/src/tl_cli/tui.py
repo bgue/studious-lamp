@@ -3,9 +3,6 @@
 A thin wrapper over ``tl_tui.main.run``. Embedded is the default. ``--remote URL`` with a dev token
 (``--token``, or ``TL_TOKEN`` so the token stays out of the process list) runs the same screens
 over HTTP and SSE.
-
-STUB (P0-I4-T61): the signature and the help text are final; the body raises
-``NotImplementedError``. Remove this paragraph when you implement it.
 """
 
 from __future__ import annotations
@@ -34,4 +31,10 @@ def tui(
     ] = None,
 ) -> None:
     """Open the TUI. Embedded unless --remote is given."""
-    raise NotImplementedError("STUB (P0-I4-T61)")
+    from tl_tui import main as tui_main
+
+    try:
+        tui_main.run(remote=remote, token=token, db=ctx.obj, project=project, actor=actor)
+    except ValueError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
