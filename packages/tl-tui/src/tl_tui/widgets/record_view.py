@@ -6,6 +6,7 @@ through `ClientInterface`; it never touches the ledger or services directly.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, ClassVar
 
 from rich.text import Text
@@ -211,6 +212,17 @@ class RecordView(Vertical, can_focus=True):
                 Text(event_summary(event)),
                 key=event.event_id,
             )
+
+    def note_remote_update(self, actor: str, version: int, when: datetime | None = None) -> None:
+        """Show "! Updated by <actor> (now v<n>)" under the header (someone else changed it).
+
+        With ``when`` the line also says at what time. A later call replaces the line.
+        """
+        raise NotImplementedError("STUB (P0-I4-T62)")
+
+    def clear_remote_update(self) -> None:
+        """Hide the "Updated by" line."""
+        raise NotImplementedError("STUB (P0-I4-T62)")
 
     def on_record_changed(self, message: RecordChanged) -> None:
         # Not stopped: the message keeps bubbling so the app can refresh the grid.

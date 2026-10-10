@@ -63,6 +63,8 @@ class EditForm(ModalScreen[bool]):
         self.actor = actor
         self.editors: list[FieldEditor] = []
         self.headings: list[str] = []
+        self.opened_version = int(record["version"])
+        self.conflict = False  # true once the record is known to have moved past opened_version
 
     def _sections(self) -> list[tuple[str, list[tuple[FieldMeta, Any]]]]:
         """Heading and (field, initial value) rows: Details first, then each writable pset group."""
@@ -94,6 +96,14 @@ class EditForm(ModalScreen[bool]):
 
     def _status(self, text: str) -> None:
         self.query_one("#form-status", Static).update(text)
+
+    def mark_conflict(self, actor: str | None = None, version: int | None = None) -> None:
+        """Say that someone else changed the record while this form was open, and block saving.
+
+        ``actor`` and ``version`` are the writer and the record version now, when known. The
+        typed values stay in the form so the user can copy them; Esc cancels.
+        """
+        raise NotImplementedError("STUB (P0-I4-T63)")
 
     # --- actions -----------------------------------------------------------------------------
 

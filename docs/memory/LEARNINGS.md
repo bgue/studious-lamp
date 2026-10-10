@@ -615,3 +615,28 @@ test or a generated artefact already enforces, or narrative history (that belong
   two different files. After merging workstream A, `just check` failed on codegen drift because its `COLLATE "C"` change altered the
   Postgres DDL of tables that workstream B had added: run `just gen` after every merge that touches a generator.
   Evidence: `git show c073261:...factory.py`; `differs: ddl/postgres/wh_delivery.sql`. Status: active
+
+- **L-P0-I4-D1** · 2026-10-10 · tags: tui, tooling
+  `query` is a Textual DOM method, so `self.query = "..."` on a widget fails pyright and would break at run time (the L-P0-I2-B4 trap again, one more
+  name: `filter_text` is the grid's). Widget `DEFAULT_CSS` loses to the base widget's pseudo-class rule: `FilterBar Input { border: none }` was ignored
+  while the `Input` had focus; write `FilterBar Input, FilterBar Input:focus { ... }`.
+  Evidence: `widgets/grid.py` (`filter_text`), `widgets/filter_bar.py` CSS; the first pilot run drew a tall border over the caret line. Status: active
+
+- **L-P0-I4-D2** · 2026-10-10 · tags: process, tooling
+  Never undo a mutation check with `git checkout <file>` when the file holds uncommitted work: it reverted every uncommitted edit of `app.py`, which had to be
+  rewritten. Copy the file aside first (`cp f /tmp/f.bak`) or commit, then restore from the copy. Same root as L-P0-I4-B7.
+  Evidence: the `own_writes` mutation run in this workstream. Status: active
+
+- **L-P0-I4-D3** · 2026-10-10 · tags: tui, api
+  `ApiClient.stream_events(reconnect=True)` swallows outages, so a TUI that wants a "server unreachable" banner must use `reconnect=False` and run its own loop
+  (probe, state, backoff, resume from the last `seq`). The API has no head endpoint: `tl_tui.remote.find_head` bisects `GET /events?limit=1`
+  (about 2 log2 n requests) to start a feed at "now" with no gap. A listener attached after the first failed call (the grid loads before the app attaches)
+  must be told the current state at once, or the banner never shows.
+  Evidence: `tests/test_remote_feed.py` (restart, unreachable at start), `test_live_remote_app.py`; mutations of `after=` and of `find_head` fail them. Status: active
+
+- **L-P0-I4-D4** · 2026-10-10 · tags: tui, tests
+  Threaded refreshes need three tests that a happy-path run does not give: the UI answers a key while the worker sleeps (`test_the_ui_stays_responsive...`), a result
+  that arrives after the rows were replaced is dropped (generation guard; the mutation that removes it fails two tests), and a burst of N events costs a few reads,
+  not N. A mark timer can fire a hair before its deadline, so it re-arms for what is left. A "changed by someone else" mark must not depend on what an earlier
+  read showed: an outage refresh and a replayed event can both read the same version.
+  Evidence: `tests/test_live_app.py`, `grid.py` `_expire_marks`. Status: active
