@@ -296,3 +296,76 @@ def test_a_failed_refresh_keeps_the_rows_and_says_why() -> None:
         assert [r["key"] for r in grid.rows] == keys_before
 
     run_pilot(app, scenario)
+
+
+def test_a_failed_read_keeps_the_marks_for_the_next_refresh() -> None:
+    import httpx2
+    from tl_api.client.base import ApiUnavailableError
+
+    client = FakeClient.with_valve_example()
+    app, _, feed = build(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        grid = grid_of(app)
+        record_id = row_of(grid, "FV-1002")["id"]
+        events = bob_updates(client, "FV-1002", title="while down")
+        original = client.list_records
+
+        def down(*args: Any, **kwargs: Any) -> Any:
+            raise ApiUnavailableError(httpx2.ConnectError("refused"))
+
+        client.list_records = down  # type: ignore[method-assign]
+        feed.push(*events)
+        await until(pilot, lambda: "server unreachable" in screen_text(app))
+        assert not grid.is_marked(record_id)
+        client.list_records = original  # type: ignore[method-assign]
+        grid.refresh_live()  # the next refresh, for any reason, carries the mark that was kept
+        await until(pilot, lambda: grid.is_marked(record_id))
+
+    run_pilot(app, scenario)
+
+
+def test_an_unexpected_error_in_a_refresh_is_reported_and_the_next_one_still_runs() -> None:
+    client = FakeClient.with_valve_example()
+    app, _, feed = build(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        grid = grid_of(app)
+        original = client.list_records
+
+        def broken(*args: Any, **kwargs: Any) -> Any:
+            raise RuntimeError("boom")
+
+        client.list_records = broken  # type: ignore[method-assign]
+        feed.push(*bob_updates(client, "FV-1002", title="x"))
+        await until(pilot, lambda: "Live refresh failed: boom" in screen_text(app))
+        assert not grid._live_running  # pyright: ignore[reportPrivateUsage]
+        client.list_records = original  # type: ignore[method-assign]
+        feed.push(*bob_updates(client, "FV-1003", title="y"))
+        await until(pilot, lambda: row_of(grid, "FV-1003")["title"] == "y")
+
+    run_pilot(app, scenario)
+
+
+def test_marks_of_a_result_dropped_after_a_sort_land_on_the_rows_now_shown() -> None:
+    client = SlowClient()
+    for n in range(3):
+        client._seed(f"S-{n}", f"Row {n}", "Design")  # pyright: ignore[reportPrivateUsage]
+    app, _, feed = build(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        grid = grid_of(app)
+        client.read_threads.clear()
+        client.delay = 0.5
+        feed.push(*bob_updates(client, "S-2", title="late"))
+        await until(pilot, lambda: bool(client.read_threads))
+        client.delay = 0.0
+        grid.sort_by("key")
+        grid.sort_by("key")  # descending: the slow result is now stale
+        record_id = row_of(grid, "S-2")["id"]
+        await until(pilot, lambda: grid.is_marked(record_id))
+
+    run_pilot(app, scenario)

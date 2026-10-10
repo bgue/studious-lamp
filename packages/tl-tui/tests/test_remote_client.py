@@ -146,3 +146,15 @@ def test_other_attributes_pass_through(harness: Harness) -> None:
     assert other.base_url == "http://testserver"
     with pytest.raises(AttributeError):
         other.no_such_method  # noqa: B018
+
+
+def test_interactive_calls_time_out_after_a_few_seconds() -> None:
+    from tl_tui.remote import INTERACTIVE_TIMEOUT_S
+
+    assert INTERACTIVE_TIMEOUT_S == 3.0  # the UI thread may freeze this long, then the banner shows
+    remote = RemoteClient.connect("http://127.0.0.1:9", "token")
+    try:
+        timeout = remote._api._http.timeout  # pyright: ignore[reportPrivateUsage]
+        assert timeout.read == INTERACTIVE_TIMEOUT_S and timeout.connect == INTERACTIVE_TIMEOUT_S
+    finally:
+        remote.close()
