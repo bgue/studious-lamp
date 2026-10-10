@@ -25,6 +25,11 @@ COMMON: dict[str, Any] = {"actor": "user:alice", "source": "test", "scope": SCOP
 LINK = ("01J9Z6Q4W3X2Y1V0T9S8R7Q6L1", "01J9Z6Q4W3X2Y1V0T9S8R7Q6L2", "01J9Z6Q4W3X2Y1V0T9S8R7Q6L3")
 FILE = "01J9Z6Q4W3X2Y1V0T9S8R7Q6F1"
 POST = "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"
+PROPOSALS = {
+    "Proposal.Accepted": "01J9Z6Q4W3X2Y1V0T9S8R7Q6Q1",
+    "Proposal.Rejected": "01J9Z6Q4W3X2Y1V0T9S8R7Q6Q2",
+    "Proposal.Failed": "01J9Z6Q4W3X2Y1V0T9S8R7Q6Q3",
+}
 
 
 def payload_of(event_type: str, **override: Any) -> dict[str, Any]:
@@ -74,6 +79,14 @@ def run_scenario(world: World) -> dict[str, list[dict[str, Any]]]:
         world.append(
             kind, payload_of(kind, post_id=POST), stream_id=POST, stream_type="core.ActivityPost"
         )
+    for decision, proposal_id in PROPOSALS.items():  # each proposal: opened, then decided once
+        for kind in ("Proposal.Created", decision):
+            world.append(
+                kind,
+                payload_of(kind, proposal_id=proposal_id),
+                stream_id=proposal_id,
+                stream_type="core.Proposal",
+            )
     world.append(
         "Schema.EffectiveChanged",
         payload_of("Schema.EffectiveChanged"),
