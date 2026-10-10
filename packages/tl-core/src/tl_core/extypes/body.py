@@ -236,8 +236,10 @@ def store_record_body(
     """``store_body`` for a caller that names the scope: the pointer and the version after.
 
     The record must be in ``scope`` (else ``RecordNotFoundError``, the same answer as an unknown
-    record, so a scope cannot be probed). This is what the embedded client and the API's
-    ``PUT /records/{id}/body`` answer.
+    record, so a scope cannot be probed). The embedded client and the API's
+    ``PUT /records/{id}/body`` both call this one function. Other errors are those of
+    ``store_body``: ``BodyValidationError``, ``BodyNotAllowedError`` (not an object-backed
+    record), ``RecordVoidedError`` and ``ConcurrencyError``.
     """
     found = uow.conn().execute(_RECORD, {"id": record_id}).first()
     if found is None or found.scope != scope:

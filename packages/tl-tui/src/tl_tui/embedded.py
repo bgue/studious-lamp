@@ -9,8 +9,8 @@ over HTTP. `for_sqlite` keeps one engine and one in-process bus for the life of 
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Callable, Sequence
-from contextlib import AbstractContextManager
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
 from typing import Any, Literal
 
@@ -109,6 +109,11 @@ class EmbeddedClient:
         object_store: ObjectStore | None = None,
         actor: str = "user:dev",
     ) -> None:
+        if actor.startswith("agent:"):
+            # the API refuses agent writes too (B15): an agent proposes, a person decides
+            raise ValueError(
+                "agent_must_propose: an agent cannot use the embedded client to change records"
+            )
         self._uow = uow_factory
         self._objects = object_store
         self._actor = actor  # recorded on the writes that take no command (extension types)
@@ -244,6 +249,18 @@ class EmbeddedClient:
             raise BodyStoreUnavailableError("no object store is configured for record bodies")
         return self._objects
 
+    @contextmanager
+    def _store_errors(self) -> Iterator[None]:
+        """An operating-system failure of the store (no space, no permission, a missing root).
+
+        Shown as ``BodyStoreUnavailableError``: the message names no path, which the OS error
+        would, and the TUI shows ``ServiceError`` instead of stopping.
+        """
+        try:
+            yield
+        except OSError as exc:
+            raise BodyStoreUnavailableError("the object store is unavailable") from exc
+
     def _factory(self, readonly: bool = False) -> AbstractContextManager[UnitOfWork]:
         return self._uow(readonly)
 
@@ -282,7 +299,7 @@ class EmbeddedClient:
             with self._uow(False) as uow:
                 return self.own_writes.note(handle_create_record(uow, cmd))
         store = self._store()
-        with self._uow(False) as uow:
+        with self._store_errors(), self._uow(False) as uow:
             return self.own_writes.note(
                 extype_bodies.create_extension_record(uow, store, cmd, body)
             )
@@ -293,7 +310,8 @@ class EmbeddedClient:
             pointer = extype_bodies.body_pointer(uow.conn(), record_id)
         if pointer is None:
             raise BodyNotFoundError(f"record {record_id!r} has no stored body")
-        stored = extype_bodies.read_body(self._factory, store, stream_id=record_id)
+        with self._store_errors():
+            stored = extype_bodies.read_body(self._factory, store, stream_id=record_id)
         return BodyView(record_id=record_id, pointer=pointer, body=stored)
 
     def put_record_body(
@@ -305,7 +323,7 @@ class EmbeddedClient:
         expected_version: int | None = None,
     ) -> BodyStoredOut:
         store = self._store()
-        with self._uow(False) as uow:
+        with self._store_errors(), self._uow(False) as uow:
             return extype_bodies.store_record_body(
                 uow,
                 store,

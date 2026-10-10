@@ -15,7 +15,11 @@ from tl_core.extypes.errors import (
     UnknownTypeError,
 )
 from tl_core.ledger import ConcurrencyError
-from tl_core.services.errors import RecordNotFoundError, UnsupportedRecordTypeError
+from tl_core.services.errors import (
+    RecordNotFoundError,
+    RecordVoidedError,
+    UnsupportedRecordTypeError,
+)
 from tl_tui.client import ClientInterface
 
 SCOPE = "project:P1"
@@ -118,3 +122,15 @@ def test_put_body_validates_versions_and_heals(fake: FakeClient) -> None:
         fake.get_record_body(created.stream_id)
     fake.put_record_body(created.stream_id, scope=SCOPE, body=changed)
     assert fake.get_record_body(created.stream_id).body == changed
+
+
+def test_put_body_refuses_a_voided_record_and_a_managed_one(fake: FakeClient) -> None:
+    lift = fake.create_instance(LIFT, scope=SCOPE, title="t", key="LP-1", body=LIFT_BODY)
+    fake.void(lift.stream_id)
+    with pytest.raises(RecordVoidedError):
+        fake.put_record_body(lift.stream_id, scope=SCOPE, body=LIFT_BODY)
+    managed = fake.create_instance(
+        OBSERVATION, scope=SCOPE, title="t", key="SO-1", psets={"co_acme_safety_observation": {}}
+    )
+    with pytest.raises(BodyNotAllowedError):
+        fake.put_record_body(managed.stream_id, scope=SCOPE, body={"a": 1})

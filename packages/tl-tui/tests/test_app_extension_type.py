@@ -17,6 +17,7 @@ from tl_core.extypes import registry
 from tl_core.schema_provider import DirectorySchemaProvider, use_provider
 from tl_tui.app import TlApp
 from tl_tui.embedded import EmbeddedClient
+from tl_tui.extension_columns import type_warning
 from tl_tui.widgets.extension_form import ExtensionRecordForm
 from tl_tui.widgets.grid import RecordGrid
 from tl_tui.widgets.new_record_form import NewRecordForm
@@ -155,3 +156,35 @@ def test_the_app_on_a_real_ledger_lists_opens_and_creates_records_of_a_type(
             assert "Skid lift" in screen_text(app)
 
         run_pilot(app, scenario, size=(160, 40))
+
+
+def test_a_type_with_no_active_registration_warns_in_the_status_line() -> None:
+    client = FakeClient()
+    client.add_example_type(LIFT, status="deprecated")
+    app = TlApp(client, scope=SCOPE, record_type=LIFT)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        assert "no active version (deprecated)" in screen_text(app)
+
+    run_pilot(app, scenario, size=(160, 40))
+
+
+def test_an_unknown_type_warns_and_a_known_one_does_not() -> None:
+    unknown = TlApp(_client(), scope=SCOPE, record_type="co.acme.Nope")
+    known = TlApp(_client(), scope=SCOPE, record_type=LIFT)
+    core = TlApp(FakeClient(), scope=SCOPE)
+
+    async def unknown_scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        assert "co.acme.Nope is not a registered record type" in screen_text(unknown)
+
+    async def quiet(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+
+    run_pilot(unknown, unknown_scenario, size=(160, 40))
+    run_pilot(known, quiet, size=(160, 40))
+    run_pilot(core, quiet, size=(160, 40))
+    assert type_warning(_client(), LIFT) is None
+    assert type_warning(FakeClient(), None) is None
+    assert type_warning(FakeClient(), "core.Record") is None

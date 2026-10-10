@@ -34,9 +34,7 @@ from tl_core.extypes.service import (
 )
 from tl_core.extypes.types import TypeStatus
 from tl_core.files.types import ObjectStore
-from tl_core.services import queries
 from tl_core.services.commands import CommandResult, CreateRecord
-from tl_core.services.errors import RecordNotFoundError
 from tl_core.services.records import handle_create_record
 
 from tl_api.auth import guard
@@ -142,21 +140,15 @@ def put_record_body(
     """Validate and store a new body; the index fields follow. 422 `body_invalid` lists problems."""
     store = _objects(ctx)
     with ctx.backend(False) as uow:
-        row = queries.get_record_by_id(uow, record_id)
-        if row is None or row["scope"] != request.scope:
-            raise RecordNotFoundError(f"no record {record_id!r} in scope {request.scope!r}")
-        pointer = bodies.store_body(
+        stored = bodies.store_record_body(
             uow,
             store,
-            stream_id=record_id,
+            record_id=record_id,
+            scope=request.scope,
             body=request.body,
             actor=actor,
             source=API_SOURCE,
             expected_version=request.expected_version,
         )
-        after = queries.get_record_by_id(uow, record_id)
-    if after is None:
-        raise RecordNotFoundError(f"no record {record_id!r} in scope {request.scope!r}")
-    version = int(after["version"])
-    response.headers["ETag"] = f'"{version}"'
-    return BodyStoredOut(pointer=pointer, version=version)
+    response.headers["ETag"] = f'"{stored.version}"'
+    return stored

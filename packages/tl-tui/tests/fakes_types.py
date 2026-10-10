@@ -36,7 +36,11 @@ from tl_core.extypes.service import (
 )
 from tl_core.extypes.types import BodyPointer, TypeRegistration, TypeStatus, TypeView
 from tl_core.services.commands import CommandResult, CreateRecord
-from tl_core.services.errors import RecordNotFoundError, UnsupportedRecordTypeError
+from tl_core.services.errors import (
+    RecordNotFoundError,
+    RecordVoidedError,
+    UnsupportedRecordTypeError,
+)
 
 TYPES_ROOT = Path(__file__).resolve().parents[3] / "schema" / "fixtures" / "types"
 
@@ -83,6 +87,10 @@ class FakeTypeSupport:
         self.types[registration.type_ref] = detail
         self._compiled[registration.type_ref] = compiled
         return detail
+
+    def void(self, record_id: str) -> None:
+        """Mark ``record_id`` voided (writes to it are then refused)."""
+        self._records[record_id]["voided"] = True  # type: ignore[attr-defined]
 
     def damage(self, record_id: str) -> None:
         """Make the body of ``record_id`` fail verification on its next read."""
@@ -196,7 +204,11 @@ class FakeTypeSupport:
             raise RecordNotFoundError(f"no record {record_id!r} in scope {scope!r}")
         if expected_version is not None:
             self._load(record_id, expected_version)  # type: ignore[attr-defined]
-        _, compiled = self._active(record["type"])
+        if record.get("voided"):
+            raise RecordVoidedError(f"record {record_id!r} is voided")
+        detail, compiled = self._active(record["type"])
+        if detail.registration.storage_mode != "object-backed":
+            raise BodyNotAllowedError(f"{record['type']} is managed: its values are psets")
         issues = body_issues(compiled, body)
         if issues:
             raise BodyValidationError(f"the body is not a valid {record['type']}", issues)

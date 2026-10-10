@@ -20,7 +20,7 @@ from tl_core.ledger import Event
 
 from tl_tui.client import ClientInterface
 from tl_tui.commands import command_by_id
-from tl_tui.extension_columns import columns_for_type, form_for_type
+from tl_tui.extension_columns import columns_for_type, form_for_type, type_warning
 from tl_tui.live import (
     ChangeFeed,
     LiveUpdates,
@@ -157,6 +157,9 @@ class TlApp(App[None]):
             setattr(self.client, "connection_listener", self._connection_from_client)  # noqa: B010
         if self._live is not None:
             self._live.start()
+        warning = type_warning(self.client, self.record_type)
+        if warning is not None:  # `--type` named something that cannot take records
+            self.query_one("#footer", TlFooter).show_status(warning, "warning")
 
     def on_unmount(self) -> None:
         if hasattr(self.client, "connection_listener"):

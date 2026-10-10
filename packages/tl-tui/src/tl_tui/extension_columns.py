@@ -84,3 +84,23 @@ def columns_for_type(client: ClientInterface, record_type: str | None) -> list[G
     """The columns for the grid of ``record_type``, or ``None`` to keep the default columns."""
     form = form_for_type(client, record_type)
     return None if form is None else columns_for_form(form)
+
+
+def type_warning(client: ClientInterface, record_type: str | None) -> str | None:
+    """A sentence for the status line when ``record_type`` has no active registration.
+
+    ``None`` for ``core.Record``, for no type, for a type with an active version, and when the
+    client cannot say (the grid then shows its own error).
+    """
+    if record_type is None or record_type == CORE_TYPE:
+        return None
+    try:
+        known = [s for s in client.list_types() if s.type_name == record_type]
+    except CLIENT_ERRORS:
+        return None
+    if any(s.status == "active" for s in known):
+        return None
+    if not known:
+        return f"{record_type} is not a registered record type (tl types sync registers a package)"
+    states = sorted({s.status for s in known})
+    return f"{record_type} has no active version ({', '.join(states)}): its grid may be empty"

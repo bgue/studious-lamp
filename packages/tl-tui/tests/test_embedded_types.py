@@ -22,7 +22,7 @@ from tl_core.extypes.errors import (
 )
 from tl_core.ledger import ConcurrencyError
 from tl_core.schema_provider import DirectorySchemaProvider, use_provider
-from tl_core.services.errors import RecordNotFoundError
+from tl_core.services.errors import RecordNotFoundError, ServiceError
 from tl_tui.embedded import EmbeddedClient
 from tl_tui.errors import describe_error
 
@@ -137,6 +137,7 @@ def test_a_record_without_a_body_has_none(client: EmbeddedClient) -> None:
 
 def test_the_client_own_writes_are_noted(client: EmbeddedClient) -> None:
     result = client.create_instance(LIFT, scope=SCOPE, title="Lift", key="LP-2", body=LIFT_BODY)
+    assert result.events
     assert all(event.event_id in client.own_writes for event in result.events)
 
 
@@ -151,3 +152,39 @@ def test_without_an_object_store_body_calls_say_so(tmp_path: Path) -> None:
             bare.put_record_body("x", scope=SCOPE, body={})
         with pytest.raises(BodyStoreUnavailableError):
             bare.create_instance(LIFT, scope=SCOPE, title="t", body={})
+
+
+def test_an_agent_cannot_use_the_embedded_client(tmp_path: Path) -> None:
+    db = tmp_path / "tl.db"
+    create_schema(db)
+    with pytest.raises(ValueError, match="agent_must_propose"):
+        EmbeddedClient(SqliteUowFactory(db), actor="agent:helper")
+    with pytest.raises(ValueError, match="agent_must_propose"):
+        EmbeddedClient.for_sqlite(db, actor="agent:helper")
+    EmbeddedClient(SqliteUowFactory(db), actor="user:ana")  # a person is fine
+
+
+def test_put_body_in_another_scope_is_not_found(client: EmbeddedClient) -> None:
+    created = client.create_instance(LIFT, scope=SCOPE, title="Lift", key="LP-3", body=LIFT_BODY)
+    with pytest.raises(RecordNotFoundError):
+        client.put_record_body(created.stream_id, scope="project:other", body=LIFT_BODY)
+    assert client.get_record_body(created.stream_id).body == LIFT_BODY
+
+
+def test_a_failing_object_store_is_a_service_error_without_a_path(tmp_path: Path) -> None:
+    db = tmp_path / "tl.db"
+    create_schema(db)
+    root = tmp_path / "types"
+    shutil.copytree(FIXTURE_TYPES, root)
+    blocked = tmp_path / "not-a-directory"
+    blocked.write_text("a file where the store's root should be", encoding="utf-8")
+    with use_provider(DirectorySchemaProvider()):
+        broken = EmbeddedClient.for_sqlite(
+            db, object_store=FsObjectStore(blocked / "objects", secret=b"s")
+        )
+        registry.sync(SqliteUowFactory(db), root, actor="user:ops", source="test")
+        with pytest.raises(BodyStoreUnavailableError) as caught:
+            broken.create_instance(LIFT, scope=SCOPE, title="Lift", key="LP-1", body=LIFT_BODY)
+        assert str(blocked) not in str(caught.value) and str(tmp_path) not in str(caught.value)
+        assert broken.get_record(SCOPE, "LP-1") is None  # nothing was created
+        assert isinstance(caught.value, ServiceError)
