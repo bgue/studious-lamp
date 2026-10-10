@@ -1,7 +1,5 @@
 """The `tl proposal` group: the review queue of agent proposals (P0-I6-T20; brief 11.3, 18.12).
 
-STUB (P0-I6-T20): ``queue_line``, ``show_lines`` and the four commands raise NotImplementedError.
-
 Each subcommand parses options, makes one call into `tl_core.services.proposals`, and prints. The
 rules (who may decide, what accepting runs, what a failure records) live in the service. A proposal
 is named by the id that `ls` prints. Agents propose through MCP; only a person decides here.
@@ -9,16 +7,17 @@ is named by the id that `ls` prints. Agents propose through MCP; only a person d
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
-from typing import Annotated, NoReturn
+from typing import Annotated, NoReturn, cast
 
 import typer
 from pydantic import ValidationError
 from tl_adapters.sqlite.uow import open_uow
 from tl_core.ledger import ConcurrencyError
-from tl_core.proposals.types import ProposalView
+from tl_core.proposals.types import ProposalStatus, ProposalView
 from tl_core.services import proposals
 from tl_core.services.errors import ServiceError
 from tl_core.uow import UnitOfWork
@@ -70,10 +69,9 @@ def queue_line(view: ProposalView) -> str:
 
     The columns are ``view.proposal_id``, ``view.status``, ``view.agent``, ``view.tool`` and
     ``view.summary``, joined by two spaces.
-
-    STUB (P0-I6-T20): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I6-T20)")
+    columns = (view.proposal_id, view.status, view.agent, view.tool, view.summary)
+    return "  ".join(columns)
 
 
 def show_lines(view: ProposalView) -> list[str]:
@@ -86,10 +84,28 @@ def show_lines(view: ProposalView) -> list[str]:
     ``json.dumps(value, sort_keys=True, ensure_ascii=False)``, so a string keeps its quotes);
     then, only when set, ``decided by <view.decided_by>``, ``reason <view.reason>`` and
     ``result <view.result_stream_id>``.
-
-    STUB (P0-I6-T20): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I6-T20)")
+    lines = [
+        f"proposal {view.proposal_id}",
+        f"scope {view.scope}",
+        f"status {view.status}",
+        f"agent {view.agent}",
+        f"tool {view.tool}",
+        f"summary {view.summary}",
+        f"command {view.command_type}",
+    ]
+    for name in sorted(view.command):
+        value = view.command[name]
+        if name in _HIDDEN_FIELDS or value is None:
+            continue
+        lines.append(f"  {name} {json.dumps(value, sort_keys=True, ensure_ascii=False)}")
+    if view.decided_by is not None:
+        lines.append(f"decided by {view.decided_by}")
+    if view.reason is not None:
+        lines.append(f"reason {view.reason}")
+    if view.result_stream_id is not None:
+        lines.append(f"result {view.result_stream_id}")
+    return lines
 
 
 @app.command("ls")
@@ -110,10 +126,16 @@ def ls(
     not 'x'``. In a read-only unit of work (``open_uow(db, readonly=True)`` inside
     ``_service_errors``) call ``proposals.list_proposals(uow.conn(), scope, status=..., agent=agent,
     limit=n)`` (``status=None`` for ``all``). Print ``queue_line(view)`` for each.
-
-    STUB (P0-I6-T20): remove this paragraph when you implement the command.
     """
-    raise NotImplementedError("STUB (P0-I6-T20)")
+    db: Path = ctx.obj
+    scope = _scope(project, company)
+    if status != "all" and status not in _STATUSES:
+        _fail(f"--status must be pending, accepted, rejected, failed or all, not {status!r}")
+    chosen = None if status == "all" else cast(ProposalStatus, status)
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        views = proposals.list_proposals(uow.conn(), scope, status=chosen, agent=agent, limit=n)
+    for view in views:
+        typer.echo(queue_line(view))
 
 
 @app.command("show")
@@ -125,10 +147,12 @@ def show(
 
     Read-only unit of work, ``proposals.get_proposal(uow.conn(), proposal_id)`` inside
     ``_service_errors``; print each of ``show_lines(view)``.
-
-    STUB (P0-I6-T20): remove this paragraph when you implement the command.
     """
-    raise NotImplementedError("STUB (P0-I6-T20)")
+    db: Path = ctx.obj
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        view = proposals.get_proposal(uow.conn(), proposal_id)
+    for line in show_lines(view):
+        typer.echo(line)
 
 
 @app.command("accept")
@@ -149,10 +173,17 @@ def accept(
     ``failed <id>`` to stdout, then ``_fail(view.reason or "the command was refused")``
     (``error: ...`` on stderr, exit code 1). Otherwise print ``accepted <id>`` and then
     ``result <view.result_stream_id>``.
-
-    STUB (P0-I6-T20): remove this paragraph when you implement the command.
     """
-    raise NotImplementedError("STUB (P0-I6-T20)")
+    db: Path = ctx.obj
+    with _service_errors():
+        view = proposals.accept_or_fail(
+            _factory(db), proposal_id=proposal_id, by=actor, roles=role or [], source="cli"
+        )
+    if view.status == "failed":
+        typer.echo(f"failed {view.proposal_id}")
+        _fail(view.reason or "the command was refused")
+    typer.echo(f"accepted {view.proposal_id}")
+    typer.echo(f"result {view.result_stream_id}")
 
 
 @app.command("reject")
@@ -167,7 +198,10 @@ def reject(
     Write unit of work (``open_uow(db)``) inside ``_service_errors``,
     ``proposals.reject_proposal(uow, proposal_id=..., by=actor, reason=reason, source="cli")``.
     Print ``rejected <id>``.
-
-    STUB (P0-I6-T20): remove this paragraph when you implement the command.
     """
-    raise NotImplementedError("STUB (P0-I6-T20)")
+    db: Path = ctx.obj
+    with _service_errors(), open_uow(db) as uow:
+        proposals.reject_proposal(
+            uow, proposal_id=proposal_id, by=actor, reason=reason, source="cli"
+        )
+    typer.echo(f"rejected {proposal_id}")
