@@ -1,9 +1,5 @@
 """about:config over HTTP: read, set, reset, lock, revert, history, diff, export and import.
 
-STUB (P0-I8-T03): the ten route functions raise NotImplementedError; their decorators, parameters,
-annotations and docstrings are final (they make the committed OpenAPI document). Each body has a
-comment with the steps. Implement them, then delete this paragraph and the comments.
-
 Thin: one `tl_core.settings` call per route. Reads are open to every authenticated actor. Every
 write is refused for an `agent:` token with 403 `agent_must_propose` (FANOUT decision D3: an agent
 proposes through MCP and a person accepts); the person's token is recorded as the actor, the
@@ -23,9 +19,10 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Connection
+from tl_core import settings
 from tl_core.settings.layers import parse_layer
 from tl_core.settings.types import SettingChange, SettingDiff
-from tl_core.settings.views import SettingView, get_view
+from tl_core.settings.views import SettingView, get_view, list_views
 
 from tl_api.auth import guard
 from tl_api.context import ApiContext, get_ctx
@@ -147,10 +144,10 @@ def list_settings(
     modified: Annotated[bool, Query(description="Only keys set at the viewed layer (●).")] = False,
 ) -> list[SettingView]:
     """Every setting with its definition and effective state, sorted by key."""
-    # STUB (P0-I8-T03): Open a read-only unit of work (`ctx.backend(True)`), call
-    # `list_views(uow.conn(), project=project, user=user, prefix=prefix,
-    # modified_only=modified)` and return the list.
-    raise NotImplementedError("STUB (P0-I8-T03)")
+    with ctx.backend(True) as uow:
+        return list_views(
+            uow.conn(), project=project, user=user, prefix=prefix, modified_only=modified
+        )
 
 
 @router.get("/settings/diff", operation_id="diff_settings")
@@ -175,9 +172,8 @@ def diff_settings(
     ],
 ) -> list[SettingDiff]:
     """The keys whose effective value differs between two layers."""
-    # STUB (P0-I8-T03): Read-only unit of work; return `settings.diff(uow.conn(), left=left,
-    # right=right)`.
-    raise NotImplementedError("STUB (P0-I8-T03)")
+    with ctx.backend(True) as uow:
+        return settings.diff(uow.conn(), left=left, right=right)
 
 
 @router.get(
@@ -190,19 +186,25 @@ def export_settings(
     ctx: Ctx, actor: Reader, layer: Annotated[str, Query(min_length=1, max_length=MAX_PART)]
 ) -> PlainTextResponse:
     """What a layer holds (and, for the company, its locks) as a YAML document."""
-    # STUB (P0-I8-T03): Read-only unit of work; `text = settings.export_yaml(uow.conn(),
-    # layer=layer)`; return `PlainTextResponse(text, media_type="text/yaml")`.
-    raise NotImplementedError("STUB (P0-I8-T03)")
+    with ctx.backend(True) as uow:
+        text = settings.export_yaml(uow.conn(), layer=layer)
+    return PlainTextResponse(text, media_type="text/yaml")
 
 
 @router.post("/settings/import", operation_id="import_settings")
 def import_settings(ctx: Ctx, actor: Writer, body: ImportBody) -> ImportResult:
     """Apply a YAML document to a layer, all or nothing."""
-    # STUB (P0-I8-T03): Write unit of work (`ctx.backend(False)`); `done =
-    # settings.import_yaml(uow, body.document, layer=body.layer, actor=actor, source=API_SOURCE,
-    # reason=body.reason, accept_risk=body.accept_risk)`. Return
-    # `ImportResult(layer=parse_layer(body.layer).name, keys=[e.key for e in done])`.
-    raise NotImplementedError("STUB (P0-I8-T03)")
+    with ctx.backend(False) as uow:
+        done = settings.import_yaml(
+            uow,
+            body.document,
+            layer=body.layer,
+            actor=actor,
+            source=API_SOURCE,
+            reason=body.reason,
+            accept_risk=body.accept_risk,
+        )
+        return ImportResult(layer=parse_layer(body.layer).name, keys=[e.key for e in done])
 
 
 @router.get("/settings/{key}", operation_id="get_setting")
@@ -214,9 +216,8 @@ def get_setting(
     user: Annotated[str | None, Query(max_length=MAX_PART)] = None,
 ) -> SettingView:
     """One setting with its definition and effective state."""
-    # STUB (P0-I8-T03): Read-only unit of work; return `get_view(uow.conn(), key,
-    # project=project, user=user)`.
-    raise NotImplementedError("STUB (P0-I8-T03)")
+    with ctx.backend(True) as uow:
+        return get_view(uow.conn(), key, project=project, user=user)
 
 
 @router.get("/settings/{key}/history", operation_id="get_setting_history")
@@ -227,46 +228,73 @@ def get_setting_history(
     layer: Annotated[str | None, Query(max_length=MAX_PART)] = None,
 ) -> list[SettingChange]:
     """Every change of the key, oldest first."""
-    # STUB (P0-I8-T03): Read-only unit of work; return `settings.history(uow.conn(), key,
-    # layer=layer)`.
-    raise NotImplementedError("STUB (P0-I8-T03)")
+    with ctx.backend(True) as uow:
+        return settings.history(uow.conn(), key, layer=layer)
 
 
 @router.put("/settings/{key}", operation_id="set_setting")
 def set_setting(ctx: Ctx, actor: Writer, key: str, body: SetBody) -> SettingView:
     """Set a key at a layer; answers with the key as seen there."""
-    # STUB (P0-I8-T03): Write unit of work; `settings.set_setting(uow, key=key,
-    # layer=body.layer, value=body.value, actor=actor, source=API_SOURCE, reason=body.reason,
-    # accept_risk=body.accept_risk, applies_at=body.applies_at)`; then, still inside the block,
-    # return `view_at(uow.conn(), key, body.layer)`.
-    raise NotImplementedError("STUB (P0-I8-T03)")
+    with ctx.backend(False) as uow:
+        settings.set_setting(
+            uow,
+            key=key,
+            layer=body.layer,
+            value=body.value,
+            actor=actor,
+            source=API_SOURCE,
+            reason=body.reason,
+            accept_risk=body.accept_risk,
+            applies_at=body.applies_at,
+        )
+        return view_at(uow.conn(), key, body.layer)
 
 
 @router.post("/settings/{key}/reset", operation_id="reset_setting")
 def reset_setting(ctx: Ctx, actor: Writer, key: str, body: ResetBody) -> SettingView:
     """Take the layer's own value away so it inherits again."""
-    # STUB (P0-I8-T03): Write unit of work; `settings.reset_setting(uow, key=key,
-    # layer=body.layer, actor=actor, source=API_SOURCE, reason=body.reason,
-    # accept_risk=body.accept_risk, applies_at=body.applies_at)`; then, inside the block, return
-    # `view_at(uow.conn(), key, body.layer)`.
-    raise NotImplementedError("STUB (P0-I8-T03)")
+    with ctx.backend(False) as uow:
+        settings.reset_setting(
+            uow,
+            key=key,
+            layer=body.layer,
+            actor=actor,
+            source=API_SOURCE,
+            reason=body.reason,
+            accept_risk=body.accept_risk,
+            applies_at=body.applies_at,
+        )
+        return view_at(uow.conn(), key, body.layer)
 
 
 @router.post("/settings/{key}/lock", operation_id="lock_setting")
 def lock_setting(ctx: Ctx, actor: Writer, key: str, body: LockBody) -> SettingView:
     """Lock a key for projects (or unlock it) and/or bound their values; company layer only."""
-    # STUB (P0-I8-T03): Write unit of work; `settings.lock_setting(uow, key=key,
-    # locked=body.locked, bounds=body.bounds, actor=actor, source=API_SOURCE,
-    # reason=body.reason)`; then, inside the block, return `view_at(uow.conn(), key,
-    # "company")`.
-    raise NotImplementedError("STUB (P0-I8-T03)")
+    with ctx.backend(False) as uow:
+        settings.lock_setting(
+            uow,
+            key=key,
+            locked=body.locked,
+            bounds=body.bounds,
+            actor=actor,
+            source=API_SOURCE,
+            reason=body.reason,
+        )
+        return view_at(uow.conn(), key, "company")
 
 
 @router.post("/settings/{key}/revert", operation_id="revert_setting")
 def revert_setting(ctx: Ctx, actor: Writer, key: str, body: RevertBody) -> SettingView:
     """Undo the latest change of the key at a layer (409 `setting_revert_not_latest` otherwise)."""
-    # STUB (P0-I8-T03): Write unit of work; `settings.revert_setting(uow, key=key,
-    # layer=body.layer, seq=body.seq, actor=actor, source=API_SOURCE, reason=body.reason,
-    # accept_risk=body.accept_risk)`; then, inside the block, return `view_at(uow.conn(), key,
-    # body.layer)`.
-    raise NotImplementedError("STUB (P0-I8-T03)")
+    with ctx.backend(False) as uow:
+        settings.revert_setting(
+            uow,
+            key=key,
+            layer=body.layer,
+            seq=body.seq,
+            actor=actor,
+            source=API_SOURCE,
+            reason=body.reason,
+            accept_risk=body.accept_risk,
+        )
+        return view_at(uow.conn(), key, body.layer)
