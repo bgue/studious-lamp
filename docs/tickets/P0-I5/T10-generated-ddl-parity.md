@@ -1,6 +1,6 @@
 # P0-I5-T10 — The generated DDL executes and stores values alike on both dialects
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: tests, adapter
 Depends on: —

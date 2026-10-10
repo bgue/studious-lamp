@@ -80,5 +80,5 @@ Purpose: start the native PostgreSQL 16 cluster, run the parity suite against it
 - `docs/adr/0002-build-environment-constraints.md` (native Postgres 16 in the build container; `docker-compose.yml` is documentation only).
 - `packages/tl-adapters/README.md` (Postgres adapter, `rebuild_projections`).
 - `docs/runbooks/rebuild-projections.md` (rebuilding current-state tables, SQLite ledger).
-- `dev/docker-compose.yml` (the `postgres` service, for machines with Docker).
+- `dev/docker-compose.yml` (the `postgres` service, for machines with Docker). It publishes host port 5432, the same port as the native cluster of ADR-0002: run one or the other, or change the left-hand port in the compose file and `TL_PG_URL` together.
 - Brief §14.

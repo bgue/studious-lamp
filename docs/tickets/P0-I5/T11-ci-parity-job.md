@@ -1,6 +1,6 @@
 # P0-I5-T11 — CI job that runs the parity suite against a Postgres service container
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: ci, tests
 Depends on: —

@@ -1,4 +1,4 @@
-"""SetPsetValues against a real SQLite ledger (P0-I2-T06). Copied into place; do not edit."""
+"""SetPsetValues against a real ledger on every adapter (P0-I2-T06, parity P0-I5)."""
 
 from __future__ import annotations
 

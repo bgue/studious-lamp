@@ -1,6 +1,6 @@
 # P0-I5-T12 — Runbook: local Postgres for the parity suite, and the compose service
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: docs
 Depends on: —

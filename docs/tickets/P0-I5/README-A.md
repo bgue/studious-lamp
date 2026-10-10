@@ -1,6 +1,6 @@
 # Increment plan — P0-I5 WS-A Postgres adapter and parity suite
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-09
 Brief sections: §5.1–§5.4 (ledger, hash chain, projections, DDL), §14 (Postgres is production), §15 (portability), `03` §6 and §10, `04` §1
 Branch: `p0/i5a` (integration branch `p0/i5`; trunk `claude/wizardly-allen-m2v96s`). Ticket branches `p0/i5a-t<nn>-<slug>`.
@@ -72,11 +72,11 @@ public-interface change; (7) a reviewer verifies from the diff plus the commands
 | T06 | File upload service tests on both adapters | H | — | merged | merged, review pass attempt 1 |
 | T07 | Reconciliation and change-feed integration tests on both adapters | H | — | merged | merged, review pass attempt 1 |
 | T08 | Query-language tests on both adapters | H | — | merged | merged, review pass attempt 1 |
-| T09 | Projector unit tests on both adapters | H | — | ready | |
-| T10 | Generated DDL executes and stores values alike on both dialects | H | — | ready | |
-| T11 | CI parity job with a Postgres service container | H | — | ready | |
-| T12 | Runbook for local Postgres and the compose service | H | — | ready | |
-| T13 | Licence gate in `just check` (ADR-0006) | H | — | ready | |
+| T09 | Projector unit tests on both adapters | H | — | merged | merged, review pass attempt 1 |
+| T10 | Generated DDL executes and stores values alike on both dialects | H | — | merged | merged, review pass attempt 1 |
+| T11 | CI parity job with a Postgres service container | H | — | merged | merged, review pass attempt 1 |
+| T12 | Runbook for local Postgres and the compose service | H | — | merged | merged, review pass attempt 1 |
+| T13 | Licence gate in `just check` (ADR-0006) | H | — | merged | merged, review pass attempt 1 |
 | T99 | `tl migrate --from sqlite --to postgres` | S | WS-A merged | draft, needs-human | filed, not built (A1) |
 
 ## Order of work

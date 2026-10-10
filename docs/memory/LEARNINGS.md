@@ -470,3 +470,17 @@ test or a generated artefact already enforces, or narrative history (that belong
   re-creates its own detached worktree. Resume reviewers and supervisors with SendMessage, and tell them their
   background test runs are gone.
   Evidence: second restart during P0-I4/I5; resumed three workflows and four agents. Status: active
+
+- **L-P0-I5-A9** · 2026-10-10 · tags: tests, process
+  Parity costs time: tests/query takes about 70 s on SQLite and about 7 minutes on both adapters under load, the Hypothesis property
+  tests are about ten times slower on Postgres (each example makes a schema), and the full `just test-parity` (1214 tests) took 11 minutes on a loaded container. Give a
+  CI job and any `timeout` a budget of 20 minutes, and do not wrap these runs in a 2-minute tool timeout. `just test-parity` also deselects the
+  tests that never use a database fixture, so its total is lower than a `--adapters sqlite,postgres` count by design; a ticket that quotes
+  both numbers says so.
+  Evidence: reports P0-I5-T04, T06, T07, T08, T09; `docs/reports/P0-I5-A.md`. Status: active
+
+- **L-P0-I5-A10** · 2026-10-10 · tags: tooling
+  A docstring copied from a spec into a Python file must escape backslashes (`\\s`), or the module compiles with a `SyntaxWarning` on every
+  run; a ticket that renames a test must say so in *Tests to add* when it also says "every test keeps its name"; a provided-test ticket's
+  `git diff --stat` only lists new files once they are committed.
+  Evidence: reports P0-I5-T13 and T09. Status: active

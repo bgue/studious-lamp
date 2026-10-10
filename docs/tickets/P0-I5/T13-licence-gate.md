@@ -1,6 +1,6 @@
 # P0-I5-T13 — Licence gate in `just check`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: tooling, tests
 Depends on: —
