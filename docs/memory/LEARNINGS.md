@@ -1042,3 +1042,7 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P0-I8A-10** · 2026-10-10 · tags: tui, tests
   `pytest --snapshot-update` rewrites the tracked `snapshot_report.html` at the repository root as well as the `.raw` files: restore it with `git checkout snapshot_report.html` before committing. A new palette command or key map entry changes the palette snapshot (`test_snapshots_links.py::test_command_palette`) and the key map context list in `test_keymap.py`.
   Evidence: P0-I8-S19 (`git status` after the update). Status: active
+
+- **L-P0-I8A-11** · 2026-10-10 · tags: cli, process
+  Typer prints a command function's whole docstring as its `--help`. A stub docstring that carries implementation steps ("call `list_views(...)` and print `view_line`") stays in the file when the implementer only deletes the STUB paragraph, and then reaches the user. For a CLI ticket, tell the implementer to rewrite each command docstring as user help, and look at `tl <group> <command> --help` before merging.
+  Evidence: `tl config set --help` after the T01 and T02 merges showed unit-of-work instructions; fixed in P0-I8-S20. Status: active

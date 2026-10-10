@@ -179,11 +179,11 @@ def ls(
         bool, typer.Option("--modified", help="Only keys set at the layer being viewed.")
     ] = False,
 ) -> None:
-    """List settings, sorted by key, as the project (and user) sees them. Prints `view_line`s.
+    """List settings, sorted by key, as the project (and user) sees them.
 
-    In a read-only unit of work (``open_uow(db, readonly=True)`` inside ``_service_errors``) call
-    ``list_views(uow.conn(), project=project, user=user, prefix=prefix, modified_only=modified)``
-    and print ``view_line(view)`` for each result (nothing for an empty list).
+    One line per setting: key, value, type, origin (` ●` after it when the
+    value is set at the layer being viewed) and `locked` when the company
+    locked the key.
     """
     db: Path = ctx.obj
     with _service_errors(), open_uow(db, readonly=True) as uow:
@@ -205,10 +205,8 @@ def get(
 ) -> None:
     """Print the effective value of one key.
 
-    Read-only unit of work inside ``_service_errors``, ``get_view(uow.conn(), key, project=project,
-    user=user)``. Then print: with ``--long`` each of ``detail_lines(view)``; else with ``--json``
-    ``json.dumps(view.effective.value, sort_keys=True, ensure_ascii=False)``; else
-    ``format_value(view.effective.value)``.
+    --long adds the definition and state (origin, default, risk, lock,
+    schedule, pending effect); --json prints the value as JSON.
     """
     db: Path = ctx.obj
     with _service_errors(), open_uow(db, readonly=True) as uow:
@@ -230,10 +228,10 @@ def history(
         str | None, typer.Option("--layer", help="company, project:<id> or user:<id>.")
     ] = None,
 ) -> None:
-    """Print every change of a key, oldest first, as `history_line`s.
+    """Print every change of a key, oldest first.
 
-    Read-only unit of work inside ``_service_errors``, ``settings.history(uow.conn(), key,
-    layer=layer)``; print ``history_line(change)`` for each (nothing when there are none).
+    One line per change: number, layer, time, actor, old and new value,
+    reason. --layer narrows it to one layer.
     """
     db: Path = ctx.obj
     with _service_errors(), open_uow(db, readonly=True) as uow:
@@ -257,15 +255,10 @@ def set_(
 ) -> None:
     """Set a key at a layer.
 
-    ``layer = _layer(project, user, company)`` and ``applies_at = _when(at)`` first. Then, in a
-    write unit of work (``open_uow(db)``) inside ``_service_errors``: ``defn =
-    settings.get_definition(key)``, ``typed = normalise(defn, parse_text(defn, value))`` and
-    ``outcome = change_setting(uow, key=key, layer=layer, value=typed, actor=actor,
-    source="cli", reason=reason, accept_risk=accept_risk, applies_at=applies_at)``.
-    ``shown = json.dumps(typed, sort_keys=True, ensure_ascii=False)``. Print
-    ``unchanged <key> <layer>`` when ``outcome.events`` is empty; else when ``applies_at`` was
-    given ``scheduled <key> <layer> <shown> at <outcome.events[0].payload["applies_at"]>``;
-    else ``set <key> <layer> <shown>``.
+    Give exactly one of --company, --project and --user. Advanced and
+    dangerous keys need --reason; dangerous keys also need --accept-risk.
+    --at schedules the change for later. Prints `set`, `scheduled` or
+    `unchanged` with the key, the layer and the value.
     """
     db: Path = ctx.obj
     layer = _layer(project, user, company)
@@ -308,12 +301,7 @@ def reset(
 ) -> None:
     """Reset a key at a layer so it inherits again.
 
-    ``layer`` and ``applies_at`` as for ``set``. Write unit of work inside ``_service_errors``,
-    ``outcome = change_setting(uow, key=key, layer=layer, reset=True, actor=actor, source="cli",
-    reason=reason, accept_risk=accept_risk, applies_at=applies_at)``. Print
-    ``unchanged <key> <layer>`` when ``outcome.events`` is empty; else when ``applies_at`` was
-    given ``scheduled reset <key> <layer> at <outcome.events[0].payload["applies_at"]>``; else
-    ``reset <key> <layer>``.
+    The layer, reason, risk and --at options are those of `set`.
     """
     db: Path = ctx.obj
     layer = _layer(project, user, company)
@@ -356,16 +344,10 @@ def lock(
     ] = None,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Lock a key for projects (``--unlock`` removes it) and/or bound their values.
+    """Lock a key for projects, or bound the values they may use.
 
-    Write unit of work inside ``_service_errors``. ``defn = settings.get_definition(key)``;
-    ``bounds`` is a dict that gets ``"minimum": parse_text(defn, minimum)`` and ``"maximum":
-    parse_text(defn, maximum)`` when those options are given and ``"choices"`` (the
-    comma-separated words, stripped, empty ones dropped) when ``--choices`` is given. Then
-    ``done = lock_setting(uow, key=key, locked=not unlock, bounds=bounds or None, actor=actor,
-    source="cli", reason=reason)``. Print ``locked <key>`` (``unlocked <key>`` when
-    ``done.locked`` is false) followed, only when ``done.bounds`` is set, by `` bounds `` and
-    ``json.dumps(done.bounds, sort_keys=True)``.
+    --unlock removes the lock; --min, --max and --choices bound project
+    values. A reason is always required.
     """
     db: Path = ctx.obj
     bounds: dict[str, Any] = {}
@@ -402,11 +384,10 @@ def revert(
     accept_risk: _Risk = False,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Undo one change of the key's history.
+    """Undo the latest change of a key at a layer.
 
-    Write unit of work inside ``_service_errors``, ``done = revert_setting(uow, key=key,
-    layer=layer, seq=seq, actor=actor, source="cli", reason=reason, accept_risk=accept_risk)``.
-    Print ``reverted <key> <layer> to <format_value(done.value)>``.
+    --seq is the change number from `history`. Only the latest change at
+    that layer can be undone; to go further back, set the value again.
     """
     db: Path = ctx.obj
     with _service_errors(), open_uow(db) as uow:

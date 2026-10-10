@@ -76,10 +76,9 @@ def diff(
     left: Annotated[str, typer.Argument(help="default, company, project:<id> or user:<id>.")],
     right: Annotated[str, typer.Argument(help="default, company, project:<id> or user:<id>.")],
 ) -> None:
-    """Print the keys whose effective value differs between two layers, as `diff_line`s.
+    """Print the keys whose effective value differs between two layers.
 
-    Read-only unit of work inside ``_service_errors``, ``settings.diff(uow.conn(), left=left,
-    right=right)``; print ``diff_line(item)`` for each (nothing when none differ).
+    A layer is default, company, project:<id> or user:<id>.
     """
     db: Path = ctx.obj
     with _service_errors(), open_uow(db, readonly=True) as uow:
@@ -96,13 +95,7 @@ def export(
     company: _Company = False,
     out: Annotated[Path | None, typer.Option("--out", help="Write to this file.")] = None,
 ) -> None:
-    """Print what a layer holds as YAML, or write it to ``--out`` (then print `wrote <path>`).
-
-    ``layer = _layer(project, user, company)`` first. Read-only unit of work inside
-    ``_service_errors``, ``text = settings.export_yaml(uow.conn(), layer=layer)``. Without
-    ``--out`` print ``text`` with ``typer.echo(text, nl=False)``; with it write ``text`` to the
-    file (UTF-8) and print ``wrote <out>``.
-    """
+    """Print what a layer holds as YAML (a template or a review copy), or write it to --out."""
     db: Path = ctx.obj
     layer = _layer(project, user, company)
     with _service_errors(), open_uow(db, readonly=True) as uow:
@@ -133,11 +126,8 @@ def import_(
 ) -> None:
     """Apply a YAML file to a layer, all or nothing.
 
-    ``layer = _layer(project, user, company)`` first; ``text`` is the file read as UTF-8. Write
-    unit of work (``open_uow(db)``) inside ``_service_errors``, ``done = settings.import_yaml(uow,
-    text, layer=layer, actor=actor, source="cli", reason=reason, accept_risk=accept_risk)``: a
-    refusal raises out of the block, so nothing of the file is kept. Print ``imported
-    <len(done)> keys into <layer>``.
+    The file is what `export` writes. Dangerous keys need --reason and
+    --accept-risk; one bad entry changes nothing.
     """
     db: Path = ctx.obj
     layer = _layer(project, user, company)
