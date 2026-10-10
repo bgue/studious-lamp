@@ -296,3 +296,41 @@ def test_the_feed_projection_survives_a_rebuild(db: DbTarget) -> None:
     live = dump()
     rebuild_projections(db)
     assert dump() == live
+
+
+# --- a post at the end of a link is not a record (decision A1) ---------------------------------
+
+
+def test_a_post_link_does_not_satisfy_record_to_record_expectations(db: DbTarget) -> None:
+    from tl_core.links.expected import ExpectedLink, missing_expected_links, unmet_expectations
+    from tl_core.services.errors import RecordNotFoundError
+    from tl_core.services.links import AcceptLink, handle_accept_link
+
+    rec = record(db, REC1)
+    result = post(db, f"on #{REC1}")
+    link_id = result.events[1].stream_id
+    with open_uow(db) as uow:
+        handle_accept_link(uow, AcceptLink(actor="user:q", source="t", scope=P1, link_id=link_id))
+    assert sql(db, "SELECT status FROM cur_links")[0].status == "active"
+    wanted = [ExpectedLink(relation="references", direction="in", label="referenced by a record")]
+    with open_uow(db, readonly=True) as uow:
+        # The active inbound `references` link comes from a post, so the guard still sees none.
+        assert [m.found for m in unmet_expectations(uow, rec, wanted)] == [0]
+        # The post is not a record: record-level checks do not accept it.
+        with pytest.raises(RecordNotFoundError):
+            missing_expected_links(uow, result.stream_id)
+
+
+def test_a_record_cannot_link_to_a_post_and_the_post_cannot_be_a_workflow_subject(
+    db: DbTarget,
+) -> None:
+    from tl_core.services.errors import RecordNotFoundError
+    from tl_core.services.links import AddLink, handle_add_link
+    from tl_core.services.workflow import workflow_status
+
+    rec = record(db, REC1)
+    pid = post(db, "plain").stream_id
+    with pytest.raises(RecordNotFoundError), open_uow(db) as uow:
+        handle_add_link(uow, AddLink(actor="user:q", source="t", scope=P1, from_id=rec, to_id=pid))
+    with pytest.raises(RecordNotFoundError), open_uow(db, readonly=True) as uow:
+        workflow_status(uow, pid)
