@@ -976,3 +976,8 @@ test or a generated artefact already enforces, or narrative history (that belong
   percent-encoded path (`Path.as_uri()`). Sync MCP tools run on worker threads, so a tool that changes the working directory (the schema
   generators do) needs a lock.
   Evidence: T45 and T41 reports. Status: active
+- **L-P0-I8C-6** · 2026-10-10 · tags: process, gates
+  Run `just check` on the base before relaying it to implementers. A one-line E501 in a supervisor commit made every ticket's acceptance
+  command fail, so a whole batch came back BLOCKED for a reason outside the tickets and cost a round. `just check` also lints `dev/`,
+  which `pyright` does not cover.
+  Evidence: S44 commit f01ab70 (`dev/tools/scan_secrets.py:2`), fixed in the following commit. Status: active
