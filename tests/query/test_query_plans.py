@@ -97,3 +97,17 @@ def test_a_pset_value_filter_reads_the_set_from_the_value_index(con: sqlite3.Con
 def test_a_link_filter_with_a_relation_reads_the_relation_indexes(con: sqlite3.Connection) -> None:
     found = plan(con, "linked(references)")
     assert found.count("COVERING INDEX ix_cur_links_relation_status_") == 2, found
+
+
+def test_the_open_card_lookup_of_the_feed_projector_reads_the_scope_first_seq_index(
+    con: sqlite3.Connection,
+) -> None:
+    from tl_core.projection.feed import _OPEN_CARD_SQL  # pyright: ignore[reportPrivateUsage]
+
+    rows = con.execute(
+        "EXPLAIN QUERY PLAN " + str(_OPEN_CARD_SQL).replace(":scope", "?").replace(":seq", "?"),
+        (SCOPE, 10**9),
+    ).fetchall()
+    found = "\n".join(str(row[3]) for row in rows)
+    assert "ix_cur_feed_items_scope_first_seq" in found, found
+    assert "TEMP B-TREE" not in found, found

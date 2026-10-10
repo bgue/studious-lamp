@@ -1034,3 +1034,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   rewrite of a compiler or projector, keep the old version in the scratchpad, diff results over generated queries and edge data (dangling links, empty and NULL values), and pin each edge in a test
   (`tests/query/test_dangling_links.py`).
   Evidence: review of S61/S62; `tests/query/test_dangling_links.py` fails on 9f96286 and passes now. Status: active
+- **L-P0-I8D-7** · 2026-10-10 · tags: ledger, schema
+  On Postgres, state that one transaction updates over and over under one index key gets slower with every update: dead row versions stay in the index until the transaction ends, and a
+  unique check or a lookup on that key reads all of them. The feed projector kept "the open card of a scope" as a unique `open_scope` (one hot key), a rebuild is one transaction, so
+  the feed took 418 s of a 570 s rebuild of 10k records and would take hours at 100k. Fix: find the open card as the newest card of the scope through `(scope, first_seq)`, with
+  `first_seq < :seq` so the scan starts at the event and skips rows the rebuild's own reset deleted; no unique index (229 s for the same rebuild). Existing databases keep the old unique index
+  until a migration drops it (`DROP INDEX ux_cur_feed_items_open_scope`; a migration is a human gate). To find such a spot, time each statement of one projector over a rebuild (`stmtprof`) and
+  look for a statement whose average cost is many times its cost on a small ledger.
+  Evidence: `docs/reports/P0-I8-perf.md` rebuild section; `tl_core/projection/feed.py` `_OPEN_CARD_SQL`. Status: active

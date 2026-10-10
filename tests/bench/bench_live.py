@@ -118,6 +118,7 @@ def running_api(
         db_path=work / "unused.db",
         tokens_path=tokens_path,
         poll_interval_s=poll_interval_s,
+        sse_wait_s=0.2,  # a stream notices its closed client quickly, so shutdown is clean
     )
     app: FastAPI = create_app(backend, settings=settings, tokens=TokenStore(tokens_path))
     config = uvicorn.Config(
@@ -126,7 +127,7 @@ def running_api(
         port=0,
         log_level="warning",
         lifespan="on",
-        timeout_graceful_shutdown=1,
+        timeout_graceful_shutdown=5,
     )
     server = uvicorn.Server(config)
     thread = threading.Thread(target=server.run, daemon=True)
