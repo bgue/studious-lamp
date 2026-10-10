@@ -10,6 +10,7 @@ Storage adapters that implement the `tl_core` Protocols: SQLite and the object s
 | `tl_adapters.sqlite.ledger.SqliteLedger` | class | Append-only `events` table, optimistic concurrency, per-scope hash chain, `append_in(conn, ...)` for a caller's transaction |
 | `tl_adapters.sqlite.schema.sql` | resource | The `events` table, index, and triggers that reject UPDATE and DELETE |
 | `tl_adapters.sqlite.uow.SqliteUnitOfWork`, `open_uow(path, readonly=False)` | class, context manager | Append plus inline projectors in one transaction; publish after commit |
+| `tl_adapters.sqlite.factory.SqliteUowFactory(path, bus=None)` | class | For servers: one engine, ledger and `InProcessBus` for the process; `factory(readonly)` (positional or keyword) yields an entered unit of work; `.engine`, `.ledger`, `.bus`; `close()` / `dispose()`. The Postgres factory has the same call shape |
 | `tl_adapters.sqlite.uow.create_schema(path)` | function | Events table and every default projector's tables; idempotent |
 | `tl_adapters.sqlite.uow.rebuild_projections(path, types=None)` | function | Reset projectors and replay the ledger in one transaction; returns events replayed |
 | `tl_adapters.objectstore.fs.FsObjectStore(root, secret=...)` | class | `ObjectStore` on a directory: atomic, fsynced, verified writes; never replaces a `sha256/` key; `file://` presigned URLs with an HMAC token and expiry (`redeem`, `put_via_url`, `get_via_url`); `iter_keys()` |
@@ -19,7 +20,7 @@ Storage adapters that implement the `tl_core` Protocols: SQLite and the object s
 
 ## Depends on / used by
 - Depends on: `tl_core`, `sqlalchemy`, `python-ulid`, `boto3` (s3 backend; tests use `moto`, no MinIO).
-- Used by: `tl_cli`, tests, later the API and TUI embedded mode.
+- Used by: `tl_cli`, `tl_api`, `tl_mcp`, tests, the TUI embedded mode.
 
 ## Commands
 ```

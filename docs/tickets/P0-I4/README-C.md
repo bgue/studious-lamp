@@ -1,6 +1,6 @@
 # Increment plan — P0-I4 workstream C: REST API, SSE stream, MCP read server, HTTP client
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-09
 Brief sections: §4, §5.3, §7.5, §10.2, §11, §18.1–§18.3, §19.1, §20
 Branch: `p0/i4c` (integration branch `p0/i4`; trunk `claude/wizardly-allen-m2v96s`). Ticket branches `p0/i4c-t<nn>-<slug>`. Fanout: `docs/tickets/P0-I4/FANOUT.md`.
@@ -30,7 +30,7 @@ just demo P0-I4-C
 Starts the API on a temporary ledger (loopback, a fresh dev token), creates records over HTTP, queries them with the query language
 (including a syntax error with its position), streams events with SSE while a second process writes, resumes with `Last-Event-ID`,
 uploads and downloads a file (attachment and nosniff headers), and runs the four MCP read tools in-process against the same ledger.
-(Script and output: round 3.)
+The driver is `dev/demos/P0-I4-C.sh` with `dev/demos/p0_i4_c_demo.py`.
 
 ## Published interfaces (for WS-D and later increments)
 
@@ -90,6 +90,74 @@ stream is live only. `: connected` is sent first and `: keep-alive` when idle (1
 events written by another process (an embedded TUI on the same SQLite file) arrive through a poller (default every 0.25 s, so well inside the
 2 s demo target). At most 32 streams are open (`503 unavailable` beyond that); a consumer that lags 1000 events is resubscribed from its last seq.
 
+### HTTP client (final): `tl_api.client.ApiClient`
+```python
+ApiClient(base_url: str, token: str, *, http: httpx2.Client | None = None, timeout: float = 30.0)
+    .close();  usable as a context manager;  .base_url
+```
+It has every `tl_tui.client.ClientInterface` method with the same parameter names, kinds and defaults
+(`tests/api/test_client_roundtrip.py` checks the signatures and compares the answers with `EmbeddedClient` on one ledger).
+**No `ClientInterface` method is unserved.** Differences WS-D handles:
+- `relations()` returns `tl_api.models.RelationOut` (the same four fields as the TUI's `RelationInfo`; convert).
+- A record is the envelope `dict`; commands return `CommandResult`; reads return the tl_core models. `get_record`/`get_record_by_id` answer `None` and `history` answers `[]` for an unknown record, as the embedded client does.
+- Commands are sent without `actor` (the token's actor is recorded) and with the command's `source`.
+- Errors are the embedded exception classes (`RecordNotFoundError`, `ConcurrencyError`, `GuardFailedError` with `results` as `GuardResult`, `QuerySyntaxError` with `position`, ...). Bodies with no class become `ApiError(status, error, message)`; a 422 `validation_error` is `ApiValidationError` (not pydantic's `ValidationError`). A server that cannot be reached is `ApiUnavailableError` (an `ApiError` with status 0 and an `httpx2.TransportError`; one reset GET is retried once, nothing else). WS-D adds `ApiError` to `CLIENT_ERRORS`.
+- `stream_events` and `download_to` raise the raw `httpx2.TransportError`.
+- Ids that are exactly `.` or `..` raise `ValueError` (never put into a path).
+
+The methods, in the order of the modules (`records`, `links`, `files`, `events`), as `inspect` prints them:
+```python
+# --- records.py (T46)
+def count_records(scope: str, q: str) -> int
+def create_record(cmd: CreateRecord) -> CommandResult
+def edit_record(cmd: EditRecord) -> CommandResult
+def get_record(scope: str, key: str) -> dict[str, Any] | None
+def get_record_by_id(record_id: str) -> dict[str, Any] | None
+def history(record_id: str) -> list[Event]
+def list_records(scope: str, *, record_type: str | None = None, status: str | None = None, include_voided: bool = False, limit: int = 500, offset: int = 0, order_by: OrderBy | None = None) -> list[dict[str, Any]]
+def query_records(scope: str, q: str, *, limit: int = 500, offset: int = 0, order_by: OrderBy | None = None) -> list[dict[str, Any]]
+def set_pset_values(cmd: SetPsetValues) -> CommandResult
+def update_record(cmd: UpdateRecord) -> CommandResult
+# --- links.py (T47)
+def accept_link(cmd: AcceptLink) -> CommandResult
+def add_link(cmd: AddLink) -> CommandResult
+def conformance(record_id: str) -> ConformanceReport
+def decline_link(cmd: DeclineLink) -> CommandResult
+def default_relation(from_type: str, to_type: str) -> str
+def detect_keys(scope: str, text: str, *, linked_to: str | None = None) -> list[KeyChip]
+def expected_links(record_id: str) -> list[MissingLink]
+def flag_link(cmd: FlagLink) -> CommandResult
+def form_metadata(scope: str, record_type: str) -> FormMetadata
+def link_counts(record_ids: Sequence[str]) -> dict[str, LinkCounts]
+def links_of(record_id: str, *, include_retracted: bool = False) -> list[LinkView]
+def relations() -> list[RelationOut]
+def repin_link(cmd: RepinLink) -> CommandResult
+def retract_link(cmd: RetractLink) -> CommandResult
+def search_linkable(scope: str, query: str, *, record_type: str | None = None, exclude_id: str | None = None, limit: int = 20) -> list[LinkTarget]
+def suggest_link(cmd: SuggestLink) -> CommandResult
+def trace(record_id: str, *, depth: int = 2, direction: TraceDirection = both) -> TraceNode
+def transition(cmd: TransitionWorkflow) -> CommandResult
+def verify_link(cmd: VerifyLink) -> CommandResult
+def workflow_status(record_id: str, *, roles: Sequence[str] = ()) -> WorkflowStatus
+# --- files.py (T48)
+def attach_file(cmd: AttachFile) -> FileResult
+def complete_upload(upload_id: str, scope: str) -> FileResult
+def download_file(scope: str, file_id: str) -> bytes
+def download_to(scope: str, file_id: str, out: BinaryIO) -> int
+def get_file_info(scope: str, file_id: str) -> FileInfo
+def list_files(scope: str, record_id: str, *, slot: str | None = None, current_only: bool = False) -> list[FileInfo]
+def register_upload(cmd: RegisterUpload) -> UploadTicket
+def upload_content(upload_id: str, scope: str, data: bytes | BinaryIO) -> FileResult
+def upload_file(scope: str, record_id: str, path: Path, *, slot: str | None = None, content_type: str | None = None) -> FileResult
+# --- events.py (T48)
+def events_after(after: int = 0, *, scope: str | None = None, types: Sequence[str] | None = None, record_ids: Sequence[str] | None = None, limit: int = 500) -> EventPage
+def stream_events(*, after: int | None = None, scope: str | None = None, types: Sequence[str] | None = None, record_ids: Sequence[str] | None = None, reconnect: bool = True) -> Generator[Event]
+```
+Added by O3 for WS-D to implement on the embedded client too: `query_records(scope, q, *, limit=500, offset=0, order_by=None) -> list[dict]` and
+`count_records(scope, q) -> int`. `OrderBy = list[tuple[str, Literal["asc", "desc"]]]`. Use `ApiClient(...).stream_events(after=<last seq>)` for live updates:
+it yields `Event` objects in `seq` order, reconnects with `Last-Event-ID` after a drop and never repeats an event. `Event.stream_version` is the conflict-detection
+version.
+
 ### Dev identity (ADR-0005)
 `Authorization: Bearer <token>`; `dev/data/tokens.json` maps token to actor (`user:<id>` or `agent:<id>`), mode 0600, re-read when it changes.
 A file readable by group or others is refused: nobody authenticates, `add_token` raises and `python -m tl_api` will not start (`chmod 600`).
@@ -115,7 +183,8 @@ starlette, httpx2, httpcore2, sse-starlette, click, idna), Apache-2.0 (opentelem
 | S4 | `commands.py` (command table and generated routes), `routes/files.py` (upload flow, download headers, quarantine rule) | Security surface (O2) and the contract with the services | Orchestrator | built; 34 tests |
 | S5 | `tl_api.client.base` (transport, auth header, error mapping, command helper), the `ApiClient` assembly | Error contract on the client side | Orchestrator | built; method groups are T46–T48 |
 | S6 | `tl_mcp` server: `build_server(factory, actor=...)`, tool schemas, authorise hook, error mapping, `python -m tl_mcp`, test harness | Identity on MCP (actor from the command line) and the error contract | Orchestrator | built; 7 tests |
-| S7 | Demo `dev/demos/P0-I4-C.sh`, READMEs, AGENTS, report | Closing work | — | round 3 |
+| S7 | Demo `dev/demos/P0-I4-C.sh`, READMEs, AGENTS, runbook, report | Closing work | — | built |
+| S8 | Review fixes: per-class error handlers, auth before the body, guarded `/openapi.json`, private token file, slot release, `ApiUnavailableError`, MCP bounds | Security review findings | Orchestrator (re-review) | built; each fix has a test that fails without it |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
@@ -124,10 +193,10 @@ starlette, httpx2, httpcore2, sse-starlette, click, idna), Apache-2.0 (opentelem
 | P0-I4-T41 | Link read routes (9 provided tests) | H | S2 | merged | pass, 1 round |
 | P0-I4-T42 | Reference read routes (9 provided tests) | H | S2 | merged | pass, 1 round |
 | P0-I4-T45 | `tl dev token add` (6 provided tests) | H | S1 | merged | pass, 1 round |
-| P0-I4-T43 | MCP read tool and resource bodies (14 provided tests) | H | S6 | ready (batch 2) | |
-| P0-I4-T46 | HTTP client: records, queries and commands (11 provided tests) | H | S5, T40 | ready (batch 2) | |
-| P0-I4-T47 | HTTP client: links, workflow, schema and reference (10 provided tests) | H | S5, T41, T42 | ready (batch 2) | |
-| P0-I4-T48 | HTTP client: files and events, SSE with resume (7 + 8 provided tests) | H | S5 | ready (batch 2) | |
+| P0-I4-T43 | MCP read tool and resource bodies (14 provided tests) | H | S6 | merged | pass, 1 round; the implementer wrote `dump` (the stub had stubbed a helper the ticket called given): compact sorted JSON, accepted |
+| P0-I4-T46 | HTTP client: records, queries and commands (11 provided tests) | H | S5, T40 | merged | pass, 1 round |
+| P0-I4-T47 | HTTP client: links, workflow, schema and reference (10 provided tests) | H | S5, T41, T42 | merged | pass, 1 round |
+| P0-I4-T48 | HTTP client: files and events, SSE with resume (7 + 8 provided tests) | H | S5 | merged | pass, 1 round |
 
 Haiku-ability (`01-tiers.md` §6), batch 1: (1) three or four files to read; (2) the stubs, the harness and every service signature are in the
 repository; (3) each ships a provided test (14, 9, 9 and 6 tests) verified against a scratch reference with `ruff`, `pyright` and the OpenAPI
@@ -137,8 +206,8 @@ dependency edits and the OpenAPI document are committed on the base); (7) a revi
 
 ## Order of work
 1. Round 1 (done): dependencies and licence scan, S1–S4, stubs and provided tests, tickets T40, T41, T42, T45. Dispatched and merged (review pass).
-2. Round 2 (this relay): S5 and S6; stubs, provided tests and tickets for T43, T46, T47, T48; dispatch.
-3. Round 3: merge batch 2; ApiClient assembly and a round-trip test through the whole `ClientInterface`; demo, READMEs, AGENTS, runbook, report; publish the final client signatures here; DONE.
+2. Round 2 (done): S5 and S6; stubs, provided tests and tickets for T43, T46, T47, T48; dispatched and merged (review pass).
+3. Round 3 (done): merge batch 2; the ApiClient round-trip test over the whole `ClientInterface`; demo, READMEs, AGENTS, runbook, report; final client signatures published above.
 
 ## Design decisions taken by the supervisor (within the plan's scope)
 | # | Decision | Why |
@@ -162,4 +231,5 @@ dependency edits and the OpenAPI document are committed on the base); (7) a revi
 - Escalate for: any change to `QuerySpec`/AST or the command models (contracts), a decision on roles (human gate), a need for `iter_keys` through the `ObjectStore` Protocol.
 
 ## Blocked / Decision
-(none)
+- Security review of S1–S4 at 8770018 (two low findings, two info) and of S5/S6 at 1b70ecc (one high, two medium, two low) were fixed in 4eac270 and c073261; ruling C4 (canonical `SqliteUowFactory`) applied in 41b7fa9.
+- T43 deviation (the `dump` helper) confirmed: compact, key-sorted JSON is what the resources return.

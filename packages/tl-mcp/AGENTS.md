@@ -2,5 +2,8 @@
 
 Read the root `AGENTS.md` first. These rules add to it.
 
-- No business logic here. Call `tl_core.services` command handlers and query helpers; do not write SQL or touch the ledger directly.
-- Nothing is implemented yet; the first tickets for this package come with Phase 0 Increment 4.
+- No business logic here. Tool and resource bodies call `tl_core` services through `ctx.factory(True)`; no SQL, no ledger access.
+- `server.py` owns tool names, schemas and descriptions (the text an agent reads); `tools.py` and `resources.py` own the bodies. Every body runs inside `guarded(...)`, which checks the identifier parts, calls the authorise hook with a quoted resource name, and turns expected failures into `ToolError` or `ResourceError`.
+- Phase 0 has no write tools. A write tool is propose-only and is added in P0-I6 with its own ticket and the `source=mcp:<agent>` tag. Never add one here.
+- Bound every new string input with `Field(max_length=...)`; the query text limit is the parser's (`MAX_QUERY_LENGTH`).
+- `mcp` is 2.x: `MCPServer` (not `FastMCP`), `mcp.Client(server)` for an in-memory client. Tests call `server.call_tool` and `server.read_resource` in process; no async plugin, use `asyncio.run`.

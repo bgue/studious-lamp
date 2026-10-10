@@ -465,3 +465,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   row of `ERROR_TABLE`, plus pydantic's `ValidationError`) and keep the `Exception` handler for real 500s only. A single request over
   `TestClient` never shows it; the regression test sends 20 sequential errors over one pooled connection to a live server.
   Evidence: `test_mapped_errors_leave_the_connection_usable` (fails before the fix). Status: active
+
+- **L-P0-I4-C10** · 2026-10-09 · tags: process
+  A stub script that replaces every function body also stubs the helpers a ticket calls "given" (T43's `dump`), and the ticket then
+  contradicts its own stub; the implementer rightly implemented it and reported a deviation. Keep given helpers out of the stubbing
+  (list them to the script) or say "implement" in the ticket. Also: a review fix that changes a base class the open tickets rely on (here
+  `ApiClientBase._send` raising `ApiUnavailableError`) must stay compatible with their provided tests, because a changed provided file
+  makes the reviewer's `diff` fail: the new error subclasses `httpx2.TransportError` for that reason.
+  Evidence: `docs/reports/P0-I4/P0-I4-T43.md` deviation; `ApiUnavailableError` in `client/base.py`. Status: active
