@@ -67,6 +67,8 @@ Details: `docs/build-spec/03-repo-and-toolchain.md`.
 | Tickets, reports, ADRs, templates | `docs/tickets/`, `docs/reports/`, `docs/adr/`, `docs/templates/` |
 | Project memory | `docs/memory/LEARNINGS.md` (active), `docs/memory/archive/` |
 | Runbooks | `docs/runbooks/` |
+| Ledger archive (sealer, verifier, signer) | `packages/tl-core/src/tl_core/archive/`; restore in `packages/tl-adapters/src/tl_adapters/restore.py` |
+| Backup configs and restore drills (Litestream, pgBackRest; `just drill`) | `dev/backup/`, `dev/drills/`, report template `docs/templates/restore-drill.md` |
 | Reference pages (user-facing language and API references) | `docs/reference/` |
 | Event catalog (generated: schemas, samples, AsyncAPI, page) | `packages/tl-schema/src/tl_schema/generated/catalog/`, `generated/docs/event-catalog.md` |
 | Docs and memory rules | `.claude/skills/throughline-docs/SKILL.md` |

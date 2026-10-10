@@ -2613,6 +2613,8 @@ name = "tl-core"
 version = "0.0.1"
 source = { editable = "packages/tl-core" }
 dependencies = [
+    { name = "cryptography" },
+    { name = "duckdb" },
     { name = "httpx" },
     { name = "pydantic" },
     { name = "python-ulid" },
@@ -2623,6 +2625,8 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=42" },
+    { name = "duckdb", specifier = "==1.5.5" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "pydantic", specifier = ">=2" },
     { name = "python-ulid", specifier = ">=2" },
