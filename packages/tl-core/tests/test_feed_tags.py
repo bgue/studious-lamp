@@ -201,3 +201,36 @@ def test_any_text_gives_ordered_non_overlapping_tags_whose_offsets_match_their_t
         assert text[tag.start + 1 : tag.end] == tag.text
         assert (tag.kind == "record") == (tag.record_id is not None)
         end_of_previous = tag.end
+
+
+# --- URLs and code are not tagged -------------------------------------------------------------
+
+
+def test_a_sigil_inside_a_url_is_not_a_tag() -> None:
+    assert parse("see http://x/#frag") == []
+    assert parse("https://x.com/@user and a/#b") == []
+    assert kinds("see http://x/#frag then #hold") == [("signal", "hold")]
+
+
+def test_a_sigil_inside_markdown_code_is_not_a_tag() -> None:
+    assert parse("run `#code` now") == []
+    assert kinds("#a `#b` #c") == [("topic", "a"), ("topic", "c")]
+    fenced = "before #x\n```\n#hold @who\n```\nafter #y"
+    assert kinds(fenced) == [("topic", "x"), ("topic", "y")]
+    assert kinds("start #p\n```\n#inside never closed") == [("topic", "p")]
+
+
+def test_offsets_stay_right_around_skipped_text() -> None:
+    text = "`#a` http://x/#b #hold"
+    (tag,) = parse(text)
+    assert text[tag.start : tag.end] == "#hold"
+
+
+def test_a_pathological_input_is_fast() -> None:
+    import time
+
+    started = time.perf_counter()
+    parse("#/" * 50_000)
+    parse("`" * 100_000)
+    parse("```" + "#a " * 30_000)
+    assert time.perf_counter() - started < 3

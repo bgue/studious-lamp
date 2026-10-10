@@ -334,3 +334,23 @@ def test_a_record_cannot_link_to_a_post_and_the_post_cannot_be_a_workflow_subjec
         handle_add_link(uow, AddLink(actor="user:q", source="t", scope=P1, from_id=rec, to_id=pid))
     with pytest.raises(RecordNotFoundError), open_uow(db, readonly=True) as uow:
         workflow_status(uow, pid)
+
+
+def test_a_post_may_only_reference_records(db: DbTarget) -> None:
+    from tl_core.services.errors import UnknownRelationError
+    from tl_core.services.links import AddLink, handle_add_link
+
+    rec = record(db, REC1)
+    pid = post(db, "plain").stream_id
+    for relation in ("blocks", "requires", None):
+        with pytest.raises(UnknownRelationError), open_uow(db) as uow:
+            cmd = AddLink(
+                actor="user:q", source="t", scope=P1, from_id=pid, to_id=rec, relation=relation
+            )
+            handle_add_link(uow, cmd)
+    with open_uow(db) as uow:
+        cmd = AddLink(
+            actor="user:q", source="t", scope=P1, from_id=pid, to_id=rec, relation="references"
+        )
+        handle_add_link(uow, cmd)
+    assert sql(db, "SELECT relation, status FROM cur_links")[0].relation == "references"

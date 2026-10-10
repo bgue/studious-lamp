@@ -18,6 +18,10 @@ Resolution precedence (``ParsedTag.kind``), first match wins:
 4. ``#word`` in the signal set (case-insensitive): a signal tag.
 5. ``#word`` with at least one letter: a topic. ``#3`` and ``#2026`` are not tags.
 
+A sigil inside markdown code (an inline `` `#code` `` span or a fenced block) or after a ``/`` in
+the same whitespace-delimited word (a URL such as ``http://x/#frag`` or ``https://x.com/@user``) is
+not a tag.
+
 Only ``#``-prefixed keys are record tags; a bare key in the body is the composer's business
 (key chips, brief 7.2), not a tag. A tag keeps the text as written; feeds match on the lower-cased
 text (``tag_key``).
@@ -26,6 +30,7 @@ text (``tag_key``).
 from __future__ import annotations
 
 import re
+from bisect import bisect_right
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import asdict
 from typing import Any
@@ -38,6 +43,9 @@ _SIGIL = re.compile(r"(?<![\w@#])[#@](?=\w)")
 _BODY = re.compile(r"\w[\w.:/-]*")
 _TRAILING = ".:/-"
 _NAMESPACE = re.compile(r"[A-Za-z][\w-]*")
+# Markdown code: a fenced block (to its closing fence, or to the end of the text) or an inline span.
+_CODE = re.compile(r"```.*?(?:```|\Z)|`[^`\n]+`", re.DOTALL)
+_WORD = re.compile(r"\S+")
 
 Resolver = Callable[[KeyMatch], str | None]
 
@@ -48,6 +56,26 @@ def _namespace_of(token: str) -> str | None:
     if colon and value and _NAMESPACE.fullmatch(namespace):
         return namespace
     return None
+
+
+def _skipped_ranges(text: str) -> tuple[list[tuple[int, int]], list[int], list[int]]:
+    """Where a sigil is not a tag: code ranges, and per word its start and first ``/``."""
+    code = [(m.start(), m.end()) for m in _CODE.finditer(text)]
+    starts: list[int] = []
+    slashes: list[int] = []
+    for word in _WORD.finditer(text):
+        starts.append(word.start())
+        slashes.append(word.start() + word.group().find("/") if "/" in word.group() else -1)
+    return code, starts, slashes
+
+
+def _is_skipped(
+    position: int, code: list[tuple[int, int]], starts: list[int], slashes: list[int]
+) -> bool:
+    if any(a <= position < b for a, b in code):
+        return True
+    word = bisect_right(starts, position) - 1
+    return word >= 0 and 0 <= slashes[word] < position
 
 
 def parse_tags(
@@ -66,10 +94,11 @@ def parse_tags(
     keys_at = {match.start: match for match in detect_keys(text, patterns)}
     signals = {word.lower() for word in signal_tags}
     tags: list[ParsedTag] = []
+    code, word_starts, word_slashes = _skipped_ranges(text)
     cursor = 0
     for sigil in _SIGIL.finditer(text):
         start = sigil.start()
-        if start < cursor:
+        if start < cursor or _is_skipped(start, code, word_starts, word_slashes):
             continue
         body_start = start + 1
         is_hash = sigil.group() == "#"

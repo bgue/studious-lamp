@@ -31,6 +31,7 @@ from tl_core.services.errors import (
     RecordVoidedError,
     SelfLinkError,
     SuggestionDeclinedError,
+    UnknownRelationError,
 )
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
@@ -149,6 +150,11 @@ def _record(uow: UnitOfWork, record_id: str, *, allow_post: bool = False) -> Any
 def _create(uow: UnitOfWork, cmd: AddLink, event_type: str, extra: dict[str, Any]) -> CommandResult:
     """Shared body of ``handle_add_link`` and ``handle_suggest_link``."""
     source = _record(uow, cmd.from_id, allow_post=True)
+    if source.type == POST_RECORD_TYPE and cmd.relation != "references":
+        raise UnknownRelationError(
+            f"a feed post can only reference records; relation {cmd.relation or 'default'!r} "
+            "is not allowed from a post"
+        )
     if source.scope != cmd.scope:
         raise RecordNotFoundError(f"no record {cmd.from_id!r} in scope {cmd.scope!r}")
     target = _record(uow, cmd.to_id)
