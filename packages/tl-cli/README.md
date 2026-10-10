@@ -57,6 +57,9 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl ledger verify [--db TARGET]` | command | Recompute every event hash and check every scope chain in the database alone |
 | `tl restore --from-archive DIR --db TARGET [--public-key FILE]` | command | Rebuild an empty SQLite file or Postgres database from the archive alone (runbook: `docs/runbooks/restore-from-archive.md`); warnings on stderr |
 | `tl backup sqlite --to FILE` | command | Online snapshot of the SQLite ledger (runbook: `docs/runbooks/sqlite-backup-and-litestream.md`) |
+| `tl_cli.file_reconcile` | module | `tl file reconcile`: compare the ledger's file rows with the object store |
+| `tl_cli.webhook_common` | module | Helpers shared by the `tl webhook` commands: the unit-of-work factory, scope and error output |
+| `tl_cli.webhook_ops` | module | The second half of `tl webhook`: `dlq ls`, `dlq redrive`, `disable`, `enable`, `rotate-secret` |
 | `tl_cli.main:app` | typer app | The `tl` entry point |
 
 ## Depends on / used by
