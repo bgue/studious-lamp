@@ -1,7 +1,5 @@
 """The review queue over HTTP: list, show, accept and reject proposals (P0-I6-T21).
 
-STUB (P0-I6-T21): the four methods raise NotImplementedError.
-
 A proposal is the ``ProposalView`` the service returns. Failures raise the embedded exception
 classes (``ProposalNotFoundError``, ``ProposalNotPendingError``, ``ProposalDeciderError`` ...).
 Accepting a proposal whose command can no longer be applied does not raise: the answer is the
@@ -14,7 +12,7 @@ from collections.abc import Sequence
 
 from tl_core.proposals.types import ProposalStatus, ProposalView
 
-from tl_api.client.base import ApiClientBase
+from tl_api.client.base import ApiClientBase, quote
 
 
 class ProposalsApi(ApiClientBase):
@@ -31,36 +29,41 @@ class ProposalsApi(ApiClientBase):
         Query parameters: ``scope``, ``status`` (omitted when None), ``all=true`` only when
         ``status`` is None, ``agent`` and ``limit`` (``_get_json`` drops the None values). Decode
         the list with ``self._models(ProposalView, data)``.
-
-        STUB (P0-I6-T21): remove this paragraph when you implement the method.
         """
-        raise NotImplementedError("STUB (P0-I6-T21)")
+        data = self._get_json(
+            "/proposals",
+            {
+                "scope": scope,
+                "status": status,
+                "all": True if status is None else None,
+                "agent": agent,
+                "limit": limit,
+            },
+        )
+        return self._models(ProposalView, data)
 
     def get_proposal(self, proposal_id: str, *, scope: str | None = None) -> ProposalView:
         """One proposal with its command (``GET /proposals/{id}``, optional ``scope`` query).
 
         The id goes into the path through ``quote(proposal_id)``. Decode with
         ``self._model(ProposalView, data)``.
-
-        STUB (P0-I6-T21): remove this paragraph when you implement the method.
         """
-        raise NotImplementedError("STUB (P0-I6-T21)")
+        data = self._get_json(f"/proposals/{quote(proposal_id)}", {"scope": scope})
+        return self._model(ProposalView, data)
 
     def accept_proposal(self, proposal_id: str, *, roles: Sequence[str] = ()) -> ProposalView:
         """Run the proposal's command as the token's actor (``POST /proposals/{id}/accept``).
 
         The body is ``{"roles": list(roles)}``. The answer is a ``ProposalView`` with status
         ``accepted``, or ``failed`` when the command was refused.
-
-        STUB (P0-I6-T21): remove this paragraph when you implement the method.
         """
-        raise NotImplementedError("STUB (P0-I6-T21)")
+        data = self._post_json(f"/proposals/{quote(proposal_id)}/accept", {"roles": list(roles)})
+        return self._model(ProposalView, data)
 
     def reject_proposal(self, proposal_id: str, reason: str) -> ProposalView:
         """Reject a pending proposal with a reason (``POST /proposals/{id}/reject``).
 
         The body is ``{"reason": reason}``.
-
-        STUB (P0-I6-T21): remove this paragraph when you implement the method.
         """
-        raise NotImplementedError("STUB (P0-I6-T21)")
+        data = self._post_json(f"/proposals/{quote(proposal_id)}/reject", {"reason": reason})
+        return self._model(ProposalView, data)
