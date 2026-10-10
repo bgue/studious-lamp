@@ -979,3 +979,13 @@ test or a generated artefact already enforces, or narrative history (that belong
   rather than a polling `sleep`; `pkill -f <pattern>` killed the shell again (see L-P0-I7-B5). A stub ticket's implementation notes go in comments, not the docstring, when the docstring reaches
   the committed OpenAPI document.
   Evidence: this round's full run; `docs/tickets/P0-I8/T21-api-types.md`. Status: active
+- **L-P0-I8B-7** · 2026-10-10 · tags: process, tickets, tests
+  Run `pyright` over a provided test before dispatching it: copy the `.py.txt` into its test directory, run `uv run pyright <package>`, delete the copy. Two provided tests (a
+  `tuple(row)` on `Row | None`, a subscript of `get_record_by_id(...)`) passed pytest against the reference but failed `just check` on the ticket branch, and the ticket forbids editing the
+  provided file, so the implementers correctly stopped as Blocked and the supervisor had to fix the test on the branch and in the provided source.
+  Evidence: T22 at 197b81c, T23 at 938c8ce. Status: active
+- **L-P0-I8B-8** · 2026-10-10 · tags: ledger, tests
+  A function that appends inside the caller's unit of work cannot tell a cache it has changed anything (the transaction may still roll back, and a reader in between would cache the old state).
+  Give the service a wrapper that owns the factory and notifies after the commit (`registry.deprecate`), and make every entry point call the wrapper; `tl types deprecate` called the inner
+  function until the re-review.
+  Evidence: `tests/extypes/test_registry_sync.py::test_deprecate_tells_the_provider_after_the_commit`, `packages/tl-cli/tests/test_cli_extypes_conflict.py`. Status: active

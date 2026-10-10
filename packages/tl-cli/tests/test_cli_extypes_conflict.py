@@ -46,3 +46,19 @@ def test_an_edit_to_a_registered_version_reads_as_a_conflict_not_as_registered(
     assert f"registered {LIFT}" not in result.stdout
     again = runner.invoke(app, ["types", "sync", str(root)], env=values)
     assert again.stdout.splitlines() == ["up to date (2 packages)"]
+
+
+def test_deprecate_tells_the_schema_provider_after_the_commit(
+    env: tuple[Path, dict[str, str]],
+) -> None:
+    from tl_core.extypes import registry
+
+    root, values = env
+    assert runner.invoke(app, ["types", "sync", str(root)], env=values).exit_code == 0
+    before = registry.changes()
+    result = runner.invoke(app, ["types", "deprecate", LIFT, "--reason", "old"], env=values)
+    assert result.exit_code == 0 and result.stdout.splitlines() == [f"deprecated {LIFT}"]
+    assert registry.changes() == before + 1
+    refused = runner.invoke(app, ["types", "deprecate", LIFT, "--reason", "again"], env=values)
+    assert refused.exit_code == 1
+    assert registry.changes() == before + 1  # a refusal changes nothing

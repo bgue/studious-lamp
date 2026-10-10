@@ -285,8 +285,11 @@ def deprecate(
 ) -> None:
     """Retire a version: existing records stay, no new ones. Prints `deprecated <type_ref>`."""
     db: Path = ctx.obj
-    with _service_errors(), open_uow(db) as uow:
-        registry.deprecate_type(uow, type_ref=type_ref, reason=reason, actor=actor, source="cli")
+    with _service_errors():
+        # registry.deprecate tells the schema provider after the commit (deprecate_type cannot)
+        registry.deprecate(
+            _factory(db), type_ref=type_ref, reason=reason, actor=actor, source="cli"
+        )
     typer.echo(f"deprecated {type_ref}")
 
 

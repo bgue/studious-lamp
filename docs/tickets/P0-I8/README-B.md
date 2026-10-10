@@ -73,7 +73,7 @@ the record quarantined; `tl types quarantine ls` shows it; storing the body agai
 | P0-I8-T21 | API: `/types`, `/types/{ref}`, `POST /types/{name}/records`, `GET\|PUT /records/{id}/body` | haiku | S23, S24 | merged | pass, 1 round, no findings |
 | P0-I8-T22 | MCP: `list_record_types`, `get_record_type`, `get_record_body`, `tl://types` resources | haiku | S23, S24 | merged | implementation passed; provided test corrected by supervisor (pyright: `assert row is not None`) |
 
-| P0-I8-T23 | `ApiClient` type and body methods (9 provided tests) | haiku | T21 | ready | |
+| P0-I8-T23 | `ApiClient` type and body methods (9 provided tests) | haiku | T21 | merged | implementation passed; provided test corrected by supervisor (pyright, L-P0-I8B-7) |
 | P0-I8-T26 | `tl types quarantine ls\|recheck` (8 provided tests) | haiku | S23, T20 | ready | |
 
 Later rounds (tickets written when their dependencies are merged): `ApiClient` and `RemoteClient` type and body methods; the `ClientInterface` growth and fakes (supervisor), then the TUI grid
@@ -92,4 +92,5 @@ package's `settings.yaml` through `tl_core.settings.register_definitions`.
 - Escalate for: a change to `Command`, `Event`, `UnitOfWork`, `Projector` or `ObjectStore`; any permission rule for who may register a type or write a body (human gate: v0 applies the mechanism only, ADR-0005); the settings registration if A's `register_definitions` differs from `settings/types.py`.
 
 ## Blocked / Decision
-Review of S20 to S24 (orchestrator, fresh context): changes-requested, 1 high, 2 medium, 3 low. Fixed in S26 (base merge, NOT_EVENTS) and S27 (H1 imports confined to the package and `validate_package` never raises; M2 the loader re-verifies each second; M3 retry once on a lost race; L4 hidden files locked, `__pycache__` refused; L5 one read per package; L6 `registry.deprecate` bumps after the commit and a reverted conflict on a deprecated version clears; patterns capped at 200 characters). Follow-up: full ReDoS hardening of package patterns (a short pattern can still backtrack).
+Review of S20 to S24 (orchestrator, fresh context): changes-requested, 1 high, 2 medium, 3 low. Fixed in S26 (base merge, NOT_EVENTS) and S27 (H1 imports confined to the package and `validate_package` never raises; M2 the loader re-verifies each second; M3 retry once on a lost race; L4 hidden files locked, `__pycache__` refused; L5 one read per package; L6 `registry.deprecate` bumps after the commit and a reverted conflict on a deprecated version clears; patterns capped at 200 characters). Follow-ups: full ReDoS hardening of package patterns (a short pattern can still backtrack); `tl types watch` stops if `on_change` raises something unguarded such as a database outage (accepted for v0).
+Re-review of S27: passed, with one request: `tl types deprecate` must call `registry.deprecate` (done in S32, with a test).
