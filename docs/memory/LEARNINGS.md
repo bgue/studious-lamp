@@ -800,3 +800,9 @@ test or a generated artefact already enforces, or narrative history (that belong
   puts the gap at the end, across and at the start of a page; reverting to range paging fails 8 of those tests. `verify_ledger` cannot see a seq swap between scopes (seq is not
   hashed) or deleted trailing events; only an archive and a recorded last seq can.
   Evidence: `tests/archive/test_ledger_verify_parity.py` (both adapters); `verifier._scan_ledger`. Status: active
+- **L-P0-I7-O1** · 2026-10-10 · tags: mcp, security, follow-up
+  The P0-I7 path-leak re-review found that the lake_query MCP tool keeps paths out of messages for expected LakeErrors,
+  through fixed sentences in tl_mcp/errors.py. Unexpected filesystem errors (a corrupt catalog, a directory that is a
+  file, no permission) are not LakeError, and the MCP SDK masks them as a bare "Error executing tool". That safety
+  depends on the SDK. P0-I8 hardening: catch Exception in `guarded`, log the error server-side, and return a fixed sentence.
+  Evidence: re-review at 07ad1b0. Status: active
