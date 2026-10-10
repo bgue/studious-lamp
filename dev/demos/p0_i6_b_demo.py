@@ -98,6 +98,18 @@ def over_http(proposal_id: str) -> None:
         print(f"agent refused: {exc}")
     else:
         raise AssertionError("an agent token accepted a proposal")
+    from tl_api.errors import ApiError
+    from tl_core.services.commands import CreateRecord
+
+    direct = CreateRecord(
+        actor="agent:triage", source="api", scope=SCOPE, record_type="core.Record", title="Direct"
+    )
+    try:
+        robot.create_record(direct)
+    except ApiError as exc:
+        print(f"agent write refused: {exc.status} {exc.error}: {exc.message}")
+    else:
+        raise AssertionError("an agent token changed a record directly")
     done = person.accept_proposal(proposal_id)
     print(f"accepted over HTTP by {done.decided_by}: {done.summary}")
     assert done.status == "accepted"

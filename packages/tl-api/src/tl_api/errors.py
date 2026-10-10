@@ -112,6 +112,7 @@ HTTP_ERRORS: dict[str, int] = {
     "invalid_argument": 422,
     "unauthorized": 401,
     "forbidden": 403,
+    "agent_must_propose": 403,  # an agent token ran a record-changing command (tl_api.auth)
     "not_found": 404,
     "method_not_allowed": 405,
     "unavailable": 503,

@@ -46,5 +46,7 @@ Purpose: list, inspect, accept or reject the changes AI agents proposed through 
 - A proposal the agent could not file (`error: ... already used`, `no record ...`): the proposal is checked with the accept-time rules when it is filed, so nothing reaches the queue.
 - `tool mode 'write' is not available`: there is no direct-write mode in Phase 0. Who may write directly is a human gate (ADR-0005).
 
+- 403 `agent_must_propose` on `POST /commands/*` or a file route: the token is an `agent:<id>`. Agents propose through MCP; use a `user:<id>` token to change a record directly. Agents may still read and post to the feed.
+
 ## Related
 - `docs/tickets/P0-I6/README-B.md` (decisions B1 to B14), `docs/runbooks/api-and-mcp-dev.md`, ADR-0005, FANOUT decision D4.

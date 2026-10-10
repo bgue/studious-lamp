@@ -13,3 +13,4 @@ Read the root `AGENTS.md` first. These rules add to it.
 - Modules that build endpoints in a loop (`commands.py`) must not use `from __future__ import annotations`.
 - SSE tests need a real server (`Harness.live()`); the in-process test client buffers whole responses.
 - The proposal routes decide for the token's actor and never take an `actor` from a body. Do not add a route that proposes (agents propose through MCP) or one that lets an agent decide; both are the permission model, a human gate. A failed accept stays a 200 with `status: failed`.
+- `guard(action, changes_records=True)` marks a route that changes a record: an `agent:` token is refused there with 403 `agent_must_propose` (B15). A new command route is covered unless its name is in `AGENT_DIRECT_COMMANDS` (the four feed commands); a new write route outside `/commands` must pass `changes_records=True`. `test_an_agent_token_cannot_run_any_record_changing_command` iterates the command table.

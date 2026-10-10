@@ -30,7 +30,7 @@ from tl_core.services.records import handle_create_record, handle_update_record
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.uow import UnitOfWork
 
-from tl_api.auth import guard
+from tl_api.auth import AGENT_DIRECT_COMMANDS, guard
 from tl_api.context import get_ctx
 
 Handler = Callable[[UnitOfWork, Any], CommandResult]
@@ -95,11 +95,12 @@ def request_model(model: type[Command], name: str) -> type[BaseModel]:
 
 def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[..., CommandResult]:
     action = f"command.{spec.name}"
+    changes_records = spec.name not in AGENT_DIRECT_COMMANDS
 
     def endpoint(
         request: Request,
         body: Any,
-        actor: Annotated[str, Depends(guard(action))],
+        actor: Annotated[str, Depends(guard(action, changes_records=changes_records))],
     ) -> CommandResult:
         ctx = get_ctx(request)
         command = spec.model(**body.model_dump(), actor=actor)

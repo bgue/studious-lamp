@@ -672,9 +672,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   A stored command that another actor replays must carry no permission claim. `TransitionWorkflow.actor_roles` is trusted input
   (ADR-0005), so a proposal with `["manager"]` would have run with that role under a person's click. `propose` refuses non-empty roles
   and the accepting person supplies theirs. Likewise "only a person decides" is a rule about what accepting means, not a permission
-  model, and the allow-all `authorize` still lets an agent token call `POST /commands/*`: propose-only holds only where the tools
-  are, and real enforcement is the human gate.
-  Evidence: `test_a_proposal_cannot_carry_roles_and_the_accepting_person_supplies_them`, `test_an_agent_cannot_decide`. Status: active
+  model. Because `authorize` allows everything, propose-only also needs a fixed rule at the API: `guard(changes_records=True)` refuses
+  every record-changing command and file write to an `agent:` token (403 `agent_must_propose`, orchestrator ruling B15); real per-role
+  enforcement stays the human gate.
+  Evidence: `test_a_proposal_cannot_carry_roles_and_the_accepting_person_supplies_them`, `test_an_agent_cannot_decide`, `test_an_agent_token_cannot_run_any_record_changing_command`. Status: active
 
 - **L-P0-I6B-5** · 2026-10-10 · tags: mcp, tests
   Free-form JSON arguments (`psets`, `values`) cannot carry `maxLength`. Bound them as serialized text in the tool body and keep a test

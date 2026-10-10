@@ -111,8 +111,11 @@ echo "$out"
 expect "$out" "^$second  rejected"
 refuse "accepting a rejected proposal" tl proposal accept "$second" --actor user:alice
 
-step "over the API: the agent's token is refused, alice's accepts the third"
-py api "$third"
+step "over the API: the agent's token can neither write a record nor decide, alice's accepts the third"
+out="$(py api "$third")"
+echo "$out"
+expect "$out" "^agent refused: only a person"
+expect "$out" "^agent write refused: 403 agent_must_propose: agents propose record changes through MCP"
 out="$(tl record show --project P123 P123-REC-0002)"
 expect "$out" "title: Re-inspect weld W-12 after repair"
 curl -fs -H "Authorization: Bearer $alice" "$TL_DEMO_URL/proposals?scope=project:P123&all=true" | python3 -c '
