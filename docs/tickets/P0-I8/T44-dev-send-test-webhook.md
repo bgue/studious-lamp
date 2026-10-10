@@ -1,6 +1,6 @@
 # P0-I8-T44 — Dev MCP tool `send_test_webhook`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: mcp, tests
 Depends on: P0-I8-S41 (merged into the base of this branch)

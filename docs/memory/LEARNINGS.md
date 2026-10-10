@@ -950,3 +950,29 @@ test or a generated artefact already enforces, or narrative history (that belong
   file, no permission) are not LakeError, and the MCP SDK masks them as a bare "Error executing tool". That safety
   depends on the SDK. P0-I8 hardening: catch Exception in `guarded`, log the error server-side, and return a fixed sentence.
   Evidence: re-review at 07ad1b0. Status: active
+
+- **L-P0-I8C-1** · 2026-10-10 · tags: mcp, security
+  A function deny-list cannot guard Postgres. `ts_stat(text)` and `ts_rewrite(..., text)` run a SQL string on the server, so a denied
+  name split with `||` (`'pg_re'||'ad_file'`) escapes any screen of the statement text, and with a superuser URL every such read works
+  (files, `pg_authid`, `data_directory`, `wh_secret`). READ ONLY does not help: they are reads. A safe Postgres `query_db` needs a
+  non-superuser reader role checked after connecting, and a function allow-list; until then `query_db` is SQLite only (decision C4).
+  Evidence: S41 security review of 6d885d2; `tests/test_dev_sqlguard.py::test_every_postgres_statement_is_refused`. Status: active
+- **L-P0-I8C-2** · 2026-10-10 · tags: tooling, process
+  `dev/seed/seed.sh` starts its API with `setsid`, so a signal to the script's process group (even SIGKILL) does not reach it; only the
+  script's EXIT trap stops it. A tool that kills the script must also find the API by its command line (`tl serve --port N` in /proc).
+  Evidence: T43 review; `tool_seed._stop_api_on`. Status: active
+- **L-P0-I8C-3** · 2026-10-10 · tags: tooling
+  A uv workspace `members = ["packages/*"]` rejects a bare `packages/tl-modules` directory ("missing a pyproject.toml"). Nested members need
+  `members = ["packages/*", "packages/tl-modules/*"]` and `exclude = ["packages/tl-modules"]`; the lock is unchanged while no module exists.
+  Evidence: S42, scaffold proved with `uv sync` and `just check`. Status: active
+- **L-P0-I8C-4** · 2026-10-10 · tags: tooling, tests
+  Scaffolded code must be ruff-format-stable for every name the scaffolder accepts, or `just check` fails for a long name. Keep names
+  short (module 20, class 30, projector 40), keep names out of docstrings, and write name-dependent lines with a magic trailing comma
+  (one argument per line, exploded imports) so the formatter never joins or splits them. Test the longest names with ruff.
+  Evidence: S42 `test_the_longest_*_still_give_formatted_code`. Status: active
+- **L-P0-I8C-5** · 2026-10-10 · tags: tui, mcp, tests
+  Textual's `Pilot.press` accepts any string and never raises for an unknown key; check key names yourself. `asyncio.TimeoutError` is the
+  builtin `TimeoutError`, an `OSError`, so catch it before a generic `OSError` branch. `sqlite3.connect("file:...", uri=True)` needs a
+  percent-encoded path (`Path.as_uri()`). Sync MCP tools run on worker threads, so a tool that changes the working directory (the schema
+  generators do) needs a lock.
+  Evidence: T45 and T41 reports. Status: active
