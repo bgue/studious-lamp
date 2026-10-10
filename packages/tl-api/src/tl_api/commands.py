@@ -19,6 +19,13 @@ from pydantic import BaseModel, ConfigDict, Field, create_model
 from tl_core.services import links, psets
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
+from tl_core.services.feed import EditPost, PostToFeed, handle_edit_post, handle_post
+from tl_core.services.feed_actions import (
+    ReactToPost,
+    RetractPost,
+    handle_react_to_post,
+    handle_retract_post,
+)
 from tl_core.services.records import handle_create_record, handle_update_record
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.uow import UnitOfWork
@@ -55,6 +62,10 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(links.FlagLink, links.handle_flag_link),
     CommandSpec(links.RetractLink, links.handle_retract_link),
     CommandSpec(TransitionWorkflow, handle_transition_workflow),
+    CommandSpec(PostToFeed, handle_post),
+    CommandSpec(EditPost, handle_edit_post),
+    CommandSpec(RetractPost, handle_retract_post),
+    CommandSpec(ReactToPost, handle_react_to_post),
 )
 """Every command the API accepts. Void, mark-pins-stale and the file commands are not here:
 voiding is not in the Phase 0 client contract, pin staleness is a system command, and files have
