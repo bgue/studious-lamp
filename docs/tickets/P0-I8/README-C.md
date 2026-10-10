@@ -37,9 +37,9 @@ Coding agents can inspect the running system and scaffold new work without break
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| T40 | `run_tests` tool | haiku | S41 | ready | |
-| T41 | `gen` tool (drift report) | haiku | S41 | ready | |
-| T42 | `rebuild_projections` tool | haiku | S41 | ready | |
+| T40 | `run_tests` tool | haiku | S41 | merged | 1 review round; 15 tests |
+| T41 | `gen` tool (drift report) | haiku | S41 | merged | 1 review round; 8 tests |
+| T42 | `rebuild_projections` tool | haiku | S41 | merged | 1 review round; 7 tests; Postgres test reconciled with C4 at merge |
 | T43 | `seed` tool | haiku | S41 | ready | |
 | T44 | `send_test_webhook` tool | haiku | S41 | ready | |
 | T45 | `render_screen` tool | haiku | S41 | ready | |
@@ -67,4 +67,6 @@ Run on every ticket. T40 to T47: files read 5 plus the ticket (yes); interfaces 
 - GitHub Actions cannot be run here: the CI review is checked by running each job's commands locally, and the report says so.
 
 ## Blocked / Decision
-(none)
+- `gen` with `apply=true` (T41): `drift`, `diff` and `in_sync` describe the state **after** the write; `applied` says a write happened. An agent that wants the drift before writing calls `gen` first without `apply`.
+- Schema-level rejections (T40: a marker outside the `Literal`, a 21st path) are `ToolError`s from the SDK before the tool body runs, so they have no audit line. Guard refusals (`DevGuardError`) are audited as `refused`. Accepted: the schema rejects what could not reach any guard.
+- Residual (LOW, from the S41 re-review): `run_tests` and `seed` hand the superuser `TL_PG_URL` to their child processes by design (tests and the seed script need it). `run_tests` checks the database name against the dev rule first. Follow-up with C4: a non-superuser reader role for dev tools.
