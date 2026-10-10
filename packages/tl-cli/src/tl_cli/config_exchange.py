@@ -4,9 +4,6 @@ Each subcommand parses options, makes one call into `tl_core.settings`, and prin
 join the `tl config` group (`tl_cli.config` adds this app to its own). The document format and its
 rules (all or nothing, one reason for the file, locks only for the company) live in
 `tl_core.settings.exchange`.
-
-STUB (P0-I8-T02): `diff_line` and the three commands raise NotImplementedError. Names, signatures
-and docstrings are final; implement the bodies, then delete this paragraph.
 """
 
 from __future__ import annotations
@@ -18,9 +15,12 @@ from typing import Annotated, NoReturn
 
 import typer
 from pydantic import ValidationError
+from tl_adapters.sqlite.uow import open_uow
+from tl_core import settings
 from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import ServiceError
 from tl_core.settings.types import SettingDiff
+from tl_core.settings.values import format_value
 
 from tl_cli.actors import refuse_agent
 
@@ -64,10 +64,10 @@ def diff_line(item: SettingDiff) -> str:
     """``feed.reactions.enabled  true -> false`` (key, two spaces, left, `` -> ``, right).
 
     Both values are ``format_value(..., max_items=3)`` of the effective value on that side.
-
-    STUB (P0-I8-T02): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T02)")
+    left = format_value(item.left.value, max_items=3)
+    right = format_value(item.right.value, max_items=3)
+    return f"{item.key}  {left} -> {right}"
 
 
 @app.command("diff")
@@ -80,10 +80,12 @@ def diff(
 
     Read-only unit of work inside ``_service_errors``, ``settings.diff(uow.conn(), left=left,
     right=right)``; print ``diff_line(item)`` for each (nothing when none differ).
-
-    STUB (P0-I8-T02): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T02)")
+    db: Path = ctx.obj
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        items = settings.diff(uow.conn(), left=left, right=right)
+    for item in items:
+        typer.echo(diff_line(item))
 
 
 @app.command("export")
@@ -100,10 +102,16 @@ def export(
     ``_service_errors``, ``text = settings.export_yaml(uow.conn(), layer=layer)``. Without
     ``--out`` print ``text`` with ``typer.echo(text, nl=False)``; with it write ``text`` to the
     file (UTF-8) and print ``wrote <out>``.
-
-    STUB (P0-I8-T02): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T02)")
+    db: Path = ctx.obj
+    layer = _layer(project, user, company)
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        text = settings.export_yaml(uow.conn(), layer=layer)
+    if out is None:
+        typer.echo(text, nl=False)
+        return
+    out.write_text(text, encoding="utf-8")
+    typer.echo(f"wrote {out}")
 
 
 @app.command("import")
@@ -130,7 +138,18 @@ def import_(
     text, layer=layer, actor=actor, source="cli", reason=reason, accept_risk=accept_risk)``: a
     refusal raises out of the block, so nothing of the file is kept. Print ``imported
     <len(done)> keys into <layer>``.
-
-    STUB (P0-I8-T02): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T02)")
+    db: Path = ctx.obj
+    layer = _layer(project, user, company)
+    text = file.read_text(encoding="utf-8")
+    with _service_errors(), open_uow(db) as uow:
+        done = settings.import_yaml(
+            uow,
+            text,
+            layer=layer,
+            actor=actor,
+            source="cli",
+            reason=reason,
+            accept_risk=accept_risk,
+        )
+    typer.echo(f"imported {len(done)} keys into {layer}")
