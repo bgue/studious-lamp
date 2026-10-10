@@ -28,6 +28,7 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
     AppCommand("trace", "Trace the open record through its links", "t", "trace"),
     AppCommand("feed", "Activity feed of the open record, or of the project", "F", "feed"),
     AppCommand("post", "Post to the feed", "p", "post"),
+    AppCommand("settings", "about:config: settings and their history", "F9", "settings"),
     AppCommand("back", "Back to the previous record", "Alt+Left", "back"),
     AppCommand("forward", "Forward to the next record", "Alt+Right", "forward"),
     AppCommand("toggle-nav", "Show or hide the navigation panel", "F2", "toggle_nav"),

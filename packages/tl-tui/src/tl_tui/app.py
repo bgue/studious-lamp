@@ -90,6 +90,7 @@ class TlApp(App[None]):
         Binding("t", "trace", "Trace", show=False),
         Binding("F", "feed", "Feed", show=False),
         Binding("p", "post", "Post", show=False),
+        Binding("f9", "settings", "Settings", show=False),
         Binding("alt+left", "back", "Back", show=False),
         Binding("alt+right", "forward", "Forward", show=False),
     ]
@@ -520,6 +521,14 @@ class TlApp(App[None]):
 
     def action_toggle_context(self) -> None:
         self.action_toggle_panel("context")
+
+    def action_settings(self) -> None:
+        """about:config: the settings of this project, with their origin and history."""
+        if self._modal_open():
+            return
+        from tl_tui.widgets.settings_screen import SettingsScreen
+
+        self.push_screen(SettingsScreen(self.client, self.scope, self.actor))
 
     def action_help(self) -> None:
         # The app-level `F1` and `?` bindings stay live under a modal; help must not open over

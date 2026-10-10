@@ -87,6 +87,11 @@ def run_scenario(world: World) -> dict[str, list[dict[str, Any]]]:
                 stream_id=proposal_id,
                 stream_type="core.Proposal",
             )
+    for kind, stream in (
+        ("Setting.Changed", "setting:project:P1:feed.reactions.enabled"),
+        ("Setting.Locked", "setting:company:feed.reactions.enabled"),
+    ):
+        world.append(kind, payload_of(kind), stream_id=stream, stream_type="core.Setting")
     world.append(
         "Schema.EffectiveChanged",
         payload_of("Schema.EffectiveChanged"),

@@ -11,9 +11,11 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
+from tl_api.auth import AGENT_MUST_PROPOSE
 from tl_core.extypes import body as extype_bodies
 from tl_core.extypes import registry as extype_registry
 from tl_core.extypes.errors import BodyNotFoundError, BodyStoreUnavailableError
@@ -73,11 +75,23 @@ from tl_core.services.workflow import (
     handle_transition_workflow,
     workflow_status,
 )
+from tl_core.settings import history as settings_history
+from tl_core.settings import lock_setting as lock_in_force
+from tl_core.settings import reset_setting as reset_in_force
+from tl_core.settings import revert_setting as revert_in_force
+from tl_core.settings import set_setting as set_in_force
+from tl_core.settings.types import SettingChange
+from tl_core.settings.views import SettingView, get_view, list_views, view_at
 from tl_core.uow import UnitOfWork
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 from tl_tui.client import RelationInfo
 from tl_tui.live import ChangeFeed, EmbeddedFeed, OwnWrites
+
+#: The actor of settings changes when none is given (the dev person; the header shows the same).
+DEFAULT_ACTOR = "user:dev"
+#: The ``source`` recorded on settings this client changes.
+SOURCE = "tui"
 
 # A callable that opens a unit of work: `factory(readonly)` returns a context manager yielding it.
 UowFactory = Callable[[bool], AbstractContextManager[UnitOfWork]]
@@ -107,16 +121,15 @@ class EmbeddedClient:
         uow_factory: UowFactory,
         *,
         object_store: ObjectStore | None = None,
-        actor: str = "user:dev",
+        actor: str = DEFAULT_ACTOR,
     ) -> None:
         if actor.startswith("agent:"):
-            # the API refuses agent writes too (B15): an agent proposes, a person decides
             raise ValueError(
-                "agent_must_propose: an agent cannot use the embedded client to change records"
+                f"{AGENT_MUST_PROPOSE}: an agent cannot use the embedded client to change records"
             )
         self._uow = uow_factory
         self._objects = object_store
-        self._actor = actor  # recorded on the writes that take no command (extension types)
+        self.actor = actor  # recorded on the writes that take no command (settings, bodies)
         self.own_writes = OwnWrites()
         # the registered extension types of this ledger join the effective schema (brief 31)
         attach_extension_types(lambda readonly=False: uow_factory(readonly))
@@ -127,7 +140,7 @@ class EmbeddedClient:
         path: str | Path,
         *,
         object_store: ObjectStore | None = None,
-        actor: str = "user:dev",
+        actor: str = DEFAULT_ACTOR,
     ) -> EmbeddedClient:
         """A client on the SQLite ledger at ``path`` with a long-lived engine and a bus.
 
@@ -285,7 +298,7 @@ class EmbeddedClient:
         numbering: dict[str, str] | None = None,
     ) -> CommandResult:
         cmd = CreateRecord(
-            actor=self._actor,
+            actor=self.actor,
             source="tui",
             scope=scope,
             record_type=type_name,
@@ -330,7 +343,7 @@ class EmbeddedClient:
                 record_id=record_id,
                 scope=scope,
                 body=body,
-                actor=self._actor,
+                actor=self.actor,
                 source="tui",
                 expected_version=expected_version,
             )
@@ -479,3 +492,120 @@ class EmbeddedClient:
     ) -> list[Completion]:
         with self._uow(True) as uow:
             return feed_completion.complete_tags(uow, scope, sigil, prefix, limit=limit)
+
+    # --- settings (P0-I8) ---------------------------------------------------------------------
+
+    def list_settings(
+        self,
+        *,
+        project: str | None = None,
+        user: str | None = None,
+        prefix: str | None = None,
+        modified_only: bool = False,
+    ) -> list[SettingView]:
+        with self._uow(True) as uow:
+            return list_views(
+                uow.conn(), project=project, user=user, prefix=prefix, modified_only=modified_only
+            )
+
+    def get_setting(
+        self, key: str, *, project: str | None = None, user: str | None = None
+    ) -> SettingView:
+        with self._uow(True) as uow:
+            return get_view(uow.conn(), key, project=project, user=user)
+
+    def setting_history(self, key: str, *, layer: str | None = None) -> list[SettingChange]:
+        with self._uow(True) as uow:
+            return settings_history(uow.conn(), key, layer=layer)
+
+    def set_setting(
+        self,
+        key: str,
+        *,
+        layer: str,
+        value: Any,
+        reason: str | None = None,
+        accept_risk: bool = False,
+        applies_at: datetime | None = None,
+    ) -> SettingView:
+        """Set a key at a layer; the answer is the key as seen there."""
+        with self._uow(False) as uow:
+            set_in_force(
+                uow,
+                key=key,
+                layer=layer,
+                value=value,
+                actor=self.actor,
+                source=SOURCE,
+                reason=reason,
+                accept_risk=accept_risk,
+                applies_at=applies_at,
+            )
+            return view_at(uow.conn(), key, layer)
+
+    def reset_setting(
+        self,
+        key: str,
+        *,
+        layer: str,
+        reason: str | None = None,
+        accept_risk: bool = False,
+        applies_at: datetime | None = None,
+    ) -> SettingView:
+        """Take the layer's own value away; the answer is the key as seen there."""
+        with self._uow(False) as uow:
+            reset_in_force(
+                uow,
+                key=key,
+                layer=layer,
+                actor=self.actor,
+                source=SOURCE,
+                reason=reason,
+                accept_risk=accept_risk,
+                applies_at=applies_at,
+            )
+            return view_at(uow.conn(), key, layer)
+
+    def lock_setting(
+        self,
+        key: str,
+        *,
+        locked: bool,
+        reason: str,
+        bounds: dict[str, Any] | None = None,
+    ) -> SettingView:
+        """Lock a key for projects (or unlock it) and bound their values; company layer."""
+        with self._uow(False) as uow:
+            lock_in_force(
+                uow,
+                key=key,
+                locked=locked,
+                bounds=bounds,
+                actor=self.actor,
+                source=SOURCE,
+                reason=reason,
+            )
+            return view_at(uow.conn(), key, "company")
+
+    def revert_setting(
+        self,
+        key: str,
+        *,
+        layer: str,
+        seq: int,
+        reason: str | None = None,
+        accept_risk: bool = False,
+    ) -> SettingView:
+        """Undo the latest change at a layer (a change of its own in the history)."""
+        with self._uow(False) as uow:
+            revert_in_force(
+                uow,
+                key=key,
+                layer=layer,
+                seq=seq,
+                actor=self.actor,
+                source=SOURCE,
+                reason=reason,
+                accept_risk=accept_risk,
+            )
+            return view_at(uow.conn(), key, layer)

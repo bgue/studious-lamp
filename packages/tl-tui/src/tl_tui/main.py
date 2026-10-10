@@ -14,12 +14,11 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from tl_tui.app import TlApp
-from tl_tui.embedded import EmbeddedClient
+from tl_tui.embedded import DEFAULT_ACTOR, EmbeddedClient
 from tl_tui.remote import RemoteClient
 
 DEFAULT_DB = "./dev/data/tl.db"
 DEFAULT_PROJECT = "P123"
-DEFAULT_ACTOR = "user:dev"
 DEFAULT_TYPE = "core.Record"
 
 
@@ -28,19 +27,21 @@ def build_app(
     project: str = DEFAULT_PROJECT,
     *,
     live: bool = True,
+    actor: str = DEFAULT_ACTOR,
     record_type: str = DEFAULT_TYPE,
 ) -> TlApp:
     """The app over the SQLite dev ledger at ``db``, showing project ``project`` (embedded).
 
+    ``actor`` is shown in the header and recorded on the settings the screens change.
     ``record_type`` is the record type the grid lists: ``core.Record`` or an extension type.
     """
     scope = f"project:{project}"
-    client = EmbeddedClient.for_sqlite(db, actor=DEFAULT_ACTOR)
+    client = EmbeddedClient.for_sqlite(db, actor=actor)
     return TlApp(
         client,
         scope=scope,
         record_type=record_type,
-        actor=DEFAULT_ACTOR,
+        actor=actor,
         feed=client.change_feed(scope) if live else None,
     )
 
@@ -88,7 +89,12 @@ def make_app(
     proj = project or os.environ.get("TL_PROJECT", DEFAULT_PROJECT)
     rtype = record_type or os.environ.get("TL_TYPE") or DEFAULT_TYPE
     if url is None:
-        return build_app(db or os.environ.get("TL_DB", DEFAULT_DB), proj, record_type=rtype)
+        return build_app(
+            db or os.environ.get("TL_DB", DEFAULT_DB),
+            proj,
+            actor=actor or DEFAULT_ACTOR,
+            record_type=rtype,
+        )
     secret = token or os.environ.get("TL_TOKEN")
     if not secret:
         raise ValueError("remote mode needs a dev token: pass --token or set TL_TOKEN")

@@ -19,6 +19,7 @@ imports:
   - workflow
   - feed
   - proposals
+  - settings
   - files
   - integration
   - outbox

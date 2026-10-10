@@ -125,8 +125,14 @@ def replay(
     registry: ProjectorRegistry,
     selected: Sequence[Projector],
     on_progress: Callable[[int], None] | None,
+    after_replay: Callable[[Connection, int], None] | None = None,
 ) -> int:
-    """Reset the ``selected`` projectors on ``conn`` and replay the whole ledger into them."""
+    """Reset the ``selected`` projectors on ``conn`` and replay the whole ledger into them.
+
+    ``after_replay(conn, last_seq)`` runs in the same transaction once the last event is applied;
+    ``last_seq`` is the seq of the last event replayed (0 for an empty ledger). Whatever it writes
+    commits or rolls back with the rebuild.
+    """
     names = {p.name for p in selected}
     for projector in selected:
         projector.reset(conn)
@@ -144,4 +150,6 @@ def replay(
         cursor = page[-1].seq
         if on_progress is not None:
             on_progress(replayed)
+    if after_replay is not None:
+        after_replay(conn, cursor)
     return replayed

@@ -87,6 +87,8 @@ def test_another_actor_or_type_starts_a_new_card() -> None:
         "Proposal.Accepted",
         "Proposal.Rejected",
         "Proposal.Failed",
+        "Setting.Changed",
+        "Setting.Locked",
     ],
 )
 def test_plumbing_events_are_ignored(event_type: str) -> None:

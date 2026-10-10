@@ -5,6 +5,7 @@ Operational procedures, one file per alert or recovery path (§24.6). Template: 
 - `lake-sync.md` — run, check and repair the DuckLake copy; handle a refused `lake_query` or a stale lake.
 - `dev-mcp.md` — run the dev MCP server for coding agents: tools, resources, what it refuses (P0-I8).
 - `api-and-mcp-dev.md` — run the REST API, the SSE stream and the MCP server on the dev ledger.
+- `settings.md` — about:config: read, change, lock, schedule, undo and move settings; carry out a pending effect (P0-I8).
 - `proposal-review-queue.md` — review, accept or reject what AI agents proposed through MCP (P0-I6).
 - `simulator.md` — run, seed, inject into and check a simulated project (`tl sim`, `just seed`).
 - `rebuild-projections.md` — rebuild the `cur_*` tables from the ledger.

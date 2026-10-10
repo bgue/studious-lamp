@@ -20,7 +20,13 @@ from tl_mcp.server import build_server
 from tl_mcp.write_tools import MAX_JSON_CHARS
 
 ALICE = "user:alice"
-PROPOSING = ("create_record", "update_psets", "link_records", "transition_workflow")
+PROPOSING = (
+    "create_record",
+    "update_psets",
+    "link_records",
+    "transition_workflow",
+    "propose_setting_change",
+)
 
 
 def events(env: McpHarness, event_type: str | None = None) -> list[Any]:

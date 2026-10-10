@@ -15,8 +15,14 @@ from tl_mcp.errors import guarded, resource_name
 from tl_mcp.main import main, parse_args
 from tl_mcp.server import build_server
 
-READ_TOOLS = {"search_records", "get_record", "get_links", "trace", "lake_query"}
-PROPOSE_TOOLS = {"create_record", "update_psets", "link_records", "transition_workflow"}
+READ_TOOLS = {"search_records", "get_record", "get_links", "trace", "get_settings", "lake_query"}
+PROPOSE_TOOLS = {
+    "create_record",
+    "update_psets",
+    "link_records",
+    "transition_workflow",
+    "propose_setting_change",
+}
 TYPE_TOOLS = {"list_record_types", "get_record_type", "get_record_body"}
 TOOLS = READ_TOOLS | TYPE_TOOLS | PROPOSE_TOOLS | {"post_feed"}
 

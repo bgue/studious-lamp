@@ -36,6 +36,7 @@ from tl_api.errors import ERROR_TABLE, ApiError, ErrorBody, body_for
 from tl_api.feed import FeedHub
 from tl_api.routes import events, extypes, files, health, links, proposals, records, reference
 from tl_api.routes import feed as feed_routes
+from tl_api.routes import settings as settings_routes
 from tl_api.settings import ApiSettings
 from tl_api.tokens import TokenStore
 
@@ -204,6 +205,7 @@ def create_app(
         feed_routes,
         proposals,
         extypes,
+        settings_routes,
     ):
         app.include_router(module.router)
     app.include_router(commands.router)

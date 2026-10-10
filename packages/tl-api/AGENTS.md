@@ -10,6 +10,7 @@ Read the root `AGENTS.md` first. These rules add to it.
 - `docs/reference/openapi.json` is generated and drift-checked by `just check`: change a route, run `uv run python -m tl_api.openapi`, commit both. A ticket that only implements a route body must not change any signature, decorator or description.
 - Any response that returns file bytes keeps `attachment`, `nosniff` and `application/octet-stream`.
 - The client (`tl_api/client/`) keeps the `ClientInterface` method names and parameters; `tests/api/test_client_roundtrip.py` compares it with the embedded client. Put every id in a path through `quote()`.
+- Settings routes (`routes/settings.py`) are thin: one `tl_core.settings` call each, a write answers with `view_at` (the key as seen at the layer it changed), the actor is the token's and the source is `api`. Every write route uses `guard("setting.write", changes_records=True)`; a new one must too. Revert undoes only the latest change at a layer.
 - Modules that build endpoints in a loop (`commands.py`) must not use `from __future__ import annotations`.
 - SSE tests need a real server (`Harness.live()`); the in-process test client buffers whole responses.
 - The proposal routes decide for the token's actor and never take an `actor` from a body. Do not add a route that proposes (agents propose through MCP) or one that lets an agent decide; both are the permission model, a human gate. A failed accept stays a 200 with `status: failed`.

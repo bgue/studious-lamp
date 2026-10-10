@@ -12,6 +12,7 @@ from tl_core.services import link_queries, link_trace, queries
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.services.link_queries import LinkView
 from tl_core.services.link_trace import TraceDirection, TraceNode
+from tl_core.settings.views import SettingView, get_view, list_views
 from tl_core.uow import UnitOfWork
 
 from tl_mcp.context import McpContext
@@ -77,6 +78,28 @@ def trace_impl(
     with ctx.factory(True) as uow:
         record_id = resolve_record_id(uow, record, scope)
         return link_trace.trace(uow, record_id, depth=depth, direction=direction)
+
+
+def get_settings_impl(
+    ctx: McpContext,
+    *,
+    key: str | None,
+    prefix: str | None,
+    project: str | None,
+    modified_only: bool,
+) -> list[SettingView]:
+    """Settings with their definitions and effective state, as ``project`` sees them.
+
+    ``key`` names one setting (exact; an unknown key is ``UnknownSettingError``); ``prefix`` and
+    ``modified_only`` narrow the list of all of them. A key together with either is a
+    ``ValueError`` that ``guarded`` shows to the agent. Read-only.
+    """
+    if key is not None and (prefix is not None or modified_only):
+        raise ValueError("give a key, or a prefix and a filter, not both")
+    with ctx.factory(True) as uow:
+        if key is not None:
+            return [get_view(uow.conn(), key, project=project)]
+        return list_views(uow.conn(), project=project, prefix=prefix, modified_only=modified_only)
 
 
 def lake_query_impl(ctx: McpContext, *, sql: str, limit: int) -> LakeQueryOutput:
