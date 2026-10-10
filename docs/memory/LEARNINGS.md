@@ -981,3 +981,19 @@ test or a generated artefact already enforces, or narrative history (that belong
   command fail, so a whole batch came back BLOCKED for a reason outside the tickets and cost a round. `just check` also lints `dev/`,
   which `pyright` does not cover.
   Evidence: S44 commit f01ab70 (`dev/tools/scan_secrets.py:2`), fixed in the following commit. Status: active
+- **L-P0-I8C-7** · 2026-10-10 · tags: process, tickets
+  A ticket with provided tests for a sibling ticket in the same package cannot have `pytest <package>` in its acceptance: T48's whole-package run
+  fails on the T49 stub by design, and the reverse. Scope the acceptance to the ticket's own test file plus `just check`, and say so in the
+  ticket. Also write the file each replacement applies to when a rename table covers several files, and list every file an escalation trigger needs
+  in *Context*, because implementers follow the Context list literally.
+  Evidence: T48 and T49 reports; the batch review rulings. Status: active
+- **L-P0-I8C-8** · 2026-10-10 · tags: mcp, tests
+  The MCP SDK's resource-template router rejects a `{name}` that contains `..`, a raw `/` or `%00` before the function runs (`Unknown resource`),
+  so only a single clean path segment reaches the document lookup. A traversal test accepts both that text and the function's own refusal. In
+  Python `re.match` with a trailing `$` also matches before a final newline: patterns that validate unstripped input use `fullmatch`.
+  Evidence: T47 report; `names.py` and `guard.py` after the review note (commit 6fbb9b1). Status: active
+- **L-P0-I8C-9** · 2026-10-10 · tags: tooling
+  `dev/tools/audit_docs.py` exits 0 when it reports findings unless `--strict` is given, so an acceptance that relies on its output checks the
+  printed counts. `just check` stops at its first failing step, so one lint error hides the pyright, codegen, openapi and licence steps; run the
+  steps one by one when diagnosing.
+  Evidence: T50, T47 and T48 reports. Status: active
