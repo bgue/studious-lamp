@@ -101,7 +101,9 @@ def test_remote_the_banner_shows_during_an_outage_and_the_feed_resumes(harness: 
             server.start()
             await until(pilot, lambda: not banner.display, 8, "the banner to clear")
             await until(pilot, lambda: row(grid, "DURING-1") is not None, 5, "the missed record")
-            assert grid.is_marked(made.stream_id)
+            # The row can appear first, through the read that follows "connection restored"; the
+            # replayed event then arrives and marks it. Both orders end with the row marked.
+            await until(pilot, lambda: grid.is_marked(made.stream_id), 5, "the mark")
             assert len([r for r in grid.rows if r["key"] == "DURING-1"]) == 1
 
         try:
