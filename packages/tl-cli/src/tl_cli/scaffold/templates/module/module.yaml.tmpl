@@ -1,0 +1,16 @@
+id: https://example.org/throughline/modules/${name}
+name: tl_mod_${name}
+title: The ${name} module
+description: >-
+  TODO: what the ${name} module covers. Record types are added with `tl new record-type ${name}.<Class>`;
+  the module spec is docs/modules/${name}/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+default_range: string
+annotations:
+  tl:module: ${name}
