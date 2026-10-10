@@ -1,8 +1,5 @@
 """The `tl dev` group: development helpers. Today: `tl dev token add` (ADR-0005).
 
-STUB (P0-I4-T45): the command body below raises ``NotImplementedError``. Keep every name and option;
-implement the body, then delete this paragraph.
-
 The API (`tl_api`) authenticates with static bearer tokens read from a local JSON file. This command
 creates one for an actor. It is a development convenience, not an account system.
 """
@@ -13,6 +10,7 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from tl_api.tokens import add_token
 
 app = typer.Typer(help="Development helpers.", no_args_is_help=True)
 token_app = typer.Typer(help="Dev bearer tokens for the API (ADR-0005).", no_args_is_help=True)
@@ -32,4 +30,10 @@ def add(
     ] = Path(DEFAULT_TOKENS),
 ) -> None:
     """Create a bearer token for ACTOR, store it in the token file, and print it."""
-    raise NotImplementedError("STUB (P0-I4-T45)")
+    try:
+        token = add_token(tokens, actor)
+    except ValueError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(token)
+    typer.echo(f"added token for {actor} to {tokens}", err=True)
