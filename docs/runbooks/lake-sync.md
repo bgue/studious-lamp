@@ -85,5 +85,6 @@ The lake is an analytics copy, never a source of truth, and never a backup. It c
 
 ## Related
 - Brief §28.1 (the lake is never a source of truth), §28.3 (incremental sync and snapshots), §11.3 and §28.4 (the read-only `lake_query` tool).
+- `docs/runbooks/api-and-mcp-dev.md`, section "Give an agent `lake_query`": start the MCP server with a lake and let an agent call the `lake_query` tool.
 - `docs/runbooks/rebuild-projections.md` rebuilds the ledger's current-state tables (`cur_*`). It is a different rebuild and does not rebuild the lake.
 - `docs/runbooks/README.md` indexes the restore runbooks, which cover restoring the ledger.
