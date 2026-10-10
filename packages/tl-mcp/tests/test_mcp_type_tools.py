@@ -207,6 +207,7 @@ def test_create_record_of_a_managed_type_is_a_proposal_not_a_record(env: Env) ->
     assert result.status == "accepted"
     with env.h.factory(True) as uow:
         row = uow.conn().exec_driver_sql("SELECT type, key FROM cur_core_record").first()
+    assert row is not None
     assert tuple(row) == (OBSERVATION, "SO-1")
 
 
