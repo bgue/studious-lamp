@@ -12,3 +12,4 @@ Read the root `AGENTS.md` first. These rules add to it.
 - The client (`tl_api/client/`) keeps the `ClientInterface` method names and parameters; `tests/api/test_client_roundtrip.py` compares it with the embedded client. Put every id in a path through `quote()`.
 - Modules that build endpoints in a loop (`commands.py`) must not use `from __future__ import annotations`.
 - SSE tests need a real server (`Harness.live()`); the in-process test client buffers whole responses.
+- The proposal routes decide for the token's actor and never take an `actor` from a body. Do not add a route that proposes (agents propose through MCP) or one that lets an agent decide; both are the permission model, a human gate. A failed accept stays a 200 with `status: failed`.

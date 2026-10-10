@@ -10,13 +10,14 @@ The REST API, the SSE change stream and the HTTP client over the `tl_core` servi
 | `tl_api.errors` (`ERROR_TABLE`, `body_for`, `exception_for`, `ApiError`) | module | The one table that maps each `ServiceError` to a status and a stable `error` code, both directions |
 | `tl_api.auth` (`authorize`, `guard`, `AuthenticationMiddleware`) | module | Token lookup before any request is read; the allow-all hook every route calls |
 | `tl_api.tokens` (`TokenStore`, `add_token`, `check_actor`) | module | The dev token file: `{token: actor}`, mode 0600, re-read on change |
-| `tl_api.commands.COMMANDS` | table | The 13 commands served as `POST /commands/{Name}`, one generated route each |
+| `tl_api.commands.COMMANDS` | table | The 17 commands served as `POST /commands/{Name}`, one generated route each (13 record, link and workflow commands, then `PostToFeed`, `EditPost`, `RetractPost`, `ReactToPost`) |
 | `tl_api.feed.FeedHub` | class | Subscription registry fed by the bus and a poller; SSE framing; stream cap |
 | `tl_api.client.ApiClient(base_url, token, *, http=None, timeout=30)` | class | The HTTP client WS-D wraps as the remote `ClientInterface` (signatures: `docs/tickets/P0-I4/README-C.md`) |
+| `tl_api.client.feed.FeedApi`, `tl_api.client.proposals.ProposalsApi` | mixins of `ApiClient` | `feed_page`, `feed_post`, `feed_edit`, `feed_retract`, `feed_react`, `feed_complete` (same signatures as `ClientInterface`); `list_proposals`, `get_proposal`, `accept_proposal`, `reject_proposal` (extras, not on `ClientInterface`) |
 | `tl_api.openapi` | module | `python -m tl_api.openapi [--check]`; the document is `docs/reference/openapi.json` |
 | `python -m tl_api` / `just serve` | command | Run the server (loopback only unless `--insecure-dev`) |
 
-Routes: `GET /health` (no token); `/records` (query language, paging, ordering), `/records/count`, `/records/lookup`, `/records/{id}`, `/history`, `/links`, `/trace`, `/expected-links`, `/workflow`, `/conformance`, `/files`; `/links/counts`, `/links/search`; `/relations`, `/relations/default`, `/keys/detect`, `/schema/forms`; `POST /commands/{Name}`; `/events?after=` (paged) and `/stream` (SSE, `Last-Event-ID`); `/uploads`, `/files/attach`, `/files/{id}`, `/files/{id}/content`; `/openapi.json` (token required). The full list with parameters is the committed OpenAPI document.
+Routes: `GET /health` (no token); `/records` (query language, paging, ordering), `/records/count`, `/records/lookup`, `/records/{id}`, `/history`, `/links`, `/trace`, `/expected-links`, `/workflow`, `/conformance`, `/files`; `/links/counts`, `/links/search`; `/relations`, `/relations/default`, `/keys/detect`, `/schema/forms`; `POST /commands/{Name}`; `/events?after=` (paged) and `/stream` (SSE, `Last-Event-ID`); `/uploads`, `/files/attach`, `/files/{id}`, `/files/{id}/content`; the feed: `GET /feed`, `/feed/complete`, `/feed/posts/{id}` (writes are `POST /commands/PostToFeed|EditPost|RetractPost|ReactToPost`); the review queue: `GET /proposals`, `GET /proposals/{id}`, `POST /proposals/{id}/accept`, `POST /proposals/{id}/reject`; `/openapi.json` (token required). The full list with parameters is the committed OpenAPI document.
 
 ## Depends on / used by
 - Depends on: `tl_core`, `tl_schema`, `tl_adapters`, `fastapi`, `uvicorn`, `httpx2`, `pydantic`.
@@ -44,10 +45,11 @@ Runbook: `docs/runbooks/api-and-mcp-dev.md`.
 - Errors are `{"error": <code>, "message": ..., "position"?, "issues"?, "results"?}`. 404 not found, 409 version or state conflict or failed guard, 422 validation, 400 for query syntax and upload tokens. The client raises the same exception classes an embedded call raises; a server it cannot reach raises `ApiUnavailableError`.
 - A command body is the shared command model without `actor` (the token's actor is used; sending one is a 422); `source` defaults to `api`.
 - SSE: `id: <seq>`, `event: <type>`, `data: <Event>`; resume with `Last-Event-ID`; at most 32 streams.
+- Review queue: agents propose through MCP, a person decides here. Accept runs the stored command as the token's actor with `source=mcp:<agent>`; a command that can no longer be applied is a 200 whose proposal has `status: failed` and the error in `reason`. An `agent:` token is refused with 403 `proposal_decider`. Under ADR-0005 `authorize` still allows everything, so an agent token can call `POST /commands/*` directly: propose-only is enforced by the MCP tools, and the permission model that would enforce it here is a human gate. Budget refusals are 429 `budget_exceeded`.
 - Downloads are `application/octet-stream` with `Content-Disposition: attachment` and `nosniff`; a quarantined file goes to its uploader only.
 
 ## Rules specific to this package
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I4 (workstream C). Last interface change: P0-I4. The identity stub is replaced only by an owner-approved auth ADR.
+Introduced in P0-I4 (workstream C). Last interface change: P0-I6 workstream B (feed and review-queue routes, five proposal rows in the error table). The identity stub is replaced only by an owner-approved auth ADR.
