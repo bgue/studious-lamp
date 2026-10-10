@@ -9,6 +9,7 @@ dependencies = [
   "tl-core",
   "tl-schema",
   "tl-adapters",
+  "tl-lake",
   "tl-api",
   "tl-sim",
   "tl-tui",

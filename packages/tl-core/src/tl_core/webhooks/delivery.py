@@ -60,18 +60,33 @@ SOURCE = "svc:webhook-worker"
 DEFAULT_LEASE_S = 60.0
 DEFAULT_TIMEOUT_S = 10.0
 
+# A subscription can send only while it has a signing secret that has not expired. After a restore
+# from the ledger archive it has none (secrets are never in the ledger): its deliveries then stay
+# pending, untouched, until `rotate-secret` issues one. Nothing is sent unsigned and nothing is
+# dead-lettered for want of a secret.
+HAS_SECRET_SQL = (
+    "EXISTS (SELECT 1 FROM wh_secret w WHERE w.subscription_id = d.subscription_id "
+    "AND w.state = 'active' AND (w.expires_at IS NULL OR w.expires_at > :now))"
+)
 _CLAIMABLE_SQL = text(
     "SELECT d.delivery_id, d.subscription_id, d.seq, d.event_id, d.subject_id, d.body, "
     "d.attempts, d.created_at, s.target_url, s.scope "
     "FROM wh_delivery d JOIN cur_webhook_subscription s "
     "ON s.subscription_id = d.subscription_id "
     "WHERE d.status = 'pending' AND s.status = 'active' AND d.next_attempt_at <= :now "
+    f"AND {HAS_SECRET_SQL} "
     "AND (d.lease_until IS NULL OR d.lease_until <= :now) "
     "AND NOT EXISTS (SELECT 1 FROM wh_delivery e "
     "WHERE e.subscription_id = d.subscription_id AND e.subject_id = d.subject_id "
     "AND e.status = 'pending' AND (e.seq < d.seq "
     "OR (e.seq = d.seq AND e.delivery_id < d.delivery_id))) "
     "ORDER BY d.seq, d.delivery_id LIMIT :limit"
+)
+_NEEDS_SECRET_SQL = text(
+    "SELECT DISTINCT d.subscription_id FROM wh_delivery d JOIN cur_webhook_subscription s "
+    "ON s.subscription_id = d.subscription_id "
+    f"WHERE d.status = 'pending' AND s.status = 'active' AND NOT {HAS_SECRET_SQL} "
+    "ORDER BY d.subscription_id"
 )
 _LEASE_SQL = text(
     "UPDATE wh_delivery SET lease_until = :until, lease_owner = :owner "
@@ -187,6 +202,8 @@ class DeliveryEngine:
         self.worker_id = worker_id or f"worker-{uuid4().hex[:8]}"
         self._lease_s = lease_s
         self._timeout_s = timeout_s
+        self.needs_secret: list[str] = []
+        """Subscriptions the latest ``claim`` held back for want of a secret."""
 
     # --- claim -------------------------------------------------------------------------------
 
@@ -227,6 +244,14 @@ class DeliveryEngine:
                         secrets=self._active_secrets(conn, head["subscription_id"], now),
                     )
                 )
+            waiting = [str(row[0]) for row in conn.execute(_NEEDS_SECRET_SQL, {"now": stamp}).all()]
+        self.needs_secret = waiting
+        for subscription_id in waiting:  # once per subscription per cycle; never the secret id
+            log.warning(
+                "webhook subscription %s has pending deliveries but no usable signing secret; "
+                "they stay pending until `tl webhook rotate-secret` issues one",
+                subscription_id,
+            )
         return claimed
 
     @staticmethod
@@ -449,8 +474,9 @@ class DeliveryEngine:
         recorded: it is a one-shot check of reachability, signature handling and egress policy,
         and the receiver sees ``data.detail`` of the sample. The request carries the header
         ``webhook-test: 1`` so a receiver can tell it from a real delivery. A disabled or expired
-        subscription is refused with :class:`SubscriptionNotActiveError`. The result says what
-        happened.
+        subscription, or one with no active signing secret (a restored database), is refused with
+        :class:`SubscriptionNotActiveError` before anything is checked or sent. The result says
+        what happened.
         """
         from tl_schema.catalog import sample
 
@@ -474,6 +500,11 @@ class DeliveryEngine:
             if row.expires_at is not None and parse_iso(str(row.expires_at)) <= now:
                 raise SubscriptionNotActiveError(f"subscription {subscription_id} has expired")
             secrets = self._active_secrets(uow.conn(), subscription_id, now)
+        if not secrets:  # refuse before any egress check or DNS lookup
+            raise SubscriptionNotActiveError(
+                f"subscription {subscription_id} has no active signing secret; "
+                f"run `tl webhook rotate-secret {subscription_id}`"
+            )
         envelope = dict(sample(event_type)["envelope"])
         envelope["id"] = new_ulid()
         envelope["time"] = iso_z(now)

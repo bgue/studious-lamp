@@ -32,6 +32,7 @@ tl-mcp = { workspace = true }
 tl-tui = { workspace = true }
 tl-cli = { workspace = true }
 tl-sim = { workspace = true }
+tl-lake = { workspace = true }
 
 [tool.ruff]
 line-length = 100

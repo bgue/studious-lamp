@@ -12,6 +12,7 @@ from typing import Any
 from tl_core.links.provider import get_vocabulary
 from tl_core.services import link_queries, psets, queries
 from tl_core.services.errors import RecordNotFoundError
+from tl_lake import describe_lake
 
 from tl_mcp.context import McpContext
 
@@ -56,3 +57,12 @@ def relations_resource(ctx: McpContext) -> str:
             }
         )
     return dump(rows)
+
+
+def lake_schema_resource(ctx: McpContext) -> str:
+    """The lake's tables and columns: ``{"<table>": [{"column": ..., "type": ...}]}``.
+
+    Raises ``LakeNotInitialisedError`` when nothing was synced yet.
+    """
+    tables = describe_lake(ctx.lake.config)
+    return dump({t: [{"column": c, "type": ty} for c, ty in cols] for t, cols in tables.items()})

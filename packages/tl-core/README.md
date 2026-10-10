@@ -61,11 +61,27 @@ Outbox, signed delivery and the event catalog. Plan and decisions: `docs/tickets
 | `signing`, `egress`, `transport` | modules | Standard Webhooks signing; SSRF policy with DNS pinning; httpx transport |
 | `queries`, `wiring`, `worker` | modules | Read views for the CLI; engine wiring; the worker loop |
 
+A subscription without a usable signing secret (after a restore) is held back: its deliveries stay pending, `tl webhook ls` shows `needs_secret`, and `tl webhook rotate-secret` releases them.
+
 A test send (`tl webhook test`, `send_test`) carries the header `webhook-test: 1`; real deliveries never do. It is refused for a
 disabled or expired subscription.
 
+## Ledger archive (`tl_core.archive`, P0-I7 workstream A)
+The ledger is sealed into signed, hash-chained segments that do not depend on the database (brief 24.3, 24.4, 24.5). The contract is `archive/types.py` (frozen). Runbooks: `docs/runbooks/ledger-archive-and-verify.md`, `docs/runbooks/restore-from-archive.md`.
+
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `seal_segment(conn, store, signer, max_events=10000)` | function | Seal the events after the last sealed seq into `segments/<first>-<last>/` (`events.ndjson`, `events.parquet`, `manifest.json`); crash-idempotent (the manifest is the commit marker); refuses a database that diverged from what is sealed |
+| `verify_archive(store, public_key=..., conn=None, deep=False, stop_at_first=True, expect_last_seq=None, expect_manifest_sha256=None)` | function | Files, signatures, manifest chain, gap-free seq, event hashes, scope chains, and with `conn` the database; `deep` recomputes database hashes and compares every field. Returns the first divergence as a `VerifyIssue` |
+| `verify_ledger(conn)` | function | The database alone: gap-free seq, hashes recomputed from stored fields, per-scope chains |
+| `iter_segment_events(store)`, `read_events(conn, first, last)`, `archive_scopes(store)`, `summarize_archive(store)` | functions | Read the archive or the ledger table (portable SQL) |
+| `Signer`, `Ed25519Signer`, `generate_signer`, `write_keypair`, `load_signer`, `load_public_key`, `key_id_of`, `public_key_path` | Protocol, class, functions | Ed25519 signing from `cryptography`; the dev key is `dev/data/archive-signing.key` (git-ignored); production custody is a later, human decision |
+| `ArchiveError`, `ArchiveExistsError`, `RestoreError` | exceptions | `RestoreError.issue` carries the first divergence when verification caused the refusal |
+
+Restore is not here: it inserts events verbatim through `tl_adapters.<dialect>.admin.restore_events` (`tl_adapters.restore.restore_from_archive`). `events.parquet` uses the ledger `events` column names, so the lake can load a segment directly.
+
 ## Depends on / used by
-- Depends on: `tl_schema` (generated DDL, effective schema, conformance), `sqlalchemy` (Core only), `pydantic`, `python-ulid`.
+- Depends on: `tl_schema` (generated DDL, effective schema, conformance), `sqlalchemy` (Core only), `pydantic`, `python-ulid`, `duckdb==1.5.5` (MIT; writes the archive Parquet, imported lazily), `cryptography` (Apache-2.0/BSD; Ed25519).
 - Used by: `tl_adapters`, `tl_cli`, `tl_tui` (embedded client), later `tl_api`, `tl_mcp`.
 
 ## Commands
@@ -78,6 +94,7 @@ just test tests/services
 | Setting or env var | Default | Notes |
 |---|---|---|
 | `TL_SCHEMA_DIR` | `schema/fixtures` | Package directory for the default schema provider; also holds `workflows/`, `links/` and `numbering/` (read on first use; tests install their own with `use_workflows`, `use_expected_links`, `use_numbering`) |
+| `TL_ARCHIVE_DIR`, `TL_ARCHIVE_KEY`, `TL_ARCHIVE_PUBLIC_KEY` | `./dev/data/archive`, `dev/data/archive-signing.key`, `dev/data/archive-signing.pub` | Read by the `tl archive` and `tl restore` commands |
 | `TL_WEBHOOK_ALLOWLIST` | empty | Comma-separated egress allow-list (`webhooks.egress.allowlist`): hosts, `host:port`, IPs or CIDRs that may resolve to private addresses |
 
 Adapters supply connections.
@@ -86,4 +103,4 @@ Adapters supply connections.
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1. Last interface changes: P0-I6 workstream B (proposals service, `cur_proposals`; `proposals/types.py` is a frozen contract; `docs/tickets/P0-I6/README-B.md`), P0-I4 workstream A (query language and change feed; `docs/tickets/P0-I4/README-A.md`) and workstream B (`tl_core.files`; `files/types.py` is a frozen contract; `docs/tickets/P0-I4/README-B.md`). Before that: P0-I3 (links, numbering, workflow, atomic edit; decisions D1 to D28 in `docs/tickets/P0-I3/README.md`) and P0-I2 workstream A (pset services; `docs/tickets/P0-I2/README-A.md`). Rebuild all projections together (`docs/runbooks/rebuild-projections.md`). Known limits: Postgres guard reads need row locks (P0-I5); the roles guard trusts the caller's role list until auth exists; voiding a record does not flag its links stale; `reserve_range` is a stub; the idempotency key is ignored.
+Introduced in P0-I1. Last interface changes: P0-I6 workstream B (proposals service, `cur_proposals`; `proposals/types.py` is a frozen contract; `docs/tickets/P0-I6/README-B.md`), P0-I4 workstream A (query language and change feed; `docs/tickets/P0-I4/README-A.md`) and workstream B (`tl_core.files`; `files/types.py` is a frozen contract; `docs/tickets/P0-I4/README-B.md`). Before that: P0-I3 (links, numbering, workflow, atomic edit; decisions D1 to D28 in `docs/tickets/P0-I3/README.md`) and P0-I2 workstream A (pset services; `docs/tickets/P0-I2/README-A.md`). Rebuild all projections together (`docs/runbooks/rebuild-projections.md`). Known limits: Postgres guard reads need row locks (P0-I5); the roles guard trusts the caller's role list until auth exists; voiding a record does not flag its links stale; `reserve_range` is a stub; the idempotency key is ignored. Archive, verifier and signer (`tl_core.archive`) added in P0-I7 workstream A (`docs/tickets/P0-I7/A-PLAN.md`).

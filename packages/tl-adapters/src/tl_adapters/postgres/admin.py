@@ -2,7 +2,8 @@
 
 A schema per test run (or per tenant) is how parity tests and local dev databases stay isolated
 inside one Postgres database: every table, the ``events`` triggers and the functions live in the
-schema the connection's ``search_path`` names.
+schema the connection's ``search_path`` names. It also holds ``restore_events``, the one way events
+enter a database without going through the ledger (restore from an archive).
 """
 
 from __future__ import annotations
@@ -11,12 +12,15 @@ import os
 import re
 import time
 import uuid
+from collections.abc import Iterable
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import Connection, create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.pool import NullPool
+from tl_core.ledger import Event
 
-from tl_adapters.postgres.engine import sqlalchemy_url
+from tl_adapters._restore import insert_events
+from tl_adapters.postgres.engine import is_write_connection, sqlalchemy_url
 
 DEFAULT_URL = "postgresql://postgres:postgres@localhost:5432/tl_test"
 """The dev cluster of ADR-0002; ``TL_PG_URL`` overrides it."""
@@ -160,3 +164,16 @@ def sweep_stale_databases(url: str, *, older_than_s: float = 3 * 3600) -> list[s
     finally:
         engine.dispose()
     return dropped
+
+
+def restore_events(conn: Connection, events: Iterable[Event]) -> int:
+    """Insert archived ``events`` verbatim into an empty ``events`` table; return how many.
+
+    ``conn`` comes from ``postgres.engine.write_tx`` (which holds the ledger lock, so no writer can
+    interleave), and the table must already exist and be empty (``RestoreError`` otherwise). Events
+    keep their seq, ids, times and hashes; nothing is recomputed. The caller rebuilds projections
+    afterwards.
+    """
+    if not is_write_connection(conn):
+        raise RuntimeError("restore_events needs a connection from write_tx")
+    return insert_events(conn, events)

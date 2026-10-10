@@ -15,7 +15,7 @@ from tl_core.services.link_trace import TraceDirection, TraceNode
 from tl_core.uow import UnitOfWork
 
 from tl_mcp.context import McpContext
-from tl_mcp.models import SearchResult
+from tl_mcp.models import LakeQueryOutput, SearchResult
 
 
 def resolve_record_id(uow: UnitOfWork, record: str, scope: str | None) -> str:
@@ -77,3 +77,23 @@ def trace_impl(
     with ctx.factory(True) as uow:
         record_id = resolve_record_id(uow, record, scope)
         return link_trace.trace(uow, record_id, depth=depth, direction=direction)
+
+
+def lake_query_impl(ctx: McpContext, *, sql: str, limit: int) -> LakeQueryOutput:
+    """One guarded read-only SELECT over the lake, as the acting agent.
+
+    ``ctx.lake`` refuses anything but one SELECT over lake tables (``GuardError``), caps rows and
+    bytes, times out, and writes one audit line with ``caller=ctx.actor``.
+    """
+    result = ctx.lake.query(sql, limit=limit, caller=ctx.actor)
+    return LakeQueryOutput(
+        columns=result.columns,
+        rows=result.rows,
+        row_count=result.row_count,
+        truncated=result.truncated,
+        truncated_by=result.truncated_by,
+        limit=result.limit,
+        as_of_seq=result.as_of_seq,
+        snapshot_id=result.snapshot_id,
+        as_of=result.as_of_line(),
+    )

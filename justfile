@@ -81,3 +81,8 @@ dev action:
 # Run the demo script for an increment, e.g. `just demo P0-I1`
 demo id:
     bash dev/demos/{{id}}.sh
+
+# Restore drill: back up a dev ledger several ways, lose it, restore it, and write a report with the
+# measured RPO and RTO (needs sudo and pgBackRest for the Postgres part; see docs/runbooks)
+drill *args:
+    bash dev/drills/restore.sh {{args}}

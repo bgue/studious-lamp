@@ -1,0 +1,32 @@
+# pgBackRest 2.50 (MIT) for a local Postgres cluster (brief 24.3, database layer).
+# `dev/drills/pgbackrest.sh` fills in @ROOT@ and runs it against a scratch cluster it creates and
+# drops itself. Never point it at the shared test cluster.
+#
+# Production (brief 24.3): weekly full, daily incremental, continuous WAL archive for point-in-time
+# recovery, an encrypted repository in a separate account or region. The lines for that are below,
+# commented out, because they need real keys and a bucket.
+[global]
+repo1-path=@ROOT@/repo
+log-path=@ROOT@/log
+lock-path=@ROOT@/lock
+spool-path=@ROOT@/spool
+repo1-retention-full=2
+start-fast=y
+process-max=2
+log-level-console=info
+log-level-file=detail
+#
+# repo1-type=s3
+# repo1-s3-bucket=tl-pgbackrest
+# repo1-s3-endpoint=s3.example.invalid
+# repo1-s3-region=eu-west-1
+# repo1-s3-key=<from the environment, never committed>
+# repo1-s3-key-secret=<from the environment, never committed>
+# repo1-cipher-type=aes-256-cbc
+# repo1-cipher-pass=<from the vault, never committed>
+# archive-async=y
+
+[drill]
+pg1-path=@PGDATA@
+pg1-port=@PORT@
+pg1-socket-path=/var/run/postgresql
