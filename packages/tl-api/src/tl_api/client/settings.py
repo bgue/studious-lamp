@@ -31,8 +31,7 @@ class SettingsApi(ApiClientBase):
     ) -> list[SettingView]:
         """Every setting with its definition and state, sorted by key (``GET /settings``).
 
-        Query parameters: ``project``, ``user``, ``prefix`` and ``modified`` (``True`` only when
-        ``modified_only``; leave it out otherwise).
+        ``modified_only`` keeps the settings set at the layer being viewed.
         """
         data = self._get_json(
             "/settings",
@@ -69,8 +68,7 @@ class SettingsApi(ApiClientBase):
     ) -> SettingView:
         """Set a key at a layer (``PUT /settings/{key}``).
 
-        The body has ``layer``, ``value``, ``reason``, ``accept_risk`` and ``applies_at`` (an ISO
-        text, or left out when None; build it with ``applies_at.isoformat()``).
+        ``applies_at`` (a time with a zone, in the future) schedules the change.
         """
         body: dict[str, Any] = {
             "layer": layer,

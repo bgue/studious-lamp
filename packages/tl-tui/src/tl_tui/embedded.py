@@ -373,9 +373,6 @@ class EmbeddedClient:
         prefix: str | None = None,
         modified_only: bool = False,
     ) -> list[SettingView]:
-        """``list_views(uow.conn(), project=, user=, prefix=, modified_only=)`` in a
-        read-only unit of work.
-        """
         with self._uow(True) as uow:
             return list_views(
                 uow.conn(), project=project, user=user, prefix=prefix, modified_only=modified_only
@@ -384,12 +381,10 @@ class EmbeddedClient:
     def get_setting(
         self, key: str, *, project: str | None = None, user: str | None = None
     ) -> SettingView:
-        """``get_view(uow.conn(), key, project=, user=)`` in a read-only unit of work."""
         with self._uow(True) as uow:
             return get_view(uow.conn(), key, project=project, user=user)
 
     def setting_history(self, key: str, *, layer: str | None = None) -> list[SettingChange]:
-        """``settings_history(uow.conn(), key, layer=layer)`` in a read-only unit of work."""
         with self._uow(True) as uow:
             return settings_history(uow.conn(), key, layer=layer)
 
@@ -403,10 +398,7 @@ class EmbeddedClient:
         accept_risk: bool = False,
         applies_at: datetime | None = None,
     ) -> SettingView:
-        """One writable unit of work: ``set_in_force(uow, key=, layer=, value=,
-        actor=self.actor, source=SOURCE, reason=, accept_risk=, applies_at=)``, then
-        ``view_at(uow.conn(), key, layer)`` (still inside the unit of work) is the answer.
-        """
+        """Set a key at a layer; the answer is the key as seen there."""
         with self._uow(False) as uow:
             set_in_force(
                 uow,
@@ -430,7 +422,7 @@ class EmbeddedClient:
         accept_risk: bool = False,
         applies_at: datetime | None = None,
     ) -> SettingView:
-        """As ``set_setting`` with ``reset_in_force`` (no value)."""
+        """Take the layer's own value away; the answer is the key as seen there."""
         with self._uow(False) as uow:
             reset_in_force(
                 uow,
@@ -452,9 +444,7 @@ class EmbeddedClient:
         reason: str,
         bounds: dict[str, Any] | None = None,
     ) -> SettingView:
-        """As ``set_setting`` with ``lock_in_force(uow, key=, locked=, bounds=, actor=,
-        source=, reason=)``; the answer is ``view_at(uow.conn(), key, "company")``.
-        """
+        """Lock a key for projects (or unlock it) and bound their values; company layer."""
         with self._uow(False) as uow:
             lock_in_force(
                 uow,
@@ -476,9 +466,7 @@ class EmbeddedClient:
         reason: str | None = None,
         accept_risk: bool = False,
     ) -> SettingView:
-        """As ``set_setting`` with ``revert_in_force(uow, key=, layer=, seq=, actor=,
-        source=, reason=, accept_risk=)``.
-        """
+        """Undo the latest change at a layer (a change of its own in the history)."""
         with self._uow(False) as uow:
             revert_in_force(
                 uow,

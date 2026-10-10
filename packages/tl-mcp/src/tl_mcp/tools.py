@@ -90,12 +90,9 @@ def get_settings_impl(
 ) -> list[SettingView]:
     """Settings with their definitions and effective state, as ``project`` sees them.
 
-    ``key`` names one setting (exact); ``prefix`` and ``modified_only`` narrow the list of all of
-    them. ``key`` together with ``prefix`` or ``modified_only`` is a ``ValueError`` ("give a key, or
-    a prefix and a filter, not both"), which ``guarded`` shows to the agent. In a read-only unit of
-    work (``ctx.factory(True)``): ``[get_view(uow.conn(), key, project=project)]`` for a key (an
-    unknown key raises ``UnknownSettingError``), else ``list_views(uow.conn(), project=project,
-    prefix=prefix, modified_only=modified_only)``.
+    ``key`` names one setting (exact; an unknown key is ``UnknownSettingError``); ``prefix`` and
+    ``modified_only`` narrow the list of all of them. A key together with either is a
+    ``ValueError`` that ``guarded`` shows to the agent. Read-only.
     """
     if key is not None and (prefix is not None or modified_only):
         raise ValueError("give a key, or a prefix and a filter, not both")
