@@ -12,7 +12,7 @@ from tl_core.services import link_queries, link_trace, queries
 from tl_core.services.errors import RecordNotFoundError
 from tl_core.services.link_queries import LinkView
 from tl_core.services.link_trace import TraceDirection, TraceNode
-from tl_core.settings.views import SettingView
+from tl_core.settings.views import SettingView, get_view, list_views
 from tl_core.uow import UnitOfWork
 
 from tl_mcp.context import McpContext
@@ -96,10 +96,13 @@ def get_settings_impl(
     work (``ctx.factory(True)``): ``[get_view(uow.conn(), key, project=project)]`` for a key (an
     unknown key raises ``UnknownSettingError``), else ``list_views(uow.conn(), project=project,
     prefix=prefix, modified_only=modified_only)``.
-
-    STUB (P0-I8-T04): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T04)")
+    if key is not None and (prefix is not None or modified_only):
+        raise ValueError("give a key, or a prefix and a filter, not both")
+    with ctx.factory(True) as uow:
+        if key is not None:
+            return [get_view(uow.conn(), key, project=project)]
+        return list_views(uow.conn(), project=project, prefix=prefix, modified_only=modified_only)
 
 
 def lake_query_impl(ctx: McpContext, *, sql: str, limit: int) -> LakeQueryOutput:
