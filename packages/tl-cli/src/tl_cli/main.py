@@ -13,14 +13,19 @@ import typer
 from tl_adapters.sqlite.uow import create_schema, rebuild_projections
 
 from tl_cli import (
+    archive,
+    backup,
     dev,
     events,
     feed,
     file,
+    lake,
+    ledger,
     link,
     proposal,
     pset,
     record,
+    restore,
     schema,
     serve,
     tui,
@@ -42,10 +47,15 @@ app.add_typer(file.app, name="file")
 app.add_typer(link.app, name="link")
 app.add_typer(feed.app, name="feed")
 app.add_typer(proposal.app, name="proposal")
+app.add_typer(lake.app, name="lake")
 app.add_typer(dev.app, name="dev")
 app.add_typer(webhook.app, name="webhook")
 app.command("serve")(serve.serve)
 app.command("tui")(tui.tui)
+app.add_typer(backup.app, name="backup")
+app.add_typer(archive.app, name="archive")
+app.add_typer(ledger.app, name="ledger")
+app.command("restore")(restore.restore)
 
 projections = typer.Typer(help="Maintain projections from the ledger.", no_args_is_help=True)
 app.add_typer(projections, name="projections")

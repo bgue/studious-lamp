@@ -9,6 +9,8 @@ dependencies = [
   "pyyaml>=6",
   "tl-schema",
   "httpx>=0.28.1",
+  "cryptography>=42",
+  "duckdb==1.5.5",
 ]
 
 [build-system]

@@ -9,17 +9,18 @@ import pytest
 from mcp.server.mcpserver.exceptions import ResourceError, ToolError
 from mcp_harness import ACTOR, McpHarness
 from tl_api.auth import Forbidden
+from tl_lake import LakeConfig, LakeQueryService
 from tl_mcp.context import McpContext
 from tl_mcp.errors import guarded, resource_name
 from tl_mcp.main import main, parse_args
 from tl_mcp.server import build_server
 
-READ_TOOLS = {"search_records", "get_record", "get_links", "trace"}
+READ_TOOLS = {"search_records", "get_record", "get_links", "trace", "lake_query"}
 PROPOSE_TOOLS = {"create_record", "update_psets", "link_records", "transition_workflow"}
 TOOLS = READ_TOOLS | PROPOSE_TOOLS | {"post_feed"}
 
 
-def test_the_phase_0_surface_is_four_read_tools_four_proposing_tools_and_post_feed(
+def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
     env: McpHarness,
 ) -> None:
     tools = asyncio.run(env.server.list_tools())
@@ -41,7 +42,10 @@ def test_the_phase_0_surface_is_four_read_tools_four_proposing_tools_and_post_fe
 def test_the_resources_are_registered(env: McpHarness) -> None:
     templates = {t.uri_template for t in asyncio.run(env.server.list_resource_templates())}
     assert templates == {"tl://record/{scope}/{key}", "tl://schema/{scope}/{record_type}"}
-    assert {str(r.uri) for r in asyncio.run(env.server.list_resources())} == {"tl://relations"}
+    assert {str(r.uri) for r in asyncio.run(env.server.list_resources())} == {
+        "tl://relations",
+        "tl://lake/schema",
+    }
 
 
 def test_the_actor_must_be_a_user_or_an_agent(env: McpHarness) -> None:
@@ -64,6 +68,7 @@ def test_every_tool_and_resource_calls_the_hook_before_doing_anything(tmp_path: 
             "get_record": {"record": "K-1", "scope": "project:P123"},
             "get_links": {"record": "K-1", "scope": "project:P123"},
             "trace": {"record": "K-1", "scope": "project:P123"},
+            "lake_query": {"sql": "SELECT 1"},
         }
         for tool, args in calls.items():
             with pytest.raises(ToolError, match="not allowed: nobody may"):
@@ -72,6 +77,7 @@ def test_every_tool_and_resource_calls_the_hook_before_doing_anything(tmp_path: 
             "tl://record/project:P123/K-1",
             "tl://schema/project:P123/core.Record",
             "tl://relations",
+            "tl://lake/schema",
         ):
             with pytest.raises(ResourceError, match="not allowed"):
                 env.read(uri)
@@ -82,9 +88,11 @@ def test_every_tool_and_resource_calls_the_hook_before_doing_anything(tmp_path: 
         "mcp.get_record",
         "mcp.get_links",
         "mcp.trace",
+        "mcp.lake_query",
         "mcp.resource.record",
         "mcp.resource.schema",
         "mcp.resource.relations",
+        "mcp.resource.lake_schema",
     }
     assert {actor for actor, _, _ in seen} == {ACTOR}
 
@@ -135,6 +143,7 @@ def test_oversized_input_is_rejected_before_the_hook_runs(tmp_path: Path) -> Non
             ],
             "get_links": [{"record": "r" * 129}],
             "trace": [{"record": "r" * 129}],
+            "lake_query": [{"sql": ""}, {"sql": "x" * 20_001}, {"sql": "SELECT 1", "limit": 1001}],
         }
         for tool, variants in too_big.items():
             for args in variants:
@@ -156,7 +165,8 @@ def test_oversized_input_is_rejected_before_the_hook_runs(tmp_path: Path) -> Non
 def test_resource_parts_are_checked_before_the_hook_and_quoted_for_it(tmp_path: Path) -> None:
     env, seen = recording_env(tmp_path)
     try:
-        ctx = McpContext(env.factory, ACTOR, lambda *a: seen.append(a))
+        lake = LakeQueryService(LakeConfig.at(tmp_path / "lake"))
+        ctx = McpContext(env.factory, ACTOR, lambda *a: seen.append(a), lake)
         for parts in (
             [("scope", ""), ("key", "K")],
             [("scope", "s"), ("key", " ")],

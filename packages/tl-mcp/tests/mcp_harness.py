@@ -35,15 +35,21 @@ class McpHarness:
 
     @staticmethod
     def build(
-        root: Path, *, authorize_hook: Callable[[str, str, str], None] | None = None
+        root: Path,
+        *,
+        authorize_hook: Callable[[str, str, str], None] | None = None,
+        lake_dir: Path | None = None,
     ) -> McpHarness:
         db = root / "tl.db"
         create_schema(db)
         factory = SqliteUowFactory(db)
+        lake = lake_dir if lake_dir is not None else root / "lake"
         if authorize_hook is None:
-            server = build_server(factory, actor=ACTOR)
+            server = build_server(factory, actor=ACTOR, lake_dir=lake)
         else:
-            server = build_server(factory, actor=ACTOR, authorize_hook=authorize_hook)
+            server = build_server(
+                factory, actor=ACTOR, authorize_hook=authorize_hook, lake_dir=lake
+            )
         return McpHarness(db, factory, server)
 
     def close(self) -> None:

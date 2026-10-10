@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import Connection, Engine
+from sqlalchemy.engine import make_url
 from tl_core.bus import Bus
 from tl_core.projection.types import ProjectorRegistry
 from tl_core.util import new_ulid, utcnow
@@ -34,6 +35,13 @@ class LedgerWithSchema(AppendInLedger):
 def is_postgres(target: DbTarget) -> bool:
     """True when ``target`` names a Postgres database."""
     return isinstance(target, str) and target.startswith(("postgresql://", "postgres://"))
+
+
+def display_target(target: DbTarget) -> str:
+    """``target`` as text that is safe to print: a Postgres URL without its password."""
+    if is_postgres(target):
+        return make_url(str(target)).render_as_string(hide_password=True)
+    return str(target)
 
 
 def dialect_of(target: DbTarget) -> str:

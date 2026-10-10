@@ -2,6 +2,7 @@
 
     --db PATH            SQLite ledger (default TL_DB or ./dev/data/tl.db)
     --actor ID           who this server acts as: `agent:<id>` or `user:<id>` (required)
+    --lake-dir D         DuckLake directory for `lake_query` (default TL_LAKE_DIR)
     --tool-mode T=MODE   set a record-changing tool's mode; the only mode is `propose`, and
                          `write` is refused (permission model, human gate)
 
@@ -32,6 +33,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         metavar="TOOL=MODE",
         help="mode of a record-changing tool; only 'propose' exists (write is a human gate)",
     )
+    parser.add_argument("--lake-dir", type=Path, default=None, help="DuckLake directory")
     return parser.parse_args(argv)
 
 
@@ -62,7 +64,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     factory = SqliteUowFactory(args.db)
     try:
-        build_server(factory, actor=args.actor, tool_modes=requested).run("stdio")
+        build_server(factory, actor=args.actor, tool_modes=requested, lake_dir=args.lake_dir).run(
+            "stdio"
+        )
     finally:
         factory.close()
     return 0
