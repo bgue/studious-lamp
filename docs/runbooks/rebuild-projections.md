@@ -26,6 +26,7 @@ Purpose: rebuild the current-state tables (`cur_*`) from the append-only ledger 
    just rebuild-projections core_record
    ```
    Expected: `replayed <n> events`, where `<n>` equals the number of events in the ledger.
+   A rebuild of all projectors (no name) also records that the `rebuild` and `reindex` effects of settings were carried out: `uv run tl config get <key> --long` stops showing `pending rebuild` for a change made before it. A rebuild of named projectors records nothing.
    Rebuild `core_record` and `pset_values` together (the default): `pset_values` replays pset events over whatever `cur_core_record` holds, so a rebuild of only `pset_values` can resurrect older values.
 
 ## Verify

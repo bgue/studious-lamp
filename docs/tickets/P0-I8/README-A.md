@@ -61,7 +61,8 @@ accepts it; the API returns 403 `agent_must_propose` for an agent token; the TUI
 | S17 | Review LOW fixes: hostile numbers and nesting, IPv6 tunnel ranges in the egress allow-list | security hygiene | orchestrator | done (5cd1705) |
 | S18 | Effects wiring (T11), `view_at`, the TUI settings contract, `FakeClient` settings, stubs for T07 to T09 | contract, determinism | orchestrator | done (18d8108) |
 | S19 | The about:config screens (T10), the embedded-client agent guard, `tl-tui` docs | UI state machine with modal flows; not Haiku-able under the checklist (no short, checkable specification) | fresh reviewer | round 4 |
-| S20 | Demo, runbooks (T12), READMEs, report | closing work | | todo |
+| S20 | `tl config --help` rewritten as user help (the merged ticket docstrings carried implementation steps) | quality | fresh reviewer | done (117aec5) |
+| S21 | Demo, runbooks (T12), READMEs, report | closing work | | todo |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
@@ -77,7 +78,7 @@ accepts it; the API returns 403 `agent_must_propose` for an agent token; the TUI
 | P0-I8-T09 | TUI client: embedded settings calls (the remote client passes the ApiClient methods through; the contract and the fake are S18) | haiku | S18 | ready | |
 | P0-I8-T10 | TUI about:config screen (`F9`) with snapshots | supervisor | S18 | built (S19) | modal flows with edit, reason and risk; a ticket would need the whole design pasted |
 | P0-I8-T11 | effects: `tl projections rebuild` and the server start write `setting_effect_applied` | supervisor | S2 | built (S18) | a ticket would have been longer than the change (about 15 lines and one test file); reviewed with the S-commits |
-| P0-I8-T12 | `docs/runbooks/settings.md` and the runbook edits | supervisor | T01 to T09 | todo (S20) | |
+| P0-I8-T12 | `docs/runbooks/settings.md` and the runbook edits | supervisor | T01 to T09 | todo (S21) | |
 
 ## Order of work
 1. Round 1 (this one): S1 to S6, tests, the plan; stubs, provided tests and references for T01 to T03; DISPATCH T01, T02, T03.

@@ -62,6 +62,10 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl_cli.webhook_ops` | module | The second half of `tl webhook`: `dlq ls`, `dlq redrive`, `disable`, `enable`, `rotate-secret` |
 | `tl new module NAME`, `tl new record-type MODULE.Class`, `tl new projector MODULE.name [--event T]...` | commands | Scaffold from templates (`--root DIR`, `--dry-run`): a module package, with its schema header and spec page; a record type (schema stub, create handler, tests, spec page); a projector for a derived `proj_<module>_<name>` table. Never overwrites, writes nothing when any file exists; the output passes `just check` and its own tests. The kinds not built yet (correspondence-domain, action, rule, enricher, connector, report, extractor) are follow-ups |
 | `tl_cli.scaffold` | package | The engine behind `tl new`: names (`names.py`), `Plan` and `write_plan` (`engine.py`), one planner per kind and the text templates under `templates/` |
+| `tl config ls|get|history|set|reset|lock|revert|diff|export|import` | commands | about:config (P0-I8 workstream A): `tl_cli.config` (read, change, lock, undo) and `tl_cli.config_exchange` (diff, YAML export and import) in one group. `--project`, `--user` or `--company` picks the layer; `--reason`, `--accept-risk` and `--at` as the key needs. Runbook: `docs/runbooks/settings.md` |
+| `tl_cli.actors` | module | `refuse_agent`: the write commands of `tl config` refuse `--actor agent:...` (exit 1, `agent_must_propose`); an agent proposes through MCP |
+| `tl lake sync --watch` | option | Keep syncing, waiting `lake.sync.interval` (read again before every wait; `tl_cli.lake.watch_loop`) until Ctrl+C; a failed sync prints `error:` and the watcher goes on |
+| `tl projections rebuild` | command | Also records that the `rebuild` and `reindex` setting effects were carried out when it rebuilds every projector |
 | `tl_cli.main:app` | typer app | The `tl` entry point |
 
 ## Depends on / used by
@@ -89,4 +93,4 @@ just demo P0-I1
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `dev` group added in P0-I4 workstream C; `webhook` group added in P0-I5 workstream B; `new` group (scaffolders) added in P0-I8 workstream C; `feed` group added in P0-I6 workstream A; `proposal` group added in P0-I6 workstream B; `backup`, `archive`, `ledger` groups and `restore` added in P0-I7 workstream A. `--role` is a stub list (no auth yet).
+Introduced in P0-I1; `config` group, `lake sync --watch` and the effect record of `projections rebuild` added in P0-I8 workstream A; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `dev` group added in P0-I4 workstream C; `webhook` group added in P0-I5 workstream B; `new` group (scaffolders) added in P0-I8 workstream C; `feed` group added in P0-I6 workstream A; `proposal` group added in P0-I6 workstream B; `backup`, `archive`, `ledger` groups and `restore` added in P0-I7 workstream A. `--role` is a stub list (no auth yet).
