@@ -55,5 +55,5 @@ A → B. WS-B merges `p0/i5` after A lands and adds outbox parity tests; WS-B wr
 | Gate | Approver | Where recorded |
 |---|---|---|
 | Webhook subscription / outbox / catalog LinkML | Orchestrator under KICKOFF delegation (§18–§19) | APPROVALS.md |
-| `psycopg` dependency (and `psycopg-binary` if needed) | Orchestrator (03 toolchain: Postgres adapter) | APPROVALS.md |
+| `psycopg` dependency (and `psycopg-binary` if needed) | refused (LGPL), replaced by pg8000 — ADR-0006 | APPROVALS.md (pg8000) |
 | Data migration tool | Human (deferred, A1) | follow-up ticket |

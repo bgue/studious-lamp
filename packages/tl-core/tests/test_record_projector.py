@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, inspect, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.pool import StaticPool
 from tl_core.ledger import Event, iso_utc
 from tl_core.projection.defaults import default_registry
 from tl_core.projection.record import RecordProjector
@@ -70,10 +69,10 @@ def created_payload(**overrides: Any) -> dict[str, Any]:
 
 
 @pytest.fixture
-def engine() -> Iterator[Engine]:
-    eng = create_engine("sqlite://", poolclass=StaticPool)
+def engine(new_engine: Callable[[], Engine], dialect: str) -> Iterator[Engine]:
+    eng = new_engine()
     with eng.begin() as conn:
-        for stmt in PROJECTOR.ddl("sqlite"):
+        for stmt in PROJECTOR.ddl(dialect):
             conn.execute(text(stmt))
     yield eng
     eng.dispose()
@@ -101,9 +100,11 @@ def fetch_all(engine: Engine) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-def test_ddl_sqlite_creates_table_and_is_idempotent() -> None:
-    eng = create_engine("sqlite://", poolclass=StaticPool)
-    statements = PROJECTOR.ddl("sqlite")
+def test_ddl_creates_table_and_is_idempotent(
+    new_engine: Callable[[], Engine], dialect: str
+) -> None:
+    eng = new_engine()
+    statements = PROJECTOR.ddl(dialect)
     assert statements
     with eng.begin() as conn:
         for stmt in statements:
@@ -111,9 +112,7 @@ def test_ddl_sqlite_creates_table_and_is_idempotent() -> None:
     with eng.begin() as conn:
         for stmt in statements:
             conn.execute(text(stmt))
-        names = conn.execute(
-            text("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'cur_core_record'")
-        ).all()
+        names = [n for n in inspect(conn).get_table_names() if n == "cur_core_record"]
     assert len(names) == 1
     eng.dispose()
 
@@ -129,10 +128,10 @@ def test_ddl_unknown_dialect_raises() -> None:
         PROJECTOR.ddl("mysql")
 
 
-def test_created_stores_every_column() -> None:
-    eng = create_engine("sqlite://", poolclass=StaticPool)
+def test_created_stores_every_column(new_engine: Callable[[], Engine], dialect: str) -> None:
+    eng = new_engine()
     with eng.begin() as conn:
-        for stmt in PROJECTOR.ddl("sqlite"):
+        for stmt in PROJECTOR.ddl(dialect):
             conn.execute(text(stmt))
     factory = EventFactory()
     created = factory.make("Record.Created", created_payload(), stream_id="rec-1")

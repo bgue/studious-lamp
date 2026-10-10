@@ -231,6 +231,18 @@ test or a generated artefact already enforces, or narrative history (that belong
   review round lost to a committed report (T12) and one report left uncommitted in a worktree (T15).
   Evidence: T12 attempt 1; T15 worktree; tickets T16b onward. Status: active
 
+- **L-P0-I3-O1** · 2026-10-09 · tags: env, process
+  A container restart stops background workflows and agents, but the filesystem (repo, worktrees, branches, ~/.local/bin,
+  the Postgres data dir) survives. Recover a ticket batch with `Workflow({scriptPath, resumeFromRunId, args})` using
+  the same args: finished implementer and reviewer calls replay from the journal and only the interrupted ones rerun.
+  Read `<transcriptDir>/journal.jsonl` first to see which agents finished.
+  Evidence: P0-I3 batch 2 restart; resumed wf_3b2e992f-50a. Status: active
+
+- **L-P0-I3-O2** · 2026-10-09 · tags: ledger, sync
+  Workflow guards are safe on SQLite only because they read inside the BEGIN IMMEDIATE write transaction. On Postgres
+  (P0-I5) the guard reads need `SELECT ... FOR UPDATE` on the record row or SERIALIZABLE isolation, or a concurrent
+  link retraction can slip between the guard check and the append.
+  Evidence: P0-I3 workflow engine review. Status: active
 - **L-P0-I3-1** · 2026-10-09 · tags: tests, process
   A provided `*.py.txt` is not covered by `ruff format`, so a hand-written one fails `just check` the moment an implementer
   copies it. Format provided files before committing: copy to a temp `.py`, `ruff format --config pyproject.toml`, copy back. Verify
@@ -387,3 +399,124 @@ test or a generated artefact already enforces, or narrative history (that belong
   in one unit of work on purpose. Also: pyright does not see a sibling test helper in another directory; the root
   `extraPaths = ["tests/webhooks"]` lets `tests/contract` import `world.py`.
   Evidence: `tests/contract/test_webhook_catalog_contract.py`; first run raised `expected version 1, found 2`. Status: active
+- **L-P0-I5-A1** · 2026-10-09 · tags: ledger, sync
+  On Postgres every write transaction takes one advisory lock first (`engine.write_tx`), the analogue of `BEGIN IMMEDIATE`. That
+  resolves L-P0-I4-A2 (commit order equals seq order, so a poller needs no lag window) and L-P0-I3-O2 (guard reads inside a write
+  transaction cannot go stale; no `SELECT ... FOR UPDATE` is needed). `seq` is `MAX(seq)+1` under the lock, so it stays gap-free like
+  SQLite's; an identity column would burn values on rollback. Writers queue; one that waits more than 10 s fails with a lock timeout.
+  Evidence: `test_postgres_ledger.py` (dropping the lock fails five tests); `docs/tickets/P0-I5/README-A.md` D1 to D3. Status: active
+
+- **L-P0-I5-A2** · 2026-10-09 · tags: tooling, ledger
+  The Postgres adapter registers driver loaders so `tl_core` sees SQLite-shaped values: JSON as canonical compact text, `timestamptz` as
+  `iso_utc` strings, booleans as 0/1, integer sums as ints. Consequence: do not use `sqlalchemy.inspect(conn).get_columns` (SQLAlchemy's
+  reflection expects parsed JSON and crashes on a column with a non-default collation); read column names with
+  `promoted.table_columns(conn, table)`. `events.payload` stays TEXT because JSONB re-renders numbers and would break re-hashing.
+  Evidence: `postgres/engine.py`; the crash appeared in `test_postgres_collation.py`. Status: active
+
+- **L-P0-I5-A3** · 2026-10-09 · tags: schema, tests
+  Text sorts by the server locale on Postgres (`en_US.utf8` in the default image, `C.UTF-8` in this container, so a local run hides it)
+  and bytewise on SQLite. The generator pins Postgres `TEXT` columns to `COLLATE "C"`; `test_postgres_collation.py` creates an ICU-locale
+  database to prove it. Also: LinkML `float` maps to `DOUBLE PRECISION` (Postgres `REAL` is 4 bytes). A dialect property that depends on
+  the server's configuration needs a test that creates the unfriendly configuration.
+  Evidence: `ddl_types.collated`, `tests/schema/test_generated_ddl_parity.py` precision test fails on `REAL`. Status: active
+
+- **L-P0-I5-A4** · 2026-10-09 · tags: tests
+  Hand-written SQL in tests must run on both databases: a boolean column takes `TRUE`/`FALSE` or a bound Python bool (never `0`/`1`),
+  a timestamp column takes a full ISO string (never `'x'`), binds are `text(...)` with `:name` (`exec_driver_sql` with `?` fails on
+  Postgres), and there is no `sqlite_master`. Of about 80 Postgres failures in the first parity run, all but three were these.
+  Evidence: reference conversion in the P0-I5 WS-A refs worktree; tickets T01 to T09 recipe item 4. Status: active
+
+- **L-P0-I5-A5** · 2026-10-09 · tags: tests, tooling
+  Parity fixtures: `new_db` is a function-scoped factory; a module-scoped fixture cannot depend on the adapter parameter, so shared
+  databases become per-test, and a Hypothesis test calls `new_db()` once per example and adds `HealthCheck.function_scoped_fixture`.
+  A killed pytest run leaves its `tl_pytest_<hex>` database behind (the runbook has the cleanup); a `timeout`-killed run did exactly that.
+  Evidence: `conftest.py`; `docs/runbooks/postgres-local-setup.md`. Status: active
+
+- **L-P0-I5-A6** · 2026-10-09 · tags: process
+  Triage by reference conversion paid off: converting every test module with a script in a scratch worktree and running it on Postgres
+  showed in about an hour that production code needed three fixes and the tests needed only mechanical changes, which made the
+  tickets small and their acceptance counts exact. The same worktree is the takeover path; keep it until the tickets merge.
+  Evidence: `/home/user/wt/p0-i5a-refs`; README-A "Order of work". Status: active
+
+- **L-P0-I5-A7** · 2026-10-09 · tags: process, env
+  Check a dependency's licence before adding it. psycopg 3 is LGPL-3.0; a copyleft dependency is a human gate (`04-gates.md` §2) that
+  the orchestrator's delegation does not cover, and "pre-approved" in a fanout plan named a driver, not a licence. The Postgres driver is
+  `pg8000` (BSD-3-Clause; deps scramp MIT-0, asn1crypto MIT, python-dateutil Apache-2.0/BSD). A new dependency line in a ticket or plan
+  names the package and its licence.
+  Evidence: orchestrator ruling on P0-I5 WS-A; `packages/tl-adapters/pyproject.toml`. Status: active
+
+- **L-P0-I5-A8** · 2026-10-09 · tags: tooling, ledger
+  pg8000 differences that the adapter hides: it ignores libpq `options` (the schema goes in as the startup parameter `search_path`);
+  it raises `IntegrityError` only for SQLSTATE 23505, so `engine.py` re-raises every class-23 error as `IntegrityError` (the append-only
+  trigger, NOT NULL); it has no blocking wait for `LISTEN`, so `NotifyListener` runs `SELECT 1` every 50 ms and drains
+  `conn.notifications`; result coercions are `register_in_adapter(oid, fn)` with fn taking the text value. The loader behaviour that
+  `tl_core` relies on (canonical JSON text, ISO UTC timestamps, 0/1 booleans, int sums) is the same under both drivers.
+  Evidence: `postgres/engine.py`, `postgres/notify.py`; 150 adapter tests pass on both adapters. Status: active
+- **L-P0-I3-7** · 2026-10-09 · tags: tui, tooling
+  Textual `OptionList` prompts and `DataTable` cells that are plain `str` are parsed as Rich markup, so `[x]` vanished from a
+  row (`▶ [x] KEY` rendered as `▶  KEY`). Wrap row text in `rich.text.Text(...)`. `query_one("#id", Select[str])` raises
+  `TypeError` at run time (subscripted generic): query `Select` and annotate the variable `Select[str]`. A screen method named
+  `action_toggle` overrides `DOMNode.action_toggle` and fails pyright; use `action_toggle_select`. Textual's own command palette
+  owns Ctrl+P: set `ENABLE_COMMAND_PALETTE = False` on the app before binding it.
+  Evidence: `widgets/link_picker.py`, `app.py`, first pilot runs of `test_link_picker`. Status: active
+
+- **L-P0-I3-8** · 2026-10-09 · tags: tui
+  App-level `Binding`s (`l`, `w`, `t`, `R`) do not fire while an `Input` has focus (it consumes printable keys), but they do fire
+  under a `ModalScreen` whose focus is elsewhere, so every new app action starts with `if self._modal_open(): return`.
+  `app.post_message(RecordChanged)` is delivered to the app only, never to a child `RecordView`: after a modal command call
+  `view.reload()` (`TlApp._changed`).
+  Evidence: `tests/test_palette.py::test_the_l_w_t_keys_are_typed_into_the_palette_not_run`, workflow-menu refresh test. Status: active
+
+- **L-P0-I3-9** · 2026-10-09 · tags: tui, process
+  Textual delivers `Select.Changed` asynchronously, after a programmatic `select.value = ...` has returned, so a reentrancy flag
+  (`_setting = True ... False`) never covers the event: the picker's own change was read as the user's and froze the relation. Remember
+  the value the code assigned and compare `event.value` with it. A review that probes with a second record type found it; the
+  provided test only used one type and could not see it.
+  Evidence: T12 escalation; `tests/test_link_picker.py::test_the_relation_follows_the_highlighted_record_until_the_user_changes_it`. Status: active
+
+- **L-P0-I3-10** · 2026-10-09 · tags: core, services
+  Handlers never commit and read the projections of the caller's own transaction, so a new command that needs several writes to be
+  atomic is a composition: call the existing handlers in order inside the one unit of work, chain `expected_version` from each result,
+  share one `correlation_id`, and let the caller's rollback undo everything when a part raises. No new write path was needed for
+  `EditRecord`. A part that changes nothing raises `NoChangesError` before it appends, so it can be skipped safely.
+  Evidence: `services/edit.py`, `tests/services/test_edit_record.py` (rollback and stale-version cases). Status: active
+
+- **L-P0-I3-11** · 2026-10-09 · tags: process, tickets
+  A ticket that tells the implementer to implement a questionable behaviour "as written" and to raise it as an open question works: T13b's
+  spec ended the tray on the first successful link and hid the refusals of the rest; the implementer kept the spec, reported the
+  question, and the supervisor decided with the orchestrator. Two Haiku tickets that run in one batch cannot depend on each other's code
+  (T02b `trace` needed T14a): leave the dependent piece out of the ticket and add it after the merge.
+  Evidence: `docs/reports/P0-I3/P0-I3-T13b.md`, decisions D26 and D27. Status: active
+- **L-P0-I5-O1** · 2026-10-09 · tags: dependencies, gates
+  Check the licence of every new dependency and its transitive tree before adding it. psycopg 3 is LGPL-3.0, and
+  linkml's hard `jsonschema[format]` pulls rfc3987 (GPL-3.0+). Both are copyleft, which is a human gate. Use pg8000 for
+  Postgres, and keep the root `override-dependencies` that swaps in `jsonschema[format-nongpl]`. Name the licence in
+  the relay NOTE and in APPROVALS.md. Policy and allow-list: ADR-0006.
+  Evidence: orchestrator licence scan during P0-I5. Status: active
+- **L-P0-I5-O2** · 2026-10-09 · tags: environment, lake
+  DuckDB cannot `INSTALL` extensions here because extensions.duckdb.org is refused. Install the PyPI packages
+  `duckdb-extensions` and `duckdb-extension-ducklake`, with `duckdb` pinned to the same version (1.5.5), and call
+  `duckdb_extensions.import_extension('ducklake')` before `LOAD ducklake`. Parquet and JSON are built in. pgBackRest is
+  installable with apt. GitHub release downloads work. Details: the ADR-0002 addendum.
+  Evidence: orchestrator probes before P0-I7. Status: active
+- **L-P0-I5-O3** · 2026-10-09 · tags: env, process
+  Refines L-P0-I3-O1. Before resuming a ticket-batch workflow after a restart, read its journal. For every implementer
+  with no `result` line, remove its worktree and delete its ticket branch (`git worktree remove --force`, `git branch -D`),
+  so the rerun's `git worktree add -b` starts clean. Keep a worktree whose implementer finished; an interrupted review
+  re-creates its own detached worktree. Resume reviewers and supervisors with SendMessage, and tell them their
+  background test runs are gone.
+  Evidence: second restart during P0-I4/I5; resumed three workflows and four agents. Status: active
+
+- **L-P0-I5-A9** · 2026-10-10 · tags: tests, process
+  Parity costs time: tests/query takes about 70 s on SQLite and about 7 minutes on both adapters under load, the Hypothesis property
+  tests are about ten times slower on Postgres (each example makes a schema), and the full `just test-parity` (1214 tests) took 11 minutes on a loaded container. Give a
+  CI job and any `timeout` a budget of 20 minutes, and do not wrap these runs in a 2-minute tool timeout. `just test-parity` also deselects the
+  tests that never use a database fixture, so its total is lower than a `--adapters sqlite,postgres` count by design; a ticket that quotes
+  both numbers says so.
+  Evidence: reports P0-I5-T04, T06, T07, T08, T09; `docs/reports/P0-I5-A.md`. Status: active
+
+- **L-P0-I5-A10** · 2026-10-10 · tags: tooling
+  A docstring copied from a spec into a Python file must escape backslashes (`\\s`), or the module compiles with a `SyntaxWarning` on every
+  run; a ticket that renames a test must say so in *Tests to add* when it also says "every test keeps its name"; a provided-test ticket's
+  `git diff --stat` only lists new files once they are committed.
+  Evidence: reports P0-I5-T13 and T09. Status: active

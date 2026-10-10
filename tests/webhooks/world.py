@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
-from tl_adapters.sqlite.factory import SqliteUowFactory
 from tl_core.ledger import Event, NewEvent
 from tl_core.services.commands import CreateRecord, UpdateRecord
 from tl_core.services.records import handle_create_record, handle_update_record
@@ -30,8 +28,8 @@ SCOPE = "project:P1"
 class World:
     """One ledger, one clock, and helpers that write through the real command handlers."""
 
-    path: Path
-    factory: SqliteUowFactory
+    path: Any  # the database target: a SQLite file or a postgresql:// URL
+    factory: Any  # a SqliteUowFactory or PostgresUowFactory
     clock: FakeClock
     transport: ScriptedTransport
     resolver_calls: list[str] = field(default_factory=list[str])

@@ -23,7 +23,7 @@ EXPECTED_COLUMN_TYPES: list[tuple[str, str, str]] = [
     ("enum", "TEXT", "TEXT"),
     ("integer", "INTEGER", "BIGINT"),
     ("boolean", "INTEGER", "BOOLEAN"),
-    ("float", "REAL", "REAL"),
+    ("float", "REAL", "DOUBLE PRECISION"),
     ("double", "REAL", "DOUBLE PRECISION"),
     ("decimal", "NUMERIC", "NUMERIC"),
     ("date", "TEXT", "DATE"),

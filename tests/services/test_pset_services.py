@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
-from tl_adapters.sqlite.uow import create_schema, open_uow
+from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_core.schema_provider import DirectorySchemaProvider, get_provider, use_provider
 from tl_core.services.commands import CreateRecord
 from tl_core.services.errors import RecordNotFoundError
@@ -25,13 +25,13 @@ def fixture_schemas() -> Iterator[None]:
 
 
 @pytest.fixture
-def db(tmp_path: Path) -> Path:
-    path = tmp_path / "tl.db"
+def db(new_db: Callable[[], DbTarget]) -> DbTarget:
+    path = new_db()
     create_schema(path)
     return path
 
 
-def create(db: Path, key: str, psets: dict[str, object]) -> str:
+def create(db: DbTarget, key: str, psets: dict[str, object]) -> str:
     with open_uow(db) as uow:
         result = handle_create_record(
             uow,
@@ -48,7 +48,7 @@ def create(db: Path, key: str, psets: dict[str, object]) -> str:
     return result.stream_id
 
 
-def test_form_metadata_describes_the_scope(db: Path) -> None:
+def test_form_metadata_describes_the_scope(db: DbTarget) -> None:
     with open_uow(db, readonly=True) as uow:
         meta = form_metadata(uow, SCOPE, "core.Record")
         again = form_metadata(uow, SCOPE, "core.Record")
@@ -60,7 +60,7 @@ def test_form_metadata_describes_the_scope(db: Path) -> None:
     assert company.effective_schema_hash != meta.effective_schema_hash
 
 
-def test_conformance_of_a_record(db: Path) -> None:
+def test_conformance_of_a_record(db: DbTarget) -> None:
     clean = create(db, "V-1", {})
     partial = create(db, "V-2", {"valve_data": {"size_in": 4}})
     broken = create(db, "V-3", {"valve_data": {"size_in": 500, "manufacturer": "A"}})
@@ -78,6 +78,6 @@ def test_conformance_of_a_record(db: Path) -> None:
     assert [(i.path, i.rule) for i in bad.issues] == [("psets.valve_data.size_in", "range")]
 
 
-def test_conformance_of_an_unknown_record(db: Path) -> None:
+def test_conformance_of_an_unknown_record(db: DbTarget) -> None:
     with open_uow(db, readonly=True) as uow, pytest.raises(RecordNotFoundError):
         conformance(uow, new_ulid())

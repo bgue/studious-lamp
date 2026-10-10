@@ -5,13 +5,14 @@ from __future__ import annotations
 
 import hashlib
 import io
+from collections.abc import Callable
 from pathlib import Path
 from typing import BinaryIO
 
 import pytest
 from sqlalchemy import text
+from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_adapters.objectstore.fs import FsObjectStore
-from tl_adapters.sqlite.uow import create_schema, open_uow
 from tl_core.files import ObjectNotFound, object_key
 from tl_core.files.reconcile import ReconcileReport, reconcile_objects
 
@@ -19,13 +20,13 @@ INSERT = text(
     "INSERT INTO cur_files (file_id, scope, record_id, slot, revision, sha256, size, content_type, "
     "filename, status, deduplicated, uploaded_by, uploaded_at, updated_at, version, last_seq) "
     "VALUES (:file_id, 'project:P123', 'REC', NULL, 1, :sha, :size, 'text/plain', 'f.txt', "
-    ":status, 0, 'user:t', '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00', 1, 1)"
+    ":status, FALSE, 'user:t', '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00', 1, 1)"
 )
 
 
 @pytest.fixture
-def db(tmp_path: Path) -> Path:
-    path = tmp_path / "tl.db"
+def db(new_db: Callable[[], DbTarget]) -> DbTarget:
+    path = new_db()
     create_schema(path)
     return path
 
@@ -46,7 +47,7 @@ def put_object(store: FsObjectStore, body: bytes) -> str:
 
 
 def add_row(
-    db: Path, file_id: str, body: bytes, *, status: str = "available", size: int | None = None
+    db: DbTarget, file_id: str, body: bytes, *, status: str = "available", size: int | None = None
 ) -> None:
     with open_uow(db) as uow:
         uow.conn().execute(
@@ -60,18 +61,18 @@ def add_row(
         )
 
 
-def run(db: Path, store: object, *, verify: bool = False) -> ReconcileReport:
+def run(db: DbTarget, store: object, *, verify: bool = False) -> ReconcileReport:
     with open_uow(db, readonly=True) as uow:
         return reconcile_objects(uow, store, verify=verify)  # type: ignore[arg-type]
 
 
-def test_an_empty_ledger_reconciles_cleanly(db: Path, store: FsObjectStore) -> None:
+def test_an_empty_ledger_reconciles_cleanly(db: DbTarget, store: FsObjectStore) -> None:
     report = run(db, store)
     assert report.ok and report.checked == 0 and report.listed is True and report.verified is False
     assert (report.missing, report.corrupt, report.orphans, report.staging) == ([], [], [], [])
 
 
-def test_every_referenced_object_present_is_ok(db: Path, store: FsObjectStore) -> None:
+def test_every_referenced_object_present_is_ok(db: DbTarget, store: FsObjectStore) -> None:
     for name in (b"one", b"two"):
         put_object(store, name)
         add_row(db, f"F-{name.decode()}", name)
@@ -81,7 +82,7 @@ def test_every_referenced_object_present_is_ok(db: Path, store: FsObjectStore) -
 
 
 def test_a_missing_object_is_reported_with_every_file_that_references_it(
-    db: Path, store: FsObjectStore
+    db: DbTarget, store: FsObjectStore
 ) -> None:
     put_object(store, b"present")
     add_row(db, "F-present", b"present")
@@ -96,7 +97,7 @@ def test_a_missing_object_is_reported_with_every_file_that_references_it(
 
 
 def test_rejected_and_quarantined_files_still_need_their_bytes(
-    db: Path, store: FsObjectStore
+    db: DbTarget, store: FsObjectStore
 ) -> None:
     add_row(db, "F-q", b"q", status="quarantined")
     add_row(db, "F-r", b"r", status="rejected")
@@ -104,7 +105,7 @@ def test_rejected_and_quarantined_files_still_need_their_bytes(
     assert sorted(p.file_ids[0] for p in report.missing) == ["F-q", "F-r"]
 
 
-def test_missing_problems_are_sorted_by_hash(db: Path, store: FsObjectStore) -> None:
+def test_missing_problems_are_sorted_by_hash(db: DbTarget, store: FsObjectStore) -> None:
     bodies = [b"a", b"b", b"c", b"d"]
     for i, body in enumerate(bodies):
         add_row(db, f"F-{i}", body)
@@ -112,7 +113,7 @@ def test_missing_problems_are_sorted_by_hash(db: Path, store: FsObjectStore) -> 
     assert [p.sha256 for p in report.missing] == sorted(digest(b) for b in bodies)
 
 
-def test_corruption_is_found_only_when_verifying(db: Path, store: FsObjectStore) -> None:
+def test_corruption_is_found_only_when_verifying(db: DbTarget, store: FsObjectStore) -> None:
     key = put_object(store, b"original bytes")
     add_row(db, "F-1", b"original bytes")
     store.path_for(key).write_bytes(b"flipped bits!!")  # same length, other content
@@ -124,7 +125,7 @@ def test_corruption_is_found_only_when_verifying(db: Path, store: FsObjectStore)
     assert problem.detail == f"sha256 is {digest(b'flipped bits!!')}"
 
 
-def test_a_size_that_differs_from_the_row_is_corruption(db: Path, store: FsObjectStore) -> None:
+def test_a_size_that_differs_from_the_row_is_corruption(db: DbTarget, store: FsObjectStore) -> None:
     put_object(store, b"abc")
     add_row(db, "F-1", b"abc", size=99)
     report = run(db, store, verify=True)
@@ -132,7 +133,7 @@ def test_a_size_that_differs_from_the_row_is_corruption(db: Path, store: FsObjec
     assert problem.detail == "3 bytes, expected 99"
 
 
-def test_orphans_and_staging_keys_are_listed(db: Path, store: FsObjectStore) -> None:
+def test_orphans_and_staging_keys_are_listed(db: DbTarget, store: FsObjectStore) -> None:
     put_object(store, b"kept")
     add_row(db, "F-1", b"kept")
     orphan = put_object(store, b"left over from a rolled-back upload")
@@ -174,7 +175,7 @@ class MinimalStore:
         raise AssertionError("not used")
 
 
-def test_a_store_that_cannot_list_still_checks_references(db: Path) -> None:
+def test_a_store_that_cannot_list_still_checks_references(db: DbTarget) -> None:
     add_row(db, "F-1", b"here")
     add_row(db, "F-2", b"gone")
     minimal = MinimalStore({object_key(digest(b"here")): b"here", "sha256/zz/zz/stray": b"x"})
@@ -183,7 +184,7 @@ def test_a_store_that_cannot_list_still_checks_references(db: Path) -> None:
     assert [p.file_ids for p in report.missing] == [["F-2"]]
 
 
-def test_reconciliation_closes_the_streams_it_opens(db: Path) -> None:
+def test_reconciliation_closes_the_streams_it_opens(db: DbTarget) -> None:
     opened: list[io.BytesIO] = []
 
     class Tracking(MinimalStore):
@@ -197,7 +198,7 @@ def test_reconciliation_closes_the_streams_it_opens(db: Path) -> None:
     assert len(opened) == 1 and opened[0].closed
 
 
-def test_without_verify_no_object_is_read(db: Path) -> None:
+def test_without_verify_no_object_is_read(db: DbTarget) -> None:
     class NoRead(MinimalStore):
         def get(self, key: str) -> BinaryIO:
             raise AssertionError("get must not be called without verify")
@@ -206,7 +207,7 @@ def test_without_verify_no_object_is_read(db: Path) -> None:
     assert run(db, NoRead({object_key(digest(b"here")): b"here"})).ok
 
 
-def test_the_report_is_read_only(db: Path, store: FsObjectStore) -> None:
+def test_the_report_is_read_only(db: DbTarget, store: FsObjectStore) -> None:
     put_object(store, b"x")
     before = list(store.iter_keys())
     run(db, store, verify=True)

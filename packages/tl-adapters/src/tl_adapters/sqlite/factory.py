@@ -1,8 +1,13 @@
-"""A reusable unit-of-work factory for the SQLite adapter (one engine, many short transactions).
+"""A long-lived SQLite unit-of-work factory for servers (P0-I4 workstream C).
 
-``open_uow`` builds and disposes an engine per call, which is fine for a command but wasteful for a
-long-running worker that opens a transaction per delivery. ``SqliteUowFactory`` keeps one engine and
-hands out units of work that share it; it satisfies ``tl_core.webhooks.base.UowFactory``.
+``open_uow`` builds an engine for every unit of work, which suits a CLI call. A server opens one
+transaction per request, so :class:`SqliteUowFactory` keeps one engine, one ledger and one bus for
+the life of the process. It is callable with the same shape every server-side caller uses:
+
+    factory(readonly) -> context manager that yields an entered UnitOfWork
+
+The Postgres adapter (P0-I5) offers a factory with this call shape, so a server swaps adapters by
+building a different factory and nothing else.
 """
 
 from __future__ import annotations
@@ -10,7 +15,8 @@ from __future__ import annotations
 from contextlib import AbstractContextManager
 from pathlib import Path
 
-from tl_core.bus import Bus
+from sqlalchemy import Engine
+from tl_core.bus import Bus, InProcessBus
 from tl_core.projection.defaults import default_registry
 from tl_core.projection.types import ProjectorRegistry
 from tl_core.uow import UnitOfWork
@@ -21,27 +27,35 @@ from tl_adapters.sqlite.uow import SqliteUnitOfWork
 
 
 class SqliteUowFactory:
-    """``factory()`` opens a write unit of work, ``factory(readonly=True)`` a read snapshot.
+    """One engine and one bus; ``factory(readonly)`` opens a unit of work on them.
 
-    Use the result as a context manager. Call :meth:`dispose` when the process is done.
+    Events committed through any unit of work from this factory are published on ``bus`` in commit
+    order. Events written by another process reach subscribers through a change-feed poller on
+    ``ledger``. ``close()`` (alias ``dispose()``) disposes the engine; call it at shutdown.
+    ``readonly`` may be passed positionally or by keyword.
     """
 
     def __init__(
         self,
         path: str | Path,
         *,
-        registry: ProjectorRegistry | None = None,
         bus: Bus | None = None,
+        registry: ProjectorRegistry | None = None,
     ) -> None:
-        self._engine = make_engine(path)
-        self._ledger = SqliteLedger(self._engine)
+        self.path = Path(path)
+        self.engine: Engine = make_engine(self.path)
+        self.ledger = SqliteLedger(self.engine)
+        self.bus: Bus = bus if bus is not None else InProcessBus()
         self._registry = registry if registry is not None else default_registry()
-        self._bus = bus
 
-    def __call__(self, *, readonly: bool = False) -> AbstractContextManager[UnitOfWork]:
+    def __call__(self, readonly: bool = False) -> AbstractContextManager[UnitOfWork]:
         return SqliteUnitOfWork(
-            self._engine, self._ledger, self._registry, self._bus, readonly=readonly
+            self.engine, self.ledger, self._registry, self.bus, readonly=readonly
         )
 
+    def close(self) -> None:
+        self.engine.dispose()
+
     def dispose(self) -> None:
-        self._engine.dispose()
+        """Alias of :meth:`close` (the name P0-I5 callers use)."""
+        self.close()

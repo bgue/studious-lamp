@@ -6,6 +6,10 @@ reads ``Ledger.read_after`` from a cursor and hands every page to a :class:`Subs
 which filters and delivers it. The cursor only moves forward after a page was dispatched, so a
 crash or a failed read repeats events rather than losing them (at-least-once); the registry drops
 a repeat for a subscriber that already saw it.
+
+A poller may be given a ``wake`` event. Setting it ends the current wait early, so a database that
+can announce commits (Postgres ``LISTEN/NOTIFY``) makes delivery prompt. Cursor reads stay
+authoritative: a lost or spurious wake-up costs one extra poll at most, never an event.
 """
 
 from __future__ import annotations
@@ -32,11 +36,13 @@ class ChangePoller:
         scope: str | None = None,
         interval_s: float = 0.25,
         page_size: int = 500,
+        wake: threading.Event | None = None,
     ) -> None:
         """``after_seq=None`` starts at the ledger's current head (only later events are seen);
         ``after_seq=n`` starts after ``n`` (0 replays everything). ``scope`` is passed to
         ``read_after``. Raises ``ValueError`` for ``after_seq`` < 0, ``interval_s`` <= 0 or
-        ``page_size`` < 1."""
+        ``page_size`` < 1. ``wake``, when given, cuts the wait between polls short each time it is
+        set (the poller clears it); ``interval_s`` stays the longest wait."""
         if after_seq is not None and after_seq < 0:
             raise ValueError("after_seq must be >= 0")
         if interval_s <= 0:
@@ -47,6 +53,7 @@ class ChangePoller:
         self._registry = registry
         self._scope = scope
         self._interval = interval_s
+        self._wake = wake
         self._page_size = page_size
         self._cursor = ledger.head_seq() if after_seq is None else after_seq
         self._error: Exception | None = None
@@ -104,6 +111,8 @@ class ChangePoller:
         if thread is None:
             return
         self._stop.set()
+        if self._wake is not None:
+            self._wake.set()  # end a wait in progress
         thread.join(timeout)
         if not thread.is_alive():
             self._thread = None
@@ -116,7 +125,10 @@ class ChangePoller:
             except Exception as exc:
                 self._error = exc
                 log.warning("change-feed poll failed: %s", exc)
-            self._stop.wait(self._interval)
+            if self._wake is None:
+                self._stop.wait(self._interval)
+            elif self._wake.wait(self._interval):
+                self._wake.clear()
 
     def __enter__(self) -> ChangePoller:
         self.start()

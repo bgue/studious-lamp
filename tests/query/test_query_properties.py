@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from pathlib import Path
+from collections.abc import Callable, Iterator
 
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from query_seed import SCOPE, build_db
-from tl_adapters.sqlite.uow import SqliteUnitOfWork, open_uow
+from tl_adapters._unit import BaseUnitOfWork
+from tl_adapters.db import DbTarget, open_uow
 from tl_core.query import (
     And,
     Compare,
@@ -238,9 +238,9 @@ def test_whatever_parses_prints_and_parses_again(text: str) -> None:
 # --- the compiler runs on a real database ------------------------------------------------------
 
 
-@pytest.fixture(scope="module")
-def shared_uow(tmp_path_factory: pytest.TempPathFactory) -> Iterator[SqliteUnitOfWork]:
-    path: Path = tmp_path_factory.mktemp("query") / "ledger.db"
+@pytest.fixture
+def shared_uow(new_db: Callable[[], DbTarget]) -> Iterator[BaseUnitOfWork]:
+    path = new_db()
     build_db(path)
     with open_uow(path, readonly=True) as opened:
         yield opened
@@ -252,9 +252,7 @@ def shared_uow(tmp_path_factory: pytest.TempPathFactory) -> Iterator[SqliteUnitO
     suppress_health_check=[HealthCheck.function_scoped_fixture, HealthCheck.too_slow],
 )
 @given(exprs())
-def test_compiled_sql_always_runs_and_counts_agree(
-    shared_uow: SqliteUnitOfWork, expr: Expr
-) -> None:
+def test_compiled_sql_always_runs_and_counts_agree(shared_uow: BaseUnitOfWork, expr: Expr) -> None:
     spec = QuerySpec(scope=SCOPE, where=expr, limit=None)
     try:
         rows = run_query(shared_uow, spec)
@@ -272,7 +270,7 @@ def test_compiled_sql_always_runs_and_counts_agree(
     suppress_health_check=[HealthCheck.function_scoped_fixture, HealthCheck.too_slow],
 )
 @given(SOUP | ANY_TEXT)
-def test_any_parsed_text_compiles_and_runs(shared_uow: SqliteUnitOfWork, text: str) -> None:
+def test_any_parsed_text_compiles_and_runs(shared_uow: BaseUnitOfWork, text: str) -> None:
     try:
         where = parse(text)
         rows = run_query(shared_uow, QuerySpec(scope=SCOPE, where=where, limit=None))
@@ -288,7 +286,7 @@ def test_any_parsed_text_compiles_and_runs(shared_uow: SqliteUnitOfWork, text: s
     suppress_health_check=[HealthCheck.function_scoped_fixture, HealthCheck.too_slow],
 )
 @given(exprs())
-def test_not_partitions_the_result(shared_uow: SqliteUnitOfWork, expr: Expr) -> None:
+def test_not_partitions_the_result(shared_uow: BaseUnitOfWork, expr: Expr) -> None:
     """Two-valued logic: a record matches ``x`` or ``-x``, never both and never neither."""
     try:
         yes = {

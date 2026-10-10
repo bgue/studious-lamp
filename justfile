@@ -18,14 +18,22 @@ check:
     uv run ruff format --check .
     uv run pyright
     uv run python -m tl_schema.generate --check
+    uv run python dev/tools/check_licences.py
 
 # Unit and integration tests on SQLite
 test *args:
     uv run pytest -q {{args}}
 
-# Parity suite on SQLite and Postgres (arrives with P0-I5)
-test-parity:
-    @echo "test-parity: not yet (arrives with P0-I5)"
+# Parity suite: every test that uses the `new_db`/`db`/`adapter` fixtures runs on SQLite and on
+# Postgres (TL_PG_URL, default the native dev cluster), plus the Postgres-only tests. Postgres being
+# unreachable is a failure here, never a skip.
+test-parity *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just dev up
+    export TL_REQUIRE_POSTGRES=1
+    export TL_PG_URL="${TL_PG_URL:-postgresql://postgres:postgres@localhost:5432/tl_test}"
+    uv run pytest -q -m "parity or requires_postgres" --adapters sqlite,postgres {{args}}
 
 # TUI tests: widget behaviour and snapshot tests, with terminal sizes pinned in the tests
 test-tui *args:

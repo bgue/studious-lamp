@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -110,7 +110,7 @@ def test_expired_subscriptions_stop_receiving(world: World) -> None:
             CreateWebhookSubscription(
                 name="short",
                 target_url="https://hook.test/",
-                expires_at=world.clock() + timedelta(days=1),
+                expires_at=datetime.now(UTC) + timedelta(days=1),  # events carry real time
                 **COMMON,
             ),
             clock=world.clock,

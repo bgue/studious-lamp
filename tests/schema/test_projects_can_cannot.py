@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 import yaml
-from tl_adapters.sqlite.uow import create_schema, open_uow
+from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_core.schema_provider import DirectorySchemaProvider, use_provider
 from tl_core.services.commands import CommandResult, CreateRecord
 from tl_core.services.errors import LayerError, UnknownPsetError
@@ -38,11 +38,11 @@ Edit = Callable[[Data], object]
 class World:
     """A copy of the fixture packages, a provider over it, and a ledger."""
 
-    def __init__(self, tmp_path: Path) -> None:
+    def __init__(self, tmp_path: Path, new_db: Callable[[], DbTarget]) -> None:
         self.packages = tmp_path / "pkgs"
         shutil.copytree(FIXTURES, self.packages)
         self.provider = DirectorySchemaProvider(self.packages)
-        self.db = tmp_path / "tl.db"
+        self.db = new_db()
         create_schema(self.db)
         self.records = 0
 
@@ -105,8 +105,8 @@ class World:
 
 
 @pytest.fixture
-def world(tmp_path: Path) -> Iterator[World]:
-    built = World(tmp_path)
+def world(tmp_path: Path, new_db: Callable[[], DbTarget]) -> Iterator[World]:
+    built = World(tmp_path, new_db)
     with use_provider(built.provider):
         yield built
 

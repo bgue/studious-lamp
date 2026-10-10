@@ -203,6 +203,49 @@ def test_the_background_thread_delivers_new_events() -> None:
     assert poller.cursor == 3
 
 
+def test_setting_the_wake_event_ends_the_wait_early() -> None:
+    ledger = FakeLedger()
+    registry = SubscriptionRegistry()
+    got = Collector(registry)
+    wake = threading.Event()
+    poller = ChangePoller(ledger, registry, interval_s=60, wake=wake)  # type: ignore[arg-type]
+    with poller:
+        assert got.wait_for(0)
+        ledger.add(make_event(1))
+        wake.set()  # without the wake-up the poller would sleep for a minute
+        assert got.wait_for(1)
+        ledger.add(make_event(2))
+        wake.set()
+        assert got.wait_for(2)
+    assert got.seqs == [1, 2]
+    assert poller.running is False
+
+
+def test_a_wake_up_that_finds_nothing_is_harmless() -> None:
+    ledger = FakeLedger()
+    registry = SubscriptionRegistry()
+    got = Collector(registry)
+    wake = threading.Event()
+    with ChangePoller(ledger, registry, interval_s=0.01, wake=wake):  # type: ignore[arg-type]
+        for _ in range(5):
+            wake.set()
+        ledger.add(make_event(1))
+        assert got.wait_for(1)
+    assert got.seqs == [1]
+
+
+def test_stop_returns_promptly_even_with_a_long_interval_and_a_wake_event() -> None:
+    poller = ChangePoller(
+        FakeLedger(),  # type: ignore[arg-type]
+        SubscriptionRegistry(),
+        interval_s=60,
+        wake=threading.Event(),
+    )
+    poller.start()
+    poller.stop(timeout=WAIT)
+    assert poller.running is False
+
+
 def test_a_failing_poll_is_recorded_and_retried() -> None:
     ledger = FakeLedger([make_event(1)])
     registry = SubscriptionRegistry()

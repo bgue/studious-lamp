@@ -28,4 +28,4 @@ Start here:
 
 Cloud sessions bootstrap themselves through `.claude/hooks/session-start.sh` (just, native Postgres, `uv sync`).
 
-Nothing under `packages/` exists yet. Phase 0 increment 1 creates it (`docs/build-spec/05-phase0-plan.md`).
+Code lives under `packages/`: `tl-core`, `tl-schema`, `tl-adapters`, `tl-cli`, `tl-tui`, `tl-api`, and `tl-mcp`. Each package has its own README. Progress by increment is in `docs/reports/STATUS.md`.

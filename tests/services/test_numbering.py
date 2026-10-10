@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import threading
-from collections.abc import Iterator
-from pathlib import Path
+from collections.abc import Callable, Iterator
 from typing import Any
 
 import pytest
 from sqlalchemy import text
-from tl_adapters.sqlite.uow import create_schema, open_uow, rebuild_projections
+from tl_adapters.db import DbTarget, create_schema, open_uow, rebuild_projections
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.numbering import allocator
 from tl_core.numbering.allocator import (
@@ -45,8 +44,8 @@ def make_pattern(**overrides: Any) -> NumberingPattern:
 
 
 @pytest.fixture
-def db(tmp_path: Path) -> Path:
-    path = tmp_path / "tl.db"
+def db(new_db: Callable[[], DbTarget]) -> DbTarget:
+    path = new_db()
     create_schema(path)
     return path
 
@@ -57,7 +56,7 @@ def patterns() -> Iterator[None]:
         yield
 
 
-def create(db: Path, scope: str = P1, **overrides: Any) -> str:
+def create(db: DbTarget, scope: str = P1, **overrides: Any) -> str:
     fields: dict[str, Any] = {
         "actor": "user:u-1",
         "source": "test",
@@ -72,12 +71,12 @@ def create(db: Path, scope: str = P1, **overrides: Any) -> str:
     return result.key
 
 
-def all_events(db: Path) -> list[Event]:
+def all_events(db: DbTarget) -> list[Event]:
     with open_uow(db, readonly=True) as uow:
         return uow.ledger.read_after(0, limit=10_000)
 
 
-def counter_rows(db: Path) -> list[dict[str, Any]]:
+def counter_rows(db: DbTarget) -> list[dict[str, Any]]:
     with open_uow(db, readonly=True) as uow:
         rows = uow.conn().execute(text("SELECT * FROM cur_numbering ORDER BY counter_id"))
         return [dict(r._mapping) for r in rows]
@@ -86,19 +85,19 @@ def counter_rows(db: Path) -> list[dict[str, Any]]:
 # --- the basic path ----------------------------------------------------------------------------
 
 
-def test_a_missing_key_is_allocated_from_the_pattern(db: Path) -> None:
+def test_a_missing_key_is_allocated_from_the_pattern(db: DbTarget) -> None:
     assert create(db) == "P123-REC-0001"
     assert create(db) == "P123-REC-0002"
 
 
-def test_the_record_row_carries_the_allocated_key(db: Path) -> None:
+def test_the_record_row_carries_the_allocated_key(db: DbTarget) -> None:
     key = create(db)
     with open_uow(db, readonly=True) as uow:
         row = uow.conn().execute(text("SELECT key FROM cur_core_record")).one()
     assert row.key == key
 
 
-def test_allocation_and_creation_share_one_transaction_and_correlation(db: Path) -> None:
+def test_allocation_and_creation_share_one_transaction_and_correlation(db: DbTarget) -> None:
     create(db)
     events = all_events(db)
     assert [e.event_type for e in events] == ["Numbering.Allocated", "Record.Created"]
@@ -113,7 +112,7 @@ def test_allocation_and_creation_share_one_transaction_and_correlation(db: Path)
     assert allocated.scope == created.scope == P1
 
 
-def test_the_counter_row_follows_the_allocations(db: Path) -> None:
+def test_the_counter_row_follows_the_allocations(db: DbTarget) -> None:
     create(db)
     create(db)
     (row,) = counter_rows(db)
@@ -125,19 +124,19 @@ def test_the_counter_row_follows_the_allocations(db: Path) -> None:
     assert row["pattern"] == "core.Record"
 
 
-def test_an_explicit_key_does_not_touch_the_counter(db: Path) -> None:
+def test_an_explicit_key_does_not_touch_the_counter(db: DbTarget) -> None:
     create(db, key="MANUAL-1")
     assert counter_rows(db) == []
     assert create(db) == "P123-REC-0001"
 
 
-def test_projects_count_separately(db: Path) -> None:
+def test_projects_count_separately(db: DbTarget) -> None:
     assert create(db, "project:P1") == "P1-REC-0001"
     assert create(db, "project:P2") == "P2-REC-0001"
     assert create(db, "project:P1") == "P1-REC-0002"
 
 
-def test_extra_segments_give_each_value_its_own_counter(db: Path) -> None:
+def test_extra_segments_give_each_value_its_own_counter(db: DbTarget) -> None:
     registry = NumberingRegistry([make_pattern(template="{project}-{type}-{discipline}-{seq:4}")])
     with use_numbering(registry):
         assert create(db, numbering={"discipline": "PIP"}) == "P123-REC-PIP-0001"
@@ -148,7 +147,7 @@ def test_extra_segments_give_each_value_its_own_counter(db: Path) -> None:
 # --- failures ----------------------------------------------------------------------------------
 
 
-def test_no_pattern_means_a_key_is_required(db: Path) -> None:
+def test_no_pattern_means_a_key_is_required(db: DbTarget) -> None:
     with pytest.raises(NoNumberingPatternError, match="give a key"):
         create(db, "company")
     with pytest.raises(KeyRequiredError):
@@ -156,26 +155,26 @@ def test_no_pattern_means_a_key_is_required(db: Path) -> None:
     assert all_events(db) == []
 
 
-def test_a_missing_segment_value_is_refused_before_anything_is_written(db: Path) -> None:
+def test_a_missing_segment_value_is_refused_before_anything_is_written(db: DbTarget) -> None:
     registry = NumberingRegistry([make_pattern(template="{project}-{discipline}-{seq:4}")])
     with use_numbering(registry), pytest.raises(NumberingValueError, match="discipline"):
         create(db)
     assert all_events(db) == []
 
 
-def test_a_segment_value_must_be_letters_and_digits(db: Path) -> None:
+def test_a_segment_value_must_be_letters_and_digits(db: DbTarget) -> None:
     registry = NumberingRegistry([make_pattern(template="{project}-{discipline}-{seq:4}")])
     with use_numbering(registry), pytest.raises(NumberingValueError, match="letters and digits"):
         create(db, numbering={"discipline": "P-1"})
 
 
-def test_a_project_pattern_needs_a_project_scope(db: Path) -> None:
+def test_a_project_pattern_needs_a_project_scope(db: DbTarget) -> None:
     registry = NumberingRegistry([make_pattern(scope="*")])
     with use_numbering(registry), pytest.raises(NumberingValueError, match="needs a project"):
         create(db, "company")
 
 
-def test_a_failed_create_does_not_spend_a_number(db: Path) -> None:
+def test_a_failed_create_does_not_spend_a_number(db: DbTarget) -> None:
     class Boom(Exception): ...
 
     with pytest.raises(Boom), open_uow(db) as uow:
@@ -188,7 +187,7 @@ def test_a_failed_create_does_not_spend_a_number(db: Path) -> None:
     assert create(db) == "P123-REC-0001"
 
 
-def test_a_number_whose_key_is_already_used_is_skipped(db: Path) -> None:
+def test_a_number_whose_key_is_already_used_is_skipped(db: DbTarget) -> None:
     create(db, key="P123-REC-0001")
     create(db, key="P123-REC-0002")
     assert create(db) == "P123-REC-0003"
@@ -197,7 +196,7 @@ def test_a_number_whose_key_is_already_used_is_skipped(db: Path) -> None:
     assert row["last_sequence"] == 3
 
 
-def test_a_duplicate_explicit_key_is_still_refused(db: Path) -> None:
+def test_a_duplicate_explicit_key_is_still_refused(db: DbTarget) -> None:
     create(db, key="X-1")
     with pytest.raises(DuplicateKeyError):
         create(db, key="X-1")
@@ -206,14 +205,14 @@ def test_a_duplicate_explicit_key_is_still_refused(db: Path) -> None:
 # --- reserved ranges and gap-free --------------------------------------------------------------
 
 
-def test_reserved_ranges_are_skipped(db: Path) -> None:
+def test_reserved_ranges_are_skipped(db: DbTarget) -> None:
     registry = NumberingRegistry([make_pattern(reserved=[(2, 3), (5, 5)])])
     with use_numbering(registry):
         keys = [create(db) for _ in range(4)]
     assert keys == ["P123-REC-0001", "P123-REC-0004", "P123-REC-0006", "P123-REC-0007"]
 
 
-def test_a_gap_free_pattern_refuses_standalone_allocation(db: Path) -> None:
+def test_a_gap_free_pattern_refuses_standalone_allocation(db: DbTarget) -> None:
     pattern = make_pattern()
     with open_uow(db) as uow, pytest.raises(GapFreeError):
         allocate_standalone(
@@ -227,7 +226,7 @@ def test_a_gap_free_pattern_refuses_standalone_allocation(db: Path) -> None:
     assert all_events(db) == []
 
 
-def test_a_pattern_without_gap_free_allows_standalone_allocation(db: Path) -> None:
+def test_a_pattern_without_gap_free_allows_standalone_allocation(db: DbTarget) -> None:
     pattern = make_pattern(gap_free=False)
     with use_numbering(NumberingRegistry([pattern])):
         with open_uow(db) as uow:
@@ -252,7 +251,7 @@ def test_reserve_range_is_a_stub() -> None:
 # --- concurrency -------------------------------------------------------------------------------
 
 
-def test_concurrent_creators_never_get_the_same_key(db: Path) -> None:
+def test_concurrent_creators_never_get_the_same_key(db: DbTarget) -> None:
     keys: list[str] = []
     errors: list[BaseException] = []
     lock = threading.Lock()
@@ -279,7 +278,7 @@ def test_concurrent_creators_never_get_the_same_key(db: Path) -> None:
 
 
 def test_a_stale_counter_read_is_stopped_by_the_ledger_version_check(
-    db: Path, monkeypatch: pytest.MonkeyPatch
+    db: DbTarget, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Second line of defence: a writer that read an old counter cannot append a duplicate.
 
@@ -298,7 +297,7 @@ def test_a_stale_counter_read_is_stopped_by_the_ledger_version_check(
 # --- replay ------------------------------------------------------------------------------------
 
 
-def test_rebuilding_the_projections_restores_the_counters(db: Path) -> None:
+def test_rebuilding_the_projections_restores_the_counters(db: DbTarget) -> None:
     create(db)
     create(db)
     create(db, "project:P2")
