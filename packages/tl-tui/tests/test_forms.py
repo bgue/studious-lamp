@@ -1,4 +1,4 @@
-"""Edit grouping and chained saves (P0-I2-T16)."""
+"""Edit grouping and the single atomic save (P0-I2-T16, P0-I3-T00)."""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ def test_pset_batches_reject_unknown_and_read_only_paths(path: str) -> None:
         pset_batches(client.metadata, {path: "v"})
 
 
-def test_save_sends_core_first_then_chained_pset_commands() -> None:
+def test_save_sends_one_edit_with_the_core_changes_then_the_pset_parts() -> None:
     client, record = _setup()
     outcome = save_record_edits(
         client,
@@ -58,31 +58,36 @@ def test_save_sends_core_first_then_chained_pset_commands() -> None:
         meta=client.metadata,
         edits={"title": "Renamed", **EDITS},
     )
-    assert outcome.ok and outcome.failed is None
+    assert outcome.ok
     assert outcome.applied == [
         "core",
         "valve_data/standard",
         "valve_data/custom",
         "prj.shutdown_tie_in/project",
     ]
-    assert [c.expected_version for c in client.set_pset_commands] == [
-        record["version"] + 1,
-        record["version"] + 2,
-        record["version"] + 3,
+    assert client.calls.count("edit_record") == 1
+    assert "update_record" not in client.calls and "set_pset_values" not in client.calls
+    [command] = client.edit_commands
+    assert command.expected_version == record["version"]
+    assert command.changes == {"title": "Renamed"}
+    assert [(e.pset, e.layer) for e in command.pset_edits] == [
+        ("valve_data", "standard"),
+        ("valve_data", "custom"),
+        ("prj.shutdown_tie_in", "project"),
     ]
+    assert command.source == "tui"
     assert outcome.version == record["version"] + 4
     saved = client.get_record_by_id(record["id"])
     assert saved is not None
     assert saved["title"] == "Renamed" and saved["version"] == outcome.version
     assert get_path(saved["psets"], "valve_data.x.fat_witness_by") == "@party:acme"
     assert get_path(saved["psets"], "valve_data.size_in") == 8.0
-    assert client.set_pset_commands[0].layer == "standard"
-    assert client.set_pset_commands[0].source == "tui"
 
 
-def test_save_stops_at_the_first_failure_and_reports_what_was_applied() -> None:
+def test_a_failing_part_saves_nothing() -> None:
     client, record = _setup()
-
+    before = client.get_record_by_id(record["id"])
+    events = len(client.history(record["id"]))
     original = client.set_pset_values
     calls = {"n": 0}
 
@@ -94,13 +99,19 @@ def test_save_stops_at_the_first_failure_and_reports_what_was_applied() -> None:
 
     client.set_pset_values = flaky  # type: ignore[method-assign]
     outcome = save_record_edits(
-        client, scope=SCOPE, actor="user:t", record=record, meta=client.metadata, edits=EDITS
+        client,
+        scope=SCOPE,
+        actor="user:t",
+        record=record,
+        meta=client.metadata,
+        edits={"title": "Renamed", **EDITS},
     )
     assert not outcome.ok
-    assert outcome.applied == ["valve_data/standard"]
-    assert outcome.failed == "valve_data/custom"
+    assert outcome.applied == []
     assert isinstance(outcome.error, ConcurrencyError)
-    assert outcome.version == record["version"] + 1
+    assert outcome.version == record["version"]
+    assert client.get_record_by_id(record["id"]) == before  # title, psets and version restored
+    assert len(client.history(record["id"])) == events
 
 
 def test_a_bad_path_sends_nothing() -> None:
@@ -117,7 +128,7 @@ def test_a_bad_path_sends_nothing() -> None:
     assert "update_record" not in client.calls and "set_pset_values" not in client.calls
 
 
-def test_a_core_failure_stops_before_any_pset_command() -> None:
+def test_a_stale_version_saves_nothing() -> None:
     client, record = _setup()
     record["version"] = 99  # stale
     outcome = save_record_edits(
@@ -128,5 +139,5 @@ def test_a_core_failure_stops_before_any_pset_command() -> None:
         meta=client.metadata,
         edits={"title": "x", **EDITS},
     )
-    assert outcome.failed == "core" and outcome.applied == []
+    assert isinstance(outcome.error, ConcurrencyError) and outcome.applied == []
     assert client.set_pset_commands == []

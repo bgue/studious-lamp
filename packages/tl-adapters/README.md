@@ -41,4 +41,4 @@ just test tests/property
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1. Last interface change: P0-I4 workstream B (object store backends; decisions in `docs/tickets/P0-I4/README-B.md`). Recovery: `docs/runbooks/object-store-reconciliation.md`.
+Introduced in P0-I1. Last interface change: P0-I4 workstream B (object store backends; decisions in `docs/tickets/P0-I4/README-B.md`). Recovery: `docs/runbooks/object-store-reconciliation.md`. P0-I3 added no interface: `create_schema` and `rebuild_projections` pick up the link, numbering and workflow projectors from `default_registry()`. Postgres needs row locks on the guard and counter reads (P0-I5).
