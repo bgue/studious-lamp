@@ -77,12 +77,7 @@ def body_line(entry: BodyQuarantineEntry) -> str:
 
 @app.command("ls")
 def ls(ctx: typer.Context) -> None:
-    """Print the quarantine report; `nothing quarantined` when it is empty.
-
-    In one read-only unit of work (``open_uow(db, readonly=True)`` inside ``_service_errors``)
-    read ``registry.list_quarantined(uow.conn())`` and ``body.list_body_quarantine(uow.conn())``.
-    Print ``type_lines`` of each type entry, then ``body_line`` of each body entry.
-    """
+    """Print the quarantine report; `nothing quarantined` when it is empty."""
     db: Path = ctx.obj
     with _service_errors(), open_uow(db, readonly=True) as uow:
         types = registry.list_quarantined(uow.conn())
@@ -102,13 +97,7 @@ def recheck(
     ctx: typer.Context,
     record_id: Annotated[str, typer.Argument(help="Id of the record whose body to verify.")],
 ) -> None:
-    """Verify a record's stored body again; lift its quarantine when the object is sound.
-
-    The object store is ``make_object_store()`` (a ``ValueError`` is ``_fail`` with its message).
-    ``body.recheck_body(_factory(db), store, stream_id=record_id)`` inside ``_service_errors``:
-    ``True`` prints ``restored <record_id>``; ``False`` prints ``still failing <record_id>`` and
-    exits 1. A record with no stored body is a service error (``error: ...``, exit 1).
-    """
+    """Verify a record's stored body again; lift its quarantine when the object is sound."""
     db: Path = ctx.obj
     try:
         store = make_object_store()

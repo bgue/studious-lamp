@@ -535,3 +535,16 @@ def test_the_default_loader_notices_an_edit_when_the_interval_has_passed(
     monkeypatch.setattr(loader, "_clock", lambda: time.monotonic() + 5.0)
     with world.factory() as uow, pytest.raises(TypeNotActiveError, match="changed since"):
         handle_create_record(uow, command(OBSERVATION, key="SO-2"))
+
+
+def test_a_retired_version_says_deprecated_even_when_its_files_changed(world: World) -> None:
+    world.sync()
+    with world.factory() as uow:
+        registry.deprecate_type(
+            uow, type_ref=f"{OBSERVATION}@1.0.0", reason="old", actor=ALICE, source="test"
+        )
+    package = world.package(OBSERVATION)
+    world.edit(package, "README.md", "Example", "Edited example")
+    default_loader().forget()
+    with world.factory() as uow, pytest.raises(TypeNotActiveError, match="is deprecated"):
+        handle_create_record(uow, command(OBSERVATION, key="SO-9"))

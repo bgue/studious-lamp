@@ -18,6 +18,7 @@ Every problem is a ``TypeIssue``; nothing here raises for a bad package.
 
 from __future__ import annotations
 
+import logging
 import re
 import shutil
 import tempfile
@@ -48,6 +49,10 @@ from tl_schema.validation import DATE_PATTERN, DATETIME_PATTERN
 from tl_core.extypes.model import CompiledSlot, CompiledType, FormHints, SlotKind
 from tl_core.extypes.names import Coordinates
 from tl_core.extypes.types import TypeIssue
+
+# SchemaView logs every import it follows at INFO. A process that logs at INFO (the MCP server
+# does) would print about thirty lines for each package compiled.
+logging.getLogger("linkml_runtime.utils.schemaview").setLevel(logging.WARNING)
 
 TYPE_FILE = "type.yaml"
 FORM_FILE = "form.yaml"

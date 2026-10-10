@@ -92,15 +92,28 @@ def require_type(uow: UnitOfWork, type_name: str) -> ResolvedType:
     return found
 
 
-def require_active(uow: UnitOfWork, type_name: str) -> ResolvedType:
-    """The type, which must take new instances: ``active``, with files that still match."""
-    found = require_type(uow, type_name)
-    if found.view.registration.status != "active":
+def refuse_inactive(uow: UnitOfWork, type_name: str) -> None:
+    """Raise ``TypeNotActiveError`` when the current version of ``type_name`` is not ``active``.
+
+    Read from the registry row alone, before any file is checked, so a retired version says it is
+    retired even when its files have changed since.
+    """
+    view = registry.current_type(uow.conn(), type_name)
+    if view is not None and view.registration.status != "active":
         raise TypeNotActiveError(
-            f"{found.view.registration.type_ref} is {found.view.registration.status}; "
+            f"{view.registration.type_ref} is {view.registration.status}; "
             "no new instances can be created"
         )
-    return found
+
+
+def require_active(uow: UnitOfWork, type_name: str) -> ResolvedType:
+    """The type, which must take new instances: ``active``, with files that still match.
+
+    The status is judged first, from the registry row alone: a retired version says so even when
+    its files have changed since.
+    """
+    refuse_inactive(uow, type_name)
+    return require_type(uow, type_name)
 
 
 class TypeDetail(BaseModel):
@@ -212,16 +225,12 @@ def prepare_create(
     """
     from tl_core.services.psets import BLOCKING_KEYWORDS  # psets imports this module
 
+    refuse_inactive(uow, record_type)
     found = lookup_type(uow, record_type)
     if found is None:
         raise UnsupportedRecordTypeError(
             f"record type {record_type!r} is not supported: it is not core.Record "
             "and no extension type of that name is registered"
-        )
-    if found.view.registration.status != "active":
-        raise TypeNotActiveError(
-            f"{found.view.registration.type_ref} is {found.view.registration.status}; "
-            "no new instances can be created"
         )
     if found.storage_mode == "object-backed" and not allow_object_backed:
         raise BodyRequiredError(

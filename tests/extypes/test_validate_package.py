@@ -83,6 +83,15 @@ def test_the_object_backed_example_is_valid(lift: Pkg) -> None:
     assert len(registration.content_hash) == 64 and len(registration.schema_hash) == 64
 
 
+def test_compiling_a_package_logs_nothing_at_info(
+    lift: Pkg, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level("INFO"):
+        _, issues = lift.validate()
+    assert issues == []
+    assert [r for r in caplog.records if r.name.startswith("linkml_runtime")] == []
+
+
 def test_the_managed_example_is_valid(observation: Pkg) -> None:
     registration, issues = observation.validate()
     assert issues == [] and registration is not None

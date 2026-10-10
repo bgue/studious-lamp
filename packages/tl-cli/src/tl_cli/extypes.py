@@ -176,12 +176,7 @@ def sync(
         bool, typer.Option("--strict", help="Exit 1 when any registration is quarantined.")
     ] = False,
 ) -> None:
-    """Register new or changed packages, quarantine invalid ones. Running it again is harmless.
-
-    Print ``sync_lines(db, root, actor)``. With ``--strict``, afterwards read
-    ``registry.list_quarantined`` (read-only unit of work); when there are entries print
-    ``<n> quarantined`` to stderr and exit 1.
-    """
+    """Register new or changed packages, quarantine invalid ones. Running it again is harmless."""
     db: Path = ctx.obj
     for line in sync_lines(db, root, actor):
         typer.echo(line)
@@ -200,13 +195,7 @@ def ls(
         str, typer.Option("--status", help="active, quarantined, deprecated or all.")
     ] = "all",
 ) -> None:
-    """List registered types, by type ref. Nothing is printed when there are none.
-
-    A ``status`` that is not ``all`` and not in ``_STATUSES``: ``_fail`` with ``--status must be
-    active, quarantined, deprecated or all, not 'x'``. Read with ``registry.list_types(uow.conn(),
-    status=...)`` in a read-only unit of work inside ``_service_errors`` (``status=None`` for
-    ``all``) and print ``type_line(view)`` for each.
-    """
+    """List registered types, by type ref. Nothing is printed when there are none."""
     db: Path = ctx.obj
     if status != "all" and status not in _STATUSES:
         _fail(f"--status must be active, quarantined, deprecated or all, not {status!r}")
@@ -240,12 +229,7 @@ def validate(
         typer.Option("--root", help="The type root, when PATH is not three levels below it."),
     ] = None,
 ) -> None:
-    """Validate a package without registering it.
-
-    ``validate_package(path, provider=get_provider(), root=root)``. When it is valid print
-    ``ok <type_ref> <storage_mode> <n> index fields`` (``n`` = the number of index fields).
-    Otherwise print ``issue_line(issue)`` for each issue and exit 1.
-    """
+    """Validate a package without registering it."""
     registration, issues = validate_package(path, provider=get_provider(), root=root)
     if registration is not None and not issues:
         typer.echo(
@@ -264,11 +248,7 @@ def lock(
         Path, typer.Argument(help="A package directory.", exists=True, file_okay=False)
     ],
 ) -> None:
-    """Write `type.lock` for the files now in the package and print `content_hash <sha256>`.
-
-    ``write_lock(path)``; a ``ValueError`` (a link or an oversized file in the package) is
-    ``_fail`` with its message.
-    """
+    """Write `type.lock` for the files now in the package and print `content_hash <sha256>`."""
     try:
         content_hash = write_lock(path)
     except ValueError as exc:
@@ -305,14 +285,7 @@ def watch_command(
         int | None, typer.Option("--max-cycles", min=1, help="Stop after this many polls.")
     ] = None,
 ) -> None:
-    """Poll the root and sync whenever a package is added, edited or removed (Ctrl+C stops).
-
-    ``root`` must be a directory (``_fail`` as in ``sync_lines``). Call
-    ``watch(root, interval=interval, on_change=..., max_cycles=max_cycles)`` from
-    ``tl_core.extypes.watch``. ``on_change(changes)`` prints ``changed <path> (<kind>)`` for each
-    change, then every line of ``sync_lines(db, root, actor)``. A ``KeyboardInterrupt`` prints
-    ``stopped`` and returns normally.
-    """
+    """Poll the root and sync whenever a package is added, edited or removed (Ctrl+C stops)."""
     db: Path = ctx.obj
     if not root.is_dir():
         _fail(f"no such directory: {root}")
