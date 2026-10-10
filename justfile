@@ -78,6 +78,19 @@ dev action:
         ;;
     esac
 
+# Bench data (P0-I8 D13): seed the 100k and 10k databases once, reuse them (runbook: performance-benches)
+bench-seed records="100000" rebuild_records="10000":
+    uv run python tests/bench/bench_data.py seed --records {{records}}
+    uv run python tests/bench/bench_data.py seed --records {{rebuild_records}}
+
+# Benches for the brief section 15 targets: grid, realtime, rebuild; marker `bench`, needs `just bench-seed`
+bench *args:
+    uv run pytest tests/bench -m bench -q -s -p no:cacheprovider {{args}}
+
+# The full 100k projection rebuild, once per dialect (tens of minutes on Postgres)
+bench-rebuild *args:
+    TL_BENCH_FULL_REBUILD=1 uv run pytest tests/bench/test_rebuild.py -m bench -q -s -p no:cacheprovider -k large {{args}}
+
 # Run the demo script for an increment, e.g. `just demo P0-I1`
 demo id:
     bash dev/demos/{{id}}.sh

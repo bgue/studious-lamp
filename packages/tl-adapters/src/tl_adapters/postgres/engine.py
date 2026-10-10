@@ -88,9 +88,17 @@ def split_url(url: str) -> tuple[URL, dict[str, Any]]:
 
     A libpq-style ``?options=-csearch_path=<schema>`` (what ``admin.schema_url`` writes) becomes the
     startup parameter ``search_path``, because pg8000 does not read ``options``.
+    ``?sslmode=disable`` turns TLS off (``ssl_context=False``): worth about a quarter of the
+    statement cost on a loopback link, where TLS protects nothing. Any other ``sslmode`` is
+    dropped and the driver default stays.
     """
     parsed = make_url(sqlalchemy_url(url))
     connect_args: dict[str, Any] = {}
+    sslmode = parsed.query.get("sslmode")
+    if sslmode is not None:
+        if sslmode == "disable":
+            connect_args["ssl_context"] = False
+        parsed = parsed.difference_update_query(["sslmode"])
     options = parsed.query.get("options")
     if options is not None:
         joined = options if isinstance(options, str) else " ".join(options)

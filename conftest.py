@@ -54,10 +54,21 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     metafunc.parametrize("adapter_name", params, scope="function")
 
 
-def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     for item in items:
         if "adapter_name" in getattr(item, "fixturenames", ()):
             item.add_marker(pytest.mark.parity)
+        if item.path.parent.name == "bench" and item.path.parent.parent.name == "tests":
+            item.add_marker(pytest.mark.bench)
+    # Benches seed and time 100k-record databases (P0-I8 D13): they run only when `-m` names the
+    # `bench` marker (`just bench`), never in `just test` and never in `just test-parity`.
+    if "bench" in str(config.getoption("markexpr") or ""):
+        return
+    kept = [item for item in items if item.get_closest_marker("bench") is None]
+    dropped = [item for item in items if item.get_closest_marker("bench") is not None]
+    if dropped:
+        config.hook.pytest_deselected(items=dropped)
+        items[:] = kept
 
 
 @pytest.fixture(scope="session")

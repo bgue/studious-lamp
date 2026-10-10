@@ -177,3 +177,15 @@ def test_order_by_treats_empty_text_like_null(new_db: Callable[[], DbTarget]) ->
         desc = list_records(uow, "project:p1", order_by=[("status", "desc")])
     assert [r["id"] for r in asc] == ["rec-b", "rec-a"]
     assert [r["id"] for r in desc] == ["rec-b", "rec-a"]
+
+
+def test_order_by_timestamp_columns_works_on_both_adapters(new_db: Callable[[], DbTarget]) -> None:
+    """``created_at`` and ``updated_at`` are timestamps on Postgres: no comparison with ''."""
+    db = new_db()
+    _seed(db, 3)
+    with open_uow(db, readonly=True) as uow:
+        for column in ("created_at", "updated_at"):
+            asc = list_records(uow, "project:p1", order_by=[(column, "asc")])
+            desc = list_records(uow, "project:p1", order_by=[(column, "desc")])
+            assert [r["id"] for r in asc] == ["rec-0", "rec-1", "rec-2"]
+            assert [r["id"] for r in desc] == ["rec-2", "rec-1", "rec-0"]

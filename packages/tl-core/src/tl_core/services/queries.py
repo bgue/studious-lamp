@@ -75,7 +75,9 @@ def record_history(uow: UnitOfWork, record_id: str) -> list[Event]:
 SORTABLE_COLUMNS = frozenset(
     {"key", "title", "status", "type", "created_at", "updated_at", "version"}
 )
-_TEXT_COLUMNS = SORTABLE_COLUMNS - {"version"}  # '' sorts last like NULL
+# '' sorts last like NULL. Not the timestamps: they are TIMESTAMPTZ on Postgres, which cannot be
+# compared with '' (invalid input syntax), and they are NOT NULL anyway.
+_TEXT_COLUMNS = SORTABLE_COLUMNS - {"version", "created_at", "updated_at"}
 _MAX_LIMIT = 2**63 - 1  # portable "no limit" so OFFSET can be used on its own
 
 
