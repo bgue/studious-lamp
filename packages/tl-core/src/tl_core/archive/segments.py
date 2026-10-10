@@ -17,8 +17,6 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
-import duckdb
-
 from tl_core.archive.errors import ArchiveError
 from tl_core.archive.types import ArchiveStore, SegmentManifest
 from tl_core.ledger import Event, canonical_json, event_hash, iso_utc
@@ -156,6 +154,8 @@ def _quoted(path: Path) -> str:
 def encode_parquet(events: Sequence[Event]) -> bytes:
     """``events.parquet`` for ``events``, written by DuckDB ``COPY`` (single thread, so the bytes
     are the same every time for the same events and DuckDB version)."""
+    import duckdb  # imported here so that `import tl_core` stays light
+
     columns = ", ".join(f"{name} {kind}" for name, kind in EVENT_COLUMNS)
     marks = ", ".join("?" for _ in EVENT_COLUMNS)
     with tempfile.TemporaryDirectory() as tmp:
@@ -179,6 +179,8 @@ def encode_parquet(events: Sequence[Event]) -> bytes:
 
 def parquet_rows(data: bytes) -> list[tuple[Any, ...]]:
     """The rows of an ``events.parquet`` in seq order, as tuples in column order."""
+    import duckdb  # imported here so that `import tl_core` stays light
+
     names = ", ".join(name for name, _ in EVENT_COLUMNS)
     with tempfile.TemporaryDirectory() as tmp:
         source = Path(tmp) / PARQUET

@@ -90,6 +90,10 @@ def backup_database(source: str | Path, dest: str | Path) -> BackupResult:
             os.link(tmp, dst)
         except FileExistsError as error:
             raise BackupError(f"destination exists: {dst}") from error
+        except OSError as error:
+            raise BackupError(
+                f"filesystem does not support hard links; choose another destination ({error})"
+            ) from error
     finally:
         tmp.unlink(missing_ok=True)
 
