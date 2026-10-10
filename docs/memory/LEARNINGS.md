@@ -799,3 +799,9 @@ test or a generated artefact already enforces, or narrative history (that belong
   noticed because services were tested through `open_uow`. A function that takes a factory should declare a `Protocol` with the
   parameter name, call it by keyword, and have one parity test that passes `make_uow_factory(target)` on each adapter.
   Evidence: reviewer finding on `proposals.py`; `test_the_service_runs_on_each_adapters_own_factory[postgres]`. Status: active
+- **L-P0-I6C-11** · 2026-10-10 · tags: api, tests
+  A person can decide a proposal from the CLI (`source=cli`) or the API (`source=api`), and the decision event (`Proposal.Accepted|Rejected|Failed`) carries that source, while the effect
+  keeps `mcp:<agent>`; a check that every event in a scope has the simulator's source must exempt decision events (and still check their actor). Posting as `user:` identities works because
+  the API refuses record changes from `agent:` tokens only; an agent's feed post is a direct write with `source` forced to `mcp:<id>`. `mcp.Client` takes a `StdioServerParameters` or an
+  in-memory `MCPServer`, so one caller class covers the real process and the test.
+  Evidence: `tests/test_assertions.py::test_a_decision_event_made_over_the_api_or_the_cli_is_not_a_foreign_source`, `dev/demos/P0-I6.sh`. Status: active

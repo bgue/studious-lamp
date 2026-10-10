@@ -30,6 +30,7 @@ runs `sim_assert` (green), re-runs the same seed on a fresh ledger and compares 
 | C6 | `sim_assert` checks the latest intent per field against the `cur_*` view the API serves, then three negatives: no record the log does not name, every event in the scope has `source` `sim:<run>` (or an MCP proposal), and every simulator event has `effective_at` on a day that was played. |
 | C7 | A step that dies leaves `in_progress` in the run state, because the writes already made are not in the log. The run then refuses to continue. |
 | C9 | Orchestrator ruling from WS-B decision B15 (2026-10-10): the API refuses record-changing commands from any `agent:*` token with 403 `agent_must_propose` (FANOUT D4). The deterministic role actors stand in for people, so they act as `user:sim-<role>` (`user:sim-document_controller`, `-planner`, `-crew`, and `user:sim-orchestrator` for the seed), each with its own dev token and `source=sim:<run_id>`. One agent identity, `agent:sim-assistant`, exists for proposals: once WS-B is merged it calls `SimClient.propose` over MCP and a `user:sim-*` actor accepts the proposal through the API. `sim_create` already provisions its token. The `identity` comment in `types.py` (`agent:sim-<name>`) is documentation in the frozen text and is left as is; the identities in the ledger are the ones in this row. `sim_assert` now also fails any event whose actor is not `user:sim-*` or `agent:sim-*`. |
+| C10 | Proposals as built (WS-B merged): `agent:sim-assistant` calls the MCP tool `link_records` through `McpClientCaller` (a `python -m tl_mcp` process on the ledger file, one per call); `user:sim-approver` lists the pending queue and accepts or rejects over the API (`ApiClient.list_proposals`, `accept_proposal`, `reject_proposal`). Both actors are off unless the scenario names them, so the bundled seeds keep their digests. Ground truth: `proposal.created`, `proposal.accepted` (with the key pair and relation) and `proposal.rejected` (with the reason). `sim_assert` matches each by agent, tool, status and decider, requires the accepted link to exist and its `Link.Added` event to be by the decider, and accepts `Proposal.Accepted|Rejected|Failed` events from any source because a person may decide from the CLI. MCP and decision events carry real time. |
 | C8 | `propose` is behind the `McpCaller` Protocol. Until workstream B is on the base it raises `ProposeUnavailableError`; the planner has no proposals in v0 and they are added when the proposals service is wired. |
 
 ## Supervisor-built pieces (in order)
@@ -42,7 +43,11 @@ runs `sim_assert` (green), re-runs the same seed on a fresh ledger and compares 
 | S44 | After batch 1: identities and plural fixes, Rev Z rule | reviewer rulings | | done |
 | S45 | End-to-end tests: the real actors against the real API app | determinism and the ground-truth assertion in practice | orchestrator | done (posts use a stand-in until WS-B is merged) |
 | S46 | `tl sim`, `tl_sim.mcp_server`, `just seed` (`dev/seed/seed.sh`) | wiring | | done |
-| S47 | Demo `P0-I6-C`, merge of WS-B, `P0-I6` demo and report | closing work | | pending |
+| S47 | Demo `P0-I6-C` | closing work | | done |
+| S48 | Review fixes for S40 to S43 | review | | done |
+| S49 | Review fixes for T44 and T45 | review | | done |
+| S50 | Merge of WS-B, the real feed, the assistant and approver, proposal assertions | wiring | | done |
+| S51 | Demo `P0-I6`, reports | closing work | | done |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |

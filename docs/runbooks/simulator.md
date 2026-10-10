@@ -21,14 +21,15 @@ Purpose: play a seeded simulated team against the dev API, see what it did, and 
    ```
    just seed xs        # 3 working days; s is 10, m is 30
    ```
-3. Inject an event for the next day: `uv run tl sim inject material_late --arg item="6in flange" --arg days=21`.
-4. Check the suite against what the team intended:
+3. Add the agent: a scenario with `actors: {assistant: {proposals_per_day: 1}, approver: {accept_rate: 0.7}}` has `agent:sim-assistant` propose valve-to-document links over MCP (it needs `TL_DB`, or `tl --db`, because the MCP server opens the ledger file) and `user:sim-approver` work the queue. Leave the approver out and a person decides: `uv run tl proposal ls --project sim-<run>`, then `uv run tl proposal accept <id> --actor user:sim-approver`.
+4. Inject an event for the next day: `uv run tl sim inject material_late --arg item="6in flange" --arg days=21`.
+5. Check the suite against what the team intended:
    ```
    uv run tl sim status
    uv run tl sim assert
    ```
    Expected: `ok: <n> checks`. On `FAILED` each line names the intent, the key and the field that differs.
-5. Look at it: `uv run tl feed ls --project sim-<run>` and the TUI on the same ledger.
+6. Look at it: `uv run tl feed ls --project sim-<run>` and the TUI on the same ledger.
 
 ## Verify
 - `tl sim status` shows the same `digest` for a second run of the same scenario on an empty ledger (the ground truth is byte-identical).

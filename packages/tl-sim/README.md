@@ -13,7 +13,8 @@ A deterministic simulated project team that plays working days against a running
 | `tl_sim.types` | module | The frozen `SimClient`, `SimContext`, `GroundTruth` and `Actor` interface |
 | `tl_sim.orchestrator.Simulation` | class | The loop behind the five operations, over a `Connector` |
 | `tl_sim.client.HttpSimClient` | class | `SimClient` over `ApiClient`, MCP and the simulated clock |
-| `tl_sim.actors` | package | `BaseActor`, `Recorder`, and the document controller, planner and crew (acting as `user:sim-<role>`; `agent:sim-assistant` proposes) |
+| `tl_sim.actors` | package | `BaseActor`, `Recorder`, the document controller, planner and crew (as `user:sim-<role>`), the assistant (`agent:sim-assistant`, proposes `link_records` over MCP) and the approver (`user:sim-approver`, accepts or rejects in the review queue). The last two are off unless the scenario names them |
+| `tl_sim.mcp_caller.McpClientCaller` | class | Calls a tool of the suite's MCP server (a `python -m tl_mcp` process on the ledger file, or an in-memory server in tests); a refused call is `ProposalRefusedError` |
 | `tl_sim.scenario_loader.load_scenario(source)` | function | A scenario from YAML (`dev/seed/scenarios`) |
 | `tl_sim.testing.FakeWorld` | class | An in-memory suite for tests |
 | `tl_sim.mcp_server.build_server(env, actor=..., authorize_hook=...)` | function | The five operations as MCP tools (`sim.<tool>` hook first; `sim_create` takes a bundled scenario name, never a path) |
@@ -39,10 +40,11 @@ just test -- packages/tl-sim
 | `TL_SIM_DIR` | `./dev/data/sim` | One directory per run: `run.json` (0600, holds dev tokens) and `ground_truth.ndjson` |
 | `TL_API_URL` | `http://127.0.0.1:8765` | The running API |
 | `TL_TOKENS` | `./dev/data/tokens.json` | The token file the API reads; `sim_create` adds one token per simulated actor |
+| `TL_DB` | `./dev/data/tl.db` | The ledger file the agent's MCP server opens (under `tl`, the root `--db`) |
 | `TL_SEED_DIR` | `dev/seed` in the repository | `scenarios/*.yaml` and `templates/*.yaml` |
 
 ## Rules specific to this package
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I6 (workstream C). Simulator v0 has no LLM role agents and writes proposals only once the proposals service is wired.
+Introduced in P0-I6 (workstream C). Simulator v0 has no LLM role agents (FANOUT D6). Over MCP and for a decision made over the API or the CLI the events carry real time, not simulated time (the MCP server and the accept route do not read `X-TL-Effective-At`).
