@@ -115,7 +115,7 @@ def ls(ctx: typer.Context, project: PROJECT = None, company: COMPANY = False) ->
     scope = scope_of(project, company) if project is not None or company else None
     columns = (
         "subscription_id",
-        "status",
+        "status_label",
         "payload_mode",
         "name",
         "target_url",

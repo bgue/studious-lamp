@@ -1,0 +1,20 @@
+[project]
+name = "tl-lake"
+version = "0.0.1"
+requires-python = ">=3.12"
+dependencies = [
+  "duckdb==1.5.5",
+  "duckdb-extensions",
+  "duckdb-extension-ducklake",
+  "sqlalchemy>=2",
+  "tl-schema",
+  "tl-core",
+  "tl-adapters",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tl_lake"]

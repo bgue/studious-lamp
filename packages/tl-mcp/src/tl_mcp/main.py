@@ -2,6 +2,7 @@
 
     --db PATH     SQLite ledger (default TL_DB or ./dev/data/tl.db)
     --actor ID    who this server acts as: `agent:<id>` or `user:<id>` (required)
+    --lake-dir D  DuckLake directory for `lake_query` (default TL_LAKE_DIR or ./dev/data/lake)
 
 The server never writes. It opens the ledger read-only per call, so it can run beside the API or
 the TUI on the same file.
@@ -22,6 +23,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="tl-mcp", description="Throughline MCP read server.")
     parser.add_argument("--db", type=Path, default=Path(os.environ.get("TL_DB", DEFAULT_DB)))
     parser.add_argument("--actor", required=True, help="agent:<id> or user:<id>")
+    parser.add_argument("--lake-dir", type=Path, default=None, help="DuckLake directory")
     return parser.parse_args(argv)
 
 
@@ -44,7 +46,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     factory = SqliteUowFactory(args.db)
     try:
-        build_server(factory, actor=args.actor).run("stdio")
+        build_server(factory, actor=args.actor, lake_dir=args.lake_dir).run("stdio")
     finally:
         factory.close()
     return 0
