@@ -134,6 +134,9 @@ class AttemptOutcome:
     result: TransportResult | None
     permanent: DeadReason | None = None
     error: str | None = None
+    retry: RetryPolicy | None = None
+    """The retry policy in force when the attempt started; ``settle`` uses it, so the write
+    transaction never calls a policy provider."""
 
     @property
     def ok(self) -> bool:
@@ -198,6 +201,7 @@ class DeliveryEngine:
         # (`webhooks.egress.allowlist`, `webhooks.retry.max_hours`) change while the worker runs.
         self._egress_source = egress if egress is not None else EgressPolicy()
         self._retry_source = retry if retry is not None else RetryPolicy()
+        self._last_retry = RetryPolicy()  # what a failing retry provider falls back to
         self._health = health if health is not None else HealthPolicy()
         self._clock = clock
         self._rng = rng if rng is not None else random.Random()
@@ -208,12 +212,29 @@ class DeliveryEngine:
         """Subscriptions the latest ``claim`` held back for want of a secret."""
 
     def _egress(self) -> EgressPolicy:
+        """The egress policy in force. If the provider fails the strict default applies (an empty
+        allow-list: public addresses over https only), never anything wider; the failure is
+        logged."""
         source = self._egress_source
-        return source() if callable(source) else source
+        if not callable(source):
+            return source
+        try:
+            return source()
+        except Exception:
+            log.exception("the egress policy provider failed; using the strict default")
+            return EgressPolicy()
 
     def _retry(self) -> RetryPolicy:
+        """The retry policy in force. If the provider fails the last good policy applies (the
+        default before there was one); the failure is logged."""
         source = self._retry_source
-        return source() if callable(source) else source
+        if not callable(source):
+            return source
+        try:
+            self._last_retry = source()
+        except Exception:
+            log.exception("the retry policy provider failed; using the last good policy")
+        return self._last_retry
 
     # --- claim -------------------------------------------------------------------------------
 
@@ -285,15 +306,20 @@ class DeliveryEngine:
         ``extra_headers`` are added after signing (they are not part of the signed content).
         """
         started = self._clock()
+        # Both policies are read once, here, outside any transaction: a provider that fails
+        # cannot roll back a recorded attempt or strand the other claims of the cycle.
+        egress, retry = self._egress(), self._retry()
         try:
-            target = self._egress().check(claim.target_url)
+            target = egress.check(claim.target_url)
         except EgressDenied as exc:
-            return AttemptOutcome(started, None, permanent="egress_denied", error=str(exc)[:200])
+            return AttemptOutcome(
+                started, None, permanent="egress_denied", error=str(exc)[:200], retry=retry
+            )
         except ResolutionFailed as exc:
-            return AttemptOutcome(started, None, error=str(exc)[:200])
+            return AttemptOutcome(started, None, error=str(exc)[:200], retry=retry)
         if not claim.secrets:
             return AttemptOutcome(
-                started, None, error="the subscription has no active signing secret"
+                started, None, error="the subscription has no active signing secret", retry=retry
             )
         headers = {
             **sign_headers(claim.event_id, int(started.timestamp()), claim.body, claim.secrets),
@@ -303,7 +329,7 @@ class DeliveryEngine:
         result = self._transport.send(
             target, headers, claim.body.encode("utf-8"), timeout_s=self._timeout_s
         )
-        return AttemptOutcome(started, result)
+        return AttemptOutcome(started, result, retry=retry)
 
     # --- settle ------------------------------------------------------------------------------
 
@@ -325,7 +351,8 @@ class DeliveryEngine:
             if outcome.ok:
                 state, decision_delay, dead_reason = "delivered", 0.0, None
             else:
-                decision = self._retry().decide(
+                policy = outcome.retry if outcome.retry is not None else self._retry()
+                decision = policy.decide(
                     attempt=attempt,
                     now=now,
                     created_at=created,

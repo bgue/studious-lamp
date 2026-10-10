@@ -26,6 +26,7 @@ from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView
 
 from tl_cli import config_exchange
+from tl_cli.actors import refuse_agent
 
 app = typer.Typer(
     help="about:config: read, set, reset, lock, diff, export and import settings.",
@@ -33,7 +34,10 @@ app = typer.Typer(
 )
 
 _DEFAULT_ACTOR = "user:dev"
-_Actor = Annotated[str, typer.Option("--actor", help="Actor recorded on events.")]
+_Actor = Annotated[
+    str,
+    typer.Option("--actor", help="Actor recorded on events.", callback=refuse_agent),
+]
 _Project = Annotated[str | None, typer.Option("--project", help="Project ID.")]
 _User = Annotated[str | None, typer.Option("--user", help="User ID (UI keys only).")]
 _Company = Annotated[bool, typer.Option("--company", help="The company layer.")]

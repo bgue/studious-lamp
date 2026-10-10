@@ -23,6 +23,7 @@ from tl_core.services.errors import (
     InvalidSettingValueError,
     SettingOutOfBoundsError,
 )
+from tl_core.settings.checks import ITEM_CHECKS
 from tl_core.settings.types import SettingDefinition
 
 MAX_LIST_ITEMS = 500
@@ -122,6 +123,12 @@ def _check_item(defn: SettingDefinition, item: Any) -> None:
         raise InvalidSettingValueError(
             f"{defn.key}: list items are text, numbers or true/false, not {_describe(item)}"
         )
+    check = ITEM_CHECKS.get(defn.key)
+    if check is not None:
+        try:
+            check(item)
+        except ValueError as exc:
+            raise InvalidSettingValueError(f"{defn.key}: {exc}") from exc
     if validation is None:
         return
     if validation.choices is not None and not in_choices(item, validation.choices):

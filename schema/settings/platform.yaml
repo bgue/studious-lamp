@@ -49,6 +49,9 @@ settings:
     docs: >-
       By default a webhook may only reach public addresses over https. Every entry here lifts that guard for one
       destination, so widening the list lets the platform call into your own network. Dangerous to widen.
+      An entry is a host name, host:port, an IP address or a CIDR range of at least /8 (IPv4) or /16 (IPv6).
+      Link-local and cloud-metadata addresses (169.254.0.0/16, fe80::/10, 100.100.100.200) and the names of
+      metadata services are never allowed, and the delivery engine refuses them even for an allowed host.
     scopes: [platform, company]
     lockable: true
     validation:
