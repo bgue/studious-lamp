@@ -34,7 +34,7 @@ Purpose: start the REST API with an SSE stream and the MCP read server against t
    ```
    uv run python -m tl_mcp --actor agent:triage
    ```
-   Expected: it waits on stdin. An MCP client config runs this command; the tools are `search_records`, `get_record`, `get_links` and `trace`.
+   Expected: it waits on stdin. An MCP client config runs this command; the read tools are `search_records`, `get_record`, `get_links`, `trace` and `lake_query` (see "Give an agent `lake_query`" below).
 5. Python client:
    ```
    from tl_api.client import ApiClient
