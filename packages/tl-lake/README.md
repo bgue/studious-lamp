@@ -13,6 +13,8 @@ The DuckLake analytics copy of the ledger: an incremental sync by `seq`, a silve
 | `LakeQueryService(config).query(sql, limit=, caller=)` | class | Guarded read-only SQL: row limit, timeout, audit line. Returns `LakeQueryResult` (rows, `truncated`, `as_of_seq`, `snapshot_id`) |
 | `lake_query(sql, limit=, lake_dir=, caller=)` | function | The MCP tool body (the registration arrives with P0-I4) |
 | `GuardError`, `QueryError`, `LakeError` and subclasses | exceptions | A refusal; a failed or timed-out statement; everything else |
+| `tl_lake.errors` | module | The errors `tl_lake` raises; every one is a `LakeError`, so a caller can catch the family |
+| `tl_lake.ingest` | module | Bulk loading into the lake through NDJSON files (never `executemany`; L-P0-I7-B1) |
 
 Demo queries: `dev/lake/queries/*.sql` (events by type, records overview, links by relation, valve sizes, pset coverage, as-of seq), tested by `tests/test_demo_queries.py`. A rebuild resets the sync count (`syncs 1`).
 

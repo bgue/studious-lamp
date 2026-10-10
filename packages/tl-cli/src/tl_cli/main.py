@@ -23,6 +23,7 @@ from tl_cli import (
     lake,
     ledger,
     link,
+    new,
     proposal,
     pset,
     record,
@@ -50,6 +51,7 @@ app.add_typer(feed.app, name="feed")
 app.add_typer(proposal.app, name="proposal")
 app.add_typer(lake.app, name="lake")
 app.add_typer(dev.app, name="dev")
+app.add_typer(new.app, name="new")
 app.add_typer(webhook.app, name="webhook")
 app.add_typer(sim_cli.app, name="sim")
 app.command("serve")(serve.serve)

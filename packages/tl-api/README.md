@@ -16,6 +16,9 @@ The REST API, the SSE change stream and the HTTP client over the `tl_core` servi
 | `tl_api.client.feed.FeedApi`, `tl_api.client.proposals.ProposalsApi` | mixins of `ApiClient` | `feed_page`, `feed_post`, `feed_edit`, `feed_retract`, `feed_react`, `feed_complete` (same signatures as `ClientInterface`); `list_proposals`, `get_proposal(id, scope)`, `accept_proposal`, `reject_proposal` (extras, not on `ClientInterface`) |
 | `tl_api.openapi` | module | `python -m tl_api.openapi [--check]`; the document is `docs/reference/openapi.json` |
 | `python -m tl_api` / `just serve` | command | Run the server (loopback only unless `--insecure-dev`) |
+| `tl_api.context.ApiContext` | class | The per-application context route handlers read from `request.app.state` |
+| `tl_api.main` | module | The server entry point: `uv run python -m tl_api` (or `just serve`) |
+| `tl_api.models` | module | Response and request models that have no `tl_core` class of their own |
 
 Routes: `GET /health` (no token); `/records` (query language, paging, ordering), `/records/count`, `/records/lookup`, `/records/{id}`, `/history`, `/links`, `/trace`, `/expected-links`, `/workflow`, `/conformance`, `/files`; `/links/counts`, `/links/search`; `/relations`, `/relations/default`, `/keys/detect`, `/schema/forms`; `POST /commands/{Name}`; `/events?after=` (paged) and `/stream` (SSE, `Last-Event-ID`); `/uploads`, `/files/attach`, `/files/{id}`, `/files/{id}/content`; the feed: `GET /feed`, `/feed/complete`, `/feed/posts/{id}` (writes are `POST /commands/PostToFeed|EditPost|RetractPost|ReactToPost`); the review queue: `GET /proposals`, `GET /proposals/{id}?scope=` (scope required), `POST /proposals/{id}/accept`, `POST /proposals/{id}/reject`; `/openapi.json` (token required). The full list with parameters is the committed OpenAPI document.
 

@@ -57,11 +57,16 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl ledger verify [--db TARGET]` | command | Recompute every event hash and check every scope chain in the database alone |
 | `tl restore --from-archive DIR --db TARGET [--public-key FILE]` | command | Rebuild an empty SQLite file or Postgres database from the archive alone (runbook: `docs/runbooks/restore-from-archive.md`); warnings on stderr |
 | `tl backup sqlite --to FILE` | command | Online snapshot of the SQLite ledger (runbook: `docs/runbooks/sqlite-backup-and-litestream.md`) |
+| `tl_cli.file_reconcile` | module | `tl file reconcile`: compare the ledger's file rows with the object store |
+| `tl_cli.webhook_common` | module | Helpers shared by the `tl webhook` commands: the unit-of-work factory, scope and error output |
+| `tl_cli.webhook_ops` | module | The second half of `tl webhook`: `dlq ls`, `dlq redrive`, `disable`, `enable`, `rotate-secret` |
+| `tl new module NAME`, `tl new record-type MODULE.Class`, `tl new projector MODULE.name [--event T]...` | commands | Scaffold from templates (`--root DIR`, `--dry-run`): a module package, with its schema header and spec page; a record type (schema stub, create handler, tests, spec page); a projector for a derived `proj_<module>_<name>` table. Never overwrites, writes nothing when any file exists; the output passes `just check` and its own tests. The kinds not built yet (correspondence-domain, action, rule, enricher, connector, report, extractor) are follow-ups |
+| `tl_cli.scaffold` | package | The engine behind `tl new`: names (`names.py`), `Plan` and `write_plan` (`engine.py`), one planner per kind and the text templates under `templates/` |
 | `tl_cli.main:app` | typer app | The `tl` entry point |
 
 ## Depends on / used by
 - Depends on: `tl_core`, `tl_schema`, `tl_adapters`, `tl_api` (token file helper), `typer`, `rich`.
-- Used by: `just demo P0-I1`, `just demo P0-I2`, `just demo P0-I3`, `just rebuild-projections`, developers.
+- Used by: `just demo P0-I8-C` (scaffolders), `just demo P0-I1`, `just demo P0-I2`, `just demo P0-I3`, `just rebuild-projections`, developers.
 
 ## Commands
 ```
@@ -84,4 +89,4 @@ just demo P0-I1
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `dev` group added in P0-I4 workstream C; `webhook` group added in P0-I5 workstream B; `feed` group added in P0-I6 workstream A; `proposal` group added in P0-I6 workstream B; `backup`, `archive`, `ledger` groups and `restore` added in P0-I7 workstream A. `--role` is a stub list (no auth yet).
+Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `dev` group added in P0-I4 workstream C; `webhook` group added in P0-I5 workstream B; `new` group (scaffolders) added in P0-I8 workstream C; `feed` group added in P0-I6 workstream A; `proposal` group added in P0-I6 workstream B; `backup`, `archive`, `ledger` groups and `restore` added in P0-I7 workstream A. `--role` is a stub list (no auth yet).

@@ -19,6 +19,13 @@ A deterministic simulated project team that plays working days against a running
 | `tl_sim.testing.FakeWorld` | class | An in-memory suite for tests |
 | `tl_sim.mcp_server.build_server(env, actor=..., authorize_hook=...)` | function | The five operations as MCP tools (`sim.<tool>` hook first; `sim_create` takes a bundled scenario name, never a path) |
 | `tl sim ...` | CLI | The five operations plus `run` and `seed` (see Commands) |
+| `tl_sim.assertions` | module | `sim_assert`: compare what the scenario intended with what the suite holds |
+| `tl_sim.cli` | module | The `tl sim` group: the five operations plus `run` and `seed` |
+| `tl_sim.connector.HttpConnector` | class | The orchestrator's door to a running suite: the API over HTTP, MCP for proposals |
+| `tl_sim.groundtruth` | module | The ground-truth log: what the scenario intended, one JSON line per `GroundTruth` |
+| `tl_sim.injections` | module | Injected events: one-off steps played by an actor after the day's regular actors |
+| `tl_sim.orchestrator_names` | module | The fixed identities of the simulator (a leaf module that actors and the orchestrator share) |
+| `tl_sim.reader.SimReader` | class | What `sim_assert` reads from the suite, and its HTTP implementation |
 
 ## Depends on / used by
 - Depends on: `tl_api` (client, dev tokens), `tl_core` (command models and error classes only), `mcp`, `pyyaml`, `typer`.

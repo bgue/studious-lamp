@@ -955,3 +955,50 @@ test or a generated artefact already enforces, or narrative history (that belong
   was logged made "the assistant proposed nothing" green. Tell the assertion which actors are enabled and bound to act (`Expected`), narrow what an actor may shrug off to the one benign refusal, and
   keep a test where the actor is on and everything is refused. To test a subprocess transport use a real ledger in `tmp_path`, a missing one, and a stub server that reads stdin forever.
   Evidence: `tests/test_assertions.py::test_an_assistant_whose_every_proposal_is_a_duplicate_leaves_the_run_red`, `tests/test_mcp_caller.py`. Status: active
+
+- **L-P0-I8C-1** · 2026-10-10 · tags: mcp, security
+  A function deny-list cannot guard Postgres. `ts_stat(text)` and `ts_rewrite(..., text)` run a SQL string on the server, so a denied
+  name split with `||` (`'pg_re'||'ad_file'`) escapes any screen of the statement text, and with a superuser URL every such read works
+  (files, `pg_authid`, `data_directory`, `wh_secret`). READ ONLY does not help: they are reads. A safe Postgres `query_db` needs a
+  non-superuser reader role checked after connecting, and a function allow-list; until then `query_db` is SQLite only (decision C4).
+  Evidence: S41 security review of 6d885d2; `tests/test_dev_sqlguard.py::test_every_postgres_statement_is_refused`. Status: active
+- **L-P0-I8C-2** · 2026-10-10 · tags: tooling, process
+  `dev/seed/seed.sh` starts its API with `setsid`, so a signal to the script's process group (even SIGKILL) does not reach it; only the
+  script's EXIT trap stops it. A tool that kills the script must also find the API by its command line (`tl serve --port N` in /proc).
+  Evidence: T43 review; `tool_seed._stop_api_on`. Status: active
+- **L-P0-I8C-3** · 2026-10-10 · tags: tooling
+  A uv workspace `members = ["packages/*"]` rejects a bare `packages/tl-modules` directory ("missing a pyproject.toml"). Nested members need
+  `members = ["packages/*", "packages/tl-modules/*"]` and `exclude = ["packages/tl-modules"]`; the lock is unchanged while no module exists.
+  Evidence: S42, scaffold proved with `uv sync` and `just check`. Status: active
+- **L-P0-I8C-4** · 2026-10-10 · tags: tooling, tests
+  Scaffolded code must be ruff-format-stable for every name the scaffolder accepts, or `just check` fails for a long name. Keep names
+  short (module 20, class 30, projector 40), keep names out of docstrings, and write name-dependent lines with a magic trailing comma
+  (one argument per line, exploded imports) so the formatter never joins or splits them. Test the longest names with ruff.
+  Evidence: S42 `test_the_longest_*_still_give_formatted_code`. Status: active
+- **L-P0-I8C-5** · 2026-10-10 · tags: tui, mcp, tests
+  Textual's `Pilot.press` accepts any string and never raises for an unknown key; check key names yourself. `asyncio.TimeoutError` is the
+  builtin `TimeoutError`, an `OSError`, so catch it before a generic `OSError` branch. `sqlite3.connect("file:...", uri=True)` needs a
+  percent-encoded path (`Path.as_uri()`). Sync MCP tools run on worker threads, so a tool that changes the working directory (the schema
+  generators do) needs a lock.
+  Evidence: T45 and T41 reports. Status: active
+- **L-P0-I8C-6** · 2026-10-10 · tags: process, gates
+  Run `just check` on the base before relaying it to implementers. A one-line E501 in a supervisor commit made every ticket's acceptance
+  command fail, so a whole batch came back BLOCKED for a reason outside the tickets and cost a round. `just check` also lints `dev/`,
+  which `pyright` does not cover.
+  Evidence: S44 commit f01ab70 (`dev/tools/scan_secrets.py:2`), fixed in the following commit. Status: active
+- **L-P0-I8C-7** · 2026-10-10 · tags: process, tickets
+  A ticket with provided tests for a sibling ticket in the same package cannot have `pytest <package>` in its acceptance: T48's whole-package run
+  fails on the T49 stub by design, and the reverse. Scope the acceptance to the ticket's own test file plus `just check`, and say so in the
+  ticket. Also write the file each replacement applies to when a rename table covers several files, and list every file an escalation trigger needs
+  in *Context*, because implementers follow the Context list literally.
+  Evidence: T48 and T49 reports; the batch review rulings. Status: active
+- **L-P0-I8C-8** · 2026-10-10 · tags: mcp, tests
+  The MCP SDK's resource-template router rejects a `{name}` that contains `..`, a raw `/` or `%00` before the function runs (`Unknown resource`),
+  so only a single clean path segment reaches the document lookup. A traversal test accepts both that text and the function's own refusal. In
+  Python `re.match` with a trailing `$` also matches before a final newline: patterns that validate unstripped input use `fullmatch`.
+  Evidence: T47 report; `names.py` and `guard.py` after the review note (commit 6fbb9b1). Status: active
+- **L-P0-I8C-9** · 2026-10-10 · tags: tooling
+  `dev/tools/audit_docs.py` exits 0 when it reports findings unless `--strict` is given, so an acceptance that relies on its output checks the
+  printed counts. `just check` stops at its first failing step, so one lint error hides the pyright, codegen, openapi and licence steps; run the
+  steps one by one when diagnosing.
+  Evidence: T50, T47 and T48 reports. Status: active
