@@ -1,4 +1,3 @@
-# ruff: noqa: F401  (STUB P0-I8-T27: delete this line when the unused imports are gone)
 """Edit modal for the body of an object-backed record (P0-I8, brief 31.2 and 10.2).
 
 One editor per slot of the type's form, filled from the stored body. Only the slots the user
@@ -79,35 +78,69 @@ class ExtensionEditForm(ModalScreen[bool]):
         self._initial = body_values(form, body)
 
     def compose(self) -> ComposeResult:
-        # A Vertical(id="edit-body") holding the title Static (f"Edit {record key}", class
-        # form- title), a VerticalScroll with, per section, a Static(section.label, class
-        # group-title) and a FieldEditor(meta, self._initial.get(name), id=f"ext_{name}")
-        # per field, then the Static(id=form-status) and a Horizontal with the Save
-        # (primary, id save) and Cancel buttons. Static takes markup=False. Compare
-        # ExtensionRecordForm.compose in widgets/extension_form.py.
-        raise NotImplementedError("STUB (P0-I8-T27)")
+        # Editors hold Inputs, so they are created here, not in __init__.
+        with Vertical(id="edit-body"):
+            yield Static(f"Edit {self.record['key']}", classes="form-title", markup=False)
+            with VerticalScroll():
+                for section in self._sections:
+                    yield Static(section.label, classes="group-title", markup=False)
+                    for meta in section.fields:
+                        name = _slot_name(meta)
+                        yield FieldEditor(meta, self._initial.get(name), id=f"ext_{name}")
+            yield Static("", id="form-status", markup=False)
+            with Horizontal():
+                yield Button("Save", id="save", variant="primary")
+                yield Button("Cancel", id="cancel")
 
     def _editors(self) -> dict[str, FieldEditor]:
-        # Map each slot name (_slot_name(meta)) to its editor, found with
-        # self.query_one(f"#ext_{name}", FieldEditor).
-        raise NotImplementedError("STUB (P0-I8-T27)")
+        return {
+            _slot_name(meta): self.query_one(f"#ext_{_slot_name(meta)}", FieldEditor)
+            for section in self._sections
+            for meta in section.fields
+        }
 
     def _status(self, text: str) -> None:
         self.query_one("#form-status", Static).update(text)
 
     def action_save(self) -> None:
-        # 1) If self.conflict: _status("Not saved: the record changed; cancel and open the
-        # form again") and return. 2) For every editor: set_error(None), then validate(); if
-        # it validates and the editor changed and its meta.enforcement is "required" and its
-        # value is None: set_error("Required"). Any failure: _status("Fix the marked
-        # fields") and return (check every editor). 3) edits = {name: editor.value for
-        # changed editors}; none: _status("No changes to save") and return. 4)
-        # client.put_record_body(record id, scope=, body=merged_body(form, body, edits),
-        # expected_version=self.opened_version). ConcurrencyError: set self.conflict = True
-        # and _status(f"Not saved: {describe_error(exc)}") (catch it before the other
-        # errors). ValidationError or CLIENT_ERRORS: _status(f"Not saved:
-        # {describe_error(exc)}"). 5) On success self.dismiss(True).
-        raise NotImplementedError("STUB (P0-I8-T27)")
+        if self.conflict:
+            self._status("Not saved: the record changed; cancel and open the form again")
+            return
+        editors = self._editors()
+        ok = True
+        for editor in editors.values():
+            # Clear the old mark first: validate() only sets an error for typed text.
+            editor.set_error(None)
+            if not editor.validate():
+                ok = False
+            elif editor.changed and editor.meta.enforcement == "required" and editor.value is None:
+                editor.set_error("Required")
+                ok = False
+        if not ok:
+            self._status("Fix the marked fields")
+            return
+        edits = {name: editor.value for name, editor in editors.items() if editor.changed}
+        if not edits:
+            self._status("No changes to save")
+            return
+        try:
+            self.client.put_record_body(
+                str(self.record["id"]),
+                scope=self.scope,
+                body=merged_body(self.form, self.body, edits),
+                expected_version=self.opened_version,
+            )
+        except ConcurrencyError as exc:
+            self.conflict = True
+            self._status(f"Not saved: {describe_error(exc)}")
+            return
+        except ValidationError as exc:
+            self._status(f"Not saved: {describe_error(exc)}")
+            return
+        except CLIENT_ERRORS as exc:
+            self._status(f"Not saved: {describe_error(exc)}")
+            return
+        self.dismiss(True)
 
     def action_cancel(self) -> None:
         self.dismiss(False)
