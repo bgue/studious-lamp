@@ -40,13 +40,9 @@ def test_every_event_class_is_in_the_catalog_with_a_stable_name(events: list[Any
 NOT_EVENTS = {
     "Test.Bumped": "event type of the test-only counter projector (projection/testing.py)",
     # P0-I8 contracts name these before their workstreams add the catalog classes. WS-A removes
-    # the Setting.* entries and WS-B the others in the change that catalogues them.
+    # the Setting.* entries in the change that catalogues them.
     "Setting.Changed": "P0-I8 contract (tl_core/settings/types.py); catalogued by WS-A",
     "Setting.Locked": "P0-I8 contract (tl_core/settings/types.py); catalogued by WS-A",
-    "TypeRegistration.Registered": "P0-I8 contract (tl_core/extypes/types.py); WS-B",
-    "TypeRegistration.Quarantined": "P0-I8 contract (tl_core/extypes/types.py); WS-B",
-    "TypeRegistration.Deprecated": "P0-I8 contract (tl_core/extypes/types.py); WS-B",
-    "Record.BodyStored": "P0-I8 contract (tl_core/extypes/types.py); WS-B",
 }
 EVENT_LITERAL = re.compile(r"[A-Z]\w*\.[A-Z]\w*")
 
