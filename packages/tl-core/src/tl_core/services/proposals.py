@@ -54,6 +54,7 @@ from tl_core.proposals.types import (
     PROPOSAL_REJECTED,
     ProposalStatus,
     ProposalView,
+    SettingProposalInfo,
 )
 from tl_core.services.commands import Command, CommandResult, CreateRecord
 from tl_core.services.errors import (
@@ -72,7 +73,10 @@ from tl_core.services.psets import SetPsetValues, handle_set_pset_values
 from tl_core.services.records import handle_create_record
 from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
+from tl_core.settings.layers import parse_layer
+from tl_core.settings.registry import get_definition
 from tl_core.settings.resolver import value_of
+from tl_core.settings.views import get_view
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid, utcnow
 
@@ -139,7 +143,7 @@ def daily_budget(conn: Connection | None = None) -> int:
     every proposal.
     """
     raw = os.environ.get(BUDGET_ENV, "").strip()
-    if raw.isdigit():
+    if raw.isascii() and raw.isdigit():
         return int(raw)
     if conn is not None:
         return int(value_of(conn, BUDGET_SETTING))
@@ -163,8 +167,47 @@ def _as_object(value: Any) -> dict[str, Any]:
     return dict(loaded) if isinstance(loaded, dict) else {}  # pyright: ignore[reportUnknownArgumentType]
 
 
-def _view(row: Any) -> ProposalView:
+def _setting_info(conn: Connection, command: dict[str, Any]) -> SettingProposalInfo:
+    """The definition-backed facts about a ``ChangeSetting`` command (see SettingProposalInfo)."""
+    key, layer = str(command.get("key", "")), str(command.get("layer", ""))
+    reset = bool(command.get("reset", False))
+    info = SettingProposalInfo(
+        key=key,
+        layer=layer,
+        owner=layer.partition(":")[2] if layer.startswith("user:") else None,
+        proposed_value=None if reset else command.get("value"),
+        reset=reset,
+    )
+    try:
+        defn = get_definition(key)
+        ref = parse_layer(layer)
+        view = get_view(
+            conn,
+            key,
+            project=ref.ident if ref.kind == "project" else None,
+            user=ref.ident if ref.kind == "user" else None,
+        )
+    except ServiceError:
+        return info  # the key or layer is gone: risk and effect stay `unknown`
+    return info.model_copy(
+        update={
+            "current_value": view.effective.value,
+            "risk": defn.risk,
+            "effect": defn.effect,
+            "description": defn.description,
+        }
+    )
+
+
+def _view(row: Any, conn: Connection | None = None) -> ProposalView:
+    command = _as_object(row.command_json)
+    setting = (
+        _setting_info(conn, command)
+        if conn is not None and row.command_type == "ChangeSetting"
+        else None
+    )
     return ProposalView(
+        setting=setting,
         proposal_id=row.proposal_id,
         scope=row.scope,
         tool=row.tool,
@@ -186,7 +229,7 @@ def get_proposal(conn: Connection, proposal_id: str, *, scope: str | None = None
     row = conn.execute(_BY_ID_SQL, {"proposal_id": proposal_id}).first()
     if row is None or (scope is not None and row.scope != scope):
         raise ProposalNotFoundError(f"no proposal {proposal_id!r}")
-    return _view(row)
+    return _view(row, conn)
 
 
 def list_proposals(
@@ -208,7 +251,7 @@ def list_proposals(
         clauses.append("agent = :agent")
         params["agent"] = agent
     sql = f"{_COLUMNS} WHERE {' AND '.join(clauses)} ORDER BY seq ASC LIMIT :limit"
-    return [_view(row) for row in conn.execute(text(sql), params).all()]
+    return [_view(row, conn) for row in conn.execute(text(sql), params).all()]
 
 
 def proposals_today(conn: Connection, agent: str, *, now: datetime | None = None) -> int:
@@ -507,8 +550,10 @@ def accept_or_fail(
 
     Returns the proposal as ``accepted`` or as ``failed`` (the view's ``reason`` is the error).
     Raises, without recording anything, for an unknown or already decided proposal, a decider that
-    is not a person, and a transient database failure (``RetryableTransactionError``: running it
-    again may work). A second person accepting at the same moment gets
+    is not a person, a change to a ``dangerous`` setting without ``accept_risk``
+    (``RiskNotAcceptedError``: the proposal stays pending, so the person can accept again after
+    reading what it changes), and a transient database failure (``RetryableTransactionError``:
+    running it again may work). A second person accepting at the same moment gets
     ``ProposalNotPendingError``.
     """
     try:
@@ -523,6 +568,8 @@ def accept_or_fail(
             )
     except (ProposalNotFoundError, ProposalNotPendingError, ProposalDeciderError):
         raise
+    except RiskNotAcceptedError:
+        raise  # the person has not confirmed the risk yet: the proposal stays pending
     except RetryableTransactionError:
         raise
     except (ServiceError, ConcurrencyError, ValidationError) as exc:

@@ -321,14 +321,26 @@ def propose(h: Harness, **kw: Any) -> ProposalView:
 
 def test_accepting_a_dangerous_proposal_takes_the_risk_in_the_accept_body(harness: Harness) -> None:
     first = propose(harness)
+    shown = harness.client.get("/proposals", params={"scope": "company"}).json()
+    assert shown[0]["setting"]["risk"] == "dangerous"
+    assert shown[0]["setting"]["key"] == "webhooks.egress.allowlist"
     refused = harness.client.post(f"/proposals/{first.proposal_id}/accept")
-    assert refused.status_code == 200 and refused.json()["status"] == "failed"
-    assert refused.json()["reason"].startswith("RiskNotAcceptedError")
-    second = propose(harness)
+    assert refused.status_code == 422 and refused.json()["error"] == "risk_not_accepted"
+    pending = harness.client.get("/proposals", params={"scope": "company"}).json()
+    assert [p["proposal_id"] for p in pending] == [first.proposal_id]  # still pending
     accepted = harness.client.post(
-        f"/proposals/{second.proposal_id}/accept", json={"accept_risk": True}
+        f"/proposals/{first.proposal_id}/accept", json={"accept_risk": True}
     )
     assert accepted.status_code == 200 and accepted.json()["status"] == "accepted"
     value = harness.client.get("/settings/webhooks.egress.allowlist").json()["effective"]["value"]
     assert value == ["hub.example.com"]
     assert harness.client_for(BOB).get("/settings/webhooks.egress.allowlist").status_code == 200
+
+
+def test_only_the_latest_change_can_be_reverted(harness: Harness) -> None:
+    put(harness, "feed.signal_tags", "project:P1", ["a"])
+    put(harness, "feed.signal_tags", "project:P1", ["b"])
+    old = harness.client.post(
+        "/settings/feed.signal_tags/revert", json={"layer": "project:P1", "seq": 1}
+    )
+    assert old.status_code == 409 and old.json()["error"] == "setting_revert_not_latest"

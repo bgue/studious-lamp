@@ -7,7 +7,7 @@ Depends on: — (the settings service, the route module, `POST /commands/ChangeS
 Branch: `p0/i8a-t03-api-settings`
 
 ## Goal
-The REST API serves about:config: `GET /settings` and `GET /settings/{key}` (with the project or user being viewed), `GET /settings/{key}/history`, `PUT /settings/{key}` (set, optionally scheduled), `POST /settings/{key}/reset|lock|revert`, `GET /settings/diff`, `GET /settings/export` (YAML) and `POST /settings/import`. The module `routes/settings.py` has the router, the request bodies, the helper `view_at` and every route's decorator, parameters and docstring (they make the committed OpenAPI document); the ten route functions raise `NotImplementedError`. A provided test file (17 tests) must pass and `docs/reference/openapi.json` must not change.
+The REST API serves about:config: `GET /settings` and `GET /settings/{key}` (with the project or user being viewed), `GET /settings/{key}/history`, `PUT /settings/{key}` (set, optionally scheduled), `POST /settings/{key}/reset|lock|revert`, `GET /settings/diff`, `GET /settings/export` (YAML) and `POST /settings/import`. The module `routes/settings.py` has the router, the request bodies, the helper `view_at` and every route's decorator, parameters and docstring (they make the committed OpenAPI document); the ten route functions raise `NotImplementedError`. A provided test file (18 tests) must pass and `docs/reference/openapi.json` must not change.
 
 ## Brief references (pasted)
 > **30.2 Layers and resolution.** `platform default -> company -> project -> user (UI keys only)`. The **effective value** shows its origin. Values set at the current scope are marked ● (like about:config's "modified"). A company can **lock** a key, so projects cannot override it, or constrain the range projects may use.
@@ -350,7 +350,7 @@ uv run python -m tl_api.openapi --check
 just check
 uv run pytest packages/tl-api -q
 ```
-Expected: 17 tests pass; the OpenAPI check passes without regenerating; `just check` is clean; the API package is green.
+Expected: 18 tests pass; the OpenAPI check passes without regenerating; `just check` is clean; the API package is green.
 
 ## Tests to add
 None beyond the provided file.

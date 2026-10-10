@@ -2636,6 +2636,16 @@
             "title": "Seq",
             "type": "integer"
           },
+          "setting": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SettingProposalInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "status": {
             "enum": [
               "pending",
@@ -3803,6 +3813,62 @@
           "right"
         ],
         "title": "SettingDiff",
+        "type": "object"
+      },
+      "SettingProposalInfo": {
+        "description": "What a person needs to see before accepting a ``ChangeSetting`` proposal.\n\nRead from the setting's definition and the ledger when the proposal is shown, never from text\nthe agent wrote: ``risk`` and ``effect`` are the definition's, ``current_value`` is the\neffective value at the layer now, ``owner`` is the user whose preference a ``user:<id>`` layer\nchanges (None for the company and project layers). ``risk`` is ``unknown`` when the key has\nno definition any more.",
+        "properties": {
+          "current_value": {
+            "title": "Current Value"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "effect": {
+            "default": "unknown",
+            "title": "Effect",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "layer": {
+            "title": "Layer",
+            "type": "string"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "proposed_value": {
+            "title": "Proposed Value"
+          },
+          "reset": {
+            "default": false,
+            "title": "Reset",
+            "type": "boolean"
+          },
+          "risk": {
+            "default": "unknown",
+            "title": "Risk",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "layer"
+        ],
+        "title": "SettingProposalInfo",
         "type": "object"
       },
       "SettingValidation": {

@@ -42,6 +42,27 @@ PROPOSABLE_TOOLS: dict[str, str] = {
 }
 
 
+class SettingProposalInfo(BaseModel):
+    """What a person needs to see before accepting a ``ChangeSetting`` proposal.
+
+    Read from the setting's definition and the ledger when the proposal is shown, never from text
+    the agent wrote: ``risk`` and ``effect`` are the definition's, ``current_value`` is the
+    effective value at the layer now, ``owner`` is the user whose preference a ``user:<id>`` layer
+    changes (None for the company and project layers). ``risk`` is ``unknown`` when the key has
+    no definition any more.
+    """
+
+    key: str
+    layer: str
+    owner: str | None = None
+    current_value: Any = None
+    proposed_value: Any = None
+    reset: bool = False
+    risk: str = "unknown"
+    effect: str = "unknown"
+    description: str = ""
+
+
 class ProposalView(BaseModel):
     proposal_id: str
     scope: str
@@ -55,6 +76,7 @@ class ProposalView(BaseModel):
     reason: str | None = None
     result_stream_id: str | None = None
     seq: int
+    setting: SettingProposalInfo | None = None  # set for a ChangeSetting proposal (P0-I8)
 
 
 # Service signatures (implemented in tl_core.services.proposals):

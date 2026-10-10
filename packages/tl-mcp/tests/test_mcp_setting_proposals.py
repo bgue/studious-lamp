@@ -9,6 +9,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp_harness import ACTOR, SCOPE, McpHarness
 from tl_core import settings
 from tl_core.services import proposals
+from tl_core.services.errors import RiskNotAcceptedError
 
 ALICE = "user:alice"
 KEY = "feed.reactions.enabled"
@@ -109,15 +110,11 @@ def test_a_dangerous_key_is_proposed_and_the_person_takes_the_risk(env: McpHarne
         reason="partner hub",
     )
     pid = out["proposal"]["proposal_id"]
-    assert accept(env, pid).status == "failed"
-    again = propose(
-        env,
-        key="webhooks.egress.allowlist",
-        layer="company",
-        value=["hub.example.com"],
-        reason="partner hub",
-    )["proposal"]["proposal_id"]
-    assert accept(env, again, accept_risk=True).status == "accepted"
+    assert out["proposal"]["setting"]["risk"] == "dangerous"
+    with pytest.raises(RiskNotAcceptedError):
+        accept(env, pid)
+    assert value(env, "webhooks.egress.allowlist") == []
+    assert accept(env, pid, accept_risk=True).status == "accepted"  # the same proposal
     assert value(env, "webhooks.egress.allowlist") == ["hub.example.com"]
 
 
@@ -132,7 +129,8 @@ def test_the_tool_cannot_carry_a_risk_acceptance(env: McpHarness) -> None:
     )
     assert isinstance(out, dict)
     assert out["proposal"]["command"]["accept_risk"] is False
-    assert accept(env, out["proposal"]["proposal_id"]).status == "failed"
+    with pytest.raises(RiskNotAcceptedError):
+        accept(env, out["proposal"]["proposal_id"])
     assert value(env, "webhooks.egress.allowlist") == []
 
 

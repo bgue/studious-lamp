@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -17,6 +17,7 @@ from tl_core.services.errors import (
     InvalidSettingValueError,
     ProposalDeciderError,
     ReasonRequiredError,
+    RiskNotAcceptedError,
     SettingLockedError,
     SettingScopeError,
     UnknownSettingError,
@@ -165,19 +166,68 @@ def test_a_dangerous_change_is_proposed_with_a_reason_and_accepted_with_the_risk
 ) -> None:
     cmd = change(key="t.danger", value=["a.example.com"], reason="partner hub")
     view = propose(world, cmd)  # not refused: the risk is the accepting person's to take
-    failed = proposals.accept_or_fail(world.factory, proposal_id=view.proposal_id, by=ALICE)
-    assert failed.status == "failed" and (failed.reason or "").startswith("RiskNotAcceptedError")
+    head = world.head()
+    with pytest.raises(RiskNotAcceptedError, match="accept the risk"):
+        proposals.accept_or_fail(world.factory, proposal_id=view.proposal_id, by=ALICE)
+    assert world.head() == head  # nothing recorded: no Proposal.Failed, no budget spent again
     assert world.value("t.danger") == []
-    again = propose(world, cmd)
+    with open_uow(world.db, readonly=True) as uow:
+        assert proposals.get_proposal(uow.conn(), view.proposal_id).status == "pending"
     done = proposals.accept_or_fail(
-        world.factory, proposal_id=again.proposal_id, by=ALICE, accept_risk=True
+        world.factory, proposal_id=view.proposal_id, by=ALICE, accept_risk=True
     )
     assert done.status == "accepted" and world.value("t.danger") == ["a.example.com"]
     changed = [e for e in world.events() if e.event_type == SETTING_CHANGED][0]
     assert changed.payload["accept_risk"] is True and changed.payload["reason"] == "partner hub"
     with open_uow(world.db, readonly=True) as uow:
-        stored = proposals.get_proposal(uow.conn(), again.proposal_id)
+        stored = proposals.get_proposal(uow.conn(), view.proposal_id)
     assert stored.command["accept_risk"] is False  # the stored command never carried it
+
+
+def test_a_setting_proposal_shows_what_it_changes_from_the_definition(world: World) -> None:
+    world.set("t.danger", "company", ["old.example.com"], reason="r", accept_risk=True)
+    cmd = change(key="t.danger", value=["new.example.com"], reason="partner hub")
+    view = propose(world, cmd)
+    info = view.setting
+    assert info is not None
+    assert (info.key, info.layer, info.owner) == ("t.danger", "company", None)
+    assert (info.risk, info.effect) == ("dangerous", "live")
+    assert info.current_value == ["old.example.com"]
+    assert info.proposed_value == ["new.example.com"] and info.reset is False
+    with open_uow(world.db, readonly=True) as uow:
+        listed = proposals.list_proposals(uow.conn(), "company")
+        assert listed[0].setting == info
+
+
+def test_the_layer_owner_of_a_user_setting_is_shown(world: World) -> None:
+    cmd = change(key="ui.t.pref", layer="user:bob", value="b")
+    info = propose(world, cmd).setting
+    assert info is not None and info.owner == "bob" and info.current_value == "a"
+    reset = propose(world, change(key="ui.t.pref", layer="user:bob", reset=True, value=None))
+    assert reset.setting is not None and reset.setting.reset is True
+    assert reset.setting.proposed_value is None
+
+
+def test_a_proposal_for_a_key_that_is_gone_still_shows_and_says_unknown(world: World) -> None:
+    from tl_core.settings.registry import use_definitions
+
+    view = propose(world, change(value=20))
+    with use_definitions([]), open_uow(world.db, readonly=True) as uow:
+        shown = proposals.get_proposal(uow.conn(), view.proposal_id)
+    assert shown.setting is not None
+    assert (shown.setting.risk, shown.setting.effect) == ("unknown", "unknown")
+
+
+def test_other_proposals_have_no_setting_info(world: World) -> None:
+    from tl_core.services.commands import CreateRecord
+
+    command = CreateRecord(
+        actor=AGENT, source="mcp:triage", scope=P1, record_type="core.Record", title="t", key="K-1"
+    )
+    shown = proposals.submit(
+        world.factory, tool="create_record", agent=AGENT, command=command, summary="x"
+    )
+    assert shown.setting is None
 
 
 def test_an_agent_cannot_decide_a_setting_proposal(world: World) -> None:
@@ -223,3 +273,19 @@ def test_the_environment_variable_still_overrides_the_setting(
     with open_uow(world.db, readonly=True) as uow:
         assert proposals.daily_budget(uow.conn()) == 1
     assert proposals.daily_budget() == 500
+
+
+def test_a_unicode_digit_in_the_budget_variable_is_ignored(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(proposals.BUDGET_ENV, "\u00b2")  # "²".isdigit() is true, int() fails
+    assert proposals.daily_budget() == 500
+    monkeypatch.setenv(proposals.BUDGET_ENV, "\u0663")  # an Arabic-Indic digit
+    assert proposals.daily_budget() == 500
+
+
+def test_a_dangerous_proposal_with_a_past_time_is_refused_when_it_is_made(world: World) -> None:
+    # the dry run lets a missing risk acceptance pass, but not the checks after it
+    past = datetime.now(UTC) - timedelta(days=1)
+    with pytest.raises(InvalidSettingValueError, match="not in the future"):
+        propose(world, change(key="t.danger", value=["a"], reason="r", applies_at=past))
