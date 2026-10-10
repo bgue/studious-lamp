@@ -84,7 +84,7 @@ def test_no_suggestion_without_hold_or_without_a_record_or_after_retraction(db: 
     with open_uow(db) as uow:
         handle_retract_post(
             uow,
-            RetractPost(actor="u", source="t", scope=P1, post_id=retracted, reason="oops"),
+            RetractPost(actor="user:mlee", source="t", scope=P1, post_id=retracted, reason="oops"),
         )
     assert suggestions_for(db, no_hold, no_record, retracted) == {}
 

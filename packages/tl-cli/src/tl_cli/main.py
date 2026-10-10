@@ -18,6 +18,7 @@ from tl_cli import (
     feed,
     file,
     link,
+    proposal,
     pset,
     record,
     schema,
@@ -40,6 +41,7 @@ app.add_typer(wf.app, name="wf")
 app.add_typer(file.app, name="file")
 app.add_typer(link.app, name="link")
 app.add_typer(feed.app, name="feed")
+app.add_typer(proposal.app, name="proposal")
 app.add_typer(dev.app, name="dev")
 app.add_typer(webhook.app, name="webhook")
 app.command("serve")(serve.serve)

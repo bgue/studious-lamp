@@ -1,0 +1,200 @@
+id: https://example.org/throughline/core/proposals
+name: tl_core_proposals
+title: Throughline proposals (the review queue of agent changes)
+description: >-
+  Record-changing MCP tools are propose-only in Phase 0 (brief 11.3, 18.12; FANOUT decision D4). A tool
+  call validates its command and records a proposal; a person accepts it, and only then does the command
+  run, as the accepting person, with the agent named in the event `source` (`mcp:<agent>`) and the
+  proposal as the cause. A proposal is its own ledger stream (`core.Proposal`, stream id = proposal id,
+  scope = the scope of the command). `Proposal.Created` opens it and exactly one of `Proposal.Accepted`,
+  `Proposal.Rejected` or `Proposal.Failed` closes it. `cur_proposals` holds one row per proposal: the
+  review queue and the per-agent daily budget read it.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+  - events
+default_range: string
+annotations:
+  tl:module: core
+
+enums:
+  ProposalStatus:
+    description: Where a proposal is in its life.
+    permissible_values:
+      pending:
+        description: Waiting for a person to accept or reject it.
+      accepted:
+        description: A person accepted it and the command ran.
+      rejected:
+        description: A person rejected it; the command never ran.
+      failed:
+        description: A person accepted it, but the command was refused (stale version, failed guard).
+
+classes:
+  ProposalCreatedPayload:
+    is_a: EventPayload
+    annotations:
+      tl:event_type: Proposal.Created
+      tl:event_version: "1"
+    description: >-
+      An agent proposed a change. `command` is the command model as the agent built it, with `actor` set to
+      the agent and `source` to `mcp:<agent>`; accepting re-runs it as the accepting person.
+    attributes:
+      proposal_id:
+        range: Ulid
+        required: true
+      tool:
+        required: true
+        description: The MCP tool that was called (`create_record`, `update_psets`, `link_records`, `transition_workflow`).
+      agent:
+        required: true
+        description: The proposing actor, `agent:<id>`.
+      command_type:
+        required: true
+        description: Name of the command model (`CreateRecord`, `SetPsetValues`, `AddLink`, `TransitionWorkflow`).
+      command:
+        range: Any
+        required: true
+        description: The command, as JSON.
+        annotations:
+          tl:json: true
+      summary:
+        required: true
+        description: One line for the review queue.
+    examples:
+      - value: "{\"agent\": \"agent:triage\", \"command\": {\"actor\": \"agent:triage\", \"scope\": \"project:P123\", \"source\": \"mcp:triage\", \"record_type\": \"core.Record\", \"title\": \"Weld NCR\", \"psets\": {}, \"numbering\": {}}, \"command_type\": \"CreateRecord\", \"proposal_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"summary\": \"Create record: Weld NCR\", \"tool\": \"create_record\"}"
+
+  ProposalAcceptedPayload:
+    is_a: EventPayload
+    annotations:
+      tl:event_type: Proposal.Accepted
+      tl:event_version: "1"
+    description: A person accepted a proposal and its command ran in the same transaction.
+    attributes:
+      proposal_id:
+        range: Ulid
+        required: true
+      by:
+        required: true
+        description: The accepting person, `user:<id>`.
+      result_stream_id:
+        range: Ulid
+        required: true
+        description: Stream the command wrote to (the new record, the changed record, the link).
+      result_version:
+        range: integer
+        required: true
+        description: Stream version after the command.
+    examples:
+      - value: "{\"by\": \"user:mlee\", \"proposal_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"result_stream_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"result_version\": 1}"
+
+  ProposalRejectedPayload:
+    is_a: EventPayload
+    annotations:
+      tl:event_type: Proposal.Rejected
+      tl:event_version: "1"
+    description: A person rejected a proposal. Nothing else was written.
+    attributes:
+      proposal_id:
+        range: Ulid
+        required: true
+      by:
+        required: true
+      reason:
+        required: true
+        description: Why, for the agent and the audit trail.
+    examples:
+      - value: "{\"by\": \"user:mlee\", \"proposal_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"reason\": \"Duplicate of NCR-0042\"}"
+
+  ProposalFailedPayload:
+    is_a: EventPayload
+    annotations:
+      tl:event_type: Proposal.Failed
+      tl:event_version: "1"
+    description: >-
+      A person accepted a proposal, but the command was refused (the record changed since, a guard failed).
+      The command's own writes were rolled back; this event is written in a fresh transaction.
+    attributes:
+      proposal_id:
+        range: Ulid
+        required: true
+      by:
+        required: true
+      error:
+        required: true
+        description: "`<ErrorClass>: <message>` of the refusal."
+    examples:
+      - value: "{\"by\": \"user:mlee\", \"error\": \"ConcurrencyError: expected version 3, stream is at 4\", \"proposal_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\"}"
+
+  ProposalRow:
+    description: >-
+      One proposal: what was asked, by whom, and how it ended. Oldest first by `seq` is the review queue.
+      `created_day` (UTC, from the `effective_at` of `Proposal.Created`) with `agent` is the budget key.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_proposals
+    attributes:
+      proposal_id:
+        identifier: true
+        required: true
+        range: Ulid
+      scope:
+        range: ScopeId
+        required: true
+        annotations:
+          tl:indexed: true
+      tool:
+        required: true
+      agent:
+        required: true
+        annotations:
+          tl:indexed: true
+      command_type:
+        required: true
+      command:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+      summary:
+        required: true
+      status:
+        range: ProposalStatus
+        required: true
+        ifabsent: string(pending)
+        annotations:
+          tl:indexed: true
+      created_day:
+        required: true
+        description: UTC day of creation, `YYYY-MM-DD`.
+        annotations:
+          tl:indexed: true
+      created_at:
+        range: datetime
+        required: true
+      created_event_id:
+        required: true
+        description: Event id of `Proposal.Created`; the cause of the accepted command's events.
+      decided_by:
+        description: The person who accepted, rejected or failed it.
+      decided_at:
+        range: datetime
+      reason:
+        description: The rejection reason, or the error of a failed proposal.
+      result_stream_id:
+        range: Ulid
+        description: Accepted only; the stream the command wrote to.
+      seq:
+        range: integer
+        required: true
+        description: "`seq` of `Proposal.Created`."
+        annotations:
+          tl:indexed: true
+      version:
+        range: integer
+        description: Ledger `stream_version` of the proposal stream after the last event applied.

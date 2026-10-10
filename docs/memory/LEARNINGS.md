@@ -646,6 +646,50 @@ test or a generated artefact already enforces, or narrative history (that belong
   base into the ticket branch and a re-run of its tests on both adapters.
   Evidence: relay outcomes of workflow wkzasjo4a; T03 passes 13 of 13 only with T02 merged. Status: active
 
+- **L-P0-I6B-1** · 2026-10-10 · tags: schema, tests
+  A new event type in the catalog breaks two tests the schema package does not run: `tests/contract/test_webhook_catalog_contract.py`
+  requires the webhook scenario (`tests/webhooks/scenario.py`) to produce every catalog type, and a type that is only a decision of
+  an existing stream (`Proposal.Accepted`) needs a stream opened first. After any `schema/core` event change run
+  `uv run pytest tests/contract tests/webhooks` as well as `packages/tl-schema`. A hand-created record key that matches a
+  numbering pattern (`P123-REC-0001`) also advances that counter, so a test that needs a collision uses a key the allocator will not hand out.
+  Evidence: S21 left the contract test red until S24 added the Proposal events to the scenario; `test_a_command_refused_on_accept_leaves_only_the_failed_event`. Status: active
+
+- **L-P0-I6B-2** · 2026-10-10 · tags: ledger, process
+  Handlers interleave reads and writes, so there is no "non-writing pre-check" to call. To learn whether a command would be refused,
+  run the handler in its own unit of work and end the block with a private exception: the unit rolls back, publishes nothing and gives an
+  allocated number back (`proposals.precheck`). A SAVEPOINT inside the caller's unit would not do: `BaseUnitOfWork._pending` would still
+  publish the rolled-back events. Under Postgres the rolled-back run burns sequence values, which consumers already tolerate.
+  Evidence: `tests/services/test_proposals.py::test_a_refused_proposal_leaves_no_event_and_no_number_behind`; the mutation that removes the sentinel fails 8 tests. Status: active
+
+- **L-P0-I6B-3** · 2026-10-10 · tags: ledger, process
+  "Roll back, then record the failure in a fresh unit of work" cannot be a function of an entered `uow`. Keep the uow-level function
+  raising the command's refusal and put the two-step rule in a wrapper that takes the unit-of-work factory (`accept_or_fail`). In the
+  wrapper, re-read the state before recording the failure (a lost race on the same stream is not this caller's failure) and let
+  transient errors (`RetryableTransactionError`) propagate instead of recording them as the business outcome.
+  Evidence: `services/proposals.py`; `test_a_transient_database_failure_is_not_recorded_as_a_failed_proposal` fails when the re-raise is removed. Status: active
+
+- **L-P0-I6B-4** · 2026-10-10 · tags: mcp, security, process
+  A stored command that another actor replays must carry no permission claim. `TransitionWorkflow.actor_roles` is trusted input
+  (ADR-0005), so a proposal with `["manager"]` would have run with that role under a person's click. `propose` refuses non-empty roles
+  and the accepting person supplies theirs. Likewise "only a person decides" is a rule about what accepting means, not a permission
+  model. Because `authorize` allows everything, propose-only also needs a fixed rule at the API: `guard(changes_records=True)` refuses
+  every record-changing command and file write to an `agent:` token (403 `agent_must_propose`, orchestrator ruling B15); real per-role
+  enforcement stays the human gate.
+  Evidence: `test_a_proposal_cannot_carry_roles_and_the_accepting_person_supplies_them`, `test_an_agent_cannot_decide`, `test_an_agent_token_cannot_run_any_record_changing_command`. Status: active
+
+- **L-P0-I6B-5** · 2026-10-10 · tags: mcp, tests
+  Free-form JSON arguments (`psets`, `values`) cannot carry `maxLength`. Bound them as serialized text in the tool body and keep a test
+  that walks every tool's input schema and fails on any `string` without `maxLength` (enums excepted), so a new tool cannot ship an
+  unbounded string by accident. `ruff --fix` also deletes an import you add in the same edit pass before its use exists; add imports
+  after the code that needs them.
+  Evidence: `test_every_string_the_tools_accept_has_a_length_limit`, `test_json_values_are_bounded_as_text`. Status: active
+
+- **L-P0-I6B-6** · 2026-10-10 · tags: process, env
+  The foreground command limit is 120 s and `just test` takes about 5.5 minutes (3087 tests). Start it with `run_in_background`, write docs
+  while it runs, and read the output file when the notification arrives; do not edit tracked code under test in the meantime (a stub/
+  reference swap for a demo rehearsal is safe only for modules no test imports). Running it once per round, after the supervisor pieces and
+  stubs are committed, kept the whole round to one full run.
+  Evidence: this round's `just test` (3087 passed). Status: active
 - **L-P0-I4-D1** · 2026-10-10 · tags: tui, tooling
   `query` is a Textual DOM method, so `self.query = "..."` on a widget fails pyright and would break at run time (the L-P0-I2-B4 trap again, one more
   name: `filter_text` is the grid's). Widget `DEFAULT_CSS` loses to the base widget's pseudo-class rule: `FilterBar Input { border: none }` was ignored
@@ -691,3 +735,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   threads. The code handles all three. Synchronous remote calls on the UI thread (3 s interactive timeout) should move
   to workers.
   Evidence: P0-I4 WS-D re-review at c033469. Status: active
+
+- **L-P0-I6B-7** · 2026-10-10 · tags: ledger, tests
+  The two server-side unit-of-work factories disagreed: `SqliteUowFactory.__call__(readonly)` took the flag by position while
+  `PostgresUowFactory.__call__(*, readonly)` was keyword-only, so a service calling `factory(True)` worked on SQLite only and no test
+  noticed because services were tested through `open_uow`. A function that takes a factory should declare a `Protocol` with the
+  parameter name, call it by keyword, and have one parity test that passes `make_uow_factory(target)` on each adapter.
+  Evidence: reviewer finding on `proposals.py`; `test_the_service_runs_on_each_adapters_own_factory[postgres]`. Status: active

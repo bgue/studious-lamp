@@ -18,6 +18,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from tl_api.context import ApiContext, get_ctx
+from tl_api.errors import ApiError
 from tl_api.tokens import TokenStore
 
 Authorizer = Callable[[str, str, str], None]
@@ -36,11 +37,34 @@ def authorize(actor: str, action: str, resource: str) -> None:
     return None
 
 
+AGENT_MUST_PROPOSE = "agent_must_propose"
+AGENT_MUST_PROPOSE_MESSAGE = (
+    "agents propose record changes through MCP (P0-I6 D4); a human accepts them"
+)
+#: The only commands an ``agent:`` token may run over REST: posting to the feed is a message, not a
+#: record change (brief 21.3). Everything else that changes a record is propose-only.
+AGENT_DIRECT_COMMANDS = frozenset({"PostToFeed", "EditPost", "RetractPost", "ReactToPost"})
+
+
+def refuse_agent_writes(actor: str) -> None:
+    """Raise ``ApiError`` 403 ``agent_must_propose`` when ``actor`` is an ``agent:<id>``.
+
+    FANOUT decision D4: an agent proposes record changes (MCP tools, then a person accepts); it
+    never changes a record directly. This is a fixed rule of the brief, not a permission model:
+    it grants nobody anything, and which people may write what stays a human gate (ADR-0005).
+    """
+    if actor.startswith("agent:"):
+        raise ApiError(403, AGENT_MUST_PROPOSE, AGENT_MUST_PROPOSE_MESSAGE)
+
+
 _bearer = HTTPBearer(auto_error=False, description="Static dev token (ADR-0005)")
 
 
-def guard(action: str) -> Callable[..., str]:
+def guard(action: str, *, changes_records: bool = False) -> Callable[..., str]:
     """A dependency that authenticates, runs the hook for ``action`` and returns the actor.
+
+    ``changes_records=True`` marks a route that changes a record (every command but the feed
+    ones, the file writes): an ``agent:`` actor is then refused with ``agent_must_propose``.
 
     ``action`` is a dotted name such as ``record.read`` or ``command.CreateRecord``; the resource
     passed to the hook is the request path.
@@ -57,6 +81,8 @@ def guard(action: str) -> Callable[..., str]:
         if actor is None:
             raise Unauthorized("unknown token")
         ctx.authorize(actor, action, request.url.path)
+        if changes_records:
+            refuse_agent_writes(actor)
         return actor
 
     return dependency
