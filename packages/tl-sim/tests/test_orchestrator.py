@@ -317,3 +317,63 @@ def test_an_oversized_injection_is_refused_and_not_queued(tmp_path: Path) -> Non
     with pytest.raises(ValueError, match="at most 20"):
         sim.inject("design_revision", count=10**9)
     assert sim.status().pending == []
+
+
+# --- the agent needs a ledger it can open: say so before anything is written --------------------
+
+
+def test_create_asks_the_connector_whether_the_scenario_can_run_before_anything_is_written(
+    tmp_path: Path,
+) -> None:
+    class NoLedger(FakeConnector):
+        def check(self, scenario: Scenario) -> None:
+            raise RunError("no ledger file for the assistant")
+
+    sc = scenario()
+    connector = NoLedger(default_run_id(sc))
+    store = RunStore(tmp_path)
+    with pytest.raises(RunError, match="no ledger file"):
+        Simulation.create(sc, TEMPLATE, store=store, connector=connector)
+    assert store.runs() == [] and connector.provisioned == []  # no run, no tokens, no seed
+    assert connector.world.records() == []
+
+
+def test_the_http_connector_refuses_an_assistant_without_a_ledger_file(tmp_path: Path) -> None:
+    from tl_sim.connector import HttpConnector
+
+    with_agent = scenario(actors={"assistant": {"proposals_per_day": 1}})
+    without = scenario()
+    missing = HttpConnector(
+        "http://x", tmp_path / "t.json", run_id="r1", db_path=tmp_path / "no.db"
+    )
+    with pytest.raises(RunError, match="no ledger file at .*no.db"):
+        missing.check(with_agent)
+    missing.check(without)  # no agent, no need for a ledger
+    HttpConnector("http://x", tmp_path / "t.json", run_id="r1", db_path=None).check(without)
+    with pytest.raises(RunError, match="TL_DB"):
+        HttpConnector("http://x", tmp_path / "t.json", run_id="r1").check(with_agent)
+    (tmp_path / "yes.db").write_text("")
+    HttpConnector("http://x", tmp_path / "t.json", run_id="r1", db_path=tmp_path / "yes.db").check(
+        with_agent
+    )
+
+
+def test_an_enabled_assistant_that_cannot_propose_makes_assert_red(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The real orchestrator path: assistant on, every proposal refused as a duplicate."""
+    from tl_sim.actors.approver import Approver
+    from tl_sim.actors.assistant import Assistant
+    from tl_sim.scenario import ApproverParams, AssistantParams
+
+    sc = scenario(actors={"assistant": {"proposals_per_day": 1}, "approver": {}})
+    monkeypatch.setattr(
+        orch,
+        "actors_of",
+        lambda scenario: [Scripted(None), Assistant(AssistantParams()), Approver(ApproverParams())],
+    )
+    connector = FakeConnector(default_run_id(sc), propose=True)
+    sim = Simulation.create(sc, TEMPLATE, store=RunStore(tmp_path), connector=connector)
+    sim.advance(1)  # the scripted crew made valves, but there is no document: nothing to propose
+    report = sim.assert_()
+    assert {f.check for f in report.failures} == {"actor_silent"}

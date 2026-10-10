@@ -136,13 +136,16 @@ class Recorder:
     def propose(self, tool: str, arguments: dict[str, Any]) -> str | None:
         """Ask the review queue (MCP, propose-only). Returns the ground-truth name.
 
-        ``None`` (and no ground truth) when the server refused the call, for example a link that
-        already exists: the suite said no, which is part of a realistic day.
+        ``None`` (and no ground truth) only for the one refusal a realistic day shrugs off: a link
+        that already exists. Any other refusal (budget, bad argument, permission, unknown record)
+        is raised, so a broken run cannot pass by proposing nothing.
         """
         try:
             self.ctx.client.propose(tool, arguments)
-        except ProposalRefusedError:
-            return None
+        except ProposalRefusedError as exc:
+            if exc.is_duplicate_link:
+                return None
+            raise
         self._proposals += 1
         ref = f"proposal:{self.identity}:{self._stamp()}:{self._proposals}"
         self._note(gt.PROPOSAL_CREATED, ref, {"tool": tool, "agent": self.identity})
@@ -175,16 +178,16 @@ class Recorder:
         tool, agent = str(proposal["tool"]), str(proposal["agent"])
         self._decisions += 1
         ref = f"decision:{self.identity}:{self._stamp()}:{self._decisions}"
-        if not accept:
-            desk.reject_proposal(str(proposal["proposal_id"]), reason)
-            self._note(gt.PROPOSAL_REJECTED, ref, {"tool": tool, "agent": agent, "reason": reason})
-            return ref
         expect: dict[str, Any] = {"tool": tool, "agent": agent}
-        if tool == "link_records":
+        if tool == "link_records":  # what the proposal would make, so a rejection can be checked
             command = proposal["command"]
             expect["from"] = self.key_of(str(command["from_id"]))
             expect["to"] = self.key_of(str(command["to_id"]))
             expect["relation"] = command.get("relation")
+        if not accept:
+            desk.reject_proposal(str(proposal["proposal_id"]), reason)
+            self._note(gt.PROPOSAL_REJECTED, ref, {**expect, "reason": reason})
+            return ref
         decided = desk.accept_proposal(str(proposal["proposal_id"]))
         if decided.get("status") != "accepted":
             return None

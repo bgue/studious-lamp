@@ -31,6 +31,7 @@ from tl_sim.clock import SimClock
 EFFECTIVE_AT_HEADER = "X-TL-Effective-At"
 RECORD_TYPE_CODE = "REC"  # the only record type in Phase 0 (core.Record)
 MAX_QUERY = 5000  # the API's page limit
+PROPOSAL_LIMIT = 500  # the proposals route's maximum (`le=500`); the queue is worked every day
 
 
 class ProposeUnavailableError(Exception):
@@ -210,7 +211,7 @@ class HttpSimClient:
     # --- the review queue, for the person who works it (``ProposalDesk``) -----------------------
 
     def pending_proposals(self) -> list[dict[str, Any]]:
-        views = self._api.list_proposals(self._scope, status="pending")
+        views = self._api.list_proposals(self._scope, status="pending", limit=PROPOSAL_LIMIT)
         return [view.model_dump(mode="json") for view in views]
 
     def accept_proposal(self, proposal_id: str) -> dict[str, Any]:

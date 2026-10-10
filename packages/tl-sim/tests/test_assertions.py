@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 
 import pytest
 from tl_sim import groundtruth as gt
 from tl_sim.actors.base import Rec, Recorder
-from tl_sim.assertions import AssertionReport, run_assertions
+from tl_sim.assertions import AssertionReport, Expected, run_assertions
 from tl_sim.testing import FakeWorld, make_context
 from tl_sim.types import GroundTruth
 
 IDENTITY = "user:sim-crew"
 PLAYED = {date(2026, 11, 2)}
+PLAYED_AT = datetime(2026, 11, 2, 7, 0, tzinfo=UTC)
 
 
 def play() -> tuple[FakeWorld, list[GroundTruth]]:
@@ -302,3 +303,131 @@ def test_a_decision_event_made_over_the_api_or_the_cli_is_not_a_foreign_source()
     }
     world.event_rows[-1]["event_type"] = "Record.Updated"  # the same source on anything else is
     assert ("event_source", "source") in failures(check(world, _with_records(world, agent, person)))
+
+
+# --- nothing passes by doing nothing; the agent writes only what it may --------------------
+
+
+def decided_world(*, accept: bool) -> tuple[FakeWorld, list[GroundTruth]]:
+    world, agent, person = propose_world()
+    (proposal,) = person.pending()
+    person.decide(proposal, accept=accept, reason="" if accept else "Not needed")
+    return world, _with_records(world, agent, person)
+
+
+def test_an_enabled_assistant_that_proposed_nothing_is_silent_not_green() -> None:
+    world = FakeWorld("r1", "project:sim-r1")
+    maker = Recorder(make_context(world, IDENTITY), IDENTITY)
+    maker.create("Valve V001")
+    expected = Expected(proposals=True, days_played=1)
+    report = run_assertions(maker.truth, world, run_id="r1", played=PLAYED, expected=expected)
+    assert [(f.check, f.ref) for f in report.failures] == [("actor_silent", ASSISTANT)]
+    assert run_assertions(maker.truth, world, run_id="r1", played=PLAYED).ok  # not enabled
+    zero_days = Expected(proposals=True, days_played=0)
+    assert run_assertions(maker.truth, world, run_id="r1", played=PLAYED, expected=zero_days).ok
+
+
+def test_an_assistant_whose_every_proposal_is_a_duplicate_leaves_the_run_red() -> None:
+    from tl_sim.actors.assistant import Assistant
+    from tl_sim.scenario import AssistantParams
+
+    world = FakeWorld("r1", "project:sim-r1")
+    maker = Recorder(make_context(world, IDENTITY), IDENTITY)
+    valve, doc = maker.create("Valve V001"), maker.create("Doc 001")
+    maker.link(valve, doc, "references")  # the only pair already has its link
+    actor = Assistant(AssistantParams(proposals_per_day=1))
+    assert actor.step(make_context(world, actor.identity, propose=True)) == []
+    report = run_assertions(
+        maker.truth,
+        world,
+        run_id="r1",
+        played=PLAYED,
+        expected=Expected(proposals=True, days_played=1),
+    )
+    assert {f.check for f in report.failures} == {"actor_silent"}
+
+
+def test_an_enabled_approver_who_decided_nothing_is_silent_only_if_there_was_a_proposal() -> None:
+    world, agent, _ = propose_world()
+    log = _with_records(world, agent)
+    expected = Expected(decisions=True, days_played=1)
+    report = run_assertions(log, world, run_id="r1", played=PLAYED, expected=expected)
+    assert [(f.check, f.ref) for f in report.failures] == [("actor_silent", APPROVER)]
+    empty = FakeWorld("r1", "project:sim-r1")
+    maker = Recorder(make_context(empty, IDENTITY), IDENTITY)
+    maker.create("Valve V001")
+    assert run_assertions(maker.truth, empty, run_id="r1", played=PLAYED, expected=expected).ok
+
+
+def test_the_agent_may_only_propose_and_post() -> None:
+    world, log = decided_world(accept=True)
+    assert check(world, log).ok
+    world.emit("Record.Created", ASSISTANT, "mcp:sim-assistant", PLAYED_AT, "x")
+    report = check(world, log)
+    assert ("agent_wrote", "event_type") in failures(report)
+    world.event_rows.pop()
+    world.emit("Feed.Posted", ASSISTANT, "mcp:sim-assistant", PLAYED_AT, "p", {"body": "hi"})
+    assert "agent_wrote" not in {f.check for f in check(world, log).failures}
+
+
+def test_a_rejected_link_proposal_made_no_link() -> None:
+    world, log = decided_world(accept=False)
+    assert check(world, log).ok and world.link_rows == []
+    valve, doc = world.record_rows[0], world.record_rows[1]
+    world.link_rows.append(
+        {
+            "from_id": valve["id"],
+            "to_id": doc["id"],
+            "from_key": valve["key"],
+            "to_key": doc["key"],
+            "view": {"link_id": "sneaky", "relation": "references", "status": "active"},
+        }
+    )
+    assert ("rejected_link_made", "no link") in failures(check(world, log))
+
+
+def test_a_rejected_proposal_does_not_forbid_a_link_another_accepted_proposal_made() -> None:
+    world, log = decided_world(accept=False)
+    valve, doc = world.record_rows[0], world.record_rows[1]
+    world.link_rows.append(
+        {
+            "from_id": valve["id"],
+            "to_id": doc["id"],
+            "from_key": valve["key"],
+            "to_key": doc["key"],
+            "view": {"link_id": "l1", "relation": "references", "status": "active"},
+        }
+    )
+    covered = GroundTruth(
+        at=PLAYED_AT,
+        actor=APPROVER,
+        intent="proposal.accepted",
+        ref="decision:other",
+        expect={
+            "tool": "link_records",
+            "agent": ASSISTANT,
+            "from": valve["key"],
+            "to": doc["key"],
+            "relation": "references",
+        },
+    )
+    failed = {f.check for f in check(world, [*log, covered]).failures}
+    assert "rejected_link_made" not in failed
+
+
+def test_an_accept_effect_stamped_on_an_unplayed_day_fails_but_real_time_does_not() -> None:
+    world, log = decided_world(accept=True)
+    assert check(world, log).ok
+    effect = next(e for e in world.event_rows if e["event_type"] == "Link.Added")
+    effect["effective_at"] = "2026-12-25T07:00:00+00:00"
+    assert ("event_time", "effective_at") in failures(check(world, log))
+    effect["effective_at"] = effect["recorded_at"]  # a person at the CLI: real time, exempt
+    assert "event_time" not in {f.check for f in check(world, log).failures}
+
+
+def test_the_agents_own_proposal_is_real_time_and_exempt() -> None:
+    world, log = decided_world(accept=True)
+    created = next(e for e in world.event_rows if e["event_type"] == "Proposal.Created")
+    assert created["effective_at"] == created["recorded_at"]
+    created["effective_at"] = "2026-12-25T07:00:00+00:00"  # not judged, simulated or not
+    assert "event_time" not in {f.check for f in check(world, log).failures}

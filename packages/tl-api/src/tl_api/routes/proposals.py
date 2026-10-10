@@ -10,15 +10,18 @@ model (ADR-0005).
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, Query
 from pydantic import BaseModel, ConfigDict, Field
 from tl_core.proposals.types import ProposalStatus, ProposalView
 from tl_core.services import proposals
+from tl_core.util import effective_time
 
 from tl_api.auth import guard
 from tl_api.context import ApiContext, get_ctx
+from tl_api.effective import EFFECTIVE_AT_HEADER, resolve_effective_at
 
 router = APIRouter(tags=["proposals"])
 
@@ -82,9 +85,33 @@ def get_proposal(
         return proposals.get_proposal(uow.conn(), proposal_id, scope=scope)
 
 
+SimulatedTime = Annotated[
+    str | None,
+    Header(
+        alias=EFFECTIVE_AT_HEADER,
+        description="Simulated time stamped as the decision's (and the accepted command's) "
+        "effective_at. Accepted only when the proposal is in a simulation scope "
+        "`project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+    ),
+]
+
+
+def simulated_time(ctx: ApiContext, proposal_id: str, header: str | None) -> datetime | None:
+    """The instant ``X-TL-Effective-At`` asks for, checked against the proposal's own scope."""
+    if header is None:
+        return None
+    with ctx.backend(True) as uow:
+        scope = proposals.get_proposal(uow.conn(), proposal_id).scope
+    return resolve_effective_at(header, scope)
+
+
 @router.post("/proposals/{proposal_id}/accept", operation_id="accept_proposal")
 def accept_proposal(
-    ctx: Ctx, actor: Acceptor, proposal_id: str, body: AcceptBody | None = None
+    ctx: Ctx,
+    actor: Acceptor,
+    proposal_id: str,
+    effective_at: SimulatedTime = None,
+    body: AcceptBody | None = None,
 ) -> ProposalView:
     """Run the proposal's command as the caller and record the decision.
 
@@ -92,15 +119,24 @@ def accept_proposal(
     could not be applied (the record changed, a guard failed); nothing of the command is kept then.
     """
     roles = body.roles if body is not None else []
-    return proposals.accept_or_fail(
-        ctx.backend, proposal_id=proposal_id, by=actor, roles=roles, source=API_SOURCE
-    )
+    when = simulated_time(ctx, proposal_id, effective_at)
+    with effective_time(when):
+        return proposals.accept_or_fail(
+            ctx.backend, proposal_id=proposal_id, by=actor, roles=roles, source=API_SOURCE
+        )
 
 
 @router.post("/proposals/{proposal_id}/reject", operation_id="reject_proposal")
-def reject_proposal(ctx: Ctx, actor: Rejector, proposal_id: str, body: RejectBody) -> ProposalView:
+def reject_proposal(
+    ctx: Ctx,
+    actor: Rejector,
+    proposal_id: str,
+    body: RejectBody,
+    effective_at: SimulatedTime = None,
+) -> ProposalView:
     """Reject a pending proposal with a reason. The command never runs."""
-    with ctx.backend(False) as uow:
+    when = simulated_time(ctx, proposal_id, effective_at)
+    with effective_time(when), ctx.backend(False) as uow:
         return proposals.reject_proposal(
             uow, proposal_id=proposal_id, by=actor, reason=body.reason, source=API_SOURCE
         )
