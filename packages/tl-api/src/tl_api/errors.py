@@ -93,6 +93,12 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.PostNotFoundError, "post_not_found", 404),
         s(svc.PostRetractedError, "post_retracted", 409),
         s(svc.ReactionsDisabledError, "reactions_disabled", 403),
+        # --- proposals (P0-I6 workstream B) --------------------------------------------------
+        s(svc.ProposalNotFoundError, "proposal_not_found", 404),
+        s(svc.ProposalNotPendingError, "proposal_not_pending", 409),
+        s(svc.InvalidProposalError, "invalid_proposal", 422),
+        s(svc.BudgetExceededError, "budget_exceeded", 429),
+        s(svc.ProposalDeciderError, "proposal_decider", 403),
     )
 
 

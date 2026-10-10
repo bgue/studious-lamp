@@ -179,3 +179,23 @@ class PostRetractedError(ServiceError): ...  # edit, retract or react on a retra
 
 
 class ReactionsDisabledError(ServiceError): ...  # feed.reactions.enabled is off
+
+
+# --- proposals (P0-I6 workstream B) -------------------------------------------------------------
+
+
+class ProposalNotFoundError(
+    ServiceError
+): ...  # proposal_id unknown, or it belongs to another scope
+
+
+class ProposalNotPendingError(ServiceError): ...  # accept or reject of a proposal already decided
+
+
+class InvalidProposalError(ServiceError): ...  # wrong tool for the command, bad summary or reason
+
+
+class BudgetExceededError(ServiceError): ...  # the agent's proposals for the UTC day are used up
+
+
+class ProposalDeciderError(ServiceError): ...  # only a person (user:<id>) accepts or rejects
