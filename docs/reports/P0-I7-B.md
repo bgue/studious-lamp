@@ -22,13 +22,13 @@ Objective met for everything that does not depend on P0-I4 or workstream A: yes.
 | P0-I7-T20 `tl lake` commands | merged | 1 (pass) | `status` also treats `synced_at is None` as uninitialised (type narrowing), accepted |
 | P0-I7-T21 demo queries | merged | 1 (pass) | reviewer mutation-checked an ORDER BY |
 | P0-I7-T22 runbook | taken over | 1 (escalate) | unanswered business-hours question and process wording; orchestrator ruled, supervisor finished (29a1242) |
-| P0-I7-T23 `lake_query` MCP registration | deferred | | needs the `tl_mcp` server from P0-I4 |
+| P0-I7-T23 runbook section for `lake_query` over MCP | dispatched | | the code part (register the tool) failed Haiku-ability row 6 (public interface of `tl_mcp`), so the supervisor built it as S8 |
 
 ## Gates
 | Gate | Result |
 |---|---|
 | `just check` | green on `p0/i7b` (d1a1dd1) |
-| `just test` | green, 2777 passed after merging p0/i7 (P0-I5) |
+| `just test` | green, 3159 passed after merging p0/i7 (P0-I5 and P0-I4) |
 | `uv run pytest packages/tl-lake --adapters sqlite,postgres` (`TL_REQUIRE_POSTGRES=1`) | green, 238 passed |
 | `just demo P0-I7-lake` | passes |
 
@@ -50,6 +50,9 @@ Sync (S1) passed with low items; the guard (S2/S3) needed changes. All applied i
 | 7 | Property test used one scope and counts | Two scopes (`OTHER_SCOPE`); lake rows compared with the ledger's rows by content (sorted, values converted by the loader); mutation re-checked |
 | 8 | Post-COMMIT error said "nothing was committed" | Reworded; `LakeSyncError` docstring fixed; test |
 | 9 | Tip-only verification | Stated in the README: by design, full-chain integrity is `tl archive verify` (WS-A) |
+
+## lake_query over MCP (S8, P0-I4 merged into p0/i7b, 17d714b)
+`tl_mcp.build_server(..., lake_dir=None)` registers the read-only tool `lake_query(sql, limit=100)` and the resource `tl://lake/schema`. It forwards to `LakeQueryService` (limit at most 1000, answer cap 1 MiB, audit `caller` = the server's actor). `GuardError` becomes a `ToolError` starting `refused:`, any other `LakeError` a `ToolError`; the authorise hook is called first as `mcp.lake_query` on `lake:main`; inputs are bounded by the schema (SQL 1 to 20 000 characters). `python -m tl_mcp --lake-dir DIR` selects the lake. Existing tl-mcp tests were updated for the new tool and resource; `tests/test_mcp_lake_query.py` is new (refusals, limits, audit caller, unsynced lake, bounds, hook order).
 
 ## Postgres (P0-I5 merged into p0/i7b, bcaf5b6)
 - `read_snapshot` now delegates to `tl_adapters.db.read_tx` (REPEATABLE READ READ ONLY on Postgres).
