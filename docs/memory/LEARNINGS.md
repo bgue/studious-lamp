@@ -463,3 +463,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   `duckdb_extensions.import_extension('ducklake')` before `LOAD ducklake`. Parquet and JSON are built in. pgBackRest is
   installable with apt. GitHub release downloads work. Details: the ADR-0002 addendum.
   Evidence: orchestrator probes before P0-I7. Status: active
+- **L-P0-I5-O3** · 2026-10-09 · tags: env, process
+  Refines L-P0-I3-O1. Before resuming a ticket-batch workflow after a restart, read its journal. For every implementer
+  with no `result` line, remove its worktree and delete its ticket branch (`git worktree remove --force`, `git branch -D`),
+  so the rerun's `git worktree add -b` starts clean. Keep a worktree whose implementer finished; an interrupted review
+  re-creates its own detached worktree. Resume reviewers and supervisors with SendMessage, and tell them their
+  background test runs are gone.
+  Evidence: second restart during P0-I4/I5; resumed three workflows and four agents. Status: active
