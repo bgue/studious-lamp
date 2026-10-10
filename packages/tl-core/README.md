@@ -54,6 +54,8 @@ Outbox, signed delivery and the event catalog. Plan and decisions: `docs/tickets
 | `signing`, `egress`, `transport` | modules | Standard Webhooks signing; SSRF policy with DNS pinning; httpx transport |
 | `queries`, `wiring`, `worker` | modules | Read views for the CLI; engine wiring; the worker loop |
 
+A subscription without a usable signing secret (after a restore) is held back: its deliveries stay pending, `tl webhook ls` shows `needs_secret`, and `tl webhook rotate-secret` releases them.
+
 A test send (`tl webhook test`, `send_test`) carries the header `webhook-test: 1`; real deliveries never do. It is refused for a
 disabled or expired subscription.
 

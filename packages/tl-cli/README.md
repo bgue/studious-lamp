@@ -28,7 +28,7 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl file get FILE_ID --project ID --out PATH [--force]` | command | Write a file's bytes, checked against the recorded SHA-256 |
 | `tl file ls --project ID --record KEY [--slot S] [--all]` | command | The current file per slot, or every file with `--all`; tab-separated `file_id, slot, revision, status, size, filename` |
 | `tl webhook add --project ID --name N --url U [--mode M] [--event-type T]... [filters]` | command | Create a subscription; prints `subscription`, `secret_id`, `secret` (the secret once, on stdout) |
-| `tl webhook ls [--project ID \| --company]` | command | One tab-separated line per subscription: id, status, mode, name, URL, delivered, pending, dead |
+| `tl webhook ls [--project ID \| --company]` | command | One tab-separated line per subscription: id, status (`needs_secret` for an active subscription without a signing secret, as after a restore), mode, name, URL, delivered, pending, dead |
 | `tl webhook test ID [--event-type T] [--allow-host H]...` | command | Send a signed catalog sample (header `webhook-test: 1`); exit 1 on a failure or a blocked target |
 | `tl webhook replay ID (--from-seq N --to-seq M \| --since T --until T)` | command | Re-send a seq range or time range; prints `replayed <n>` |
 | `tl webhook dlq ls [--subscription ID]`, `dlq redrive ID [--delivery D]...` | commands | List dead letters; re-enqueue them (runbook: `docs/runbooks/webhook-operations.md`) |

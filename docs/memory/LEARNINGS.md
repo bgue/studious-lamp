@@ -609,3 +609,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   databases need `tl webhook rotate-secret` per subscription before the worker runs. Whether the worker fails safely on a subscription whose secret row is
   missing is not tested here; the restore runbook says to rotate first.
   Evidence: `tl restore` of an archive with a subscription, then `tl webhook ls` (active, 0 delivered). Status: active
+
+- **L-P0-I7-A10** · 2026-10-10 · tags: ledger, sync
+  Resolves L-P0-I7-A9. `DeliveryEngine.claim` now selects only deliveries whose subscription has an unexpired active secret (`HAS_SECRET_SQL`), so a restored subscription's
+  deliveries stay pending: nothing unsigned goes out and nothing reaches the DLQ or the retry counters. It logs per subscription per cycle, `tl webhook ls` prints
+  `needs_secret`, and `restore_from_archive` returns one warning per active subscription. Still open and flagged to the orchestrator: `wh_cursor` is operational
+  state that a restore does not carry, so the dispatcher restarts at seq 0 and queues every event since each subscription was created.
+  Evidence: `tests/archive/test_restore_webhooks.py` (fails with the filter removed); 427 + 223 webhook and CLI tests green on both adapters. Status: active
+

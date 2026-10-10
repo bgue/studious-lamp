@@ -16,7 +16,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import cast
 
-from sqlalchemy import Connection, Engine
+from sqlalchemy import Connection, Engine, text
 from tl_core.archive import (
     ArchiveStore,
     RestoreError,
@@ -116,6 +116,39 @@ def _warnings(schemas: dict[str, EffectiveSchema], recorded: dict[str, str]) -> 
     return tuple(found)
 
 
+def _rotate_hint(subscription_id: str, scope: str) -> str:
+    target = "--company" if scope == "company" else f"--project {scope.removeprefix('project:')}"
+    return f"tl webhook rotate-secret {subscription_id} {target}"
+
+
+def _secret_warnings(conn: Connection) -> tuple[str, ...]:
+    """One warning per active webhook subscription, plus one about the dispatcher.
+
+    Signing secrets are never in the ledger, so a restored subscription has none and the delivery
+    engine holds its deliveries back (pending) until a secret is issued. Delivery state is not
+    restored either: the dispatcher starts again from seq 0.
+    """
+    rows = conn.execute(
+        text(
+            "SELECT subscription_id, scope FROM cur_webhook_subscription "
+            "WHERE status = 'active' ORDER BY created_at, subscription_id"
+        )
+    ).all()
+    if not rows:
+        return ()
+    found = [
+        f"webhook subscription {row[0]} (scope {row[1]}) has no signing secret after the restore "
+        f"and sends nothing until you run: {_rotate_hint(str(row[0]), str(row[1]))}"
+        for row in rows
+    ]
+    found.append(
+        "the webhook dispatcher starts again from seq 0: events since each subscription was "
+        "created are queued as pending deliveries and are sent once its secret is issued "
+        "(receivers dedupe on the event id)"
+    )
+    return tuple(found)
+
+
 def _restore_in_one_transaction(
     engine: Engine,
     target: DbTarget,
@@ -124,10 +157,11 @@ def _restore_in_one_transaction(
     registry: ProjectorRegistry,
     seen: dict[str, str],
     public_key: bytes,
-) -> tuple[int, float, float]:
+) -> tuple[int, float, float, tuple[str, ...]]:
     """Insert, add promoted columns, replay, verify: all or nothing.
 
-    Returns the event count and the ``perf_counter`` times at which the insert and the replay ended.
+    Returns the event count, the ``perf_counter`` times at which the insert and the replay ended,
+    and the webhook warnings.
 
     The closing verification against the archive runs before the commit, so a mismatch rolls
     everything back and leaves an empty database that the same call can restore into again.
@@ -143,7 +177,8 @@ def _restore_in_one_transaction(
         issues = verify_archive(store, public_key=public_key, conn=conn)
         if issues:
             raise _fail(issues, "the restored database does not match the archive")
-    return count, inserted, rebuilt_at
+        warnings = _secret_warnings(conn)
+    return count, inserted, rebuilt_at, warnings
 
 
 def restore_from_archive(
@@ -183,7 +218,7 @@ def restore_from_archive(
     seen: dict[str, str] = {}
     engine = make_engine(target)
     try:
-        count, inserted, rebuilt = _restore_in_one_transaction(
+        count, inserted, rebuilt, webhook_warnings = _restore_in_one_transaction(
             engine, target, store, schemas, reg, seen, public_key
         )
     finally:
@@ -198,5 +233,5 @@ def restore_from_archive(
         total_seconds=time.perf_counter() - started,
         schema_hashes={scope: schema.hash for scope, schema in schemas.items()},
         ledger_schema_hashes=dict(seen),
-        warnings=_warnings(schemas, seen),
+        warnings=(*_warnings(schemas, seen), *webhook_warnings),
     )

@@ -73,3 +73,12 @@ Purpose: operate outbound webhooks: find and redrive dead letters, replay events
 - ADR-0002 (no outbound internet in the build container: tests use the dev receiver on 127.0.0.1), README-B decisions D4, D6, D9 to D12, D15 (secrets are stored in plaintext in `wh_secret` for Phase 0; envelope-encrypt under a KMS key before any non-dev deployment).
 - `docs/runbooks/rebuild-projections.md`: a rebuild re-derives `outbox_events` and `cur_webhook_subscription` and never touches `wh_*` delivery state or secrets, and it sends nothing.
 - The event catalog: `packages/tl-schema/src/tl_schema/generated/docs/event-catalog.md`.
+
+## After a restore from the ledger archive
+A restored database has its subscriptions (status `active`) but no signing secrets (secrets are never in the ledger) and no delivery state. `uv run tl webhook ls` shows such a subscription as `needs_secret`; the worker sends nothing for it, dead-letters nothing, and logs one warning per subscription per cycle. Its deliveries stay pending. Issue a secret for each, give it to the receiver, then the pending deliveries go out signed:
+```
+uv run tl webhook rotate-secret <subscription id> --project P123
+uv run tl webhook run --once
+```
+The dispatcher also restarts from seq 0, so events since each subscription was created are queued again and sent once its secret exists; receivers dedupe on the event id. To avoid that, disable the subscription (`uv run tl webhook disable <subscription id> --project P123`) until the receiver is ready, or replay only the range it needs. The restore prints this as `warning:` lines (see `restore-from-archive.md`).
+
