@@ -27,6 +27,7 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl feed retract --project ID POST_ID --reason R`, `tl feed react --project ID POST_ID [--reaction ack|+1|resolved] [--off]` | command | Tombstone a post; set or clear an acknowledgement |
 | `tl wf show --project ID KEY [--role R]...` | command | Workflow state and, for each transition, whether its guards pass |
 | `tl wf transition --project ID KEY NAME [--role R]... [--reason T]` | command | Run a transition; a blocked one prints every guard and exits 1 |
+| `tl dev token add ACTOR [--tokens PATH]` | command | Create a dev bearer token for `user:<id>` or `agent:<id>` in the token file (mode 0600, `TL_TOKENS`, default `./dev/data/tokens.json`); the token alone on stdout (ADR-0005) |
 | `tl file put PATH --project ID --record KEY [--slot S] [--content-type T]` | command | Hash, upload (or dedupe) and attach a file; prints `file`, `slot`, `revision`, `status`, `size`, `sha256`, `deduplicated`, and `already attached` on a repeat |
 | `tl file get FILE_ID --project ID --out PATH [--force]` | command | Write a file's bytes, checked against the recorded SHA-256 |
 | `tl file ls --project ID --record KEY [--slot S] [--all]` | command | The current file per slot, or every file with `--all`; tab-separated `file_id, slot, revision, status, size, filename` |
@@ -41,7 +42,7 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl_cli.main:app` | typer app | The `tl` entry point |
 
 ## Depends on / used by
-- Depends on: `tl_core`, `tl_schema`, `tl_adapters`, `typer`, `rich`.
+- Depends on: `tl_core`, `tl_schema`, `tl_adapters`, `tl_api` (token file helper), `typer`, `rich`.
 - Used by: `just demo P0-I1`, `just demo P0-I2`, `just demo P0-I3`, `just rebuild-projections`, developers.
 
 ## Commands
@@ -64,4 +65,4 @@ just demo P0-I1
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `webhook` group added in P0-I5 workstream B; `feed` group added in P0-I6 workstream A. `--role` is a stub list (no auth yet).
+Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `dev` group added in P0-I4 workstream C; `webhook` group added in P0-I5 workstream B; `feed` group added in P0-I6 workstream A. `--role` is a stub list (no auth yet).

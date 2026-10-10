@@ -2504,13 +2504,23 @@ version = "0.0.1"
 source = { editable = "packages/tl-api" }
 dependencies = [
     { name = "fastapi" },
+    { name = "httpx2" },
+    { name = "pydantic" },
+    { name = "tl-adapters" },
     { name = "tl-core" },
+    { name = "tl-schema" },
+    { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi" },
+    { name = "httpx2" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
+    { name = "uvicorn" },
 ]
 
 [[package]]
@@ -2521,6 +2531,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "rich" },
     { name = "tl-adapters" },
+    { name = "tl-api" },
     { name = "tl-core" },
     { name = "tl-schema" },
     { name = "typer" },
@@ -2531,6 +2542,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2" },
     { name = "rich" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-schema", editable = "packages/tl-schema" },
     { name = "typer" },
@@ -2565,13 +2577,21 @@ version = "0.0.1"
 source = { editable = "packages/tl-mcp" }
 dependencies = [
     { name = "mcp" },
+    { name = "pydantic" },
+    { name = "tl-adapters" },
+    { name = "tl-api" },
     { name = "tl-core" },
+    { name = "tl-schema" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "mcp" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 
 [[package]]

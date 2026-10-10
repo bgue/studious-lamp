@@ -18,6 +18,7 @@ check:
     uv run ruff format --check .
     uv run pyright
     uv run python -m tl_schema.generate --check
+    uv run python -m tl_api.openapi --check
     uv run python dev/tools/check_licences.py
 
 # Unit and integration tests on SQLite
@@ -43,9 +44,9 @@ test-tui *args:
 seed scale="xs":
     @echo "seed {{scale}}: not yet (arrives with P0-I6)"
 
-# API and workers on the dev ledger (arrives with P0-I4)
-serve:
-    @echo "serve: not yet (arrives with P0-I4)"
+# REST API and SSE stream on the dev ledger (TL_DB, TL_TOKENS; loopback only unless --insecure-dev)
+serve *args:
+    uv run python -m tl_api {{args}}
 
 # TUI in embedded mode against the dev ledger (TL_DB, default ./dev/data/tl.db; TL_PROJECT, default P123)
 tui:
