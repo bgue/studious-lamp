@@ -5,25 +5,27 @@ layer a key may be set at, locks and bounds, reasons, risk, schedules, history) 
 `diff`, `export` and `import` are in `tl_cli.config_exchange`, added to this group at the bottom.
 A layer is named `company`, `project:<id>` or `user:<id>`; the write commands take it as
 `--company`, `--project <id>` or `--user <id>`.
-
-STUB (P0-I8-T01): `view_line`, `detail_lines`, `history_line` and the seven commands raise
-NotImplementedError. Names, signatures and docstrings are final; implement the bodies, then delete
-this paragraph.
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Annotated, NoReturn
+from pathlib import Path
+from typing import Annotated, Any, NoReturn
 
 import typer
 from pydantic import ValidationError
+from tl_adapters.sqlite.uow import open_uow
+from tl_core import settings
 from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import ServiceError
+from tl_core.settings.service import change_setting, lock_setting, revert_setting
 from tl_core.settings.types import SettingChange
-from tl_core.settings.views import SettingView
+from tl_core.settings.values import format_value, normalise, parse_text
+from tl_core.settings.views import SettingView, get_view, list_views
 
 from tl_cli import config_exchange
 
@@ -93,10 +95,17 @@ def view_line(view: SettingView) -> str:
     The columns are the key, the value as ``format_value(value, max_items=3)``, the definition's
     ``type``, the origin (``_origin(view)``: the layer name, followed by `` ●`` when the value is
     set at the layer being viewed) and ``locked`` or ``-``.
-
-    STUB (P0-I8-T01): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T01)")
+    e = view.effective
+    locked = "locked" if e.locked else "-"
+    columns = (
+        e.key,
+        format_value(e.value, max_items=3),
+        view.definition.type,
+        _origin(view),
+        locked,
+    )
+    return "  ".join(columns)
 
 
 def detail_lines(view: SettingView) -> list[str]:
@@ -104,10 +113,31 @@ def detail_lines(view: SettingView) -> list[str]:
     ``default``, and then, only when they apply, ``risk`` (not normal), ``effect`` (not live),
     ``locked yes``, ``bounds <json>``, one ``scheduled <applies_at> <value> (seq <n>)`` per
     scheduled change and ``pending <effect>``. Each line is ``<name> <text>``.
-
-    STUB (P0-I8-T01): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T01)")
+    defn = view.definition
+    e = view.effective
+    lines = [
+        f"key {e.key}",
+        f"description {defn.description}",
+        f"value {format_value(e.value)}",
+        f"type {defn.type}",
+        f"origin {_origin(view)}",
+        f"default {format_value(defn.default)}",
+    ]
+    if defn.risk != "normal":
+        lines.append(f"risk {defn.risk}")
+    if defn.effect != "live":
+        lines.append(f"effect {defn.effect}")
+    if e.locked:
+        lines.append("locked yes")
+    if e.bounds:
+        lines.append(f"bounds {json.dumps(e.bounds, sort_keys=True, ensure_ascii=False)}")
+    for change in e.scheduled:
+        value = format_value(change.new_value)
+        lines.append(f"scheduled {change.applies_at} {value} (seq {change.seq})")
+    if e.pending_effect is not None:
+        lines.append(f"pending {e.pending_effect}")
+    return lines
 
 
 def history_line(change: SettingChange) -> str:
@@ -116,10 +146,21 @@ def history_line(change: SettingChange) -> str:
     Columns are separated by two spaces: ``seq``, ``recorded_at``, ``layer``, ``<old> -> <new>``
     (``format_value`` of each; the new side reads ``(reset)`` for a reset), ``actor`` and the reason
     or ``-``; a scheduled change ends with ``  applies <applies_at>``.
-
-    STUB (P0-I8-T01): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T01)")
+    old = format_value(change.old_value)
+    new = "(reset)" if change.reset else format_value(change.new_value)
+    columns = (
+        str(change.seq),
+        change.recorded_at,
+        change.layer,
+        f"{old} -> {new}",
+        change.actor,
+        change.reason or "-",
+    )
+    line = "  ".join(columns)
+    if change.applies_at is not None:
+        line += f"  applies {change.applies_at}"
+    return line
 
 
 @app.command("ls")
@@ -139,10 +180,14 @@ def ls(
     In a read-only unit of work (``open_uow(db, readonly=True)`` inside ``_service_errors``) call
     ``list_views(uow.conn(), project=project, user=user, prefix=prefix, modified_only=modified)``
     and print ``view_line(view)`` for each result (nothing for an empty list).
-
-    STUB (P0-I8-T01): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T01)")
+    db: Path = ctx.obj
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        views = list_views(
+            uow.conn(), project=project, user=user, prefix=prefix, modified_only=modified
+        )
+    for view in views:
+        typer.echo(view_line(view))
 
 
 @app.command("get")
@@ -160,10 +205,17 @@ def get(
     user=user)``. Then print: with ``--long`` each of ``detail_lines(view)``; else with ``--json``
     ``json.dumps(view.effective.value, sort_keys=True, ensure_ascii=False)``; else
     ``format_value(view.effective.value)``.
-
-    STUB (P0-I8-T01): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T01)")
+    db: Path = ctx.obj
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        view = get_view(uow.conn(), key, project=project, user=user)
+    if long:
+        for line in detail_lines(view):
+            typer.echo(line)
+    elif as_json:
+        typer.echo(json.dumps(view.effective.value, sort_keys=True, ensure_ascii=False))
+    else:
+        typer.echo(format_value(view.effective.value))
 
 
 @app.command("history")
@@ -178,10 +230,12 @@ def history(
 
     Read-only unit of work inside ``_service_errors``, ``settings.history(uow.conn(), key,
     layer=layer)``; print ``history_line(change)`` for each (nothing when there are none).
-
-    STUB (P0-I8-T01): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T01)")
+    db: Path = ctx.obj
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        changes = settings.history(uow.conn(), key, layer=layer)
+    for change in changes:
+        typer.echo(history_line(change))
 
 
 @app.command("set")
@@ -208,10 +262,32 @@ def set_(
     ``unchanged <key> <layer>`` when ``outcome.events`` is empty; else when ``applies_at`` was
     given ``scheduled <key> <layer> <shown> at <outcome.events[0].payload["applies_at"]>``;
     else ``set <key> <layer> <shown>``.
-
-    STUB (P0-I8-T01): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T01)")
+    db: Path = ctx.obj
+    layer = _layer(project, user, company)
+    applies_at = _when(at)
+    with _service_errors(), open_uow(db) as uow:
+        defn = settings.get_definition(key)
+        typed = normalise(defn, parse_text(defn, value))
+        outcome = change_setting(
+            uow,
+            key=key,
+            layer=layer,
+            value=typed,
+            actor=actor,
+            source="cli",
+            reason=reason,
+            accept_risk=accept_risk,
+            applies_at=applies_at,
+        )
+    shown = json.dumps(typed, sort_keys=True, ensure_ascii=False)
+    if not outcome.events:
+        typer.echo(f"unchanged {key} {layer}")
+    elif applies_at is not None:
+        when = outcome.events[0].payload["applies_at"]
+        typer.echo(f"scheduled {key} {layer} {shown} at {when}")
+    else:
+        typer.echo(f"set {key} {layer} {shown}")
 
 
 @app.command("reset")
@@ -234,10 +310,29 @@ def reset(
     ``unchanged <key> <layer>`` when ``outcome.events`` is empty; else when ``applies_at`` was
     given ``scheduled reset <key> <layer> at <outcome.events[0].payload["applies_at"]>``; else
     ``reset <key> <layer>``.
-
-    STUB (P0-I8-T01): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T01)")
+    db: Path = ctx.obj
+    layer = _layer(project, user, company)
+    applies_at = _when(at)
+    with _service_errors(), open_uow(db) as uow:
+        outcome = change_setting(
+            uow,
+            key=key,
+            layer=layer,
+            reset=True,
+            actor=actor,
+            source="cli",
+            reason=reason,
+            accept_risk=accept_risk,
+            applies_at=applies_at,
+        )
+    if not outcome.events:
+        typer.echo(f"unchanged {key} {layer}")
+    elif applies_at is not None:
+        when = outcome.events[0].payload["applies_at"]
+        typer.echo(f"scheduled reset {key} {layer} at {when}")
+    else:
+        typer.echo(f"reset {key} {layer}")
 
 
 @app.command("lock")
@@ -267,10 +362,30 @@ def lock(
     source="cli", reason=reason)``. Print ``locked <key>`` (``unlocked <key>`` when
     ``done.locked`` is false) followed, only when ``done.bounds`` is set, by `` bounds `` and
     ``json.dumps(done.bounds, sort_keys=True)``.
-
-    STUB (P0-I8-T01): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T01)")
+    db: Path = ctx.obj
+    bounds: dict[str, Any] = {}
+    with _service_errors(), open_uow(db) as uow:
+        defn = settings.get_definition(key)
+        if minimum is not None:
+            bounds["minimum"] = parse_text(defn, minimum)
+        if maximum is not None:
+            bounds["maximum"] = parse_text(defn, maximum)
+        if choices is not None:
+            bounds["choices"] = [part.strip() for part in choices.split(",") if part.strip()]
+        done = lock_setting(
+            uow,
+            key=key,
+            locked=not unlock,
+            bounds=bounds or None,
+            actor=actor,
+            source="cli",
+            reason=reason,
+        )
+    line = f"locked {key}" if done.locked else f"unlocked {key}"
+    if done.bounds:
+        line += f" bounds {json.dumps(done.bounds, sort_keys=True)}"
+    typer.echo(line)
 
 
 @app.command("revert")
@@ -288,10 +403,20 @@ def revert(
     Write unit of work inside ``_service_errors``, ``done = revert_setting(uow, key=key,
     layer=layer, seq=seq, actor=actor, source="cli", reason=reason, accept_risk=accept_risk)``.
     Print ``reverted <key> <layer> to <format_value(done.value)>``.
-
-    STUB (P0-I8-T01): remove this paragraph when you implement the function.
     """
-    raise NotImplementedError("STUB (P0-I8-T01)")
+    db: Path = ctx.obj
+    with _service_errors(), open_uow(db) as uow:
+        done = revert_setting(
+            uow,
+            key=key,
+            layer=layer,
+            seq=seq,
+            actor=actor,
+            source="cli",
+            reason=reason,
+            accept_risk=accept_risk,
+        )
+    typer.echo(f"reverted {key} {layer} to {format_value(done.value)}")
 
 
 app.add_typer(config_exchange.app)
