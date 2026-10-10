@@ -68,7 +68,7 @@ def agent_session() -> None:
     one = call("get_settings", key=KEY, project="P123")
     value = one["result"][0]["effective"]["value"]
     print(f"{KEY} for P123 is still {str(value).lower()}")
-    assert value is True  # a proposal changes nothing
+    assert value is False  # the shell set it to false for P123; a proposal changes nothing
     factory.close()
 
 
@@ -84,7 +84,8 @@ def over_http(dangerous_id: str) -> None:
         assert (exc.status, exc.error) == (403, "agent_must_propose")
     else:
         raise AssertionError("an agent token changed a setting")
-    done = person.set_setting("ai.agents.daily_proposals", layer="company", value=50, reason="pilot")
+    key = "ai.agents.daily_proposals"
+    done = person.set_setting(key, layer="company", value=50, reason="pilot")
     print(f"alice set {done.effective.key} to {done.effective.value} at {done.effective.origin}")
     try:
         person.accept_proposal(dangerous_id)

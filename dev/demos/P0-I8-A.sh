@@ -147,7 +147,7 @@ step "an agent, over MCP: reads settings, proposes a safe change and a dangerous
 out="$(py agent)"
 echo "$out"
 expect "$out" "^agent reads feed.reactions.enabled, feed.signal_tags$"
-expect "$out" "^feed.reactions.enabled for P123 is still true$"
+expect "$out" "^feed.reactions.enabled for P123 is still false$"
 mapfile -t proposals < <(grep '^proposed ' <<<"$out" | cut -d' ' -f2)
 [ "${#proposals[@]}" -eq 2 ]
 safe="${proposals[0]}"
