@@ -1,5 +1,63 @@
 {
     "$defs": {
+        "ActivityPost": {
+            "additionalProperties": false,
+            "description": "A broadcast post (brief 19.2, 21.1). Authored by a person, an agent or an external party; an agent's posts are labelled by its `agent:<id>` actor. A post has no replies.",
+            "properties": {
+                "author": {
+                    "description": "Actor that posted (`user:<id>`, `agent:<id>` or `svc:<name>`).",
+                    "type": "string"
+                },
+                "body": {
+                    "description": "Text of the post, with its `#tags` and `@mentions`.",
+                    "type": "string"
+                },
+                "importance": {
+                    "$ref": "#/$defs/Importance",
+                    "description": "Importance the author gave; a signal tag raises the effective level to high."
+                },
+                "post_id": {
+                    "description": "Immutable post identifier; equals the ledger `stream_id`.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "record_ids": {
+                    "description": "Records the post references (the resolved record tags), without repeats.",
+                    "items": {
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "scope": {
+                    "description": "The project the post was made in. A post is visible wherever its project is.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "tags": {
+                    "description": "Tags found in the body.",
+                    "items": {
+                        "$ref": "#/$defs/FeedTag"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "post_id",
+                "scope",
+                "author",
+                "body",
+                "importance"
+            ],
+            "title": "ActivityPost",
+            "type": "object"
+        },
         "Any": {
             "additionalProperties": true,
             "description": "Any JSON value. Used with `tl:json` for slots stored as JSON columns.",
@@ -298,6 +356,63 @@
             "title": "Event",
             "type": "object"
         },
+        "EventCard": {
+            "additionalProperties": false,
+            "description": "Feed rendering of one or more aggregated ledger events (brief 19.2, 21.1). Consecutive events with the same actor, event type and scope within a time window form one card.",
+            "properties": {
+                "actor": {
+                    "description": "Actor of the aggregated events.",
+                    "type": "string"
+                },
+                "card_id": {
+                    "description": "Deterministic card id, `card:<event id of the first aggregated event>`.",
+                    "type": "string"
+                },
+                "event_count": {
+                    "description": "Number of aggregated ledger events.",
+                    "type": "integer"
+                },
+                "event_type": {
+                    "description": "The ledger event type every aggregated event has.",
+                    "type": "string"
+                },
+                "importance": {
+                    "$ref": "#/$defs/Importance",
+                    "description": "System cards are low importance."
+                },
+                "scope": {
+                    "description": "Scope of the aggregated events.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "subjects": {
+                    "description": "Records the aggregated events are about.",
+                    "items": {
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "summary": {
+                    "description": "Rendered one-line summary, for example `jsmith created 14 records`.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "card_id",
+                "scope",
+                "actor",
+                "summary",
+                "importance",
+                "event_type",
+                "event_count"
+            ],
+            "title": "EventCard",
+            "type": "object"
+        },
         "EventLinkRef": {
             "additionalProperties": false,
             "description": "One immediate link of the origin record (delta mode).",
@@ -387,6 +502,326 @@
             "additionalProperties": false,
             "description": "Common parent of the event payload classes. Payloads are open: new optional fields are additive.",
             "title": "EventPayload",
+            "type": "object"
+        },
+        "FeedEditedPayload": {
+            "additionalProperties": false,
+            "description": "A post was edited. The payload is a full replacement of the body and its tags; the earlier text stays in the ledger, so edits are visible history (brief 21.1).",
+            "examples": [
+                "{\"body\": \"Spool arrived, bevels damaged\", \"post_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"record_ids\": [], \"tags\": []}"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "post_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "record_ids": {
+                    "items": {
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "tags": {
+                    "items": {
+                        "$ref": "#/$defs/FeedTag"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "post_id",
+                "body"
+            ],
+            "title": "FeedEditedPayload",
+            "type": "object"
+        },
+        "FeedItemRow": {
+            "additionalProperties": false,
+            "description": "One row of the feed: a post (with a tombstone once retracted) or an event card. Newest first by `occurred_at`, then `seq`. A card is extended while it is the scope's open card (`open_scope`); the unique key on `open_scope` states that a scope has at most one open card.",
+            "properties": {
+                "actor": {
+                    "description": "Author of a post, or the actor of a card's events.",
+                    "type": "string"
+                },
+                "base_importance": {
+                    "$ref": "#/$defs/Importance",
+                    "description": "Importance the author gave the post (cards are low)."
+                },
+                "edit_count": {
+                    "description": "Number of `Feed.Edited` events applied to the post.",
+                    "type": "integer"
+                },
+                "event_count": {
+                    "description": "1 for a post; the number of aggregated ledger events for a card.",
+                    "type": "integer"
+                },
+                "event_type": {
+                    "description": "Cards only; the event type of every aggregated event.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "first_seq": {
+                    "description": "Cards only; `seq` of the first aggregated event.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "first_us": {
+                    "description": "Cards only; `recorded_at` of the first aggregated event in microseconds since the Unix epoch. An integer so the window test does not depend on how a dialect returns timestamps.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "importance": {
+                    "$ref": "#/$defs/Importance",
+                    "description": "Effective importance. High when a post has a signal tag, else `base_importance`."
+                },
+                "item_id": {
+                    "description": "The post id, or `card:<event id of the first aggregated event>`.",
+                    "type": "string"
+                },
+                "item_type": {
+                    "$ref": "#/$defs/FeedItemType",
+                    "description": "Whether the row is a post or an event card."
+                },
+                "occurred_at": {
+                    "description": "`recorded_at` of the post, or of the latest event of a card.",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "open_scope": {
+                    "description": "Cards only; the scope while the card can still be extended, else null.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "reactions": {
+                    "$ref": "#/$defs/Any",
+                    "description": "Reacting actors by reaction (a JSON object such as ack: [user:a]); empty lists are dropped."
+                },
+                "retract_reason": {
+                    "description": "Reason given with `Feed.Retracted`.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "retracted": {
+                    "description": "True once the post was retracted. The row stays as a tombstone.",
+                    "type": "boolean"
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "seq": {
+                    "description": "`seq` of the posted event, or of the latest event of a card.",
+                    "type": "integer"
+                },
+                "summary": {
+                    "description": "Body of a post (empty once retracted) or the rendered summary of a card.",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Posts only; ledger `stream_version` of the post stream after the last event applied.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "item_id",
+                "item_type",
+                "scope",
+                "actor",
+                "occurred_at",
+                "seq",
+                "summary",
+                "importance",
+                "base_importance",
+                "event_count",
+                "retracted",
+                "edit_count",
+                "reactions"
+            ],
+            "title": "FeedItemRow",
+            "type": "object"
+        },
+        "FeedItemType": {
+            "description": "What a row of `cur_feed_items` is.",
+            "enum": [
+                "post",
+                "card"
+            ],
+            "title": "FeedItemType",
+            "type": "string"
+        },
+        "FeedPostedPayload": {
+            "additionalProperties": false,
+            "description": "A post was made in a project feed. It is the first event of the post stream. The projection derives the effective importance from `importance` and the tags.",
+            "examples": [
+                "{\"author\": \"user:mlee\", \"body\": \"Spool arrived #P123-REC-0003 #hold\", \"importance\": \"normal\", \"post_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"record_ids\": [\"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"], \"tags\": [{\"end\": 28, \"kind\": \"record\", \"namespace\": null, \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"start\": 14, \"text\": \"P123-REC-0003\"}, {\"end\": 34, \"kind\": \"signal\", \"namespace\": null, \"record_id\": null, \"start\": 29, \"text\": \"hold\"}]}"
+            ],
+            "properties": {
+                "author": {
+                    "description": "Actor that posted.",
+                    "type": "string"
+                },
+                "body": {
+                    "description": "Text of the post.",
+                    "type": "string"
+                },
+                "importance": {
+                    "$ref": "#/$defs/Importance",
+                    "description": "Importance the author gave. The projection derives the effective level from it and the tags."
+                },
+                "post_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "record_ids": {
+                    "description": "Records the post references, without repeats.",
+                    "items": {
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "tags": {
+                    "description": "Tags found in the body, after resolution.",
+                    "items": {
+                        "$ref": "#/$defs/FeedTag"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "post_id",
+                "body",
+                "author",
+                "importance"
+            ],
+            "title": "FeedPostedPayload",
+            "type": "object"
+        },
+        "FeedReactedPayload": {
+            "additionalProperties": false,
+            "description": "A reaction was set or cleared on a post. The actor of the event sets (`on` true) or clears (`on` false) one acknowledgement. Reactions are limited to `ack`, `+1` and `resolved` (brief 21.1).",
+            "examples": [
+                "{\"on\": true, \"post_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"reaction\": \"ack\"}"
+            ],
+            "properties": {
+                "on": {
+                    "description": "True to set the reaction, false to clear it.",
+                    "type": "boolean"
+                },
+                "post_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "reaction": {
+                    "description": "One of `ack`, `+1`, `resolved`.",
+                    "pattern": "^(ack|\\+1|resolved)$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "post_id",
+                "reaction",
+                "on"
+            ],
+            "title": "FeedReactedPayload",
+            "type": "object"
+        },
+        "FeedRetractedPayload": {
+            "additionalProperties": false,
+            "description": "A post was retracted. The projection keeps a tombstone row and drops the body.",
+            "examples": [
+                "{\"post_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"reason\": \"Wrong project\"}"
+            ],
+            "properties": {
+                "post_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why the post was retracted.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "post_id",
+                "reason"
+            ],
+            "title": "FeedRetractedPayload",
+            "type": "object"
+        },
+        "FeedTag": {
+            "additionalProperties": false,
+            "description": "One `#tag` or `@mention` found in a post body, as carried in the event payloads.",
+            "properties": {
+                "end": {
+                    "description": "Character offset just past the last character of the tag.",
+                    "type": "integer"
+                },
+                "kind": {
+                    "$ref": "#/$defs/TagKind",
+                    "description": "Kind of the tag after resolution."
+                },
+                "namespace": {
+                    "description": "For code and mention tags written `ns:value`, the part before the colon.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "record_id": {
+                    "description": "For a record tag that resolved to a record, that record's id.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "start": {
+                    "description": "Character offset of the sigil in the body.",
+                    "type": "integer"
+                },
+                "text": {
+                    "description": "The tag as written, without its leading sigil (`47-1234-S03`, `area:A12`, `party:acme-nde`).",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "text",
+                "kind",
+                "start",
+                "end"
+            ],
+            "title": "FeedTag",
             "type": "object"
         },
         "File": {
@@ -697,6 +1132,85 @@
             ],
             "title": "FileUploadedPayload",
             "type": "object"
+        },
+        "Hashtag": {
+            "additionalProperties": false,
+            "description": "One tag of a post (hashtag, namespaced code, signal tag, topic or mention), or one subject record of a card (kind `record`). Cards have rows only for records, so the feed of a record includes its cards.",
+            "properties": {
+                "end_pos": {
+                    "description": "Offset just past the tag; 0 for a card's subject row.",
+                    "type": "integer"
+                },
+                "item_id": {
+                    "description": "The post or card the tag belongs to.",
+                    "type": "string"
+                },
+                "kind": {
+                    "$ref": "#/$defs/TagKind"
+                },
+                "namespace": {
+                    "description": "For code and mention tags, the part before the colon.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "record_id": {
+                    "description": "For a resolved record tag, or a card's subject, the record.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "seq": {
+                    "description": "`seq` of the event that added the row; orders a card's subjects.",
+                    "type": "integer"
+                },
+                "start_pos": {
+                    "description": "Offset of the sigil in the post body; 0 for a card's subject row.",
+                    "type": "integer"
+                },
+                "tag_key": {
+                    "description": "Normalised text used to find the tag's feed (lower case). For a card's subject row, the record id.",
+                    "type": "string"
+                },
+                "tag_row_id": {
+                    "description": "`<item id>|<kind>|<tag key>|<start>`, unique per occurrence.",
+                    "type": "string"
+                },
+                "tag_text": {
+                    "description": "The tag as written, without its sigil. For a card's subject row, the record id.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "tag_row_id",
+                "item_id",
+                "scope",
+                "kind",
+                "tag_text",
+                "tag_key",
+                "start_pos",
+                "end_pos",
+                "seq"
+            ],
+            "title": "Hashtag",
+            "type": "object"
+        },
+        "Importance": {
+            "description": "Noise-control level (brief 21.3). System cards are low, posts normal, signal tags high.",
+            "enum": [
+                "low",
+                "normal",
+                "high"
+            ],
+            "title": "Importance",
+            "type": "string"
         },
         "Link": {
             "additionalProperties": false,
@@ -2059,6 +2573,18 @@
                 "disabled"
             ],
             "title": "SubscriptionStatus",
+            "type": "string"
+        },
+        "TagKind": {
+            "description": "Kind of a `#tag` or `@mention` (brief 21.2). Precedence when a token fits several kinds: mention, record, code, signal, topic. A record-like tag that matches no record is a topic.",
+            "enum": [
+                "record",
+                "code",
+                "signal",
+                "topic",
+                "mention"
+            ],
+            "title": "TagKind",
             "type": "string"
         },
         "WebhookAttempt": {

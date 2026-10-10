@@ -13,6 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 STATIC_KEYS = {
     "__init__.py",
     "ddl/postgres/cur_core_record.sql",
+    "ddl/postgres/cur_feed_items.sql",
+    "ddl/postgres/cur_feed_tags.sql",
     "ddl/postgres/cur_files.sql",
     "ddl/postgres/cur_link_counts.sql",
     "ddl/postgres/cur_links.sql",
@@ -27,6 +29,8 @@ STATIC_KEYS = {
     "ddl/postgres/wh_health.sql",
     "ddl/postgres/wh_secret.sql",
     "ddl/sqlite/cur_core_record.sql",
+    "ddl/sqlite/cur_feed_items.sql",
+    "ddl/sqlite/cur_feed_tags.sql",
     "ddl/sqlite/cur_files.sql",
     "ddl/sqlite/cur_link_counts.sql",
     "ddl/sqlite/cur_links.sql",

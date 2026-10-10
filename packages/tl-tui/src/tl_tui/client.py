@@ -15,6 +15,9 @@ from tl_core.links.expected import MissingLink
 from tl_core.numbering.detect import KeyChip
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord
+from tl_core.services.feed import EditPost, PostToFeed
+from tl_core.services.feed_actions import ReactToPost, RetractPost
+from tl_core.services.feed_queries import Completion, FeedPage
 from tl_core.services.link_queries import LinkCounts, LinkTarget, LinkView
 from tl_core.services.link_trace import TraceDirection, TraceNode
 from tl_core.services.links import (
@@ -142,4 +145,42 @@ class ClientInterface(Protocol):
 
     def transition(self, cmd: TransitionWorkflow) -> CommandResult:
         """Run a transition; raises ``GuardFailedError`` (with ``results``) when blocked."""
+        ...
+
+    # --- feed (P0-I6; brief 21) ---------------------------------------------------------------
+
+    def feed_page(
+        self,
+        scope: str,
+        *,
+        record_id: str | None = None,
+        include_linked: bool = False,
+        tag: str | None = None,
+        item_type: Literal["post", "card"] | None = None,
+        limit: int = 50,
+        before_seq: int | None = None,
+    ) -> FeedPage:
+        """Posts and cards of a project, newest first, with record labels and `#hold` suggestions.
+
+        ``record_id`` narrows to a record's feed (``include_linked``: and the records one link
+        away); ``tag`` to a hashtag (``hold``, ``area:A12``) or a mention (``@party:fab-a``);
+        ``item_type`` to posts or cards. ``before_seq`` is ``FeedPage.next_before`` of the
+        previous page.
+        """
+        ...
+
+    def feed_post(self, cmd: PostToFeed) -> CommandResult:
+        """Post to the project feed; resolved record tags get a suggested `references` link."""
+        ...
+
+    def feed_edit(self, cmd: EditPost) -> CommandResult: ...
+
+    def feed_retract(self, cmd: RetractPost) -> CommandResult: ...
+
+    def feed_react(self, cmd: ReactToPost) -> CommandResult: ...
+
+    def feed_complete(
+        self, scope: str, sigil: Literal["#", "@"], prefix: str, *, limit: int = 8
+    ) -> list[Completion]:
+        """Composer candidates after ``#`` (keys, signal tags, codes, topics) or ``@`` (people)."""
         ...

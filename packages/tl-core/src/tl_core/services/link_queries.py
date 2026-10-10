@@ -71,13 +71,22 @@ class LinkTarget(BaseModel):
     link_total: int  # active links in either direction, for the preview line
 
 
+# The other end of a link is a record or, for a `references` link made by a feed post (P0-I6), the
+# post. A post has no key, its title is the start of its body, and "voided" means retracted.
+_ENDS_SQL = (
+    "(SELECT id, key, title, type, status, voided FROM cur_core_record "
+    "UNION ALL SELECT item_id AS id, NULL AS key, "
+    "CASE WHEN retracted THEN '[retracted post]' ELSE SUBSTR(summary, 1, 80) END AS title, "
+    "'core.ActivityPost' AS type, NULL AS status, retracted AS voided "
+    "FROM cur_feed_items WHERE item_type = 'post')"
+)
 _LINKS_SQL = (
     "SELECT l.link_id, l.relation, l.status, l.pin, l.note, l.source, l.confidence, l.reason, "
     "l.declined, l.verified_by, l.verified_at, l.created_at, l.version, "
     "CASE WHEN l.from_id = :id THEN 'out' ELSE 'in' END AS direction, "
     "r.id AS other_id, r.key AS other_key, r.title AS other_title, r.type AS other_type, "
     "r.status AS other_status, r.voided AS other_voided "
-    "FROM cur_links l JOIN cur_core_record r "
+    f"FROM cur_links l JOIN {_ENDS_SQL} r "
     "ON r.id = CASE WHEN l.from_id = :id THEN l.to_id ELSE l.from_id END "
     "WHERE (l.from_id = :id OR l.to_id = :id)"
 )

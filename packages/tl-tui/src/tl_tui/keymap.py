@@ -19,6 +19,8 @@ CONTEXTS: tuple[str, ...] = (
     "Link picker",
     "Reference tray",
     "Workflow menu",
+    "Feed pane",
+    "Composer",
     "Forms",
 )
 
@@ -59,6 +61,8 @@ KEYMAP: tuple[KeyEntry, ...] = (
         "TlApp",
         "alt+left",
     ),
+    KeyEntry("App", "F", "Activity feed of the open record, or of the project", "TlApp", "F"),
+    KeyEntry("App", "p", "Post to the feed (composer)", "TlApp", "p"),
     KeyEntry("App", "Ctrl+Q", "Quit"),
     KeyEntry(
         "Grid",
@@ -141,6 +145,30 @@ KEYMAP: tuple[KeyEntry, ...] = (
     KeyEntry("Workflow menu", "Up  Down", "Choose a transition", "WorkflowMenu", "down"),
     KeyEntry("Workflow menu", "Enter", "Run the chosen transition"),
     KeyEntry("Workflow menu", "Esc", "Close", "WorkflowMenu", "escape"),
+    KeyEntry("Feed pane", "j  k", "Move down or up", "FeedPane", "j"),
+    KeyEntry("Feed pane", "Enter  o", "Open the first record the item references", "FeedPane", "o"),
+    KeyEntry("Feed pane", "p", "New post", "FeedPane", "p"),
+    KeyEntry(
+        "Feed pane", ".  +  x", "React: ack, +1, resolved (again clears)", "FeedPane", "full_stop"
+    ),
+    KeyEntry("Feed pane", "1  2  3  4", "Filter: all, posts, events, #hold", "FeedPane", "1"),
+    KeyEntry("Feed pane", "L", "Include records one link away (record feed)", "FeedPane", "L"),
+    KeyEntry(
+        "Feed pane", "a", "Accept the suggestion (arrives with the review queue)", "FeedPane", "a"
+    ),
+    KeyEntry("Feed pane", "t  f", "Open thread, follow (off in Phase 0)", "FeedPane", "t"),
+    KeyEntry("Feed pane", "r", "Reload", "FeedPane", "r"),
+    KeyEntry("Feed pane", "Esc", "Back to the grid", "TlApp", "escape"),
+    KeyEntry(
+        "Composer",
+        "Tab",
+        "Put the highlighted # or @ candidate into the text",
+        "ComposerScreen",
+        "tab",
+    ),
+    KeyEntry("Composer", "Up  Down", "Choose a candidate", "ComposerScreen", "down"),
+    KeyEntry("Composer", "Enter  Ctrl+S", "Post", "ComposerScreen", "ctrl+s"),
+    KeyEntry("Composer", "Esc", "Close the list, then cancel", "ComposerScreen", "escape"),
     KeyEntry("Forms", "Tab  Shift+Tab", "Next or previous field"),
     KeyEntry(
         "Forms",

@@ -32,6 +32,7 @@ from tl_tui.messages import (
 from tl_tui.navigation import NavHistory
 from tl_tui.tray import ReferenceTray, TrayItem
 from tl_tui.widgets.context_panel import ContextPanel
+from tl_tui.widgets.feed_pane import FeedPane, PostRequested
 from tl_tui.widgets.footer import TlFooter, hints_for
 from tl_tui.widgets.grid import RecordGrid
 from tl_tui.widgets.header import TlHeader
@@ -66,6 +67,8 @@ class TlApp(App[None]):
         Binding("f4", "tray_open", "Tray", show=False),
         Binding("w", "workflow", "Workflow", show=False),
         Binding("t", "trace", "Trace", show=False),
+        Binding("F", "feed", "Feed", show=False),
+        Binding("p", "post", "Post", show=False),
         Binding("alt+left", "back", "Back", show=False),
         Binding("alt+right", "forward", "Forward", show=False),
     ]
@@ -147,6 +150,10 @@ class TlApp(App[None]):
                 self.query_one("#grid", Widget).focus()
 
     def action_close_overlay(self) -> None:
+        main = self.query_one("#main", MainArea)
+        if main.showing_feed and not self._modal_open():
+            self.call_later(self._show_grid)
+            return
         if self.narrow and any(p.has_class("-open") for p in self._panels()):
             for panel in self._panels():
                 panel.remove_class("-open")
@@ -172,6 +179,8 @@ class TlApp(App[None]):
 
     def _main_focus_target(self) -> Widget:
         main = self.query_one("#main", MainArea)
+        if main.showing_feed:
+            return main.query_one("#feed", Widget)
         return main.query_one("#record" if main.showing_record else "#grid", Widget)
 
     def _focus_main(self) -> None:
@@ -248,6 +257,64 @@ class TlApp(App[None]):
                     await self.run_action(command.action)
 
         self.push_screen(CommandPalette(self.client, self.scope), chosen)
+
+    def _feed_pane(self) -> FeedPane | None:
+        main = self.query_one("#main", MainArea)
+        panes = list(main.query(FeedPane)) if main.showing_feed else []
+        return panes[0] if panes else None
+
+    async def action_feed(self) -> None:
+        """Open the feed: of the open record (a record view is showing), else of the project."""
+        if self._modal_open():
+            return
+        view = self._record_view()
+        record = view.record if view is not None else None
+        await self._show_feed(record)
+
+    async def _show_feed(self, record: dict[str, Any] | None) -> None:
+        self._open_key = None
+        pane = FeedPane(
+            self.client,
+            self.scope,
+            record_id=str(record["id"]) if record is not None else None,
+            record_key=record["key"] if record is not None else None,
+            actor=self.actor,
+        )
+        title = f"Feed · {record['key']}" if record is not None and record["key"] else "Feed"
+        self.query_one("#header", TlHeader).set_view(title)
+        await self.query_one("#main", MainArea).show_feed(pane)
+
+    def action_post(self, record_key: str | None = None) -> None:
+        """Open the composer. Inside a record's feed or view it starts with that record's tag."""
+        if self._modal_open():
+            return
+        from tl_tui.widgets.composer import ComposerScreen
+
+        pane = self._feed_pane()
+        view = self._record_view()
+        key = record_key
+        if key is None and pane is not None:
+            key = pane.record_key
+        if key is None and view is not None and view.record is not None:
+            key = view.record["key"]
+
+        def done(post_id: str | None) -> None:
+            if post_id is None:
+                return
+            self._say("Posted", "info")
+            current = self._feed_pane()
+            if current is not None:
+                current.reload()
+
+        self.push_screen(
+            ComposerScreen(
+                self.client, self.scope, actor=self.actor, prefill=f"#{key} " if key else ""
+            ),
+            done,
+        )
+
+    def on_post_requested(self, message: PostRequested) -> None:
+        self.action_post(message.record_key)
 
     def action_link(self) -> None:
         if self._modal_open():

@@ -167,3 +167,15 @@ class InvalidFileTransitionError(FileError): ...  # the file's status does not a
 
 
 class ObjectMissingError(FileError): ...  # the ledger has the file but the store does not
+
+
+# --- feed (P0-I6) ------------------------------------------------------------------------------
+
+
+class PostNotFoundError(ServiceError): ...  # post_id unknown, or it belongs to another scope
+
+
+class PostRetractedError(ServiceError): ...  # edit, retract or react on a retracted post
+
+
+class ReactionsDisabledError(ServiceError): ...  # feed.reactions.enabled is off

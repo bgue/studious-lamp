@@ -8,3 +8,4 @@ Read the root `AGENTS.md` first. These rules add to it.
 - Output formats are part of the demo and tests: change a line only with its test.
 - `tl file` builds its `FileService` from the environment (`make_object_store`, `object_secret`); a missing secret is an `error:` line, never a default. Hashing a local file for the declaration is client work and stays here; verification is the service's.
 - `tl webhook` prints a signing secret exactly once (`add`, `rotate-secret`), on stdout as `secret <value>` with a hint on stderr; no other command, log line or error message may print one. Egress is fail-closed: a target is allowed only through `--allow-host` or `TL_WEBHOOK_ALLOWLIST`.
+- `tl feed` prints one line per item in a fixed column layout (`item_line`); the demo `dev/demos/P0-I6-A.sh` and `tests/test_cli_feed.py` depend on it. Tags and links are the service's work: the command prints what `handle_post` returned.

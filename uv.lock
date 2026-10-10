@@ -2601,6 +2601,7 @@ version = "0.0.1"
 source = { editable = "packages/tl-tui" }
 dependencies = [
     { name = "pydantic" },
+    { name = "rich" },
     { name = "textual" },
     { name = "tl-adapters" },
     { name = "tl-core" },
@@ -2610,6 +2611,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "pydantic", specifier = ">=2" },
+    { name = "rich" },
     { name = "textual" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },

@@ -11,6 +11,7 @@ A link is its own ledger stream (``core.Link``, stream id = ``link_id``) in the 
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any, Literal
 
 from pydantic import Field, field_validator
@@ -30,11 +31,13 @@ from tl_core.services.errors import (
     RecordVoidedError,
     SelfLinkError,
     SuggestionDeclinedError,
+    UnknownRelationError,
 )
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
 
 LINK_STREAM_TYPE = "core.Link"
+POST_RECORD_TYPE = "core.ActivityPost"
 
 
 class AddLink(Command):
@@ -103,6 +106,10 @@ class MarkPinsStale(Command):
 
 
 _RECORD_SQL = text("SELECT id, key, scope, type, voided FROM cur_core_record WHERE id = :id")
+_POST_SQL = text(
+    "SELECT item_id, scope, retracted FROM cur_feed_items "
+    "WHERE item_id = :id AND item_type = 'post'"
+)
 _LINK_SQL = text(
     "SELECT link_id, scope, status, pin, version, from_id, to_id FROM cur_links WHERE link_id = :id"
 )
@@ -117,9 +124,24 @@ _PINNED_SQL = text(
 )
 
 
-def _record(uow: UnitOfWork, record_id: str) -> Any:
-    """The current row of a record (id, key, scope, type, voided); missing raises."""
+def _record(uow: UnitOfWork, record_id: str, *, allow_post: bool = False) -> Any:
+    """The current row of a record (id, key, scope, type, voided); missing raises.
+
+    With ``allow_post`` a feed post also counts as a record (type ``core.ActivityPost``, no key,
+    "voided" once retracted). Only the ``from`` end of a link may be a post: a post references
+    records (brief 21.2), records do not reference posts.
+    """
     row = uow.conn().execute(_RECORD_SQL, {"id": record_id}).first()
+    if row is None and allow_post:
+        post = uow.conn().execute(_POST_SQL, {"id": record_id}).first()
+        if post is not None:
+            return SimpleNamespace(
+                id=post.item_id,
+                key=None,
+                scope=post.scope,
+                type=POST_RECORD_TYPE,
+                voided=bool(post.retracted),
+            )
     if row is None:
         raise RecordNotFoundError(f"no record {record_id!r}")
     return row
@@ -127,7 +149,12 @@ def _record(uow: UnitOfWork, record_id: str) -> Any:
 
 def _create(uow: UnitOfWork, cmd: AddLink, event_type: str, extra: dict[str, Any]) -> CommandResult:
     """Shared body of ``handle_add_link`` and ``handle_suggest_link``."""
-    source = _record(uow, cmd.from_id)
+    source = _record(uow, cmd.from_id, allow_post=True)
+    if source.type == POST_RECORD_TYPE and cmd.relation != "references":
+        raise UnknownRelationError(
+            f"a feed post can only reference records; relation {cmd.relation or 'default'!r} "
+            "is not allowed from a post"
+        )
     if source.scope != cmd.scope:
         raise RecordNotFoundError(f"no record {cmd.from_id!r} in scope {cmd.scope!r}")
     target = _record(uow, cmd.to_id)

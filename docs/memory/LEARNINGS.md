@@ -545,3 +545,33 @@ test or a generated artefact already enforces, or narrative history (that belong
   two different files. After merging workstream A, `just check` failed on codegen drift because its `COLLATE "C"` change altered the
   Postgres DDL of tables that workstream B had added: run `just gen` after every merge that touches a generator.
   Evidence: `git show c073261:...factory.py`; `differs: ddl/postgres/wh_delivery.sql`. Status: active
+- **L-P0-I6A-1** · 2026-10-09 · tags: env, process
+  A new worktree has an empty `.venv`: run `uv sync --all-packages` once (plain `uv sync` installs no workspace package, and `just check`
+  then reports 1790 pyright errors about unresolved imports). After a trunk merge that adds a dependency (pg8000), run it again.
+  Evidence: first `just check` in `/home/user/wt/p0-i6a`; `ModuleNotFoundError: pg8000` after the P0-I5 merge. Status: active
+
+- **L-P0-I6A-2** · 2026-10-09 · tags: ledger, tests
+  An aggregate that must equal its rebuild (event cards) needs a property test with a pure oracle written from the rules, not from the
+  code under test, and a clock the test controls (`make_ledger(engine, clock=...)` plus `BaseUnitOfWork`). Bias the generated gaps towards
+  the window edges: with uniform gaps a mutation of `<=` to `<` survived 40 examples. Check a property test by mutating the code.
+  Evidence: `tests/property/test_feed_projection.py`; mutation of the window edge in `feed/cards.py` fails it. Status: active
+
+- **L-P0-I6A-3** · 2026-10-09 · tags: ledger, schema
+  Writing an event before every business event (`Numbering.Allocated` before `Record.Created`, `Link.Suggested` after `Feed.Posted`) splits
+  any "consecutive events" aggregation unless those plumbing events are declared transparent. A unique index on a nullable column
+  (`open_scope`: NULL when closed) states "at most one open X per scope" in the database, works on SQLite and Postgres, and gives the
+  open-card lookup an index. Store instants a projector compares as integer microseconds, not as timestamps.
+  Evidence: `feed/cards.py` (`TRANSPARENT_*`), `cur_feed_items.open_scope`, `first_us`. Status: active
+
+- **L-P0-I6A-4** · 2026-10-09 · tags: tickets, tests
+  Two tickets that fill in different functions of one stub module collide on *Allowed paths*; split the module first (feed_queries.py for
+  T02, feed_completion.py for T03). Generate stubs by hand from the reference implementation: a regex stubifier mangled docstrings. Keep
+  long docstrings under 100 columns (E501 applies), and keep the verified reference implementations in the scratchpad for takeover.
+  Evidence: `docs/tickets/P0-I6/T02-*.md`, `T03-*.md`. Status: active
+- **L-P0-I6A-5** · 2026-10-10 · tags: process, tickets
+  A batch may hold only tickets whose dependencies are already merged on the base. T02 and T03 were verified against reference
+  implementations that included T01, and their provided tests call T01's handlers (and T03's call T02's queries), so in one batch of
+  four three came back BLOCKED on a test they could not make pass. Before dispatch list for each ticket the code its provided test
+  imports and calls; if another ticket owns it, the two are not independent. After the fact the fix was an integration merge of the
+  base into the ticket branch and a re-run of its tests on both adapters.
+  Evidence: relay outcomes of workflow wkzasjo4a; T03 passes 13 of 13 only with T02 merged. Status: active
