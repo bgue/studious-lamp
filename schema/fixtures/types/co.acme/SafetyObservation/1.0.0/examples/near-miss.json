@@ -1,0 +1,8 @@
+{
+  "category": "near_miss",
+  "immediate_action": "Area barricaded, supervisor informed.",
+  "location": "Unit 3 pipe rack",
+  "narrative": "A shackle pin dropped from the platform edge, landing outside the barrier.",
+  "observed_on": "2026-10-02",
+  "severity": "high"
+}

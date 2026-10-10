@@ -1,0 +1,14 @@
+# Setting definitions of this package (brief 30, 31.1). Keys start with the package namespace.
+settings:
+  - key: co.acme.lift_plan.max_load_tonnes
+    type: decimal
+    default: 250
+    description: Heaviest load a lift plan may declare before it needs a critical-lift review.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 1
+      maximum: 1000
+    effect: live
+    since: 1.0.0
+    owner: co.acme.LiftPlan

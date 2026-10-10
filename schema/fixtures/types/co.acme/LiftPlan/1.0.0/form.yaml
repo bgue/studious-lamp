@@ -1,0 +1,27 @@
+# Layout hints for the generated form and grid (brief 31.1). Field names are slots of type.yaml.
+groups:
+  - name: plan
+    label: Lift plan
+    fields: [lift_date, crane, load_tonnes, risk_class]
+  - name: method
+    label: Method and crew
+    fields: [method_statement, crew, exclusion_zone_m]
+fields:
+  lift_date:
+    label: Lift date
+  crane:
+    label: Crane
+    help: Tag as on the crane plate, for example CR-12.
+  load_tonnes:
+    label: Load (t)
+  risk_class:
+    label: Risk class
+  method_statement:
+    label: Method statement
+    widget: textarea
+  crew:
+    label: Crew
+  exclusion_zone_m:
+    label: Exclusion zone (m)
+grid:
+  columns: [lift_date, crane, load_tonnes, risk_class]

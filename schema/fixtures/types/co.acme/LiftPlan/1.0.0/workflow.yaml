@@ -1,0 +1,27 @@
+# State machine for a lift plan (brief 31.1). Same format as schema/fixtures/workflows.
+id: co.acme.lift_plan
+version: 1
+record_type: co.acme.LiftPlan
+scope: company
+initial_state: Draft
+states:
+  - name: Draft
+  - name: Approved
+  - name: Executed
+  - name: Cancelled
+transitions:
+  - name: approve
+    label: Approve
+    from: [Draft]
+    to: Approved
+    guards:
+      - kind: roles
+        any_of: [lifting_supervisor]
+  - name: execute
+    label: Mark executed
+    from: [Approved]
+    to: Executed
+  - name: cancel
+    label: Cancel
+    from: [Draft, Approved]
+    to: Cancelled
