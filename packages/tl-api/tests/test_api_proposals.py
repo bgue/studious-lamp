@@ -220,7 +220,7 @@ def test_an_agent_token_cannot_run_any_record_changing_command(harness: Harness)
         assert refused, (spec.name, response.status_code, response.text)
         assert response.json()["message"] == MESSAGE
         seen.add(spec.name)
-    assert len(seen) == len(COMMANDS) - len(FEED_COMMANDS) == 13
+    assert len(seen) == len(COMMANDS) - len(FEED_COMMANDS) == 14
 
 
 def test_an_agent_token_can_still_post_and_read_and_a_person_can_still_change_records(
