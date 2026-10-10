@@ -661,3 +661,96 @@ test or a generated artefact already enforces, or narrative history (that belong
   threads. The code handles all three. Synchronous remote calls on the UI thread (3 s interactive timeout) should move
   to workers.
   Evidence: P0-I4 WS-D re-review at c033469. Status: active
+- **L-P0-I7-A1** · 2026-10-10 · tags: ledger, schema
+  Promoted pset columns of `cur_core_record` are created at command time by `ensure_promoted_columns`, not by events, so a fresh database
+  plus a replay silently lacks them (rows had 15 columns instead of 17). `restore_from_archive` adds them from the effective schema of every
+  scope in the archive before rebuilding, using the process-wide schema provider. The schema packages in force at restore time decide the
+  columns: restore with the same `TL_SCHEMA_DIR` the ledger used.
+  Evidence: `tests/archive/test_restore.py` (compares every column by name); `tl_adapters/restore.py::_ensure_promoted`. Status: active
+
+- **L-P0-I7-A2** · 2026-10-10 · tags: ledger, tests
+  An archive segment is three files in the order ndjson, parquet, manifest, and the manifest is the commit marker. A crash leaves a directory
+  whose name fixes the seq range, and the next `seal_segment` seals exactly that range (accepting a leftover file only if it matches the
+  ledger's events byte for byte, or for Parquet row for row), even when newer events arrived. The test injects a crash with a store that
+  raises after N puts; removing the orphan-resume line fails it.
+  Evidence: `tests/archive/test_seal_verify.py::test_a_crash_between_files_never_yields_a_different_segment`. Status: active
+
+- **L-P0-I7-A3** · 2026-10-10 · tags: tooling
+  The frozen contract file is `tl_core/archive/types.py`, which is a standard-library module name (L-P0-I5-B1). Running `python` with that
+  directory as the working directory breaks `import re` and `typing`. Run scripts from the repository root or a scratch directory, never
+  from `packages/tl-core/src/tl_core/archive/`.
+  Evidence: `ImportError: cannot import name 'WrapperDescriptorType' from 'types'` during a scripted edit. Status: active
+
+- **L-P0-I7-A4** · 2026-10-10 · tags: process, tests
+  Two tickets in one batch cannot use each other's CLI. The restore ticket's provided test builds its archive with library calls
+  (`write_keypair`, `seal_segment`, `FsArchiveStore`) instead of `tl archive seal`, and the plan orders the CLI that needs a store after
+  the store ticket merges. A ticket's Context should also list any error or type module whose constructor its tests rely on.
+  Evidence: `docs/tickets/P0-I7/provided/test_cli_restore.py.txt`; T01 report, proposed learning. Status: active
+
+- **L-P0-I7-A5** · 2026-10-10 · tags: env
+  `api.github.com` is refused (403) but release tarballs at `github.com/<owner>/<repo>/releases/download/<tag>/...` download. Litestream
+  v0.3.13 (Apache-2.0, `litestream-v0.3.13-linux-amd64.tar.gz`, sha256 eb75a3de5cab03875cdae9f5f539e6aedadd66607003d9b1e7a9077948818ba0) is unpacked into the git-ignored `dev/data/tools/`.
+  pgBackRest comes from `sudo apt-get install -y pgbackrest` (2.50).
+  Evidence: this round's fetch. Status: active
+
+- **L-P0-I7-A6** · 2026-10-10 · tags: ledger, process
+  Review of the sealer found three rules worth keeping. (1) A sealer must compare the database with what is already sealed for every scope, not only
+  the scopes in the new segment: an altered old event in an untouched scope is invisible to the per-event chain check. (2) A restore must be one
+  transaction (insert, promoted columns, replay through the same connection), because a committed insert followed by a failed rebuild leaves a
+  database that the next run refuses as "not empty". Check the schema provider before writing anything. (3) Nothing inside an archive shows that
+  trailing segments were removed; `tl archive seal` prints `last_seq` and the newest manifest sha, to be kept elsewhere and passed to
+  `tl archive verify --expect-last-seq N --expect-manifest SHA`.
+  Evidence: `test_the_sealer_notices_a_divergence_in_a_scope_the_new_segment_does_not_touch`,
+  `test_a_failure_during_the_replay_rolls_everything_back_and_a_rerun_works`, `test_dropping_trailing_segments_...`. Status: active
+
+- **L-P0-I7-A7** · 2026-10-10 · tags: ledger, tests
+  Comparing stored hash columns is not a hash-chain check: a payload-only edit in the database returned no issue from `verify_archive(conn=...)`.
+  A real check recomputes each hash from the stored fields. `verify_archive(conn=..., deep=True)` does that, compares every field with the archive
+  and chain-checks the events newer than the archive; `verify_ledger(conn)` and `tl ledger verify` do it for the database alone. A consistent
+  payload-plus-hash edit shows up one event later in the scope (`scope_chain`) or as `db_mismatch` against an archive. The edit of a scope's
+  newest event that keeps its own hash consistent needs an archive to contradict it.
+  Evidence: `tests/archive/test_ledger_verify.py` (payload-only, hash-only, consistent edits; tail edit; missing event). Status: active
+
+- **L-P0-I7-A8** · 2026-10-10 · tags: env, tests
+  The scratch-cluster drill works with `sudo pg_createcluster 16 drill --port 5440`, `pg_conftool` for `archive_mode`, `archive_timeout` and `archive_command`,
+  and a postgres-owned directory for the pgBackRest repository, log, lock and spool paths. Immediate stop, erase the data directory, `pgbackrest restore`,
+  start recovered 50 of 55 events (the unswitched WAL of the last batch is lost, which `archive_timeout` bounds). A Litestream drill must be killed with
+  `kill -9 $pid`, never `pkill -f litestream`, whose pattern matches the shell that runs it. A lost SQLite file with a `-wal` sidecar must be moved with
+  its `-wal` and `-shm`, or the events in the WAL are missing from the copy used to look up lost events.
+  Evidence: `dev/drills/pgbackrest.sh`, `dev/drills/restore.sh`, the drill report. Status: active
+
+- **L-P0-I7-A9** · 2026-10-10 · tags: ledger, sync
+  A restore brings webhook subscriptions back as `active` rows, but their signing secrets (never in the ledger) and delivery state are not restored. Restored
+  databases need `tl webhook rotate-secret` per subscription before the worker runs. Whether the worker fails safely on a subscription whose secret row is
+  missing is not tested here; the restore runbook says to rotate first.
+  Evidence: `tl restore` of an archive with a subscription, then `tl webhook ls` (active, 0 delivered). Status: active
+
+- **L-P0-I7-A10** · 2026-10-10 · tags: ledger, sync
+  Resolves L-P0-I7-A9. `DeliveryEngine.claim` now selects only deliveries whose subscription has an unexpired active secret (`HAS_SECRET_SQL`), so a restored subscription's
+  deliveries stay pending: nothing unsigned goes out and nothing reaches the DLQ or the retry counters. It logs per subscription per cycle, `tl webhook ls` prints
+  `needs_secret`, and `restore_from_archive` returns one warning per active subscription. Still open and flagged to the orchestrator: `wh_cursor` is operational
+  state that a restore does not carry, so the dispatcher restarts at seq 0 and queues every event since each subscription was created.
+  Evidence: `tests/archive/test_restore_webhooks.py` (fails with the filter removed); 427 + 223 webhook and CLI tests green on both adapters. Status: active
+
+
+- **L-P0-I7-A11** · 2026-10-10 · tags: env, process
+  Restoring a SQLite snapshot over a WAL-mode ledger must delete the old `tl.db-wal` and `tl.db-shm` first, or SQLite applies the old log to the restored file. Runbook
+  tickets worked well when the supervisor pasted commands with their real output, but each ticket needs to say which linked runbooks exist yet, and a checker for fenced
+  commands must match indented fences (`^ *```), because steps indent them. Business-hours safety, which command takes `--all`, and the success line of a flag variant are
+  facts the supervisor must include; three implementers asked for them.
+  Evidence: reports P0-I7-T05 to T08 (open questions); `docs/runbooks/sqlite-backup-and-litestream.md`. Status: active
+
+- **L-P0-I7-A12** · 2026-10-10 · tags: ledger, sync
+  Resolves the open part of L-P0-I7-A10. `restore_from_archive` writes the dispatcher cursor (`wh_cursor`, name `outbox`) at the restored head in its transaction, so a restored
+  subscription is not flooded with history once its secret is rotated; the warning and the runbook name `tl webhook replay ID --from-seq N --to-seq M` for a range a receiver
+  may have missed. `rotate-secret` itself appends an event (seq head+1), so the first delivery after a rotation is that new event, not history; a test that expects zero
+  deliveries after rotating must expect that one.
+  Evidence: `tests/archive/test_restore_webhooks.py` (both adapters). Status: active
+
+
+- **L-P0-I7-A13** · 2026-10-10 · tags: ledger, tests
+  Page a seq-ordered scan with a cursor (`WHERE seq > :last ORDER BY seq LIMIT n`) and stop only on an empty page. Paging by seq ranges and stopping on a short page
+  silently skipped a missing event at the end of a page window (`verify_ledger` returned no issue for a deleted seq 2000). A page-size parameter that tests lower to 3, 4 and 5
+  puts the gap at the end, across and at the start of a page; reverting to range paging fails 8 of those tests. `verify_ledger` cannot see a seq swap between scopes (seq is not
+  hashed) or deleted trailing events; only an archive and a recorded last seq can.
+  Evidence: `tests/archive/test_ledger_verify_parity.py` (both adapters); `verifier._scan_ledger`. Status: active

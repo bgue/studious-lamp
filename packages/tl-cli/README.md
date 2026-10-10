@@ -31,13 +31,19 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl file get FILE_ID --project ID --out PATH [--force]` | command | Write a file's bytes, checked against the recorded SHA-256 |
 | `tl file ls --project ID --record KEY [--slot S] [--all]` | command | The current file per slot, or every file with `--all`; tab-separated `file_id, slot, revision, status, size, filename` |
 | `tl webhook add --project ID --name N --url U [--mode M] [--event-type T]... [filters]` | command | Create a subscription; prints `subscription`, `secret_id`, `secret` (the secret once, on stdout) |
-| `tl webhook ls [--project ID \| --company]` | command | One tab-separated line per subscription: id, status, mode, name, URL, delivered, pending, dead |
+| `tl webhook ls [--project ID \| --company]` | command | One tab-separated line per subscription: id, status (`needs_secret` for an active subscription without a signing secret, as after a restore), mode, name, URL, delivered, pending, dead |
 | `tl webhook test ID [--event-type T] [--allow-host H]...` | command | Send a signed catalog sample (header `webhook-test: 1`); exit 1 on a failure or a blocked target |
 | `tl webhook replay ID (--from-seq N --to-seq M \| --since T --until T)` | command | Re-send a seq range or time range; prints `replayed <n>` |
 | `tl webhook dlq ls [--subscription ID]`, `dlq redrive ID [--delivery D]...` | commands | List dead letters; re-enqueue them (runbook: `docs/runbooks/webhook-operations.md`) |
 | `tl webhook disable \| enable \| rotate-secret ID (--project ID \| --company)` | commands | Pause, resume, or issue a new secret (printed once) with an overlap |
 | `tl webhook run [--once] [--allow-host H]... [--threads N]` | command | The worker: dispatch and deliver; `--once` drains and prints a summary |
 | `tl file reconcile [--verify]` | command | Ledger hashes versus the object store; exit 1 on a missing or corrupt object (runbook: `docs/runbooks/object-store-reconciliation.md`) |
+| `tl archive keygen [--key PATH] [--force]` | command | Create the Ed25519 signing key pair (private PEM 0600 plus `.pub` hex); refuses to replace one |
+| `tl archive seal [--archive DIR] [--key PATH] [--db TARGET] [--max-events N]` | command | Seal every event not yet archived; prints one line per segment and `record outside the archive: last_seq N manifest_sha256 SHA` (keep that line elsewhere) |
+| `tl archive verify [--archive DIR] [--public-key FILE] [--db TARGET] [--deep] [--all] [--expect-last-seq N] [--expect-manifest SHA]` | command | Verify the archive (and a database); prints `divergence: <kind> segment=.. seq=..: <detail>` and exits 1 on the first divergence (runbook: `docs/runbooks/ledger-archive-and-verify.md`) |
+| `tl ledger verify [--db TARGET]` | command | Recompute every event hash and check every scope chain in the database alone |
+| `tl restore --from-archive DIR --db TARGET [--public-key FILE]` | command | Rebuild an empty SQLite file or Postgres database from the archive alone (runbook: `docs/runbooks/restore-from-archive.md`); warnings on stderr |
+| `tl backup sqlite --to FILE` | command | Online snapshot of the SQLite ledger (runbook: `docs/runbooks/sqlite-backup-and-litestream.md`) |
 | `tl_cli.main:app` | typer app | The `tl` entry point |
 
 ## Depends on / used by
@@ -58,10 +64,11 @@ just demo P0-I1
 | `--actor` | `user:dev` | Actor recorded on events |
 | `--dir PATH` / `TL_SCHEMA_DIR` | `schema/fixtures` | Package directory for `tl schema` commands; file slots are read from its `files/` folder |
 | `TL_WEBHOOK_ALLOWLIST` | empty | Comma-separated egress allow-list for `tl webhook test` and `run` |
+| `TL_ARCHIVE_DIR`, `TL_ARCHIVE_KEY`, `TL_ARCHIVE_PUBLIC_KEY` | `./dev/data/archive`, `dev/data/archive-signing.key`, `dev/data/archive-signing.pub` | Archive directory and keys for `tl archive` and `tl restore` |
 | `TL_OBJECT_STORE`, `TL_OBJECT_ROOT`, `TL_OBJECT_SECRET`, `TL_ENV`, `TL_S3_*` | `fs`, `./dev/data/objects`, none, unset | Object store for `tl file`; see `packages/tl-adapters/README.md`. `just` exports `TL_ENV=dev` |
 
 ## Rules specific to this package
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `dev` group added in P0-I4 workstream C; `webhook` group added in P0-I5 workstream B. `--role` is a stub list (no auth yet).
+Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `dev` group added in P0-I4 workstream C; `webhook` group added in P0-I5 workstream B; `backup`, `archive`, `ledger` groups and `restore` added in P0-I7 workstream A. `--role` is a stub list (no auth yet).

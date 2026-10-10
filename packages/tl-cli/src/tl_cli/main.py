@@ -12,7 +12,23 @@ from typing import Annotated
 import typer
 from tl_adapters.sqlite.uow import create_schema, rebuild_projections
 
-from tl_cli import dev, events, file, link, pset, record, schema, serve, tui, webhook, wf
+from tl_cli import (
+    archive,
+    backup,
+    dev,
+    events,
+    file,
+    ledger,
+    link,
+    pset,
+    record,
+    restore,
+    schema,
+    serve,
+    tui,
+    webhook,
+    wf,
+)
 
 app = typer.Typer(
     name="tl",
@@ -30,6 +46,10 @@ app.add_typer(dev.app, name="dev")
 app.add_typer(webhook.app, name="webhook")
 app.command("serve")(serve.serve)
 app.command("tui")(tui.tui)
+app.add_typer(backup.app, name="backup")
+app.add_typer(archive.app, name="archive")
+app.add_typer(ledger.app, name="ledger")
+app.command("restore")(restore.restore)
 
 projections = typer.Typer(help="Maintain projections from the ledger.", no_args_is_help=True)
 app.add_typer(projections, name="projections")

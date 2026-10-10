@@ -1,0 +1,31 @@
+# Litestream: continuous replication of the dev SQLite ledger (brief 24.3, database layer, dev).
+#
+# Run it beside the ledger:
+#   litestream replicate -config dev/backup/litestream.yml
+# Restore the newest state of the replica into a new file:
+#   litestream restore -config dev/backup/litestream.yml -o /path/to/restored.db "$TL_DB"
+#
+# Variables (set them, or take the defaults the drill uses):
+#   TL_DB                the ledger file, default ./dev/data/tl.db
+#   LITESTREAM_REPLICA   directory of the file replica, default ./dev/data/litestream
+#
+# The binary is Litestream v0.3.13 (Apache-2.0), unpacked into dev/data/tools/ by the drill
+# (dev/drills/fetch_litestream.sh). It is not a Python dependency and not part of the repository.
+# Litestream needs the database in WAL mode, which the ledger engine already sets.
+dbs:
+  - path: ${TL_DB}
+    replicas:
+      # A local directory stands in for object storage in dev and in the drill.
+      - type: file
+        path: ${LITESTREAM_REPLICA}
+        sync-interval: 1s
+        retention: 24h
+      # MinIO or S3 in a real environment (the credentials come from the environment, never from
+      # this file):  LITESTREAM_ACCESS_KEY_ID / LITESTREAM_SECRET_ACCESS_KEY
+      #
+      # - type: s3
+      #   bucket: tl-ledger-replica
+      #   path: tl.db
+      #   endpoint: http://localhost:9000
+      #   force-path-style: true
+      #   sync-interval: 1s

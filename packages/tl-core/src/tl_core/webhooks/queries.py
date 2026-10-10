@@ -10,6 +10,7 @@ from typing import Any
 from sqlalchemy import text
 
 from tl_core.uow import UnitOfWork
+from tl_core.webhooks.base import iso_z, utc_now
 from tl_core.webhooks.rows import load_json
 
 _SUBSCRIPTION_SQL = (
@@ -21,7 +22,10 @@ _SUBSCRIPTION_SQL = (
     "(SELECT COUNT(*) FROM wh_delivery d WHERE d.subscription_id = s.subscription_id "
     "AND d.status = 'pending') AS pending, "
     "(SELECT COUNT(*) FROM wh_delivery d WHERE d.subscription_id = s.subscription_id "
-    "AND d.status = 'dead') AS dead "
+    "AND d.status = 'dead') AS dead, "
+    "(CASE WHEN EXISTS (SELECT 1 FROM wh_secret w WHERE w.subscription_id = s.subscription_id "
+    "AND w.state = 'active' AND (w.expires_at IS NULL OR w.expires_at > :now)) "
+    "THEN 0 ELSE 1 END) AS no_secret "
     "FROM cur_webhook_subscription s LEFT JOIN wh_health h ON h.subscription_id = s.subscription_id"
 )
 
@@ -29,20 +33,31 @@ _SUBSCRIPTION_SQL = (
 def _subscription(row: Any) -> dict[str, Any]:
     out = dict(row)
     out["filter"] = load_json(out.pop("filter_json"))
+    out["needs_secret"] = bool(out.pop("no_secret")) and out["status"] == "active"
+    # `status_label` is what listings print: an active subscription without a signing secret (a
+    # restored database) is shown as `needs_secret`; `status` itself is the projection's value.
+    out["status_label"] = "needs_secret" if out["needs_secret"] else out["status"]
     return out
+
+
+def _now() -> str:
+    return iso_z(utc_now())
 
 
 def list_subscriptions(uow: UnitOfWork, scope: str | None = None) -> list[dict[str, Any]]:
     """Subscriptions (optionally of one scope) with delivery counts, oldest first."""
     sql = _SUBSCRIPTION_SQL + (" WHERE s.scope = :scope" if scope else "")
     sql += " ORDER BY s.created_at, s.subscription_id"
-    rows = uow.conn().execute(text(sql), {"scope": scope} if scope else {}).mappings()
+    params: dict[str, Any] = {"now": _now()}
+    if scope:
+        params["scope"] = scope
+    rows = uow.conn().execute(text(sql), params).mappings()
     return [_subscription(row) for row in rows]
 
 
 def get_subscription(uow: UnitOfWork, subscription_id: str) -> dict[str, Any] | None:
     sql = _SUBSCRIPTION_SQL + " WHERE s.subscription_id = :s"
-    row = uow.conn().execute(text(sql), {"s": subscription_id}).mappings().first()
+    row = uow.conn().execute(text(sql), {"s": subscription_id, "now": _now()}).mappings().first()
     return None if row is None else _subscription(row)
 
 
