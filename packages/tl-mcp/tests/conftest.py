@@ -16,6 +16,7 @@ _HERE = str(Path(__file__).parent)
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
+from dev_harness import DevHarness  # noqa: E402
 from mcp_harness import McpHarness  # noqa: E402
 
 
@@ -28,3 +29,9 @@ def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[McpHarness]
         yield built
     finally:
         built.close()
+
+
+@pytest.fixture
+def dev_env(tmp_path: Path) -> Iterator[DevHarness]:
+    """The dev MCP server over a fresh SQLite ledger in ``tmp_path``."""
+    yield DevHarness.build(tmp_path)
