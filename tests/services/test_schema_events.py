@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import os
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from tl_adapters.sqlite.uow import create_schema, open_uow
+from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_core.bus import InProcessBus
 from tl_core.ledger import NewEvent
 from tl_core.schema_provider import DirectorySchemaProvider
@@ -31,8 +32,8 @@ def packages(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def db(tmp_path: Path) -> Path:
-    path = tmp_path / "tl.db"
+def db(new_db: Callable[[], DbTarget]) -> DbTarget:
+    path = new_db()
     create_schema(path)
     return path
 
@@ -43,7 +44,7 @@ def edit(path: Path, old: str, new: str) -> None:
     os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
 
 
-def schema_events(db: Path, scope: str) -> list[dict[str, object]]:
+def schema_events(db: DbTarget, scope: str) -> list[dict[str, object]]:
     with open_uow(db, readonly=True) as uow:
         return [
             {"version": e.stream_version, "scope": e.scope, "payload": e.payload}
@@ -56,7 +57,7 @@ def test_stream_ids() -> None:
     assert schema_stream_id("project:P123") == "schema:project:P123"
 
 
-def test_the_first_reload_records_every_scope(db: Path, packages: Path) -> None:
+def test_the_first_reload_records_every_scope(db: DbTarget, packages: Path) -> None:
     provider = DirectorySchemaProvider(packages)
     with open_uow(db) as uow:
         events = reload_and_record(uow, provider)
@@ -77,7 +78,7 @@ def test_the_first_reload_records_every_scope(db: Path, packages: Path) -> None:
     assert by_scope["company"].payload["packages"] == ["co.acme.engineering@3.2.0"]
 
 
-def test_recording_is_idempotent(db: Path, packages: Path) -> None:
+def test_recording_is_idempotent(db: DbTarget, packages: Path) -> None:
     provider = DirectorySchemaProvider(packages)
     with open_uow(db) as uow:
         reload_and_record(uow, provider)
@@ -87,7 +88,7 @@ def test_recording_is_idempotent(db: Path, packages: Path) -> None:
     assert len(schema_events(db, "company")) == 1
 
 
-def test_a_project_edit_records_only_that_scope(db: Path, packages: Path) -> None:
+def test_a_project_edit_records_only_that_scope(db: DbTarget, packages: Path) -> None:
     provider = DirectorySchemaProvider(packages)
     with open_uow(db) as uow:
         reload_and_record(uow, provider)
@@ -103,7 +104,7 @@ def test_a_project_edit_records_only_that_scope(db: Path, packages: Path) -> Non
     assert len(schema_events(db, "company")) == 1
 
 
-def test_a_company_edit_records_both_scopes(db: Path, packages: Path) -> None:
+def test_a_company_edit_records_both_scopes(db: DbTarget, packages: Path) -> None:
     provider = DirectorySchemaProvider(packages)
     with open_uow(db) as uow:
         reload_and_record(uow, provider)
@@ -114,7 +115,7 @@ def test_a_company_edit_records_both_scopes(db: Path, packages: Path) -> None:
     assert {e.stream_version for e in events} == {2}
 
 
-def test_an_event_in_a_rolled_back_unit_of_work_is_not_kept(db: Path, packages: Path) -> None:
+def test_an_event_in_a_rolled_back_unit_of_work_is_not_kept(db: DbTarget, packages: Path) -> None:
     provider = DirectorySchemaProvider(packages)
     with pytest.raises(RuntimeError), open_uow(db) as uow:
         reload_and_record(uow, provider)
@@ -124,7 +125,7 @@ def test_an_event_in_a_rolled_back_unit_of_work_is_not_kept(db: Path, packages: 
         assert len(reload_and_record(uow, provider)) == 2
 
 
-def test_the_bus_hook_reloads_on_package_publication(db: Path, packages: Path) -> None:
+def test_the_bus_hook_reloads_on_package_publication(db: DbTarget, packages: Path) -> None:
     provider = DirectorySchemaProvider(packages)
     bus = InProcessBus()
     seen: list[str] = []
@@ -159,7 +160,7 @@ def test_the_bus_hook_reloads_on_package_publication(db: Path, packages: Path) -
     assert len(schema_events(db, "project:P123")) == 2
 
 
-def test_other_events_do_not_trigger_a_reload(db: Path, packages: Path) -> None:
+def test_other_events_do_not_trigger_a_reload(db: DbTarget, packages: Path) -> None:
     provider = DirectorySchemaProvider(packages)
     bus = InProcessBus()
     bus.subscribe(schema_reload_subscriber(provider, lambda: open_uow(db, bus=bus)))

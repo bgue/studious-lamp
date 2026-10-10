@@ -1,12 +1,12 @@
 CREATE TABLE IF NOT EXISTS cur_workflow_state (
-  record_id TEXT PRIMARY KEY,
-  scope TEXT NOT NULL,
-  workflow TEXT NOT NULL,
+  record_id TEXT COLLATE "C" PRIMARY KEY,
+  scope TEXT COLLATE "C" NOT NULL,
+  workflow TEXT COLLATE "C" NOT NULL,
   workflow_version BIGINT NOT NULL,
-  state TEXT NOT NULL,
+  state TEXT COLLATE "C" NOT NULL,
   entered_at TIMESTAMPTZ NOT NULL,
-  transition TEXT NOT NULL,
-  transitioned_by TEXT NOT NULL,
+  transition TEXT COLLATE "C" NOT NULL,
+  transitioned_by TEXT COLLATE "C" NOT NULL,
   last_seq BIGINT NOT NULL
 );
 
