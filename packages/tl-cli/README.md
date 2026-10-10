@@ -28,10 +28,11 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl link trace --project ID KEY [--depth N] [--direction out|in|both]` | command | Records reachable through links, as an indented tree with stale and broken marks |
 | `tl wf show --project ID KEY [--role R]...` | command | Workflow state and, for each transition, whether its guards pass |
 | `tl wf transition --project ID KEY NAME [--role R]... [--reason T]` | command | Run a transition; a blocked one prints every guard and exits 1 |
+| `tl dev token add ACTOR [--tokens PATH]` | command | Create a dev bearer token for `user:<id>` or `agent:<id>` in the token file (mode 0600, `TL_TOKENS`, default `./dev/data/tokens.json`); the token alone on stdout (ADR-0005) |
 | `tl_cli.main:app` | typer app | The `tl` entry point |
 
 ## Depends on / used by
-- Depends on: `tl_core`, `tl_schema`, `tl_adapters`, `typer`, `rich`.
+- Depends on: `tl_core`, `tl_schema`, `tl_adapters`, `tl_api` (token file helper), `typer`, `rich`.
 - Used by: `just demo P0-I1`, `just demo P0-I2`, `just demo P0-I3`, `just rebuild-projections`, developers.
 
 ## Commands
