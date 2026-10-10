@@ -38,7 +38,19 @@ def test_every_event_class_is_in_the_catalog_with_a_stable_name(events: list[Any
 
 #: String literals shaped like an event type that are not catalog events, each with its reason.
 NOT_EVENTS = {
-    "Test.Bumped": "event type of the test-only counter projector (projection/testing.py)"
+    "Test.Bumped": "event type of the test-only counter projector (projection/testing.py)",
+    # P0-I6 contract only (tl_core/proposals/types.py): WS-B adds schema/core/proposals.yaml with
+    # these catalog classes and removes these four entries in the same change.
+    "Proposal.Created": "P0-I6 WS-B contract; catalog class pending",
+    "Proposal.Accepted": "P0-I6 WS-B contract; catalog class pending",
+    "Proposal.Rejected": "P0-I6 WS-B contract; catalog class pending",
+    "Proposal.Failed": "P0-I6 WS-B contract; catalog class pending",
+    # P0-I6 contract only (tl_core/feed/types.py): WS-A's schema/core/feed.yaml adds the classes;
+    # WS-A removes these four entries when it merges p0/i6.
+    "Feed.Posted": "P0-I6 WS-A contract; catalog class on p0/i6a",
+    "Feed.Edited": "P0-I6 WS-A contract; catalog class on p0/i6a",
+    "Feed.Retracted": "P0-I6 WS-A contract; catalog class on p0/i6a",
+    "Feed.Reacted": "P0-I6 WS-A contract; catalog class on p0/i6a",
 }
 EVENT_LITERAL = re.compile(r"[A-Z]\w*\.[A-Z]\w*")
 
