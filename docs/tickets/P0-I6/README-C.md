@@ -1,0 +1,63 @@
+# Increment plan: P0-I6 workstream C, simulator v0
+
+Status: in-progress
+Supervisor session: 2026-10-10
+Brief sections: §29.5, §29.1, §5.1, §18.1 to §18.3
+Branch: `p0/i6c` (worktree `/home/user/wt/p0-i6c`, base `p0/i6` at 037f4da), fanout plan `docs/tickets/P0-I6/FANOUT.md`
+
+## Objective
+A seeded, deterministic project team plays working days against a running suite and a ground-truth log says what it meant to do.
+`sim_create`, `sim_advance`, `sim_inject`, `sim_status` and `sim_assert` run as a Python API and as `tl sim`; the actors (document
+controller, planner, crew) act on generic records, links, workflow transitions and feed posts only through `ApiClient` and MCP; the
+events they write carry simulated time (`effective_at`); `sim_assert` reads the suite back through the API and names every difference.
+
+## Demo
+```
+just demo P0-I6-C
+```
+Starts `python -m tl_api` on a temporary ledger, creates a run, advances one day, shows the crew's posts and records through the API,
+runs `sim_assert` (green), re-runs the same seed on a fresh ledger and compares the ground-truth digest, then tampers and shows
+`sim_assert` fail. `just demo P0-I6` composes workstreams A, B and C after the merge.
+
+## Decisions
+| # | Decision |
+|---|---|
+| C1 | The simulator never opens the ledger. `ApiClient` carries every read and write; `tests/test_contract_and_boundary.py` reads the imports of `src/tl_sim` and fails on a ledger, unit of work, projection, adapter, SQL or `handle_*` import (brief 29.1). |
+| C2 | D5 as built: `tl_core.util.effective_time(dt)` is a context variable; both ledger adapters use it when `NewEvent.effective_at` is None. `event_hash` covers `recorded_at`, not `effective_at`, so the hash, `Command` and `Event` of 03 §7 are unchanged. The API reads `X-TL-Effective-At` on `POST /commands/*` only, and only for `project:sim-*` scopes (HTTP 400 `effective_time_forbidden` otherwise, `invalid_effective_time` for a value without an offset). Uploads and MCP do not read it. |
+| C3 | A simulation scope `project:sim-<run>` cannot be numbered (the `{project}` segment takes letters and digits only, and the scope has a dash), so `HttpSimClient` assigns the keys: `SIM<RUN>-REC-0001`. They fit the registered pattern, so `#SIMR3FA91C-REC-0007` in a post resolves to the record and suggests a `references` link. The counters live in the run state. |
+| C4 | Ground truth never holds a server-made id. A record is its key, a link `from relation to`, a post `post:<actor>:<time>:<n>`. Two runs of one seed on two ledgers therefore write byte-identical logs, and the digest in `sim_status` compares them. |
+| C5 | Each actor works in its own time slot (06:00 seed, then 07:00, 07:30, 08:00, then injections), each write moves the clock one minute, and a day is a working day on the scenario calendar (Monday to Friday by default). |
+| C6 | `sim_assert` checks the latest intent per field against the `cur_*` view the API serves, then three negatives: no record the log does not name, every event in the scope has `source` `sim:<run>` (or an MCP proposal), and every simulator event has `effective_at` on a day that was played. |
+| C7 | A step that dies leaves `in_progress` in the run state, because the writes already made are not in the log. The run then refuses to continue. |
+| C8 | `propose` is behind the `McpCaller` Protocol. Until workstream B is on the base it raises `ProposeUnavailableError`; the planner has no proposals in v0 and they are added when the proposals service is wired. |
+
+## Supervisor-built pieces (in order)
+| # | Piece | Why supervisor-tier | Reviewer | Status |
+|---|---|---|---|---|
+| S40 | `effective_time`, adapter use, `X-TL-Effective-At`, parity tests | touches the ledger adapters and the API contract (D5) | orchestrator | done |
+| S41 | `tl-sim` package: types, rng, clock, ground truth, scenario models, run state, `HttpSimClient`, reader, assertions, orchestrator loop, injections, `FakeWorld`, actor base and `Recorder` | orchestrator loop and determinism, ground-truth assertion | orchestrator | done |
+| S42 | Stubs and provided tests for T40 to T43, reference implementations kept in the scratchpad | scaffolds | | done |
+| S43 | `tl sim` wiring, `just seed`, end-to-end tests, demo | wiring | | pending |
+
+## Tickets
+| ID | Title | Tier | Depends | Status | Outcome |
+|---|---|---|---|---|---|
+| P0-I6-T40 | Document controller actor (13 provided tests) | haiku | S41 | ready | |
+| P0-I6-T41 | Planner actor (12 provided tests) | haiku | S41 | ready | |
+| P0-I6-T42 | Crew actor (12 provided tests) | haiku | S41 | ready | |
+| P0-I6-T43 | Scenario and template loader (25 provided tests) | haiku | S41 | ready | |
+| P0-I6-T44 | `tl sim` CLI group (planned, round 2) | haiku | S41, T43 | draft | |
+| P0-I6-T45 | Simulation MCP server, five tools (planned, round 2) | haiku | S41, T43 | draft | |
+
+## Order of work
+1. Round 1 (this round): S40 to S42, DISPATCH T40 to T43.
+2. Round 2: merge batch 1; real-actor end-to-end tests against the API (reference check); T44 and T45 with stubs and provided tests; DISPATCH.
+3. Round 3: merge batch 2; `just seed`, demo `P0-I6-C`; docs; gates. Then, when told workstream B is on `p0/i6`: merge it, wire `post` (`feed_post`), proposals (`McpCaller`) and the review-queue read, then `dev/demos/P0-I6.sh` and `docs/reports/P0-I6.md`.
+
+## Risks and escalation triggers
+- The feed post and feed read need workstream B (`ApiClient.feed_post`, `feed_page`, the `PostToFeed` route). Until it is merged the real-API tests cover every write except `post`, and `HttpReader.posts` is only exercised on `FakeWorld`.
+- A change to `Command`, `Event`, `Ledger` or `event_hash` would be a stop condition. D5 needed none.
+- The real workflow guard is stricter than the fake in places not yet met (conformance guard on `approve`). The end-to-end test with the real actors shows it.
+
+## Blocked / Decision
+(none)

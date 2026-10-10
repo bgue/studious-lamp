@@ -645,3 +645,32 @@ test or a generated artefact already enforces, or narrative history (that belong
   imports and calls; if another ticket owns it, the two are not independent. After the fact the fix was an integration merge of the
   base into the ticket branch and a re-run of its tests on both adapters.
   Evidence: relay outcomes of workflow wkzasjo4a; T03 passes 13 of 13 only with T02 merged. Status: active
+- **L-P0-I6C-1** · 2026-10-10 · tags: ledger, api
+  A scope `project:sim-<run>` cannot be auto-numbered: the numbering pattern's `{project}` takes letters and digits only (`FIELD_VALUE`) and the scope id has a
+  dash, so `CreateRecord` without a key answers 422 `numbering_value`. The simulator assigns keys itself (`SIM<RUN>-REC-0001`, which still fits the registered
+  pattern, so `#key` tags resolve). Do not loosen the numbering rules for it: numbering allocation is a human gate.
+  Evidence: `packages/tl-api/tests/test_effective_time.py::test_automatic_numbering_cannot_key_a_simulation_scope`; `numbering/allocator.py:segment_values`. Status: active
+
+- **L-P0-I6C-2** · 2026-10-10 · tags: ledger, api
+  `effective_at` is stored on every event but no projector, query or screen reads it; it shows only in the event pager (`GET /events`, `Event.effective_at`). That is
+  why D5 needed no change to `Command`, `Event` or `event_hash` (the hash covers `recorded_at`), and why `sim_assert` proves simulated time by reading the events
+  back. A feature that wants "business time" in a projection must read it explicitly.
+  Evidence: `grep -rn effective_at packages/*/src` (only the two ledger adapters and `ledger/types.py`); `tests/test_ledger_effective_time.py::test_the_hash_does_not_depend_on_the_override`. Status: active
+
+- **L-P0-I6C-3** · 2026-10-10 · tags: tooling
+  The contract names the module `tl_sim/types.py`. Python run with that directory as the working directory (`python -` from `src/tl_sim`) fails at start-up with
+  `cannot import name 'MappingProxyType' from 'types'` because the file shadows the standard library. Run every command from the repository root; tickets say so.
+  The file keeps the frozen text verbatim by switching the formatter and the E501 and I001 rules off for that file only.
+  Evidence: a failed `python3 - <<EOF` from `packages/tl-sim/src/tl_sim`; `tests/test_contract_and_boundary.py::test_types_py_is_the_contract_of_the_fanout_plan_verbatim`. Status: active
+
+- **L-P0-I6C-4** · 2026-10-10 · tags: tests, process
+  An in-memory fake drifts from the real suite in the places nobody looked: `FakeWorld` raised `InvalidStateError` for a workflow transition from the wrong state, and
+  the real engine raises `UnknownTransitionError` ("cannot start in state"). The first run of the client tests against the real API app found it. Write the fake's
+  refusals from a real run, and keep one test per refusal that runs against the real app (`tests/test_http_client.py`).
+  Evidence: `test_links_and_transitions_follow_the_sample_workflow`; `testing.py` FakeClient.transition. Status: active
+
+- **L-P0-I6C-5** · 2026-10-10 · tags: tests
+  A test that pins "the draws happen in this order" only works if the draws consume the generator: `draw(3, rng)` for an integer count uses no randomness, while
+  `CountRange(min=0, max=0)` still does. The provided actor tests use ranges for the counts that precede the pinned draws, and pin a result that three different
+  orders would not all give (a first attempt with two activities chose the same line twice and pinned nothing).
+  Evidence: `docs/tickets/P0-I6/provided/c-test_actor_planner.py.txt` `PINNED`. Status: active

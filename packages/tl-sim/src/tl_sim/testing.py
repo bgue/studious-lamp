@@ -13,7 +13,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from tl_core.services.errors import GuardFailedError, InvalidStateError, UnknownTransitionError
+from tl_core.services.errors import GuardFailedError, UnknownTransitionError
 
 from tl_sim.actors.base import Rec, Recorder
 from tl_sim.client import Keys
@@ -185,7 +185,9 @@ class FakeClient:
         sources, target = WORKFLOW[transition]
         state = record["status"] or "Draft"
         if state not in sources:
-            raise InvalidStateError(f"{transition} does not start in {state}")
+            raise UnknownTransitionError(  # the real engine's answer to a wrong-state request
+                f"transition {transition!r} cannot start in state {state!r}"
+            )
         if transition == "approve" and not any(
             link["from_id"] == record_id and link["view"]["relation"] == "references"
             for link in self.world.link_rows
@@ -266,6 +268,7 @@ def make_context(
     now: datetime | None = None,
     seed: int = 1,
     day: int = 0,
+    propose: bool = False,
 ) -> SimContext:
     """A context for one actor step over ``world`` (a Monday 07:00 unless ``now`` is given)."""
     moment = now or datetime(2026, 11, 2, 7, 0, tzinfo=UTC)
@@ -274,7 +277,7 @@ def make_context(
         scope=world.scope,
         now=moment,
         rng=actor_rng(seed, identity, day),
-        client=world.client(identity, SimClock(moment), keys),
+        client=world.client(identity, SimClock(moment), keys, propose=propose),
     )
 
 

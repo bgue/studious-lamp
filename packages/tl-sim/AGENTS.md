@@ -1,0 +1,13 @@
+# AGENTS.md — tl-sim
+
+Read the root `AGENTS.md` first. These rules add to it.
+
+- The simulator acts only through the suite's public interfaces (brief 29.1): `tl_api.client.ApiClient` for reads and writes, the MCP server for proposals. Never import a ledger, unit of work, projection, adapter, `sqlalchemy` or a `handle_*` function; `tests/test_contract_and_boundary.py` reads the imports and fails. Command models, error classes and `tl_api.tokens` (dev identity, ADR-0005) are allowed.
+- `types.py` is the frozen actor interface of `docs/tickets/P0-I6/FANOUT.md`, kept verbatim (a test compares them). Change it only by orchestrator decision.
+- Determinism is the product. No wall clock, no global `random`, no `uuid`, no set or dict-order decisions in an actor or in the orchestrator. Randomness comes from `SimContext.rng`, which is `rng.actor_rng(seed, actor, day)`. An actor draws in the order its docstring lists; the actor tests pin the first draws. Simulator v0 makes no LLM calls (FANOUT D6).
+- An actor writes only through its `Recorder` (`actors/base.py`), which makes the call and appends the matching `GroundTruth` line in one step. Ground truth never holds a server-made id (ULID): records are named by key, links by `from relation to`, posts by actor and time.
+- Keys are assigned by the client (`client.Keys`): a simulation scope `project:sim-<run>` has a dash that the numbering pattern's `{project}` refuses, so the suite cannot number records there.
+- Simulated time is the `X-TL-Effective-At` header on command requests, honoured by the API only for `project:sim-*` scopes (FANOUT D5). Events written over MCP are stamped with real time (the MCP server does not read the header).
+- A run is a directory (`run.json` mode 0600 with the dev tokens, `ground_truth.ndjson`). A step that dies leaves `in_progress` set and the run refuses to continue; create a new run.
+- `testing.FakeWorld` mirrors the real suite where actors depend on it (the sample `core.review` workflow, its guard, and the errors it raises). Change it only together with the end-to-end test that shows the real suite behaves that way.
+- Tests: `tests/test_end_to_end.py` and `tests/test_http_client.py` run the real API app in process; everything else runs on `FakeWorld`. No network, no sleeping.
