@@ -1,4 +1,3 @@
-# ruff: noqa: F401  (STUB P0-I8-T25: delete this line when the unused imports are gone)
 """Form fields of an extension type, and where their values go (P0-I8, brief 31.1).
 
 `type_form` (tl-core) describes the whole form of a type. The TUI's field editor edits a
@@ -9,7 +8,7 @@ place the type keeps them: the pset of a managed type, the body of an object-bac
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, get_args
+from typing import Any, cast, get_args
 
 from tl_core.extypes.forms import TypeForm, TypeFormField
 from tl_schema.forms import FieldKind, FieldMeta
@@ -25,12 +24,25 @@ def field_meta(slot: TypeFormField, group: str) -> FieldMeta:
     edited as text. A required slot is marked required; the unit, enum values and the help text
     of ``form.yaml`` (else the slot's description) come along.
     """
-    # Build FieldMeta(path=slot.path, label=slot.label, description=slot.help or
-    # slot.description, kind, unit=slot.unit, enum_values=slot.enum_values,
-    # enforcement="required" or None, layer="standard", group=group, order=slot.order).
-    # kind: LIST_KIND when slot.multivalued, else slot.kind when it is in KINDS, else
-    # "string".
-    raise NotImplementedError("STUB (P0-I8-T25)")
+    kind: FieldKind
+    if slot.multivalued:
+        kind = LIST_KIND
+    elif slot.kind in KINDS:
+        kind = cast(FieldKind, slot.kind)
+    else:
+        kind = "string"
+    return FieldMeta(
+        path=slot.path,
+        label=slot.label,
+        description=slot.help or slot.description,
+        kind=kind,
+        unit=slot.unit,
+        enum_values=slot.enum_values,
+        enforcement="required" if slot.required else None,
+        layer="standard",
+        group=group,
+        order=slot.order,
+    )
 
 
 @dataclass(frozen=True)
@@ -44,9 +56,15 @@ class FormSection:
 
 def sections(form: TypeForm) -> list[FormSection]:
     """The groups of ``form`` as editor descriptions, skipping a group without fields."""
-    # One FormSection(group.name, group.label, [field_meta(f, group.name) ...]) per group
-    # that has fields.
-    raise NotImplementedError("STUB (P0-I8-T25)")
+    return [
+        FormSection(
+            group.name,
+            group.label,
+            [field_meta(slot, group.name) for slot in group.fields],
+        )
+        for group in form.groups
+        if group.fields
+    ]
 
 
 @dataclass
@@ -65,8 +83,10 @@ def split_values(form: TypeForm, values: dict[str, Any]) -> SplitValues:
     the pset from there): ``body = {name: value}``, no psets. Names that are not fields of the form
     are ignored.
     """
-    # Keep only names that are fields of the form (form.fields()) with a value that is not
-    # None. form.storage_mode == "object-backed": SplitValues(body=chosen). Otherwise
-    # SplitValues(psets={form.pset: chosen}) or empty psets when nothing is chosen (body
-    # stays None).
-    raise NotImplementedError("STUB (P0-I8-T25)")
+    known = {slot.name for slot in form.fields()}
+    chosen = {name: value for name, value in values.items() if name in known and value is not None}
+    if form.storage_mode == "object-backed":
+        return SplitValues(body=chosen)
+    if not chosen:
+        return SplitValues()
+    return SplitValues(psets={form.pset: chosen})

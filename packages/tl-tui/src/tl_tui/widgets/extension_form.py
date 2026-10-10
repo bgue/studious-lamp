@@ -1,4 +1,3 @@
-# ruff: noqa: F401  (STUB P0-I8-T25: delete this line when the unused imports are gone)
 """New-record modal for an extension record type (P0-I8, brief 31.1 and 10.2).
 
 The form is generated from the type's `TypeForm`: Key, Title and Description, then one editor per
@@ -10,7 +9,7 @@ without closing.
 
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from pydantic import ValidationError
 from textual.app import ComposeResult
@@ -19,12 +18,18 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Button, Static
 from tl_core.extypes.forms import TypeForm
+from tl_schema.forms import FieldMeta
 
 from tl_tui.client import ClientInterface
 from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.extension_fields import FormSection, sections, split_values
 from tl_tui.widgets.form_fields import FieldEditor
 from tl_tui.widgets.new_record_form import FIELDS as CORE_FIELDS
+
+
+def _slot_name(meta: FieldMeta) -> str:
+    """The slot's name: the last dotted part of its path (``psets.p.crane`` is ``crane``)."""
+    return meta.path.rsplit(".", 1)[-1]
 
 
 class ExtensionRecordForm(ModalScreen[str | None]):
@@ -72,22 +77,30 @@ class ExtensionRecordForm(ModalScreen[str | None]):
     # --- layout ------------------------------------------------------------------------------
 
     def compose(self) -> ComposeResult:
-        # Mirror NewRecordForm.compose (widgets/new_record_form.py): a Vertical(id="new-
-        # record") holding the title Static ("New <type_name>", class form-title), a
-        # VerticalScroll with FieldEditor(meta, id=f"new_{meta.path}") for each CORE_FIELDS
-        # entry, then per section a Static(section.label, class group-title) and a
-        # FieldEditor(meta, id=f"ext_{name}") per field (name = last dotted part of
-        # meta.path); then the Static(id=form-status) and the Horizontal with the Create
-        # (primary) and Cancel buttons. Static takes markup=False.
-        raise NotImplementedError("STUB (P0-I8-T25)")
+        # Editors hold Inputs, so they are created here, not in __init__.
+        with Vertical(id="new-record"):
+            yield Static(f"New {self.form.type_name}", classes="form-title", markup=False)
+            with VerticalScroll():
+                for meta in CORE_FIELDS:
+                    yield FieldEditor(meta, id=f"new_{meta.path}")
+                for section in self._sections:
+                    yield Static(section.label, classes="group-title", markup=False)
+                    for meta in section.fields:
+                        yield FieldEditor(meta, id=f"ext_{_slot_name(meta)}")
+            yield Static("", id="form-status", markup=False)
+            with Horizontal():
+                yield Button("Create", id="create", variant="primary")
+                yield Button("Cancel", id="cancel")
 
     def _core(self, path: str) -> FieldEditor:
         return self.query_one(f"#new_{path}", FieldEditor)
 
     def _slot_editors(self) -> dict[str, FieldEditor]:
-        # Map each slot name (last dotted part of meta.path) to its editor, found with
-        # self.query_one(f"#ext_{name}", FieldEditor).
-        raise NotImplementedError("STUB (P0-I8-T25)")
+        return {
+            _slot_name(meta): self.query_one(f"#ext_{_slot_name(meta)}", FieldEditor)
+            for section in self._sections
+            for meta in section.fields
+        }
 
     def _status(self, text: str) -> None:
         self.query_one("#form-status", Static).update(text)
@@ -96,20 +109,50 @@ class ExtensionRecordForm(ModalScreen[str | None]):
 
     def _check(self, editors: dict[str, FieldEditor]) -> bool:
         """Mark every editor that cannot be saved; ``True`` when none is marked."""
-        # Title unset: title.set_error("Required"). For each slot editor: if not
-        # editor.validate() the form is not ok; otherwise if meta.enforcement == "required"
-        # and editor.value is None: set_error("Required"). Check every editor (do not stop
-        # at the first). Return True when none was marked.
-        raise NotImplementedError("STUB (P0-I8-T25)")
+        ok = True
+        title = self._core("title")
+        if title.value is None:
+            title.set_error("Required")
+            ok = False
+        else:
+            title.set_error(None)
+        for editor in editors.values():
+            # Clear the old mark first: validate() only sets an error for typed text, so a
+            # stale "Required" on a choice field would otherwise survive the user's choice.
+            editor.set_error(None)
+            if not editor.validate():
+                ok = False
+            elif editor.meta.enforcement == "required" and editor.value is None:
+                editor.set_error("Required")
+                ok = False
+        return ok
 
     def action_save(self) -> None:
-        # If _check fails: _status("Fix the marked fields") and return. Else collect values
-        # {name: editor.value}, split_values(self.form, values), and call
-        # self.client.create_instance(self.form.type_name, scope=, title=str(title),
-        # key=None when blank else str, description=, psets=split.psets, body=split.body).
-        # On ValidationError or CLIENT_ERRORS: _status(f"Not created:
-        # {describe_error(exc)}") and stay open. On success self.dismiss(result.key).
-        raise NotImplementedError("STUB (P0-I8-T25)")
+        editors = self._slot_editors()
+        if not self._check(editors):
+            self._status("Fix the marked fields")
+            return
+        split = split_values(self.form, {name: editor.value for name, editor in editors.items()})
+        title = self._core("title")
+        key = self._core("key")
+        description = self._core("description")
+        try:
+            result = self.client.create_instance(
+                self.form.type_name,
+                scope=self.scope,
+                title=str(title.value),
+                key=None if key.value is None else str(key.value),
+                description=description.value,
+                psets=split.psets,
+                body=split.body,
+            )
+        except ValidationError as exc:
+            self._status(f"Not created: {describe_error(exc)}")
+            return
+        except CLIENT_ERRORS as exc:
+            self._status(f"Not created: {describe_error(exc)}")
+            return
+        self.dismiss(result.key)
 
     def action_cancel(self) -> None:
         self.dismiss(None)
