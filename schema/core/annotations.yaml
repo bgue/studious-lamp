@@ -43,6 +43,12 @@ description: >-
     the project extension that changed it.
   - `tl:effective_schema_hash` and `tl:scope`: set on the effective schema itself.
 
+  Extension type tags (read by `tl_core.extypes` when it compiles a package's `type.yaml`, brief 31; no generator reads them)
+  - `tl:storage_mode` (`managed` | `object-backed`, class level): where an instance body lives. Default `managed`.
+  - `tl:index` (boolean, slot level): the slot is an index field, copied into the pset named for the type so the query
+    language filters on it (brief 31.4). Other slots are visible in the record view but not filterable.
+  - `tl:kind` (`text` | `ref` | `quantity`, slot level): the pset property kind when the LinkML range alone is not enough.
+
   Schema-level tags
   - `tl:module` (string): the module segment of generated object names; `core` for everything under `schema/core`.
 

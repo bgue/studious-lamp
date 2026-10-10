@@ -1,0 +1,62 @@
+{
+  "envelope": {
+    "data": {
+      "changes": {},
+      "detail": {
+        "content_hash": "4d1c0a0f9f43b3a0a0f3a6a6b9d3f0a5c8e5d9b2f1a7c3e6d4b8a2f9c1e7d0b3",
+        "index_fields": [
+          "crane",
+          "lift_date",
+          "risk_class"
+        ],
+        "location_uri": "file:///srv/types/co.acme/LiftPlan/1.0.0",
+        "name": "LiftPlan",
+        "namespace": "co.acme",
+        "owner": "user:alice",
+        "schema_hash": "7a3b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b",
+        "status": "active",
+        "storage_mode": "object-backed",
+        "type_ref": "co.acme.LiftPlan@1.0.0",
+        "version": "1.0.0"
+      },
+      "links": [],
+      "origin": {
+        "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "key": "47-1234-W012",
+        "type": "core.Record",
+        "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+        "version": 7
+      }
+    },
+    "datacontenttype": "application/json",
+    "dataschema": "https://tl.example.com/schema/events/TypeRegistration.Registered/1",
+    "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+    "source": "https://tl.example.com/c/acme/p/P123",
+    "specversion": "1.0",
+    "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+    "time": "2026-10-09T03:14:07.000000Z",
+    "tlactor": "user:jsmith",
+    "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+    "tlseq": 48211933,
+    "tlstreamversion": 7,
+    "type": "tl.core.TypeRegistration.Registered.v1"
+  },
+  "payload": {
+    "content_hash": "4d1c0a0f9f43b3a0a0f3a6a6b9d3f0a5c8e5d9b2f1a7c3e6d4b8a2f9c1e7d0b3",
+    "index_fields": [
+      "crane",
+      "lift_date",
+      "risk_class"
+    ],
+    "location_uri": "file:///srv/types/co.acme/LiftPlan/1.0.0",
+    "name": "LiftPlan",
+    "namespace": "co.acme",
+    "owner": "user:alice",
+    "schema_hash": "7a3b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b",
+    "status": "active",
+    "storage_mode": "object-backed",
+    "type_ref": "co.acme.LiftPlan@1.0.0",
+    "version": "1.0.0"
+  }
+}

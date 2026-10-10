@@ -27,12 +27,16 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Proposal.Failed`](#proposalfailed) | `tl.core.Proposal.Failed.v1` | A person accepted a proposal, but the command was refused (the record changed since, a guard failed). |
 | [`Proposal.Rejected`](#proposalrejected) | `tl.core.Proposal.Rejected.v1` | A person rejected a proposal. |
 | [`Pset.ValuesSet`](#psetvaluesset) | `tl.core.Pset.ValuesSet.v1` | Values of a property set were written on a record. |
+| [`Record.BodyStored`](#recordbodystored) | `tl.core.Record.BodyStored.v1` | The body of an object-backed record was stored as a content-addressed object. |
 | [`Record.Corrected`](#recordcorrected) | `tl.core.Record.Corrected.v1` | A recorded value was corrected after the fact; history keeps the original. |
 | [`Record.Created`](#recordcreated) | `tl.core.Record.Created.v1` | A record was created. |
 | [`Record.Updated`](#recordupdated) | `tl.core.Record.Updated.v1` | One or more fields of a record changed. |
 | [`Record.Voided`](#recordvoided) | `tl.core.Record.Voided.v1` | A record was voided. |
 | [`Schema.EffectiveChanged`](#schemaeffectivechanged) | `tl.core.Schema.EffectiveChanged.v1` | The effective schema of a scope changed. |
 | [`SchemaPackage.Published`](#schemapackagepublished) | `tl.core.SchemaPackage.Published.v1` | A schema package version was published. |
+| [`TypeRegistration.Deprecated`](#typeregistrationdeprecated) | `tl.core.TypeRegistration.Deprecated.v1` | The owner retired a version. |
+| [`TypeRegistration.Quarantined`](#typeregistrationquarantined) | `tl.core.TypeRegistration.Quarantined.v1` | A type package failed validation, or its files changed under a version that is already registered. |
+| [`TypeRegistration.Registered`](#typeregistrationregistered) | `tl.core.TypeRegistration.Registered.v1` | A type package validated and was registered. |
 | [`WebhookSubscription.Created`](#webhooksubscriptioncreated) | `tl.core.WebhookSubscription.Created.v1` | A webhook subscription was created. |
 | [`WebhookSubscription.Disabled`](#webhooksubscriptiondisabled) | `tl.core.WebhookSubscription.Disabled.v1` | A subscription stopped receiving events. |
 | [`WebhookSubscription.Enabled`](#webhooksubscriptionenabled) | `tl.core.WebhookSubscription.Enabled.v1` | A disabled subscription started receiving events again, from this event on. |
@@ -1216,6 +1220,63 @@ Values of a property set were written on a record.
 }
 ```
 
+## Record.BodyStored
+
+The body of an object-backed record was stored as a content-addressed object. The body itself is never in the ledger. A new body is a new object (a new hash); the old one stays, and `previous_hash` chains the versions.
+
+- CloudEvents type: `tl.core.Record.BodyStored.v1`
+- Ledger payload class: `RecordBodyStoredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `pointer` | any | yes |  |
+| `previous_hash` | string or null | no | Hash of the body this one replaces; null for the first body. |
+| `stream_id` | string | yes | The record (this stream). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "pointer": {
+        "hash": "9c1f0e3a5b7d2c4f6a8b0d1e3f5a7c9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c",
+        "schema_hash": "7a3b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b",
+        "size": 412,
+        "uri": "records/co.acme.LiftPlan/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5/9c1f0e3a5b7d2c4f6a8b0d1e3f5a7c9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c.json"
+      },
+      "previous_hash": null,
+      "stream_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Record.BodyStored/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Record.BodyStored.v1"
+}
+```
+
 ## Record.Corrected
 
 A recorded value was corrected after the fact; history keeps the original.
@@ -1550,6 +1611,188 @@ A schema package version was published.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.SchemaPackage.Published.v1"
+}
+```
+
+## TypeRegistration.Deprecated
+
+The owner retired a version. Existing instances stay readable and editable; no new instance can be created.
+
+- CloudEvents type: `tl.core.TypeRegistration.Deprecated.v1`
+- Ledger payload class: `TypeRegistrationDeprecatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why. |
+| `type_ref` | string | yes | The deprecated version. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "superseded by 2.0.0",
+      "type_ref": "co.acme.LiftPlan@1.0.0"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/TypeRegistration.Deprecated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.TypeRegistration.Deprecated.v1"
+}
+```
+
+## TypeRegistration.Quarantined
+
+A type package failed validation, or its files changed under a version that is already registered. The report lists every problem (`kind`, `path`, `detail`). A conflict never removes a registration that is already active.
+
+- CloudEvents type: `tl.core.TypeRegistration.Quarantined.v1`
+- Ledger payload class: `TypeRegistrationQuarantinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `content_hash` | string | yes | sha256 over the canonical `type.lock` form of the files as found. |
+| `location_uri` | string | yes | Where the package files are. |
+| `report` | any | yes |  |
+| `type_ref` | string | yes | `<namespace>.<name>@<version>`, or `invalid:<relative path>` when the path is not a package path. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "content_hash": "4d1c0a0f9f43b3a0a0f3a6a6b9d3f0a5c8e5d9b2f1a7c3e6d4b8a2f9c1e7d0b3",
+      "location_uri": "file:///srv/types/co.acme/LiftPlan/1.0.1",
+      "report": [
+        {
+          "detail": "examples/bad.json: 'risk_class' is not one of ['low', 'medium', 'high']",
+          "kind": "example",
+          "path": "examples/bad.json"
+        }
+      ],
+      "type_ref": "co.acme.LiftPlan@1.0.1"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/TypeRegistration.Quarantined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.TypeRegistration.Quarantined.v1"
+}
+```
+
+## TypeRegistration.Registered
+
+A type package validated and was registered. The package files stay where they are; this event holds metadata only. `content_hash` is the sha256 of the canonical bytes of the package's `type.lock`.
+
+- CloudEvents type: `tl.core.TypeRegistration.Registered.v1`
+- Ledger payload class: `TypeRegistrationRegisteredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `content_hash` | string | yes | sha256 over the canonical bytes of `type.lock`. |
+| `index_fields` | array or null | no | Slots annotated `tl:index`: the query contract. |
+| `location_uri` | string | yes | Where the package files are, for example `file:///srv/types/co.acme/LiftPlan/1.0.0`. |
+| `name` | string | yes | Type name, UpperCamelCase, for example `LiftPlan`. |
+| `namespace` | string | yes | Namespace, dotted lower-case segments, for example `co.acme`. |
+| `owner` | string | yes | Actor that registered the package. |
+| `schema_hash` | string | yes | Hash of the compiled class: the schema a stored body validated against. |
+| `status` | string | yes | `active` for this event. |
+| `storage_mode` | string | yes | `managed` or `object-backed` in v0. |
+| `type_ref` | string | yes | `<namespace>.<name>@<version>`. |
+| `version` | string | yes | Semantic version `MAJOR.MINOR.PATCH`. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "content_hash": "4d1c0a0f9f43b3a0a0f3a6a6b9d3f0a5c8e5d9b2f1a7c3e6d4b8a2f9c1e7d0b3",
+      "index_fields": [
+        "crane",
+        "lift_date",
+        "risk_class"
+      ],
+      "location_uri": "file:///srv/types/co.acme/LiftPlan/1.0.0",
+      "name": "LiftPlan",
+      "namespace": "co.acme",
+      "owner": "user:alice",
+      "schema_hash": "7a3b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b",
+      "status": "active",
+      "storage_mode": "object-backed",
+      "type_ref": "co.acme.LiftPlan@1.0.0",
+      "version": "1.0.0"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/TypeRegistration.Registered/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.TypeRegistration.Registered.v1"
 }
 ```
 

@@ -190,6 +190,15 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Record.BodyStored.v1",
+      "event_type": "Record.BodyStored",
+      "payload_class": "RecordBodyStoredPayload",
+      "sample": "samples/Record.BodyStored.v1.json",
+      "schema": "schemas/Record.BodyStored.v1.json",
+      "title": "The body of an object-backed record was stored as a content-addressed object.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Record.Corrected.v1",
       "event_type": "Record.Corrected",
       "payload_class": "RecordCorrectedPayload",
@@ -241,6 +250,33 @@
       "sample": "samples/SchemaPackage.Published.v1.json",
       "schema": "schemas/SchemaPackage.Published.v1.json",
       "title": "A schema package version was published.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.TypeRegistration.Deprecated.v1",
+      "event_type": "TypeRegistration.Deprecated",
+      "payload_class": "TypeRegistrationDeprecatedPayload",
+      "sample": "samples/TypeRegistration.Deprecated.v1.json",
+      "schema": "schemas/TypeRegistration.Deprecated.v1.json",
+      "title": "The owner retired a version.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.TypeRegistration.Quarantined.v1",
+      "event_type": "TypeRegistration.Quarantined",
+      "payload_class": "TypeRegistrationQuarantinedPayload",
+      "sample": "samples/TypeRegistration.Quarantined.v1.json",
+      "schema": "schemas/TypeRegistration.Quarantined.v1.json",
+      "title": "A type package failed validation, or its files changed under a version that is already registered.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.TypeRegistration.Registered.v1",
+      "event_type": "TypeRegistration.Registered",
+      "payload_class": "TypeRegistrationRegisteredPayload",
+      "sample": "samples/TypeRegistration.Registered.v1.json",
+      "schema": "schemas/TypeRegistration.Registered.v1.json",
+      "title": "A type package validated and was registered.",
       "version": 1
     },
     {
