@@ -113,6 +113,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.SettingNotLockableError, "setting_not_lockable", 422),
         s(svc.SettingChangeNotFoundError, "setting_change_not_found", 404),
         s(svc.SettingsDocumentError, "settings_document", 422),
+        s(svc.SettingRevertNotLatestError, "setting_revert_not_latest", 409),
     )
 
 

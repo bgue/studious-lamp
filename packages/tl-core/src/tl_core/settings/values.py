@@ -87,8 +87,29 @@ def _matches(pattern: str, text: str) -> bool:
         raise InvalidSettingValueError(f"the definition's pattern is not valid: {exc}") from exc
 
 
+def same_json(left: Any, right: Any) -> bool:
+    """Whether two JSON values are the same value of the same JSON type.
+
+    Python says ``True == 1`` and ``1.0 == 1``; JSON does not, so equality for no-op detection and
+    for choices goes through the canonical text (``true`` is not ``1``, ``1.0`` is not ``1``).
+    """
+    try:
+        return _canonical(left) == _canonical(right)
+    except (TypeError, ValueError):
+        return False
+
+
+def _canonical(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, allow_nan=False)
+
+
+def in_choices(value: Any, choices: Any) -> bool:
+    """Whether ``value`` is one of ``choices`` (a list), by :func:`same_json`."""
+    return isinstance(choices, list) and any(same_json(value, c) for c in choices)  # pyright: ignore[reportUnknownVariableType]
+
+
 def _describe(value: Any) -> str:
-    text = json.dumps(value, ensure_ascii=False, sort_keys=True)
+    text = json.dumps(value, ensure_ascii=False, sort_keys=True, default=repr)
     return text if len(text) <= 80 else text[:77] + "..."
 
 
@@ -103,7 +124,7 @@ def _check_item(defn: SettingDefinition, item: Any) -> None:
         )
     if validation is None:
         return
-    if validation.choices is not None and item not in validation.choices:
+    if validation.choices is not None and not in_choices(item, validation.choices):
         raise InvalidSettingValueError(
             f"{defn.key}: {_describe(item)} is not one of {_describe(validation.choices)}"
         )
@@ -143,7 +164,7 @@ def _check_text(defn: SettingDefinition, value: str) -> None:
     validation = defn.validation
     if kind == "enum":
         choices = validation.choices if validation is not None else None
-        if choices is None or value not in choices:
+        if choices is None or not in_choices(value, choices):
             raise InvalidSettingValueError(
                 f"{defn.key}: {_describe(value)} is not one of {_describe(choices or [])}"
             )
@@ -316,7 +337,7 @@ def check_bounds(defn: SettingDefinition, bounds: dict[str, Any] | None, value: 
     if choices is not None:
         items = value if defn.type == "list" else [value]
         for item in items:
-            if item not in choices:
+            if not in_choices(item, choices):
                 raise SettingOutOfBoundsError(
                     f"{defn.key}: {_describe(item)} is not one of the company's choices "
                     f"{_describe(choices)} for projects"

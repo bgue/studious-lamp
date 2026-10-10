@@ -10703,7 +10703,7 @@
     },
     "/settings/{key}/revert": {
       "post": {
-        "description": "Undo one change of the key's history.",
+        "description": "Undo the latest change of the key at a layer (409 `setting_revert_not_latest` otherwise).",
         "operationId": "revert_setting",
         "parameters": [
           {

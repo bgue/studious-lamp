@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -204,13 +205,14 @@ def resolve_from(
         candidates.append((f"project:{project}", "project", True))
     if allows_layer(defn, "company"):
         candidates.append(("company", "company", False))
-    value: Any = defn.default
+    chain = {layer for layer, _, _ in candidates}
+    value: Any = deepcopy(defn.default)  # callers get their own copy of every value
     origin: Origin = "default"
     for layer, kind, lower in candidates:
         entry = in_force(entries, layer, at_us)
         if _usable(defn, lock, entry, lower):
             assert entry is not None
-            value, origin = entry.value, kind
+            value, origin = deepcopy(entry.value), kind
             break
     viewed = viewed_layer(defn, project, user)
     modified_here = False
@@ -225,7 +227,7 @@ def resolve_from(
         scheduled = [
             ScheduledChange(
                 applies_at=e.applies_at or to_z(from_us(e.effective_us)),
-                new_value=None if e.reset else e.value,
+                new_value=None if e.reset else deepcopy(e.value),
                 seq=e.seq,
             )
             for e in later
@@ -236,9 +238,12 @@ def resolve_from(
         origin=origin,
         modified_here=modified_here,
         locked=lock.locked,
-        bounds=lock.bounds if lock.bounds else None,
+        bounds=deepcopy(lock.bounds) if lock.bounds else None,
         scheduled=scheduled,
-        pending_effect=pending_effect(defn, entries, snapshot.applied, at_us),
+        # only the layers this view reads: another project's change is not owed by this view
+        pending_effect=pending_effect(
+            defn, [e for e in entries if e.layer in chain], snapshot.applied, at_us
+        ),
     )
 
 

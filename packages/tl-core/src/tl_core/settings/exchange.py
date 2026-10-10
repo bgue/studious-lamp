@@ -20,6 +20,7 @@ importing an export back changes nothing.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Any, cast
 
 import yaml
@@ -68,11 +69,58 @@ def export_yaml(conn: Connection, *, layer: str) -> str:
     return yaml.safe_dump(document, sort_keys=True, allow_unicode=True, default_flow_style=False)
 
 
+MAX_DEPTH = 12
+
+
+def _refuse_aliases(text: str) -> None:
+    """Raise ``SettingsDocumentError`` if the YAML uses an anchor or an alias.
+
+    An alias lets a few hundred bytes expand to millions of items before any size check runs, and
+    a settings file has no use for sharing structure.
+    """
+    try:
+        events = cast("Iterator[Any]", yaml.parse(text, Loader=yaml.SafeLoader))  # pyright: ignore[reportUnknownMemberType]
+        for event in events:
+            if isinstance(event, yaml.AliasEvent) or getattr(event, "anchor", None) is not None:
+                raise SettingsDocumentError("the settings file may not use YAML anchors or aliases")
+    except yaml.YAMLError as exc:
+        raise SettingsDocumentError(f"the settings file is not valid YAML: {exc}") from exc
+
+
+def _json_only(where: str, value: Any, depth: int = 0) -> None:
+    """Raise ``SettingsDocumentError`` unless ``value`` is plain JSON.
+
+    YAML also makes dates, sets and bytes, which no setting holds.
+    """
+    if depth > MAX_DEPTH:
+        raise SettingsDocumentError(f"{where} is nested deeper than {MAX_DEPTH} levels")
+    if value is None or isinstance(value, (bool, str, int)):
+        return
+    if isinstance(value, float):
+        if value != value or value in (float("inf"), float("-inf")):
+            raise SettingsDocumentError(f"{where} is not a finite number")
+        return
+    if isinstance(value, list):
+        for index, item in enumerate(cast("list[Any]", value)):
+            _json_only(f"{where}[{index}]", item, depth + 1)
+        return
+    if isinstance(value, dict):
+        for name, item in cast("dict[Any, Any]", value).items():
+            if not isinstance(name, str):
+                raise SettingsDocumentError(f"{where} has a key that is not text: {name!r}")
+            _json_only(f"{where}.{name}", item, depth + 1)
+        return
+    raise SettingsDocumentError(
+        f"{where} is a {type(value).__name__}, not JSON data; quote dates and times as text"
+    )
+
+
 def _document(text: str) -> dict[str, Any]:
     if len(text) > MAX_DOCUMENT_CHARS:
         raise SettingsDocumentError(
             f"the settings file is longer than {MAX_DOCUMENT_CHARS} characters"
         )
+    _refuse_aliases(text)
     try:
         loaded: Any = yaml.safe_load(text)
     except yaml.YAMLError as exc:
@@ -92,6 +140,12 @@ def _document(text: str) -> dict[str, Any]:
             raise SettingsDocumentError(f"`{part}:` must be a mapping")
     if len(document.get("settings") or {}) + len(document.get("locks") or {}) > MAX_KEYS:
         raise SettingsDocumentError(f"more than {MAX_KEYS} keys in one file")
+    for part in ("settings", "locks"):
+        mapping = cast("dict[Any, Any]", document.get(part) or {})
+        for name, item in mapping.items():
+            if not isinstance(name, str):
+                raise SettingsDocumentError(f"`{part}:` has a key that is not text: {name!r}")
+            _json_only(f"{part}.{name}", item)
     return document
 
 

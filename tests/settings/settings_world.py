@@ -48,6 +48,11 @@ EXTRA = [
         "ui.t.pref", "enum", "a", validation={"choices": ["a", "b"]}, scopes=["platform", "user"]
     ),
     custom("t.plain", "string", "x", scopes=["platform", "company", "project", "user"]),
+    custom("t.rebuild", "int", 1, effect="rebuild"),
+    custom("t.pick", "list", [], validation={"choices": ["a", 1]}),
+    custom("t.flag", "bool", False),
+    custom("t.num", "int", 1),
+    custom("t.blob", "json", {}),
 ]
 
 

@@ -161,3 +161,59 @@ def test_the_number_of_keys_in_a_file_is_bounded(world: World) -> None:
     many = {"settings": {f"a.k{i}": 1 for i in range(1001)}}
     with pytest.raises(SettingsDocumentError, match="more than 1000"):
         do_import(world, yaml.safe_dump(many), "company")
+
+
+# --- review fixes (S1 to S5) --------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("literal", "kind"),
+    [
+        ("2026-10-10", "date"),
+        ("2026-10-10 12:00:00", "datetime"),
+        ("!!set {a, b}", "set"),
+        ("!!binary aGk=", "bytes"),
+        ("[2026-10-10]", "date"),
+    ],
+)
+def test_yaml_values_that_are_not_json_are_a_document_error_naming_the_key(
+    world: World, literal: str, kind: str
+) -> None:
+    with pytest.raises(SettingsDocumentError, match=rf"settings\.t\.blob.*{kind}"):
+        do_import(world, f"settings:\n  t.blob: {literal}\n", "company")
+    assert world.head() == 0
+
+
+def test_a_value_the_checks_describe_never_crashes_the_message(world: World) -> None:
+    from datetime import date
+
+    from tl_core.settings.registry import get_definition
+    from tl_core.settings.values import normalise
+
+    with pytest.raises(InvalidSettingValueError, match="takes a int value"):
+        normalise(get_definition("t.limit"), date(2026, 10, 10))
+
+
+def test_anchors_and_aliases_are_refused_so_a_small_file_cannot_grow(world: World) -> None:
+    bomb = (
+        "a: &a [x, x, x, x, x, x, x, x, x, x]\n"
+        "b: &b [*a, *a, *a, *a, *a, *a, *a, *a, *a, *a]\n"
+        "settings:\n  t.blob: *b\n"
+    )
+    assert len(bomb) < 300
+    with pytest.raises(SettingsDocumentError, match="anchors or aliases"):
+        do_import(world, bomb, "company")
+    with pytest.raises(SettingsDocumentError, match="anchors or aliases"):
+        do_import(world, "settings:\n  t.blob: &x {a: 1}\n", "company")
+    assert world.head() == 0
+
+
+def test_keys_that_are_not_text_are_a_document_error(world: World) -> None:
+    for text in ("settings:\n  1: 2\n", "settings:\n  [a]: 1\n", "locks:\n  3: {locked: true}\n"):
+        with pytest.raises(SettingsDocumentError, match="not text|must be a mapping|unhashable"):
+            do_import(world, text, "company", reason="r")
+    with pytest.raises(SettingsDocumentError, match="not text"):
+        do_import(world, "settings:\n  t.blob: {1: 2}\n", "company")
+    with pytest.raises(SettingsDocumentError, match="nested deeper"):
+        do_import(world, "settings:\n  t.blob: " + "[" * 30 + "]" * 30 + "\n", "company")
+    assert world.head() == 0

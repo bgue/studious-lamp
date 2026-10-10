@@ -42,6 +42,7 @@ from tl_core.services.errors import (
     SettingChangeNotFoundError,
     SettingLockedError,
     SettingNotLockableError,
+    SettingRevertNotLatestError,
 )
 from tl_core.settings.instants import to_us, to_z
 from tl_core.settings.layers import (
@@ -66,7 +67,7 @@ from tl_core.settings.types import (
     EffectiveSetting,
     SettingDefinition,
 )
-from tl_core.settings.values import check_bounds, check_bounds_shape, normalise
+from tl_core.settings.values import check_bounds, check_bounds_shape, normalise, same_json
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid, utcnow
 
@@ -220,14 +221,16 @@ def change_setting(
         if lock.locked:
             raise SettingLockedError(f"{key} is locked by the company; projects cannot change it")
         check_bounds(defn, lock.bounds, clean)
+    when = _future(applies_at)  # everything that does not depend on the risk comes first
     _check_risk(defn, note, accept_risk)
-    when = _future(applies_at)
     here = in_force(snapshot.entries.get(key, ()), ref.name, to_us(utcnow()))
     holds = here is not None and not here.reset
     if reset:
         needed = holds or when is not None
     else:
-        needed = when is not None or not (holds and here is not None and here.value == clean)
+        needed = when is not None or not (
+            holds and here is not None and same_json(here.value, clean)
+        )
     sid = stream_id(ref, key)
     if not needed:
         return Outcome(_view(uow.conn(), defn, ref), [], _version(uow, sid))
@@ -347,7 +350,7 @@ def lock_setting(
     clean = check_bounds_shape(defn, bounds) if bounds else None
     snapshot = load_snapshot(uow.conn(), [key])
     current = snapshot.locks.get(key, NO_LOCK)
-    if not (current.locked == locked and (current.bounds or None) == (clean or None)):
+    if not (current.locked == locked and same_json(current.bounds or None, clean or None)):
         sid = stream_id(COMPANY, key)
         uow.append(
             stream_id=sid,
@@ -390,7 +393,9 @@ def revert_setting(
     The layer goes back to what that change replaced: the old value, or inheriting if the layer
     held none. A change that has not taken effect yet (scheduled) is cancelled by recording the
     old state for the same instant, which wins the tie because it was recorded later. The risk
-    rules apply as for :func:`set_setting`. Raises ``SettingChangeNotFoundError``.
+    rules apply as for :func:`set_setting`. Only the **latest** change at the key and layer can be
+    reverted (``SettingRevertNotLatestError``): reverting an older one would silently discard the
+    changes after it. Raises ``SettingChangeNotFoundError`` for a seq that is not in the history.
     """
     _, ref = _writable(key, layer)
     row = (
@@ -406,6 +411,15 @@ def revert_setting(
     )
     if row is None:
         raise SettingChangeNotFoundError(f"{key} has no change at seq {seq} on layer {ref.name}")
+    newest = uow.conn().execute(
+        text("SELECT MAX(seq) FROM cur_setting WHERE key = :key AND layer = :layer"),
+        {"key": key, "layer": ref.name},
+    )
+    if int(newest.scalar_one()) != seq:
+        raise SettingRevertNotLatestError(
+            f"change {seq} of {key} on {ref.name} is not the latest there; undoing it would also "
+            "discard the later changes. Revert the latest first, or set the value you want"
+        )
     pending = int(row.effective_us) > to_us(utcnow())
     when = datetime.fromisoformat(str(row.applies_at)) if pending else None
     if bool(row.old_set):

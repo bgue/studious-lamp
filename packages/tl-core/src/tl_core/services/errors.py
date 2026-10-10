@@ -245,3 +245,6 @@ class SettingChangeNotFoundError(SettingError): ...  # no such change in the key
 
 
 class SettingsDocumentError(SettingError): ...  # an import file that is not a settings document
+
+
+class SettingRevertNotLatestError(SettingError): ...  # only the newest change of a layer is undone

@@ -264,7 +264,7 @@ def lock_setting(ctx: Ctx, actor: Writer, key: str, body: LockBody) -> SettingVi
 
 @router.post("/settings/{key}/revert", operation_id="revert_setting")
 def revert_setting(ctx: Ctx, actor: Writer, key: str, body: RevertBody) -> SettingView:
-    """Undo one change of the key's history."""
+    """Undo the latest change of the key at a layer (409 `setting_revert_not_latest` otherwise)."""
     # STUB (P0-I8-T03): Write unit of work; `settings.revert_setting(uow, key=key,
     # layer=body.layer, seq=body.seq, actor=actor, source=API_SOURCE, reason=body.reason,
     # accept_risk=body.accept_risk)`; then, inside the block, return `view_at(uow.conn(), key,

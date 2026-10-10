@@ -161,7 +161,7 @@ def test_an_answer_with_nothing_scheduled_is_kept_for_good(setup: Setup) -> None
     r = setup.reader
     first = r.effective("t.limit")
     setup.clock.offset += timedelta(days=400)
-    assert r.effective("t.limit") is first
+    assert r.effective("t.limit") == first
 
 
 def test_a_reload_that_overlaps_an_invalidation_is_not_kept(setup: Setup) -> None:
@@ -226,3 +226,17 @@ def test_the_reader_factory_function_builds_a_reader(setup: Setup) -> None:
 def test_a_scheduled_value_in_the_far_future_is_not_applied_early(setup: Setup) -> None:
     setup.set("t.limit", "company", 1, applies_at=future(24 * 365))
     assert setup.reader.get("t.limit") == 10
+
+
+def test_what_the_reader_hands_out_is_a_copy(setup: Setup) -> None:
+    setup.set("t.blob", "company", {"k": [1]})
+    r = setup.reader
+    first = r.get("t.blob")
+    first["k"].append(2)
+    assert r.get("t.blob") == {"k": [1]}
+    tags = r.get("feed.signal_tags")
+    tags.append("x")
+    assert r.get("feed.signal_tags") == ["safety", "hold", "decision", "urgent", "fyi"]
+    effective = r.effective("t.blob")
+    effective.value["k"].clear()
+    assert r.effective("t.blob").value == {"k": [1]}

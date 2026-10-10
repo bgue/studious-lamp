@@ -141,13 +141,13 @@ class SettingsReader:
         with self._lock:
             held = self._answers.get(slot)
             if held is not None and self._fresh() and (held[1] is None or now_us < held[1]):
-                return held[0]
+                return held[0].model_copy(deep=True)
         snapshot, generation = self._current()
         answer = resolve_from(defn, snapshot, project=project, user=user, at_us=now_us)
         with self._lock:
             if generation == self._generation:
                 self._answers[slot] = (answer, snapshot.next_change_us(key, now_us))
-        return answer
+        return answer.model_copy(deep=True)  # the cached answer must not be reachable by callers
 
     def get(self, key: str, *, project: str | None = None, user: str | None = None) -> Any:
         """The effective value of ``key`` for ``project`` and ``user``."""

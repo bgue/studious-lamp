@@ -511,3 +511,81 @@ def test_the_projection_rows_carry_the_event(world: World) -> None:
     assert row["version"] == 1 and bool(row["reset"]) is False and bool(row["old_set"]) is False
     assert row["applies_at"] is None
     assert row["effective_us"] > 0
+
+
+# --- review fixes (S1 to S5) --------------------------------------------------------------------
+
+
+def test_only_the_latest_change_at_a_layer_can_be_reverted(world: World) -> None:
+    from tl_core.services.errors import SettingRevertNotLatestError
+
+    world.set("t.limit", P1, 30)
+    world.set("t.limit", P1, 40)
+    world.set("t.limit", "company", 20)  # another layer: does not matter
+    with pytest.raises(SettingRevertNotLatestError, match="not the latest"):
+        world.revert("t.limit", P1, 1)
+    assert world.value("t.limit", project="P1") == 40
+    assert world.revert("t.limit", P1, 2).value == 30
+    with pytest.raises(SettingRevertNotLatestError):  # the first is older than the revert now
+        world.revert("t.limit", P1, 1)
+    with pytest.raises(SettingChangeNotFoundError):  # not found is told apart from not latest
+        world.revert("t.limit", P1, 77)
+
+
+def test_true_is_not_one_for_a_no_op_or_a_choice(world: World) -> None:
+    world.set("t.flag", "company", True)
+    head = world.head()
+    world.set("t.flag", "company", True)
+    assert world.head() == head  # really the same value
+    world.set("t.num", "company", 1)
+    with pytest.raises(InvalidSettingValueError):
+        world.set("t.num", "company", True)
+    # 1 and true are different choices
+    with pytest.raises(InvalidSettingValueError, match="not one of"):
+        world.set("t.pick", "company", [True])
+    assert world.set("t.pick", "company", [1, "a"]).value == [1, "a"]
+    world.lock("t.pick", locked=False, bounds={"choices": ["a"]})
+    from tl_core.services.errors import SettingOutOfBoundsError
+
+    with pytest.raises(SettingOutOfBoundsError):
+        world.set("t.pick", P1, [1])
+
+
+def test_a_json_value_equal_only_by_python_rules_is_a_change(world: World) -> None:
+    world.set("t.blob", "company", {"a": 1})
+    head = world.head()
+    world.set("t.blob", "company", {"a": True})  # {"a": 1} == {"a": True} in Python
+    assert world.head() == head + 1
+
+
+def test_a_changed_value_never_leaks_into_the_defaults_or_the_next_answer(world: World) -> None:
+    got = world.get("feed.signal_tags")
+    got.value.append("mutated")
+    assert world.value("feed.signal_tags") == ["safety", "hold", "decision", "urgent", "fyi"]
+    world.set("t.blob", "company", {"k": [1]})
+    seen = world.get("t.blob")
+    seen.value["k"].append(2)
+    assert world.value("t.blob") == {"k": [1]}
+    world.lock("project.mode", locked=False, bounds={"choices": ["live"]})
+    bounds = world.get("project.mode").bounds
+    assert bounds is not None
+    bounds["choices"].append("hack")
+    assert world.get("project.mode").bounds == {"choices": ["live"]}
+
+
+def test_a_pending_effect_belongs_to_the_view_that_changed(world: World) -> None:
+    world.set("t.rebuild", P1, 5)
+    assert world.get("t.rebuild", project="P1").pending_effect == "rebuild"
+    assert world.get("t.rebuild", project="P2").pending_effect is None
+    assert world.get("t.rebuild").pending_effect is None
+    world.set("t.rebuild", "company", 7)
+    assert world.get("t.rebuild", project="P2").pending_effect == "rebuild"  # the company's change
+
+
+def test_everything_that_does_not_depend_on_the_risk_is_checked_first(world: World) -> None:
+    with pytest.raises(InvalidSettingValueError, match="not in the future"):
+        world.set(
+            "t.danger", "company", ["a"], reason="r", applies_at=datetime.now(UTC) - timedelta(1)
+        )
+    with pytest.raises(InvalidSettingValueError, match="not in the future"):
+        world.set("t.danger", "company", ["a"], applies_at=datetime.now(UTC) - timedelta(1))
