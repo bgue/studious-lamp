@@ -25,12 +25,47 @@ One working day (``act``), in this order, drawing from ``ctx.rng`` only where st
 
 from __future__ import annotations
 
-from tl_sim.actors.base import BaseActor, Recorder
-from tl_sim.scenario import DocumentControllerParams
+import re
+
+from tl_sim.actors.base import BaseActor, Rec, Recorder
+from tl_sim.scenario import DocumentControllerParams, draw
 from tl_sim.types import SimContext
 
 DISCIPLINES = ("Piping", "Mechanical", "Civil", "Instrumentation")
 KINDS = ("isometric", "datasheet", "procedure", "layout")
+
+_REVISION = re.compile(r"^(?P<stem>Doc \d{3} .+) Rev (?P<letter>[A-Z])$")
+_OPEN_STATES = ("Review", "Approved")
+_LAST_LETTER = "Z"  # no revision follows Rev Z, so a Rev Z document cannot be revised
+
+
+def _newest_revisions(docs: list[Rec]) -> list[tuple[str, str, Rec]]:
+    """The newest revision of each stem as ``(stem, letter, doc)``; non-documents are skipped."""
+    newest: dict[str, tuple[str, Rec]] = {}
+    for doc in docs:
+        match = _REVISION.match(doc.title)
+        if match is None:
+            continue
+        stem, letter = match["stem"], match["letter"]
+        if stem not in newest or letter > newest[stem][0]:
+            newest[stem] = (letter, doc)
+    return [(stem, letter, doc) for stem, (letter, doc) in newest.items()]
+
+
+def _revisable(docs: list[Rec]) -> list[tuple[str, str, Rec]]:
+    """The newest revisions in review or approved, with a next letter, in key order."""
+    found = [
+        (stem, letter, doc)
+        for stem, letter, doc in _newest_revisions(docs)
+        if doc.state in _OPEN_STATES and letter < _LAST_LETTER
+    ]
+    return sorted(found, key=lambda item: item[2].key)
+
+
+def _submitted(rec: Recorder, doc: Rec) -> Rec:
+    """Submit ``doc`` for review; the returned record carries the state the suite left it in."""
+    ok = rec.transition(doc, "submit", "Review")
+    return Rec(id=doc.id, key=doc.key, title=doc.title, status="Review" if ok else None)
 
 
 class DocumentController(BaseActor):
@@ -38,4 +73,45 @@ class DocumentController(BaseActor):
     params: DocumentControllerParams
 
     def act(self, ctx: SimContext, rec: Recorder) -> None:
-        raise NotImplementedError("STUB (P0-I6-T40)")
+        lines = rec.records(title_prefix="Line ")
+        if not lines:
+            return
+        docs = rec.records(title_prefix="Doc ")
+        existing = sum(1 for doc in docs if doc.title.endswith(" Rev A"))
+        created: list[Rec] = []
+
+        for _ in range(draw(self.params.documents_per_day, ctx.rng)):
+            line = ctx.rng.choice(lines)
+            discipline = ctx.rng.choice(DISCIPLINES)
+            kind = ctx.rng.choice(KINDS)
+            serial = existing + len(created) + 1
+            doc = rec.create(f"Doc {serial:03d} {discipline} {kind} Rev A")
+            rec.link(doc, line, "references")
+            doc = _submitted(rec, doc)
+            created.append(doc)
+            docs.append(doc)
+
+        roll = ctx.rng.random()
+        if self.params.forced_revisions > 0:
+            revisions = self.params.forced_revisions
+        elif roll < self.params.revision_rate:
+            revisions = 1
+        else:
+            revisions = 0
+
+        for _ in range(revisions):
+            candidates = _revisable(docs)
+            if not candidates:
+                break
+            stem, letter, old = ctx.rng.choice(candidates)
+            line = ctx.rng.choice(lines)
+            new = rec.create(f"{stem} Rev {chr(ord(letter) + 1)}")
+            rec.link(new, old, "supersedes")
+            rec.link(new, line, "references")
+            new = _submitted(rec, new)
+            created.append(new)
+            docs = [new if doc.key == old.key else doc for doc in docs]
+
+        if created:
+            keys = " ".join(f"#{doc.key}" for doc in created)
+            rec.post(f"Registered {len(created)} documents: {keys}")
