@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
 from mcp.server.mcpserver.exceptions import ResourceError, ToolError
 from mcp_harness import ACTOR, SCOPE, McpHarness
 from tl_adapters.db import make_engine
-from tl_lake import read_snapshot, sync_lake
+from tl_lake import LakeError, LakeQueryService, read_snapshot, sync_lake
 from tl_lake.config import LakeConfig
+from tl_lake.duck import open_lake
+from tl_lake.errors import LakeLockTimeout
+from tl_mcp.errors import describe
 
 
 def sync(env: McpHarness, lake_dir: Path) -> None:
@@ -95,11 +99,37 @@ def test_every_call_is_logged_with_the_acting_agent(synced: McpHarness, tmp_path
     assert refused["caller"] == ACTOR and refused["outcome"] == "refused"
 
 
-def test_a_lake_that_was_never_synced_says_what_to_do(env: McpHarness) -> None:
-    with pytest.raises(ToolError, match="tl lake sync"):
+ABSOLUTE_PATH = re.compile(r"(?<![\w>])/[^\s'\"`]+/")
+
+
+def test_a_lake_that_was_never_synced_says_what_to_do_without_a_path(
+    env: McpHarness, tmp_path: Path
+) -> None:
+    with pytest.raises(ToolError) as tool:
         env.call("lake_query", sql="SELECT 1")
-    with pytest.raises(ResourceError, match="tl lake sync"):
+    with pytest.raises(ResourceError) as resource:
         env.read("tl://lake/schema")
+    for caught in (tool, resource):
+        message = str(caught.value)
+        assert "the lake has not been synced yet: run `tl lake sync`" in message
+        assert str(tmp_path) not in message and not ABSOLUTE_PATH.search(message)
+
+
+def test_a_busy_lake_and_an_unwritable_audit_log_leak_no_path(
+    synced: McpHarness, tmp_path: Path
+) -> None:
+    lake = LakeConfig.at(tmp_path / "lake")
+    with open_lake(lake, write=True), pytest.raises(LakeLockTimeout) as busy:
+        LakeQueryService(lake, lock_timeout_s=0.2).query("SELECT 1")  # a sync holds the lock
+    assert describe(busy.value) == "the lake is busy: try again in a moment"
+    lake.audit_log_path.unlink()
+    lake.audit_log_path.mkdir()  # appending to a directory fails with an OSError naming the path
+    with pytest.raises(LakeError) as unlogged:
+        LakeQueryService(lake).query("SELECT 1")
+    assert str(tmp_path) not in str(unlogged.value)
+    assert str(tmp_path) not in describe(unlogged.value)
+    assert not ABSOLUTE_PATH.search(describe(unlogged.value))
+    assert describe(unlogged.value).startswith("the lake is unavailable (LakeError)")
 
 
 def test_a_failing_statement_is_a_short_tool_error_without_paths(

@@ -302,7 +302,7 @@ class LakeQueryService:
             log.error("lake_query audit log not written: %s", exc)
             if outcome == "ok":
                 raise LakeError(
-                    f"the query was not logged, so its result is withheld: {exc}"
+                    f"the query was not logged, so its result is withheld: {self._scrub(str(exc))}"
                 ) from exc
 
 

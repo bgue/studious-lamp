@@ -19,6 +19,8 @@ The MCP server for AI agents: read tools and resources over the same query langu
 
 All tools are annotated read-only. Inputs are bounded (query 2000 characters, scope and ids 128, `order_by` 256, `lake_query` SQL 20 000 characters) and checked before the authorise hook runs. `lake_query` calls the hook as `mcp.lake_query` on `lake:main`.
 
+A call the authorise hook refuses never reaches the lake service, so it writes no `lake_query.log.jsonl` line; the hook owns the record of denials. Accepted, refused and failed statements are all logged, with the acting agent. Lake failures reach the agent as fixed sentences (`the lake has not been synced yet: run `tl lake sync``, `the lake is busy`) or, for a failing statement, a short message with the DuckDB error class; the lake directory and other server paths are never returned.
+
 ## Depends on / used by
 - Depends on: `tl_lake` (the guarded query service), `tl_core`, `tl_schema`, `tl_adapters`, `tl_api` (the `authorize` hook, `check_actor`, and `build_spec` so `q` and `order_by` mean what they mean in the API), `mcp` 2.x.
 - Used by: agents (stdio), `just demo P0-I4-C`, the P0-I4 demo (WS-D).
