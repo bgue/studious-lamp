@@ -20,8 +20,9 @@ Functions, by the unit of work they need:
   (CLI, API) uses this one.
 * ``get_proposal`` and ``list_proposals`` read ``cur_proposals`` with a connection.
 
-``factory(readonly)`` is the call shape every server-side caller already has (``SqliteUowFactory``,
-``tl_tui.embedded.UowFactory``): it returns a context manager that yields an entered unit of work.
+``factory(readonly=...)`` is the call shape every server-side caller already has
+(``SqliteUowFactory``, ``PostgresUowFactory``, ``tl_tui.embedded.UowFactory``): it returns a
+context manager that yields an entered unit of work.
 
 Not a permission model (human gate, ADR-0005): the only rule here is the meaning of "accept". An
 ``agent:<id>`` never accepts, rejects or fails a proposal, and an agent cannot claim workflow roles
@@ -37,7 +38,7 @@ import re
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Protocol
 
 from pydantic import ValidationError
 from sqlalchemy import Connection, text
@@ -72,7 +73,14 @@ from tl_core.services.workflow import TransitionWorkflow, handle_transition_work
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid, utcnow
 
-Factory = Callable[[bool], AbstractContextManager[UnitOfWork]]
+
+class Factory(Protocol):
+    """``factory(readonly=...)`` yields an entered unit of work. ``readonly`` may be passed by
+    position or by keyword (``SqliteUowFactory``, ``PostgresUowFactory``, ``tl_api.Backend``)."""
+
+    def __call__(self, readonly: bool = False) -> AbstractContextManager[UnitOfWork]: ...
+
+
 Handler = Callable[[UnitOfWork, Any], CommandResult]
 
 BUDGET_ENV = "TL_AGENT_DAILY_PROPOSALS"
@@ -240,8 +248,9 @@ def propose(
     command's type, ``agent`` looks like ``agent:<id>``, the summary has 1 to ``MAX_SUMMARY``
     characters, and a workflow transition claims no roles. Then the budget: the agent may create
     ``budget`` (default ``daily_budget()``) proposals per UTC day of ``now`` (default: today), else
-    ``BudgetExceededError``. Under Postgres two simultaneous calls may overshoot it by one: the
-    count is a read, not a lock.
+    ``BudgetExceededError``. The count and the append happen in one write transaction, and
+    both adapters serialise writers on the ledger (SQLite's write lock, Postgres's advisory lock),
+    so simultaneous proposals cannot overshoot it.
 
     The stored command has ``actor`` = the agent, ``source`` = ``mcp:<id>``, the proposal as its
     correlation and no cause. This function does not run the command; use :func:`submit` to get the
@@ -309,7 +318,7 @@ def precheck(factory: Factory, *, tool: str, command: Command) -> None:
         raise InvalidProposalError(f"{tool!r} does not carry a {type(command).__name__}")
     handler = COMMANDS[command_type][1]
     try:
-        with factory(False) as uow:
+        with factory(readonly=False) as uow:
             try:
                 handler(uow, command)
             except GuardFailedError as exc:
@@ -336,14 +345,14 @@ def submit(
     dry run. Raises what either step raises.
     """
     _check_proposal(tool, agent, command, summary)
-    with factory(True) as uow:
+    with factory(readonly=True) as uow:
         limit = budget if budget is not None else daily_budget()
         if proposals_today(uow.conn(), agent, now=now) >= limit:
             raise BudgetExceededError(
                 f"{agent} has used its {limit} proposals for today (UTC); try again tomorrow"
             )
     precheck(factory, tool=tool, command=command.model_copy(update={"actor": agent}))
-    with factory(False) as uow:
+    with factory(readonly=False) as uow:
         return propose(
             uow, tool=tool, agent=agent, command=command, summary=summary, now=now, budget=budget
         )
@@ -482,7 +491,7 @@ def accept_or_fail(
     ``ProposalNotPendingError``.
     """
     try:
-        with factory(False) as uow:
+        with factory(readonly=False) as uow:
             return accept_proposal(uow, proposal_id=proposal_id, by=by, roles=roles, source=source)
     except (ProposalNotFoundError, ProposalNotPendingError, ProposalDeciderError):
         raise
@@ -490,6 +499,6 @@ def accept_or_fail(
         raise
     except (ServiceError, ConcurrencyError, ValidationError) as exc:
         error = f"{type(exc).__name__}: {exc}"
-    with factory(False) as uow:
+    with factory(readonly=False) as uow:
         _pending(uow, proposal_id)  # decided meanwhile (a race on the proposal stream): not ours
         return fail_proposal(uow, proposal_id=proposal_id, by=by, error=error, source=source)

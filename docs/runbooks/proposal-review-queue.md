@@ -48,5 +48,7 @@ Purpose: list, inspect, accept or reject the changes AI agents proposed through 
 
 - 403 `agent_must_propose` on `POST /commands/*` or a file route: the token is an `agent:<id>`. Agents propose through MCP; use a `user:<id>` token to change a record directly. Agents may still read and post to the feed.
 
+- 403 `not_post_author` on `EditPost` or `RetractPost`: only the author of a post changes it; react instead, or post again.
+
 ## Related
 - `docs/tickets/P0-I6/README-B.md` (decisions B1 to B14), `docs/runbooks/api-and-mcp-dev.md`, ADR-0005, FANOUT decision D4.

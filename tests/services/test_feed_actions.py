@@ -1,4 +1,4 @@
-"""Retract and react handlers against a real SQLite ledger (P0-I6-T01). Provided; do not edit."""
+"""Retract and react handlers against a real ledger (P0-I6-T01; author-only rule: P0-I6-S28)."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from tl_core.services import feed_actions
 from tl_core.services.commands import CommandResult
 from tl_core.services.errors import (
     NoChangesError,
+    NotPostAuthorError,
     PostNotFoundError,
     PostRetractedError,
     ReactionsDisabledError,
@@ -40,6 +41,11 @@ def new_post(db: DbTarget, body: str = "Spool arrived #hold", actor: str = "user
     with open_uow(db) as uow:
         cmd = PostToFeed(actor=actor, source="test", scope=P1, body=body)
         return handle_post(uow, cmd).stream_id
+
+
+def head_seq(db: DbTarget) -> int:
+    with open_uow(db, readonly=True) as uow:
+        return uow.ledger.head_seq()
 
 
 def retract(db: DbTarget, post_id: str, **kw: Any) -> CommandResult:
@@ -95,10 +101,25 @@ def test_retract_appends_one_event_and_leaves_a_tombstone(db: DbTarget) -> None:
     )
 
 
-def test_anyone_may_retract_and_the_event_names_them(db: DbTarget) -> None:
+def test_only_the_author_retracts_or_edits_and_a_refusal_writes_nothing(db: DbTarget) -> None:
+    pid = new_post(db)  # written by user:mlee
+    head = head_seq(db)
+    with pytest.raises(NotPostAuthorError, match="only the author"):
+        retract(db, pid, actor="user:boss")
+    with pytest.raises(NotPostAuthorError):
+        retract(db, pid, actor="agent:triage")
+    edit = EditPost(actor="user:boss", source="t", scope=P1, post_id=pid, body="rewritten")
+    with open_uow(db) as uow, pytest.raises(NotPostAuthorError):
+        handle_edit_post(uow, edit)
+    assert head_seq(db) == head
+    assert retract(db, pid, actor="user:mlee").events[0].actor == "user:mlee"
+
+
+def test_anyone_may_react_to_a_post_they_did_not_write(db: DbTarget) -> None:
     pid = new_post(db)
-    result = retract(db, pid, actor="user:boss")
-    assert result.events[0].actor == "user:boss"
+    react = ReactToPost(actor="user:boss", source="t", scope=P1, post_id=pid, reaction="ack")
+    with open_uow(db) as uow:
+        assert handle_react_to_post(uow, react).events[0].actor == "user:boss"
 
 
 def test_retract_refusals(db: DbTarget) -> None:

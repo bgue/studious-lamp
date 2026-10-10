@@ -6707,7 +6707,7 @@
     },
     "/proposals/{proposal_id}": {
       "get": {
-        "description": "One proposal with the command it carries.",
+        "description": "One proposal with the command it carries; 404 when it is in another scope.",
         "operationId": "get_proposal",
         "parameters": [
           {
@@ -6720,22 +6720,16 @@
             }
           },
           {
-            "description": "Refuse a proposal of another scope.",
+            "description": "The scope of the queue it is in.",
             "in": "query",
             "name": "scope",
-            "required": false,
+            "required": true,
             "schema": {
-              "anyOf": [
-                {
-                  "maxLength": 128,
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Refuse a proposal of another scope.",
-              "title": "Scope"
+              "description": "The scope of the queue it is in.",
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Scope",
+              "type": "string"
             }
           }
         ],

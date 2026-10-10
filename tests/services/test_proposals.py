@@ -8,7 +8,13 @@ from typing import Any
 
 import pytest
 from sqlalchemy import text
-from tl_adapters.db import DbTarget, create_schema, open_uow, rebuild_projections
+from tl_adapters.db import (
+    DbTarget,
+    create_schema,
+    make_uow_factory,
+    open_uow,
+    rebuild_projections,
+)
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.proposals.types import ProposalView
 from tl_core.services import proposals
@@ -503,3 +509,30 @@ def test_a_transient_database_failure_is_not_recorded_as_a_failed_proposal(
     with pytest.raises(LockTimeoutError):
         proposals.accept_or_fail(world.factory, proposal_id=proposal.proposal_id, by=ALICE)
     assert world.get(proposal.proposal_id).status == "pending"  # retry later
+
+
+def test_the_service_runs_on_each_adapters_own_factory(world: World) -> None:
+    """SqliteUowFactory and PostgresUowFactory are the factories servers hand to the service."""
+    factory = make_uow_factory(world.db)
+    try:
+        with factory(True) as uow:  # readonly positionally, as SqliteUowFactory takes it
+            assert uow.conn() is not None
+        with factory(readonly=True) as uow:
+            assert uow.conn() is not None
+        view = proposals.submit(
+            factory, tool="create_record", agent=AGENT, command=create_cmd(), summary="s"
+        )
+        done = proposals.accept_or_fail(factory, proposal_id=view.proposal_id, by=ALICE)
+        assert done.status == "accepted" and world.record("P123-REC-0042") is not None
+        stale = proposals.submit(
+            factory,
+            tool="create_record",
+            agent=AGENT,
+            command=create_cmd("P123-REC-0043"),
+            summary="s",
+        )
+        world.create("P123-REC-0043")
+        failed = proposals.accept_or_fail(factory, proposal_id=stale.proposal_id, by=ALICE)
+        assert failed.status == "failed"
+    finally:
+        factory.dispose()

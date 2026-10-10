@@ -26,6 +26,7 @@ from tl_core.services.feed_actions import (
     handle_react_to_post,
     handle_retract_post,
 )
+from tl_core.services.proposals import source_for
 from tl_core.services.records import handle_create_record, handle_update_record
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.uow import UnitOfWork
@@ -103,7 +104,10 @@ def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[.
         actor: Annotated[str, Depends(guard(action, changes_records=changes_records))],
     ) -> CommandResult:
         ctx = get_ctx(request)
-        command = spec.model(**body.model_dump(), actor=actor)
+        fields = body.model_dump()
+        if actor.startswith("agent:"):  # an agent cannot claim another source (brief 18.12)
+            fields["source"] = source_for(actor)
+        command = spec.model(**fields, actor=actor)
         with ctx.backend(False) as uow:
             return spec.handler(uow, command)
 

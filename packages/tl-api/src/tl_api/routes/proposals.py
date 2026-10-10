@@ -74,10 +74,10 @@ def get_proposal(
     actor: Reader,
     proposal_id: str,
     scope: Annotated[
-        str | None, Query(max_length=128, description="Refuse a proposal of another scope.")
-    ] = None,
+        str, Query(min_length=1, max_length=128, description="The scope of the queue it is in.")
+    ],
 ) -> ProposalView:
-    """One proposal with the command it carries."""
+    """One proposal with the command it carries; 404 when it is in another scope."""
     with ctx.backend(True) as uow:
         return proposals.get_proposal(uow.conn(), proposal_id, scope=scope)
 

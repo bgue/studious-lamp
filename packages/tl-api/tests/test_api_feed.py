@@ -106,3 +106,52 @@ def test_pages_follow_next_before(harness: Harness) -> None:
         },
     )
     assert [i["summary"] for i in rest.json()["items"]] == ["post 0"]
+
+
+def test_only_the_author_edits_or_retracts_a_post_and_anyone_reacts(harness: Harness) -> None:
+    post_id = post(harness, "mine")  # alice's token
+    bob = harness.client_for("user:bob")
+    edit = bob.post(
+        "/commands/EditPost", json={"scope": SCOPE, "post_id": post_id, "body": "rewritten"}
+    )
+    assert edit.status_code == 403 and edit.json()["error"] == "not_post_author"
+    retract = bob.post(
+        "/commands/RetractPost", json={"scope": SCOPE, "post_id": post_id, "reason": "mine now"}
+    )
+    assert retract.status_code == 403 and retract.json()["error"] == "not_post_author"
+    react = bob.post(
+        "/commands/ReactToPost", json={"scope": SCOPE, "post_id": post_id, "reaction": "ack"}
+    )
+    assert react.status_code == 200
+    page = harness.client.get("/feed", params={"scope": SCOPE, "item_type": "post"}).json()
+    assert page["items"][0]["summary"] == "mine" and not page["items"][0]["retracted"]
+    own = harness.client.post(
+        "/commands/EditPost", json={"scope": SCOPE, "post_id": post_id, "body": "better"}
+    )
+    assert own.status_code == 200
+
+
+def test_an_agent_cannot_claim_another_source_on_a_post(harness: Harness) -> None:
+    from tl_api.tokens import add_token
+
+    token = add_token(harness.settings.tokens_path, "agent:triage")
+    agent = harness.client_for(None)
+    agent.headers.update({"Authorization": f"Bearer {token}"})
+    for claimed in ("tui", "cli", "mcp:someone-else", "sim:run1"):
+        response = agent.post(
+            "/commands/PostToFeed", json={"scope": SCOPE, "body": "hello", "source": claimed}
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["events"][0]["source"] == "mcp:triage", claimed
+    # a person keeps choosing their own source (tui, cli, api ...)
+    mine = harness.client.post(
+        "/commands/PostToFeed", json={"scope": SCOPE, "body": "hello", "source": "tui"}
+    )
+    assert mine.json()["events"][0]["source"] == "tui"
+    # the agent's own edit and reaction are labelled the same way
+    own = response.json()["stream_id"]
+    react = agent.post(
+        "/commands/ReactToPost",
+        json={"scope": SCOPE, "post_id": own, "reaction": "ack", "source": "cli"},
+    )
+    assert react.json()["events"][0]["source"] == "mcp:triage"

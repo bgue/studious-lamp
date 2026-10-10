@@ -42,8 +42,9 @@ class ProposalsApi(ApiClientBase):
         )
         return self._models(ProposalView, data)
 
-    def get_proposal(self, proposal_id: str, *, scope: str | None = None) -> ProposalView:
-        """One proposal with its command (``GET /proposals/{id}``, optional ``scope`` query).
+    def get_proposal(self, proposal_id: str, scope: str) -> ProposalView:
+        """One proposal with its command (``GET /proposals/{id}?scope=``); the scope is required
+        and a proposal of another scope is ``ProposalNotFoundError``.
 
         The id goes into the path through ``quote(proposal_id)``. Decode with
         ``self._model(ProposalView, data)``.

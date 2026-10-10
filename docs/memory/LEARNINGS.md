@@ -735,3 +735,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   threads. The code handles all three. Synchronous remote calls on the UI thread (3 s interactive timeout) should move
   to workers.
   Evidence: P0-I4 WS-D re-review at c033469. Status: active
+
+- **L-P0-I6B-7** · 2026-10-10 · tags: ledger, tests
+  The two server-side unit-of-work factories disagreed: `SqliteUowFactory.__call__(readonly)` took the flag by position while
+  `PostgresUowFactory.__call__(*, readonly)` was keyword-only, so a service calling `factory(True)` worked on SQLite only and no test
+  noticed because services were tested through `open_uow`. A function that takes a factory should declare a `Protocol` with the
+  parameter name, call it by keyword, and have one parity test that passes `make_uow_factory(target)` on each adapter.
+  Evidence: reviewer finding on `proposals.py`; `test_the_service_runs_on_each_adapters_own_factory[postgres]`. Status: active

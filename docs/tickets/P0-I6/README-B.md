@@ -1,6 +1,6 @@
 # Increment plan: P0-I6 workstream B, MCP write tools and the proposal review queue
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-10
 Brief sections: §11.3, §18.12, §21.3, §21.1 (feed over the API)
 Branch: `p0/i6b` (worktree `/home/user/wt/p0-i6b`), based on `p0/i6`; fanout plan `docs/tickets/P0-I6/FANOUT.md`
@@ -46,7 +46,7 @@ queue with `ApiClient.list_proposals` and a human step (or the sim's "reviewer" 
 | B2 | **`accept_proposal(uow)` raises the command's refusal; `accept_or_fail(factory)` records `Proposal.Failed`.** The frozen contract says a failure is recorded "in a fresh unit of work", which a function given only an entered `uow` cannot open. The signatures of `types.py` are unchanged; the CLI and the API call `accept_or_fail`. A failure that is transient (`RetryableTransactionError`) is not recorded: the proposal stays pending and the caller retries. A race between two people accepting ends in `ProposalNotPendingError` for the loser. |
 | B3 | **Only `user:<id>` decides** (`ProposalDeciderError`, HTTP 403 `proposal_decider`). This is what "a person accepts" means, not a permission model: it grants no one anything. |
 | B4 | **A proposal carries no workflow roles.** `TransitionWorkflow.actor_roles` is trusted input, so an agent claiming `manager` in a proposal would have a person's click run it with that role. `propose` refuses a non-empty list; the accepting person passes their own (`tl proposal accept --role`, the accept body's `roles`). |
-| B5 | **Budget:** `AGENT_DAILY_PROPOSALS` proposals created per actor per UTC day (of `effective_at`), counted from `cur_proposals`; accepted, rejected and failed proposals still count. Environment override `TL_AGENT_DAILY_PROPOSALS` (about:config arrives in P0-I8). The cheap checks and the budget run before the dry run, so an agent over budget costs nothing. Under Postgres two simultaneous proposals may overshoot by one (the count is a read). Posts have no budget (follow-up: a feed rate limit). |
+| B5 | **Budget:** `AGENT_DAILY_PROPOSALS` proposals created per actor per UTC day (of `effective_at`), counted from `cur_proposals`; accepted, rejected and failed proposals still count. Environment override `TL_AGENT_DAILY_PROPOSALS` (about:config arrives in P0-I8). The cheap checks and the budget run before the dry run, so an agent over budget costs nothing. The count and the append share one write transaction and both adapters serialise writers (SQLite's write lock, Postgres's advisory lock taken first in every write transaction), so simultaneous proposals cannot overshoot. Posts have no budget (follow-up: a feed rate limit). |
 | B6 | **`cur_proposals` is a projection** (`ProposalProjector`, a default projector); `Proposal.*` events are transparent to feed cards, so accepting 14 proposals still reads "alice created 14 records". |
 | B7 | **Source tagging:** everything done for an agent carries `source=mcp:<id>` (`@` in an id becomes `_`). Proposal events are authored by the agent with that source; the accepted command's events are authored by the person with that source and `causation_id` = the `Proposal.Created` event; `correlation_id` is the proposal id throughout. The decision event's source is `cli` or `api`. |
 | B8 | **Agent identity is minimal:** an agent *is* its actor string `agent:<id>` (ADR-0005 dev tokens, `--actor`). No identity record exists; the budget, the source tag and the feed label key on the string. A record (display name, owner, enabled, budget override) belongs with the permission model and is listed as a follow-up. |
@@ -57,6 +57,10 @@ queue with `ApiClient.list_proposals` and a human step (or the sim's "reviewer" 
 | B13 | **Feed over the API:** the four feed writes join the generated command table (the token's actor is recorded; a body carrying `actor` is a 422); reads are three GET routes over the WS-A services. Feed errors were already in the error table; five proposal rows were added (`proposal_not_found` 404, `proposal_not_pending` 409, `invalid_proposal` 422, `budget_exceeded` 429, `proposal_decider` 403). |
 | B14 | **Bounds:** every string input of a write tool has a `maxLength` (scope and ids 128, title 500, description and post body 10 000, summary 300, notes and reasons 1 000); free-form JSON (`psets`, `values`) is bounded as text (64 000 characters), and the numbering map to 20 entries. A schema test fails if any string in any tool schema lacks a limit. |
 | B15 | **Orchestrator ruling: an `agent:` token cannot change a record over REST** (FANOUT D4 says agents propose). Every `POST /commands/*` except `PostToFeed`, `EditPost`, `RetractPost` and `ReactToPost`, and the file writes (`/uploads`, `/uploads/{id}/content`, `/uploads/{id}/complete`, `/files/attach`), answer 403 `agent_must_propose` ("agents propose record changes through MCP (P0-I6 D4); a human accepts them") when the token's actor starts with `agent:`. The rule is `guard(..., changes_records=True)` beside `authorize` (`tl_api.auth.refuse_agent_writes`); the code is in `HTTP_ERRORS`. It is a fixed invariant of the brief, not a permission model: it grants no one anything, and per-role permissions stay a human gate (ADR-0005). Agents still read and post. Workstream C's deterministic actors use `user:sim-<role>` tokens in `project:sim-*` scopes. |
+| B16 | **Post ownership (reviewer fix, orchestrator ruling):** `EditPost` and `RetractPost` are allowed only for the post's author; anyone else gets `NotPostAuthorError`, HTTP 403 `not_post_author` (enforced once, in the handlers, so the TUI, CLI and API agree). `ReactToPost` stays open to everyone. This replaces WS-A decision A8 for edit and retract; it is a fixed rule of the feed, not a permission model. |
+| B17 | **An agent's source is set by the server:** on every feed command an `agent:` token sends, the API replaces `source` with `mcp:<agent id>` (`proposals.source_for`), so an agent cannot label a post as `cli`, `tui` or another agent. People keep choosing their own source. |
+| B18 | **Factories:** the proposals service calls `factory(readonly=...)` by keyword through the `proposals.Factory` protocol (also the MCP `UowFactory`), and `PostgresUowFactory.__call__` now takes `readonly` positionally or by keyword like `SqliteUowFactory` (ruling C4). A parity test runs the service on each adapter's own factory. |
+| B19 | **`GET /proposals/{id}` requires `scope`** and answers 404 for a proposal of another scope, like `list_proposals`; `ApiClient.get_proposal(proposal_id, scope)` takes it. |
 
 ## Supervisor-built pieces (in order)
 | # | Piece | Why supervisor-tier | Reviewer | Status |
@@ -67,13 +71,15 @@ queue with `ApiClient.list_proposals` and a human step (or the sim's "reviewer" 
 | S22 | Proposals service, `ProposalProjector`, review-queue routes, error rows | accept-or-fail semantics, budget, source tagging | orchestrator | done |
 | S23 | MCP write tools, tool modes, bounds | propose-only enforcement, the hook, the human-gate message | orchestrator | done |
 | S24 | Stubs and provided tests for T20, T21 | scaffolds | | done |
-| S25 | Demo, runbook, READMEs, report | closing work | | pending |
+| S25 | Demo, runbook, READMEs, report | closing work | | done |
+| S28 | Reviewer fixes: keyword factory calls, B5 text, post ownership (B16), agent source (B17), scoped `get_proposal` (B19) | review of S20, S22, S23, B15 | fresh reviewer | done |
+| S27 | `RemoteClient` feed methods over the API; live refresh of an open feed pane | closes the P0-I4/P0-I6 integration | orchestrator | done |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| P0-I6-T20 | `tl proposal ls\|show\|accept\|reject` (14 provided tests) | haiku | S22 | ready | |
-| P0-I6-T21 | ApiClient review-queue methods (9 provided tests) | haiku | S22 | ready | |
+| P0-I6-T20 | `tl proposal ls\|show\|accept\|reject` (14 provided tests) | haiku | S22 | merged | pass, 1 round, no findings |
+| P0-I6-T21 | ApiClient review-queue methods (9 provided tests) | haiku | S22 | merged | pass, 1 round, no findings |
 
 Haiku-ability (`01-tiers.md` §6) for both: (1) four to five files to read; (2) the service, the routes, the stubs and the sibling modules are
 in the repository; (3) each ships a provided test (14 and 9) verified against a scratch reference with `ruff`, `pyright` and the OpenAPI
@@ -84,7 +90,7 @@ one-call wrapper; who may decide and what accepting runs are in the service); (6
 
 ## Order of work
 1. Round 1 (done): feed over the API (S20), schema (S21), service and routes (S22), MCP tools (S23), stubs and provided tests (S24), tickets T20 and T21; DISPATCH.
-2. Round 2: merge T20 and T21 after review; the demo, the runbook, READMEs and AGENTS, the learnings, the gates, the report (S25).
+2. Round 2 (done): B15 (S26); merge of p0/i6 (P0-I4 in full) with `RemoteClient` feed calls and the live feed refresh (S27); merge T20 and T21; the demo, the gates, the report (`docs/reports/P0-I6-B.md`).
 
 ## Risks and escalation triggers
 - **Propose-only has two enforcement points**: the MCP tools (no write tool exists) and, by B15, the REST command and file routes for `agent:` tokens. Which *people* may write what is still the permission model (human gate); `authorize` allows everything.

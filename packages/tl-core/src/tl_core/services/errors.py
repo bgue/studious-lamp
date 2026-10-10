@@ -181,6 +181,11 @@ class PostRetractedError(ServiceError): ...  # edit, retract or react on a retra
 class ReactionsDisabledError(ServiceError): ...  # feed.reactions.enabled is off
 
 
+class NotPostAuthorError(
+    ServiceError
+): ...  # edit or retract of a post by someone who did not write it
+
+
 # --- proposals (P0-I6 workstream B) -------------------------------------------------------------
 
 

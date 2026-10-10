@@ -62,12 +62,11 @@ def test_get_returns_one_and_raises_the_embedded_error_for_an_unknown_one(
 ) -> None:
     api = harness.api()
     made = propose_create(harness)
-    assert api.get_proposal(made.proposal_id) == made
-    assert api.get_proposal(made.proposal_id, scope=SCOPE) == made
+    assert api.get_proposal(made.proposal_id, SCOPE) == made
     with pytest.raises(ProposalNotFoundError):
-        api.get_proposal(made.proposal_id, scope="company")
+        api.get_proposal(made.proposal_id, "company")
     with pytest.raises(ProposalNotFoundError):
-        api.get_proposal("01NOSUCHPROPOSAL")
+        api.get_proposal("01NOSUCHPROPOSAL", SCOPE)
 
 
 def test_accept_runs_the_command_as_the_token_actor(harness: Harness) -> None:
@@ -150,6 +149,6 @@ def test_ids_cannot_change_the_path(harness: Harness) -> None:
     api = harness.api()
     for bad in (".", ".."):
         with pytest.raises(ValueError):
-            api.get_proposal(bad)
+            api.get_proposal(bad, SCOPE)
         with pytest.raises(ValueError):
             api.accept_proposal(bad)

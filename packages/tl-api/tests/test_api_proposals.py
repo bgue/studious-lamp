@@ -47,11 +47,13 @@ def test_the_queue_lists_pending_proposals_oldest_first_with_their_command(
     assert [r["proposal_id"] for r in rows] == [first.proposal_id, second.proposal_id]
     assert rows[0]["status"] == "pending" and rows[0]["agent"] == AGENT
     assert rows[0]["command"]["title"] == "Weld NCR" and rows[0]["summary"] == "Create NCR"
-    one = harness.client.get(f"/proposals/{first.proposal_id}")
+    one = harness.client.get(f"/proposals/{first.proposal_id}", params={"scope": SCOPE})
     assert one.status_code == 200 and one.json()["command_type"] == "CreateRecord"
     foreign = harness.client.get(f"/proposals/{first.proposal_id}", params={"scope": "company"})
     assert foreign.status_code == 404 and foreign.json()["error"] == "proposal_not_found"
-    assert harness.client.get("/proposals/01NOSUCH").status_code == 404
+    assert harness.client.get("/proposals/01NOSUCH", params={"scope": SCOPE}).status_code == 404
+    unscoped = harness.client.get(f"/proposals/{first.proposal_id}")  # the scope is required
+    assert unscoped.status_code == 422
 
 
 def test_accepting_creates_the_record_as_the_caller_from_the_agent(harness: Harness) -> None:
@@ -128,7 +130,12 @@ def test_an_agent_token_cannot_accept_or_reject(harness: Harness) -> None:
     reject = agent.post(f"/proposals/{proposal.proposal_id}/reject", json={"reason": "mine"})
     assert reject.status_code == 403 and reject.json()["error"] == "proposal_decider"
     assert agent.get("/proposals", params={"scope": SCOPE}).status_code == 200  # reading is open
-    assert harness.client.get(f"/proposals/{proposal.proposal_id}").json()["status"] == "pending"
+    assert (
+        harness.client.get(f"/proposals/{proposal.proposal_id}", params={"scope": SCOPE}).json()[
+            "status"
+        ]
+        == "pending"
+    )
 
 
 def test_roles_travel_in_the_accept_body_and_are_bounded(harness: Harness) -> None:
@@ -144,7 +151,9 @@ def test_the_queue_needs_a_token(harness: Harness) -> None:
     anon = harness.client_for(None)
     proposal = propose_create(harness)
     assert anon.get("/proposals", params={"scope": SCOPE}).status_code == 401
-    assert anon.get(f"/proposals/{proposal.proposal_id}").status_code == 401
+    assert (
+        anon.get(f"/proposals/{proposal.proposal_id}", params={"scope": SCOPE}).status_code == 401
+    )
     assert anon.post(f"/proposals/{proposal.proposal_id}/accept").status_code == 401
     bad: dict[str, Any] = {"scope": SCOPE, "limit": 0}
     assert harness.client.get("/proposals", params=bad).status_code == 422
