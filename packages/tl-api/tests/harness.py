@@ -22,6 +22,7 @@ from tl_adapters.objectstore.fs import FsObjectStore
 from tl_adapters.sqlite.factory import SqliteUowFactory
 from tl_adapters.sqlite.uow import create_schema
 from tl_api.app import create_app
+from tl_api.client import ApiClient
 from tl_api.settings import ApiSettings
 from tl_api.tokens import TokenStore, add_token
 from tl_core.files.scan import Scanner
@@ -101,6 +102,22 @@ class Harness:
         if not hasattr(self, "_default"):
             self._default = self.client_for(ALICE)
         return self._default
+
+    # --- the HTTP client -----------------------------------------------------------------
+
+    def api(self, actor: str = ALICE) -> ApiClient:
+        """An ``ApiClient`` for ``actor`` that talks to the app in process (no sockets)."""
+        return ApiClient("http://testserver", self.tokens[actor], http=self.client_for(None))
+
+    @contextmanager
+    def live_api(self, actor: str = ALICE) -> Iterator[ApiClient]:
+        """An ``ApiClient`` that talks to the app over a real loopback server."""
+        with self.live(actor) as server:
+            client = ApiClient(server.base_url, server.token)
+            try:
+                yield client
+            finally:
+                client.close()
 
     # --- seeding (through tl_core handlers, as any caller would) ---------------------------
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from pydantic import BaseModel
+from tl_core.ledger import Event
 
 
 class RecordOut(BaseModel):
@@ -57,3 +58,11 @@ class DetectKeysBody(BaseModel):
     linked_to: str | None = (
         None  # a record id: link status is reported against it, and it is left out
     )
+
+
+class EventPage(BaseModel):
+    """One page of ``GET /events``."""
+
+    events: list[Event]
+    next_seq: int  # pass as `after` to get the next page; never less than `after`
+    has_more: bool

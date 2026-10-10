@@ -7,15 +7,14 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 from starlette.types import Receive, Send
 from starlette.types import Scope as AsgiScope
 from tl_core.changefeed import SubscriptionFilter, fetch_changes
-from tl_core.ledger import Event
 
 from tl_api.auth import guard
 from tl_api.context import ApiContext, get_ctx
 from tl_api.errors import ApiError
+from tl_api.models import EventPage
 
 router = APIRouter(tags=["events"])
 
@@ -47,12 +46,6 @@ Types = Annotated[
 RecordIds = Annotated[
     list[str] | None, Query(description="Only events of these records (and links to them).")
 ]
-
-
-class EventPage(BaseModel):
-    events: list[Event]
-    next_seq: int  # pass as `after` to get the next page; never less than `after`
-    has_more: bool
 
 
 def build_filter(
