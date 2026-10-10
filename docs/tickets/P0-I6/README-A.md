@@ -73,7 +73,7 @@ projection derives the effective importance (high when a tag is a signal tag). E
 | P0-I6-T02 | Feed list queries (`list_feed`, `get_post`) | haiku | S4 | ready | |
 | P0-I6-T03 | `#hold` suggestions and composer completion | haiku | S4 | ready | |
 | P0-I6-T04 | Feed pane widget | haiku | S6 | merged | pass |
-| P0-I6-T05 | `tl feed post\|ls\|retract\|react` | haiku | T01, T02 | draft (dispatch after T02 merges) | |
+| P0-I6-T05 | `tl feed post\|ls\|retract\|react` | haiku | T01, T02 | ready | |
 | P0-I6-T06 | Composer with `#` and `@` completion | haiku | S6 | ready | |
 | S8 | Embedded wiring check, app `F`/`p` keys, keymap, help | TUI wiring | T04, T06 | pending | |
 

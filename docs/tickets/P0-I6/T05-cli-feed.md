@@ -1,6 +1,6 @@
 # P0-I6-T05 — `tl feed post|ls|retract|react`
 
-Status: draft
+Status: ready
 Tier: haiku
 Labels: cli
 Depends on: P0-I6-T01, P0-I6-T02 (both merged on the base before dispatch)

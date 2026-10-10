@@ -26,6 +26,8 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
     AppCommand("tray-open", "Open the reference tray", "F4", "tray_open"),
     AppCommand("workflow", "Workflow actions for the open record", "w", "workflow"),
     AppCommand("trace", "Trace the open record through its links", "t", "trace"),
+    AppCommand("feed", "Activity feed of the open record, or of the project", "F", "feed"),
+    AppCommand("post", "Post to the feed", "p", "post"),
     AppCommand("back", "Back to the previous record", "Alt+Left", "back"),
     AppCommand("forward", "Forward to the next record", "Alt+Right", "forward"),
     AppCommand("toggle-nav", "Show or hide the navigation panel", "F2", "toggle_nav"),
