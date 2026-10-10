@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from tl_schema.effective import EffectiveSchema
-from tl_schema.generators.ddl_types import Dialect, column_type
+from tl_schema.generators.ddl_types import Dialect, collated, column_type
 
 TABLE = "cur_core_record"
 PREFIX = "pset__"
@@ -89,7 +89,7 @@ def column_ddl(column: PromotedColumn, dialect: Dialect) -> list[str]:
 
     The ``ADD COLUMN`` has ``IF NOT EXISTS`` on Postgres only; callers skip existing columns.
     """
-    sql_type = column_type(column.linkml_type, dialect)
+    sql_type = collated(column_type(column.linkml_type, dialect), dialect)
     guard = " IF NOT EXISTS" if dialect == "postgres" else ""
     return [
         f"ALTER TABLE {TABLE} ADD COLUMN{guard} {column.name} {sql_type}",

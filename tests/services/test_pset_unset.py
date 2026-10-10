@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
-from tl_adapters.sqlite.uow import create_schema, open_uow, rebuild_projections
+from sqlalchemy import text
+from tl_adapters.db import DbTarget, create_schema, open_uow, rebuild_projections
 from tl_core.ledger import NewEvent
 from tl_core.schema_provider import DirectorySchemaProvider, use_provider
 from tl_core.services.commands import CommandResult, CreateRecord
@@ -26,13 +27,13 @@ def fixture_schemas() -> Iterator[None]:
 
 
 @pytest.fixture
-def db(tmp_path: Path) -> Path:
-    path = tmp_path / "tl.db"
+def db(new_db: Callable[[], DbTarget]) -> DbTarget:
+    path = new_db()
     create_schema(path)
     return path
 
 
-def create(db: Path, scope: str) -> CommandResult:
+def create(db: DbTarget, scope: str) -> CommandResult:
     with open_uow(db) as uow:
         return handle_create_record(
             uow,
@@ -48,7 +49,7 @@ def create(db: Path, scope: str) -> CommandResult:
 
 
 def write(
-    db: Path, record: CommandResult, scope: str, pset: str, values: dict[str, Any], version: int
+    db: DbTarget, record: CommandResult, scope: str, pset: str, values: dict[str, Any], version: int
 ) -> CommandResult:
     cmd = SetPsetValues(
         actor="user:u",
@@ -64,7 +65,7 @@ def write(
         return handle_set_pset_values(uow, cmd)
 
 
-def set_state(db: Path, record: CommandResult, scope: str, version: int, state: str) -> int:
+def set_state(db: DbTarget, record: CommandResult, scope: str, version: int, state: str) -> int:
     with open_uow(db) as uow:
         result = uow.append(
             stream_id=record.stream_id,
@@ -84,21 +85,25 @@ def set_state(db: Path, record: CommandResult, scope: str, version: int, state: 
     return result.new_version
 
 
-def snapshot(db: Path, record: CommandResult) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+def snapshot(db: DbTarget, record: CommandResult) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     with open_uow(db, readonly=True) as uow:
         conn = uow.conn()
         row = (
-            conn.exec_driver_sql("SELECT * FROM cur_core_record WHERE id = ?", (record.stream_id,))
+            conn.execute(
+                text("SELECT * FROM cur_core_record WHERE id = :id"),
+                {"id": record.stream_id},
+            )
             .mappings()
             .one()
         )
-        values = conn.exec_driver_sql(
-            "SELECT * FROM cur_pset_values WHERE record_id = ? ORDER BY path", (record.stream_id,)
+        values = conn.execute(
+            text("SELECT * FROM cur_pset_values WHERE record_id = :id ORDER BY path"),
+            {"id": record.stream_id},
         ).mappings()
         return dict(row), [dict(v) for v in values]
 
 
-def test_set_unset_set_replays_to_the_same_rows(db: Path) -> None:
+def test_set_unset_set_replays_to_the_same_rows(db: DbTarget) -> None:
     scope = "project:P123"
     record = create(db, scope)
     version = record.version
@@ -115,7 +120,7 @@ def test_set_unset_set_replays_to_the_same_rows(db: Path) -> None:
     assert snapshot(db, record) == before
 
 
-def test_clearing_a_state_required_value_succeeds_and_reports_nonconformant(db: Path) -> None:
+def test_clearing_a_state_required_value_succeeds_and_reports_nonconformant(db: DbTarget) -> None:
     scope = "project:P123"
     record = create(db, scope)
     version = write(
@@ -139,7 +144,7 @@ def test_clearing_a_state_required_value_succeeds_and_reports_nonconformant(db: 
     ]
 
 
-def test_clearing_a_value_in_a_locked_pset_is_a_data_edit(db: Path) -> None:
+def test_clearing_a_value_in_a_locked_pset_is_a_data_edit(db: DbTarget) -> None:
     scope = "company"
     record = create(db, scope)
     version = write(db, record, scope, "safety_data", {"sil_rating": 2}, record.version).version
@@ -151,7 +156,7 @@ def test_clearing_a_value_in_a_locked_pset_is_a_data_edit(db: Path) -> None:
     assert rows == []
 
 
-def test_clearing_a_locked_property_of_an_open_pset(db: Path) -> None:
+def test_clearing_a_locked_property_of_an_open_pset(db: DbTarget) -> None:
     scope = "project:P123"
     record = create(db, scope)
     first = write(

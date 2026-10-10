@@ -7,3 +7,5 @@ Read the root `AGENTS.md` first. These rules add to it.
 - The `lake` group catches `GuardError` (printed as `error: refused: <why>`) and `LakeError`; it opens the ledger only through `_ledger_snapshot`, the one place the database changes when Postgres arrives. Build all output before printing, so a failed command prints nothing on stdout.
 - Every command passes `source="cli"`. The database comes from `--db` or `TL_DB`; never hard-code a path.
 - Output formats are part of the demo and tests: change a line only with its test.
+- `tl file` builds its `FileService` from the environment (`make_object_store`, `object_secret`); a missing secret is an `error:` line, never a default. Hashing a local file for the declaration is client work and stays here; verification is the service's.
+- `tl webhook` prints a signing secret exactly once (`add`, `rotate-secret`), on stdout as `secret <value>` with a hint on stderr; no other command, log line or error message may print one. Egress is fail-closed: a target is allowed only through `--allow-host` or `TL_WEBHOOK_ALLOWLIST`.

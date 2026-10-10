@@ -1,0 +1,40 @@
+# File slots of the generic Phase 0 record type (brief 20.1). LinkML-shaped; the only part read at
+# runtime is the `tl:file_slots` annotation (see schema/core/annotations.yaml), as plain YAML.
+id: https://example.org/throughline/fixtures/files/core-record
+name: tl_fixture_core_record_files
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+default_range: string
+annotations:
+  tl:module: core
+
+classes:
+  Record:
+    annotations:
+      tl:file_slots:
+        - name: report
+          label: Report
+          cardinality: one
+          accepted_types:
+            - application/pdf
+          max_size: 52428800
+          required_in_states:
+            - Approved
+          capture_hint: scan
+          processing:
+            - thumbnail
+          retention_class: project
+        - name: photo
+          label: Photo
+          cardinality: many
+          accepted_types:
+            - image/*
+          max_size: 26214400
+          capture_hint: camera
+          processing:
+            - thumbnail
+            - exif

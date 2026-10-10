@@ -7,25 +7,53 @@ from pathlib import Path
 
 import pytest
 from tl_schema import generate
+from tl_schema.generators import catalog
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-EXPECTED_KEYS = {
+STATIC_KEYS = {
     "__init__.py",
     "ddl/postgres/cur_core_record.sql",
+    "ddl/postgres/cur_files.sql",
     "ddl/postgres/cur_link_counts.sql",
     "ddl/postgres/cur_links.sql",
     "ddl/postgres/cur_numbering.sql",
     "ddl/postgres/cur_pset_values.sql",
+    "ddl/postgres/cur_webhook_subscription.sql",
     "ddl/postgres/cur_workflow_state.sql",
+    "ddl/postgres/outbox_events.sql",
+    "ddl/postgres/wh_attempt.sql",
+    "ddl/postgres/wh_cursor.sql",
+    "ddl/postgres/wh_delivery.sql",
+    "ddl/postgres/wh_health.sql",
+    "ddl/postgres/wh_secret.sql",
     "ddl/sqlite/cur_core_record.sql",
+    "ddl/sqlite/cur_files.sql",
     "ddl/sqlite/cur_link_counts.sql",
     "ddl/sqlite/cur_links.sql",
     "ddl/sqlite/cur_numbering.sql",
     "ddl/sqlite/cur_pset_values.sql",
+    "ddl/sqlite/cur_webhook_subscription.sql",
     "ddl/sqlite/cur_workflow_state.sql",
+    "ddl/sqlite/outbox_events.sql",
+    "ddl/sqlite/wh_attempt.sql",
+    "ddl/sqlite/wh_cursor.sql",
+    "ddl/sqlite/wh_delivery.sql",
+    "ddl/sqlite/wh_health.sql",
+    "ddl/sqlite/wh_secret.sql",
     "json_schema/core.schema.json",
     "models.py",
 }
+
+
+def _catalog_keys() -> set[str]:
+    keys = {"catalog/index.json", "catalog/asyncapi.json", "docs/event-catalog.md"}
+    for event in catalog.build_events(generate.SCHEMA_DIR):
+        stem = catalog.file_stem(event.event_type, event.version)
+        keys |= {f"catalog/schemas/{stem}.json", f"catalog/samples/{stem}.json"}
+    return keys
+
+
+EXPECTED_KEYS = STATIC_KEYS | _catalog_keys()
 
 
 def test_outputs_has_expected_keys_and_is_deterministic() -> None:

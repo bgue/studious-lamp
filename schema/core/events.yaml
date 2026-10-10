@@ -1,0 +1,564 @@
+id: https://example.org/throughline/core/events
+name: tl_core_events
+title: Throughline event catalog (ledger event payloads)
+description: >-
+  One class per ledger event type that exists today (brief 18.3). The class carries the event type
+  (`tl:event_type`), its payload version (`tl:event_version`), the payload fields, and a sample payload
+  (`examples`). The catalog generator (`tl_schema.generators.catalog`) turns these classes into JSON Schemas of the
+  delivered CloudEvent per type, sample envelopes, an AsyncAPI 3 document and a browsable page. The ledger does not
+  yet validate payloads against these classes; the contract tests check that what handlers write and what webhooks
+  deliver matches. Add a class here in the same change that adds an event type.
+  Optional annotations: `tl:sample_changes` (JSON text, the `data.changes` of the sample envelope) and
+  `tl:sample_links` (JSON text, its `data.links`).
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+default_range: string
+annotations:
+  tl:module: core
+
+classes:
+  EventPayload:
+    abstract: true
+    description: "Common parent of the event payload classes. Payloads are open: new optional fields are additive."
+  LinkPayload:
+    abstract: true
+    is_a: EventPayload
+    description: Payload of a `Link.*` event. The stream is the link, `link_id`.
+  WebhookEventPayload:
+    abstract: true
+    is_a: EventPayload
+    description: Payload of a `WebhookSubscription.*` event. The stream is the subscription.
+
+  RecordCreatedPayload:
+    is_a: EventPayload
+    description: >-
+      A record was created.
+    annotations:
+      tl:event_type: Record.Created
+      tl:event_version: "1"
+      tl:sample_changes: "{\"key\": [null, \"P123-REC-0001\"], \"title\": [null, \"Gate valve 47-1234\"]}"
+    attributes:
+      record_type:
+        description: "Fully qualified record type."
+        required: true
+      key:
+        description: "Human-readable key; null until numbering assigns one."
+      title:
+        description: "Title."
+        required: true
+      description:
+        description: "Description."
+      psets:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Initial property-set values keyed by pset name."
+    examples:
+      - value: "{\"description\": null, \"key\": \"P123-REC-0001\", \"psets\": {}, \"record_type\": \"core.Record\", \"title\": \"Gate valve 47-1234\"}"
+  RecordUpdatedPayload:
+    is_a: EventPayload
+    description: >-
+      One or more fields of a record changed.
+    annotations:
+      tl:event_type: Record.Updated
+      tl:event_version: "1"
+      tl:sample_changes: "{\"title\": [\"Gate valve\", \"Gate valve 47-1234\"]}"
+    attributes:
+      changes:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "Object of field name to [old, new]."
+    examples:
+      - value: "{\"changes\": {\"title\": [\"Gate valve\", \"Gate valve 47-1234\"]}}"
+  RecordVoidedPayload:
+    is_a: EventPayload
+    description: >-
+      A record was voided. The record stays in the ledger.
+    annotations:
+      tl:event_type: Record.Voided
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why it was voided."
+        required: true
+    examples:
+      - value: "{\"reason\": \"Entered in error\"}"
+  RecordCorrectedPayload:
+    is_a: EventPayload
+    description: >-
+      A recorded value was corrected after the fact; history keeps the original.
+    annotations:
+      tl:event_type: Record.Corrected
+      tl:event_version: "1"
+      tl:sample_changes: "{\"title\": [\"Gate vlave\", \"Gate valve\"]}"
+    attributes:
+      changes:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "Object of field name to [old, new]."
+      reason:
+        description: "Why it was corrected."
+        required: true
+    examples:
+      - value: "{\"changes\": {\"title\": [\"Gate vlave\", \"Gate valve\"]}, \"reason\": \"Typo\"}"
+  PsetValuesSetPayload:
+    is_a: EventPayload
+    description: >-
+      Values of a property set were written on a record.
+    annotations:
+      tl:event_type: Pset.ValuesSet
+      tl:event_version: "1"
+      tl:sample_changes: "{\"psets.valve_data.size_in\": [null, 4]}"
+    attributes:
+      pset:
+        description: "Property-set name."
+        required: true
+      layer:
+        description: "Pset layer: standard, custom or project."
+        required: true
+      values:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "Object of property name to value."
+      effective_schema_hash:
+        description: "Hash of the effective schema in force."
+      conformance:
+        description: "Conformance after the write: ok, warning, nonconformant or waived."
+      units:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Units of the written properties, when the schema declares them."
+    examples:
+      - value: "{\"conformance\": \"ok\", \"effective_schema_hash\": \"9f2c\", \"layer\": \"standard\", \"pset\": \"valve_data\", \"units\": {\"size_in\": \"in\"}, \"values\": {\"size_in\": 4}}"
+  LinkAddedPayload:
+    is_a: LinkPayload
+    description: >-
+      A link between two records became active.
+    annotations:
+      tl:event_type: Link.Added
+      tl:event_version: "1"
+      tl:sample_links: "[{\"id\": \"urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"rel\": \"raised_against\"}]"
+    attributes:
+      from_ref:
+        description: "Record id at the start of the link."
+        required: true
+      to_ref:
+        description: "Record id at the end of the link."
+        required: true
+      relation:
+        description: "Relation code."
+        required: true
+      pin:
+        description: "Revision the link is pinned to; null for a floating link."
+      note:
+        description: "Free-text note."
+      source:
+        description: "Who or what made the link: manual, rule, ai or import."
+      confidence:
+        description: "Confidence of a suggested link, 0 to 1."
+        range: float
+    examples:
+      - value: "{\"confidence\": null, \"from_ref\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"note\": null, \"pin\": null, \"relation\": \"raised_against\", \"source\": \"manual\", \"to_ref\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+  LinkSuggestedPayload:
+    is_a: LinkPayload
+    description: >-
+      A link was suggested and waits for a person to accept or decline.
+    annotations:
+      tl:event_type: Link.Suggested
+      tl:event_version: "1"
+      tl:sample_links: "[{\"id\": \"urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"rel\": \"references\"}]"
+    attributes:
+      from_ref:
+        description: "Record id at the start of the link."
+        required: true
+      to_ref:
+        description: "Record id at the end of the link."
+        required: true
+      relation:
+        description: "Relation code."
+        required: true
+      pin:
+        description: "Revision the link is pinned to."
+      note:
+        description: "Free-text note."
+      source:
+        description: "Origin of the suggestion: rule, ai or import."
+      confidence:
+        description: "Confidence, 0 to 1."
+        range: float
+    examples:
+      - value: "{\"confidence\": 0.82, \"from_ref\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"note\": null, \"pin\": null, \"relation\": \"references\", \"source\": \"ai\", \"to_ref\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+  LinkAcceptedPayload:
+    is_a: LinkPayload
+    description: >-
+      A suggested link was accepted and is now active.
+    annotations:
+      tl:event_type: Link.Accepted
+      tl:event_version: "1"
+    attributes:
+      note:
+        description: "Free-text note."
+    examples:
+      - value: "{\"note\": \"Confirmed on site\"}"
+  LinkDeclinedPayload:
+    is_a: LinkPayload
+    description: >-
+      A suggested link was declined; it will not be suggested again.
+    annotations:
+      tl:event_type: Link.Declined
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why it was declined."
+    examples:
+      - value: "{\"reason\": \"Different valve\"}"
+  LinkRepinnedPayload:
+    is_a: LinkPayload
+    description: >-
+      The pin of a link was set to another revision.
+    annotations:
+      tl:event_type: Link.Repinned
+      tl:event_version: "1"
+    attributes:
+      pin:
+        description: "The new pin; null makes the link floating."
+    examples:
+      - value: "{\"pin\": \"B\"}"
+  LinkVerifiedPayload:
+    is_a: LinkPayload
+    description: >-
+      A person verified an active link.
+    annotations:
+      tl:event_type: Link.Verified
+      tl:event_version: "1"
+    examples:
+      - value: "{}"
+  LinkFlaggedPayload:
+    is_a: LinkPayload
+    description: >-
+      A link was flagged stale or broken.
+    annotations:
+      tl:event_type: Link.Flagged
+      tl:event_version: "1"
+    attributes:
+      status:
+        description: "stale or broken."
+        required: true
+      reason:
+        description: "Why it was flagged."
+    examples:
+      - value: "{\"reason\": \"revision B issued\", \"status\": \"stale\"}"
+  LinkRetractedPayload:
+    is_a: LinkPayload
+    description: >-
+      A link was retracted. Its row and history stay.
+    annotations:
+      tl:event_type: Link.Retracted
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why it was retracted."
+    examples:
+      - value: "{\"reason\": \"Wrong record\"}"
+  WorkflowTransitionedPayload:
+    is_a: EventPayload
+    description: >-
+      A record moved from one workflow state to another.
+    annotations:
+      tl:event_type: Workflow.Transitioned
+      tl:event_version: "1"
+      tl:sample_changes: "{\"status\": [\"InReview\", \"Issued\"]}"
+    attributes:
+      workflow:
+        description: "Workflow id."
+        required: true
+      workflow_version:
+        description: "Workflow version."
+        range: integer
+      from_state:
+        description: "State before."
+        required: true
+      to_state:
+        description: "State after."
+        required: true
+      transition:
+        description: "Transition name."
+        required: true
+      guards_evaluated:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "List of {kind, passed, message} for each guard that ran."
+      signature:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Signature data when the transition was signed."
+      reason:
+        description: "Free-text reason."
+      conformance:
+        description: "Conformance after the transition."
+      effective_schema_hash:
+        description: "Hash of the effective schema in force."
+    examples:
+      - value: "{\"conformance\": \"ok\", \"effective_schema_hash\": \"9f2c\", \"from_state\": \"InReview\", \"guards_evaluated\": [{\"kind\": \"required_pset\", \"message\": \"\", \"passed\": true}], \"reason\": null, \"signature\": null, \"to_state\": \"Issued\", \"transition\": \"issue\", \"workflow\": \"document\", \"workflow_version\": 1}"
+  NumberingAllocatedPayload:
+    is_a: EventPayload
+    description: >-
+      A number was allocated from a counter.
+    annotations:
+      tl:event_type: Numbering.Allocated
+      tl:event_version: "1"
+    attributes:
+      pattern:
+        description: "Numbering pattern id."
+        required: true
+      key:
+        description: "The key built."
+        required: true
+      sequence:
+        description: "The sequence number."
+        range: integer
+        required: true
+      prefix:
+        description: "The key without its sequence."
+      record_id:
+        description: "The record the number was allocated for."
+      record_type:
+        description: "Record type."
+    examples:
+      - value: "{\"key\": \"P123-REC-0001\", \"pattern\": \"rec\", \"prefix\": \"P123-REC-\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"record_type\": \"core.Record\", \"sequence\": 1}"
+  FileUploadedPayload:
+    is_a: EventPayload
+    description: >-
+      A file was uploaded and attached to a record; it is quarantined until its scan finishes.
+    annotations:
+      tl:event_type: File.Uploaded
+      tl:event_version: "1"
+    attributes:
+      file_id:
+        description: "File id."
+        required: true
+      record_id:
+        description: "The record the file is attached to."
+        required: true
+      slot:
+        description: "File slot; null for a generic attachment."
+      revision:
+        description: "Position in the slot."
+        range: integer
+      sha256:
+        description: "SHA-256 of the bytes."
+        required: true
+      size:
+        description: "Size in bytes."
+        range: integer
+        required: true
+      content_type:
+        description: "Media type."
+        required: true
+      filename:
+        description: "Original file name."
+        required: true
+      status:
+        description: "quarantined."
+      deduplicated:
+        description: "True when the bytes already existed."
+        range: boolean
+    examples:
+      - value: "{\"content_type\": \"application/pdf\", \"deduplicated\": false, \"file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\", \"filename\": \"mtr.pdf\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"revision\": 1, \"sha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"size\": 1024, \"slot\": \"mtr\", \"status\": \"quarantined\"}"
+  FileProcessedPayload:
+    is_a: EventPayload
+    description: >-
+      A file passed its scan and is available.
+    annotations:
+      tl:event_type: File.Processed
+      tl:event_version: "1"
+    attributes:
+      file_id:
+        description: "File id."
+        required: true
+      status:
+        description: "available."
+      report:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Scan report."
+      supersedes:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Ids of the files this one replaced in a single-file slot."
+    examples:
+      - value: "{\"file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\", \"report\": {\"scanner\": \"stub\"}, \"status\": \"available\", \"supersedes\": []}"
+  FileRejectedPayload:
+    is_a: EventPayload
+    description: >-
+      A file failed its scan and was rejected.
+    annotations:
+      tl:event_type: File.Rejected
+      tl:event_version: "1"
+    attributes:
+      file_id:
+        description: "File id."
+        required: true
+      status:
+        description: "rejected."
+      reason:
+        description: "Why it was rejected."
+        required: true
+      report:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Scan report."
+    examples:
+      - value: "{\"file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\", \"reason\": \"malware signature\", \"report\": {\"scanner\": \"stub\"}, \"status\": \"rejected\"}"
+  SchemaEffectiveChangedPayload:
+    is_a: EventPayload
+    description: >-
+      The effective schema of a scope changed.
+    annotations:
+      tl:event_type: Schema.EffectiveChanged
+      tl:event_version: "1"
+    attributes:
+      scope:
+        description: "Scope id."
+        required: true
+      effective_schema_hash:
+        description: "New hash."
+        required: true
+      previous_hash:
+        description: "Previous hash; null the first time."
+      packages:
+        description: "Adopted packages as name@version."
+        multivalued: true
+    examples:
+      - value: "{\"effective_schema_hash\": \"9f2c\", \"packages\": [\"co.acme.engineering@3.2.0\"], \"previous_hash\": null, \"scope\": \"project:P123\"}"
+  SchemaPackagePublishedPayload:
+    is_a: EventPayload
+    description: >-
+      A schema package version was published.
+    annotations:
+      tl:event_type: SchemaPackage.Published
+      tl:event_version: "1"
+    attributes:
+      package:
+        description: "Package name."
+        required: true
+      version:
+        description: "Package version."
+        required: true
+    examples:
+      - value: "{\"package\": \"co.acme.engineering\", \"version\": \"3.2.0\"}"
+  WebhookSubscriptionCreatedPayload:
+    is_a: WebhookEventPayload
+    description: >-
+      A webhook subscription was created. The signing secret is held outside the ledger.
+    annotations:
+      tl:event_type: WebhookSubscription.Created
+      tl:event_version: "1"
+    attributes:
+      subscription_id:
+        description: "Subscription id."
+        required: true
+      name:
+        description: "Label."
+        required: true
+      owner:
+        description: "Owner actor."
+        required: true
+      integration_app:
+        description: "Integration app."
+      target_url:
+        description: "Receiver URL."
+        required: true
+      filter:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "SubscriptionFilter object."
+      payload_mode:
+        description: "thin, delta or full."
+        required: true
+      event_schema_version:
+        description: "Schema pin."
+      expires_at:
+        description: "ISO-8601 time after which the subscription stops."
+      secret_id:
+        description: "Id of the first signing secret (not the secret)."
+        required: true
+    examples:
+      - value: "{\"event_schema_version\": \"v1\", \"expires_at\": null, \"filter\": {\"event_types\": [\"Workflow.Transitioned\"], \"transitions\": [\"* -> Issued\"]}, \"integration_app\": null, \"name\": \"NDE requests\", \"owner\": \"user:jsmith\", \"payload_mode\": \"delta\", \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PB\", \"subscription_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"target_url\": \"https://nde.example.net/hooks/tl\"}"
+  WebhookSubscriptionUpdatedPayload:
+    is_a: WebhookEventPayload
+    description: >-
+      A subscription's name, target, filter or payload mode changed.
+    annotations:
+      tl:event_type: WebhookSubscription.Updated
+      tl:event_version: "1"
+    attributes:
+      changes:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "Object of field name to [old, new]."
+    examples:
+      - value: "{\"changes\": {\"payload_mode\": [\"thin\", \"delta\"]}}"
+  WebhookSubscriptionDisabledPayload:
+    is_a: WebhookEventPayload
+    description: >-
+      A subscription stopped receiving events.
+    annotations:
+      tl:event_type: WebhookSubscription.Disabled
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "owner or sustained_failure."
+        required: true
+      detail:
+        description: "Free-text detail, for example the failure counts."
+    examples:
+      - value: "{\"detail\": \"5 deliveries dead-lettered since the last success\", \"reason\": \"sustained_failure\"}"
+  WebhookSubscriptionEnabledPayload:
+    is_a: WebhookEventPayload
+    description: >-
+      A disabled subscription started receiving events again, from this event on.
+    annotations:
+      tl:event_type: WebhookSubscription.Enabled
+      tl:event_version: "1"
+    examples:
+      - value: "{}"
+  WebhookSubscriptionSecretRotatedPayload:
+    is_a: WebhookEventPayload
+    description: >-
+      A new signing secret was issued; the previous one keeps signing until the overlap ends.
+    annotations:
+      tl:event_type: WebhookSubscription.SecretRotated
+      tl:event_version: "1"
+    attributes:
+      secret_id:
+        description: "Id of the new secret (not the secret)."
+        required: true
+      previous_secret_id:
+        description: "Id of the secret that is being replaced."
+      previous_expires_at:
+        description: "ISO-8601 time when the previous secret stops signing."
+    examples:
+      - value: "{\"previous_expires_at\": \"2026-10-10T03:14:07.000000Z\", \"previous_secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PC\", \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PB\"}"

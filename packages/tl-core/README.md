@@ -8,7 +8,7 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.ledger`: `NewEvent`, `Event`, `AppendResult`, `ConcurrencyError`, `Ledger` | models, Protocol | The event envelope and the ledger contract (`append`, `read_stream`, `read_after`, `head_seq`, `stream_version`) |
 | `tl_core.ledger`: `canonical_json`, `iso_utc`, `event_hash` | functions | Per-scope hash chain input and output |
 | `tl_core.projection`: `Projector`, `ProjectorRegistry`, `InMemoryRegistry` | Protocols, class | Inline read-model builders; unique names; per-event lookup |
-| `tl_core.projection.defaults.default_registry()` | function | Built-in projectors (`core_record`, `pset_values`, `links`, `numbering`, `workflow`), in dependency order |
+| `tl_core.projection.defaults.default_registry()` | function | Built-in projectors (`core_record`, `pset_values`, `links`, `numbering`, `workflow`, `files`), in dependency order |
 | `tl_core.projection.record.RecordProjector` | class | `Record.*` events to `cur_core_record`; rows are never deleted |
 | `tl_core.projection.pset.PsetProjector` | class | `Pset.ValuesSet` and pset-carrying record events to `psets_json`, `cur_pset_values` and promoted columns; `None` values unset |
 | `tl_core.projection.promoted.ensure_promoted_columns` | function | Add and backfill `pset__<pset>__<property>` columns for an effective schema |
@@ -26,9 +26,36 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.numbering`: `parse_pattern`, `get_numbering`, `allocate_key`, `detect_keys`, `suggest_chips` | functions | Key patterns (`{project}-REC-{seq:4}`), allocation in the creating transaction (gap-free), and key detection in text for suggestion chips |
 | `tl_core.workflow`: `WorkflowDefinition`, `load_workflows`, `evaluate_guards`; `tl_core.services.workflow`: `TransitionWorkflow`, `handle_transition_workflow`, `workflow_status` | models, functions | Declarative workflows from `<schema dir>/workflows/*.yaml`; guards (required psets, conformance, required and expected links, roles); a blocked transition names every failing guard |
 | `tl_core.services.schema_events`: `reload_and_record`, `schema_reload_subscriber` | functions | `Schema.EffectiveChanged` events (stream `schema:<scope>`) and the bus hook |
-| `tl_core.services.queries`: `get_record`, `list_records` | functions | Envelope dictionaries from `cur_core_record` |
-| `tl_core.services.errors` | exceptions | `ServiceError` and its subclasses (record, pset, link, numbering and workflow refusals) |
+| `tl_core.services.queries`: `get_record`, `list_records`, `envelope_from_row` | functions | Envelope dictionaries from `cur_core_record` |
+| `tl_core.query`: `parse`, `run_query`, `count_query`, `QuerySpec`, `QuerySyntaxError`, `to_text`, `use_clock` | functions, model | The shared filter language (brief 10.2, 7.5): text to AST, AST to allow-listed SQL over `cur_core_record`, `cur_pset_values` and `cur_links`. Reference: `docs/reference/query-language.md` |
+| `tl_core.query.ast` | dataclasses | `Compare`, `Text`, `Linked`, `CountLinked`, `MissingLink`, `And`, `Or`, `Not`, `RelativeDate` (frozen contract) |
+| `tl_core.changefeed`: `SubscriptionFilter`, `SubscriptionRegistry`, `ChangePoller`, `fetch_changes`, `ChangePage` | classes, function | The change feed (brief 5.3, 18.2): filters by scope, event type glob and record id; one fan-out registry fed by the bus (`registry.attach(bus)`) and by a seq-cursor poller; paged filtered reads for `/events?after=`; at-least-once, resumable from the last `seq` |
+| `tl_core.files.types`: `ObjectStore`, `object_key`, `ObjectNotFound` | Protocol, functions | Frozen object-store contract (build spec 03 §7); keys are `sha256/<aa>/<bb>/<digest>` |
+| `tl_core.files.service`: `FileService`, `RegisterUpload`, `CompleteUpload`, `AttachFile`, `UploadTicket`, `FileResult` | class, models | Upload flow: server-side hash and size verification, scope-local dedupe, quarantine, `File.*` events with the `cur_files` row in one unit of work; `open_file`, `scan_pending`. Signatures: `docs/tickets/P0-I4/README-B.md` |
+| `tl_core.files.queries`: `get_file`, `list_files`, `FileInfo` | functions, model | Read side of `cur_files` (the current file per slot is `available` and not superseded) |
+| `tl_core.files.lifecycle`: `next_file_status` | function | The quarantine state machine (`quarantined` to `available` or `rejected`) |
+| `tl_core.files.slots`: `FileSlot`, `FileSlotRegistry`, `default_file_slots()` | models, function | `tl:file_slots` declarations from LinkML YAML (`schema/fixtures/files/`) |
+| `tl_core.files.required`: `missing_required_files` | function | Required slots still empty for a record (a workflow guard) |
+| `tl_core.files.reconcile`: `reconcile_objects` | function | Ledger hashes versus the store: missing, corrupt, orphans, staging (read-only) |
+| `tl_core.files.scan`: `Scanner`, `PassScanner` | Protocol, class | Malware-scan seam; Phase 0 passes everything |
+| `tl_core.projection.files.FileProjector` | class | `File.*` events to `cur_files`; rows are never deleted |
+| `tl_core.services.errors` | exceptions | `ServiceError` and its subclasses (record, pset, link, numbering, workflow, file and lock refusals) |
 | `tl_core.util`: `utcnow`, `new_ulid` | functions | Clock and id helpers |
+
+## Webhooks (`tl_core.webhooks`, P0-I5 workstream B)
+Outbox, signed delivery and the event catalog. Plan and decisions: `docs/tickets/P0-I5/README-B.md`.
+
+| Name | Kind | Purpose |
+|---|---|---|
+| `outbox.OutboxProjector` | projector (`handles_all`) | One `outbox_events` row per event, in the event's transaction |
+| `subscriptions.*` | commands | Create, update, enable, disable, `rotate_secret` (secrets never enter the ledger) |
+| `dispatch.Dispatcher` | class | Fan-out to subscriptions; `replay`, `replay_between`, `redrive` |
+| `delivery.DeliveryEngine` | class | `claim`, `attempt`, `settle`; per-subject order, retries, DLQ, auto-disable; `send_test` |
+| `signing`, `egress`, `transport` | modules | Standard Webhooks signing; SSRF policy with DNS pinning; httpx transport |
+| `queries`, `wiring`, `worker` | modules | Read views for the CLI; engine wiring; the worker loop |
+
+A test send (`tl webhook test`, `send_test`) carries the header `webhook-test: 1`; real deliveries never do. It is refused for a
+disabled or expired subscription.
 
 ## Depends on / used by
 - Depends on: `tl_schema` (generated DDL, effective schema, conformance), `sqlalchemy` (Core only), `pydantic`, `python-ulid`.
@@ -44,6 +71,7 @@ just test tests/services
 | Setting or env var | Default | Notes |
 |---|---|---|
 | `TL_SCHEMA_DIR` | `schema/fixtures` | Package directory for the default schema provider; also holds `workflows/`, `links/` and `numbering/` (read on first use; tests install their own with `use_workflows`, `use_expected_links`, `use_numbering`) |
+| `TL_WEBHOOK_ALLOWLIST` | empty | Comma-separated egress allow-list (`webhooks.egress.allowlist`): hosts, `host:port`, IPs or CIDRs that may resolve to private addresses |
 
 Adapters supply connections.
 
@@ -51,4 +79,4 @@ Adapters supply connections.
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1. Last interface change: P0-I3 (links, numbering, workflow, atomic edit; decisions D1 to D25 in `docs/tickets/P0-I3/README.md`). Earlier: P0-I2 workstream A (pset services; `docs/tickets/P0-I2/README-A.md`). Rebuild all projections together (`docs/runbooks/rebuild-projections.md`). Known limits: Postgres guard reads need row locks (P0-I5); the roles guard trusts the caller's role list until auth exists; voiding a record does not flag its links stale; `reserve_range` is a stub; the idempotency key is ignored.
+Introduced in P0-I1. Last interface changes: P0-I4 workstream A (query language and change feed; `docs/tickets/P0-I4/README-A.md`) and workstream B (`tl_core.files`; `files/types.py` is a frozen contract; `docs/tickets/P0-I4/README-B.md`). Before that: P0-I2 workstream A (pset services, provider, projector; `docs/tickets/P0-I2/README-A.md`). Rebuild `core_record` and `pset_values` together (`docs/runbooks/rebuild-projections.md`). Earlier: P0-I3 (links, numbering, workflow, atomic edit; decisions D1 to D25 in `docs/tickets/P0-I3/README.md`).

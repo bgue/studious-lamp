@@ -26,7 +26,7 @@ TYPE_TABLE: Final[dict[str, dict[Dialect, str]]] = {
     "enum": {"sqlite": "TEXT", "postgres": "TEXT"},
     "integer": {"sqlite": "INTEGER", "postgres": "BIGINT"},
     "boolean": {"sqlite": "INTEGER", "postgres": "BOOLEAN"},
-    "float": {"sqlite": "REAL", "postgres": "REAL"},
+    "float": {"sqlite": "REAL", "postgres": "DOUBLE PRECISION"},
     "double": {"sqlite": "REAL", "postgres": "DOUBLE PRECISION"},
     "decimal": {"sqlite": "NUMERIC", "postgres": "NUMERIC"},
     "date": {"sqlite": "TEXT", "postgres": "DATE"},
@@ -57,6 +57,19 @@ def column_type(linkml_type: str, dialect: Dialect, *, json: bool = False) -> st
     if json:
         return "TEXT" if dialect == "sqlite" else "JSONB"
     return _lookup(linkml_type)[dialect]
+
+
+def collated(sql_type: str, dialect: Dialect) -> str:
+    """``sql_type`` with the collation that makes text sort the same on both dialects.
+
+    SQLite compares text bytewise. Postgres compares by the database's locale (``en_US.utf8`` is the
+    default of most images), so ``ORDER BY title`` would put ``apple`` before ``Banana`` there and
+    after it on SQLite. Pinning Postgres ``TEXT`` columns to ``"C"`` (byte order) keeps every
+    ordering, range and keyset-paging comparison identical, whatever the cluster's locale.
+    """
+    if dialect == "postgres" and sql_type == "TEXT":
+        return 'TEXT COLLATE "C"'
+    return sql_type
 
 
 def sql_literal(linkml_type: str, value: object, dialect: Dialect, *, json: bool = False) -> str:

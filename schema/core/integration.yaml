@@ -1,0 +1,267 @@
+id: https://example.org/throughline/core/integration
+name: tl_core_integration
+title: Throughline integration model (webhook subscriptions, filters, CloudEvents envelope)
+description: >-
+  The outbound half of the open integration architecture (brief 18, 19.2): the `SubscriptionFilter` that selects
+  events for webhooks (and, later, rules and streams), the `WebhookSubscription` record, and the CloudEvents 1.0
+  envelope that webhooks, streams and the events API carry (brief 18.3). A subscription is its own ledger stream
+  (`core.WebhookSubscription`, stream id = `subscription_id`; events in events.yaml); `cur_webhook_subscription`
+  is the projection delivery reads. Signing secrets are never stored in the ledger: the subscription holds
+  `current_secret_id` only and the secret itself lives in `wh_secret` (outbox.yaml).
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+default_range: string
+annotations:
+  tl:module: core
+
+enums:
+  PayloadMode:
+    description: How much of the record a webhook carries (brief 18.3). Restricted confidentiality forces `thin`.
+    permissible_values:
+      thin:
+        description: Envelope and origin only; the receiver fetches what it needs.
+      delta:
+        description: Thin plus `changes`, the immediate `links` and the event `detail`.
+      full:
+        description: Delta plus the record projection (`record`) as of delivery preparation.
+  SubscriptionStatus:
+    description: Whether a subscription receives events.
+    permissible_values:
+      active:
+      disabled:
+        description: Paused by its owner or auto-disabled after sustained failure; see `disabled_reason`.
+  DisabledReason:
+    description: Why a subscription is disabled.
+    permissible_values:
+      owner:
+        description: An owner or operator disabled it.
+      sustained_failure:
+        description: Dead-lettered deliveries or a long failing period; the owner is to be notified.
+
+classes:
+  SubscriptionFilter:
+    description: >-
+      Which events a subscription (or rule, or stream) wants (brief 18.2). Every part that is set must match; a part
+      that is absent matches everything. Globs use `*` and `?` and are case-sensitive.
+    attributes:
+      scope_selector:
+        description: >-
+          A scope id or glob (`project:P123`, `project:*`). A subscription that lives in a project is restricted to
+          that project whatever this says.
+      event_types:
+        multivalued: true
+        description: Ledger event type names or globs (`Record.*`, `*.Created`, `Link.Added`).
+      record_selector:
+        description: A query-language expression (`status:open type:core.Record`) the event's subject record must match.
+      record_ids:
+        multivalued: true
+        description: Ids of the subject records. A link event also matches through the record at its other end.
+      changed_fields:
+        multivalued: true
+        description: Field paths or globs that must appear among the event's changes (`status`, `psets.vt.*`).
+      transitions:
+        multivalued: true
+        description: Workflow transitions as `<from> -> <to>` with `*` as a wildcard (`InReview -> Issued`, `* -> Passed`).
+      link_relations:
+        multivalued: true
+        description: Link relation codes (or globs) of a link event.
+      file_slots:
+        multivalued: true
+        description: File slot names (or globs) of a file event.
+      hashtags:
+        multivalued: true
+        description: Hashtags (without `#`, case-insensitive) in a feed post.
+
+  WebhookSubscription:
+    description: >-
+      An outbound webhook (brief 18.4): where to send, what to send, and how. One row per subscription in its
+      current state.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_webhook_subscription
+    attributes:
+      subscription_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Immutable id; equals the ledger `stream_id`.
+      scope:
+        range: ScopeId
+        required: true
+        description: The scope the subscription lives in. `company` sees every project; a project sees itself.
+        annotations:
+          tl:indexed: true
+      name:
+        required: true
+        description: Short label for lists and logs.
+      owner:
+        required: true
+        description: Actor who owns the subscription and is notified of auto-disable.
+      integration_app:
+        description: The integration app the subscription belongs to, when there is one.
+      target_url:
+        required: true
+        description: "`https://` URL of the receiver. Checked against the egress policy at every attempt."
+      filter:
+        range: Any
+        required: true
+        description: A `SubscriptionFilter` as a JSON object; `{}` selects every event.
+        annotations:
+          tl:json: true
+      payload_mode:
+        range: PayloadMode
+        required: true
+        ifabsent: string(thin)
+      event_schema_version:
+        required: true
+        ifabsent: string(v1)
+        description: Event schema version pin. Only `v1` exists.
+      status:
+        range: SubscriptionStatus
+        required: true
+        ifabsent: string(active)
+      disabled_reason:
+        range: DisabledReason
+      active_windows:
+        range: Any
+        required: true
+        description: >-
+          JSON list of `{"from": seq, "until": seq or null}`. An event is delivered when `from < seq <= until`
+          for some window (`until` null is open). Creation and every enable open a window; a disable closes the
+          open one. Events committed while disabled are not delivered unless replayed.
+        annotations:
+          tl:json: true
+      expires_at:
+        range: datetime
+        description: After this time the subscription no longer receives events.
+      current_secret_id:
+        range: Ulid
+        description: The newest signing secret (the value lives in `wh_secret`, never here).
+      created_by:
+        required: true
+      created_at:
+        range: datetime
+        required: true
+      updated_at:
+        range: datetime
+        required: true
+      version:
+        range: integer
+        required: true
+      last_seq:
+        range: integer
+        required: true
+
+  EventOrigin:
+    description: Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).
+    attributes:
+      id:
+        required: true
+        description: "`urn:tl:<ulid>` of the record."
+      key:
+        description: Human-readable key.
+      type:
+        description: Record type.
+      uri:
+        required: true
+        description: Resolvable URI of the record at this version (`...@v7`).
+      version:
+        range: integer
+        required: true
+        description: Version of the record after the event.
+      api:
+        description: API URL of the record.
+
+  EventLinkRef:
+    description: One immediate link of the origin record (delta mode).
+    attributes:
+      rel:
+        required: true
+      id:
+        description: "`urn:tl:<ulid>` of the record at the other end."
+      type:
+      key:
+      uri:
+
+  CloudEventData:
+    description: The `data` member of a webhook CloudEvent.
+    attributes:
+      origin:
+        range: EventOrigin
+        required: true
+        inlined: true
+      changes:
+        range: Any
+        description: Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it.
+        annotations:
+          tl:json: true
+      links:
+        range: EventLinkRef
+        multivalued: true
+        inlined_as_list: true
+        description: Delta and full modes. Immediate links.
+      detail:
+        range: Any
+        description: Delta and full modes. The ledger event payload, described per event type in the catalog.
+        annotations:
+          tl:json: true
+      record:
+        range: Any
+        description: Full mode only. The record projection as of delivery preparation, with its `version`.
+        annotations:
+          tl:json: true
+
+  CloudEvent:
+    description: >-
+      The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension
+      attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.
+    attributes:
+      specversion:
+        required: true
+        equals_string: "1.0"
+      id:
+        range: Ulid
+        required: true
+        description: The ledger event id. Receivers dedupe on it.
+      source:
+        required: true
+        description: URI of the company and project the event came from.
+      type:
+        required: true
+        pattern: "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$"
+        description: "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`."
+      time:
+        range: datetime
+        required: true
+        description: When the ledger committed the event (UTC).
+      subject:
+        required: true
+        description: "`urn:tl:<ulid>` of the subject record, the ordering key."
+      dataschema:
+        required: true
+        description: URI of the catalog schema of this event type.
+      datacontenttype:
+        required: true
+        equals_string: application/json
+      tlseq:
+        range: integer
+        required: true
+        description: Ledger `seq`.
+      tlstreamversion:
+        range: integer
+        required: true
+        description: Version within the event's stream.
+      tlcorrelationid:
+        required: true
+      tlactor:
+        required: true
+      data:
+        range: CloudEventData
+        required: true
+        inlined: true

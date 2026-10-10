@@ -1,0 +1,341 @@
+id: https://example.org/throughline/core/outbox
+name: tl_core_outbox
+title: Throughline outbox and webhook delivery state
+description: >-
+  The transactional outbox and the operational state of outbound webhooks (brief 18.4). `outbox_events` is a
+  projection: one row per ledger event, written by the `outbox` projector in the same transaction as the event
+  (it handles every event type), so a committed event can never be missed by delivery. It holds what delivery
+  needs to filter and order the event (subject, changed fields, transition, link relations, file slot, hashtags)
+  and the URI-free data of the CloudEvents envelope; it is rebuilt from the ledger like any projection.
+  The `wh_*` tables are operational state, not projections: they are never rebuilt from events and are written
+  only by the delivery engine (`tl_core.webhooks`). They use the current-state generator only to get one DDL
+  for both dialects. Their timestamps are ISO-8601 UTC strings with microseconds and a `Z` suffix
+  (`2026-10-09T03:14:07.000000Z`), which sort and compare correctly as text on both databases.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+  - integration
+default_range: string
+annotations:
+  tl:module: core
+
+enums:
+  DeliveryStatus:
+    description: Where one webhook delivery is in its life.
+    permissible_values:
+      pending:
+        description: Waiting for its first or next attempt (see `next_attempt_at`).
+      delivered:
+        description: The receiver answered 2xx.
+      dead:
+        description: Retries are exhausted or the failure is permanent; the delivery is in the dead-letter queue.
+      redriven:
+        description: A dead delivery that an operator re-enqueued; a new delivery carries on.
+  DeliveryOrigin:
+    description: Why a delivery row exists.
+    permissible_values:
+      live:
+        description: Created by the dispatcher when the event was committed.
+      replay:
+        description: Created by an operator's replay of a seq range.
+      redrive:
+        description: Created by an operator's redrive of dead-lettered deliveries.
+  SecretState:
+    description: Whether a signing secret is still used.
+    permissible_values:
+      active:
+        description: Signs deliveries; during a rotation overlap the previous secret stays active until `expires_at`.
+      retired:
+        description: No longer used.
+
+classes:
+  OutboxEvent:
+    description: One ledger event as delivery needs it. Immutable once written.
+    annotations:
+      tl:current_state: true
+      tl:table: outbox_events
+    attributes:
+      seq:
+        identifier: true
+        range: integer
+        required: true
+        description: Ledger `seq` of the event; the delivery cursor and ordering backbone.
+      event_id:
+        range: Ulid
+        required: true
+        description: Ledger event id; the CloudEvents `id` and the Standard Webhooks `webhook-id`, so receivers dedupe on it.
+      scope:
+        range: ScopeId
+        required: true
+        annotations:
+          tl:indexed: true
+      event_type:
+        required: true
+        description: "Ledger event type, for example `Record.Created`."
+      schema_version:
+        range: integer
+        required: true
+        ifabsent: int(1)
+      stream_id:
+        range: Ulid
+        required: true
+        description: The stream the event was appended to.
+      stream_type:
+        required: true
+      stream_version:
+        range: integer
+        required: true
+      subject_id:
+        required: true
+        description: >-
+          The record the event is about, and the delivery ordering key: the stream for record events, the
+          `from` record for link events, the record of a file, the record of a numbering allocation. Equal to
+          `stream_id` when the event has no other subject.
+        annotations:
+          tl:indexed: true
+      subject_type:
+        description: Record type of the subject (`core.Record`), when it is a known record.
+      subject_key:
+        description: Human-readable key of the subject, when it has one.
+      subject_version:
+        range: integer
+        description: Version of the subject record after the event (the stream version when the stream is the subject).
+      actor:
+        required: true
+      source:
+        required: true
+      recorded_at:
+        required: true
+        description: ISO-8601 UTC time of the event (the CloudEvents `time`).
+      correlation_id:
+        required: true
+      changed_fields:
+        range: Any
+        required: true
+        description: JSON list of changed field paths (`status`, `psets.vt.result`), for filters.
+        annotations:
+          tl:json: true
+      from_state:
+        description: Workflow state before a `Workflow.Transitioned`.
+      to_state:
+        description: Workflow state after a `Workflow.Transitioned`.
+      related_ids:
+        range: Any
+        required: true
+        description: JSON list of the other records the event is about (the far end of a link), for the `record_ids` filter.
+        annotations:
+          tl:json: true
+      link_relations:
+        range: Any
+        required: true
+        description: JSON list of link relation codes the event is about.
+        annotations:
+          tl:json: true
+      file_slot:
+        description: File slot of a `File.*` event.
+      hashtags:
+        range: Any
+        required: true
+        description: JSON list of hashtags in the event payload (feed posts, later).
+        annotations:
+          tl:json: true
+      data:
+        range: Any
+        required: true
+        description: >-
+          URI-free envelope data: `origin` (id, key, type, version), `changes` (field to [old, new]),
+          `links` (immediate link refs of link events) and `detail` (the ledger payload).
+        annotations:
+          tl:json: true
+
+  WebhookDelivery:
+    description: One event to be delivered to one subscription, with its retry state.
+    annotations:
+      tl:current_state: true
+      tl:table: wh_delivery
+    unique_keys:
+      subscription_dedupe:
+        description: A live event reaches a subscription once; replays carry their own dedupe key.
+        unique_key_slots:
+          - subscription_id
+          - dedupe_key
+    attributes:
+      delivery_id:
+        identifier: true
+        range: Ulid
+        required: true
+      subscription_id:
+        range: Ulid
+        required: true
+        annotations:
+          tl:indexed: true
+      dedupe_key:
+        required: true
+        description: "`<seq>` for a live delivery, `<seq>:<origin>:<ulid>` for a replay or redrive."
+      seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the event; deliveries of one subject go out in this order.
+      event_id:
+        range: Ulid
+        required: true
+      subject_id:
+        required: true
+        description: The delivery ordering key (see `OutboxEvent.subject_id`).
+      origin:
+        range: DeliveryOrigin
+        required: true
+        ifabsent: string(live)
+      status:
+        range: DeliveryStatus
+        required: true
+        ifabsent: string(pending)
+        annotations:
+          tl:indexed: true
+      body:
+        required: true
+        description: The exact JSON text that is sent (and re-sent on every retry), built once when the delivery was created.
+      attempts:
+        range: integer
+        required: true
+        ifabsent: int(0)
+      created_at:
+        required: true
+        description: ISO-8601 UTC. The retry deadline counts from here.
+      next_attempt_at:
+        required: true
+        description: ISO-8601 UTC. A pending delivery is not tried before this time.
+      lease_until:
+        description: ISO-8601 UTC while a worker holds the delivery; an expired lease can be taken over.
+      lease_owner:
+        description: Worker id that holds the lease.
+      last_status:
+        range: integer
+        description: HTTP status of the last attempt; null for a network error or a blocked target.
+      last_error:
+        description: Short reason of the last failure (no secrets, no response bodies beyond an excerpt).
+      delivered_at:
+        description: ISO-8601 UTC of the successful attempt.
+      dead_at:
+        description: ISO-8601 UTC when the delivery was dead-lettered.
+      dead_reason:
+        description: "`retries_exhausted`, `gone`, `egress_denied`, `unreachable_permanently` or `subscription_removed`."
+      replay_of:
+        range: Ulid
+        description: For a redrive, the dead delivery it re-enqueued.
+
+  WebhookAttempt:
+    description: The log of one delivery attempt (status, latency, response excerpt).
+    annotations:
+      tl:current_state: true
+      tl:table: wh_attempt
+    attributes:
+      attempt_id:
+        identifier: true
+        range: Ulid
+        required: true
+      delivery_id:
+        range: Ulid
+        required: true
+        annotations:
+          tl:indexed: true
+      subscription_id:
+        range: Ulid
+        required: true
+        annotations:
+          tl:indexed: true
+      attempt:
+        range: integer
+        required: true
+        description: 1 for the first attempt of the delivery.
+      started_at:
+        required: true
+      latency_ms:
+        range: integer
+        required: true
+      status:
+        range: integer
+        description: HTTP status; null when no response was received.
+      outcome:
+        required: true
+        description: "`delivered`, `retry`, `dead`."
+      error:
+        description: Short failure reason.
+      response_excerpt:
+        description: First 512 characters of the response body, control characters removed.
+
+  WebhookSecret:
+    description: A signing secret of a subscription. Secrets never enter the ledger or the logs.
+    annotations:
+      tl:current_state: true
+      tl:table: wh_secret
+    attributes:
+      secret_id:
+        identifier: true
+        range: Ulid
+        required: true
+      subscription_id:
+        range: Ulid
+        required: true
+        annotations:
+          tl:indexed: true
+      secret:
+        required: true
+        description: "`whsec_` plus the base64 of 32 random bytes (the Standard Webhooks format)."
+      state:
+        range: SecretState
+        required: true
+        ifabsent: string(active)
+      created_at:
+        required: true
+      expires_at:
+        description: ISO-8601 UTC. A rotated-out secret keeps signing until this time (the overlap), then retires.
+
+  WebhookHealth:
+    description: Failure bookkeeping per subscription, for auto-disable and the operator screens.
+    annotations:
+      tl:current_state: true
+      tl:table: wh_health
+    attributes:
+      subscription_id:
+        identifier: true
+        range: Ulid
+        required: true
+      consecutive_dead:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Deliveries dead-lettered since the last success.
+      failing_since:
+        description: ISO-8601 UTC of the first failed attempt since the last success; null while healthy.
+      last_success_at:
+        description: ISO-8601 UTC.
+      last_failure_at:
+        description: ISO-8601 UTC.
+      delivered_total:
+        range: integer
+        required: true
+        ifabsent: int(0)
+      failed_total:
+        range: integer
+        required: true
+        ifabsent: int(0)
+
+  WebhookCursor:
+    description: How far the dispatcher has read the outbox.
+    annotations:
+      tl:current_state: true
+      tl:table: wh_cursor
+    attributes:
+      name:
+        identifier: true
+        required: true
+      last_seq:
+        range: integer
+        required: true
+        ifabsent: int(0)
