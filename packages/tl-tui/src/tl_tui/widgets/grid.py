@@ -5,11 +5,19 @@
 first page; End pages forward in a worker thread up to `END_CAP` rows. The grid posts
 `RecordHighlighted`, `SelectionChanged`, `OpenRecord` and `StatusMessage`; it never talks to other
 widgets.
+
+Filter (P0-I4): `apply_filter(text)` switches the rows to `ClientInterface.query_records` and keeps
+the match count from `count_records`; a syntax error is returned with its position and changes
+nothing. Live updates: `refresh_live(ids)` re-reads the loaded rows on a worker thread, applies
+them with `call_from_thread`, and marks the rows of `ids` that are new or changed with a bullet
+for `highlight_seconds`.
 """
 
 from __future__ import annotations
 
 import json
+import time
+from collections.abc import Collection
 from dataclasses import dataclass
 from functools import partial
 from typing import Any, ClassVar, Literal
@@ -22,6 +30,7 @@ from textual.binding import Binding, BindingType
 from textual.geometry import Size
 from textual.scroll_view import ScrollView
 from textual.strip import Strip
+from tl_core.query import QuerySyntaxError
 from tl_schema.forms import FormMetadata
 
 from tl_tui.client import ClientInterface
@@ -35,8 +44,25 @@ END_CAP = 5_000  # rows the End key will load; beyond it the user narrows the li
 SORTABLE_KEYS = frozenset({"key", "title", "status", "type", "created_at", "updated_at", "version"})
 MARKER_WIDTH = 5  # cursor mark, "[x]", and a space
 GAP = " "
+CHANGED_MARK = "•"  # in the last marker cell: the row was changed by someone else a moment ago
+HIGHLIGHT_SECONDS = 4.0
 
 Align = Literal["left", "right"]
+
+
+@dataclass(frozen=True)
+class FilterResult:
+    """What `RecordGrid.apply_filter` tells the filter bar.
+
+    ``ok`` is false when nothing changed: ``message`` says why and, for a syntax error,
+    ``position`` is the 0-based character offset the parser stopped at. ``count`` is the number of
+    matching records (``None`` for a blank filter or a failure).
+    """
+
+    ok: bool
+    count: int | None = None
+    message: str = ""
+    position: int | None = None
 
 
 @dataclass(frozen=True)
@@ -155,6 +181,7 @@ class RecordGrid(ScrollView, can_focus=True):
         "grid--cursor",
         "grid--selected",
         "grid--column",
+        "grid--changed",
     }
 
     DEFAULT_CSS = """
@@ -163,6 +190,7 @@ class RecordGrid(ScrollView, can_focus=True):
     RecordGrid > .grid--column { background: $primary; color: $text; text-style: bold; }
     RecordGrid > .grid--cursor { background: $accent 50%; }
     RecordGrid > .grid--selected { background: $primary 30%; }
+    RecordGrid > .grid--changed { background: $warning 35%; }
     """
 
     def __init__(
@@ -173,6 +201,7 @@ class RecordGrid(ScrollView, can_focus=True):
         record_type: str | None = "core.Record",
         columns: list[GridColumn] | None = None,
         page_size: int = 200,
+        highlight_seconds: float = HIGHLIGHT_SECONDS,
         id: str | None = None,  # noqa: A002
     ) -> None:
         super().__init__(id=id)
@@ -190,6 +219,13 @@ class RecordGrid(ScrollView, can_focus=True):
         self.sort_descending = False
         self._generation = 0  # bumped whenever rows are replaced; late worker results are dropped
         self._loading = False
+        self.filter_text = ""  # the filter text in force ("" = none)
+        self.match_count: int | None = None  # count_records for `query` as of the last load
+        self.highlight_seconds = highlight_seconds
+        self.changed_until: dict[str, float] = {}  # record id -> monotonic time the mark ends
+        self._live_running = False
+        self._live_again = False
+        self._live_marks: set[str] = set()
 
     # --- data --------------------------------------------------------------------------------
 
@@ -204,6 +240,10 @@ class RecordGrid(ScrollView, can_focus=True):
     def _fetch(self, limit: int, offset: int) -> list[dict[str, Any]] | None:
         """One page, or ``None`` after posting an error status (the caller keeps its state)."""
         try:
+            if self.filter_text:
+                return self.client.query_records(
+                    self.scope, self.filter_text, limit=limit, offset=offset, order_by=self._order()
+                )
             return self.client.list_records(
                 self.scope,
                 record_type=self.record_type,
@@ -215,15 +255,30 @@ class RecordGrid(ScrollView, can_focus=True):
             self.post_message(StatusMessage(describe_error(exc), "error"))
             return None
 
-    def load(self, *, keep_id: str | None = None, count: int | None = None) -> bool:
+    def _count(self) -> int | None:
+        """How many records match the filter, or ``None`` after posting an error status."""
+        try:
+            return self.client.count_records(self.scope, self.filter_text)
+        except CLIENT_ERRORS as exc:
+            self.post_message(StatusMessage(describe_error(exc), "error"))
+            return None
+
+    def load(
+        self, *, keep_id: str | None = None, count: int | None = None, matches: int | None = None
+    ) -> bool:
         """Replace the rows with the first ``count`` rows (default one page) in the current order.
 
-        Returns ``False``, leaving everything as it was, when the fetch failed.
+        Returns ``False``, leaving everything as it was, when the fetch failed. ``matches`` is a
+        match count the caller already has for the current filter.
         """
         count = count or self.page_size
         page = self._fetch(count, 0)
         if page is None:
             return False
+        if self.filter_text:
+            self.match_count = matches if matches is not None else self._count()
+        else:
+            self.match_count = None
         self._generation += 1
         self.rows = page
         self.exhausted = len(page) < count
@@ -238,6 +293,106 @@ class RecordGrid(ScrollView, can_focus=True):
         current = self.cursor_record
         size = min(max(self.page_size, len(self.rows)), END_CAP)
         self.load(keep_id=None if current is None else current["id"], count=size)
+
+    def apply_filter(self, text: str) -> FilterResult:
+        """Show only the records matching the query-language ``text`` (blank: all of them).
+
+        The text is checked first through ``count_records``; a syntax error or other refusal
+        leaves the rows, the filter and the cursor as they were.
+        """
+        text = text.strip()
+        count: int | None = None
+        if text:
+            try:
+                count = self.client.count_records(self.scope, text)
+            except QuerySyntaxError as exc:
+                return FilterResult(False, None, str(exc), exc.position)
+            except CLIENT_ERRORS as exc:
+                return FilterResult(False, None, describe_error(exc))
+        previous = self.filter_text
+        self.filter_text = text
+        if not self.load(matches=count):
+            self.filter_text = previous
+            return FilterResult(False, None, "could not load the records")
+        return FilterResult(True, count)
+
+    def refresh_live(self, record_ids: Collection[str] = ()) -> None:
+        """Re-read the loaded rows without blocking the UI, marking ``record_ids`` that changed.
+
+        The fetch runs in a worker thread and the result is applied with ``call_from_thread``;
+        calls made while one is running are merged into one more pass. A result is dropped when the
+        rows were replaced meanwhile (a sort, a filter, End). Rows of ``record_ids`` that are new
+        or whose ``version`` differs from what was shown get a bullet for ``highlight_seconds``.
+        """
+        self._live_marks.update(record_ids)
+        if self._live_running:
+            self._live_again = True
+            return
+        self._live_running = True
+        self._live_again = False
+        marks = frozenset(self._live_marks)
+        self._live_marks.clear()
+        count = min(max(self.page_size, len(self.rows)), END_CAP)
+        self.run_worker(
+            partial(self._live_fetch, self._generation, count, marks),
+            thread=True,
+            group="grid-live",
+        )
+
+    def _live_fetch(self, generation: int, count: int, marks: frozenset[str]) -> None:
+        """Worker thread: read the rows (and the match count); hand them to the UI thread."""
+        page = self._fetch(count, 0)
+        matches = self._count() if self.filter_text and page is not None else None
+        try:
+            self.app.call_from_thread(self._apply_live, generation, count, marks, page, matches)
+        except RuntimeError:
+            self._live_running = False  # the app is shutting down; nobody is listening
+
+    def _apply_live(
+        self,
+        generation: int,
+        count: int,
+        marks: frozenset[str],
+        page: list[dict[str, Any]] | None,
+        matches: int | None,
+    ) -> None:
+        self._live_running = False
+        if page is not None and generation == self._generation:
+            shown = {row["id"]: row.get("version") for row in self.rows}
+            current = self.cursor_record
+            if self.highlight_seconds > 0:
+                until = time.monotonic() + self.highlight_seconds
+                fresh = [
+                    row["id"]
+                    for row in page
+                    if row["id"] in marks and shown.get(row["id"], -1) != row.get("version")
+                ]
+                for record_id in fresh:
+                    self.changed_until[record_id] = until
+                if fresh:
+                    self.set_timer(self.highlight_seconds, self._expire_marks)
+            old_cursor = self.cursor_row
+            self._generation += 1
+            self.rows = page
+            self.exhausted = len(page) < count
+            if self.filter_text:
+                self.match_count = matches
+            self.cursor_row = max(0, min(old_cursor, len(page) - 1))
+            if current is not None:
+                self._move_to_id(current["id"])
+            self._after_rows_changed()
+        if self._live_again or self._live_marks:
+            self.refresh_live()
+
+    def _expire_marks(self) -> None:
+        now = time.monotonic()
+        self.changed_until = {i: t for i, t in self.changed_until.items() if t > now}
+        self.refresh()
+
+    def is_marked(self, record_id: str) -> bool:
+        """Whether the row shows the "changed by someone else" mark now."""
+        until = self.changed_until.get(record_id)
+        return until is not None and until > time.monotonic()
 
     def _move_to_id(self, record_id: str) -> None:
         for index, row in enumerate(self.rows):
@@ -557,12 +712,18 @@ class RecordGrid(ScrollView, can_focus=True):
         record = self.rows[index]
         is_cursor = index == self.cursor_row
         is_selected = record["id"] in self.selected_ids
+        is_marked = self.is_marked(record["id"])
         style: Style = self.rich_style
+        if is_marked:
+            style = style + self.get_component_rich_style("grid--changed")
         if is_selected:
             style = style + self.get_component_rich_style("grid--selected")
         if is_cursor:
             style = style + self.get_component_rich_style("grid--cursor")
-        marker = f"{'▶' if is_cursor else ' '}{'[x]' if is_selected else '[ ]'} "
+        marker = (
+            f"{'▶' if is_cursor else ' '}{'[x]' if is_selected else '[ ]'}"
+            f"{CHANGED_MARK if is_marked else ' '}"
+        )
         segments = [Segment(marker, style)]
         for column in self.columns:
             segments.append(

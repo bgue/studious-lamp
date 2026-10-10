@@ -18,8 +18,18 @@ from textual.widget import Widget
 
 from tl_tui.client import ClientInterface
 from tl_tui.commands import command_by_id
+from tl_tui.live import (
+    ChangeFeed,
+    LiveUpdates,
+    describe_changes,
+    latest_by_record,
+    touched_record_ids,
+)
 from tl_tui.messages import (
     CloseRecord,
+    ConnectionChanged,
+    ConnectionState,
+    LiveEvents,
     NavSelected,
     OpenRecord,
     RecordChanged,
@@ -31,6 +41,7 @@ from tl_tui.messages import (
 )
 from tl_tui.navigation import NavHistory
 from tl_tui.tray import ReferenceTray, TrayItem
+from tl_tui.widgets.connection_banner import ConnectionBanner
 from tl_tui.widgets.context_panel import ContextPanel
 from tl_tui.widgets.footer import TlFooter, hints_for
 from tl_tui.widgets.grid import RecordGrid
@@ -80,6 +91,7 @@ class TlApp(App[None]):
         actor: str = "user:dev",
         mode: str = "embedded",
         roles: tuple[str, ...] = (),
+        feed: ChangeFeed | None = None,
     ) -> None:
         super().__init__()
         self.client = client
@@ -93,6 +105,10 @@ class TlApp(App[None]):
         self.tray = ReferenceTray()
         self.history = NavHistory()
         self._open_key: str | None = None
+        # Live updates: a feed of committed events (embedded: bus and poller; remote: SSE). Without
+        # one the screens show what they last read until the user reloads.
+        self._live = LiveUpdates(feed, self) if feed is not None else None
+        self._reachable = True
 
     # --- layout ------------------------------------------------------------------------------
 
@@ -100,6 +116,7 @@ class TlApp(App[None]):
         yield TlHeader(
             company=self.company, scope=self.scope, mode=self.mode, actor=self.actor, id="header"
         )
+        yield ConnectionBanner(id="connection")
         with Horizontal(id="body"):
             yield NavTree(company=self.company, scope=self.scope, id="nav")
             with MainArea(id="main"):
@@ -110,6 +127,20 @@ class TlApp(App[None]):
     def on_mount(self) -> None:
         self._apply_width(self.size.width)
         self.query_one("#grid", RecordGrid).focus()
+        # A remote client reports unreachable/live from whichever thread made the call.
+        if hasattr(self.client, "connection_listener"):
+            setattr(self.client, "connection_listener", self._connection_from_client)  # noqa: B010
+        if self._live is not None:
+            self._live.start()
+
+    def on_unmount(self) -> None:
+        if hasattr(self.client, "connection_listener"):
+            setattr(self.client, "connection_listener", None)  # noqa: B010
+        if self._live is not None:
+            self._live.stop()
+
+    def _connection_from_client(self, state: ConnectionState, detail: str) -> None:
+        self.post_message(ConnectionChanged(state, detail))
 
     @property
     def narrow(self) -> bool:
@@ -411,6 +442,41 @@ class TlApp(App[None]):
 
     def on_record_changed(self, message: RecordChanged) -> None:
         self.query_one("#grid", RecordGrid).reload()
+
+    # --- live updates -----------------------------------------------------------------------
+
+    def on_connection_changed(self, message: ConnectionChanged) -> None:
+        self.query_one("#connection", ConnectionBanner).show(message.state, message.detail)
+        came_back = message.state == "live" and not self._reachable
+        self._reachable = message.state == "live"
+        if came_back:
+            self._say("Connection restored", "info")
+            self.query_one("#grid", RecordGrid).refresh_live()  # rows read during the outage
+
+    def on_live_events(self, message: LiveEvents) -> None:
+        """Events committed by anyone: refresh the grid, and the open record if it was touched.
+
+        Events this client's own commands produced are skipped for the grid (the command's own
+        path already reloaded it) but not for the open record, which also hears about link and
+        workflow changes made elsewhere.
+        """
+        own = getattr(self.client, "own_writes", None)
+        foreign = [e for e in message.events if own is None or e.event_id not in own]
+        foreign_ids = touched_record_ids(foreign)
+        if foreign_ids:
+            self.query_one("#grid", RecordGrid).refresh_live(foreign_ids)
+            self._say(describe_changes(foreign), "info")
+        view = self._record_view()
+        if view is None or view.record is None:
+            return
+        record_id = str(view.record["id"])
+        if record_id not in touched_record_ids(message.events):
+            return
+        newest = latest_by_record(message.events).get(record_id)
+        moved = newest is not None and newest.stream_version > int(view.record["version"])
+        linked = any(e.event_type.startswith("Link.") for e in message.events)
+        if moved or linked:
+            view.reload()
 
     async def _show_record(
         self, scope: str, key: str, *, follow: bool = False, navigate: bool = True
