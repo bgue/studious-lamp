@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from tl_core.services.errors import SettingScopeError
+from tl_core.settings.display import shown
 from tl_core.settings.types import SettingDefinition
 
 SETTING_STREAM_TYPE = "core.Setting"
@@ -56,7 +57,7 @@ def parse_layer(text: str) -> LayerRef:
         return LayerRef("project", ident)
     if kind == "user" and _USER_ID.fullmatch(ident):
         return LayerRef("user", ident)
-    raise SettingScopeError(f"{text!r} is not a layer: use company, project:<id> or user:<id>")
+    raise SettingScopeError(f"{shown(text)} is not a layer: use company, project:<id> or user:<id>")
 
 
 def project_of_scope(scope: str) -> str | None:

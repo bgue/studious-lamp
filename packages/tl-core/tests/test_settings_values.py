@@ -271,3 +271,18 @@ def test_a_number_too_large_for_a_float_is_out_of_range_not_an_error() -> None:
         check_bounds(d, {"maximum": 8}, 10**400)
     with pytest.raises(SettingOutOfBoundsError, match="below the company minimum"):
         check_bounds(d, {"minimum": 2}, -(10**400))
+
+
+def test_a_message_never_echoes_a_long_text_back_in_full() -> None:
+    long_number = "9" * 5000
+    for kind, text in (
+        ("int", long_number),
+        ("decimal", "x" * 5000),
+        ("bool", "x" * 5000),
+        ("duration", long_number + "m"),
+        ("size", long_number + "MB"),
+    ):
+        d = defn(kind, 1 if kind == "int" else "5m" if kind == "duration" else True)
+        with pytest.raises(InvalidSettingValueError) as caught:
+            normalise(d, parse_text(d, text))
+        assert len(str(caught.value)) < 250, kind

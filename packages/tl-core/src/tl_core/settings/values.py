@@ -24,6 +24,7 @@ from tl_core.services.errors import (
     SettingOutOfBoundsError,
 )
 from tl_core.settings.checks import ITEM_CHECKS
+from tl_core.settings.display import shown
 from tl_core.settings.types import SettingDefinition
 
 MAX_LIST_ITEMS = 500
@@ -46,7 +47,7 @@ def duration_seconds(value: str) -> float:
     found = _DURATION.fullmatch(value)
     if found is None:
         raise InvalidSettingValueError(
-            f"{value!r} is not a duration: a whole number and a unit, as in 90s, 5m, 24h or 2w"
+            f"{shown(value)} is not a duration: a whole number and a unit, as in 90s, 5m, 24h or 2w"
         )
     return int(found.group(1)) * _DURATION_SECONDS[found.group(2)]
 
@@ -56,7 +57,7 @@ def size_bytes(value: str) -> int:
     found = _SIZE.fullmatch(value)
     if found is None:
         raise InvalidSettingValueError(
-            f"{value!r} is not a size: a whole number and a unit, as in 512KB or 50MB"
+            f"{shown(value)} is not a size: a whole number and a unit, as in 512KB or 50MB"
         )
     return int(found.group(1)) * _SIZE_BYTES[found.group(2)]
 
@@ -391,24 +392,26 @@ def parse_text(defn: SettingDefinition, text: str) -> Any:
             return True
         if word in _FALSE:
             return False
-        raise InvalidSettingValueError(f"{defn.key}: {text!r} is not true or false")
+        raise InvalidSettingValueError(f"{defn.key}: {shown(text)} is not true or false")
     if kind == "int":
         try:
             return int(stripped)
         except ValueError as exc:
-            raise InvalidSettingValueError(f"{defn.key}: {text!r} is not a whole number") from exc
+            raise InvalidSettingValueError(
+                f"{defn.key}: {shown(text)} is not a whole number"
+            ) from exc
     if kind == "decimal":
         try:
             number = float(stripped)
         except ValueError as exc:
-            raise InvalidSettingValueError(f"{defn.key}: {text!r} is not a number") from exc
+            raise InvalidSettingValueError(f"{defn.key}: {shown(text)} is not a number") from exc
         return int(number) if number.is_integer() and "." not in stripped else number
     if kind in ("list", "json"):
         if kind == "json" or stripped.startswith("["):
             try:
                 return json.loads(stripped)
             except ValueError as exc:
-                raise InvalidSettingValueError(f"{defn.key}: {text!r} is not JSON") from exc
+                raise InvalidSettingValueError(f"{defn.key}: {shown(text)} is not JSON") from exc
         return [part.strip() for part in stripped.split(",") if part.strip()]
     return stripped
 

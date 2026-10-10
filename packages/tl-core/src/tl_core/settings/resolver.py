@@ -34,6 +34,7 @@ from typing import Any
 from sqlalchemy import Connection, text
 
 from tl_core.services.errors import SettingScopeError
+from tl_core.settings.display import shown
 from tl_core.settings.instants import from_us, to_us, to_z
 from tl_core.settings.layers import allows_layer, parse_layer
 from tl_core.settings.registry import definitions, get_definition
@@ -354,7 +355,7 @@ def diff(conn: Connection, *, left: str, right: str) -> list[SettingDiff]:
             views.append(_view_of(name))
         except SettingScopeError:
             raise SettingScopeError(
-                f"{name!r} is not a layer: use default, company, project:<id> or user:<id>"
+                f"{shown(name)} is not a layer: use default, company, project:<id> or user:<id>"
             ) from None
     found: list[SettingDiff] = []
     for defn in definitions().values():
