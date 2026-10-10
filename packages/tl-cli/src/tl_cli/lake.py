@@ -15,7 +15,11 @@ from typing import Annotated, NoReturn
 
 import typer
 from sqlalchemy import Connection
+from sqlalchemy.exc import SQLAlchemyError
 from tl_adapters.sqlite.engine import make_engine
+from tl_core.services.errors import ServiceError
+from tl_core.settings.resolver import value_of
+from tl_core.settings.values import duration_seconds
 from tl_lake import (
     GuardError,
     LakeConfig,
@@ -107,9 +111,7 @@ def watch_loop(
     sleep: Callable[[float], None],
     max_runs: int | None = None,
 ) -> int:
-    """STUB (P0-I8-T07): remove this paragraph when you implement the body.
-
-    Call ``run_once``, then wait ``interval()`` seconds, again and again; return the run count.
+    """Call ``run_once``, then wait ``interval()`` seconds, again and again; return the run count.
 
     The interval is read again before every wait, so a changed setting applies to the next wait.
     If it cannot be read (the ledger is busy, the value is bad) the last one read is used, or
@@ -117,17 +119,31 @@ def watch_loop(
     prints ``error: <message>`` to standard error and the loop goes on. With ``max_runs`` the
     loop stops after that many runs, without a wait after the last one.
     """
-    raise NotImplementedError("STUB: P0-I8-T07")
+    runs = 0
+    wait = DEFAULT_INTERVAL_S
+    while True:
+        try:
+            run_once()
+        except (GuardError, LakeError) as exc:
+            typer.echo(f"error: {exc}", err=True)
+        runs += 1
+        if max_runs is not None and runs >= max_runs:
+            return runs
+        try:
+            wait = interval()
+        except (ServiceError, SQLAlchemyError, ValueError, OSError):
+            pass  # keep the last good interval
+        sleep(wait)
 
 
 def _interval_seconds(ctx: typer.Context) -> float:
-    """STUB (P0-I8-T07): remove this paragraph when you implement the body.
+    """``lake.sync.interval`` in force now, in seconds.
 
-    ``lake.sync.interval`` in force now, in seconds, read in a fresh read snapshot of the ledger
-    with ``value_of(conn, INTERVAL_KEY)`` (the company value, else the default) and converted with
-    ``duration_seconds``.
+    Read in a fresh read snapshot of the ledger: the company value, else the default.
     """
-    raise NotImplementedError("STUB: P0-I8-T07")
+    with _ledger_snapshot(ctx) as conn:
+        value = value_of(conn, INTERVAL_KEY)
+    return duration_seconds(str(value))
 
 
 @app.command("sync")
