@@ -132,7 +132,13 @@ class ExtensionRecordForm(ModalScreen[str | None]):
         if not self._check(editors):
             self._status("Fix the marked fields")
             return
-        split = split_values(self.form, {name: editor.value for name, editor in editors.items()})
+        # A slot the user never touched is left unset (a Switch always reads False), unless it is
+        # required: then what the editor shows is the answer.
+        values = {
+            name: editor.value if editor.changed or editor.meta.enforcement == "required" else None
+            for name, editor in editors.items()
+        }
+        split = split_values(self.form, values)
         title = self._core("title")
         key = self._core("key")
         description = self._core("description")
@@ -143,7 +149,7 @@ class ExtensionRecordForm(ModalScreen[str | None]):
                 title=str(title.value),
                 key=None if key.value is None else str(key.value),
                 description=description.value,
-                psets=split.psets,
+                psets=split.psets or None,  # an object-backed type takes its values as a body
                 body=split.body,
             )
         except ValidationError as exc:

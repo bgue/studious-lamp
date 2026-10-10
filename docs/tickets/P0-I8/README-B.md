@@ -74,9 +74,9 @@ the record quarantined; `tl types quarantine ls` shows it; storing the body agai
 | P0-I8-T21 | API: `/types`, `/types/{ref}`, `POST /types/{name}/records`, `GET\|PUT /records/{id}/body` | haiku | S23, S24 | merged | pass, 1 round, no findings |
 | P0-I8-T22 | MCP: `list_record_types`, `get_record_type`, `get_record_body`, `tl://types` resources | haiku | S23, S24 | merged | implementation passed; provided test corrected by supervisor (pyright: `assert row is not None`) |
 | P0-I8-T23 | `ApiClient` type and body methods (9 provided tests) | haiku | T21 | merged | implementation passed; provided test corrected by supervisor (pyright, L-P0-I8B-7) |
-| P0-I8-T26 | `tl types quarantine ls\|recheck` (8 provided tests) | haiku | S23, T20 | ready (re-dispatched after its first implementer died) | |
-| P0-I8-T24 | TUI: `extension_columns` (grid columns from `form.yaml`, newest active form of a type; 9 provided tests) | haiku | S33 | ready | |
-| P0-I8-T25 | TUI: `extension_fields` and the `ExtensionRecordForm` modal (18 provided tests) | haiku | S33 | ready | |
+| P0-I8-T26 | `tl types quarantine ls\|recheck` (8 provided tests) | haiku | S23, T20 | review-only (implementation done at 37b3920; the red test it hit was on the base) | |
+| P0-I8-T24 | TUI: `extension_columns` (grid columns from `form.yaml`, newest active form of a type; 9 provided tests) | haiku | S33 | merged | pass, 1 round, no findings |
+| P0-I8-T25 | TUI: `extension_fields` and the `ExtensionRecordForm` modal (18 provided tests) | haiku | S33 | merged | pass, 1 round; three open questions ruled below |
 
 Later rounds (tickets written when their dependencies are merged): `RemoteClient` type and body methods; the object-backed body edit form (T27); wiring of `columns_for_type` and
 `ExtensionRecordForm` into `TlApp` (supervisor, after T24 and T25 merge); the runbook; cross-surface parity tests; the demo; and, once WS-A is merged, registering a
@@ -96,3 +96,5 @@ package's `settings.yaml` through `tl_core.settings.register_definitions`.
 ## Blocked / Decision
 Review of S20 to S24 (orchestrator, fresh context): changes-requested, 1 high, 2 medium, 3 low. Fixed in S26 (base merge, NOT_EVENTS) and S27 (H1 imports confined to the package and `validate_package` never raises; M2 the loader re-verifies each second; M3 retry once on a lost race; L4 hidden files locked, `__pycache__` refused; L5 one read per package; L6 `registry.deprecate` bumps after the commit and a reverted conflict on a deprecated version clears; patterns capped at 200 characters). Follow-ups: full ReDoS hardening of package patterns (a short pattern can still backtrack); `tl types watch` stops if `on_change` raises something unguarded such as a database outage (accepted for v0).
 Re-review of S27: passed, with one request: `tl types deprecate` must call `registry.deprecate` (done in S32, with a test).
+
+Rulings on the T25 open questions (orchestrator round 3): (a) an untouched optional bool is omitted: the form sends a slot only when the user changed it or it is required (a required bool is sent as shown); (b) an object-backed type is created with `psets=None` and a body; (c) the stale "Required" mark of a Select or Switch was real and is fixed in `FieldEditor._raw_changed` (L-P0-I8B-10). The wiring of `columns_for_type` and `ExtensionRecordForm` into `TlApp` is S35 (grid columns at compose, `n` opens the generated form), tested on the fake and on a real ledger.

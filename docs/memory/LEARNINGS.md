@@ -989,6 +989,15 @@ test or a generated artefact already enforces, or narrative history (that belong
   Give the service a wrapper that owns the factory and notifies after the commit (`registry.deprecate`), and make every entry point call the wrapper; `tl types deprecate` called the inner
   function until the re-review.
   Evidence: `tests/extypes/test_registry_sync.py::test_deprecate_tells_the_provider_after_the_commit`, `packages/tl-cli/tests/test_cli_extypes_conflict.py`. Status: active
+- **L-P0-I8B-9** · 2026-10-10 · tags: process, tests, cli
+  Run the whole test suite of every package a supervisor commit touches, not only the new tests, before relaying the base: S33 added `--type` to `tl tui` and a `record_type` key to the call
+  that `tl_cli.tui` makes, and `packages/tl-cli/tests/test_cli_serve_tui.py` compared that call dict exactly. Only the `tl-tui` suite had run, so an implementer found the red test on the base.
+  Evidence: `test_tui_is_embedded_by_default_on_the_root_db` (fixed with two new `--type` tests). Status: active
+- **L-P0-I8B-10** · 2026-10-10 · tags: tui, forms
+  `FieldEditor.validate()` only sets an error for typed text; for a Select or a Switch it returns the old error, so a "Required" mark on a choice stayed until the next save. A Switch also always
+  reads `False`, so a form that collects `editor.value` for every field stores an untouched optional bool as `false`. `_raw_changed` now clears the mark of a choice, and the extension form
+  sends a slot only when the user changed it or it is required.
+  Evidence: `packages/tl-tui/tests/test_extension_form_rules.py`. Status: active
 - **L-P0-I6C-12** · 2026-10-10 · tags: tests, process
   A check that fails only on an empty log still passes a run in which the interesting actor did nothing: swallowing every refusal (a budget, a bad argument) in the actor and asserting only what
   was logged made "the assistant proposed nothing" green. Tell the assertion which actors are enabled and bound to act (`Expected`), narrow what an actor may shrug off to the one benign refusal, and
