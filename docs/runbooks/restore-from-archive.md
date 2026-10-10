@@ -137,7 +137,7 @@ database postgresql://postgres:***@localhost:5432/tl_restored agrees up to seq 1
   uv run tl file reconcile
   ```
   For the output and what to do with missing files, see `docs/runbooks/object-store-reconciliation.md`.
-- Webhook subscriptions come back with status `active`, because they are rebuilt from their events. A signing secret is never in the ledger, and delivery state is not restored. A subscription without a secret sends nothing: the worker keeps its deliveries pending (none are sent unsigned or dead-lettered) and logs one warning per subscription per cycle, and `tl webhook ls` shows it as `needs_secret`. The restore prints one `warning: webhook subscription ...` line per subscription, then a line saying the dispatcher starts again from seq 0, so events since each subscription was created are queued and are sent once its secret exists (receivers dedupe on the event id). To release them:
+- Webhook subscriptions come back with status `active`, because they are rebuilt from their events. A signing secret is never in the ledger, and delivery state is not restored. A subscription without a secret sends nothing: the worker keeps its deliveries pending (none are sent unsigned or dead-lettered) and logs one warning per subscription per cycle, and `tl webhook ls` shows it as `needs_secret`. The restore prints one `warning: webhook subscription ...` line per subscription, then a line saying the dispatcher starts at the restored head, so history up to the archive's last seq is not queued again (events written after the restore are). To release them:
   1. List the subscriptions (`needs_secret` in the second column):
      ```
      uv run tl webhook ls
@@ -147,6 +147,7 @@ database postgresql://postgres:***@localhost:5432/tl_restored agrees up to seq 1
      uv run tl webhook rotate-secret <subscription id> --project P123 --overlap-hours 24
      ```
   3. Give each receiver its new secret. The pending deliveries are then sent signed.
+  4. If a receiver may have missed events between its last delivery and the restore point, replay them: `uv run tl webhook replay <subscription id> --from-seq N --to-seq M` (M is the archive's last seq).
 
   The `tl webhook` and `tl file` commands take a SQLite file (`--db`) in this phase, not a Postgres URL.
 

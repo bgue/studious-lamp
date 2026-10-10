@@ -7,6 +7,7 @@ listings, a restore warning), and send them with a valid signature once the secr
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
 from collections.abc import Callable, Iterator
@@ -74,13 +75,30 @@ def test_restore_warns_for_each_subscription_that_needs_a_secret(
         f"restore and sends nothing until you run: tl webhook rotate-secret {subscription_id} "
         "--project P1"
     )
-    assert "dispatcher starts again from seq 0" in dispatcher
+    assert dispatcher == (
+        "the webhook dispatcher starts at the restored head (seq 4): events up to it are not "
+        "queued again. A receiver may have missed events between its last delivery and the "
+        "restore point; replay them with: tl webhook replay <subscription id> --from-seq N "
+        "--to-seq 4"
+    )
 
 
-def test_a_restored_subscription_sends_nothing_and_keeps_its_deliveries_pending(
+def test_the_dispatcher_starts_at_the_restored_head_so_no_history_is_queued(
+    restored_world: tuple[World, str, list[str]],
+) -> None:
+    world, _, _ = restored_world
+    assert world.query("SELECT last_seq FROM wh_cursor WHERE name = 'outbox'") == [{"last_seq": 4}]
+    assert world.dispatcher().run_until_idle().created == 0
+    assert world.query("SELECT COUNT(*) AS n FROM wh_delivery")[0]["n"] == 0
+    assert world.engine().claim(10) == []
+    assert world.transport.sent == []
+
+
+def test_a_new_event_for_a_restored_subscription_waits_for_its_secret(
     restored_world: tuple[World, str, list[str]], caplog: pytest.LogCaptureFixture
 ) -> None:
     world, subscription_id, _ = restored_world
+    world.record("A-4")
     world.dispatcher().run_until_idle()
     engine = world.engine()
     with caplog.at_level(logging.WARNING, logger="tl_core.webhooks.delivery"):
@@ -89,8 +107,7 @@ def test_a_restored_subscription_sends_nothing_and_keeps_its_deliveries_pending(
     assert world.transport.sent == []  # nothing, signed or unsigned, left the process
 
     rows = world.query("SELECT status, attempts FROM wh_delivery ORDER BY seq")
-    assert len(rows) == 3
-    assert {(r["status"], r["attempts"]) for r in rows} == {("pending", 0)}  # none dead, none tried
+    assert [(r["status"], r["attempts"]) for r in rows] == [("pending", 0)]  # not dead, not tried
     assert world.query("SELECT COUNT(*) AS n FROM wh_attempt")[0]["n"] == 0
 
     warned = [r for r in caplog.records if subscription_id in r.getMessage()]
@@ -100,25 +117,21 @@ def test_a_restored_subscription_sends_nothing_and_keeps_its_deliveries_pending(
     with world.factory(readonly=True) as uow:
         [row] = queries.list_subscriptions(uow)
     assert row["status"] == "active" and row["status_label"] == "needs_secret"
-    assert row["needs_secret"] is True and row["pending"] == 3 and row["dead"] == 0
+    assert row["needs_secret"] is True and row["pending"] == 1 and row["dead"] == 0
 
 
-def test_after_rotate_secret_the_pending_deliveries_go_out_signed(
-    restored_world: tuple[World, str, list[str]],
-) -> None:
-    world, subscription_id, _ = restored_world
-    world.dispatcher().run_until_idle()
-    engine = world.engine()
-    assert engine.claim(10) == []
-
+def rotate(world: World, subscription_id: str) -> Any:
     with world.factory() as uow:
-        issued = rotate_secret(
+        return rotate_secret(
             uow,
             RotateWebhookSecret(
                 actor="user:alice", source="test", scope=SCOPE, subscription_id=subscription_id
             ),
             clock=world.clock,
         )
+
+
+def drain(world: World, engine: Any) -> int:
     delivered = 0
     for _ in range(10):
         claims = engine.claim(10)
@@ -127,7 +140,26 @@ def test_after_rotate_secret_the_pending_deliveries_go_out_signed(
         for claim in claims:
             assert engine.deliver(claim).state == "delivered"
             delivered += 1
-    assert delivered == 3 and len(world.transport.sent) == 3
+    return delivered
+
+
+def test_after_rotate_secret_no_history_goes_out_and_a_new_event_does_signed(
+    restored_world: tuple[World, str, list[str]],
+) -> None:
+    world, subscription_id, _ = restored_world
+    issued = rotate(world, subscription_id)  # appends one event itself: seq 5, a new event
+    engine = world.engine()
+
+    world.dispatcher().run_until_idle()  # one worker cycle on the restored database
+    assert drain(world, engine) == 1  # only that rotation event, none of seq 2 to 4
+    assert [r["seq"] for r in world.query("SELECT seq FROM wh_delivery")] == [5]
+
+    world.record("A-4")  # seq 6
+    world.dispatcher().run_until_idle()
+    assert drain(world, engine) == 1
+    delivered = world.query("SELECT seq FROM wh_delivery WHERE status = 'delivered' ORDER BY seq")
+    assert [r["seq"] for r in delivered] == [5, 6]
+    assert len(world.transport.sent) == 2
     for request in world.transport.sent:
         verify(
             request.headers,
@@ -135,10 +167,32 @@ def test_after_rotate_secret_the_pending_deliveries_go_out_signed(
             [SigningSecret(issued.secret)],
             now=world.clock().timestamp(),
         )  # raises SignatureError if the signature is wrong
+    last = json.loads(world.transport.sent[-1].body)
+    assert (
+        last["id"] == world.query("SELECT event_id FROM outbox_events WHERE seq = 6")[0]["event_id"]
+    )
     with world.factory(readonly=True) as uow:
         [row] = queries.list_subscriptions(uow)
     assert row["status_label"] == "active" and row["pending"] == 0
-    assert engine.claim(10) == [] and engine.needs_secret == []
+
+
+def test_replay_covers_a_range_a_receiver_may_have_missed(
+    restored_world: tuple[World, str, list[str]],
+) -> None:
+    world, subscription_id, _ = restored_world
+    issued = rotate(world, subscription_id)
+    engine = world.engine()
+    assert (
+        world.dispatcher().replay(subscription_id, 1, 4) == 4
+    )  # the creation event and the three records
+    assert drain(world, engine) == 4 and len(world.transport.sent) == 4
+    for request in world.transport.sent:
+        verify(
+            request.headers,
+            request.body,
+            [SigningSecret(issued.secret)],
+            now=world.clock().timestamp(),
+        )
 
 
 def test_the_cli_shows_needs_secret_after_a_restore_and_active_after_rotating(

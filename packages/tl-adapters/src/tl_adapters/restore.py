@@ -32,6 +32,7 @@ from tl_core.projection.defaults import default_registry
 from tl_core.projection.promoted import ensure_promoted_columns
 from tl_core.projection.types import ProjectorRegistry
 from tl_core.schema_provider import SchemaProvider, get_provider
+from tl_core.webhooks.dispatch import CURSOR_NAME
 from tl_schema.effective import EffectiveSchema
 
 from tl_adapters import postgres, sqlite
@@ -121,12 +122,31 @@ def _rotate_hint(subscription_id: str, scope: str) -> str:
     return f"tl webhook rotate-secret {subscription_id} {target}"
 
 
-def _secret_warnings(conn: Connection) -> tuple[str, ...]:
+def _start_dispatcher_at_head(conn: Connection, head: int) -> None:
+    """Set the webhook dispatcher's cursor to the restored head.
+
+    Delivery state (the cursor, deliveries, secrets) is operational and is not in the ledger. With
+    the cursor at 0 the dispatcher would queue every event since each subscription was created and
+    flood its receiver with history once a secret is issued. Events up to ``head`` are treated as
+    already dispatched; ``tl webhook replay`` covers a range a receiver may have missed.
+    """
+    moved = conn.execute(
+        text("UPDATE wh_cursor SET last_seq = :seq WHERE name = :n"),
+        {"seq": head, "n": CURSOR_NAME},
+    )
+    if moved.rowcount == 0:
+        conn.execute(
+            text("INSERT INTO wh_cursor (name, last_seq) VALUES (:n, :seq)"),
+            {"n": CURSOR_NAME, "seq": head},
+        )
+
+
+def _secret_warnings(conn: Connection, head: int) -> tuple[str, ...]:
     """One warning per active webhook subscription, plus one about the dispatcher.
 
     Signing secrets are never in the ledger, so a restored subscription has none and the delivery
-    engine holds its deliveries back (pending) until a secret is issued. Delivery state is not
-    restored either: the dispatcher starts again from seq 0.
+    engine holds its deliveries back (pending) until a secret is issued. The dispatcher cursor
+    starts at the restored head (``_start_dispatcher_at_head``).
     """
     rows = conn.execute(
         text(
@@ -142,9 +162,10 @@ def _secret_warnings(conn: Connection) -> tuple[str, ...]:
         for row in rows
     ]
     found.append(
-        "the webhook dispatcher starts again from seq 0: events since each subscription was "
-        "created are queued as pending deliveries and are sent once its secret is issued "
-        "(receivers dedupe on the event id)"
+        f"the webhook dispatcher starts at the restored head (seq {head}): events up to it are not "
+        "queued again. A receiver may have missed events between its last delivery and the "
+        "restore point; replay them with: tl webhook replay <subscription id> --from-seq N "
+        f"--to-seq {head}"
     )
     return tuple(found)
 
@@ -177,7 +198,8 @@ def _restore_in_one_transaction(
         issues = verify_archive(store, public_key=public_key, conn=conn)
         if issues:
             raise _fail(issues, "the restored database does not match the archive")
-        warnings = _secret_warnings(conn)
+        _start_dispatcher_at_head(conn, count)
+        warnings = _secret_warnings(conn, count)
     return count, inserted, rebuilt_at, warnings
 
 

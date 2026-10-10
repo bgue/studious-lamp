@@ -624,3 +624,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   commands must match indented fences (`^ *```), because steps indent them. Business-hours safety, which command takes `--all`, and the success line of a flag variant are
   facts the supervisor must include; three implementers asked for them.
   Evidence: reports P0-I7-T05 to T08 (open questions); `docs/runbooks/sqlite-backup-and-litestream.md`. Status: active
+
+- **L-P0-I7-A12** · 2026-10-10 · tags: ledger, sync
+  Resolves the open part of L-P0-I7-A10. `restore_from_archive` writes the dispatcher cursor (`wh_cursor`, name `outbox`) at the restored head in its transaction, so a restored
+  subscription is not flooded with history once its secret is rotated; the warning and the runbook name `tl webhook replay ID --from-seq N --to-seq M` for a range a receiver
+  may have missed. `rotate-secret` itself appends an event (seq head+1), so the first delivery after a rotation is that new event, not history; a test that expects zero
+  deliveries after rotating must expect that one.
+  Evidence: `tests/archive/test_restore_webhooks.py` (both adapters). Status: active
+

@@ -42,6 +42,7 @@ Merged 8 / taken over 0 / abandoned 0.
 | S13 | (with S12) | the drill report template and measurements | pending |
 | S14 | 4fa7c6c | review fixes: missing-directory `missing_file`, sealed-prefix check for every scope, one-transaction restore with a schema check first and schema-hash warnings, `expect_last_seq` / `expect_manifest_sha256`, key file mode | re-reviewed: items 2 and 3 clean |
 | S15 | ec27c11 | `verify_archive(conn, deep=True)` recomputes database hashes, compares every field, checks the tail; `verify_ledger`; `tl ledger verify`; the closing restore verify runs before the commit | pending |
+| S17 | (this commit) | the dispatcher cursor starts at the restored head inside the restore transaction; the restore warning names `tl webhook replay`; the "After a restore" runbook section | pending |
 | S16 | 9ec9b2b | outside WS-A scope, by orchestrator ruling: `DeliveryEngine.claim` holds back a subscription with no signing secret (pending, not sent, not dead-lettered, one log line per cycle), `tl webhook ls` shows `needs_secret`, restore returns a warning per subscription | pending |
 
 Files: `packages/tl-core/src/tl_core/archive/`, `packages/tl-adapters/src/tl_adapters/{restore.py,_restore.py,archivestore/,sqlite/{admin,backup}.py,postgres/admin.py}`, `packages/tl-core/src/tl_core/webhooks/{delivery,queries}.py`, `packages/tl-cli/src/tl_cli/{ledger,webhook}.py`, `dev/drills/`, `dev/backup/`.
@@ -51,7 +52,7 @@ Files: `packages/tl-core/src/tl_core/archive/`, `packages/tl-adapters/src/tl_ada
 |---|---|
 | `just check` (ruff, format, pyright strict, codegen drift, licences) | green |
 | `just test` | 2686 passed |
-| `just test-parity` | 1259 passed (643 s) |
+| `just test-parity` | 1259 passed (643 s), before S17; the targeted run after S17 on both adapters passed 525 |
 | Targeted runs after the webhook change, both adapters (`tests/archive`, `tests/webhooks`, `tests/contract`, `tests/parity`, tl-cli, tl-adapters) | 521 passed |
 | `just drill` with default parameters | passed, report committed |
 | Mutation checks | orphan-resume removed fails the crash tests; sealed-prefix check removed fails the untouched-scope test; the secret filter removed fails the two webhook tests |
@@ -66,10 +67,10 @@ Files: `packages/tl-core/src/tl_core/archive/`, `packages/tl-adapters/src/tl_ada
 ## Escalations and decisions
 - Orchestrator: lazy duckdb import (done); the hard-link `OSError` wrap (done); restore and promoted columns use the schema in force at restore time, warn when its hash differs from the ledger's (done); the missing-secret webhook hold (done, S16).
 - Dependencies, with licences: `duckdb==1.5.5` (MIT), `cryptography` (Apache-2.0/BSD, already in the tree), apt `pgbackrest` 2.50 (MIT), Litestream v0.3.13 binary (Apache-2.0).
-- Open for the orchestrator: `wh_cursor` is operational state that a restore does not carry, so the dispatcher restarts at seq 0 and queues every event since each subscription was created (sent once its secret is rotated; receivers dedupe on the event id). A safer default could be to start the cursor at the restored head and use `tl webhook replay` for ranges a receiver missed. The restore warns and the runbooks say to disable a subscription until its receiver is ready.
+- Ruled and done (S17): after a restore the webhook dispatcher cursor starts at the restored head, so history is not queued again; `tl webhook replay ID --from-seq N --to-seq M` covers a range a receiver may have missed (named in the warning and the runbook).
 
 ## Learnings
-Appended L-P0-I7-A1 to A11 to `docs/memory/LEARNINGS.md`: promoted columns on restore (A1), crash-safe sealing (A2), `types.py` module name (A3), sibling tickets and fixtures (A4), egress and downloads (A5), three review rules (A6), deep database verification (A7), drill mechanics (A8), webhook secrets after restore (A9, A10), WAL sidecars and runbook tickets (A11). Implementer proposals declined: none; the `^ *```` checker note was folded into A11.
+Appended L-P0-I7-A1 to A12 to `docs/memory/LEARNINGS.md`: promoted columns on restore (A1), crash-safe sealing (A2), `types.py` module name (A3), sibling tickets and fixtures (A4), egress and downloads (A5), three review rules (A6), deep database verification (A7), drill mechanics (A8), webhook secrets after restore (A9, A10), WAL sidecars and runbook tickets (A11), dispatcher cursor after a restore (A12). Implementer proposals declined: none; the `^ *```` checker note was folded into A11.
 
 ## Docs
 - Runbooks: `docs/runbooks/{ledger-archive-and-verify,restore-from-archive,pgbackrest-restore,sqlite-backup-and-litestream}.md`; index and `webhook-operations.md` updated.
@@ -78,7 +79,6 @@ Appended L-P0-I7-A1 to A11 to `docs/memory/LEARNINGS.md`: promoted columns on re
 
 ## Follow-ups filed
 - Human: production key custody (KMS, HSM), retention classes and object lock for the archive (brief 24.3).
-- Decide the dispatcher cursor after a restore (above).
 - Not exercised by the drills: pgBackRest point-in-time recovery, incremental and differential backups, the encrypted S3 repository, a MinIO Litestream replica.
 - The `tl webhook`, `tl file` and root `--db` take a SQLite path only; a Postgres operator needs the API (P0-I4) for those.
 - The lake can rebuild from segments (`events.parquet` has the bronze shape); WS-B owns that path.

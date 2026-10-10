@@ -75,10 +75,14 @@ Purpose: operate outbound webhooks: find and redrive dead letters, replay events
 - The event catalog: `packages/tl-schema/src/tl_schema/generated/docs/event-catalog.md`.
 
 ## After a restore from the ledger archive
-A restored database has its subscriptions (status `active`) but no signing secrets (secrets are never in the ledger) and no delivery state. `uv run tl webhook ls` shows such a subscription as `needs_secret`; the worker sends nothing for it, dead-letters nothing, and logs one warning per subscription per cycle. Its deliveries stay pending. Issue a secret for each, give it to the receiver, then the pending deliveries go out signed:
+A restored database has its subscriptions (status `active`) but no signing secrets (secrets are never in the ledger) and no delivery state. `uv run tl webhook ls` shows such a subscription as `needs_secret`; the worker sends nothing for it, dead-letters nothing, and logs one warning per subscription per cycle. Events written after the restore queue as pending deliveries and wait for the secret. Issue a secret for each subscription and give it to the receiver; the pending deliveries then go out signed:
 ```
 uv run tl webhook rotate-secret <subscription id> --project P123
 uv run tl webhook run --once
 ```
-The dispatcher also restarts from seq 0, so events since each subscription was created are queued again and sent once its secret exists; receivers dedupe on the event id. To avoid that, disable the subscription (`uv run tl webhook disable <subscription id> --project P123`) until the receiver is ready, or replay only the range it needs. The restore prints this as `warning:` lines (see `restore-from-archive.md`).
-
+The restore starts the dispatcher cursor at the restored head, so history up to that seq is not queued again. A receiver may still have missed events between its last delivery and the restore point (the restore only brings back what the archive holds). Replay that range once the secret exists; the restore warning prints the head as the upper bound:
+```
+uv run tl webhook replay <subscription id> --from-seq N --to-seq M
+uv run tl webhook run --once
+```
+Receivers dedupe on the event id, so a replay that overlaps what they already have is safe. To keep a subscription quiet until its receiver is ready, disable it (`uv run tl webhook disable <subscription id> --project P123`). The restore prints these points as `warning:` lines (see `restore-from-archive.md`).
