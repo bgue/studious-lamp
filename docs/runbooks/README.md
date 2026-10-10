@@ -18,4 +18,4 @@ Operational procedures, one file per alert or recovery path (§24.6). Template: 
 - `sqlite-backup-and-litestream.md` — SQLite snapshots and Litestream replication (P0-I7).
 - `object-store-reconciliation.md` — compare the ledger's file hashes with the object store (P0-I4).
 - `postgres-local-setup.md` — start Postgres, run the parity suite, clean up after a killed run (P0-I5).
-
+- `performance-benches.md` — seed 100k records, run the §15 benches on SQLite and Postgres, read the numbers (P0-I8).
