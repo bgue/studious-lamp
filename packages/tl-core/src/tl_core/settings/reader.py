@@ -47,7 +47,7 @@ _Key = tuple[str, str | None, str | None]
 class UowOpener(Protocol):
     """``factory(readonly=...)`` as every server-side unit-of-work factory has it."""
 
-    def __call__(self, readonly: bool = False) -> AbstractContextManager[Any]: ...
+    def __call__(self, *, readonly: bool = False) -> AbstractContextManager[Any]: ...
 
 
 def conn_factory_from(factory: UowOpener) -> ConnFactory:
