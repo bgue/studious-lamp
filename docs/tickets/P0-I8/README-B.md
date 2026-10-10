@@ -75,6 +75,7 @@ the record quarantined; `tl types quarantine ls` shows it; storing the body agai
 | P0-I8-T22 | MCP: `list_record_types`, `get_record_type`, `get_record_body`, `tl://types` resources | haiku | S23, S24 | merged | implementation passed; provided test corrected by supervisor (pyright: `assert row is not None`) |
 | P0-I8-T23 | `ApiClient` type and body methods (9 provided tests) | haiku | T21 | merged | implementation passed; provided test corrected by supervisor (pyright, L-P0-I8B-7) |
 | P0-I8-T26 | `tl types quarantine ls\|recheck` (8 provided tests) | haiku | S23, T20 | review-only (implementation done at 37b3920; the red test it hit was on the base) | |
+| P0-I8-T27 | TUI: `extension_body` and the `ExtensionEditForm` modal for an object-backed body (15 provided tests) | haiku | S33, T25 | ready | |
 | P0-I8-T24 | TUI: `extension_columns` (grid columns from `form.yaml`, newest active form of a type; 9 provided tests) | haiku | S33 | merged | pass, 1 round, no findings |
 | P0-I8-T25 | TUI: `extension_fields` and the `ExtensionRecordForm` modal (18 provided tests) | haiku | S33 | merged | pass, 1 round; three open questions ruled below |
 
