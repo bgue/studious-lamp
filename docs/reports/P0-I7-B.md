@@ -22,7 +22,7 @@ Objective met for everything that does not depend on P0-I4 or workstream A: yes.
 | P0-I7-T20 `tl lake` commands | merged | 1 (pass) | `status` also treats `synced_at is None` as uninitialised (type narrowing), accepted |
 | P0-I7-T21 demo queries | merged | 1 (pass) | reviewer mutation-checked an ORDER BY |
 | P0-I7-T22 runbook | taken over | 1 (escalate) | unanswered business-hours question and process wording; orchestrator ruled, supervisor finished (29a1242) |
-| P0-I7-T23 runbook section for `lake_query` over MCP | dispatched | | the code part (register the tool) failed Haiku-ability row 6 (public interface of `tl_mcp`), so the supervisor built it as S8 |
+| P0-I7-T23 runbook section for `lake_query` over MCP | merged | 1 (pass) | the code part (register the tool) failed Haiku-ability row 6 (public interface of `tl_mcp`), so the supervisor built it as S8 |
 
 ## Gates
 | Gate | Result |

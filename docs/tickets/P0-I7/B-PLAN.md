@@ -33,7 +33,7 @@ It seeds a small ledger, runs `tl lake sync`, `tl lake status`, the queries in `
 | P0-I7-T20 | `tl lake` commands | haiku | S1–S3 | merged | merged, 1 review round (pass) |
 | P0-I7-T21 | Lake demo queries and their test | haiku | S1–S3 | merged | merged, 1 review round (pass) |
 | P0-I7-T22 | Runbook: lake sync and `lake_query` | haiku | — | merged | taken-over: the reviewer escalated an unanswered business-hours question and authoring-process wording; the orchestrator ruled, the supervisor finished it on the ticket branch |
-| P0-I7-T23 | Runbook section: `lake_query` over MCP | haiku | S8 | ready | The code part of the original T23 (register the tool) failed checklist row 6 (it adds a parameter to the public `tl_mcp.build_server` and a tool to the MCP surface), so the supervisor built it as S8 |
+| P0-I7-T23 | Runbook section: `lake_query` over MCP | haiku | S8 | merged | merged, 1 review round (pass); the supervisor also updated step 4's tool list; The code part of the original T23 (register the tool) failed checklist row 6 (it adds a parameter to the public `tl_mcp.build_server` and a tool to the MCP surface), so the supervisor built it as S8 |
 
 Haiku-ability checklist (`01-tiers.md` §6), each ticket: files to read ≤ 6, interfaces already in the repo, a test or acceptance commands, diff ≤ 400 lines over ≤ 5 files, none of
 the Sonnet-authored rows, no `schema/**`, migration, dependency or public-interface change, verifiable from the diff and commands. T20: 3 files read, stub and provided test in the
