@@ -9,6 +9,7 @@ schemas, the text agents read, and error handling.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Annotated
 
 from mcp.server.mcpserver import MCPServer
@@ -20,19 +21,27 @@ from tl_api.tokens import check_actor
 from tl_core.query.parser import MAX_QUERY_LENGTH
 from tl_core.services.link_queries import LinkView
 from tl_core.services.link_trace import TraceDirection, TraceNode
+from tl_lake import LakeConfig, LakeQueryService
+from tl_lake.guard import MAX_SQL_CHARS
 
 from tl_mcp import resources, tools
 from tl_mcp.context import Authorizer, McpContext, UowFactory
 from tl_mcp.errors import MAX_PART, guarded, resource_name
-from tl_mcp.models import SearchResult
+from tl_mcp.models import LakeQueryOutput, SearchResult
 
 INSTRUCTIONS = (
     "Read-only access to a Throughline construction ledger. Records live in a scope: `company` or "
     "`project:<id>`. Use `search_records` with the query language (for example "
     "`status:Review linked:NCR`), then `get_record`, `get_links` and `trace` with a record id or a "
-    "key plus its scope. Resources: tl://record/{scope}/{key}, tl://schema/{scope}/{record_type}, "
-    "tl://relations."
+    "key plus its scope. For analytics over everything (counts, trends, joins) use `lake_query`, "
+    "read-only SQL over the lake copy; read `tl://lake/schema` for its tables first. Resources: "
+    "tl://record/{scope}/{key}, tl://schema/{scope}/{record_type}, tl://relations, "
+    "tl://lake/schema."
 )
+
+LAKE_DEFAULT_LIMIT = 100
+LAKE_MAX_LIMIT = 1000
+LAKE_MAX_BYTES = 1024 * 1024  # an agent's context is smaller than the service's own 8 MiB cap
 
 MAX_ORDER_BY = 256
 
@@ -64,11 +73,25 @@ ScopeForKey = Annotated[
 
 
 def build_server(
-    factory: UowFactory, *, actor: str, authorize_hook: Authorizer = authorize
+    factory: UowFactory,
+    *,
+    actor: str,
+    authorize_hook: Authorizer = authorize,
+    lake_dir: str | Path | None = None,
 ) -> MCPServer:
-    """An MCP server over ``factory`` acting as ``actor`` (``agent:<id>`` or ``user:<id>``)."""
+    """An MCP server over ``factory`` acting as ``actor`` (``agent:<id>`` or ``user:<id>``).
+
+    ``lake_dir`` is the DuckLake directory ``lake_query`` reads (default ``TL_LAKE_DIR``, else
+    ``./dev/data/lake``). The lake is opened per call, so it may not exist yet.
+    """
     check_actor(actor)
-    ctx = McpContext(factory=factory, actor=actor, authorize=authorize_hook)
+    lake = LakeQueryService(
+        LakeConfig.at(lake_dir),
+        default_limit=LAKE_DEFAULT_LIMIT,
+        max_limit=LAKE_MAX_LIMIT,
+        max_bytes=LAKE_MAX_BYTES,
+    )
+    ctx = McpContext(factory=factory, actor=actor, authorize=authorize_hook, lake=lake)
     server = MCPServer("throughline", instructions=INSTRUCTIONS)
 
     @server.tool(annotations=READ_ONLY)
@@ -135,6 +158,46 @@ def build_server(
             return tools.trace_impl(
                 ctx, record=record, scope=scope, depth=depth, direction=direction
             )
+
+    @server.tool(annotations=READ_ONLY)
+    def lake_query(
+        sql: Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=MAX_SQL_CHARS,
+                description="One SELECT statement over the lake tables (see tl://lake/schema).",
+            ),
+        ],
+        limit: Annotated[
+            int, Field(ge=1, le=LAKE_MAX_LIMIT, description="Maximum rows to return.")
+        ] = LAKE_DEFAULT_LIMIT,
+    ) -> LakeQueryOutput:
+        """Run read-only SQL over the analytics copy of the ledger (the DuckLake lake).
+
+        Tables: `events` (bronze, every ledger event), `cur_core_record`, `links` and
+        `pset_values` (silver, the current state, including promoted `pset__<pset>__<property>`
+        columns) and `_tl_sync` (one row per sync). Only one SELECT (or WITH ... SELECT) is
+        allowed: no DDL, DML, ATTACH, INSTALL, LOAD, COPY, PRAGMA, SET or stacked statements, and
+        no file functions such as `read_csv`. The answer says which ledger seq the lake reflected
+        (`as_of_seq`), and the lake can be behind the ledger until the next sync. Time travel:
+        `FROM cur_core_record AT (VERSION => <snapshot_id>)`. Rows are limited (default 100, at most
+        1000) and the size of the answer is capped; `truncated` says when rows were left out. Every
+        call is logged with your actor.
+        """
+        with guarded(ctx, "lake_query", resource_name("lake", "main")):
+            return tools.lake_query_impl(ctx, sql=sql, limit=limit)
+
+    @server.resource(
+        "tl://lake/schema",
+        name="lake_schema",
+        title="Lake tables and columns",
+        description="The tables and columns `lake_query` can read, as JSON.",
+        mime_type="application/json",
+    )
+    def lake_schema_resource() -> str:
+        with guarded(ctx, "resource.lake_schema", "tl://lake/schema", error=ResourceError):
+            return resources.lake_schema_resource(ctx)
 
     @server.resource(
         "tl://record/{scope}/{key}",

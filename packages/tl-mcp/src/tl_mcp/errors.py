@@ -18,6 +18,7 @@ from tl_api.errors import ApiError
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
 from tl_core.services.errors import ServiceError
+from tl_lake import GuardError, LakeError
 
 from tl_mcp.context import McpContext
 
@@ -26,6 +27,8 @@ def describe(exc: BaseException) -> str:
     """One line an agent can act on."""
     if isinstance(exc, QuerySyntaxError):
         return f"query syntax error at position {exc.position}: {exc}"
+    if isinstance(exc, GuardError):
+        return f"refused: {exc}"
     if isinstance(exc, ValidationError):
         return "; ".join(f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors())
     return str(exc) or exc.__class__.__name__
@@ -71,7 +74,7 @@ def guarded(
         raise
     except Forbidden as exc:
         raise error(f"not allowed: {exc}") from exc
-    except (ServiceError, ConcurrencyError, ValidationError, ValueError) as exc:
+    except (ServiceError, ConcurrencyError, ValidationError, ValueError, LakeError) as exc:
         raise error(describe(exc)) from exc
     except ApiError as exc:  # the shared query-parameter helpers raise this
         raise error(exc.message) from exc

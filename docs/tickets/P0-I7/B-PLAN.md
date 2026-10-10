@@ -24,6 +24,7 @@ It seeds a small ledger, runs `tl lake sync`, `tl lake status`, the queries in `
 | S2 | `lake_query` guard (`guard.py`) | Security-sensitive, open to agents (FANOUT D6) | orchestrator or human | merged on `p0/i7b` |
 | S3 | `lake_query` service (`query.py`): sandbox, row limit, timeout, audit log | Same | orchestrator or human | merged on `p0/i7b` |
 | S5 | `dev/demos/P0-I7-lake.sh` (standalone, or included with `TL_DB`/`TL_LAKE_DIR` set) | Demo script | — | merged on `p0/i7b` |
+| S8 | `lake_query` MCP tool and `tl://lake/schema` resource in `tl_mcp` (`build_server(lake_dir=)`, `--lake-dir`), tests | Public interface of another package; security-adjacent | orchestrator or human | merged on `p0/i7b` |
 | S4 | Property test: incremental equals full rebuild; test scaffolds; CLI stub and provided test | Test scaffolds first | — | merged on `p0/i7b` |
 
 ## Tickets
@@ -32,7 +33,7 @@ It seeds a small ledger, runs `tl lake sync`, `tl lake status`, the queries in `
 | P0-I7-T20 | `tl lake` commands | haiku | S1–S3 | merged | merged, 1 review round (pass) |
 | P0-I7-T21 | Lake demo queries and their test | haiku | S1–S3 | merged | merged, 1 review round (pass) |
 | P0-I7-T22 | Runbook: lake sync and `lake_query` | haiku | — | merged | taken-over: the reviewer escalated an unanswered business-hours question and authoring-process wording; the orchestrator ruled, the supervisor finished it on the ticket branch |
-| P0-I7-T23 | `lake_query` MCP tool registration | haiku | P0-I4 on the trunk | draft (deferred) | |
+| P0-I7-T23 | Runbook section: `lake_query` over MCP | haiku | S8 | ready | The code part of the original T23 (register the tool) failed checklist row 6 (it adds a parameter to the public `tl_mcp.build_server` and a tool to the MCP surface), so the supervisor built it as S8 |
 
 Haiku-ability checklist (`01-tiers.md` §6), each ticket: files to read ≤ 6, interfaces already in the repo, a test or acceptance commands, diff ≤ 400 lines over ≤ 5 files, none of
 the Sonnet-authored rows, no `schema/**`, migration, dependency or public-interface change, verifiable from the diff and commands. T20: 3 files read, stub and provided test in the
@@ -42,7 +43,7 @@ supervisor built them. The `tl-cli` dependency on `tl-lake` (and `uv.lock`) is a
 ## Order of work
 1. S1 to S4 (done), then T20, T21 and T22 in parallel (disjoint paths).
 2. After they merge: `dev/demos/P0-I7-lake.sh`, `tl-lake` README, learnings.
-3. After P0-I4 is on the trunk and merged here: T23 (MCP registration), then the final demo and report after WS-A merges.
+3. P0-I4 is merged in: S8 (MCP tool) done, T23 (runbook) dispatched; the final demo and report follow after WS-A merges.
 
 ## Risks and escalation triggers
 - DuckLake is young (R13). The extension version is pinned to the `duckdb` wheel; the fallback is plain Parquet plus views.

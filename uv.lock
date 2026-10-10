@@ -2666,6 +2666,7 @@ dependencies = [
     { name = "tl-adapters" },
     { name = "tl-api" },
     { name = "tl-core" },
+    { name = "tl-lake" },
     { name = "tl-schema" },
 ]
 
@@ -2676,6 +2677,7 @@ requires-dist = [
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-lake", editable = "packages/tl-lake" },
     { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 
