@@ -336,3 +336,9 @@ test or a generated artefact already enforces, or narrative history (that belong
   re-creates its own detached worktree. Resume reviewers and supervisors with SendMessage, and tell them their
   background test runs are gone.
   Evidence: second restart during P0-I4/I5; resumed three workflows and four agents. Status: active
+- **L-P0-I5-O4** · 2026-10-10 · tags: process, budget
+  At about 6 h into the run, with 7 supervisors and reviewers plus 3 workflows in flight, the account hit its usage
+  limit. Every running subagent died with HTTP 429 ("session limit, resets <time>"). After the reset, workflows resume
+  as after a restart (L-P0-I5-O3): finished calls replay from the journal. Lesson: cap concurrency at about 3 or 4
+  active supervisors or workflows, and finish increments on the critical path before starting later ones.
+  Evidence: P0-I4, P0-I5 and P0-I7 batches failed together at 00:10 UTC reset notice. Status: active
