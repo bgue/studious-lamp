@@ -1,23 +1,43 @@
+# CI gates of docs/build-spec/04-gates.md section 1. Each job runs the same `just` recipe a developer
+# runs. This file was reviewed against the gate table in P0-I8-S44; GitHub Actions cannot be run in
+# the build container, so every job's commands were run locally and the YAML was only parsed.
 name: ci
 
 on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 3 * * *" # nightly: the gates that are path-conditional on a PR run unconditionally
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TL_ENV: dev # the dev object-store secret is public; never set this to anything real in CI
 
 jobs:
+  # Lint, format, types, codegen drift, OpenAPI drift, licences (just check), then the SQLite suite.
   check-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - uses: extractions/setup-just@v2
-      - run: uv sync --all-packages
+      - run: uv sync --all-packages --locked
       - run: just check
       - run: just test
 
+  # SQLite and Postgres run the same tests. Required when packages/tl-adapters or tl_core/ledger
+  # changed (a PR cannot skip it by path, so it always runs); budget from L-P0-I5-A9.
   parity:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16
@@ -37,5 +57,54 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - uses: extractions/setup-just@v2
-      - run: uv sync --all-packages
+      - run: uv sync --all-packages --locked
       - run: just test-parity
+
+  # TUI widget and snapshot tests (gate "TUI snapshots").
+  test-tui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: extractions/setup-just@v2
+      - run: uv sync --all-packages --locked
+      - run: just test-tui
+
+  # Gate "Projection determinism": replay twice gives identical projections.
+  projection-determinism:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: extractions/setup-just@v2
+      - run: uv sync --all-packages --locked
+      - run: just test tests/property -k projection
+
+  # Gate "Contract tests": API, MCP and webhooks against the event catalog.
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: extractions/setup-just@v2
+      - run: uv sync --all-packages --locked
+      - run: just test tests/contract
+
+  # Gate "Security scan": a secret tripwire over tracked files and a dependency audit. The licence
+  # check (GPL/LGPL/AGPL, missing licence) is part of `just check`.
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: extractions/setup-just@v2
+      - run: uv sync --all-packages --locked
+      - run: just scan-secrets
+      - run: just audit-deps
+
+  # Not wired yet: the gate "Schema classification" (`tl schema classify --base origin/main`) has no
+  # command to run; the classifier is a Phase 1 deliverable. See docs/reports/P0-I8-C.md.

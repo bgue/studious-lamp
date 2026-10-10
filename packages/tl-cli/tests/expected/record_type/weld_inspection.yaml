@@ -1,0 +1,26 @@
+id: https://example.org/throughline/modules/inspection/weld_inspection
+name: tl_mod_inspection_weld_inspection
+title: inspection.WeldInspection
+description: >-
+  TODO: what a WeldInspection is. Spec: docs/modules/inspection/weld_inspection.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: inspection
+classes:
+  WeldInspection:
+    is_a: RecordEnvelope
+    description: >-
+      TODO: what a WeldInspection is.
+    annotations:
+      tl:current_state: true
+    attributes:
+      example_field:
+        description: "TODO: replace this example with the fields of the type."

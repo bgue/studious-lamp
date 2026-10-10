@@ -255,3 +255,54 @@ def test_an_agent_token_cannot_write_files(harness: Harness) -> None:
 def test_the_rule_does_not_hide_a_missing_token(harness: Harness) -> None:
     anon = harness.client_for(None)
     assert anon.post("/commands/CreateRecord", json={}).status_code == 401
+
+
+# --- simulated time on a decision (FANOUT D5) ---------------------------------------------------
+
+SIM = "project:sim-r1"
+AT = "2026-11-02T09:30:00Z"
+
+
+def test_a_decision_in_a_simulation_scope_takes_the_simulated_time(harness: Harness) -> None:
+    proposal = propose_create(harness, "SIM-1", scope=SIM)
+    done = harness.client.post(
+        f"/proposals/{proposal.proposal_id}/accept", headers={"X-TL-Effective-At": AT}
+    )
+    assert done.status_code == 200, done.text
+    history = harness.client.get(f"/records/{done.json()['result_stream_id']}/history").json()
+    assert history[0]["effective_at"].startswith("2026-11-02T09:30:00")
+    events = harness.client.get("/events", params={"scope": SIM}).json()["events"]
+    accepted = [e for e in events if e["event_type"] == "Proposal.Accepted"]
+    assert accepted and accepted[0]["effective_at"].startswith("2026-11-02T09:30:00")
+    created = [e for e in events if e["event_type"] == "Proposal.Created"]
+    assert created[0]["effective_at"] == created[0]["recorded_at"]  # the agent's call is real time
+
+
+def test_a_rejection_in_a_simulation_scope_takes_the_simulated_time(harness: Harness) -> None:
+    proposal = propose_create(harness, "SIM-2", scope=SIM)
+    done = harness.client.post(
+        f"/proposals/{proposal.proposal_id}/reject",
+        json={"reason": "no"},
+        headers={"X-TL-Effective-At": AT},
+    )
+    assert done.status_code == 200, done.text
+    events = harness.client.get("/events", params={"scope": SIM}).json()["events"]
+    rejected = [e for e in events if e["event_type"] == "Proposal.Rejected"]
+    assert rejected and rejected[0]["effective_at"].startswith("2026-11-02T09:30:00")
+
+
+def test_the_header_is_refused_for_a_real_project_and_nothing_is_decided(
+    harness: Harness,
+) -> None:
+    proposal = propose_create(harness)
+    refused = harness.client.post(
+        f"/proposals/{proposal.proposal_id}/accept", headers={"X-TL-Effective-At": AT}
+    )
+    assert refused.status_code == 400 and refused.json()["error"] == "effective_time_forbidden"
+    again = harness.client.post(f"/proposals/{proposal.proposal_id}/accept")
+    assert again.status_code == 200  # still pending: the refusal decided nothing
+
+
+def test_an_unknown_proposal_with_the_header_is_a_404(harness: Harness) -> None:
+    gone = harness.client.post("/proposals/01NOSUCH/accept", headers={"X-TL-Effective-At": AT})
+    assert gone.status_code == 404

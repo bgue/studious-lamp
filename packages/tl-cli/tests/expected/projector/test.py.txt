@@ -1,0 +1,56 @@
+"""Tests for the projector: it counts its events, and a rebuild gives the same rows."""
+
+from __future__ import annotations
+
+import sqlite3
+from pathlib import Path
+
+from tl_adapters.sqlite.uow import create_schema, open_uow, rebuild_projections
+from tl_core.ledger import NewEvent
+from tl_core.projection import InMemoryRegistry
+from tl_mod_inspection.projectors.weld_counts import (
+    TABLE,
+    WeldCountsProjector,
+)
+
+
+def rows(db: Path) -> list[tuple[str, int, int]]:
+    with sqlite3.connect(db) as con:
+        found = con.execute(f"SELECT stream_id, n, last_seq FROM {TABLE} ORDER BY stream_id")
+        return [(str(a), int(b), int(c)) for a, b, c in found.fetchall()]
+
+
+def append(db: Path, registry: InMemoryRegistry, stream: str, event_type: str) -> None:
+    with open_uow(db, registry=registry) as uow:
+        uow.append(
+            stream_id=stream,
+            stream_type="inspection.Test",
+            scope="project:P1",
+            expected_version=uow.ledger.stream_version(stream),
+            events=[NewEvent(event_type=event_type, payload={})],
+            actor="user:test",
+            source="test",
+            correlation_id="c-" + stream,
+        )
+
+
+def test_it_counts_the_events_it_handles_and_ignores_others(tmp_path: Path) -> None:
+    db = tmp_path / "tl.db"
+    registry = InMemoryRegistry([WeldCountsProjector()])
+    create_schema(db, registry=registry)
+    append(db, registry, "s1", "Weld.Created")
+    append(db, registry, "s1", "Weld.Created")
+    append(db, registry, "s2", "Weld.Created")
+    append(db, registry, "s2", "Other.Thing")
+    assert [(stream, n) for stream, n, _ in rows(db)] == [("s1", 2), ("s2", 1)]
+
+
+def test_a_rebuild_gives_the_same_rows(tmp_path: Path) -> None:
+    db = tmp_path / "tl.db"
+    registry = InMemoryRegistry([WeldCountsProjector()])
+    create_schema(db, registry=registry)
+    for stream in ("s1", "s2", "s1"):
+        append(db, registry, stream, "Weld.Created")
+    before = rows(db)
+    assert rebuild_projections(db, registry=registry) == 3
+    assert rows(db) == before

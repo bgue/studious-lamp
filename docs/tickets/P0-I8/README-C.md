@@ -1,0 +1,72 @@
+# Increment plan — P0-I8 workstream C: agent-dev baseline
+
+Status: done
+Supervisor session: 2026-10-10
+Brief sections: §25.1 to §25.4 (agent affordances, scaffolding CLI, dev MCP server, gates); build spec `04-gates.md` §1
+Branch: `p0/i8c` (base `p0/i8`); ticket ids `P0-I8-T40` to `T59`, supervisor pieces `P0-I8-S4n`
+
+## Objective
+Coding agents can inspect the running system and scaffold new work without breaking the gates. This workstream builds the dev MCP server (`python -m tl_mcp.dev`, stdio, dev data only) with its tools and resources, the `tl new module|record-type|projector` scaffolders, an audit of every package's README.md and AGENTS.md against the code, a review of the CI workflow against `04-gates.md` §1, and a runbook for the dev server. Settings (workstream A) and extension types (workstream B) are built in parallel and are not touched.
+
+## Demo
+`just demo P0-I8-C` (script `dev/demos/P0-I8-C.sh`):
+1. creates a temporary ledger and a few records;
+2. starts `python -m tl_mcp.dev` and talks MCP to it over stdio: lists the tools, runs `query_db`, `gen`, `rebuild_projections`, `render_screen`, `send_test_webhook` (to a loopback receiver the demo starts), reads a resource, and shows a refusal for a database outside `dev/` and a non-SELECT statement;
+3. runs `tl new module`, `tl new record-type` and `tl new projector` into a temporary tree and shows that ruff and the generated tests pass.
+
+## Decisions taken in this workstream
+| # | Decision | Why |
+|---|---|---|
+| C1 | `tl new module <name>` creates `packages/tl-modules/<name>` (distribution `tl-mod-<name>`, import `tl_mod_<name>`), as `03-repo-and-toolchain.md` §1 says. The root `pyproject.toml` workspace becomes `members = ["packages/*", "packages/tl-modules/*"]` with `exclude = ["packages/tl-modules"]`. | Without the exclude, `uv` refuses the bare `packages/tl-modules` directory (`error: Workspace member ... is missing a pyproject.toml (matches: packages/*)`). Proved in the repository: scaffold a module, a record type and a projector, `uv lock`, `uv sync --all-packages`, `just check` clean and the 6 generated tests pass; then removed. The same lock works with no modules present. (An earlier plan used `packages/tl-mod-<name>`; the orchestrator ruled for the spec layout.) |
+| C2 | `tl new projector` scaffolds a derived table `proj_<module>_<name>`, never a `cur_*` table. | Root rule 4: current-state DDL is generated. A record type's `cur_<module>_<class>` table comes from `tl new record-type` plus `just gen`, which does not read `schema/modules/` yet (Phase 1). |
+| C3 | The dev-data guard is stricter than D12 in three places: a Postgres host must be this machine; a Postgres URL may carry only the `options=-csearch_path=<schema>` parameter; `TL_ENV` must be unset, `dev`, `test` or `ci`. | A `tl_dev` database on a remote host, or a URL parameter that redirects the connection, is still not dev data. |
+| C4 | `query_db` is SQLite only in Phase 0; a Postgres dev target is refused with a message naming the follow-up. The Postgres guard built first (DuckDB parse tree, function deny-list) was dropped after the security review: `ts_stat` and `ts_rewrite` run a SQL string server-side, so a denied name split with `\|\|` defeats any screen of the text, and the dev Postgres URL is the superuser. | A deny-list cannot cover Postgres's function surface. A safe version needs a non-superuser reader role (`tl_dev_reader`, no `wh_secret`, checked after connecting) and a function allow-list; filed as a follow-up. `rebuild_projections`, `run_tests` and `seed` may still use `tl_test`/`tl_dev`. `tl-mcp` no longer declares `duckdb`. |
+| C5 | `wh_secret` (webhook signing secrets) cannot be read through `query_db` on either dialect. | Secrets never enter the ledger or tool output; the table is the one place they live. |
+| C6 | The audit of AGENTS.md and README.md is a repeatable tool (`dev/tools/audit_docs.py`) plus a supervisor read of each rule against the code it names. | A mechanical check finds dead references; only a read finds a rule that no longer describes the code. |
+
+## Supervisor-built pieces (in order)
+| # | Piece | Why supervisor-tier | Reviewer | Status |
+|---|---|---|---|---|
+| S41 | Dev MCP server core: `tl_mcp/dev/` guard, SQL guard, `query_db`, runtime, server, entry point, tests | Security guard for what agents may touch (Sonnet-authored, auth-adjacent); orchestrator relay review in fresh context, security focus | fresh reviewer, then orchestrator | done |
+| S42 | `tl new` scaffold engine and `tl new module` | Shared engine two tickets build on; writes files into the repository | reviewer | done |
+| S43 | Docs audit tool and the AGENTS.md audit | Cross-package read | self | done |
+| S44 | CI workflow review against `04-gates.md` §1 | Gates policy | self | done |
+| S45 | Runbook `docs/runbooks/dev-mcp.md`, package READMEs and AGENTS.md for `tl-mcp` and `tl-cli`, learnings | Needs every tool merged | self | done |
+| S46 | Integration test, demo `dev/demos/P0-I8-C.sh`, report `docs/reports/P0-I8-C.md` | Closes the workstream | self | done |
+
+## Tickets
+| ID | Title | Tier | Depends | Status | Outcome |
+|---|---|---|---|---|---|
+| T40 | `run_tests` tool | haiku | S41 | merged | 1 review round; 15 tests |
+| T41 | `gen` tool (drift report) | haiku | S41 | merged | 1 review round; 8 tests |
+| T42 | `rebuild_projections` tool | haiku | S41 | merged | 1 review round; 7 tests; Postgres test reconciled with C4 at merge |
+| T43 | `seed` tool | haiku | S41 | merged | 1 review round; 7 tests; API cleanup after a kill added by the supervisor |
+| T44 | `send_test_webhook` tool | haiku | S41 | merged | 1 review round; 20 tests; userinfo redaction and IPv6 brackets added by the supervisor |
+| T45 | `render_screen` tool | haiku | S41 | merged | 1 review round; 28 tests; deviations accepted (Path.as_uri, key-name check, svg_truncated default) |
+| T46 | resources: schema graph and event catalog | haiku | S41 | merged | 1 review round |
+| T47 | resources: ADRs, runbooks, test reports | haiku | S41 | merged | 1 review round |
+| T48 | `tl new record-type` | haiku | S42 | merged | 1 review round |
+| T49 | `tl new projector` | haiku | S42 | merged | 1 review round |
+| T50 | docs: modules the audit found undocumented (tl-api, tl-lake, tl-sim, tl-cli) | haiku | S43 | merged | 1 review round |
+
+Batches (concurrency cap 3, disjoint *Allowed paths*, dependencies already merged): T40 + T41 + T42; then T43 + T44 + T45; then T46 + T47 + T48; then T49 + T50. T48 and T49 have provided tests (`packages/tl-cli/tests/test_cli_new_record_type.py`, `test_cli_new_projector.py`) and expected output files; the supervisor ran both against a reference implementation (not committed) before dispatch (L-P0-I6A-5).
+
+## Haiku-ability checklist (`01-tiers.md` §6)
+Run on every ticket. T40 to T47: files read 5 plus the ticket (yes); interfaces already in the repo (yes); acceptance commands with expected output and the test behaviours listed (yes); diff about 150 to 350 lines in 2 to 4 files (yes); none of the Sonnet-authored areas (the guard that those tools lean on is S41, not theirs) (yes); no `schema/**`, migration, dependency or public-interface change (yes; the `tl-tui` and `duckdb` dependencies were added by S41); reviewable from diff and commands (yes). T48, T49: provided tests, 4 to 6 files read, the templates are a mechanical rename of provided files (yes to all). T50: four README edits of pasted rows (yes).
+
+## Order of work
+1. S41 and S42 (done), S43 tool (done), tickets T40 to T42, first relay (S41 goes to the security review at the same time).
+2. While batch 1 runs: nothing (relay); on return merge, fix review findings on S41, write T43 to T45, run the AGENTS.md semantic audit.
+3. Batches 2 to 4, S44 (CI), S45 (docs), S46 (integration, demo, report).
+
+## Risks and escalation triggers
+- Postgres `query_db` was removed after the security review (C4). T42's Postgres test must read the rebuilt rows with a direct SQLAlchemy query, not `query_db`; the supervisor fixes that when merging T42.
+- `render_screen` starts a Textual app headless inside the server process; if it cannot run without a terminal, the ticket is re-scoped to a subprocess (supervisor decision, recorded here).
+- `tl new` writes into the repository; every run is all-or-nothing and never overwrites.
+- Another workstream edits `packages/tl-cli/src/tl_cli/main.py` (A adds `config`, B adds `types`); the merge conflict is one import line and one `add_typer` line.
+- GitHub Actions cannot be run here: the CI review is checked by running each job's commands locally, and the report says so.
+
+## Blocked / Decision
+- `gen` with `apply=true` (T41): `drift`, `diff` and `in_sync` describe the state **after** the write; `applied` says a write happened. An agent that wants the drift before writing calls `gen` first without `apply`.
+- Schema-level rejections (T40: a marker outside the `Literal`, a 21st path) are `ToolError`s from the SDK before the tool body runs, so they have no audit line. Guard refusals (`DevGuardError`) are audited as `refused`. Accepted: the schema rejects what could not reach any guard.
+- Residual (LOW, from the S41 re-review): `run_tests` and `seed` hand the superuser `TL_PG_URL` to their child processes by design (tests and the seed script need it). `run_tests` checks the database name against the dev rule first. Follow-up with C4: a non-superuser reader role for dev tools.

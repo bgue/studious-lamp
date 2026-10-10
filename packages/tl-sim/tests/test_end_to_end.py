@@ -38,6 +38,9 @@ class SuiteConnector:
     def __init__(self, suite: Suite, run_id: str = RUN_ID) -> None:
         self.suite, self.run_id = suite, run_id
 
+    def check(self, scenario: Scenario) -> None:
+        return None  # the MCP server is in memory on the suite's ledger
+
     def provision(self, identities: Sequence[str]) -> dict[str, str]:
         return {identity: self.suite.tokens[identity] for identity in identities}
 

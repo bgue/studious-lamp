@@ -23,14 +23,14 @@ from typing import Any, Protocol
 from tl_sim import groundtruth as gt
 from tl_sim.actors.base import Recorder
 from tl_sim.actors.registry import actors_of
-from tl_sim.assertions import AssertionReport, run_assertions
+from tl_sim.assertions import AssertionReport, Expected, run_assertions
 from tl_sim.client import Keys
 from tl_sim.clock import SimClock, day_start, seed_time, working_date
 from tl_sim.injections import injected_actor
 from tl_sim.orchestrator_names import ASSISTANT, ORCHESTRATOR
 from tl_sim.reader import SimReader
 from tl_sim.rng import actor_rng
-from tl_sim.scenario import ROLE_NAMES, InjectSpec, Scenario, Template
+from tl_sim.scenario import ROLE_NAMES, InjectSpec, Scenario, Template, guaranteed
 from tl_sim.state import RunError, RunInterruptedError, RunState, RunStore
 from tl_sim.types import Actor, GroundTruth, SimClient, SimContext
 
@@ -39,6 +39,10 @@ MAX_PENDING = 100  # queued injections per run; more would be a runaway, not a s
 
 class Connector(Protocol):
     """How the orchestrator reaches the suite. ``HttpConnector`` is the real one."""
+
+    def check(self, scenario: Scenario) -> None:
+        """Raise ``RunError`` if ``scenario`` cannot run here (before anything is written)."""
+        ...
 
     def provision(self, identities: Sequence[str]) -> dict[str, str]:
         """Make the actors able to act (dev tokens); returns identity -> token (may be empty)."""
@@ -107,6 +111,7 @@ class Simulation:
         run_id: str | None = None,
     ) -> Simulation:
         run_id = run_id or default_run_id(scenario)
+        connector.check(scenario)  # a missing ledger for the agent stops here, not after seeding
         if store.exists(run_id):
             raise RunError(f"run {run_id!r} already exists; choose another run id")
         created = datetime.combine(scenario.start, time(0), tzinfo=UTC)  # simulated, not the clock
@@ -247,11 +252,18 @@ class Simulation:
     # --- sim_assert ----------------------------------------------------------------------------
 
     def assert_(self) -> AssertionReport:
+        actors = self.state.scenario.actors
         return run_assertions(
             self.truth(),
             self.connector.reader(self.state.tokens),
             run_id=self.state.run_id,
             played=self.played_dates(),
+            expected=Expected(
+                proposals=actors.assistant is not None
+                and guaranteed(actors.assistant.proposals_per_day),
+                decisions=actors.approver is not None,
+                days_played=self.state.day,
+            ),
         )
 
 

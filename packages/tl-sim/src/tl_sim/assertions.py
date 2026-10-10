@@ -18,7 +18,16 @@ that record, pset value, link, transition, post or proposal must be the actor th
 (``actor_mismatch``). The check fails closed: an empty log, or a run that checked nothing, is a
 failure, not a pass.
 
-Three more checks catch what the scenario did not intend: the scope holds no record the log does
+Time: the simulator's own events (``sim:<run>``) carry simulated time and must fall on a played day.
+An accepted proposal's effect and the decision, made through the API with the header, do too and
+are checked the same way; the agent's own ``Proposal.Created`` is made over MCP and has real time
+(``effective_at`` equal to ``recorded_at``), as has a decision taken at the CLI, so both are exempt.
+
+A run must not pass by doing nothing. ``Expected`` says which actors were enabled and bound to
+act: an assistant that is guaranteed at least one proposal a day but made none, or an approver
+who decided nothing about the proposals that were made, is ``actor_silent``.
+
+Four more checks catch what the scenario did not intend: the scope holds no record the log does
 not name, every event in the scope was written by the simulator (``source`` ``sim:<run>``, or an
 MCP proposal, by a ``user:sim-*`` or ``agent:sim-*`` actor), and every simulator event carries a
 simulated time on a day that was played (``effective_at``, FANOUT D5).
@@ -39,6 +48,8 @@ from tl_sim.types import GroundTruth
 
 DECISION_EVENTS = frozenset({"Proposal.Accepted", "Proposal.Rejected", "Proposal.Failed"})
 SIM_ACTORS = ("user:sim-", "agent:sim-")
+#: What an ``agent:*`` actor may write: proposals, posts, and the link suggestions a post makes.
+AGENT_EVENTS = frozenset({"Proposal.Created", "Feed.Posted", "Link.Suggested"})
 ENVELOPE_FIELDS = {"title": "title", "record_type": "type", "voided": "voided", "status": "status"}
 
 
@@ -55,6 +66,15 @@ class Failure:
             f"{self.check} {self.ref} {self.field}: "
             f"expected {self.expected!r}, found {self.actual!r}"
         )
+
+
+@dataclass(frozen=True)
+class Expected:
+    """Who was enabled and must have acted. Defaults: nobody (``sim_assert`` of a plain run)."""
+
+    proposals: bool = False  # the assistant is on and guaranteed at least one proposal a day
+    decisions: bool = False  # the approver is on
+    days_played: int = 0
 
 
 @dataclass
@@ -101,8 +121,10 @@ def run_assertions(
     *,
     run_id: str,
     played: Collection[date],
+    expected: Expected | None = None,
 ) -> AssertionReport:
     """Check every intent in ``truth`` against ``reader``; ``played`` holds the simulated dates."""
+    expected = expected or Expected()
     report = AssertionReport(counts=dict(Counter(item.intent for item in truth)))
     if not truth:  # nothing intended is nothing proved
         report.failures.append(Failure("empty_ground_truth", "-", "log", "at least one intent", 0))
@@ -258,6 +280,32 @@ def run_assertions(
             check(found is not None, item.intent, item.ref, "link made", True, found is not None)
             written_by(item, str(found["link_id"]) if found is not None else None, "Link.Added")
 
+    # --- a rejected link proposal made no link; an enabled actor that did nothing is silent -------
+    allowed_links = {
+        (i.expect["from"], i.expect["relation"], i.expect["to"])
+        for i in truth
+        if i.intent in (gt.PROPOSAL_ACCEPTED, gt.LINK_ADDED) and "from" in i.expect
+    }
+    for item in truth:
+        if item.intent != gt.PROPOSAL_REJECTED or "from" not in item.expect:
+            continue
+        triple = (item.expect["from"], item.expect["relation"], item.expect["to"])
+        made = triple not in allowed_links and active_link(*triple) is not None
+        check(
+            not made,
+            "rejected_link_made",
+            item.ref,
+            "no link",
+            None,
+            "an active link" if made else None,
+        )
+    made_any = any(i.intent == gt.PROPOSAL_CREATED for i in truth)
+    decided_any = any(i.intent in (gt.PROPOSAL_ACCEPTED, gt.PROPOSAL_REJECTED) for i in truth)
+    if expected.days_played >= 1 and expected.proposals and not made_any:
+        fail("actor_silent", "agent:sim-assistant", "proposal.created", "at least one", 0)
+    if expected.days_played >= 1 and expected.decisions and made_any and not decided_any:
+        fail("actor_silent", "user:sim-approver", "proposal decisions", "at least one", 0)
+
     # --- events: only the simulator wrote, and on a simulated day --------------------------------
     for event in events:
         source = str(event["source"])
@@ -272,9 +320,22 @@ def run_assertions(
             decision = event["event_type"] in DECISION_EVENTS  # made over the API or the CLI
             if not (source.startswith("mcp:") or decision):
                 fail("event_source", ref, "source", f"sim:{run_id}", source)
+        if source != f"sim:{run_id}" and event["event_type"] != "Proposal.Created":
+            # An accepted proposal's effect and the decision, made through the API, carry
+            # simulated time and must fall on a played day. Real time (effective_at equal to
+            # recorded_at: a person deciding at the CLI) is exempt, as is the agent's own
+            # Proposal.Created, which is made over MCP and stamped with real time.
+            if event["effective_at"] != event["recorded_at"]:
+                report.checked += 1
+                when = date.fromisoformat(str(event["effective_at"])[:10])
+                if when not in played:
+                    fail("event_time", ref, "effective_at", "a played day", event["effective_at"])
         report.checked += 1
         if not str(event["actor"]).startswith(SIM_ACTORS):
             fail("event_actor", ref, "actor", "user:sim-* or agent:sim-*", event["actor"])
+        if str(event["actor"]).startswith("agent:") and event["event_type"] not in AGENT_EVENTS:
+            report.checked += 1
+            fail("agent_wrote", ref, "event_type", sorted(AGENT_EVENTS), event["event_type"])
     if report.checked == 0:  # fail closed
         report.failures.append(Failure("nothing_checked", "-", "checks", "at least one", 0))
     return report

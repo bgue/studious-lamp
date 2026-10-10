@@ -13,7 +13,7 @@ from typing import Any
 
 from harness import Harness
 from helpers import run_pilot, screen_text
-from remote_support import OtherWriter, restartable
+from remote_support import LIVE_TIMEOUT_S, OtherWriter, restartable
 from textual.pilot import Pilot
 from tl_adapters.sqlite.uow import create_schema
 from tl_core.services.commands import CreateRecord, UpdateRecord
@@ -45,7 +45,7 @@ def test_remote_a_write_by_another_client_marks_the_row_within_two_seconds(
     writer = OtherWriter(harness)
     seeded = writer.create("R-1", "Before")
     with harness.live() as server:
-        client = RemoteClient.connect(server.base_url, server.token)
+        client = RemoteClient.connect(server.base_url, server.token, timeout=LIVE_TIMEOUT_S)
         feed = client.change_feed(SCOPE)
         assert isinstance(feed, RemoteFeed)
         app = TlApp(client.as_client(), scope=SCOPE, mode="remote", feed=feed)

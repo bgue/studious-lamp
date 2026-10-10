@@ -62,6 +62,13 @@ def draw(count: Count, rng: Random) -> int:
     return max(0, round(rng.gauss(count.mean, count.sd)))
 
 
+def guaranteed(count: Count) -> bool:
+    """True when ``count`` is 1 or more on every draw (an integer, or a range from 1)."""
+    if isinstance(count, int):
+        return count >= 1
+    return isinstance(count, CountRange) and count.min >= 1
+
+
 class DocumentControllerParams(Strict):
     """Registers documents against lines, submits them for review and issues new revisions.
 

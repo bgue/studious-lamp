@@ -73,7 +73,7 @@ def root(
 
     Under ``tl`` the ledger file is the root ``--db`` (the MCP server for the agent opens it).
     """
-    ledger = ctx.obj if isinstance(ctx.obj, Path) else Path(api.DEFAULT_DB)
+    ledger = ctx.obj if isinstance(ctx.obj, Path) else api.SimEnv.from_env().db_path
     ctx.obj = api.SimEnv(sim_dir=sim_dir, api_url=api_url, tokens_path=tokens, db_path=ledger)
 
 

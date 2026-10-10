@@ -1,0 +1,57 @@
+"""Command handlers of the inspection.WeldInspection record type.
+
+TODO: add the commands this type needs (update, void, transitions). Each handler runs inside an
+entered unit of work, appends events through it, never commits, and raises a `ServiceError`
+before appending when a rule fails.
+"""
+
+from __future__ import annotations
+
+from tl_core.ledger import NewEvent
+from tl_core.services.commands import Command, CommandResult
+from tl_core.uow import UnitOfWork
+from tl_core.util import new_ulid
+
+RECORD_TYPE = "inspection.WeldInspection"
+CREATED = "WeldInspection.Created"
+
+
+class CreateWeldInspection(Command):
+    title: str
+    description: str | None = None
+    key: str | None = None
+
+
+def handle_create_weld_inspection(
+    uow: UnitOfWork,
+    cmd: CreateWeldInspection,
+) -> CommandResult:
+    """Append `WeldInspection.Created` to a new stream."""
+    stream_id = new_ulid()
+    result = uow.append(
+        stream_id=stream_id,
+        stream_type=RECORD_TYPE,
+        scope=cmd.scope,
+        expected_version=0,
+        events=[
+            NewEvent(
+                event_type=CREATED,
+                payload={
+                    "record_type": RECORD_TYPE,
+                    "key": cmd.key,
+                    "title": cmd.title,
+                    "description": cmd.description,
+                },
+            )
+        ],
+        actor=cmd.actor,
+        source=cmd.source,
+        correlation_id=cmd.correlation_id or new_ulid(),
+        causation_id=cmd.causation_id,
+    )
+    return CommandResult(
+        stream_id=stream_id,
+        key=cmd.key,
+        version=result.new_version,
+        events=result.events,
+    )

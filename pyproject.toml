@@ -21,7 +21,10 @@ package = false
 override-dependencies = ["jsonschema[format-nongpl]>=4.26"]
 
 [tool.uv.workspace]
-members = ["packages/*"]
+# `packages/tl-modules/<name>` holds the modules `tl new module` scaffolds (build spec 03 section 1);
+# the directory itself is not a package, hence the exclude.
+members = ["packages/*", "packages/tl-modules/*"]
+exclude = ["packages/tl-modules"]
 
 [tool.uv.sources]
 tl-schema = { workspace = true }
