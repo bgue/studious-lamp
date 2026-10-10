@@ -27,8 +27,8 @@ from typing import Any, Literal, cast
 
 import httpx2
 from tl_api.client import ApiClient
+from tl_api.errors import ApiError
 from tl_core.services.commands import Command, CommandResult
-from tl_core.services.errors import ServiceError
 from tl_core.services.feed import EditPost, PostToFeed
 from tl_core.services.feed_actions import ReactToPost, RetractPost
 from tl_core.services.feed_queries import Completion, FeedPage
@@ -46,15 +46,20 @@ UNTRACKED = frozenset({"stream_events", "close", "base_url"})
 INTERACTIVE_TIMEOUT_S = 3.0
 
 
-class FeedOverApiUnavailable(ServiceError):
+class FeedOverApiUnavailable(ApiError):
     """The activity feed has no API routes yet (P0-I6 workstream B): the remote TUI cannot show it.
 
-    A ``ServiceError``, so it is in ``CLIENT_ERRORS``: the feed pane shows the message and keeps
-    its state, and the rest of the remote TUI is unaffected.
+    An ``ApiError`` (status 501), so it is in ``CLIENT_ERRORS``: the feed pane shows the message
+    and keeps its state, and the rest of the remote TUI is unaffected. It is not a
+    ``ServiceError``, which would need a row in the API's error table.
     """
 
     def __init__(self) -> None:
-        super().__init__("the activity feed over the API arrives with P0-I6 workstream B")
+        super().__init__(
+            501,
+            "feed_unavailable",
+            "the activity feed over the API arrives with P0-I6 workstream B",
+        )
 
 
 def find_head(api: ApiClient) -> int:

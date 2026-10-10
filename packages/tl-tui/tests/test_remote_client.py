@@ -158,3 +158,15 @@ def test_interactive_calls_time_out_after_a_few_seconds() -> None:
         assert timeout.read == INTERACTIVE_TIMEOUT_S and timeout.connect == INTERACTIVE_TIMEOUT_S
     finally:
         remote.close()
+
+
+def test_the_feed_methods_say_plainly_that_the_feed_over_the_api_is_not_there_yet(
+    harness: Harness,
+) -> None:
+    from tl_tui.remote import FeedOverApiUnavailable
+
+    remote = RemoteClient(harness.api())
+    with pytest.raises(FeedOverApiUnavailable) as raised:
+        remote.feed_page(SCOPE)
+    assert isinstance(raised.value, CLIENT_ERRORS)  # a screen shows it and keeps its state
+    assert "P0-I6 workstream B" in describe_error(raised.value)
