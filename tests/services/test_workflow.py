@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import threading
-from collections.abc import Iterator
-from pathlib import Path
+from collections.abc import Callable, Iterator
 from typing import Any
 
 import pytest
 from sqlalchemy import text
-from tl_adapters.sqlite.uow import create_schema, open_uow, rebuild_projections
+from tl_adapters.db import DbTarget, create_schema, open_uow, rebuild_projections
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.links.expected import ExpectedLink, ExpectedLinkRegistry
 from tl_core.services.commands import CreateRecord, VoidRecord
@@ -86,8 +85,8 @@ FLOW: dict[str, Any] = {
 
 
 @pytest.fixture
-def db(tmp_path: Path) -> Path:
-    path = tmp_path / "tl.db"
+def db(new_db: Callable[[], DbTarget]) -> DbTarget:
+    path = new_db()
     create_schema(path)
     return path
 
@@ -109,7 +108,7 @@ def definitions() -> Iterator[None]:
         yield
 
 
-def new_record(db: Path, key: str, scope: str = P1) -> str:
+def new_record(db: DbTarget, key: str, scope: str = P1) -> str:
     with open_uow(db) as uow:
         return handle_create_record(
             uow,
@@ -119,7 +118,7 @@ def new_record(db: Path, key: str, scope: str = P1) -> str:
         ).stream_id
 
 
-def version(db: Path, record_id: str) -> int:
+def version(db: DbTarget, record_id: str) -> int:
     with open_uow(db, readonly=True) as uow:
         return int(
             uow.conn()
@@ -128,7 +127,7 @@ def version(db: Path, record_id: str) -> int:
         )
 
 
-def set_psets(db: Path, record_id: str, values: dict[str, Any]) -> None:
+def set_psets(db: DbTarget, record_id: str, values: dict[str, Any]) -> None:
     with open_uow(db) as uow:
         handle_set_pset_values(
             uow,
@@ -145,19 +144,20 @@ def set_psets(db: Path, record_id: str, values: dict[str, Any]) -> None:
         )
 
 
-def add_link(db: Path, link_id: str, from_id: str, to_id: str, relation: str) -> None:
+def add_link(db: DbTarget, link_id: str, from_id: str, to_id: str, relation: str) -> None:
     with open_uow(db) as uow:
         uow.conn().execute(
             text(
                 "INSERT INTO cur_links (link_id, scope, from_id, to_id, relation, status, source, "
                 "declined, created_by, created_at, updated_at, version, last_seq) VALUES "
-                "(:id, :s, :f, :t, :r, 'active', 'manual', 0, 'u', '2026', '2026', 1, 1)"
+                "(:id, :s, :f, :t, :r, 'active', 'manual', FALSE, 'u', "
+                "'2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00', 1, 1)"
             ),
             {"id": link_id, "s": P1, "f": from_id, "t": to_id, "r": relation},
         )
 
 
-def go(db: Path, record_id: str, name: str, *roles: str, scope: str = P1) -> list[Event]:
+def go(db: DbTarget, record_id: str, name: str, *roles: str, scope: str = P1) -> list[Event]:
     with open_uow(db) as uow:
         return handle_transition_workflow(
             uow,
@@ -173,12 +173,12 @@ def go(db: Path, record_id: str, name: str, *roles: str, scope: str = P1) -> lis
         ).events
 
 
-def status(db: Path, record_id: str, *roles: str) -> WorkflowStatus:
+def status(db: DbTarget, record_id: str, *roles: str) -> WorkflowStatus:
     with open_uow(db, readonly=True) as uow:
         return workflow_status(uow, record_id, roles=roles)
 
 
-def row(db: Path, record_id: str) -> dict[str, Any]:
+def row(db: DbTarget, record_id: str) -> dict[str, Any]:
     with open_uow(db, readonly=True) as uow:
         found = uow.conn().execute(
             text("SELECT * FROM cur_core_record WHERE id = :i"), {"i": record_id}
@@ -186,7 +186,7 @@ def row(db: Path, record_id: str) -> dict[str, Any]:
         return dict(found.mappings().one())
 
 
-def state_row(db: Path, record_id: str) -> dict[str, Any] | None:
+def state_row(db: DbTarget, record_id: str) -> dict[str, Any] | None:
     with open_uow(db, readonly=True) as uow:
         found = uow.conn().execute(
             text("SELECT * FROM cur_workflow_state WHERE record_id = :i"), {"i": record_id}
@@ -198,7 +198,7 @@ def state_row(db: Path, record_id: str) -> dict[str, Any] | None:
 # --- a transition without guards ---------------------------------------------------------------
 
 
-def test_a_guardless_transition_updates_the_status_and_emits_the_event(db: Path) -> None:
+def test_a_guardless_transition_updates_the_status_and_emits_the_event(db: DbTarget) -> None:
     rid = new_record(db, "A")
     (event,) = go(db, rid, "skip")  # conformance (default max warning) passes for an empty record
     assert event.event_type == "Workflow.Transitioned"
@@ -218,7 +218,7 @@ def test_a_guardless_transition_updates_the_status_and_emits_the_event(db: Path)
     assert current["conformance"] == "ok"
 
 
-def test_the_workflow_state_row_records_when_and_by_whom(db: Path) -> None:
+def test_the_workflow_state_row_records_when_and_by_whom(db: DbTarget) -> None:
     rid = new_record(db, "A")
     assert state_row(db, rid) is None
     (event,) = go(db, rid, "skip")
@@ -233,7 +233,7 @@ def test_the_workflow_state_row_records_when_and_by_whom(db: Path) -> None:
     assert again is not None and again["state"] == "Draft"
 
 
-def test_a_record_with_no_status_is_in_the_initial_state(db: Path) -> None:
+def test_a_record_with_no_status_is_in_the_initial_state(db: DbTarget) -> None:
     rid = new_record(db, "A")
     found = status(db, rid)
     assert found.state == "Draft"
@@ -249,7 +249,7 @@ def test_a_record_with_no_status_is_in_the_initial_state(db: Path) -> None:
 # --- guards ------------------------------------------------------------------------------------
 
 
-def test_required_psets_blocks_until_the_pset_and_value_exist(db: Path) -> None:
+def test_required_psets_blocks_until_the_pset_and_value_exist(db: DbTarget) -> None:
     rid = new_record(db, "A")
     with pytest.raises(GuardFailedError) as caught:
         go(db, rid, "start")
@@ -262,7 +262,7 @@ def test_required_psets_blocks_until_the_pset_and_value_exist(db: Path) -> None:
     assert version(db, rid) == 1
 
 
-def test_conformance_is_evaluated_in_the_target_state(db: Path) -> None:
+def test_conformance_is_evaluated_in_the_target_state(db: DbTarget) -> None:
     rid = new_record(db, "A")
     set_psets(db, rid, {"manufacturer": "Acme", "body_material": "CS"})
     # Valid in Draft, but size_in is required in state Design, so entering Design is refused.
@@ -284,7 +284,7 @@ def test_conformance_is_evaluated_in_the_target_state(db: Path) -> None:
     assert current["effective_schema_hash"] == event.payload["effective_schema_hash"]
 
 
-def test_conformance_guard_max_status_warning_lets_warnings_through(db: Path) -> None:
+def test_conformance_guard_max_status_warning_lets_warnings_through(db: DbTarget) -> None:
     rid = new_record(db, "A")
     set_psets(db, rid, {"manufacturer": "Acme", "tag_no": "bad tag"})  # advisory: a warning
     (event,) = go(db, rid, "skip")
@@ -292,7 +292,7 @@ def test_conformance_guard_max_status_warning_lets_warnings_through(db: Path) ->
     assert row(db, rid)["conformance"] == "warning"
 
 
-def test_required_links_counts_active_links(db: Path) -> None:
+def test_required_links_counts_active_links(db: DbTarget) -> None:
     rid = new_record(db, "A")
     one, two = new_record(db, "B"), new_record(db, "C")
     set_psets(db, rid, VALVE)
@@ -310,7 +310,7 @@ def test_required_links_counts_active_links(db: Path) -> None:
     assert event.payload["to_state"] == "Review"
 
 
-def test_expected_links_guard_uses_expectations_of_the_target_state_only(db: Path) -> None:
+def test_expected_links_guard_uses_expectations_of_the_target_state_only(db: DbTarget) -> None:
     rid, other = new_record(db, "A"), new_record(db, "B")
     set_psets(db, rid, VALVE)
     go(db, rid, "start")
@@ -329,7 +329,7 @@ def test_expected_links_guard_uses_expectations_of_the_target_state_only(db: Pat
     assert [g["kind"] for g in event.payload["guards_evaluated"]] == ["expected_links", "roles"]
 
 
-def test_roles_guard_is_a_stub_list_on_the_command(db: Path) -> None:
+def test_roles_guard_is_a_stub_list_on_the_command(db: DbTarget) -> None:
     rid, other = new_record(db, "A"), new_record(db, "B")
     set_psets(db, rid, VALVE)
     go(db, rid, "start")
@@ -348,7 +348,7 @@ def test_roles_guard_is_a_stub_list_on_the_command(db: Path) -> None:
     assert row(db, rid)["status"] == "Done"
 
 
-def test_every_failed_guard_is_reported_together(db: Path) -> None:
+def test_every_failed_guard_is_reported_together(db: DbTarget) -> None:
     rid = new_record(db, "A")
     with pytest.raises(GuardFailedError) as caught:
         go(db, rid, "start")
@@ -360,7 +360,7 @@ def test_every_failed_guard_is_reported_together(db: Path) -> None:
 # --- refusals ----------------------------------------------------------------------------------
 
 
-def test_an_unknown_transition_lists_what_is_available(db: Path) -> None:
+def test_an_unknown_transition_lists_what_is_available(db: DbTarget) -> None:
     rid = new_record(db, "A")
     with pytest.raises(
         UnknownTransitionError, match=r"no transition 'nope' \(from Draft: start, skip\)"
@@ -368,13 +368,13 @@ def test_an_unknown_transition_lists_what_is_available(db: Path) -> None:
         go(db, rid, "nope")
 
 
-def test_a_transition_from_another_state_is_refused(db: Path) -> None:
+def test_a_transition_from_another_state_is_refused(db: DbTarget) -> None:
     rid = new_record(db, "A")
     with pytest.raises(UnknownTransitionError, match="cannot start in state 'Draft'"):
         go(db, rid, "finish")
 
 
-def test_a_record_without_a_workflow_is_refused(db: Path) -> None:
+def test_a_record_without_a_workflow_is_refused(db: DbTarget) -> None:
     rid = new_record(db, "A")
     with use_workflows(WorkflowRegistry()):
         with pytest.raises(NoWorkflowError, match="core.Record"):
@@ -383,7 +383,7 @@ def test_a_record_without_a_workflow_is_refused(db: Path) -> None:
             workflow_status(uow, rid)
 
 
-def test_a_project_definition_overrides_the_company_one(db: Path) -> None:
+def test_a_project_definition_overrides_the_company_one(db: DbTarget) -> None:
     rid = new_record(db, "A")
     override = dict(FLOW, id="t.project", scope=P1, transitions=[
         {"name": "only", "from": ["Draft"], "to": "Done"}
@@ -397,7 +397,7 @@ def test_a_project_definition_overrides_the_company_one(db: Path) -> None:
     assert row(db, rid)["status"] == "Done"
 
 
-def test_a_status_outside_the_workflow_is_refused(db: Path) -> None:
+def test_a_status_outside_the_workflow_is_refused(db: DbTarget) -> None:
     rid = new_record(db, "A")
     with open_uow(db) as uow:
         uow.conn().execute(
@@ -407,7 +407,7 @@ def test_a_status_outside_the_workflow_is_refused(db: Path) -> None:
         go(db, rid, "start")
 
 
-def test_a_voided_record_cannot_change_state(db: Path) -> None:
+def test_a_voided_record_cannot_change_state(db: DbTarget) -> None:
     rid = new_record(db, "A")
     with open_uow(db) as uow:
         handle_void_record(
@@ -420,7 +420,7 @@ def test_a_voided_record_cannot_change_state(db: Path) -> None:
         go(db, rid, "skip")
 
 
-def test_an_unknown_record_or_wrong_scope_is_refused(db: Path) -> None:
+def test_an_unknown_record_or_wrong_scope_is_refused(db: DbTarget) -> None:
     rid = new_record(db, "A")
 
     def attempt(record_id: str, scope: str) -> None:
@@ -445,7 +445,7 @@ def test_an_unknown_record_or_wrong_scope_is_refused(db: Path) -> None:
         workflow_status(uow, "NOPE")
 
 
-def test_a_stale_expected_version_is_a_concurrency_error(db: Path) -> None:
+def test_a_stale_expected_version_is_a_concurrency_error(db: DbTarget) -> None:
     rid = new_record(db, "A")
     with open_uow(db) as uow, pytest.raises(ConcurrencyError):
         handle_transition_workflow(
@@ -462,7 +462,7 @@ def test_a_stale_expected_version_is_a_concurrency_error(db: Path) -> None:
     assert row(db, rid)["status"] is None
 
 
-def test_two_racing_transitions_only_one_wins(db: Path) -> None:
+def test_two_racing_transitions_only_one_wins(db: DbTarget) -> None:
     rid = new_record(db, "A")
     outcomes: list[str] = []
     lock = threading.Lock()
@@ -499,7 +499,7 @@ def test_two_racing_transitions_only_one_wins(db: Path) -> None:
 # --- status listing ----------------------------------------------------------------------------
 
 
-def test_status_shows_each_option_with_its_guard_results(db: Path) -> None:
+def test_status_shows_each_option_with_its_guard_results(db: DbTarget) -> None:
     rid = new_record(db, "A")
     found = status(db, rid)
     start, skip = found.options
@@ -513,7 +513,7 @@ def test_status_shows_each_option_with_its_guard_results(db: Path) -> None:
     assert (skip.label, skip.allowed) == ("skip", True)
 
 
-def test_status_after_a_transition_shows_state_and_time(db: Path) -> None:
+def test_status_after_a_transition_shows_state_and_time(db: DbTarget) -> None:
     rid = new_record(db, "A")
     go(db, rid, "skip")
     found = status(db, rid)
@@ -530,7 +530,7 @@ def test_status_after_a_transition_shows_state_and_time(db: Path) -> None:
 # --- replay ------------------------------------------------------------------------------------
 
 
-def test_rebuilding_the_projections_restores_status_and_state(db: Path) -> None:
+def test_rebuilding_the_projections_restores_status_and_state(db: DbTarget) -> None:
     rid = new_record(db, "A")
     go(db, rid, "skip")
     go(db, rid, "back")
@@ -540,7 +540,7 @@ def test_rebuilding_the_projections_restores_status_and_state(db: Path) -> None:
     assert before[0]["status"] == "Draft"
 
 
-def test_the_shipped_sample_workflow_runs_end_to_end(db: Path) -> None:
+def test_the_shipped_sample_workflow_runs_end_to_end(db: DbTarget) -> None:
     from tl_core.links.expected import default_expected_links
     from tl_core.workflow.loader import default_workflows
     from tl_core.workflow.provider import use_expected_links as real_expected  # noqa: F401
