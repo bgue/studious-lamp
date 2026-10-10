@@ -42,7 +42,7 @@ Merged 8 / taken over 0 / abandoned 0.
 | S13 | (with S12) | the drill report template and measurements | pending |
 | S14 | 4fa7c6c | review fixes: missing-directory `missing_file`, sealed-prefix check for every scope, one-transaction restore with a schema check first and schema-hash warnings, `expect_last_seq` / `expect_manifest_sha256`, key file mode | re-reviewed: items 2 and 3 clean |
 | S15 | ec27c11 | `verify_archive(conn, deep=True)` recomputes database hashes, compares every field, checks the tail; `verify_ledger`; `tl ledger verify`; the closing restore verify runs before the commit | pending |
-| S18 | (see below) | second review round: `_scan_ledger` pages by a `seq >` cursor and stops only on an empty page (a missing event at the end of a page window was missed); the restore's closing verify is deep; `verify_ledger` limits documented; Postgres coverage for the ledger and deep checks; `send_test` refuses a subscription with no secret before any egress check; the drill reports skipped paths as skipped | short re-review of item 1 |
+| S18 | 3e677ed | second review round: `_scan_ledger` pages by a `seq >` cursor and stops only on an empty page (a missing event at the end of a page window was missed); the restore's closing verify is deep; `verify_ledger` limits documented; Postgres coverage for the ledger and deep checks; `send_test` refuses a subscription with no secret before any egress check; the drill reports skipped paths as skipped | short re-review of item 1 |
 | S17 | ab19220 | the dispatcher cursor starts at the restored head inside the restore transaction; the restore warning names `tl webhook replay`; the "After a restore" runbook section | pending |
 | S16 | 9ec9b2b | outside WS-A scope, by orchestrator ruling: `DeliveryEngine.claim` holds back a subscription with no signing secret (pending, not sent, not dead-lettered, one log line per cycle), `tl webhook ls` shows `needs_secret`, restore returns a warning per subscription | pending |
 
@@ -52,11 +52,11 @@ Files: `packages/tl-core/src/tl_core/archive/`, `packages/tl-adapters/src/tl_ada
 | Gate | Result |
 |---|---|
 | `just check` (ruff, format, pyright strict, codegen drift, licences) | green |
-| `just test` | 2686 passed |
-| `just test-parity` | 1259 passed (643 s), before S17; the targeted run after S17 on both adapters passed 525 |
-| Targeted runs after the webhook change, both adapters (`tests/archive`, `tests/webhooks`, `tests/contract`, `tests/parity`, tl-cli, tl-adapters) | 521 passed |
-| `just drill` with default parameters | passed, report committed |
-| Mutation checks | orphan-resume removed fails the crash tests; sealed-prefix check removed fails the untouched-scope test; the secret filter removed fails the two webhook tests |
+| `just test` | 2726 passed (final tip) |
+| `just test-parity` | 1339 passed (980 s on a loaded container; final tip) |
+| Targeted runs after the webhook, cursor and S18 changes, both adapters (`tests/archive`, `tests/webhooks`, `tests/contract`, `tests/parity`, tl-cli, tl-adapters, tl-core) | 1508 passed |
+| `just drill` with default parameters | passed on the final code, report committed; the summary lists the paths run and skipped |
+| Mutation checks | orphan-resume removed fails the crash tests; sealed-prefix check removed fails the untouched-scope test; the secret filter removed fails the two webhook tests; range paging in `_scan_ledger` fails 8 page-boundary tests |
 
 ## Deviations from plan
 - The increment plan is `docs/tickets/P0-I7/A-PLAN.md`, mirroring `B-PLAN.md`, not `README.md`.
