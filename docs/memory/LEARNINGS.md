@@ -1038,3 +1038,7 @@ test or a generated artefact already enforces, or narrative history (that belong
   printed counts. `just check` stops at its first failing step, so one lint error hides the pyright, codegen, openapi and licence steps; run the
   steps one by one when diagnosing.
   Evidence: T50, T47 and T48 reports. Status: active
+
+- **L-P0-I8A-10** · 2026-10-10 · tags: tui, tests
+  `pytest --snapshot-update` rewrites the tracked `snapshot_report.html` at the repository root as well as the `.raw` files: restore it with `git checkout snapshot_report.html` before committing. A new palette command or key map entry changes the palette snapshot (`test_snapshots_links.py::test_command_palette`) and the key map context list in `test_keymap.py`.
+  Evidence: P0-I8-S19 (`git status` after the update). Status: active

@@ -97,6 +97,10 @@ class EmbeddedClient:
     """
 
     def __init__(self, uow_factory: UowFactory, *, actor: str = DEFAULT_ACTOR) -> None:
+        if actor.startswith("agent:"):
+            raise ValueError(
+                "agent_must_propose: an agent cannot use the embedded client to change records"
+            )
         self._uow = uow_factory
         self.actor = actor
         self.own_writes = OwnWrites()

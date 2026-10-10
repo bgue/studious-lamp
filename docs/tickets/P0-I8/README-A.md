@@ -21,7 +21,7 @@ just demo P0-I8-A
 project layer (● marks the project's own value, origin names the layer); a dangerous key is refused without a reason and without `--accept-risk`;
 `tl config lock` makes the project's value inert; a scheduled change shows under `scheduled` and takes effect when its time comes; `tl config history`
 and `revert`; `tl config diff default company`; `export` and `import` into a second project; an agent proposes a setting change over MCP and a person
-accepts it; the API returns 403 `agent_must_propose` for an agent token; the TUI screen (`Ctrl+,`) is shown as an SVG snapshot.
+accepts it; the API returns 403 `agent_must_propose` for an agent token; the TUI screen (`F9`) is shown as an SVG snapshot.
 
 ## Decisions
 | # | Decision |
@@ -45,6 +45,7 @@ accepts it; the API returns 403 `agent_must_propose` for an agent token; the TUI
 | A17 | **Policy providers read once per attempt**: `DeliveryEngine.attempt` resolves egress and retry at its top and carries the retry policy on the outcome, so `settle` (inside the write transaction) never calls a provider. A failing egress provider means the strict default (empty allow-list), never the last or a wider one; a failing retry provider means the last good policy. Both are logged. |
 | A18 | **The `tl config` write commands refuse `--actor agent:*`** (`tl_cli/actors.py`, an option callback; exit 1, `error: agent_must_propose: ...`), matching the API (D3 is absolute). The service functions still take any actor (A9). |
 | A19 | **YAML import hygiene**: no anchors or aliases (a 280-byte file expanded to a million items), only JSON-typed values (dates, timestamps, sets and bytes are refused naming the key), text keys, nesting up to 12 levels. Values returned by the resolver and the reader are copies. No-op detection and choices compare canonical JSON (`true` is not `1`). `pending_effect` counts only the layers of the view being read. |
+| A20 | **The about:config screen opens with `F9` (and the palette command `about:config`), not `Ctrl+,`**: most terminals do not deliver `Ctrl+,`. It writes through `ClientInterface` only, asks the form for the reason and the risk, and shows the service's refusal. Scheduled changes and company bounds are not editable from the screen (use `tl config`). The embedded client refuses an `agent:` actor (WS-B review ruling). |
 
 ## Supervisor-built pieces (in order)
 | # | Piece | Why supervisor-tier | Reviewer | Status |
@@ -55,8 +56,12 @@ accepts it; the API returns 403 `agent_must_propose` for an agent token; the TUI
 | S4 | `SettingsReader`, `conn_factory_from`, bus invalidation and expiry | concurrency (the race test) | fresh reviewer | done (05f918e) |
 | S5 | Service: `change_setting`, `set_setting`, `reset_setting`, `lock_setting`, `revert_setting`; export/import; the `SettingError` classes | validation and refusals | fresh reviewer | done (b3436c0) |
 | S6 | `ChangeSetting` command, proposals amendment (D3: `PROPOSABLE_TOOLS`, `accept_risk`, the budget read), MCP `propose_setting_change`, engine policy providers | contract amendment, propose-only enforcement, delivery engine | orchestrator | done (b735db3) |
-| S7 | Stubs, provided tests and references for the surface tickets (round 1: T01 to T03; later rounds the rest) | scaffolds | | in progress |
-| S8 | Demo, runbook review, READMEs, report | closing work | | todo |
+| S7 | Stubs, provided tests and references for the surface tickets (round 1: T01 to T03; later rounds the rest) | scaffolds | | done (S11, S16, S18) |
+| S8 to S16 | Review fixes and merges (see the commit log: S8 ad6771a, S9 1296416, S10 633ffaa, S11 0aead7f, S12 2054db9, S13 9e3a4ad, S14 96c2000, S15 165b005, S16 b7bac09) | review | fresh reviewers | done |
+| S17 | Review LOW fixes: hostile numbers and nesting, IPv6 tunnel ranges in the egress allow-list | security hygiene | orchestrator | done (5cd1705) |
+| S18 | Effects wiring (T11), `view_at`, the TUI settings contract, `FakeClient` settings, stubs for T07 to T09 | contract, determinism | orchestrator | done (18d8108) |
+| S19 | The about:config screens (T10), the embedded-client agent guard, `tl-tui` docs | UI state machine with modal flows; not Haiku-able under the checklist (no short, checkable specification) | fresh reviewer | round 4 |
+| S20 | Demo, runbooks (T12), READMEs, report | closing work | | todo |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
@@ -70,9 +75,9 @@ accepts it; the API returns 403 `agent_must_propose` for an agent token; the TUI
 | P0-I8-T07 | `tl lake sync --watch` reads `lake.sync.interval` | haiku | S5 | ready | |
 | P0-I8-T08 | `ApiClient` settings methods | haiku | T03 | ready | |
 | P0-I8-T09 | TUI client: embedded settings calls (the remote client passes the ApiClient methods through; the contract and the fake are S18) | haiku | S18 | ready | |
-| P0-I8-T10 | TUI about:config screen (`Ctrl+,`) with snapshots | haiku | S18, S19 | draft | |
+| P0-I8-T10 | TUI about:config screen (`F9`) with snapshots | supervisor | S18 | built (S19) | modal flows with edit, reason and risk; a ticket would need the whole design pasted |
 | P0-I8-T11 | effects: `tl projections rebuild` and the server start write `setting_effect_applied` | supervisor | S2 | built (S18) | a ticket would have been longer than the change (about 15 lines and one test file); reviewed with the S-commits |
-| P0-I8-T12 | `docs/runbooks/settings.md` | haiku | T01 to T03 | draft | |
+| P0-I8-T12 | `docs/runbooks/settings.md` and the runbook edits | supervisor | T01 to T09 | todo (S20) | |
 
 ## Order of work
 1. Round 1 (this one): S1 to S6, tests, the plan; stubs, provided tests and references for T01 to T03; DISPATCH T01, T02, T03.
