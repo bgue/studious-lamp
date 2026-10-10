@@ -2668,6 +2668,7 @@ name = "tl-mcp"
 version = "0.0.1"
 source = { editable = "packages/tl-mcp" }
 dependencies = [
+    { name = "duckdb" },
     { name = "mcp" },
     { name = "pydantic" },
     { name = "tl-adapters" },
@@ -2679,6 +2680,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "duckdb", specifier = "==1.5.5" },
     { name = "mcp" },
     { name = "pydantic", specifier = ">=2" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
