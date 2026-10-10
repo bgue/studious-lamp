@@ -68,10 +68,10 @@ public-interface change; (7) a reviewer verifies from the diff plus the commands
 | T02 | Pset command and service tests on both adapters | H | — | merged | merged, review pass attempt 1 |
 | T03 | Schema events, required files, project can/cannot tests on both adapters | H | — | merged | merged, review pass attempt 1 (one INSERT literal 0 to FALSE) |
 | T04 | Numbering tests and property tests on both adapters | H | — | merged | merged, review pass attempt 1 |
-| T05 | Workflow engine and expected-links tests on both adapters | H | — | ready | |
-| T06 | File upload service tests on both adapters | H | — | ready | |
-| T07 | Reconciliation and change-feed integration tests on both adapters | H | — | ready | |
-| T08 | Query-language tests on both adapters | H | — | ready | |
+| T05 | Workflow engine and expected-links tests on both adapters | H | — | merged | merged, review pass attempt 1 |
+| T06 | File upload service tests on both adapters | H | — | merged | merged, review pass attempt 1 |
+| T07 | Reconciliation and change-feed integration tests on both adapters | H | — | merged | merged, review pass attempt 1 |
+| T08 | Query-language tests on both adapters | H | — | merged | merged, review pass attempt 1 |
 | T09 | Projector unit tests on both adapters | H | — | ready | |
 | T10 | Generated DDL executes and stores values alike on both dialects | H | — | ready | |
 | T11 | CI parity job with a Postgres service container | H | — | ready | |

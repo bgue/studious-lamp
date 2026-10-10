@@ -1,6 +1,6 @@
 # P0-I5-T05 — Workflow engine and expected-links tests on both adapters
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: tests, adapter
 Depends on: —

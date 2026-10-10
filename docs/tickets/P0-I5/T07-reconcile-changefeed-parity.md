@@ -1,6 +1,6 @@
 # P0-I5-T07 — Reconciliation and change-feed integration tests on both adapters
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: tests, adapter
 Depends on: —

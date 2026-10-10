@@ -1,6 +1,6 @@
 # P0-I5-T06 — File upload service tests on both adapters
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: tests, adapter
 Depends on: —

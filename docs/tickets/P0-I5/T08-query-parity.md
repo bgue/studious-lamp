@@ -1,6 +1,6 @@
 # P0-I5-T08 — Query language tests on both adapters
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: tests, adapter
 Depends on: —
@@ -99,7 +99,7 @@ The test bodies stay as they are. Only how the database is made and a few SQL de
 - `test_injection.py`: the `hostile_db` fixture returns a database, annotate `-> DbTarget`. The hostile values include quotes and SQL fragments; they
   must still be found as data on Postgres.
 - `test_run_query.py`: only the import and the `BaseUnitOfWork` annotation change.
-- Counts: `test_query_properties.py` has 3 pure-parser tests that stay unparametrised (7 -> 10). The acceptance commands run the whole
+- Counts: `test_query_properties.py` has 4 pure-parser tests that stay unparametrised (7 -> 10). The acceptance commands run the whole
   `tests/query` directory, so `test_reference_doc.py` (97 tests, untouched, never parametrised) is in the totals.
 - A text-ordering or case-folding difference (for example `LOWER` of a non-ASCII letter) is a production finding: report it as *Blocked*; do not
   adjust the expected value.
