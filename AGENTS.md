@@ -73,5 +73,5 @@ Details: `docs/build-spec/03-repo-and-toolchain.md`.
 | Reference pages (user-facing language and API references) | `docs/reference/` |
 | Event catalog (generated: schemas, samples, AsyncAPI, page) | `packages/tl-schema/src/tl_schema/generated/catalog/`, `generated/docs/event-catalog.md` |
 | Dev MCP server for coding agents (`python -m tl_mcp.dev`, dev data only; runbook `docs/runbooks/dev-mcp.md`) | `packages/tl-mcp/src/tl_mcp/dev/` |
-| Scaffolded modules (`tl new module|record-type|projector`) | `packages/tl-modules/<m>/`, `schema/modules/<m>/`, `docs/modules/<m>/` |
+| Scaffolded modules (`tl new module`, `record-type`, `projector`) | `packages/tl-modules/<m>/`, `schema/modules/<m>/`, `docs/modules/<m>/` |
 | Docs and memory rules | `.claude/skills/throughline-docs/SKILL.md` |
