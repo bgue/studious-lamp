@@ -24,7 +24,7 @@ Purpose: start the Textual TUI in embedded mode against the SQLite dev ledger, l
    Expected: the grid lists V-0001 and P123-REC-0001. `Enter` opens a record, `e` edits it (Ctrl+S saves), `n` creates one, `F1` shows the key map, `Ctrl+Q` quits. In a record: `l` links it to another, `w` shows workflow actions, `t` traces its links, `R` adds it to the reference tray (`F4` opens the tray), `Alt+Left` goes back. `Ctrl+P` opens the command palette.
 3. Use another ledger or project with environment variables:
    ```
-   TL_DB=/tmp/other.db TL_PROJECT=P123 just tui
+   TL_DB=/tmp/other.db TL_PROJECT=P124 just tui
    ```
 4. Filter the list: `/` opens the filter bar; type query-language text (`status:open title~bevel linked:NCR`, reference: `docs/reference/query-language.md`) and press Enter. The bar shows `N matches`, or the parser's message with a caret under the character it stopped at. A blank filter clears it; Esc leaves the bar.
 5. Run against a server instead of the file (remote mode). In one terminal start the API, in another the TUI:
