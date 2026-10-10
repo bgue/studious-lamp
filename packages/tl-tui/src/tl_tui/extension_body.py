@@ -1,4 +1,3 @@
-# ruff: noqa: F401  (STUB P0-I8-T27: delete this line when the unused imports are gone)
 """Editing the stored body of an object-backed record (P0-I8, brief 31.2).
 
 A body is replaced as a whole: a save stores a new document version. The edit form shows the
@@ -15,9 +14,7 @@ from tl_core.extypes.forms import TypeForm
 
 def body_values(form: TypeForm, body: dict[str, Any]) -> dict[str, Any]:
     """The initial value of each slot of ``form`` (slot name to the body's value, else ``None``)."""
-    # One entry per slot of form.fields(): the slot name and body.get(name) (None when the
-    # body has no value).
-    raise NotImplementedError("STUB (P0-I8-T27)")
+    return {slot.name: body.get(slot.name) for slot in form.fields()}
 
 
 def merged_body(form: TypeForm, body: dict[str, Any], edits: dict[str, Any]) -> dict[str, Any]:
@@ -27,7 +24,13 @@ def merged_body(form: TypeForm, body: dict[str, Any], edits: dict[str, Any]) -> 
     body). Names that are not slots of ``form`` are ignored. Keys of ``body`` that are not
     slots of ``form`` are kept as they are.
     """
-    # Copy body (dict(body)). For each edit whose name is a slot of the form: None removes
-    # the key (pop with a default), anything else sets it. Names that are not slots are
-    # ignored; body keys that are not slots stay.
-    raise NotImplementedError("STUB (P0-I8-T27)")
+    slots = {slot.name for slot in form.fields()}
+    result = dict(body)
+    for name, value in edits.items():
+        if name not in slots:
+            continue
+        if value is None:
+            result.pop(name, None)
+        else:
+            result[name] = value
+    return result
