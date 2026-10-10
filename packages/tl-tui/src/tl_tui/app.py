@@ -15,11 +15,27 @@ from textual.binding import Binding, BindingType
 from textual.containers import Horizontal
 from textual.screen import ModalScreen
 from textual.widget import Widget
+from tl_core.ledger import Event
 
 from tl_tui.client import ClientInterface
 from tl_tui.commands import command_by_id
+from tl_tui.live import (
+    ChangeFeed,
+    LiveUpdates,
+    OwnWrites,
+    describe_changes,
+    detect_conflict,
+    latest_by_record,
+    touched_record_ids,
+)
 from tl_tui.messages import (
     CloseRecord,
+    ConnectionChanged,
+    ConnectionState,
+    FilterClosed,
+    FilterSubmitted,
+    LedgerReset,
+    LiveEvents,
     NavSelected,
     OpenRecord,
     RecordChanged,
@@ -31,7 +47,9 @@ from tl_tui.messages import (
 )
 from tl_tui.navigation import NavHistory
 from tl_tui.tray import ReferenceTray, TrayItem
+from tl_tui.widgets.connection_banner import ConnectionBanner
 from tl_tui.widgets.context_panel import ContextPanel
+from tl_tui.widgets.filter_bar import FilterBar
 from tl_tui.widgets.footer import TlFooter, hints_for
 from tl_tui.widgets.grid import RecordGrid
 from tl_tui.widgets.header import TlHeader
@@ -57,6 +75,7 @@ class TlApp(App[None]):
         Binding("shift+f6", "cycle_panels(-1)", "Panels back", show=False),
         Binding("escape", "close_overlay", "Close", show=False),
         Binding("n", "new_record", "New", show=False),
+        Binding("slash", "filter", "Filter", show=False),
         Binding("f1", "help", "Help", show=False),
         Binding("question_mark", "help", "Help", show=False),
         Binding("ctrl+p", "palette", "Palette", show=False),
@@ -80,6 +99,7 @@ class TlApp(App[None]):
         actor: str = "user:dev",
         mode: str = "embedded",
         roles: tuple[str, ...] = (),
+        feed: ChangeFeed | None = None,
     ) -> None:
         super().__init__()
         self.client = client
@@ -93,6 +113,14 @@ class TlApp(App[None]):
         self.tray = ReferenceTray()
         self.history = NavHistory()
         self._open_key: str | None = None
+        # Live updates: a feed of committed events (embedded: bus and poller; remote: SSE). Without
+        # one the screens show what they last read until the user reloads.
+        self._live = LiveUpdates(feed, self) if feed is not None else None
+        if feed is not None:
+            feed.head()  # the cursor is taken before the grid's first read: no gap in between
+        self._reachable = True
+        self._seen_live = False
+        self._held: list[Event] = []  # events that may be this client's own; see _release_held
 
     # --- layout ------------------------------------------------------------------------------
 
@@ -100,6 +128,8 @@ class TlApp(App[None]):
         yield TlHeader(
             company=self.company, scope=self.scope, mode=self.mode, actor=self.actor, id="header"
         )
+        yield ConnectionBanner(id="connection")
+        yield FilterBar(id="filter")
         with Horizontal(id="body"):
             yield NavTree(company=self.company, scope=self.scope, id="nav")
             with MainArea(id="main"):
@@ -110,6 +140,20 @@ class TlApp(App[None]):
     def on_mount(self) -> None:
         self._apply_width(self.size.width)
         self.query_one("#grid", RecordGrid).focus()
+        # A remote client reports unreachable/live from whichever thread made the call.
+        if hasattr(self.client, "connection_listener"):
+            setattr(self.client, "connection_listener", self._connection_from_client)  # noqa: B010
+        if self._live is not None:
+            self._live.start()
+
+    def on_unmount(self) -> None:
+        if hasattr(self.client, "connection_listener"):
+            setattr(self.client, "connection_listener", None)  # noqa: B010
+        if self._live is not None:
+            self._live.stop()
+
+    def _connection_from_client(self, state: ConnectionState, detail: str) -> None:
+        self.post_message(ConnectionChanged(state, detail))
 
     @property
     def narrow(self) -> bool:
@@ -176,6 +220,31 @@ class TlApp(App[None]):
 
     def _focus_main(self) -> None:
         self._main_focus_target().focus()
+
+    async def action_filter(self) -> None:
+        """`/`: open the filter bar above the grid (back to the grid first if a record is open)."""
+        if self._modal_open():
+            return
+        if self._record_view() is not None:
+            await self._show_grid()
+        self.query_one("#filter", FilterBar).show_bar()
+
+    def on_filter_submitted(self, message: FilterSubmitted) -> None:
+        """Enter in the bar: filter the grid; show the count, or the error and its position."""
+        bar = self.query_one("#filter", FilterBar)
+        result = self.query_one("#grid", RecordGrid).apply_filter(message.text)
+        bar.show_result(result)
+        if result.ok:
+            if not message.text.strip():
+                bar.hide_bar()
+            self.query_one("#grid", RecordGrid).focus()
+
+    def on_filter_closed(self, message: FilterClosed) -> None:
+        """Esc in the bar: back to the grid; the bar stays visible while a filter is in force."""
+        grid = self.query_one("#grid", RecordGrid)
+        if not grid.filter_text:
+            self.query_one("#filter", FilterBar).hide_bar()
+        grid.focus()
 
     def action_new_record(self) -> None:
         # The app-level `n` binding stays live under a modal; a form already open must keep it.
@@ -382,7 +451,10 @@ class TlApp(App[None]):
     # --- message routing ---------------------------------------------------------------------
 
     def on_record_highlighted(self, message: RecordHighlighted) -> None:
-        self.query_one("#context", ContextPanel).show_record(message.record)
+        # A refresh applied while the app shuts down posts this after the screen is gone.
+        panels = self.query("#context")
+        if panels:
+            panels.first(ContextPanel).show_record(message.record)
 
     def on_selection_changed(self, message: SelectionChanged) -> None:
         self.query_one("#footer", TlFooter).set_selection_count(message.count)
@@ -411,6 +483,104 @@ class TlApp(App[None]):
 
     def on_record_changed(self, message: RecordChanged) -> None:
         self.query_one("#grid", RecordGrid).reload()
+
+    # --- live updates -----------------------------------------------------------------------
+
+    def on_connection_changed(self, message: ConnectionChanged) -> None:
+        self.query_one("#connection", ConnectionBanner).show(message.state, message.detail)
+        came_back = message.state == "live" and not self._reachable
+        first_live = message.state == "live" and not self._seen_live
+        self._reachable = message.state == "live"
+        self._seen_live = self._seen_live or message.state == "live"
+        if came_back:
+            self._say("Connection restored", "info")
+        if came_back or first_live:
+            # Rows read during an outage, or between the first read and the feed's start, may be
+            # stale; the feed replays from its cursor, and this read is the safety net.
+            self.query_one("#grid", RecordGrid).refresh_live()
+
+    def on_ledger_reset(self, message: LedgerReset) -> None:
+        """The server's ledger went backwards: nothing shown can be trusted, so read it again."""
+        self.query_one("#grid", RecordGrid).refresh_live()
+        view = self._record_view()
+        if view is not None:
+            view.reload()
+        banner = self.query_one("#connection", ConnectionBanner)
+        banner.notice(message.detail or "server ledger changed; reloaded")
+        self.set_timer(8.0, lambda: banner.show(banner.state))
+
+    def on_live_events(self, message: LiveEvents) -> None:
+        """Events committed by anyone: refresh the grid, and the open record if it was touched.
+
+        Events this client's own commands produced are skipped for the grid (the command's own
+        path already reloaded it) but not for the open record, which also hears about link and
+        workflow changes made elsewhere.
+        """
+        own: OwnWrites | None = getattr(self.client, "own_writes", None)
+        foreign: list[Event] = []
+        for event in message.events:
+            origin = "foreign" if own is None else own.classify(event)
+            if origin == "foreign":
+                foreign.append(event)
+            elif origin == "pending":  # a command of ours is in flight on this stream
+                self._held.append(event)
+        if self._held:
+            self.set_timer(0.1, self._release_held)
+        self._mark_foreign(foreign)
+        self._flag_conflict(foreign)
+        view = self._record_view()
+        if view is None or view.record is None:
+            return
+        record_id = str(view.record["id"])
+        if record_id not in touched_record_ids(message.events):
+            return
+        newest = latest_by_record(message.events).get(record_id)
+        moved = newest is not None and newest.stream_version > int(view.record["version"])
+        linked = any(e.event_type.startswith("Link.") for e in message.events)
+        if not (moved or linked):
+            return
+        view.reload()
+        elsewhere = [e for e in foreign if record_id in touched_record_ids([e])]
+        if elsewhere and view.record is not None:  # someone else did it: say who and when
+            last = elsewhere[-1]
+            view.note_remote_update(last.actor, int(view.record["version"]), last.recorded_at)
+
+    def _flag_conflict(self, foreign: list[Event]) -> None:
+        """An open edit form whose record moved past the version it was opened at: say so now."""
+        from tl_tui.widgets.edit_form import EditForm  # noqa: PLC0415
+
+        form = self.screen
+        if not isinstance(form, EditForm) or form.conflict:
+            return
+        newer = detect_conflict(str(form.record["id"]), form.opened_version, foreign)
+        if newer is not None:
+            form.mark_conflict(newer.actor, newer.stream_version)
+
+    def _mark_foreign(self, events: list[Event]) -> None:
+        ids = touched_record_ids(events)
+        if ids:
+            self.query_one("#grid", RecordGrid).refresh_live(ids)
+            self._say(describe_changes(events), "info")
+
+    def _release_held(self) -> None:
+        """Classify the held events again: own ones are dropped, the rest are someone else's.
+
+        An event is held while a command of ours that may have produced it is in flight; after
+        the response is noted it is ``own``, or, when the in-flight window ends (response or
+        ``OwnWrites.HOLD_CAP_S``), ``foreign``.
+        """
+        own: OwnWrites | None = getattr(self.client, "own_writes", None)
+        held, self._held = self._held, []
+        ready: list[Event] = []
+        for event in held:
+            origin = "foreign" if own is None else own.classify(event)
+            if origin == "foreign":
+                ready.append(event)
+            elif origin == "pending":
+                self._held.append(event)
+        if self._held:
+            self.set_timer(0.1, self._release_held)
+        self._mark_foreign(ready)
 
     async def _show_record(
         self, scope: str, key: str, *, follow: bool = False, navigate: bool = True

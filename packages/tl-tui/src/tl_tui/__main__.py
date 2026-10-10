@@ -1,3 +1,5 @@
+import sys
+
 from tl_tui.main import main
 
-main()
+sys.exit(main())

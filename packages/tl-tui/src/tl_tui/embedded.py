@@ -1,7 +1,9 @@
 """Embedded `ClientInterface`: calls `tl_core` services in process (brief 4, local mode).
 
 Each call opens one unit of work (read-only for queries), runs one service function, and closes
-it. There is no logic here beyond that; the remote client (P0-I4) is the same interface over HTTP.
+it. There is no logic here beyond that; the remote client (`tl_tui.remote`) is the same interface
+over HTTP. `for_sqlite` keeps one engine and one in-process bus for the life of the client, so
+`change_feed()` can hand the app this process's own writes at once and other processes' by polling.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ from tl_core.links.expected import MissingLink, missing_expected_links
 from tl_core.links.provider import get_vocabulary
 from tl_core.links.vocabulary import default_relation
 from tl_core.numbering.detect import KeyChip, suggest_chips
+from tl_core.query import QuerySpec, count_query, parse, run_query
 from tl_core.services import link_queries, link_trace, links, psets, queries
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
@@ -43,6 +46,7 @@ from tl_core.uow import UnitOfWork
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 from tl_tui.client import RelationInfo
+from tl_tui.live import ChangeFeed, EmbeddedFeed, OwnWrites
 
 # A callable that opens a unit of work: `factory(readonly)` returns a context manager yielding it.
 UowFactory = Callable[[bool], AbstractContextManager[UnitOfWork]]
@@ -61,14 +65,36 @@ def sqlite_uow_factory(path: str | Path) -> UowFactory:
 
 
 class EmbeddedClient:
-    """`ClientInterface` over in-process services. Errors from the services propagate unchanged."""
+    """`ClientInterface` over in-process services. Errors from the services propagate unchanged.
+
+    ``own_writes`` remembers the events of every command this client ran, so a screen can tell its
+    user's own saves from other writers' changes in the live feed.
+    """
 
     def __init__(self, uow_factory: UowFactory) -> None:
         self._uow = uow_factory
+        self.own_writes = OwnWrites()
 
     @classmethod
     def for_sqlite(cls, path: str | Path) -> EmbeddedClient:
-        return cls(sqlite_uow_factory(path))
+        """A client on the SQLite ledger at ``path`` with a long-lived engine and a bus."""
+        from tl_adapters.sqlite.factory import SqliteUowFactory
+
+        return cls(SqliteUowFactory(path))
+
+    def change_feed(self, scope: str | None = None) -> ChangeFeed | None:
+        """The live feed for this ledger, or ``None`` when the factory has no ledger and bus."""
+        ledger = getattr(self._uow, "ledger", None)
+        bus = getattr(self._uow, "bus", None)
+        if ledger is None or bus is None:
+            return None
+        return EmbeddedFeed(ledger, bus, scope=scope)
+
+    def close(self) -> None:
+        """Release the engine when the factory owns one (``for_sqlite``)."""
+        close = getattr(self._uow, "close", None)
+        if callable(close):
+            close()
 
     def list_records(
         self,
@@ -93,6 +119,30 @@ class EmbeddedClient:
                 order_by=order_by,
             )
 
+    def query_records(
+        self,
+        scope: str,
+        q: str,
+        *,
+        limit: int = 500,
+        offset: int = 0,
+        order_by: list[tuple[str, Literal["asc", "desc"]]] | None = None,
+    ) -> list[dict[str, Any]]:
+        spec = QuerySpec(
+            scope=scope,
+            where=parse(q),  # a syntax error is raised before a transaction is opened
+            order_by=list(order_by or []),
+            limit=limit,
+            offset=offset,
+        )
+        with self._uow(True) as uow:
+            return run_query(uow, spec)
+
+    def count_records(self, scope: str, q: str) -> int:
+        spec = QuerySpec(scope=scope, where=parse(q))
+        with self._uow(True) as uow:
+            return count_query(uow, spec)
+
     def get_record(self, scope: str, key: str) -> dict[str, Any] | None:
         with self._uow(True) as uow:
             return queries.get_record(uow, scope, key)
@@ -107,19 +157,19 @@ class EmbeddedClient:
 
     def create_record(self, cmd: CreateRecord) -> CommandResult:
         with self._uow(False) as uow:
-            return handle_create_record(uow, cmd)
+            return self.own_writes.note(handle_create_record(uow, cmd))
 
     def update_record(self, cmd: UpdateRecord) -> CommandResult:
         with self._uow(False) as uow:
-            return handle_update_record(uow, cmd)
+            return self.own_writes.note(handle_update_record(uow, cmd))
 
     def set_pset_values(self, cmd: SetPsetValues) -> CommandResult:
         with self._uow(False) as uow:
-            return psets.handle_set_pset_values(uow, cmd)
+            return self.own_writes.note(psets.handle_set_pset_values(uow, cmd))
 
     def edit_record(self, cmd: EditRecord) -> CommandResult:
         with self._uow(False) as uow:
-            return handle_edit_record(uow, cmd)
+            return self.own_writes.note(handle_edit_record(uow, cmd))
 
     def form_metadata(self, scope: str, record_type: str) -> FormMetadata:
         with self._uow(True) as uow:
@@ -185,35 +235,35 @@ class EmbeddedClient:
 
     def add_link(self, cmd: AddLink) -> CommandResult:
         with self._uow(False) as uow:
-            return links.handle_add_link(uow, cmd)
+            return self.own_writes.note(links.handle_add_link(uow, cmd))
 
     def suggest_link(self, cmd: SuggestLink) -> CommandResult:
         with self._uow(False) as uow:
-            return links.handle_suggest_link(uow, cmd)
+            return self.own_writes.note(links.handle_suggest_link(uow, cmd))
 
     def accept_link(self, cmd: AcceptLink) -> CommandResult:
         with self._uow(False) as uow:
-            return links.handle_accept_link(uow, cmd)
+            return self.own_writes.note(links.handle_accept_link(uow, cmd))
 
     def decline_link(self, cmd: DeclineLink) -> CommandResult:
         with self._uow(False) as uow:
-            return links.handle_decline_link(uow, cmd)
+            return self.own_writes.note(links.handle_decline_link(uow, cmd))
 
     def repin_link(self, cmd: RepinLink) -> CommandResult:
         with self._uow(False) as uow:
-            return links.handle_repin_link(uow, cmd)
+            return self.own_writes.note(links.handle_repin_link(uow, cmd))
 
     def verify_link(self, cmd: VerifyLink) -> CommandResult:
         with self._uow(False) as uow:
-            return links.handle_verify_link(uow, cmd)
+            return self.own_writes.note(links.handle_verify_link(uow, cmd))
 
     def flag_link(self, cmd: FlagLink) -> CommandResult:
         with self._uow(False) as uow:
-            return links.handle_flag_link(uow, cmd)
+            return self.own_writes.note(links.handle_flag_link(uow, cmd))
 
     def retract_link(self, cmd: RetractLink) -> CommandResult:
         with self._uow(False) as uow:
-            return links.handle_retract_link(uow, cmd)
+            return self.own_writes.note(links.handle_retract_link(uow, cmd))
 
     # --- workflow -------------------------------------------------------------------------------
 
@@ -223,4 +273,4 @@ class EmbeddedClient:
 
     def transition(self, cmd: TransitionWorkflow) -> CommandResult:
         with self._uow(False) as uow:
-            return handle_transition_workflow(uow, cmd)
+            return self.own_writes.note(handle_transition_workflow(uow, cmd))
