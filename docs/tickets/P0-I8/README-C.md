@@ -43,9 +43,9 @@ Coding agents can inspect the running system and scaffold new work without break
 | T43 | `seed` tool | haiku | S41 | merged | 1 review round; 7 tests; API cleanup after a kill added by the supervisor |
 | T44 | `send_test_webhook` tool | haiku | S41 | merged | 1 review round; 20 tests; userinfo redaction and IPv6 brackets added by the supervisor |
 | T45 | `render_screen` tool | haiku | S41 | merged | 1 review round; 28 tests; deviations accepted (Path.as_uri, key-name check, svg_truncated default) |
-| T46 | resources: schema graph and event catalog | haiku | S41 | ready | |
-| T47 | resources: ADRs, runbooks, test reports | haiku | S41 | ready | |
-| T48 | `tl new record-type` | haiku | S42 | ready | |
+| T46 | resources: schema graph and event catalog | haiku | S41 | in-review | |
+| T47 | resources: ADRs, runbooks, test reports | haiku | S41 | in-review | |
+| T48 | `tl new record-type` | haiku | S42 | in-review | |
 | T49 | `tl new projector` | haiku | S42 | ready | |
 | T50 | docs: modules the audit found undocumented (tl-api, tl-lake, tl-sim, tl-cli) | haiku | S43 | ready | |
 

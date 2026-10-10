@@ -1,6 +1,6 @@
 # P0-I8-T46 — Dev MCP resources: schema graph and event catalog
 
-Status: ready
+Status: in-review
 Tier: haiku
 Labels: mcp, tests
 Depends on: P0-I8-S41 (merged into the base of this branch)
