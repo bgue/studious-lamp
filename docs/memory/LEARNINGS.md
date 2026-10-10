@@ -545,3 +545,35 @@ test or a generated artefact already enforces, or narrative history (that belong
   two different files. After merging workstream A, `just check` failed on codegen drift because its `COLLATE "C"` change altered the
   Postgres DDL of tables that workstream B had added: run `just gen` after every merge that touches a generator.
   Evidence: `git show c073261:...factory.py`; `differs: ddl/postgres/wh_delivery.sql`. Status: active
+
+- **L-P0-I7-A1** · 2026-10-10 · tags: ledger, schema
+  Promoted pset columns of `cur_core_record` are created at command time by `ensure_promoted_columns`, not by events, so a fresh database
+  plus a replay silently lacks them (rows had 15 columns instead of 17). `restore_from_archive` adds them from the effective schema of every
+  scope in the archive before rebuilding, using the process-wide schema provider. The schema packages in force at restore time decide the
+  columns: restore with the same `TL_SCHEMA_DIR` the ledger used.
+  Evidence: `tests/archive/test_restore.py` (compares every column by name); `tl_adapters/restore.py::_ensure_promoted`. Status: active
+
+- **L-P0-I7-A2** · 2026-10-10 · tags: ledger, tests
+  An archive segment is three files in the order ndjson, parquet, manifest, and the manifest is the commit marker. A crash leaves a directory
+  whose name fixes the seq range, and the next `seal_segment` seals exactly that range (accepting a leftover file only if it matches the
+  ledger's events byte for byte, or for Parquet row for row), even when newer events arrived. The test injects a crash with a store that
+  raises after N puts; removing the orphan-resume line fails it.
+  Evidence: `tests/archive/test_seal_verify.py::test_a_crash_between_files_never_yields_a_different_segment`. Status: active
+
+- **L-P0-I7-A3** · 2026-10-10 · tags: tooling
+  The frozen contract file is `tl_core/archive/types.py`, which is a standard-library module name (L-P0-I5-B1). Running `python` with that
+  directory as the working directory breaks `import re` and `typing`. Run scripts from the repository root or a scratch directory, never
+  from `packages/tl-core/src/tl_core/archive/`.
+  Evidence: `ImportError: cannot import name 'WrapperDescriptorType' from 'types'` during a scripted edit. Status: active
+
+- **L-P0-I7-A4** · 2026-10-10 · tags: process, tests
+  Two tickets in one batch cannot use each other's CLI. The restore ticket's provided test builds its archive with library calls
+  (`write_keypair`, `seal_segment`, `FsArchiveStore`) instead of `tl archive seal`, and the plan orders the CLI that needs a store after
+  the store ticket merges. A ticket's Context should also list any error or type module whose constructor its tests rely on.
+  Evidence: `docs/tickets/P0-I7/provided/test_cli_restore.py.txt`; T01 report, proposed learning. Status: active
+
+- **L-P0-I7-A5** · 2026-10-10 · tags: env
+  `api.github.com` is refused (403) but release tarballs at `github.com/<owner>/<repo>/releases/download/<tag>/...` download. Litestream
+  v0.3.13 (Apache-2.0, `litestream-v0.3.13-linux-amd64.tar.gz`, sha256 eb75a3de...ba3b0) is unpacked into the git-ignored `dev/data/tools/`.
+  pgBackRest comes from `sudo apt-get install -y pgbackrest` (2.50).
+  Evidence: this round's fetch. Status: active

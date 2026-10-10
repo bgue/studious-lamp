@@ -24,10 +24,10 @@ WS-B owns `dev/demos/P0-I7.sh`. This workstream's own check is the drill (`bash 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| P0-I7-T01 | Filesystem ArchiveStore (write-once) | haiku | S10 | ready | |
-| P0-I7-T02 | `tl backup sqlite` and `backup_database` | haiku | none | ready | |
-| P0-I7-T03 | `tl archive keygen\|seal\|verify` | haiku | T01, S10 | draft (batch 2) | |
-| P0-I7-T04 | `tl restore --from-archive` | haiku | T01, S11 | draft (batch 2) | |
+| P0-I7-T01 | Filesystem ArchiveStore (write-once) | haiku | S10 | merged (2a0df2f) | passed review first attempt |
+| P0-I7-T02 | `tl backup sqlite` and `backup_database` | haiku | none | merged (f4236e7) | passed review first attempt; hard-link OSError wrapped by supervisor (452ef1e) per ruling |
+| P0-I7-T03 | `tl archive keygen\|seal\|verify` | haiku | T01, S10 | ready | |
+| P0-I7-T04 | `tl restore --from-archive` | haiku | T01, S11 | ready | |
 | P0-I7-T05 | Runbooks: archive and verify, restore from archive | haiku | T03, T04 | draft (batch 3) | |
 | P0-I7-T06 | Runbooks: pgBackRest restore, SQLite backup and Litestream | haiku | S12, T02 | draft (batch 3) | |
 

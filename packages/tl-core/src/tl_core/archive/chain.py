@@ -81,3 +81,24 @@ def load_chain_state(store: ArchiveStore) -> ChainState:
             )
         state.orphan = (parsed[0], parsed[1], orphans[0])
     return state
+
+
+@dataclass(frozen=True)
+class ArchiveSummary:
+    """What an archive holds, from its manifests alone (no verification)."""
+
+    segments: int
+    events: int
+    last_seq: int  # 0 when empty
+    unsealed: str | None  # name of a segment directory without a manifest, if any
+
+
+def summarize_archive(store: ArchiveStore) -> ArchiveSummary:
+    """Count sealed segments and events; ``ArchiveError`` if the chain is structurally broken."""
+    state = load_chain_state(store)
+    return ArchiveSummary(
+        segments=len(state.sealed),
+        events=state.last_seq,
+        last_seq=state.last_seq,
+        unsealed=state.orphan[2] if state.orphan else None,
+    )

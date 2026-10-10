@@ -4,6 +4,7 @@
 them for a restore. The contracts are in ``types.py``.
 """
 
+from tl_core.archive.chain import ArchiveSummary, summarize_archive
 from tl_core.archive.errors import ArchiveError, ArchiveExistsError, RestoreError
 from tl_core.archive.sealer import DEFAULT_MAX_EVENTS, read_events, seal_segment
 from tl_core.archive.signing import (
@@ -14,6 +15,7 @@ from tl_core.archive.signing import (
     key_id_of,
     load_public_key,
     load_signer,
+    public_key_path,
     write_keypair,
 )
 from tl_core.archive.types import (
@@ -33,6 +35,7 @@ __all__ = [
     "ArchiveError",
     "ArchiveExistsError",
     "ArchiveStore",
+    "ArchiveSummary",
     "Ed25519Signer",
     "RestoreError",
     "ScopeChain",
@@ -45,8 +48,10 @@ __all__ = [
     "key_id_of",
     "load_public_key",
     "load_signer",
+    "public_key_path",
     "read_events",
     "seal_segment",
+    "summarize_archive",
     "verify_archive",
     "write_keypair",
 ]
