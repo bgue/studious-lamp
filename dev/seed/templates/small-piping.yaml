@@ -1,0 +1,12 @@
+# Seed template for simulator v0 (brief 29.5): the project that exists before the first working day.
+# Each area becomes a record `Area <name>`; each line a record `Line <designation>` that belongs to it.
+template: small-piping
+description: Two process areas with three piping lines each, enough for a week of activity.
+areas:
+  - name: Unit 100 North
+    lines: ["6-CS-1001", "4-CS-1002", "8-SS-1003"]
+  - name: Unit 200 Utilities
+    lines: ["3-CS-2001", "2-CS-2002", "6-CS-2003"]
+valve_sizes_in: [2, 3, 4, 6, 8]
+manufacturers: [Crane, Velan, Emerson]
+disciplines: [Piping, Mechanical, Civil, Instrumentation]

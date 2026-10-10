@@ -691,6 +691,35 @@ test or a generated artefact already enforces, or narrative history (that belong
   imports and calls; if another ticket owns it, the two are not independent. After the fact the fix was an integration merge of the
   base into the ticket branch and a re-run of its tests on both adapters.
   Evidence: relay outcomes of workflow wkzasjo4a; T03 passes 13 of 13 only with T02 merged. Status: active
+- **L-P0-I6C-1** · 2026-10-10 · tags: ledger, api
+  A scope `project:sim-<run>` cannot be auto-numbered: the numbering pattern's `{project}` takes letters and digits only (`FIELD_VALUE`) and the scope id has a
+  dash, so `CreateRecord` without a key answers 422 `numbering_value`. The simulator assigns keys itself (`SIM<RUN>-REC-0001`, which still fits the registered
+  pattern, so `#key` tags resolve). Do not loosen the numbering rules for it: numbering allocation is a human gate.
+  Evidence: `packages/tl-api/tests/test_effective_time.py::test_automatic_numbering_cannot_key_a_simulation_scope`; `numbering/allocator.py:segment_values`. Status: active
+
+- **L-P0-I6C-2** · 2026-10-10 · tags: ledger, api
+  `effective_at` is stored on every event but no projector, query or screen reads it; it shows only in the event pager (`GET /events`, `Event.effective_at`). That is
+  why D5 needed no change to `Command`, `Event` or `event_hash` (the hash covers `recorded_at`), and why `sim_assert` proves simulated time by reading the events
+  back. A feature that wants "business time" in a projection must read it explicitly.
+  Evidence: `grep -rn effective_at packages/*/src` (only the two ledger adapters and `ledger/types.py`); `tests/test_ledger_effective_time.py::test_the_hash_does_not_depend_on_the_override`. Status: active
+
+- **L-P0-I6C-3** · 2026-10-10 · tags: tooling
+  The contract names the module `tl_sim/types.py`. Python run with that directory as the working directory (`python -` from `src/tl_sim`) fails at start-up with
+  `cannot import name 'MappingProxyType' from 'types'` because the file shadows the standard library. Run every command from the repository root; tickets say so.
+  The file keeps the frozen text verbatim by switching the formatter and the E501 and I001 rules off for that file only.
+  Evidence: a failed `python3 - <<EOF` from `packages/tl-sim/src/tl_sim`; `tests/test_contract_and_boundary.py::test_types_py_is_the_contract_of_the_fanout_plan_verbatim`. Status: active
+
+- **L-P0-I6C-4** · 2026-10-10 · tags: tests, process
+  An in-memory fake drifts from the real suite in the places nobody looked: `FakeWorld` raised `InvalidStateError` for a workflow transition from the wrong state, and
+  the real engine raises `UnknownTransitionError` ("cannot start in state"). The first run of the client tests against the real API app found it. Write the fake's
+  refusals from a real run, and keep one test per refusal that runs against the real app (`tests/test_http_client.py`).
+  Evidence: `test_links_and_transitions_follow_the_sample_workflow`; `testing.py` FakeClient.transition. Status: active
+
+- **L-P0-I6C-5** · 2026-10-10 · tags: tests
+  A test that pins "the draws happen in this order" only works if the draws consume the generator: `draw(3, rng)` for an integer count uses no randomness, while
+  `CountRange(min=0, max=0)` still does. The provided actor tests use ranges for the counts that precede the pinned draws, and pin a result that three different
+  orders would not all give (a first attempt with two activities chose the same line twice and pinned nothing).
+  Evidence: `docs/tickets/P0-I6/provided/c-test_actor_planner.py.txt` `PINNED`. Status: active
 
 - **L-P0-I6B-1** · 2026-10-10 · tags: schema, tests
   A new event type in the catalog breaks two tests the schema package does not run: `tests/contract/test_webhook_catalog_contract.py`
@@ -781,6 +810,34 @@ test or a generated artefact already enforces, or narrative history (that belong
   threads. The code handles all three. Synchronous remote calls on the UI thread (3 s interactive timeout) should move
   to workers.
   Evidence: P0-I4 WS-D re-review at c033469. Status: active
+- **L-P0-I6C-6** · 2026-10-10 · tags: process, tickets
+  A spec that prints a count must say how the singular reads: the crew actor followed `Installed <n> valves` literally and posted "Installed 1 valves" while a provided test
+  only covered 2 and 3. Write a `plural(count, noun)` into the shared base and name it in the spec. Also: the stream of a seeded generator is keyed by the actor identity string, so
+  changing an identity (user: instead of agent:) changes every pinned draw; keep pins in one `PINNED` constant per test file so a re-pin is one edit.
+  Evidence: reviewer ruling on T42; S44 re-pinned three tests. Status: active
+
+- **L-P0-I6C-7** · 2026-10-10 · tags: tooling
+  pydantic's `ValidationError` is a subclass of `ValueError`, so an `except (…, ValueError)` placed before `except ValidationError` makes the second unreachable (pyright
+  `reportUnusedExcept`). Put `ValidationError` first, as the two `tl_sim` error wrappers do. The mcp SDK reports an exception a tool did not convert as a generic
+  `UnexpectedToolError("Error executing tool x")`: the message is not leaked, which a test can rely on.
+  Evidence: `tl_sim/cli.py`, `tl_sim/mcp_server.py`, `tests/test_mcp_server.py::test_a_bug_is_not_turned_into_a_known_failure_message`. Status: active
+
+- **L-P0-I6C-8** · 2026-10-10 · tags: env, tooling
+  Two implementer reports found shell traps in the Bash tool: `pkill -f <pattern>` matches the shell that runs it when the pattern is in the command line (exit 144), and a
+  multi-line `cat > file <<'EOF'` inside a `&&` chain once hung until the 120 s timeout while the Write tool created the file at once. Use `pgrep` and a PID, and write files with
+  the Write tool.
+  Evidence: `docs/reports/P0-I6/P0-I6-T41.md`. Status: active
+- **L-P0-I6C-9** · 2026-10-10 · tags: tests, security
+  An import-boundary test that only reads `ast.ImportFrom.module` misses `from tl_core import ledger` (the forbidden thing is `module.name`), `import x as y; y.ledger`, and a module
+  loaded by string. Test the dotted name of every `from` import, follow aliases through attribute chains, forbid `importlib`/`__import__`, and keep negative fixtures that prove each
+  spelling is caught. A timestamp parser also needs a range: `datetime.astimezone(UTC)` raises `OverflowError` at year 1 or 9999, which became a 500 until it was caught.
+  Evidence: review of S40 to S43; `tests/test_contract_and_boundary.py`, `packages/tl-api/tests/test_effective_time.py`. Status: active
+- **L-P0-I6C-10** · 2026-10-10 · tags: security, tooling
+  A tool that lets a caller name a file is a file-read door: `load_scenario("/etc/hostname")` worked through MCP because "contains a slash" meant "is a path". A remote door takes names
+  only (a pattern, then a real-path containment check that follows symlinks), and shows the caller a message that has no path, file text or parser snippet (`ScenarioError.public`).
+  In shell, `quiet cmd &` backgrounds the wrapper function's subshell, so `$!` is not the server and the EXIT trap leaves it running: start it with `setsid`, kill `-$pid` (the group), and
+  wait until its port stops answering.
+  Evidence: review of T44 and T45; `tests/test_mcp_server.py`, `dev/seed/seed.sh`. Status: active
 
 - **L-P0-I6B-7** · 2026-10-10 · tags: ledger, tests
   The two server-side unit-of-work factories disagreed: `SqliteUowFactory.__call__(readonly)` took the flag by position while
@@ -788,6 +845,12 @@ test or a generated artefact already enforces, or narrative history (that belong
   noticed because services were tested through `open_uow`. A function that takes a factory should declare a `Protocol` with the
   parameter name, call it by keyword, and have one parity test that passes `make_uow_factory(target)` on each adapter.
   Evidence: reviewer finding on `proposals.py`; `test_the_service_runs_on_each_adapters_own_factory[postgres]`. Status: active
+- **L-P0-I6C-11** · 2026-10-10 · tags: api, tests
+  A person can decide a proposal from the CLI (`source=cli`) or the API (`source=api`), and the decision event (`Proposal.Accepted|Rejected|Failed`) carries that source, while the effect
+  keeps `mcp:<agent>`; a check that every event in a scope has the simulator's source must exempt decision events (and still check their actor). Posting as `user:` identities works because
+  the API refuses record changes from `agent:` tokens only; an agent's feed post is a direct write with `source` forced to `mcp:<id>`. `mcp.Client` takes a `StdioServerParameters` or an
+  in-memory `MCPServer`, so one caller class covers the real process and the test.
+  Evidence: `tests/test_assertions.py::test_a_decision_event_made_over_the_api_or_the_cli_is_not_a_foreign_source`, `dev/demos/P0-I6.sh`. Status: active
 - **L-P0-I7-A1** · 2026-10-10 · tags: ledger, schema
   Promoted pset columns of `cur_core_record` are created at command time by `ensure_promoted_columns`, not by events, so a fresh database
   plus a replay silently lacks them (rows had 15 columns instead of 17). `restore_from_archive` adds them from the effective schema of every

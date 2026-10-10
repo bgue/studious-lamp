@@ -1,0 +1,11 @@
+# `just seed s`: two working weeks on the small template.
+scenario: seed-s
+seed: 2
+start: 2026-11-02
+duration_days: 10
+template: small-piping
+actors:
+  crew:
+    valves_per_day: {dist: normal, mean: 5, sd: 1.5}
+inject:
+  - {day: 4, event: material_late, item: "4in CL150 gate valve", days: 14}
