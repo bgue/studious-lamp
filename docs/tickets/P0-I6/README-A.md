@@ -1,6 +1,6 @@
 # Increment plan: P0-I6 workstream A, activity feed and hashtags
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-09
 Brief sections: §21.1 to §21.4, §19.2, §19.3, §30 (`feed.*`)
 Branch: `p0/i6a` (worktree `/home/user/wt/p0-i6a`), fanout plan `docs/tickets/P0-I6/FANOUT.md`
@@ -75,7 +75,7 @@ projection derives the effective importance (high when a tag is a signal tag). E
 | P0-I6-T02 | Feed list queries (`list_feed`, `get_post`) | haiku | S4 | merged | pass, no findings |
 | P0-I6-T03 | `#hold` suggestions and composer completion | haiku | S4 | merged | pass, no findings |
 | P0-I6-T04 | Feed pane widget | haiku | S6 | merged | pass |
-| P0-I6-T05 | `tl feed post\|ls\|retract\|react` | haiku | T01, T02 | ready | |
+| P0-I6-T05 | `tl feed post\|ls\|retract\|react` | haiku | T01, T02 | merged | pass, no findings |
 | P0-I6-T06 | Composer with `#` and `@` completion | haiku | S6 | merged | pass |
 | S8 | App `F`/`p` keys, main-area feed view, keymap, palette, embedded-client tests | TUI wiring | T04, T06 | done | |
 
