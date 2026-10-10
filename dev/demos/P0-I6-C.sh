@@ -95,15 +95,26 @@ echo "$posts"
 expect "$posts" '^user:sim-crew \| Installed [0-9]+ valves?: #SIMR[0-9A-F]{6}-REC-'
 expect "$posts" '^user:sim-document_controller \| Registered '
 
-step "every simulator event carries simulated time, source sim:<run> and a simulated actor"
+step "the assistant (an agent) proposed over MCP; a person (user:sim-approver) decided in the review queue"
+proposals="$(api "/proposals?scope=$scope&all=true&limit=50" |
+  json "[print(p['status'], p['tool'], p['agent'], 'decided by', p['decided_by']) for p in d]")"
+echo "$proposals"
+expect "$proposals" '^(accepted|rejected) link_records agent:sim-assistant decided by user:sim-approver$'
+! grep -q '^pending' <<<"$proposals"
+
+step "every event is by a simulated actor; the simulator's own carry simulated time"
 api "/events?scope=$scope&limit=500" | json "
 ev = d['events']
 assert ev, 'no events'
-assert {e['source'] for e in ev} == {'sim:$run'}, {e['source'] for e in ev}
-assert all(e['actor'].startswith('user:sim-') for e in ev)
-assert all(e['effective_at'].startswith('2026-11-02') for e in ev)
-assert all(e['effective_at'] != e['recorded_at'] for e in ev)
-print(len(ev), 'events, effective_at', min(e['effective_at'] for e in ev)[:16], 'to', max(e['effective_at'] for e in ev)[:16])
+assert all(e['actor'].startswith(('user:sim-', 'agent:sim-')) for e in ev)
+own = [e for e in ev if e['source'] == 'sim:$run']
+assert own and all(e['actor'].startswith('user:sim-') for e in own)
+assert all(e['effective_at'].startswith('2026-11-02') for e in own)
+assert all(e['effective_at'] != e['recorded_at'] for e in own)
+others = sorted({(e['event_type'], e['source']) for e in ev if e not in own})
+print(len(own), 'simulator events, effective_at', min(e['effective_at'] for e in own)[:16], 'to', max(e['effective_at'] for e in own)[:16])
+print('and, by other doors:', others)
+assert ('Proposal.Created', 'mcp:sim-assistant') in others
 "
 
 step "sim_assert: the suite holds what the scenario intended"

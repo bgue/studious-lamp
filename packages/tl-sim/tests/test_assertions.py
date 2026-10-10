@@ -285,12 +285,18 @@ def test_an_accepted_link_that_is_missing_fails() -> None:
     )
 
 
-def test_a_decision_event_made_over_the_api_is_not_a_foreign_source() -> None:
+def test_a_decision_event_made_over_the_api_or_the_cli_is_not_a_foreign_source() -> None:
     world, agent, person = propose_world()
     (proposal,) = person.pending()
     person.decide(proposal, accept=True)
     events = {e["event_type"]: e["source"] for e in world.event_rows}
     assert events["Proposal.Accepted"] == "api" and events["Link.Added"] == "mcp:sim-assistant"
+    assert "event_source" not in {
+        f.check for f in check(world, _with_records(world, agent, person)).failures
+    }
+    for event in world.event_rows:
+        if event["event_type"] == "Proposal.Accepted":
+            event["source"] = "cli"  # a person deciding with `tl proposal accept`
     assert "event_source" not in {
         f.check for f in check(world, _with_records(world, agent, person)).failures
     }

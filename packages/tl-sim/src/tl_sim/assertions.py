@@ -269,8 +269,8 @@ def run_assertions(
                 fail("event_time", ref, "effective_at", "a played day", event["effective_at"])
         else:
             report.checked += 1
-            decision = event["event_type"] in DECISION_EVENTS and source == "api"
-            if not (source.startswith("mcp:") or decision):  # a decision is made over the API
+            decision = event["event_type"] in DECISION_EVENTS  # made over the API or the CLI
+            if not (source.startswith("mcp:") or decision):
                 fail("event_source", ref, "source", f"sim:{run_id}", source)
         report.checked += 1
         if not str(event["actor"]).startswith(SIM_ACTORS):
