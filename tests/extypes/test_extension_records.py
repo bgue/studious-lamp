@@ -479,3 +479,59 @@ def test_rebuilding_the_projections_gives_the_same_records_and_pset_values(world
     rebuild_projections(world.db)
     assert snapshot() == before
     assert len(before[0]) == 3 and len(before[1]) == 4 + 4 + 4
+
+
+# --- review fix: the loader re-verifies without a restart ---------------------------------
+
+
+def test_an_edited_package_becomes_unavailable_without_forgetting_the_loader(
+    world: World,
+) -> None:
+    from tl_core.extypes.loader import TypeLoader
+
+    world.sync()
+    (view,) = [v for v in world.types() if v.registration.name == "SafetyObservation"]
+    clock = {"now": 0.0}
+    loader = TypeLoader(reverify=1.0, clock=lambda: clock["now"])
+    assert loader.load(view.registration).__class__.__name__ == "LoadedType"
+    (world.package(OBSERVATION) / "README.md").write_text("changed behind the registry's back\n")
+    clock["now"] = 0.5  # inside the interval: the cached type is served, no hashing
+    assert loader.load(view.registration).__class__.__name__ == "LoadedType"
+    clock["now"] = 1.5
+    result = loader.load(view.registration)
+    assert result.__class__.__name__ == "Unavailable"
+    assert "changed since" in result.reason  # type: ignore[union-attr]
+    # and it stays unavailable, then returns when the files do
+    assert loader.load(view.registration).__class__.__name__ == "Unavailable"
+
+
+def test_a_deleted_package_becomes_unavailable_without_forgetting_the_loader(
+    world: World,
+) -> None:
+    import shutil
+
+    from tl_core.extypes.loader import TypeLoader
+
+    world.sync()
+    (view,) = [v for v in world.types() if v.registration.name == "SafetyObservation"]
+    clock = {"now": 0.0}
+    loader = TypeLoader(reverify=1.0, clock=lambda: clock["now"])
+    assert loader.load(view.registration).__class__.__name__ == "LoadedType"
+    shutil.rmtree(world.package(OBSERVATION))
+    clock["now"] = 2.0
+    result = loader.load(view.registration)
+    assert result.__class__.__name__ == "Unavailable" and "missing" in result.reason  # type: ignore[union-attr]
+
+
+def test_the_default_loader_notices_an_edit_when_the_interval_has_passed(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    world.sync()
+    world.create_observation("SO-1")  # loads and caches the type
+    (world.package(OBSERVATION) / "README.md").write_text("changed\n")
+    import time
+
+    loader = default_loader()
+    monkeypatch.setattr(loader, "_clock", lambda: time.monotonic() + 5.0)
+    with world.factory() as uow, pytest.raises(TypeNotActiveError, match="changed since"):
+        handle_create_record(uow, command(OBSERVATION, key="SO-2"))

@@ -18,6 +18,7 @@ from pydantic import ValidationError
 from tl_schema.compile import SchemaCompileError, compile_psets
 
 from tl_core.extypes.compile import (
+    MAX_PATTERN,
     TYPE_FILE,
     body_issues,
     compile_type,
@@ -127,6 +128,12 @@ def read_settings(
             )
         elif definition.owner != coords.type_name:
             issues.append(issue(f"{where}: owner must be {coords.type_name}"))
+        elif (
+            definition.validation is not None
+            and definition.validation.pattern is not None
+            and len(definition.validation.pattern) > MAX_PATTERN
+        ):
+            issues.append(issue(f"{where}: validation.pattern is longer than {MAX_PATTERN}"))
         elif definition.sensitivity == "secret":
             issues.append(
                 issue(f"{where}: secret settings are not available (a vault is a human gate)")
@@ -188,9 +195,17 @@ def _collision(compiled: CompiledType, provider: SchemaProvider) -> list[TypeIss
 
 
 def validate_package(
-    path: Path, *, provider: SchemaProvider, root: Path | None = None
+    path: Path,
+    *,
+    provider: SchemaProvider,
+    root: Path | None = None,
+    described: Described | None = None,
 ) -> tuple[TypeRegistration | None, list[TypeIssue]]:
     """Validate the package at ``path``; see the module docstring.
+
+    Never raises: an unexpected failure while reading the package (a vanished file, a LinkML
+    error) is a ``compile`` issue, so one bad package cannot stop a sync of the others.
+    ``described`` is the identity ``describe_package`` already gave, so the files are read once.
 
     Checks, in order, collecting every issue: layout (path segments, ``type.yaml`` present, no
     links, sizes), ``type.lock`` against the files, LinkML lint, compile into the effective schema
@@ -198,7 +213,17 @@ def validate_package(
     ``provider``), ``form.yaml``, ``workflow.yaml``, ``settings.yaml`` and every file in
     ``examples/``. ``unsupported`` marks directory-backed storage.
     """
-    described = describe_package(path, root)
+    try:
+        return _validate(path, provider, root, described)
+    except Exception as exc:
+        detail = f"validation failed unexpectedly: {type(exc).__name__}: {str(exc)[:300]}"
+        return None, [TypeIssue(kind="compile", path=None, detail=detail)]
+
+
+def _validate(
+    path: Path, provider: SchemaProvider, root: Path | None, known: Described | None
+) -> tuple[TypeRegistration | None, list[TypeIssue]]:
+    described = known if known is not None else describe_package(path, root)
     issues = list(described.layout)
     if not (path / TYPE_FILE).is_file():
         issues.append(TypeIssue(kind="layout", path=TYPE_FILE, detail="type.yaml is missing"))

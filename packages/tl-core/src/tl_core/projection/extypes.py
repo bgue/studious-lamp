@@ -40,10 +40,12 @@ _INSERT = text(
 _REGISTER = text(
     "UPDATE cur_core_type_registration SET type_name = :type_name, namespace = :namespace, "
     "name = :name, version = :version, pset = :pset, location_uri = :location_uri, "
-    "content_hash = :content_hash, owner = :owner, status = 'active', "
+    "content_hash = :content_hash, owner = :owner, "
+    "status = CASE WHEN status = 'deprecated' THEN 'deprecated' ELSE 'active' END, "
     "storage_mode = :storage_mode, "
     "index_fields_json = :index_fields_json, schema_hash = :schema_hash, report_json = NULL, "
-    "conflict_hash = NULL, reason = NULL, last_seq = :seq, version_n = :version_n, "
+    "conflict_hash = NULL, reason = CASE WHEN status = 'deprecated' THEN reason ELSE NULL END, "
+    "last_seq = :seq, version_n = :version_n, "
     "updated_at = :updated_at WHERE type_ref = :type_ref"
 )
 _QUARANTINE_AGAIN = text(

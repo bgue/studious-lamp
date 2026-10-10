@@ -6,9 +6,9 @@ whitespace, listing every regular file of the package except ``type.lock`` itsel
 other whitespace or key order, because it parses and re-serialises before hashing; ``write_lock``
 always writes the canonical form. Signing on publish (brief 31.1) is a follow-up.
 
-Nothing here follows a symbolic link, and a package larger than ``MAX_FILES`` files or
-``MAX_FILE_BYTES`` bytes per file is refused, so a registry that scans a shared directory cannot be
-made to read arbitrary or unbounded data.
+Hidden files are listed too. Nothing here follows a symbolic link, and a package larger than
+``MAX_FILES`` files or ``MAX_FILE_BYTES`` bytes per file is refused, so a registry that scans a
+shared directory cannot be made to read arbitrary or unbounded data.
 """
 
 from __future__ import annotations
@@ -49,7 +49,8 @@ def content_hash(files: dict[str, str]) -> str:
 def package_files(path: Path) -> tuple[dict[str, Path], list[TypeIssue]]:
     """Regular files of the package below ``path`` by relative posix path, and layout issues.
 
-    Hidden files and directories (a leading dot) and ``__pycache__`` are skipped. A symbolic link,
+    Hidden files are locked like any other (a hidden file is still content). A ``__pycache__``
+    directory is a ``layout`` issue, since a package carries no bytecode. A symbolic link,
     too many files, or a file over ``MAX_FILE_BYTES`` is reported as a ``layout`` issue and
     left out.
     """
@@ -59,7 +60,11 @@ def package_files(path: Path) -> tuple[dict[str, Path], list[TypeIssue]]:
         here = Path(directory)
         kept: list[str] = []
         for name in sorted(dirnames):
-            if name.startswith(".") or name == "__pycache__":
+            if name == "__pycache__":
+                relative = (here / name).relative_to(path).as_posix()
+                issues.append(
+                    TypeIssue(kind="layout", path=relative, detail="bytecode is not allowed")
+                )
                 continue
             if (here / name).is_symlink():
                 relative = (here / name).relative_to(path).as_posix()
@@ -68,7 +73,7 @@ def package_files(path: Path) -> tuple[dict[str, Path], list[TypeIssue]]:
             kept.append(name)
         dirnames[:] = kept
         for name in sorted(filenames):
-            if name.startswith(".") or (name == LOCK_NAME and here == path):
+            if name == LOCK_NAME and here == path:
                 continue
             file = here / name
             relative = file.relative_to(path).as_posix()

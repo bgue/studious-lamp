@@ -13,7 +13,9 @@ Only ``file://`` locations are read in v0; an ``s3://`` prefix comes with the bu
 from __future__ import annotations
 
 import threading
+import time
 import urllib.parse
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -47,44 +49,83 @@ def package_path(location_uri: str) -> Path | None:
     return Path(urllib.parse.unquote(parts.path))
 
 
-class TypeLoader:
-    """Thread-safe cache of loaded types, keyed by type ref, content hash and schema hash."""
+REVERIFY_SECONDS = 1.0
 
-    def __init__(self) -> None:
+
+class TypeLoader:
+    """Thread-safe cache of loaded types, keyed by type ref, content hash and schema hash.
+
+    A cache hit is not trusted for ever: at most once per ``reverify`` seconds per type ref the
+    package files are hashed again, so an edited or deleted package becomes unavailable within
+    that time, without a restart. Hashing the files is far cheaper than compiling them.
+    """
+
+    def __init__(
+        self,
+        *,
+        reverify: float = REVERIFY_SECONDS,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         self._lock = threading.Lock()
         self._loaded: dict[tuple[str, str, str], LoadedType] = {}
+        self._checked: dict[tuple[str, str, str], float] = {}
+        self._reverify = reverify
+        self._clock = clock
 
     def load(self, registration: TypeRegistration) -> LoadedType | Unavailable:
         key = (registration.type_ref, registration.content_hash, registration.schema_hash)
+        now = self._clock()
         with self._lock:
             hit = self._loaded.get(key)
+            due = hit is not None and now - self._checked.get(key, 0.0) >= self._reverify
         if hit is not None:
-            return hit
+            if not due:
+                return hit
+            reason = self._files_problem(registration)
+            with self._lock:
+                if reason is None:
+                    self._checked[key] = now
+                    return hit
+                self._loaded.pop(key, None)
+                self._checked.pop(key, None)
+            return Unavailable(registration, reason)
         result = self._read(registration)
         if isinstance(result, LoadedType):
             with self._lock:
                 self._loaded[key] = result
+                self._checked[key] = now
         return result
 
     def forget(self) -> None:
         with self._lock:
             self._loaded.clear()
+            self._checked.clear()
+
+    @staticmethod
+    def _files_problem(registration: TypeRegistration) -> str | None:
+        """Why the files no longer match the registration, or ``None`` when they do."""
+        path = package_path(registration.location_uri)
+        if path is None:
+            return f"location {registration.location_uri!r} is not a file:// location"
+        if not path.is_dir():
+            return "the package directory is missing"
+        files, issues = compute_lock(path)
+        if issues:
+            return f"{issues[0].path}: {issues[0].detail}"
+        if content_hash(files) != registration.content_hash:
+            return "the package files changed since they were registered"
+        return None
 
     @staticmethod
     def _read(registration: TypeRegistration) -> LoadedType | Unavailable:
         def gone(reason: str) -> Unavailable:
             return Unavailable(registration, reason)
 
+        problem = TypeLoader._files_problem(registration)
+        if problem is not None:
+            return gone(problem)
         path = package_path(registration.location_uri)
-        if path is None:
-            return gone(f"location {registration.location_uri!r} is not a file:// location")
-        if not path.is_dir():
-            return gone("the package directory is missing")
-        files, issues = compute_lock(path)
-        if issues:
-            return gone(f"{issues[0].path}: {issues[0].detail}")
-        if content_hash(files) != registration.content_hash:
-            return gone("the package files changed since they were registered")
+        assert path is not None
         try:
             coords = parse_type_ref(registration.type_ref)
         except LayoutError as exc:

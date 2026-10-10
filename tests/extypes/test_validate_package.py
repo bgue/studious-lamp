@@ -177,6 +177,135 @@ def test_a_missing_import_of_the_base_class_is_refused(lift: Pkg) -> None:
     assert "imports must include" in lift.details()
 
 
+def import_issue_details(lift: Pkg, name: str, *, relock: bool = True) -> str:
+    lift.edit(
+        "type.yaml",
+        "  - throughline/core/extension\n",
+        f"  - throughline/core/extension\n  - {name}\n",
+        relock=relock,
+    )
+    registration, issues = lift.validate()
+    assert registration is None
+    assert {i.kind for i in issues} <= {"layout", "lock"} and "layout" in {i.kind for i in issues}
+    return "\n".join(i.detail for i in issues)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "http://127.0.0.1:9/evil",
+        "https://example.org/other",
+        "file:///etc/passwd",
+        "/etc/passwd",
+        "../outside",
+        "sub/../../outside",
+        "linkml:other",
+        "throughline/core/psets",
+        "nothere",
+        "has space",
+    ],
+)
+def test_an_import_that_leaves_the_package_is_a_layout_issue(lift: Pkg, name: str) -> None:
+    assert "not allowed" in import_issue_details(lift, name) or "not a file of the package" in (
+        import_issue_details(lift, name)
+    )
+
+
+def test_an_import_is_never_followed_to_a_network_address(
+    lift: Pkg, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import urllib.request
+
+    def refuse(*args: object, **kwargs: object) -> None:
+        raise AssertionError("a package import reached the network")
+
+    monkeypatch.setattr(urllib.request, "urlopen", refuse)
+    assert "not allowed" in import_issue_details(lift, "http://127.0.0.1:9/evil")
+
+
+def test_a_non_text_import_is_a_layout_issue(lift: Pkg) -> None:
+    lift.edit(
+        "type.yaml", "  - throughline/core/extension\n", "  - throughline/core/extension\n  - 5\n"
+    )
+    assert ("layout", "type.yaml") in lift.issues()
+
+
+def test_a_symlinked_import_is_refused(lift: Pkg, tmp_path: Path) -> None:
+    outside = tmp_path / "outside.yaml"
+    outside.write_text("id: https://example.org/x\nname: x\n")
+    os.symlink(outside, lift.path / "shared.yaml")
+    details = import_issue_details(lift, "shared", relock=False)
+    assert "not a file of the package" in details
+
+
+def test_a_file_of_the_package_may_be_imported(lift: Pkg) -> None:
+    lift.write(
+        "shared.yaml",
+        "id: https://example.org/types/co.acme/shared\nname: shared\n"
+        "prefixes:\n  linkml: https://w3id.org/linkml/\ndefault_prefix: shared\n"
+        "imports:\n  - linkml:types\n"
+        "enums:\n  Colour:\n    permissible_values:\n      red:\n      blue:\n",
+    )
+    lift.edit(
+        "type.yaml",
+        "  - throughline/core/extension\n",
+        "  - throughline/core/extension\n  - shared\n",
+    )
+    lift.edit(
+        "type.yaml",
+        "      method_statement:",
+        "      colour:\n        range: Colour\n        description: A colour.\n"
+        "      method_statement:",
+    )
+    registration, issues = lift.validate()
+    assert issues == [] and registration is not None
+
+
+def test_an_imported_file_may_not_import_outside_the_package_either(lift: Pkg) -> None:
+    lift.write(
+        "shared.yaml",
+        "id: https://example.org/types/co.acme/shared\nname: shared\n"
+        "imports:\n  - linkml:types\n  - http://127.0.0.1:9/evil\n",
+    )
+    lift.edit(
+        "type.yaml",
+        "  - throughline/core/extension\n",
+        "  - throughline/core/extension\n  - shared\n",
+    )
+    registration, issues = lift.validate()
+    assert registration is None
+    assert [(i.kind, i.path) for i in issues] == [("layout", "shared.yaml")]
+
+
+def test_validate_package_never_raises(lift: Pkg, monkeypatch: pytest.MonkeyPatch) -> None:
+    def explode(*args: object, **kwargs: object) -> None:
+        raise FileNotFoundError("vanished")
+
+    monkeypatch.setattr("tl_core.extypes.validate.compile_type", explode)
+    registration, issues = lift.validate()
+    assert registration is None
+    assert [(i.kind, i.path) for i in issues] == [("compile", None)]
+    assert "FileNotFoundError" in issues[0].detail
+
+
+def test_a_long_slot_pattern_is_refused(lift: Pkg) -> None:
+    lift.edit(
+        "type.yaml",
+        '        pattern: "^[A-Z]{2}-[0-9]{1,4}$"',
+        '        pattern: "' + "a" * 201 + '"',
+    )
+    assert "longer than 200" in lift.details()
+
+
+def test_a_long_setting_pattern_is_refused(lift: Pkg) -> None:
+    lift.edit(
+        "settings.yaml",
+        "      minimum: 1\n",
+        '      minimum: 1\n      pattern: "' + "a" * 201 + '"\n',
+    )
+    assert ("settings", "settings.yaml") in lift.issues()
+
+
 def test_a_slot_that_shadows_an_envelope_field_is_refused(lift: Pkg) -> None:
     lift.edit("type.yaml", "      method_statement:", "      title:")
     lift.edit("form.yaml", "method_statement", "title")  # keep form.yaml consistent

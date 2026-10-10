@@ -18,12 +18,13 @@ Every problem is a ``TypeIssue``; nothing here raises for a bad package.
 
 from __future__ import annotations
 
+import re
 import shutil
 import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 from jsonschema import Draft202012Validator
@@ -53,6 +54,9 @@ FORM_FILE = "form.yaml"
 BASE_CLASS = "ExtensionRecord"
 IMPORT_NAME = "throughline/core/extension"
 MAX_SLOTS = 100
+#: Longest slot pattern accepted. A cap, not a defence: a short pattern can still backtrack badly
+#: (full ReDoS hardening is a follow-up).
+MAX_PATTERN = 200
 #: Slot names that would shadow an envelope field of the record.
 RESERVED_SLOTS = frozenset(
     {
@@ -103,12 +107,86 @@ _RANGES: dict[str, SlotKind] = {
 _KIND_OVERRIDES = {"text": "text", "ref": "ref"}
 
 
+ALLOWED_IMPORTS = frozenset({"linkml:types", IMPORT_NAME})
+MAX_IMPORT_FILES = 10
+_RELATIVE_IMPORT = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_][A-Za-z0-9_.-]*)*")
+
+
+def _import_names(document: Any) -> list[Any]:
+    imports: Any = (
+        cast("dict[str, Any]", document).get("imports") if isinstance(document, dict) else None
+    )
+    return cast("list[Any]", imports) if isinstance(imports, list) else []
+
+
+def check_imports(package: Path) -> tuple[list[str], list[TypeIssue]]:
+    """The relative files ``type.yaml`` may import, and an issue for every other import.
+
+    A package may import ``linkml:types``, ``throughline/core/extension`` and files of its own
+    directory (``name`` stands for ``<package>/name.yaml``; no scheme, no absolute path, no ``..``,
+    no link). Those files may import the same things and nothing else. Anything else would make the
+    compiler fetch a URL or read a file the lock does not cover, so it is a ``layout`` issue.
+    """
+    issues: list[TypeIssue] = []
+    files: list[str] = []
+    pending: list[str] = [TYPE_FILE]
+    seen: set[str] = set()
+    base = package.resolve()
+    while pending:
+        current = pending.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        try:
+            document: Any = yaml.safe_load((package / current).read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
+            issues.append(
+                TypeIssue(kind="compile", path=current, detail=f"not readable YAML: {exc}")
+            )
+            continue
+        for name in _import_names(document):
+            if not isinstance(name, str):
+                issues.append(
+                    TypeIssue(kind="layout", path=current, detail=f"import {name!r} is not text")
+                )
+            elif name in ALLOWED_IMPORTS:
+                continue
+            elif (
+                _RELATIVE_IMPORT.fullmatch(name) is None
+                or ".." in name.split("/")
+                or name.startswith("throughline/")
+            ):
+                detail = (
+                    f"import {name!r} is not allowed: use linkml:types, {IMPORT_NAME}, "
+                    "or a file of the package (a plain relative name)"
+                )
+                issues.append(TypeIssue(kind="layout", path=current, detail=detail))
+            else:
+                relative = f"{name}.yaml"
+                target = package / relative
+                try:
+                    inside = target.resolve().is_relative_to(base)
+                except OSError:
+                    inside = False
+                if target.is_symlink() or not target.is_file() or not inside:
+                    detail = f"import {name!r}: {relative} is not a file of the package"
+                    issues.append(TypeIssue(kind="layout", path=current, detail=detail))
+                elif len(files) >= MAX_IMPORT_FILES:
+                    detail = f"more than {MAX_IMPORT_FILES} imported files"
+                    issues.append(TypeIssue(kind="layout", path=current, detail=detail))
+                else:
+                    files.append(relative)
+                    pending.append(relative)
+    return files, issues
+
+
 @contextmanager
-def _workspace(type_yaml: Path) -> Iterator[Path]:
+def _workspace(type_yaml: Path, extra: list[str] | None = None) -> Iterator[Path]:
     """A temporary directory holding a copy of ``type_yaml`` beside a copy of ``schema/core``.
 
     The package imports ``throughline/core/extension``; the copy puts that file where the import
-    resolves, with its own imports next to it.
+    resolves, with its own imports next to it. ``extra`` are the package files ``check_imports``
+    allowed, copied to the same relative paths.
     """
     with tempfile.TemporaryDirectory(prefix="tl-type-") as directory:
         root = Path(directory)
@@ -118,6 +196,10 @@ def _workspace(type_yaml: Path) -> Iterator[Path]:
             shutil.copy(source, core / source.name)
         copy = root / TYPE_FILE
         shutil.copy(type_yaml, copy)
+        for relative in extra or []:
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(type_yaml.parent / relative, target)
         yield copy
 
 
@@ -187,6 +269,9 @@ def _compile_slot(view: Any, class_name: str, slot_name: str) -> CompiledSlot | 
             "(use a LinkML type, an enum, or multivalued)"
         )
         return TypeIssue(kind="compile", path=TYPE_FILE, detail=detail)
+    if slot.pattern is not None and len(str(slot.pattern)) > MAX_PATTERN:
+        detail = f"{where}: the pattern is longer than {MAX_PATTERN} characters"
+        return TypeIssue(kind="compile", path=TYPE_FILE, detail=detail)
     override = _annotation(slot, "tl:kind")
     if override is not None:
         if str(override) not in _KIND_OVERRIDES or kind != "string":
@@ -229,20 +314,25 @@ def compile_type(
         return None, [TypeIssue(kind="compile", path=TYPE_FILE, detail=f"not readable YAML: {exc}")]
     if not isinstance(document, dict):
         return None, [TypeIssue(kind="compile", path=TYPE_FILE, detail="not a YAML mapping")]
-    imports: Any = document.get("imports")  # pyright: ignore[reportUnknownMemberType]
-    if not isinstance(imports, list) or IMPORT_NAME not in imports:
+    names = _import_names(document)
+    if IMPORT_NAME not in names:
         detail = f"imports must include {IMPORT_NAME!r}, which declares {BASE_CLASS}"
         return None, [TypeIssue(kind="compile", path=TYPE_FILE, detail=detail)]
+    extra, import_issues = check_imports(package)
+    if import_issues:
+        return None, import_issues
 
-    with _workspace(type_yaml) as copy:
-        issues = lint_issues(copy) if lint else []
-        try:
+    issues: list[TypeIssue] = []
+    try:
+        with _workspace(type_yaml, extra) as copy:
+            if lint:
+                issues = lint_issues(copy)
             view: Any = SchemaView(str(copy))
             return _compile(view, package, coords, issues)
-        except Exception as exc:  # LinkML raises many kinds of error for a malformed schema
-            if not issues:
-                issues.append(TypeIssue(kind="compile", path=TYPE_FILE, detail=str(exc)[:500]))
-            return None, issues
+    except Exception as exc:  # LinkML raises many kinds of error for a malformed schema
+        if not issues:
+            issues.append(TypeIssue(kind="compile", path=TYPE_FILE, detail=str(exc)[:500]))
+        return None, issues
 
 
 def _compile(

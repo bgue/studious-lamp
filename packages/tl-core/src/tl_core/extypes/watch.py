@@ -34,10 +34,8 @@ def package_signature(package: Path) -> Signature:
     newest = 0
     total = 0
     for directory, dirnames, filenames in os.walk(package, followlinks=False):
-        dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
+        dirnames[:] = sorted(dirnames)
         for name in sorted(filenames):
-            if name.startswith("."):
-                continue
             try:
                 stat = (Path(directory) / name).lstat()
             except OSError:

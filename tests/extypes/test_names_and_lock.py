@@ -125,7 +125,17 @@ def test_the_lock_lists_every_file_below_the_package(tmp_path: Path) -> None:
     (package / "templates" / "report.txt").write_text("x")
     (package / ".hidden").write_text("x")
     again, _ = lock.compute_lock(package)
-    assert "templates/report.txt" in again and ".hidden" not in again
+    assert "templates/report.txt" in again and ".hidden" in again  # hidden files are content too
+
+
+def test_bytecode_in_a_package_is_a_layout_issue_and_not_locked(tmp_path: Path) -> None:
+    package = copy_package(tmp_path)
+    (package / "__pycache__").mkdir()
+    (package / "__pycache__" / "x.pyc").write_bytes(b"\x00")
+    files, issues = lock.compute_lock(package)
+    assert not any("__pycache__" in name for name in files)
+    assert [(i.kind, i.path) for i in issues] == [("layout", "__pycache__")]
+    assert lock.lock_issues(package)[0].kind == "layout"
 
 
 def test_a_lock_written_with_other_whitespace_still_hashes_the_same(tmp_path: Path) -> None:

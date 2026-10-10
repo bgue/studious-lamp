@@ -460,3 +460,162 @@ def test_the_registry_itself_catches_a_pset_clash_a_provider_does_not_know_about
     report = entries["co.acme.lift.Plan@1.0.0"].report
     assert [i.kind for i in report] == ["conflict"]
     assert "pset name is already used by co.acme.LiftPlan" in report[0].detail
+
+
+# --- review fixes: one bad package, lost races, single read, deprecation -------------------
+
+
+def test_one_package_that_blows_up_is_quarantined_and_the_others_still_register(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tl_core.extypes.compile import compile_type as real
+
+    def flaky(package: Path, coords: Any, **kwargs: Any) -> Any:
+        if coords.name == "LiftPlan":
+            raise FileNotFoundError("vanished while reading")
+        return real(package, coords, **kwargs)
+
+    monkeypatch.setattr("tl_core.extypes.validate.compile_type", flaky)
+    views = world.sync()
+    assert {v.registration.type_ref: v.registration.status for v in views} == {
+        "co.acme.LiftPlan@1.0.0": "quarantined",
+        "co.acme.SafetyObservation@1.0.0": "active",
+    }
+    with world.factory(readonly=True) as uow:
+        (entry,) = registry.list_quarantined(uow.conn())
+    assert [(i.kind, i.path) for i in entry.report] == [("compile", None)]
+    assert "FileNotFoundError" in entry.report[0].detail
+
+
+def test_a_url_import_is_quarantined_without_stopping_the_run(world: World) -> None:
+    world.edit(
+        world.package(),
+        "type.yaml",
+        "  - throughline/core/extension\n",
+        "  - throughline/core/extension\n  - http://127.0.0.1:9/evil\n",
+    )
+    views = world.sync()
+    assert {v.registration.type_ref: v.registration.status for v in views} == {
+        "co.acme.LiftPlan@1.0.0": "quarantined",
+        "co.acme.SafetyObservation@1.0.0": "active",
+    }
+
+
+def test_sync_reads_each_package_once(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
+    from tl_core.extypes.validate import describe_package as real
+
+    calls: list[Path] = []
+
+    def counting(path: Path, root: Path | None = None) -> Any:
+        calls.append(path)
+        return real(path, root)
+
+    monkeypatch.setattr("tl_core.extypes.registry.describe_package", counting)
+    monkeypatch.setattr("tl_core.extypes.validate.describe_package", counting)
+    world.sync()
+    assert len(calls) == 2  # one per package, not one more for the validation
+
+
+class _LosesOnce:
+    """A unit-of-work factory whose first write fails like the loser of a race."""
+
+    def __init__(self, inner: Any, failures: int) -> None:
+        self.inner = inner
+        self.failures = failures
+        self.attempts = 0
+
+    def __call__(self, readonly: bool = False) -> Any:
+        manager = self.inner(readonly=readonly)
+        if readonly:
+            return manager
+        return _Wrapped(manager, self)
+
+
+class _Wrapped:
+    def __init__(self, manager: Any, owner: _LosesOnce) -> None:
+        self.manager, self.owner = manager, owner
+
+    def __enter__(self) -> Any:
+        uow = self.manager.__enter__()
+        owner = self.owner
+        real_append = uow.append
+
+        def append(**kwargs: Any) -> Any:
+            owner.attempts += 1
+            if owner.attempts <= owner.failures:
+                from tl_core.ledger import ConcurrencyError
+
+                raise ConcurrencyError("expected version 0, stream is at 1")
+            return real_append(**kwargs)
+
+        uow.append = append
+        return uow
+
+    def __exit__(self, *exc: Any) -> Any:
+        return self.manager.__exit__(*exc)
+
+
+def test_the_loser_of_a_race_retries_once_and_registers(world: World) -> None:
+    loser = _LosesOnce(world.factory, failures=1)
+    views = registry.sync(loser, world.root, actor=ALICE, source="test")
+    assert {v.registration.status for v in views} == {"active"} and len(views) == 2
+    assert loser.attempts == 3  # one failed append, its retry, and the second package
+
+
+def test_a_package_that_keeps_losing_is_left_for_the_next_run_and_does_not_abort(
+    world: World,
+) -> None:
+    loser = _LosesOnce(world.factory, failures=2)
+    assert len(registry.sync(loser, world.root, actor=ALICE, source="test")) == 1
+    assert len(world.sync()) == 1  # the next run registers the one that kept losing
+    assert {v.registration.status for v in world.types()} == {"active"}
+
+
+def test_deprecate_tells_the_provider_after_the_commit(world: World) -> None:
+    world.sync()
+    before = registry.changes()
+    with pytest.raises(UnknownTypeError):
+        registry.deprecate(
+            world.factory, type_ref="co.acme.Nope@1.0.0", reason="x", actor=ALICE, source="test"
+        )
+    assert registry.changes() == before  # a refusal changes nothing
+    registry.deprecate(
+        world.factory, type_ref=f"{LIFT}@1.0.0", reason="old", actor=ALICE, source="test"
+    )
+    assert registry.changes() == before + 1
+
+
+def test_deprecate_type_inside_the_callers_unit_of_work_does_not_bump(world: World) -> None:
+    world.sync()
+    before = registry.changes()
+    with world.factory() as uow:
+        registry.deprecate_type(
+            uow, type_ref=f"{LIFT}@1.0.0", reason="old", actor=ALICE, source="test"
+        )
+    assert registry.changes() == before
+
+
+def test_reverting_a_conflict_on_a_deprecated_version_clears_it_and_keeps_it_deprecated(
+    world: World,
+) -> None:
+    world.sync()
+    registry.deprecate(
+        world.factory, type_ref=f"{LIFT}@1.0.0", reason="superseded", actor=ALICE, source="test"
+    )
+    readme = world.package() / "README.md"
+    original = readme.read_text()
+    world.edit(world.package(), "README.md", "planned crane lift", "planned crane lift (edited)")
+    world.sync()
+    now = next(r for r in rows(world) if r["type_ref"] == f"{LIFT}@1.0.0")
+    assert now["status"] == "deprecated" and now["conflict_hash"] is not None
+    readme.write_text(original)
+    world.relock(world.package())
+    assert refs(world.sync()) == [f"{LIFT}@1.0.0"]
+    now = next(r for r in rows(world) if r["type_ref"] == f"{LIFT}@1.0.0")
+    assert now["status"] == "deprecated" and now["reason"] == "superseded"
+    assert now["conflict_hash"] is None and now["report_json"] is None
+    with world.factory(readonly=True) as uow:
+        assert registry.list_quarantined(uow.conn()) == []
+    before = rows(world)
+    rebuild_projections(world.db)
+    assert rows(world) == before

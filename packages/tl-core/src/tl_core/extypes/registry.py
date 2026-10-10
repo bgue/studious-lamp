@@ -26,6 +26,7 @@ connection and so work inside any unit of work.
 from __future__ import annotations
 
 import json
+import logging
 import os
 from collections.abc import Sequence
 from contextlib import AbstractContextManager
@@ -58,13 +59,16 @@ from tl_core.extypes.types import (
     TypeView,
 )
 from tl_core.extypes.validate import Described, describe_package, validate_package
-from tl_core.ledger import NewEvent
+from tl_core.ledger import ConcurrencyError, NewEvent
 from tl_core.schema_provider import SchemaProvider, get_provider
 from tl_core.services.errors import ServiceError
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
 
 MAX_DEPTH = 6
+
+log = logging.getLogger("tl_core.extypes")
+log.addHandler(logging.NullHandler())
 
 _COLUMNS = (
     "type_ref, type_name, namespace, name, version, pset, location_uri, content_hash, owner, "
@@ -262,8 +266,9 @@ def _already_known(row: Any, content_hash: str) -> bool:
     if row is None:
         return False
     if content_hash == row.content_hash:
-        # An active version whose earlier conflict is gone is re-registered to clear the note.
-        return not (row.conflict_hash is not None and row.status == "active")
+        # A version whose earlier conflict is gone is re-registered to clear the note (a deprecated
+        # one stays deprecated: the projector keeps its status).
+        return not (row.conflict_hash is not None and row.status in ("active", "deprecated"))
     return row.conflict_hash == content_hash and row.status != "quarantined"
 
 
@@ -335,33 +340,67 @@ def sync(
     schema_provider = provider if provider is not None else get_provider()
     changed: list[TypeView] = []
     for package in scan(root):
-        described = describe_package(package, root)
-        with uow_factory(readonly=True) as uow:
-            row = uow.conn().execute(_ROW, {"type_ref": described.type_ref}).first()
-        if _already_known(row, described.content_hash):
+        try:
+            described = describe_package(package, root)
+        except Exception as exc:  # a file vanished while it was read: skip, the next run sees it
+            log.warning("cannot read package %s: %s", package, exc)
             continue
-        registration, issues = validate_package(package, provider=schema_provider, root=root)
-        with uow_factory(readonly=False) as uow:
-            decision = _decide(uow, described, registration, issues, actor=actor)
-            if decision is None:
-                continue
-            event_type, payload = decision
-            row = uow.conn().execute(_ROW, {"type_ref": described.type_ref}).first()
-            uow.append(
-                stream_id=stream_id(described.type_ref),
-                stream_type=STREAM_TYPE,
-                scope=REGISTRY_SCOPE,
-                expected_version=0 if row is None else int(row.version_n),
-                events=[NewEvent(event_type=event_type, payload=payload)],
-                actor=actor,
-                source=source,
-                correlation_id=new_ulid(),
-            )
-            view = get_type(uow.conn(), described.type_ref)
-        _bump()
+        view = _register_package(
+            uow_factory, package, root, described, schema_provider, actor=actor, source=source
+        )
         if view is not None:
             changed.append(view)
     return changed
+
+
+def _register_package(
+    uow_factory: UowFactory,
+    package: Path,
+    root: Path,
+    described: Described,
+    provider: SchemaProvider,
+    *,
+    actor: str,
+    source: str,
+) -> TypeView | None:
+    """One package: skip it, or append its event. A lost race is retried once.
+
+    Two syncs can decide on the same package together; the loser's append fails on the stream
+    version. It then reads the row again, which usually shows the winner's event, and skips.
+    """
+    validated: tuple[TypeRegistration | None, list[TypeIssue]] | None = None
+    for _ in range(2):
+        with uow_factory(readonly=True) as uow:
+            row = uow.conn().execute(_ROW, {"type_ref": described.type_ref}).first()
+        if _already_known(row, described.content_hash):
+            return None
+        if validated is None:
+            validated = validate_package(package, provider=provider, root=root, described=described)
+        registration, issues = validated
+        try:
+            with uow_factory(readonly=False) as uow:
+                decision = _decide(uow, described, registration, issues, actor=actor)
+                if decision is None:
+                    return None
+                event_type, payload = decision
+                row = uow.conn().execute(_ROW, {"type_ref": described.type_ref}).first()
+                uow.append(
+                    stream_id=stream_id(described.type_ref),
+                    stream_type=STREAM_TYPE,
+                    scope=REGISTRY_SCOPE,
+                    expected_version=0 if row is None else int(row.version_n),
+                    events=[NewEvent(event_type=event_type, payload=payload)],
+                    actor=actor,
+                    source=source,
+                    correlation_id=new_ulid(),
+                )
+                view = get_type(uow.conn(), described.type_ref)
+        except ConcurrencyError:
+            continue
+        _bump()
+        return view
+    log.warning("%s: another sync kept winning; left for the next run", described.type_ref)
+    return None
 
 
 def deprecate_type(
@@ -396,7 +435,20 @@ def deprecate_type(
         source=source,
         correlation_id=new_ulid(),
     )
-    _bump()
     view = get_type(uow.conn(), type_ref)
     assert view is not None
+    return view
+
+
+def deprecate(
+    uow_factory: UowFactory, *, type_ref: str, reason: str, actor: str, source: str
+) -> TypeView:
+    """``deprecate_type`` in its own unit of work; the schema provider hears of it after the commit.
+
+    ``deprecate_type`` itself cannot tell the provider, because the caller still holds the
+    transaction: a provider that read the registry in between would cache the old state.
+    """
+    with uow_factory(readonly=False) as uow:
+        view = deprecate_type(uow, type_ref=type_ref, reason=reason, actor=actor, source=source)
+    _bump()
     return view
