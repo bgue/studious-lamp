@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS cur_link_counts (
-  record_id TEXT PRIMARY KEY,
-  scope TEXT NOT NULL,
+  record_id TEXT COLLATE "C" PRIMARY KEY,
+  scope TEXT COLLATE "C" NOT NULL,
   active_out BIGINT NOT NULL DEFAULT 0,
   active_in BIGINT NOT NULL DEFAULT 0,
   stale BIGINT NOT NULL DEFAULT 0,

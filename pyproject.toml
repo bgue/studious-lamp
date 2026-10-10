@@ -5,7 +5,14 @@ requires-python = ">=3.12"
 dependencies = []
 
 [dependency-groups]
-dev = ["ruff", "pyright", "pytest", "hypothesis", "pytest-textual-snapshot"]
+dev = [
+    "ruff",
+    "pyright",
+    "pytest",
+    "hypothesis",
+    "pytest-textual-snapshot",
+    "moto[s3]>=5",
+]
 
 [tool.uv]
 package = false
@@ -37,11 +44,17 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 testpaths = ["packages", "tests"]
 addopts = "--import-mode=importlib"
+markers = [
+  "parity: runs once per adapter named by --adapters (see conftest.py)",
+  "requires_postgres: needs the Postgres server at TL_PG_URL",
+]
 
 [tool.pyright]
 include = ["packages", "tests"]
 exclude = ["**/generated", "**/.venv"]
 pythonVersion = "3.12"
+# tests/contract reuses the helper module in tests/webhooks (world.py)
+extraPaths = ["tests/webhooks"]
 typeCheckingMode = "standard"
 strict = [
   "packages/tl-core/src",

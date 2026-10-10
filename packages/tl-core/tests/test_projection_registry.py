@@ -41,3 +41,23 @@ def test_default_registry_is_fresh_each_call() -> None:
     assert first is not second
     first.register(CounterProjector())
     assert all(p.name != "test_counter" for p in second.all())
+
+
+class EverythingProjector(CounterProjector):
+    name = "everything"
+    handles = frozenset()
+    handles_all = True
+
+
+def test_handles_all_projectors_see_every_event_type_in_registration_order() -> None:
+    counter, everything = CounterProjector(), EverythingProjector()
+    registry = InMemoryRegistry([everything, counter])
+    assert registry.for_event("Test.Bumped") == [everything, counter]
+    assert registry.for_event("Anything.Else") == [everything]
+    assert registry.all() == [everything, counter]
+
+
+def test_a_projector_without_the_attribute_is_unchanged() -> None:
+    counter = CounterProjector()
+    assert not hasattr(counter, "handles_all")
+    assert InMemoryRegistry([counter]).for_event("Nope") == []
