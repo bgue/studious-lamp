@@ -47,7 +47,7 @@ supervisor built them. The `tl-cli` dependency on `tl-lake` (and `uv.lock`) is a
 ## Risks and escalation triggers
 - DuckLake is young (R13). The extension version is pinned to the `duckdb` wheel; the fallback is plain Parquet plus views.
 - One writer at a time per catalog file; the lock file serialises sync and query. Postgres as the catalog (prod) removes this.
-- Postgres support (P0-I5): `read_snapshot` sets REPEATABLE READ and all ledger reads are portable SQLAlchemy, but it is untested on Postgres until P0-I5 lands.
+- Postgres (P0-I5 merged in): the lake tests run on both adapters through the `ledger` fixture (`--adapters sqlite,postgres`); `read_snapshot` is `tl_adapters.db.read_tx`. The CLI still opens SQLite only (the root `--db` is a path).
 - Bronze `events` columns must match WS-A's `events.parquet`: names and order of the ledger `events` table, `recorded_at`/`effective_at`/`payload` as text. Raised in the relay NOTE.
 
 ## Blocked / Decision

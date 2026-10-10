@@ -9,73 +9,23 @@ count), with values converted the way the loader converts them.
 
 from __future__ import annotations
 
-import json
 import tempfile
 from pathlib import Path
-from typing import Any
 
 from builder import OTHER_SCOPE, SCOPE, LedgerBuilder
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-from sqlalchemy import Engine, text
+from lakecheck import assert_lake_matches_ledger, do_sync
 from tl_core.ledger import ConcurrencyError
 from tl_core.schema_provider import DirectorySchemaProvider, use_provider
 from tl_core.services.errors import ServiceError
-from tl_lake import LakeConfig, read_snapshot, sync_lake
-from tl_lake.duck import open_lake
-from tl_lake.ingest import to_json_value
-
-TABLES = {
-    "events": "events",
-    "cur_core_record": "cur_core_record",
-    "links": "cur_links",
-    "pset_values": "cur_pset_values",
-}
+from tl_lake import LakeConfig
 
 OPS = st.tuples(
     st.sampled_from(["create", "title", "void", "values", "unset", "link", "retract", "sync"]),
     st.integers(min_value=0, max_value=50),
     st.integers(min_value=0, max_value=50),
 )
-
-Dump = tuple[list[str], list[str], list[tuple[Any, ...]]]
-
-
-def lake_dump(config: LakeConfig, table: str) -> Dump:
-    """Column names, DuckDB types and all rows (ordered), columns sorted by name."""
-    with open_lake(config, write=False) as con:
-        described = dict(
-            con.execute(
-                "SELECT column_name, data_type FROM duckdb_columns() "
-                f"WHERE database_name = 'lake' AND table_name = '{table}'"
-            ).fetchall()
-        )
-        names = sorted(described)
-        cols = ", ".join(f'"{n}"' for n in names)
-        rows = con.execute(f"SELECT {cols} FROM {table} ORDER BY ALL").fetchall()
-    return names, [str(described[n]) for n in names], rows
-
-
-def normalised(kinds: list[str], rows: list[tuple[Any, ...]]) -> list[str]:
-    """Rows as sorted JSON text, each value converted the way the loader converts it."""
-    return sorted(
-        json.dumps([to_json_value(k, v) for k, v in zip(kinds, row, strict=True)]) for row in rows
-    )
-
-
-def ledger_rows(engine: Engine, source: str, names: list[str]) -> list[tuple[Any, ...]]:
-    cols = ", ".join(names)
-    with engine.connect() as conn:
-        return [tuple(r) for r in conn.execute(text(f"SELECT {cols} FROM {source}")).fetchall()]
-
-
-def do_sync(ledger: LedgerBuilder, config: LakeConfig) -> None:
-    engine = ledger.engine()
-    try:
-        with read_snapshot(engine) as conn:
-            sync_lake(config, conn)
-    finally:
-        engine.dispose()
 
 
 def play(
@@ -140,12 +90,4 @@ def test_incremental_lake_equals_full_rebuild_and_the_ledger(
         rebuilt = LakeConfig.at(root / "rebuilt")
         do_sync(ledger, rebuilt)
 
-        engine = ledger.engine()
-        try:
-            for lake_table, source in TABLES.items():
-                names, kinds, rows = lake_dump(incremental, lake_table)
-                assert (names, kinds, rows) == lake_dump(rebuilt, lake_table), lake_table
-                expected = normalised(kinds, ledger_rows(engine, source, names))
-                assert normalised(kinds, rows) == expected, lake_table
-        finally:
-            engine.dispose()
+        assert_lake_matches_ledger(ledger, incremental, rebuilt)

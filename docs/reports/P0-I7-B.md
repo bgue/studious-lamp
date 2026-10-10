@@ -3,7 +3,7 @@
 Status: interim. T23 (MCP registration) waits for P0-I4 on the trunk; the final demo and `docs/reports/P0-I7.md` wait for workstream A.
 
 ## Outcome
-Objective met for everything that does not depend on P0-I4, P0-I5 or workstream A: yes. Demo path (`just demo P0-I7-lake`) verified on a temporary ledger: yes. Not yet run against a Postgres ledger.
+Objective met for everything that does not depend on P0-I4 or workstream A: yes. Demo path (`just demo P0-I7-lake`) verified on a temporary ledger: yes. The lake tests also pass on a Postgres ledger (238 tests with `--adapters sqlite,postgres`); the CLI still opens SQLite only.
 
 `tl-lake` copies the ledger into a DuckLake lake incrementally by seq. One sync is one DuckLake snapshot, with the `_tl_sync(snapshot_id, first_seq, last_seq, synced_at)` row written in the same transaction. Bronze is `events`; silver is `cur_core_record`, `links` and `pset_values`, mapped from the generated schema with promoted pset columns. A full rebuild equals the incremental result (property test, mutation-checked). `lake_query` is a guarded, row-limited, timed, logged function that states the seq it reflects. `tl lake sync|rebuild|status|tables|query` expose it.
 
@@ -28,8 +28,8 @@ Objective met for everything that does not depend on P0-I4, P0-I5 or workstream 
 | Gate | Result |
 |---|---|
 | `just check` | green on `p0/i7b` (d1a1dd1) |
-| `just test` | green, 1619 passed after the review round |
-| `just test-parity` | not applicable: no adapter changed; Postgres untested until P0-I5 |
+| `just test` | green, 2777 passed after merging p0/i7 (P0-I5) |
+| `uv run pytest packages/tl-lake --adapters sqlite,postgres` (`TL_REQUIRE_POSTGRES=1`) | green, 238 passed |
 | `just demo P0-I7-lake` | passes |
 
 ## Deviations from plan
@@ -51,12 +51,18 @@ Sync (S1) passed with low items; the guard (S2/S3) needed changes. All applied i
 | 8 | Post-COMMIT error said "nothing was committed" | Reworded; `LakeSyncError` docstring fixed; test |
 | 9 | Tip-only verification | Stated in the README: by design, full-chain integrity is `tl archive verify` (WS-A) |
 
+## Postgres (P0-I5 merged into p0/i7b, bcaf5b6)
+- `read_snapshot` now delegates to `tl_adapters.db.read_tx` (REPEATABLE READ READ ONLY on Postgres).
+- SQLAlchemy reflection fails on the Postgres adapter (JSON returned as text). The sync reads column names with `table_columns`, selects with quoted explicit columns, and types promoted columns from the effective schema (inferred from the first value if no schema knows them). JSON columns are stored as canonical text on every adapter.
+- Tests build their ledger from the `new_db` fixture and `tl_adapters.db`, so they carry the `parity` marker and run on both adapters; `tests/test_parity_sync.py` adds a scripted multi-scope history (promoted columns mid-history, retract, void, unset) compared with a single load and with the ledger, and re-verifies every bronze event hash from the lake. The Hypothesis property test stays on SQLite.
+- Merge conflicts resolved by keeping both sides: `tl-cli` `main.py` and README (lake, file and webhook commands), `uv.lock` regenerated.
+
 ## Escalations and decisions
 - T22: see the table above and `docs/tickets/P0-I7/B-PLAN.md` (*Blocked / Decision*).
 - Guard: a leading `--` comment line is accepted; tests show comments cannot hide a second statement.
 
 ## Learnings
-Appended: L-P0-I7-B1 to B7. T20 proposal "a rebuild resets the sync count" went into the package README; "truncated line uses `result.limit`" and the AGENTS.md question need no entry (the tl-cli rule was added to `packages/tl-cli/AGENTS.md`). T21's fixture-scope note is in B6.
+Appended: L-P0-I7-B1 to B8. T20 proposal "a rebuild resets the sync count" went into the package README; "truncated line uses `result.limit`" and the AGENTS.md question need no entry (the tl-cli rule was added to `packages/tl-cli/AGENTS.md`). T21's fixture-scope note is in B6.
 
 ## Docs
 `packages/tl-lake/README.md`, `packages/tl-lake/AGENTS.md`, `packages/tl-cli/README.md` and `AGENTS.md`, `docs/runbooks/lake-sync.md` and its index line, `docs/tickets/P0-I7/B-PLAN.md`.
@@ -66,7 +72,8 @@ Appended: L-P0-I7-B1 to B7. T20 proposal "a rebuild resets the sync count" went 
 
 ## Follow-ups filed
 - T23 `lake_query` MCP tool registration (after P0-I4).
-- Run the sync property test and `read_snapshot` against Postgres (after P0-I5); gap-free seq on Postgres sequences needs checking.
+- Gap-free seq on Postgres sequences after rolled-back transactions needs checking by the P0-I5 owner (the sync refuses a gap); the Hypothesis property test runs on SQLite only.
+- `tl lake` opens the ledger as a SQLite path (`_ledger_snapshot`); switch it to `tl_adapters.db.make_engine` when the CLI takes a Postgres URL.
 - Load bronze directly from archive Parquet segments; partition bronze by company, project and date; compaction and snapshot expiry; PostgreSQL catalog for production (one writer per DuckDB file today).
 - The lake property test takes about a minute on an idle machine; consider a marker if the suite grows.
 

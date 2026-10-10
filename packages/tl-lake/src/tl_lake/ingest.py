@@ -40,10 +40,21 @@ def _text(value: Any) -> str:
     return str(value)
 
 
-def to_json_value(duck_type: str, value: Any) -> Any:
-    """``value`` as the JSON scalar DuckDB parses into ``duck_type``."""
+def canonical_text(value: Any) -> str:
+    """JSON text in canonical form (sorted keys, no spaces) for a str or an already parsed value."""
+    parsed = json.loads(value) if isinstance(value, (str, bytes)) else value
+    return json.dumps(parsed, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def to_json_value(duck_type: str, value: Any, *, json_text: bool = False) -> Any:
+    """``value`` as the JSON scalar DuckDB parses into ``duck_type``.
+
+    ``json_text`` stores a JSON column in canonical form.
+    """
     if value is None:
         return None
+    if json_text:
+        return canonical_text(value)
     if duck_type == "TIMESTAMP":
         return _utc_naive(value)
     if duck_type == "BOOLEAN":
@@ -86,7 +97,9 @@ def insert_rows(
     lines: list[str] = []
     total = 0
     for row in rows:
-        converted = {c.name: to_json_value(c.duck_type, row[c.name]) for c in columns}
+        converted = {
+            c.name: to_json_value(c.duck_type, row[c.name], json_text=c.json) for c in columns
+        }
         lines.append(json.dumps(converted, ensure_ascii=False, allow_nan=False))
         if len(lines) >= chunk:
             _flush(con, table, columns, lines, tmp_dir)

@@ -6,7 +6,7 @@ The DuckLake analytics copy of the ledger: an incremental sync by `seq`, a silve
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `LakeConfig.at(dir=None)` | class | Lake paths: `dir`, else `$TL_LAKE_DIR`, else `dev/data/lake`. Holds `catalog.ducklake`, `data/` (Parquet), the lock file and the audit log |
-| `read_snapshot(engine)` | context manager | The ledger as one consistent read snapshot (REPEATABLE READ on Postgres) |
+| `read_snapshot(engine)` | context manager | The ledger as one consistent read snapshot: `tl_adapters.db.read_tx` (REPEATABLE READ READ ONLY on Postgres) |
 | `sync_lake(config, conn, rebuild=False)` | function | One sync = one DuckLake snapshot: bronze `events`, silver `cur_core_record`, `links`, `pset_values`, and the `_tl_sync` row, in one transaction. Returns `SyncResult` |
 | `lake_status(config)` | function | `LakeStatus`: as-of seq, snapshot id, sync count, rows per table |
 | `describe_lake(config)` | function | Tables and columns |
@@ -34,7 +34,7 @@ A crash before COMMIT changes nothing. The lake and the ledger are compared by t
 | `pset_values` | silver | `cur_pset_values` | Long form |
 | `_tl_sync` | control | | `snapshot_id, first_seq, last_seq, synced_at`: one row per sync |
 
-Types come from the generated Postgres DDL: `BOOLEAN`, `BIGINT`, `DOUBLE`, `VARCHAR`, and `TIMESTAMP` holding UTC. A promoted boolean column is `BIGINT` when the ledger is SQLite (SQLite stores 0 and 1).
+Types come from the generated Postgres DDL: `BOOLEAN`, `BIGINT`, `DOUBLE`, `VARCHAR`, and `TIMESTAMP` holding UTC. JSON columns (`events.payload`, `psets_json`, `value_json`) are stored as canonical JSON text on every adapter. A promoted pset column takes its type from the effective schema of the scopes in the ledger (the mapping that created it), so a boolean is `BOOLEAN` on SQLite and Postgres alike; a column no schema knows is typed from its first value.
 
 ## `lake_query` guard
 Exactly one statement, parsed by DuckDB; SELECT only; tables must be lake tables or CTEs visible at that point; table functions limited to `range`, `generate_series`, `unnest`, `generate_subscripts`; no `getenv`, `current_setting`, `read_*`, `glob`, `duckdb_*` and similar. Refused: stacked statements, DDL, DML, ATTACH, INSTALL, LOAD, COPY, PRAGMA, SET, EXPLAIN, file-reading functions and other catalogs. Two more layers sit behind it: the catalog is attached READ_ONLY, and external file access is switched off and the configuration locked before the statement runs. Default limit 100, maximum 10 000, result size cap 8 MiB of JSON (`truncated_by` says `limit` or `bytes`), timeout 30 s (best effort: DuckDB checks for interruption between chunks of work, so a long scalar computation can overrun it; the 1 GB memory limit bounds the damage). Table and CTE names that look like paths or globs are refused, and a CTE is visible only where SQL scopes it. Time travel (`AT (VERSION => n)`) is allowed on purpose. Errors are a short message plus the DuckDB error class, with filesystem paths removed; every call writes one audit line with the same keys (`ts, caller, sql, limit, outcome, detail, error_class, rows, truncated, as_of_seq, snapshot_id, elapsed_ms`), ASCII-escaped so one call is one line. Every call, accepted or refused, appends a line to `lake_query.log.jsonl`.
@@ -46,6 +46,7 @@ Exactly one statement, parsed by DuckDB; SELECT only; tables must be lake tables
 ## Commands
 ```
 just test packages/tl-lake
+uv run pytest packages/tl-lake --adapters sqlite,postgres   # the same tests on Postgres
 just demo P0-I7-lake
 ```
 
@@ -60,7 +61,7 @@ See `AGENTS.md` in this directory.
 ## Known limits (follow-ups)
 - Catalog is a DuckDB file: one writer or many readers across processes, serialised by a lock file. Production uses a PostgreSQL catalog (§28.1).
 - Bronze is not yet partitioned by company, project and date; no compaction or snapshot expiry; gold marts and `hist_*` tables are later increments.
-- Not yet run against a Postgres ledger (P0-I5). Loading bronze from archive Parquet segments directly is not built; restore the ledger, then sync.
+- Loading bronze from archive Parquet segments directly is not built; restore the ledger, then sync.
 
 ## Status
 Introduced in P0-I7 (workstream B). Last interface change: P0-I7.

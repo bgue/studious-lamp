@@ -30,8 +30,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import Connection, MetaData, Table, func, select, text
-from sqlalchemy.types import TypeEngine
+from sqlalchemy import Connection, bindparam, text
+from tl_core.projection.promoted import table_columns
+from tl_core.schema_provider import get_provider
+from tl_schema.generators.ddl_types import column_type
+from tl_schema.generators.promoted import promoted_columns
 
 from tl_lake.config import LakeConfig
 from tl_lake.duck import (
@@ -47,12 +50,15 @@ from tl_lake.ingest import CHUNK_ROWS, delete_keys, insert_rows
 from tl_lake.schema import (
     EVENTS_COLUMNS,
     EVENTS_TABLE,
+    PG_TO_DUCK,
     RECORD_SOURCE,
     SILVER_TABLES,
     SYNC_COLUMNS,
     SYNC_TABLE,
     Column,
     SilverTable,
+    generated_columns,
+    inferred_duck_type,
     silver_columns,
 )
 
@@ -111,37 +117,89 @@ def _contiguous(
         )
 
 
-def _reflect(conn: Connection, name: str) -> Table:
-    return Table(name, MetaData(), autoload_with=conn)
+@dataclass(frozen=True)
+class LedgerTable:
+    """A ledger table as the sync reads it: its name and its columns in table order."""
+
+    name: str
+    columns: list[str]
 
 
-def _ledger_columns(table: Table) -> list[tuple[str, TypeEngine[object]]]:
-    return [(c.name, c.type) for c in table.columns]
+def _read_table(conn: Connection, name: str) -> LedgerTable:
+    # Column names only: SQLAlchemy reflection fails on PostgreSQL, where the adapter returns JSON
+    # as text (see tl_core.projection.promoted.table_columns).
+    return LedgerTable(name, table_columns(conn, name))
 
 
-def _changed_keys(conn: Connection, table: Table, key: str, watermark: int) -> list[str]:
-    statement = (
-        select(table.c[key]).where(table.c.last_seq > watermark).distinct().order_by(table.c[key])
+def _q(conn: Connection, name: str) -> str:
+    return conn.dialect.identifier_preparer.quote(name)
+
+
+def _newest_seq(conn: Connection, table: LedgerTable) -> int | None:
+    row = conn.execute(text(f"SELECT MAX(last_seq) FROM {_q(conn, table.name)}")).scalar()
+    return None if row is None else int(row)
+
+
+def _changed_keys(conn: Connection, table: LedgerTable, key: str, watermark: int) -> list[str]:
+    k = _q(conn, key)
+    statement = text(
+        f"SELECT DISTINCT {k} FROM {_q(conn, table.name)} WHERE last_seq > :w ORDER BY {k}"
     )
-    return [str(k) for k in conn.execute(statement).scalars()]
+    return [str(v) for v in conn.execute(statement, {"w": watermark}).scalars()]
 
 
 def _silver_rows(
-    conn: Connection, table: Table, key: str, keys: Sequence[str] | None, size: int
+    conn: Connection, table: LedgerTable, key: str, keys: Sequence[str] | None, size: int
 ) -> Iterator[Mapping[str, Any]]:
     """Ledger rows of ``table``: all of them (``keys`` is ``None``) or those with these keys."""
-    order = [table.c[key], *([table.c.path] if "path" in table.c else [])]
+    cols = ", ".join(_q(conn, c) for c in table.columns)
+    order = ", ".join(_q(conn, c) for c in (key, *(["path"] if "path" in table.columns else [])))
+    base = f"SELECT {cols} FROM {_q(conn, table.name)}"
     if keys is None:
-        for page in _pages(conn, select(table).order_by(*order), size):
+        for page in _pages(conn, text(f"{base} ORDER BY {order}"), size):
             for row in page:
                 yield row._mapping
         return
+    statement = text(f"{base} WHERE {_q(conn, key)} IN :keys ORDER BY {order}").bindparams(
+        bindparam("keys", expanding=True)
+    )
     for start in range(0, len(keys), KEY_BATCH):
-        batch = keys[start : start + KEY_BATCH]
-        statement = select(table).where(table.c[key].in_(batch)).order_by(*order)
-        for page in _pages(conn, statement, size):
+        batch = list(keys[start : start + KEY_BATCH])
+        for page in _pages(conn, statement.params(keys=batch), size):
             for row in page:
                 yield row._mapping
+
+
+def _extra_types(conn: Connection, table: LedgerTable, extra: list[str]) -> dict[str, str]:
+    """DuckDB types for the ledger columns the generated DDL does not describe.
+
+    These are promoted pset columns. Their type is the one the effective schema of any scope in
+    the ledger gives the property (the same mapping that created the column); a column no schema
+    knows any more is typed from its first non-null value, else VARCHAR.
+    """
+    types: dict[str, str] = {}
+    if extra:
+        scopes = conn.execute(text(f"SELECT DISTINCT scope FROM {_q(conn, table.name)}")).scalars()
+        provider = get_provider()
+        for scope in scopes:
+            try:
+                effective = provider.effective(str(scope))
+                wanted = promoted_columns(effective)
+            except Exception:  # noqa: BLE001 - a scope without a usable schema adds no types
+                continue
+            for column in wanted:
+                types.setdefault(
+                    column.name, PG_TO_DUCK[column_type(column.linkml_type, "postgres")]
+                )
+    for name in extra:
+        if name not in types:
+            quoted = _q(conn, name)
+            probe = text(
+                f"SELECT {quoted} FROM {_q(conn, table.name)} WHERE {quoted} IS NOT NULL LIMIT 1"
+            )
+            value = conn.execute(probe).scalars().first()
+            types[name] = inferred_duck_type(value)
+    return {name: types[name] for name in extra}
 
 
 def _ensure_table(
@@ -233,9 +291,9 @@ def _sync(
     if watermark == head:
         return SyncResult(None, None, head, 0, {})
 
-    sources = {t.source: _reflect(ledger, t.source) for t in SILVER_TABLES}
+    sources = {t.source: _read_table(ledger, t.source) for t in SILVER_TABLES}
     for source in sources.values():
-        newest = ledger.execute(select(func.max(source.c.last_seq))).scalar()
+        newest = _newest_seq(ledger, source)
         if newest is not None and newest > head:
             raise LakeSyncError(
                 f"{source.name} has a row at seq {newest}, past the events head {head}: the "
@@ -301,14 +359,16 @@ def _sync_silver(
     con: Duck,
     ledger: Connection,
     silver: SilverTable,
-    source: Table,
+    source: LedgerTable,
     existing: Mapping[str, list[tuple[str, str]]],
     watermark: int,
     record_keys: list[str],
     tmp: Path,
     chunk: int,
 ) -> int:
-    columns = silver_columns(silver, _ledger_columns(source))
+    generated = {c.name for c in generated_columns(silver.source)}
+    extra = [c for c in source.columns if c not in generated]
+    columns = silver_columns(silver, source.columns, _extra_types(ledger, source, extra))
     reload_all = _ensure_table(con, existing, silver.name, columns) or watermark == 0
     if reload_all:
         if silver.name in existing:

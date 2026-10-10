@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -24,8 +24,15 @@ def fixture_schemas() -> Iterator[None]:
 
 
 @pytest.fixture
-def ledger(tmp_path: Path) -> LedgerBuilder:
-    return LedgerBuilder.create(tmp_path / "tl.db")
+def new_ledger(new_db: Callable[[], str | Path]) -> Callable[[], LedgerBuilder]:
+    """Call it for an empty ledger on the adapter under test (Postgres too in parity runs)."""
+    return lambda: LedgerBuilder.create(new_db())
+
+
+@pytest.fixture
+def ledger(new_ledger: Callable[[], LedgerBuilder]) -> LedgerBuilder:
+    """One ledger on the adapter under test. Tests using it run on both under `just test-parity`."""
+    return new_ledger()
 
 
 @pytest.fixture

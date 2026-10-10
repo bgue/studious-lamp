@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 from builder import OTHER_SCOPE, SCOPE, LedgerBuilder
-from sqlalchemy import MetaData, Table, text
+from sqlalchemy import text
 from tl_lake import (
     LakeAheadError,
     LakeConfig,
@@ -193,22 +193,22 @@ def test_a_failure_before_commit_leaves_the_lake_untouched(
 
 
 def test_the_lake_ahead_of_the_ledger_is_refused(
-    ledger: LedgerBuilder, lake: LakeConfig, tmp_path: Any
+    ledger: LedgerBuilder, lake: LakeConfig, new_ledger: Any
 ) -> None:
     populate(ledger)
     sync(ledger, lake)
-    other = LedgerBuilder.create(tmp_path / "other.db")
+    other = new_ledger()
     other.record("X-1")
     with pytest.raises(LakeAheadError):
         sync(other, lake)
 
 
 def test_a_different_ledger_with_the_same_seq_is_refused(
-    ledger: LedgerBuilder, lake: LakeConfig, tmp_path: Any
+    ledger: LedgerBuilder, lake: LakeConfig, new_ledger: Any
 ) -> None:
     ledger.record("A-1")
     sync(ledger, lake)
-    other = LedgerBuilder.create(tmp_path / "other.db")
+    other = new_ledger()
     other.record("Z-1")
     other.record("Z-2")
     with pytest.raises(LakeDivergedError):
@@ -222,6 +222,7 @@ class RacingLedger:
         self.engine = engine
         self.after_first_read = after_first_read
         self.reads = 0
+        self.dialect = engine.dialect
 
     def execute(self, statement: Any, *args: Any, **kwargs: Any) -> Any:
         with self.engine.connect() as conn:
@@ -233,15 +234,10 @@ class RacingLedger:
 
 
 def test_a_connection_that_is_not_a_snapshot_is_refused(
-    ledger: LedgerBuilder, lake: LakeConfig, monkeypatch: pytest.MonkeyPatch
+    ledger: LedgerBuilder, lake: LakeConfig
 ) -> None:
     a = ledger.record("A-1")
     engine = ledger.engine()
-    monkeypatch.setattr(
-        sync_module,
-        "_reflect",
-        lambda _conn, name: Table(name, MetaData(), autoload_with=engine),
-    )
     try:
         racing = RacingLedger(engine, lambda: ledger.update(a, title="raced"))
         with pytest.raises(LakeSyncError, match="consistent snapshot"):

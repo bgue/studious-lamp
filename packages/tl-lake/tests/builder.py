@@ -7,8 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import Engine
-from tl_adapters.sqlite.engine import make_engine
-from tl_adapters.sqlite.uow import create_schema, open_uow, rebuild_projections
+from tl_adapters.db import create_schema, make_engine, open_uow, rebuild_projections
 from tl_core.services.commands import CreateRecord, UpdateRecord, VoidRecord
 from tl_core.services.links import AddLink, RetractLink, handle_add_link, handle_retract_link
 from tl_core.services.psets import SetPsetValues, handle_set_pset_values
@@ -26,13 +25,13 @@ OTHER_SCOPE = "project:P777"
 class LedgerBuilder:
     """Appends to the SQLite ledger at ``db`` and remembers versions so tests stay short."""
 
-    db: Path
+    db: str | Path  # a SQLite file or a postgresql:// URL (tl_adapters.db picks the adapter)
     versions: dict[str, int] = field(default_factory=dict)
     keys: dict[str, str] = field(default_factory=dict)
     scopes: dict[str, str] = field(default_factory=dict)  # record or link id to its scope
 
     @classmethod
-    def create(cls, db: Path) -> LedgerBuilder:
+    def create(cls, db: str | Path) -> LedgerBuilder:
         create_schema(db)
         return cls(db)
 

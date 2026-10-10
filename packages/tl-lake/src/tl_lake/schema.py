@@ -20,17 +20,10 @@ Type decisions
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from decimal import Decimal
 
-from sqlalchemy import (
-    Boolean,
-    Date,
-    DateTime,
-    Float,
-    Integer,
-    Numeric,
-)
-from sqlalchemy.types import TypeEngine
 from tl_schema.ddl_loader import statements
 
 SYNC_TABLE = "_tl_sync"
@@ -39,9 +32,14 @@ EVENTS_TABLE = "events"
 
 @dataclass(frozen=True)
 class Column:
+    """A lake column. ``json`` marks text that holds JSON: it is stored in canonical form (sorted
+    keys, no spaces), whatever form the ledger's dialect returns it in (PostgreSQL JSONB does not
+    keep the canonical text that SQLite does)."""
+
     name: str
     duck_type: str
     not_null: bool = False
+    json: bool = False
 
 
 EVENTS_COLUMNS: tuple[Column, ...] = (
@@ -53,7 +51,7 @@ EVENTS_COLUMNS: tuple[Column, ...] = (
     Column("event_type", "VARCHAR", True),
     Column("schema_version", "BIGINT", True),
     Column("scope", "VARCHAR", True),
-    Column("payload", "VARCHAR", True),
+    Column("payload", "VARCHAR", True, json=True),
     Column("actor", "VARCHAR", True),
     Column("recorded_at", "VARCHAR", True),
     Column("effective_at", "VARCHAR", True),
@@ -99,7 +97,7 @@ SILVER_TABLES: tuple[SilverTable, ...] = (
 RECORD_SOURCE = "cur_core_record"
 """The ledger table that drives ``pset_values`` and carries one row per record."""
 
-_PG_TO_DUCK = {
+PG_TO_DUCK = {
     "TEXT": "VARCHAR",
     "BIGINT": "BIGINT",
     "INTEGER": "BIGINT",
@@ -127,47 +125,39 @@ def generated_columns(source: str) -> list[Column]:
         if match is None or match.group(1).upper() in _SKIP:
             continue
         name, pg_type, rest = match.groups()
-        duck = _PG_TO_DUCK.get(pg_type)
+        duck = PG_TO_DUCK.get(pg_type)
         if duck is None:
             raise ValueError(f"{source}.{name}: no DuckDB type for generated type {pg_type}")
         not_null = "NOT NULL" in rest or "PRIMARY KEY" in rest
-        columns.append(Column(name, duck, not_null))
+        columns.append(Column(name, duck, not_null, json=pg_type == "JSONB"))
     return columns
 
 
-def reflected_duck_type(sql_type: TypeEngine[object]) -> str:
-    """DuckDB type for a ledger column the generated DDL does not describe (promoted columns)."""
-    if isinstance(sql_type, Boolean):
+def inferred_duck_type(value: object) -> str:
+    """DuckDB type for a ledger column no schema describes, from one sample value."""
+    if isinstance(value, bool):
         return "BOOLEAN"
-    if isinstance(sql_type, Integer):
+    if isinstance(value, int):
         return "BIGINT"
-    if isinstance(sql_type, (Float, Numeric)):
+    if isinstance(value, (float, Decimal)):
         return "DOUBLE"
-    if isinstance(sql_type, DateTime):
-        return "TIMESTAMP"
-    if isinstance(sql_type, Date):
-        return "DATE"
     return "VARCHAR"
 
 
 def silver_columns(
-    table: SilverTable, ledger_columns: list[tuple[str, TypeEngine[object]]]
+    table: SilverTable, ledger_columns: Sequence[str], extra_types: Mapping[str, str]
 ) -> list[Column]:
     """The lake columns for ``table``: the ledger's columns, typed from the generated DDL.
 
-    ``ledger_columns`` is the ledger table as reflected, in order. A column the generated DDL
-    knows takes its type and nullability; any other (a promoted pset column) is typed by
-    reflection and nullable. The generated columns come first in the generated order, then the
-    rest in ledger order, so a fresh lake and an evolved one list columns the same way.
+    ``ledger_columns`` is the ledger table's column names in order. A column the generated DDL
+    knows takes its type and nullability; any other (a promoted pset column) takes its type from
+    ``extra_types`` and is nullable. The generated columns come first in the generated order, then
+    the rest in ledger order, so a fresh lake and an evolved one list columns the same way.
     """
     generated = {c.name: c for c in generated_columns(table.source)}
-    present = {name for name, _ in ledger_columns}
+    present = set(ledger_columns)
     missing = [name for name in generated if name not in present]
     if missing:
         raise ValueError(f"ledger table {table.source} lacks generated columns {missing}")
-    extra = [
-        Column(name, reflected_duck_type(sql_type))
-        for name, sql_type in ledger_columns
-        if name not in generated
-    ]
+    extra = [Column(name, extra_types[name]) for name in ledger_columns if name not in generated]
     return [*generated.values(), *extra]

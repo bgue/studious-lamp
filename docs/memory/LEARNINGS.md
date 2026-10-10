@@ -584,3 +584,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   two different files. After merging workstream A, `just check` failed on codegen drift because its `COLLATE "C"` change altered the
   Postgres DDL of tables that workstream B had added: run `just gen` after every merge that touches a generator.
   Evidence: `git show c073261:...factory.py`; `differs: ddl/postgres/wh_delivery.sql`. Status: active
+- **L-P0-I7-B8** · 2026-10-10 · tags: lake, tooling, ledger
+  The Postgres adapter returns JSON as canonical text, booleans as 0/1, timestamptz as ISO text and sums as ints, and under that
+  `sqlalchemy.inspect(conn).get_columns` and `Table(autoload_with=conn)` fail (`TypeError` on the collation JSON). Read column names with
+  `tl_core.projection.promoted.table_columns`, select with explicit quoted columns, and get the type of a promoted column from the effective
+  schema's `promoted_columns` + `column_type(..., "postgres")` (the mapping that created it). Make tests parity tests by building the ledger
+  from the `new_db` fixture and the dialect-neutral `tl_adapters.db` functions.
+  Evidence: `tl_lake/sync.py::_extra_types`, `tests/test_parity_sync.py`, first Postgres run of `tests/test_sync.py`. Status: active
