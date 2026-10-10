@@ -7,7 +7,8 @@ copies, what a query may read) live in `tl_lake`.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+import time
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, NoReturn
@@ -30,6 +31,11 @@ from tl_lake import (
 app = typer.Typer(help="Sync the ledger into the lake and query it.", no_args_is_help=True)
 
 _CALLER = "cli"
+INTERVAL_KEY = "lake.sync.interval"
+#: Seconds to wait when the interval setting cannot be read and none was read before.
+DEFAULT_INTERVAL_S = 300.0
+#: The wait between watch runs; the tests replace it.
+_sleep: Callable[[float], None] = time.sleep
 
 
 def _fail(message: str) -> NoReturn:
@@ -95,12 +101,68 @@ def _print_sync(result: SyncResult) -> None:
     typer.echo(f"silver rows: {counts}")
 
 
+def watch_loop(
+    run_once: Callable[[], None],
+    interval: Callable[[], float],
+    sleep: Callable[[float], None],
+    max_runs: int | None = None,
+) -> int:
+    """STUB (P0-I8-T07): remove this paragraph when you implement the body.
+
+    Call ``run_once``, then wait ``interval()`` seconds, again and again; return the run count.
+
+    The interval is read again before every wait, so a changed setting applies to the next wait.
+    If it cannot be read (the ledger is busy, the value is bad) the last one read is used, or
+    ``DEFAULT_INTERVAL_S`` before the first. A run that raises ``GuardError`` or ``LakeError``
+    prints ``error: <message>`` to standard error and the loop goes on. With ``max_runs`` the
+    loop stops after that many runs, without a wait after the last one.
+    """
+    raise NotImplementedError("STUB: P0-I8-T07")
+
+
+def _interval_seconds(ctx: typer.Context) -> float:
+    """STUB (P0-I8-T07): remove this paragraph when you implement the body.
+
+    ``lake.sync.interval`` in force now, in seconds, read in a fresh read snapshot of the ledger
+    with ``value_of(conn, INTERVAL_KEY)`` (the company value, else the default) and converted with
+    ``duration_seconds``.
+    """
+    raise NotImplementedError("STUB: P0-I8-T07")
+
+
 @app.command("sync")
-def sync(ctx: typer.Context) -> None:
+def sync(
+    ctx: typer.Context,
+    watch: Annotated[
+        bool,
+        typer.Option(
+            "--watch",
+            help="Keep syncing, waiting `lake.sync.interval` between syncs, until interrupted.",
+        ),
+    ] = False,
+    max_runs: Annotated[
+        int | None,
+        typer.Option("--max-runs", min=1, hidden=True, help="Stop a watch after this many syncs."),
+    ] = None,
+) -> None:
     """Copy new ledger events and changed records into the lake: one snapshot per sync."""
-    with _lake_errors(), _ledger_snapshot(ctx) as conn:
-        result = sync_lake(_config(ctx), conn)
-    _print_sync(result)
+    if max_runs is not None and not watch:
+        _fail("--max-runs only applies with --watch")
+    if not watch:
+        with _lake_errors(), _ledger_snapshot(ctx) as conn:
+            result = sync_lake(_config(ctx), conn)
+        _print_sync(result)
+        return
+
+    def once() -> None:
+        with _ledger_snapshot(ctx) as conn:
+            result = sync_lake(_config(ctx), conn)
+        _print_sync(result)
+
+    try:
+        watch_loop(once, lambda: _interval_seconds(ctx), lambda s: _sleep(s), max_runs)
+    except KeyboardInterrupt:
+        typer.echo("watch stopped")
 
 
 @app.command("rebuild")

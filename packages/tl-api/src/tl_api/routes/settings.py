@@ -18,11 +18,10 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import Connection
 from tl_core import settings
 from tl_core.settings.layers import parse_layer
 from tl_core.settings.types import SettingChange, SettingDiff
-from tl_core.settings.views import SettingView, get_view, list_views
+from tl_core.settings.views import SettingView, get_view, list_views, view_at
 
 from tl_api.auth import guard
 from tl_api.context import ApiContext, get_ctx
@@ -115,17 +114,6 @@ class ImportBody(BaseModel):
 class ImportResult(BaseModel):
     layer: str
     keys: list[str]
-
-
-def view_at(conn: Connection, key: str, layer: str) -> SettingView:
-    """``key`` as seen at ``layer`` (the project or user the layer names)."""
-    ref = parse_layer(layer)
-    return get_view(
-        conn,
-        key,
-        project=ref.ident if ref.kind == "project" else None,
-        user=ref.ident if ref.kind == "user" else None,
-    )
 
 
 @router.get("/settings", operation_id="list_settings")

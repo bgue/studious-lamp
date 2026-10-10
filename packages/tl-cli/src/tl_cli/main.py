@@ -10,7 +10,9 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from tl_adapters.sqlite.engine import make_engine, write_tx
 from tl_adapters.sqlite.uow import create_schema, rebuild_projections
+from tl_core.settings.effects import mark_applied
 from tl_sim import cli as sim_cli
 
 from tl_cli import (
@@ -97,4 +99,12 @@ def rebuild(
     """Reset projectors and replay the whole ledger into them."""
     db: Path = ctx.obj
     replayed = rebuild_projections(db, types=only or None)
+    if not only:
+        # A full replay carries out the `rebuild` and `reindex` effects of settings (P0-I8 D6).
+        engine = make_engine(db)
+        try:
+            with write_tx(engine) as conn:
+                mark_applied(conn, ["rebuild", "reindex"], applied_by="rebuild")
+        finally:
+            engine.dispose()
     typer.echo(f"replayed {replayed} events")

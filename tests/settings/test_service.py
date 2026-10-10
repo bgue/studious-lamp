@@ -589,3 +589,17 @@ def test_everything_that_does_not_depend_on_the_risk_is_checked_first(world: Wor
         )
     with pytest.raises(InvalidSettingValueError, match="not in the future"):
         world.set("t.danger", "company", ["a"], applies_at=datetime.now(UTC) - timedelta(1))
+
+
+def test_view_at_shows_the_key_as_the_layer_sees_it(world: World) -> None:
+    from tl_core.settings.views import view_at
+
+    world.set("t.plain", "project:P1", "mine")
+    with open_uow(world.db, readonly=True) as uow:
+        project = view_at(uow.conn(), "t.plain", "project:P1")
+        company = view_at(uow.conn(), "t.plain", "company")
+        with pytest.raises(SettingScopeError):
+            view_at(uow.conn(), "t.plain", "elsewhere")
+    assert (project.effective.value, project.effective.origin) == ("mine", "project")
+    assert project.effective.modified_here and project.definition.key == "t.plain"
+    assert (company.effective.value, company.effective.origin) == ("x", "default")

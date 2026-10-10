@@ -11,6 +11,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -59,11 +60,18 @@ from tl_core.services.workflow import (
     handle_transition_workflow,
     workflow_status,
 )
+from tl_core.settings.types import SettingChange
+from tl_core.settings.views import SettingView
 from tl_core.uow import UnitOfWork
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 from tl_tui.client import RelationInfo
 from tl_tui.live import ChangeFeed, EmbeddedFeed, OwnWrites
+
+#: The actor of settings changes when none is given (the dev person; the header shows the same).
+DEFAULT_ACTOR = "user:dev"
+#: The ``source`` recorded on settings this client changes.
+SOURCE = "tui"
 
 # A callable that opens a unit of work: `factory(readonly)` returns a context manager yielding it.
 UowFactory = Callable[[bool], AbstractContextManager[UnitOfWork]]
@@ -88,16 +96,20 @@ class EmbeddedClient:
     user's own saves from other writers' changes in the live feed.
     """
 
-    def __init__(self, uow_factory: UowFactory) -> None:
+    def __init__(self, uow_factory: UowFactory, *, actor: str = DEFAULT_ACTOR) -> None:
         self._uow = uow_factory
+        self.actor = actor
         self.own_writes = OwnWrites()
 
     @classmethod
-    def for_sqlite(cls, path: str | Path) -> EmbeddedClient:
-        """A client on the SQLite ledger at ``path`` with a long-lived engine and a bus."""
+    def for_sqlite(cls, path: str | Path, *, actor: str = DEFAULT_ACTOR) -> EmbeddedClient:
+        """A client on the SQLite ledger at ``path`` with a long-lived engine and a bus.
+
+        ``actor`` is recorded on the settings this client changes (commands carry their own).
+        """
         from tl_adapters.sqlite.factory import SqliteUowFactory
 
-        return cls(SqliteUowFactory(path))
+        return cls(SqliteUowFactory(path), actor=actor)
 
     def change_feed(self, scope: str | None = None) -> ChangeFeed | None:
         """The live feed for this ledger, or ``None`` when the factory has no ledger and bus."""
@@ -340,3 +352,100 @@ class EmbeddedClient:
     ) -> list[Completion]:
         with self._uow(True) as uow:
             return feed_completion.complete_tags(uow, scope, sigil, prefix, limit=limit)
+
+    # --- settings (P0-I8) ---------------------------------------------------------------------
+
+    def list_settings(
+        self,
+        *,
+        project: str | None = None,
+        user: str | None = None,
+        prefix: str | None = None,
+        modified_only: bool = False,
+    ) -> list[SettingView]:
+        """STUB (P0-I8-T09): remove this paragraph when you implement the body.
+
+        ``list_views(uow.conn(), project=, user=, prefix=, modified_only=)`` in a
+        read-only unit of work.
+        """
+        raise NotImplementedError("STUB: P0-I8-T09")
+
+    def get_setting(
+        self, key: str, *, project: str | None = None, user: str | None = None
+    ) -> SettingView:
+        """STUB (P0-I8-T09): remove this paragraph when you implement the body.
+
+        ``get_view(uow.conn(), key, project=, user=)`` in a read-only unit of work.
+        """
+        raise NotImplementedError("STUB: P0-I8-T09")
+
+    def setting_history(self, key: str, *, layer: str | None = None) -> list[SettingChange]:
+        """STUB (P0-I8-T09): remove this paragraph when you implement the body.
+
+        ``settings_history(uow.conn(), key, layer=layer)`` in a read-only unit of work.
+        """
+        raise NotImplementedError("STUB: P0-I8-T09")
+
+    def set_setting(
+        self,
+        key: str,
+        *,
+        layer: str,
+        value: Any,
+        reason: str | None = None,
+        accept_risk: bool = False,
+        applies_at: datetime | None = None,
+    ) -> SettingView:
+        """STUB (P0-I8-T09): remove this paragraph when you implement the body.
+
+        One writable unit of work: ``set_in_force(uow, key=, layer=, value=,
+        actor=self.actor, source=SOURCE, reason=, accept_risk=, applies_at=)``, then
+        ``view_at(uow.conn(), key, layer)`` (still inside the unit of work) is the answer.
+        """
+        raise NotImplementedError("STUB: P0-I8-T09")
+
+    def reset_setting(
+        self,
+        key: str,
+        *,
+        layer: str,
+        reason: str | None = None,
+        accept_risk: bool = False,
+        applies_at: datetime | None = None,
+    ) -> SettingView:
+        """STUB (P0-I8-T09): remove this paragraph when you implement the body.
+
+        As ``set_setting`` with ``reset_in_force`` (no value).
+        """
+        raise NotImplementedError("STUB: P0-I8-T09")
+
+    def lock_setting(
+        self,
+        key: str,
+        *,
+        locked: bool,
+        reason: str,
+        bounds: dict[str, Any] | None = None,
+    ) -> SettingView:
+        """STUB (P0-I8-T09): remove this paragraph when you implement the body.
+
+        As ``set_setting`` with ``lock_in_force(uow, key=, locked=, bounds=, actor=,
+        source=, reason=)``; the answer is ``view_at(uow.conn(), key, "company")``.
+        """
+        raise NotImplementedError("STUB: P0-I8-T09")
+
+    def revert_setting(
+        self,
+        key: str,
+        *,
+        layer: str,
+        seq: int,
+        reason: str | None = None,
+        accept_risk: bool = False,
+    ) -> SettingView:
+        """STUB (P0-I8-T09): remove this paragraph when you implement the body.
+
+        As ``set_setting`` with ``revert_in_force(uow, key=, layer=, seq=, actor=,
+        source=, reason=, accept_risk=)``.
+        """
+        raise NotImplementedError("STUB: P0-I8-T09")

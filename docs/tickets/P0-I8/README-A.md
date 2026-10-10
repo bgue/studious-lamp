@@ -67,18 +67,18 @@ accepts it; the API returns 403 `agent_must_propose` for an agent token; the TUI
 | P0-I8-T04 | MCP `get_settings` | haiku | S4 | merged (pass) | 9235f2a |
 | P0-I8-T05 | feed reads `feed.reactions.enabled` and `feed.signal_tags` | haiku | S4 | merged (pass) | 44de0d7 |
 | P0-I8-T06 | webhook retry window and egress allow-list read the settings | haiku | S5 | merged (pass) | 9fe5587 |
-| P0-I8-T07 | `tl lake sync --watch` reads `lake.sync.interval` | haiku | S5 | draft | |
-| P0-I8-T08 | `ApiClient` settings methods | haiku | T03 | draft | |
-| P0-I8-T09 | TUI client: embedded and remote settings calls | haiku | T08 | draft | |
-| P0-I8-T10 | TUI about:config screen (`Ctrl+,`) with snapshots | haiku | T09 | draft | |
-| P0-I8-T11 | effects: `tl projections rebuild` and the server start write `setting_effect_applied` | haiku | S2 | draft | |
+| P0-I8-T07 | `tl lake sync --watch` reads `lake.sync.interval` | haiku | S5 | ready | |
+| P0-I8-T08 | `ApiClient` settings methods | haiku | T03 | ready | |
+| P0-I8-T09 | TUI client: embedded settings calls (the remote client passes the ApiClient methods through; the contract and the fake are S18) | haiku | S18 | ready | |
+| P0-I8-T10 | TUI about:config screen (`Ctrl+,`) with snapshots | haiku | S18, S19 | draft | |
+| P0-I8-T11 | effects: `tl projections rebuild` and the server start write `setting_effect_applied` | supervisor | S2 | built (S18) | a ticket would have been longer than the change (about 15 lines and one test file); reviewed with the S-commits |
 | P0-I8-T12 | `docs/runbooks/settings.md` | haiku | T01 to T03 | draft | |
 
 ## Order of work
 1. Round 1 (this one): S1 to S6, tests, the plan; stubs, provided tests and references for T01 to T03; DISPATCH T01, T02, T03.
-2. Round 2: merge T01 to T03; S7 for T04 to T06 (reader consumers need S5); DISPATCH.
-3. Round 3: T07, T08, T11 and the TUI client contract (S7); DISPATCH.
-4. Round 4: T09, T10, T12; the demo, READMEs, learnings and the report; DONE.
+2. Round 2: merge T01 to T03; stubs for T04 to T06; DISPATCH (merged: 9235f2a, 44de0d7, 9fe5587).
+3. Round 3 (S17, S18): the review LOW fixes; T11 built by the supervisor; the TUI settings contract, the fake and the stubs for T07 to T09; DISPATCH T07, T08, T09 (at most three per batch).
+4. Round 4: the about:config screen contract (S19) and T10; T12; the demo, READMEs, learnings and the report; DONE.
 
 ## Risks and escalation triggers
 - **Settings touch feed, webhooks, lake, proposals, MCP, API, CLI and TUI.** Only this workstream changes them; the swap tickets keep each change to one package and keep the old behaviour as the default.

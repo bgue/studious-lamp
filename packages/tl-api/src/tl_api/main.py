@@ -20,6 +20,7 @@ from pathlib import Path
 
 from tl_core.files.service import FileService
 
+from tl_api.backend import Backend
 from tl_api.settings import ApiSettings, check_bind
 
 log = logging.getLogger("tl_api")
@@ -55,6 +56,14 @@ def file_service_from_env() -> FileService | None:
         return None
 
 
+def mark_server_started(backend: Backend) -> None:
+    """Record that the settings that need a restart (``effect: restart``) are now in force."""
+    from tl_core.settings.effects import mark_applied
+
+    with backend(False) as uow:
+        mark_applied(uow.conn(), ["restart"], applied_by="server")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     settings = parse_args(argv)
     try:
@@ -86,6 +95,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         log.warning("--insecure-dev: bound to %s with no real authentication", settings.host)
     backend = open_sqlite_backend(settings.db_path)
     try:
+        mark_server_started(backend)
         app = create_app(backend, settings=settings, files_service=file_service_from_env())
         uvicorn.run(app, host=settings.host, port=settings.port, log_level="info")
     finally:

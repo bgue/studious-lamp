@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy import Connection
 
 from tl_core.settings.instants import to_us
+from tl_core.settings.layers import parse_layer
 from tl_core.settings.registry import definitions, get_definition
 from tl_core.settings.resolver import load_snapshot, resolve_from
 from tl_core.settings.types import EffectiveSetting, SettingDefinition
@@ -42,6 +43,21 @@ def get_view(
     return SettingView(
         definition=defn,
         effective=resolve_from(defn, snapshot, project=project, user=user, at_us=_at(at)),
+    )
+
+
+def view_at(conn: Connection, key: str, layer: str) -> SettingView:
+    """``key`` as seen at ``layer``: the project or user the layer names (company: neither).
+
+    ``layer`` is ``company``, ``project:<id>`` or ``user:<id>``; anything else raises
+    ``SettingScopeError``. What a write answers with, so the caller sees the value it set.
+    """
+    ref = parse_layer(layer)
+    return get_view(
+        conn,
+        key,
+        project=ref.ident if ref.kind == "project" else None,
+        user=ref.ident if ref.kind == "user" else None,
     )
 
 
