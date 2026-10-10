@@ -10,6 +10,13 @@ rows this projector already wrote; no clock, no outside reads):
   ``tl_core.feed.cards``. They decide, per scope, whether the event extends the open card, starts
   a new one, closes it, or is ignored. A card's subject records are rows of ``cur_feed_tags``.
 
+A scope has at most one open card, and it is the scope's newest card: the projector closes a card
+before it opens the next, and runs under the ledger's single-writer lock. The table has no unique
+key on ``open_scope`` (decision D-S65 of P0-I8 workstream D): on Postgres it made a rebuild, which
+is one transaction, quadratic in the number of cards. The property test in
+``tests/property/test_feed_projection.py`` pins the rule. Databases created before D-S65 keep the
+old unique index until it is dropped (a migration).
+
 It must see every event, in ``seq`` order, for its cards to equal those of a rebuild; ``rebuild``
 replays the whole ledger, so they do. It reads only its own tables, so rebuilding it alone is safe.
 """

@@ -20,6 +20,8 @@ Measure the §15 targets on a seeded 100k-record project on SQLite and Postgres,
 | D4 | The 100k full rebuild is measured once per dialect (`just bench-rebuild`); the repeated rebuild measurements run on a 10k-record dataset. | One full rebuild on Postgres exceeds the 15-minute budget of a bench run. The 10k runs give the spread and the events per second. |
 | D5 | Index definitions go through a class annotation `tl:ix_<name>` read by the DDL generator (composite columns, `desc`, and `empty_last(col)`). | `tl:indexed` could only index one column, and the record queries order by an expression no plain index serves. |
 | D6 | Pset and link predicates that must hold compile to `id IN (set)`; negations stay correlated `NOT EXISTS`. | `IN (set)` is built once from a covering index; `NOT IN (big set)` plans badly on Postgres. |
+| D-S65 | The feed projector finds a scope's open card as its newest card, through the index `(scope, first_seq)`, and `cur_feed_items.open_scope` has no unique key. The orchestrator accepted it: the projector runs under the single-writer lock, so the unique index was a second guard, and the property test keeps the rule. | A rebuild is one transaction; on Postgres every closed card left a dead entry under the one `open_scope` key, so lookups and the unique check grew with the cards: 418 s of a 570 s rebuild of 10k records, hours at 100k. Now 229 s. Existing databases keep the old unique index (correct, slow on rebuild) until `ux_cur_feed_items_open_scope` is dropped or the database is rebuilt into a fresh one: a migration, filed as a follow-up under the data-migration gate. |
+| D-ssl | `?sslmode=` maps explicitly: `disable` to no TLS, `require` to TLS without verification, `verify-ca` to chain verification, `verify-full` to chain and host name; other modes raise `ValueError`. | In the installed pg8000, `ssl_context=None` means "try TLS without verifying", not plaintext; silently dropping `verify-full` would still have been a downgrade from verified to unverified TLS. |
 | D7 | `cur_link_counts` is not used to answer `count(linked)`. | The query language is documented over `cur_links`, and the query tests seed `cur_links` alone. Recorded as the proposed fix of a deviation. |
 
 ## Supervisor-built pieces (in order)
@@ -29,14 +31,15 @@ Measure the §15 targets on a seeded 100k-record project on SQLite and Postgres,
 | S61 | `tl:ix_` annotations in the DDL generator and the index definitions in `schema/core` | Generator logic and `schema/**` | orchestrator | done |
 | S62 | Query compiler: sets instead of per-record probes; ordering an index can serve | Query compiler (Sonnet-authored list) | orchestrator | done |
 | S63 | Per-target measurements, before and after, both dialects | The report depends on them | self | in progress |
+| S65 | Feed projector: open card without a hot unique index (`schema/core/feed.yaml`, `projection/feed.py`) | Projector and `schema/**` | orchestrator | done |
 | S64 | Runbook, package README notes, demo script, perf report, workstream report | Closes the workstream | self | planned |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| T60 | Bench report renderer (results files to markdown tables) | haiku | S60 | ready | |
-| T61 | PsetProjector: one insert per record, no reads for a new record | haiku | S62 | ready | |
-| T62 | LinkProjector: refresh link counts with one upsert | haiku | S62 | ready | |
+| T60 | Bench report renderer (results files to markdown tables) | haiku | S60 | in-review | |
+| T61 | PsetProjector: one insert per record, no reads for a new record | haiku | S62 | merged | 1 review round; 2 statements per new record |
+| T62 | LinkProjector: refresh link counts with one upsert | haiku | S62 | merged | 1 review round; 3 statements per Link.Added |
 
 ## Order of work
 1. S60 harness and generator, seed 100k on both dialects (in the background).
