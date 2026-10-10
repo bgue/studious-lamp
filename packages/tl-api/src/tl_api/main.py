@@ -14,9 +14,10 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 from tl_core.files.service import FileService
 
@@ -57,11 +58,34 @@ def file_service_from_env() -> FileService | None:
 
 
 def mark_server_started(backend: Backend) -> None:
-    """Record that the settings that need a restart (``effect: restart``) are now in force."""
+    """Record that the settings that need a restart (``effect: restart``) are now in force.
+
+    Called only once the server is listening (see :func:`started_server`): an app that failed to
+    build or a port that could not be bound has restarted nothing.
+    """
     from tl_core.settings.effects import mark_applied
 
     with backend(False) as uow:
         mark_applied(uow.conn(), ["restart"], applied_by="server")
+
+
+def started_server(app: Any, settings: ApiSettings, on_started: Callable[[], None]) -> Any:
+    """A uvicorn server for ``app`` that calls ``on_started`` once its sockets are bound.
+
+    uvicorn runs the app's lifespan startup before it binds, so the app cannot tell when the server
+    is really up; this subclass calls ``on_started`` after uvicorn's own startup succeeded
+    (``started`` is true). A bind error exits before that and nothing is marked.
+    """
+    import uvicorn
+
+    class StartedServer(uvicorn.Server):
+        async def startup(self, sockets: Any = None) -> None:
+            await super().startup(sockets=sockets)
+            if self.started:
+                on_started()
+
+    config = uvicorn.Config(app, host=settings.host, port=settings.port, log_level="info")
+    return StartedServer(config)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -85,8 +109,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
-    import uvicorn
-
     from tl_api.app import create_app
     from tl_api.backend import open_sqlite_backend
 
@@ -95,9 +117,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         log.warning("--insecure-dev: bound to %s with no real authentication", settings.host)
     backend = open_sqlite_backend(settings.db_path)
     try:
-        mark_server_started(backend)
         app = create_app(backend, settings=settings, files_service=file_service_from_env())
-        uvicorn.run(app, host=settings.host, port=settings.port, log_level="info")
+        started_server(app, settings, lambda: mark_server_started(backend)).run()
     finally:
         backend.close()
     return 0

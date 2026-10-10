@@ -109,14 +109,26 @@ def rebuild_projections(
     types: Sequence[str] | None = None,
     registry: ProjectorRegistry | None = None,
     on_progress: Callable[[int], None] | None = None,
+    after_replay: Callable[[Connection, int], None] | None = None,
 ) -> int:
-    """Reset projectors and replay the whole ledger into them, in one transaction."""
+    """Reset projectors and replay the whole ledger into them, in one transaction.
+
+    ``after_replay(conn, last_seq)`` runs in that transaction after the last event.
+    """
     if is_postgres(target):
         return postgres.uow.rebuild_projections(
-            str(target), types=types, registry=registry, on_progress=on_progress
+            str(target),
+            types=types,
+            registry=registry,
+            on_progress=on_progress,
+            after_replay=after_replay,
         )
     return sqlite.uow.rebuild_projections(
-        target, types=types, registry=registry, on_progress=on_progress
+        target,
+        types=types,
+        registry=registry,
+        on_progress=on_progress,
+        after_replay=after_replay,
     )
 
 

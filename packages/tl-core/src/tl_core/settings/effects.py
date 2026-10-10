@@ -37,8 +37,12 @@ def mark_applied(
     *,
     applied_by: str,
     now: datetime | None = None,
+    head: int | None = None,
 ) -> int:
-    """Record that ``effects`` were carried out now, at the current ledger head; return the head.
+    """Record that ``effects`` were carried out now, at ``head``; return the head.
+
+    ``head`` is the ledger seq the effect covers: a rebuild passes the last event it replayed, so a
+    change appended after the replay stays pending. By default it is the current ledger head.
 
     ``effects`` are names from :data:`EFFECTS`; ``applied_by`` says what did it (``rebuild``,
     ``server``). Raises ``ValueError`` for another name. Write this in the same transaction that
@@ -47,7 +51,8 @@ def mark_applied(
     unknown = sorted(set(effects) - set(EFFECTS))
     if unknown:
         raise ValueError(f"unknown effects {unknown}; use {list(EFFECTS)}")
-    head = int(conn.execute(_HEAD_SQL).scalar_one())
+    if head is None:
+        head = int(conn.execute(_HEAD_SQL).scalar_one())
     moment = to_us(now if now is not None else utcnow())
     for effect in effects:
         params = {"effect": effect, "seq": head, "us": moment, "by": applied_by}

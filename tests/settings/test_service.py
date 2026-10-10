@@ -603,3 +603,22 @@ def test_view_at_shows_the_key_as_the_layer_sees_it(world: World) -> None:
     assert (project.effective.value, project.effective.origin) == ("mine", "project")
     assert project.effective.modified_here and project.definition.key == "t.plain"
     assert (company.effective.value, company.effective.origin) == ("x", "default")
+
+
+def test_the_rebuild_hook_gets_the_last_replayed_seq_on_every_adapter(world: World) -> None:
+    from sqlalchemy import Connection
+    from tl_adapters.db import rebuild_projections
+    from tl_core.settings.effects import mark_applied
+
+    world.set("t.rebuild", "company", 3)
+    seen: list[int] = []
+
+    def mark(conn: Connection, last_seq: int) -> None:
+        seen.append(last_seq)
+        mark_applied(conn, ["rebuild"], applied_by="rebuild", head=last_seq)
+
+    replayed = rebuild_projections(world.db, after_replay=mark)
+    assert seen == [world.head()] and replayed == world.head()
+    assert world.get("t.rebuild").pending_effect is None
+    world.set("t.rebuild", "company", 4)
+    assert world.get("t.rebuild").pending_effect == "rebuild"
