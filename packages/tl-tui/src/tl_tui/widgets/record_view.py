@@ -81,6 +81,10 @@ def event_summary(event: Event) -> str:
 class RecordView(Vertical, can_focus=True):
     """Opened by the app for ``OpenRecord``. Posts `CloseRecord` on Esc and `StepRecord` on [ ]."""
 
+    DEFAULT_CSS = """
+    RecordView #rv-banner { height: auto; display: none; background: $warning 35%; padding: 0 1; }
+    """
+
     KEY_HINTS: ClassVar[str] = (
         "Esc back  [ ] prev/next  1-5 tabs  e edit  l link  w workflow  t trace  R tray"
     )
@@ -114,6 +118,7 @@ class RecordView(Vertical, can_focus=True):
 
     def compose(self) -> ComposeResult:
         yield Static("", id="rv-header", markup=False)
+        yield Static("", id="rv-banner", markup=False)
         with TabbedContent(initial="tab-details", id="rv-tabs"):
             with TabPane("Details", id="tab-details"):
                 with VerticalScroll():
@@ -218,11 +223,16 @@ class RecordView(Vertical, can_focus=True):
 
         With ``when`` the line also says at what time. A later call replaces the line.
         """
-        raise NotImplementedError("STUB (P0-I4-T62)")
+        at = f" at {when:%H:%M:%S}" if when is not None else ""
+        banner = self.query_one("#rv-banner", Static)
+        banner.update(f"! Updated by {actor}{at} (now v{version})")
+        banner.display = True
 
     def clear_remote_update(self) -> None:
         """Hide the "Updated by" line."""
-        raise NotImplementedError("STUB (P0-I4-T62)")
+        banner = self.query_one("#rv-banner", Static)
+        banner.update("")
+        banner.display = False
 
     def on_record_changed(self, message: RecordChanged) -> None:
         # Not stopped: the message keeps bubbling so the app can refresh the grid.
