@@ -7,7 +7,7 @@ from tl_cli.scaffold.names import ModuleName
 
 
 def plan_module(module: ModuleName) -> Plan:
-    """The files of a new module. The package is ``packages/tl-mod-<name>`` (a uv workspace
+    """The files of a new module. The package is ``packages/tl-modules/<name>`` (a uv workspace
     member through ``packages/*``); the schema is ``schema/modules/<name>/module.yaml``."""
     values = {
         "name": module.name,

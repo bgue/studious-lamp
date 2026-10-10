@@ -21,22 +21,22 @@ from scaffold_support import (
 EXPECTED = Path(__file__).parent / "expected" / "record_type"
 MODULE_FILES = [
     "docs/modules/inspection/README.md",
-    "packages/tl-mod-inspection/AGENTS.md",
-    "packages/tl-mod-inspection/README.md",
-    "packages/tl-mod-inspection/pyproject.toml",
-    "packages/tl-mod-inspection/src/tl_mod_inspection/__init__.py",
-    "packages/tl-mod-inspection/src/tl_mod_inspection/handlers/__init__.py",
-    "packages/tl-mod-inspection/src/tl_mod_inspection/projectors/__init__.py",
-    "packages/tl-mod-inspection/src/tl_mod_inspection/py.typed",
-    "packages/tl-mod-inspection/tests/test_module.py",
+    "packages/tl-modules/inspection/AGENTS.md",
+    "packages/tl-modules/inspection/README.md",
+    "packages/tl-modules/inspection/pyproject.toml",
+    "packages/tl-modules/inspection/src/tl_mod_inspection/__init__.py",
+    "packages/tl-modules/inspection/src/tl_mod_inspection/handlers/__init__.py",
+    "packages/tl-modules/inspection/src/tl_mod_inspection/projectors/__init__.py",
+    "packages/tl-modules/inspection/src/tl_mod_inspection/py.typed",
+    "packages/tl-modules/inspection/tests/test_module.py",
     "schema/modules/inspection/module.yaml",
 ]
 WELD_FILES = {
     "schema/modules/inspection/weld_inspection.yaml": "weld_inspection.yaml",
-    "packages/tl-mod-inspection/src/tl_mod_inspection/handlers/weld_inspection.py": (
+    "packages/tl-modules/inspection/src/tl_mod_inspection/handlers/weld_inspection.py": (
         "handler.py.txt"
     ),
-    "packages/tl-mod-inspection/tests/test_weld_inspection.py": "test.py.txt",
+    "packages/tl-modules/inspection/tests/test_weld_inspection.py": "test.py.txt",
     "docs/modules/inspection/weld_inspection.md": "spec.md",
 }
 
@@ -70,7 +70,7 @@ def test_it_tells_what_to_do_next(root: Path) -> None:
 def test_the_generated_files_pass_ruff_and_their_own_tests(root: Path) -> None:
     tl_new(root, "record-type", "inspection.WeldInspection")
     ruff_clean(root)
-    assert "4 passed" in generated_tests_pass(root, "packages/tl-mod-inspection")
+    assert "4 passed" in generated_tests_pass(root, "packages/tl-modules/inspection")
 
 
 @pytest.mark.parametrize(
@@ -89,7 +89,7 @@ def test_other_names_work_too(tmp_path: Path, module: str, cls: str) -> None:
     assert result.exit_code == 0, result.output
     assert len(result.stdout.splitlines()) == 4
     ruff_clean(tmp_path)
-    generated_tests_pass(tmp_path, f"packages/tl-mod-{module.replace('_', '-')}")
+    generated_tests_pass(tmp_path, f"packages/tl-modules/{module}")
 
 
 def test_it_needs_the_module_first(tmp_path: Path) -> None:

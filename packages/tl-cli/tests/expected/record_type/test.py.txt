@@ -13,7 +13,7 @@ from tl_mod_inspection.handlers.weld_inspection import (
     handle_create_weld_inspection,
 )
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]
 SCHEMA = ROOT.joinpath(
     "schema",
     "modules",

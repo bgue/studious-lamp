@@ -59,8 +59,8 @@ class ModuleName:
         return f"tl-mod-{self.name.replace('_', '-')}"
 
     @property
-    def directory(self) -> str:  # packages/tl-mod-inspection
-        return f"packages/{self.distribution}"
+    def directory(self) -> str:  # packages/tl-modules/inspection
+        return f"packages/tl-modules/{self.name}"
 
 
 @dataclass(frozen=True)

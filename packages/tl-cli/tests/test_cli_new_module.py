@@ -9,14 +9,14 @@ from scaffold_support import files_under, generated_tests_pass, ruff_clean, tl_n
 
 EXPECTED = [
     "docs/modules/inspection/README.md",
-    "packages/tl-mod-inspection/AGENTS.md",
-    "packages/tl-mod-inspection/README.md",
-    "packages/tl-mod-inspection/pyproject.toml",
-    "packages/tl-mod-inspection/src/tl_mod_inspection/__init__.py",
-    "packages/tl-mod-inspection/src/tl_mod_inspection/handlers/__init__.py",
-    "packages/tl-mod-inspection/src/tl_mod_inspection/projectors/__init__.py",
-    "packages/tl-mod-inspection/src/tl_mod_inspection/py.typed",
-    "packages/tl-mod-inspection/tests/test_module.py",
+    "packages/tl-modules/inspection/AGENTS.md",
+    "packages/tl-modules/inspection/README.md",
+    "packages/tl-modules/inspection/pyproject.toml",
+    "packages/tl-modules/inspection/src/tl_mod_inspection/__init__.py",
+    "packages/tl-modules/inspection/src/tl_mod_inspection/handlers/__init__.py",
+    "packages/tl-modules/inspection/src/tl_mod_inspection/projectors/__init__.py",
+    "packages/tl-modules/inspection/src/tl_mod_inspection/py.typed",
+    "packages/tl-modules/inspection/tests/test_module.py",
     "schema/modules/inspection/module.yaml",
 ]
 
@@ -38,15 +38,15 @@ def test_it_lists_every_created_file_on_stdout(tmp_path: Path) -> None:
 def test_the_generated_files_pass_ruff_and_their_own_tests(tmp_path: Path) -> None:
     tl_new(tmp_path, "module", "inspection")
     ruff_clean(tmp_path)
-    assert "2 passed" in generated_tests_pass(tmp_path, "packages/tl-mod-inspection")
+    assert "2 passed" in generated_tests_pass(tmp_path, "packages/tl-modules/inspection")
 
 
 def test_the_package_is_named_for_the_workspace(tmp_path: Path) -> None:
     tl_new(tmp_path, "module", "weld_quality")
-    pyproject = (tmp_path / "packages/tl-mod-weld-quality/pyproject.toml").read_text()
+    pyproject = (tmp_path / "packages/tl-modules/weld_quality/pyproject.toml").read_text()
     assert 'name = "tl-mod-weld-quality"' in pyproject
     assert 'packages = ["src/tl_mod_weld_quality"]' in pyproject
-    init = tmp_path / "packages/tl-mod-weld-quality/src/tl_mod_weld_quality/__init__.py"
+    init = tmp_path / "packages/tl-modules/weld_quality/src/tl_mod_weld_quality/__init__.py"
     assert 'MODULE = "weld_quality"' in init.read_text()
 
 
@@ -54,7 +54,7 @@ def test_the_longest_module_name_still_gives_formatted_code(tmp_path: Path) -> N
     name = "abcdefghijklmnopqrst"
     assert tl_new(tmp_path, "module", name).exit_code == 0
     ruff_clean(tmp_path)
-    assert "2 passed" in generated_tests_pass(tmp_path, f"packages/tl-mod-{name}")
+    assert "2 passed" in generated_tests_pass(tmp_path, f"packages/tl-modules/{name}")
 
 
 def test_a_second_run_overwrites_nothing(tmp_path: Path) -> None:

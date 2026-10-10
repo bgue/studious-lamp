@@ -55,7 +55,11 @@ def file_names() -> set[str]:
 
 
 def packages() -> list[Path]:
-    return sorted(p for p in (ROOT / "packages").iterdir() if (p / "pyproject.toml").is_file())
+    found = [p for p in (ROOT / "packages").iterdir() if (p / "pyproject.toml").is_file()]
+    modules = ROOT / "packages" / "tl-modules"
+    if modules.is_dir():  # scaffolded modules (`tl new module`)
+        found += [p for p in modules.iterdir() if (p / "pyproject.toml").is_file()]
+    return sorted(found)
 
 
 def source_text() -> str:

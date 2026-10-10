@@ -30,7 +30,7 @@ def test_a_module_name_gives_its_package_and_directory() -> None:
     assert (module.package, module.distribution, module.directory) == (
         "tl_mod_weld_quality",
         "tl-mod-weld-quality",
-        "packages/tl-mod-weld-quality",
+        "packages/tl-modules/weld_quality",
     )
 
 
@@ -156,7 +156,7 @@ def test_the_root_is_found_from_inside_the_repository_and_checked_when_given(
 
 def test_a_record_type_needs_its_module(tmp_path: Path) -> None:
     with pytest.raises(ScaffoldError, match="tl new module inspection"):
-        require_module(tmp_path, "packages/tl-mod-inspection", "inspection")
-    (tmp_path / "packages/tl-mod-inspection").mkdir(parents=True)
-    (tmp_path / "packages/tl-mod-inspection/pyproject.toml").write_text("x")
-    require_module(tmp_path, "packages/tl-mod-inspection", "inspection")
+        require_module(tmp_path, "packages/tl-modules/inspection", "inspection")
+    (tmp_path / "packages/tl-modules/inspection").mkdir(parents=True)
+    (tmp_path / "packages/tl-modules/inspection/pyproject.toml").write_text("x")
+    require_module(tmp_path, "packages/tl-modules/inspection", "inspection")

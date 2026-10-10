@@ -23,7 +23,7 @@ The command line, the name parsing (`parse_projector`, `check_event_type`), `req
 @dataclass(frozen=True)
 class ModuleName:
     name: str  # inspection
-    # properties: package (tl_mod_inspection), distribution (tl-mod-inspection), directory (packages/tl-mod-inspection)
+    # properties: package (tl_mod_inspection), distribution (tl-mod-inspection), directory (packages/tl-modules/inspection)
 
 @dataclass(frozen=True)
 class ProjectorName:
@@ -82,7 +82,7 @@ may explore: (none)
 2. `plan_projector(projector, events)`:
    - `handled = sorted(set(events))`;
    - values: `module`, `package`, `name`, `cls`, `table`, `events_literal` = the handled types as `"A.B", "C.D"` (double quotes, comma and space), `first_event` = `handled[0]`, `event_rows` = one line `| <event> |` per handled type joined by newlines;
-   - files, in this order: `packages/tl-mod-<module>/src/tl_mod_<module>/projectors/<name>.py`, `packages/tl-mod-<module>/tests/test_projector_<name>.py`, `docs/modules/<module>/projector-<name>.md` (use `module.directory` and `module.package`).
+   - files, in this order: `packages/tl-modules/<module>/src/tl_mod_<module>/projectors/<name>.py`, `packages/tl-modules/<module>/tests/test_projector_<name>.py`, `docs/modules/<module>/projector-<name>.md` (use `module.directory` and `module.package`).
 3. `plan.next_steps` is exactly: `register <cls> in the registry your application builds`, then `just check && just test`.
 4. Run the acceptance commands. If a test fails because the template differs from the expected file, fix the template, not the expected file.
 

@@ -22,7 +22,7 @@ The command line, the name parsing (`parse_record_type`), `require_module` and t
 @dataclass(frozen=True)
 class ModuleName:
     name: str  # inspection
-    # properties: package (tl_mod_inspection), distribution (tl-mod-inspection), directory (packages/tl-mod-inspection)
+    # properties: package (tl_mod_inspection), distribution (tl-mod-inspection), directory (packages/tl-modules/inspection)
 
 @dataclass(frozen=True)
 class RecordTypeName:
@@ -78,8 +78,8 @@ may explore: (none)
    Mapping of expected file to template: `weld_inspection.yaml` to `schema.yaml.tmpl`, `handler.py.txt` to `handler.py.tmpl`, `test.py.txt` to `test.py.tmpl`, `spec.md` to `spec.md.tmpl`. Do not change anything else in the text: the layout of the Python files (one argument per line, trailing commas, an exploded `SCHEMA = ROOT.joinpath(...)`) is deliberate, so that `ruff format` leaves the output unchanged for every name up to the limits (module 20 characters, class 30).
 2. `plan_record_type(record_type)` returns a `Plan` with these four files, in this order, rendered with the values `module`, `package`, `cls`, `snake`, `qualified`:
    - `schema/modules/<module>/<snake>.yaml`
-   - `packages/tl-mod-<module>/src/tl_mod_<module>/handlers/<snake>.py` (use `module.directory` and `module.package` from `ModuleName`)
-   - `packages/tl-mod-<module>/tests/test_<snake>.py`
+   - `packages/tl-modules/<module>/src/tl_mod_<module>/handlers/<snake>.py` (use `module.directory` and `module.package` from `ModuleName`)
+   - `packages/tl-modules/<module>/tests/test_<snake>.py`
    - `docs/modules/<module>/<snake>.md`
 3. Set `plan.next_steps` to exactly these three lines, with the names filled in (the CLI prints each as `next: <line>`):
    - ``add `- <snake>` to the imports of schema/modules/<module>/module.yaml``

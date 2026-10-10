@@ -72,7 +72,7 @@ def new_module(
     root: RootOption = None,
     dry_run: DryRun = False,
 ) -> None:
-    """Create packages/tl-mod-NAME, schema/modules/NAME/module.yaml and docs/modules/NAME/."""
+    """Create packages/tl-modules/NAME, schema/modules/NAME/module.yaml and docs/modules/NAME/."""
     try:
         module = parse_module(name)
         base = use_root(root)
