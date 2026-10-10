@@ -998,6 +998,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   reads `False`, so a form that collects `editor.value` for every field stores an untouched optional bool as `false`. `_raw_changed` now clears the mark of a choice, and the extension form
   sends a slot only when the user changed it or it is required.
   Evidence: `packages/tl-tui/tests/test_extension_form_rules.py`. Status: active
+- **L-P0-I8B-11** · 2026-10-10 · tags: tui, auth, errors
+  A second client path that bypasses the API also bypasses its rules: the embedded client took any actor (an `agent:*` could write bodies, which the API refuses) and let an `OSError` of the object
+  store escape the `CLIENT_ERRORS` tuple (the TUI would stop with a path in the traceback). When a surface is added to a service, copy the API's refusals (agent writes) and map operating-system
+  failures to a `ServiceError` with a message that names no path. Two parallel implementations of one write (`store_body` plus a scope check in the route, and `store_record_body`) were merged into one.
+  Evidence: `packages/tl-tui/tests/test_embedded_types.py` (agent guard, failing store). Status: active
 - **L-P0-I6C-12** · 2026-10-10 · tags: tests, process
   A check that fails only on an empty log still passes a run in which the interesting actor did nothing: swallowing every refusal (a budget, a bad argument) in the actor and asserting only what
   was logged made "the assistant proposed nothing" green. Tell the assertion which actors are enabled and bound to act (`Expected`), narrow what an actor may shrug off to the one benign refusal, and
