@@ -15,7 +15,9 @@ _MODULE = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
 _CLASS = re.compile(r"^[A-Z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$")
 _SNAKE = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
 _EVENT = re.compile(r"^[A-Z][A-Za-z0-9]*\.[A-Z][A-Za-z0-9]*$")
-MAX_LEN = 40
+MAX_CLASS = 30
+MAX_PROJECTOR = 40
+MAX_MODULE = 20
 
 
 class NameError_(ValueError):
@@ -24,9 +26,9 @@ class NameError_(ValueError):
 
 def check_module(name: str) -> str:
     """``name`` as a module name, or :class:`NameError_`."""
-    if not _MODULE.match(name) or not 2 <= len(name) <= 30:
+    if not _MODULE.match(name) or not 2 <= len(name) <= MAX_MODULE:
         raise NameError_(
-            f"module name {name!r}: use 2 to 30 lower-case letters, digits and single underscores, "
+            f"module name {name!r}: use 2 to 20 lower-case letters, digits and single underscores, "
             "starting with a letter"
         )
     if name in RESERVED_MODULES:
@@ -108,9 +110,9 @@ def parse_record_type(text: str) -> RecordTypeName:
         raise NameError_(
             f"record type {text!r}: write <module>.<Class>, for example inspection.Weld"
         )
-    if not _CLASS.match(cls) or len(cls) > MAX_LEN:
+    if not _CLASS.match(cls) or len(cls) > MAX_CLASS:
         raise NameError_(
-            f"class name {cls!r}: use CamelCase letters and digits (at most {MAX_LEN}), "
+            f"class name {cls!r}: use CamelCase letters and digits (at most {MAX_CLASS}), "
             "starting with a capital"
         )
     return RecordTypeName(parse_module(module), cls)
@@ -123,9 +125,10 @@ def parse_projector(text: str) -> ProjectorName:
         raise NameError_(
             f"projector {text!r}: write <module>.<name>, for example inspection.counts"
         )
-    if not _SNAKE.match(name) or not 2 <= len(name) <= MAX_LEN:
+    if not _SNAKE.match(name) or not 2 <= len(name) <= MAX_PROJECTOR:
         raise NameError_(
-            f"projector name {name!r}: use lower_snake_case letters and digits (2 to {MAX_LEN})"
+            f"projector name {name!r}: use lower_snake_case letters and digits "
+            f"(2 to {MAX_PROJECTOR})"
         )
     return ProjectorName(parse_module(module), name)
 

@@ -8,6 +8,7 @@ package's tests in a child process with the new package on ``PYTHONPATH``.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -24,6 +25,12 @@ def tl_new(root: Path, *args: str) -> Result:
     result = runner.invoke(app, ["new", *args, "--root", str(root)])
     assert result.exception is None or isinstance(result.exception, SystemExit), result.exception
     return result
+
+
+def copy_core_schema(root: Path) -> None:
+    """Copy ``schema/core`` into ``root``: a generated record-type test loads the schema stub, whose
+    imports reach ``../../core``."""
+    shutil.copytree(REPO / "schema" / "core", root / "schema" / "core")
 
 
 def files_under(root: Path) -> list[str]:

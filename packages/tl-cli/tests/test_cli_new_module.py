@@ -50,6 +50,13 @@ def test_the_package_is_named_for_the_workspace(tmp_path: Path) -> None:
     assert 'MODULE = "weld_quality"' in init.read_text()
 
 
+def test_the_longest_module_name_still_gives_formatted_code(tmp_path: Path) -> None:
+    name = "abcdefghijklmnopqrst"
+    assert tl_new(tmp_path, "module", name).exit_code == 0
+    ruff_clean(tmp_path)
+    assert "2 passed" in generated_tests_pass(tmp_path, f"packages/tl-mod-{name}")
+
+
 def test_a_second_run_overwrites_nothing(tmp_path: Path) -> None:
     tl_new(tmp_path, "module", "inspection")
     readme = tmp_path / "docs/modules/inspection/README.md"
