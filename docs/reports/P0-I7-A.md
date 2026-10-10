@@ -42,7 +42,7 @@ Merged 8 / taken over 0 / abandoned 0.
 | S13 | (with S12) | the drill report template and measurements | pending |
 | S14 | 4fa7c6c | review fixes: missing-directory `missing_file`, sealed-prefix check for every scope, one-transaction restore with a schema check first and schema-hash warnings, `expect_last_seq` / `expect_manifest_sha256`, key file mode | re-reviewed: items 2 and 3 clean |
 | S15 | ec27c11 | `verify_archive(conn, deep=True)` recomputes database hashes, compares every field, checks the tail; `verify_ledger`; `tl ledger verify`; the closing restore verify runs before the commit | pending |
-| S17 | (this commit) | the dispatcher cursor starts at the restored head inside the restore transaction; the restore warning names `tl webhook replay`; the "After a restore" runbook section | pending |
+| S17 | ab19220 | the dispatcher cursor starts at the restored head inside the restore transaction; the restore warning names `tl webhook replay`; the "After a restore" runbook section | pending |
 | S16 | 9ec9b2b | outside WS-A scope, by orchestrator ruling: `DeliveryEngine.claim` holds back a subscription with no signing secret (pending, not sent, not dead-lettered, one log line per cycle), `tl webhook ls` shows `needs_secret`, restore returns a warning per subscription | pending |
 
 Files: `packages/tl-core/src/tl_core/archive/`, `packages/tl-adapters/src/tl_adapters/{restore.py,_restore.py,archivestore/,sqlite/{admin,backup}.py,postgres/admin.py}`, `packages/tl-core/src/tl_core/webhooks/{delivery,queries}.py`, `packages/tl-cli/src/tl_cli/{ledger,webhook}.py`, `dev/drills/`, `dev/backup/`.
