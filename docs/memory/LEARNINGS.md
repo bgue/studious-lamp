@@ -342,3 +342,8 @@ test or a generated artefact already enforces, or narrative history (that belong
   as after a restart (L-P0-I5-O3): finished calls replay from the journal. Lesson: cap concurrency at about 3 or 4
   active supervisors or workflows, and finish increments on the critical path before starting later ones.
   Evidence: P0-I4, P0-I5 and P0-I7 batches failed together at 00:10 UTC reset notice. Status: active
+- **L-P0-I5-O5** · 2026-10-10 · tags: process, worktrees
+  Never bulk-remove `/home/user/wt/review-*` or ticket worktrees while any ticket-batch workflow is running. Reviewers
+  work in those directories, and removing one mid-review breaks that review. Clean up only the worktrees of workflows
+  that have finished, by exact name, and check the running workflows' journals for `started review` lines first.
+  Evidence: the orchestrator removed two in-flight P0-I4 review worktrees (T43, T46) during the P0-I5 cleanup. Status: active
