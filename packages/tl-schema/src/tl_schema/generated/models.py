@@ -81,6 +81,7 @@ linkml_meta = LinkMLMeta({'default_prefix': 'throughline',
                  'numbering',
                  'workflow',
                  'feed',
+                 'proposals',
                  'files',
                  'integration',
                  'outbox',
@@ -196,6 +197,28 @@ class Importance(str, Enum):
     low = "low"
     normal = "normal"
     high = "high"
+
+
+class ProposalStatus(str, Enum):
+    """
+    Where a proposal is in its life.
+    """
+    pending = "pending"
+    """
+    Waiting for a person to accept or reject it.
+    """
+    accepted = "accepted"
+    """
+    A person accepted it and the command ran.
+    """
+    rejected = "rejected"
+    """
+    A person rejected it; the command never ran.
+    """
+    failed = "failed"
+    """
+    A person accepted it, but the command was refused (stale version, failed guard).
+    """
 
 
 class FileStatus(str, Enum):
@@ -362,6 +385,7 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -373,6 +397,7 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'FileUploadedPayload',
                        'FileProcessedPayload',
                        'FileRejectedPayload',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -385,6 +410,7 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -407,6 +433,7 @@ class RecordEnvelope(ConfiguredBaseModel):
          'ifabsent': 'string(ok)'} })
     created_at: datetime  = Field(default=..., description="""Timestamp of the creating event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
                        'WebhookSecret']} })
@@ -449,6 +476,7 @@ class Record(RecordEnvelope):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -460,6 +488,7 @@ class Record(RecordEnvelope):
                        'FileUploadedPayload',
                        'FileProcessedPayload',
                        'FileRejectedPayload',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -472,6 +501,7 @@ class Record(RecordEnvelope):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -494,6 +524,7 @@ class Record(RecordEnvelope):
          'ifabsent': 'string(ok)'} })
     created_at: datetime  = Field(default=..., description="""Timestamp of the creating event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
                        'WebhookSecret']} })
@@ -514,6 +545,7 @@ class Event(ConfiguredBaseModel):
     seq: int = Field(default=..., description="""Global monotonic sequence; the ordering backbone.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'OutboxEvent',
                        'WebhookDelivery']} })
     event_id: str = Field(default=..., description="""Unique event identifier (ULID).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent', 'WebhookDelivery']} })
@@ -534,6 +566,7 @@ class Event(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -587,6 +620,7 @@ class PsetValue(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -642,6 +676,7 @@ class Link(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -656,6 +691,7 @@ class Link(ConfiguredBaseModel):
                        'FileUploadedPayload',
                        'FileProcessedPayload',
                        'FileRejectedPayload',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -686,6 +722,8 @@ class Link(ConfiguredBaseModel):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
                        'File']} })
     declined: bool = Field(default=False, description="""True when the link was a suggestion that a person declined. Declines are remembered.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link'], 'ifabsent': 'false'} })
     verified_by: Optional[str] = Field(default=None, description="""Actor of the last `Link.Verified` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
@@ -693,6 +731,7 @@ class Link(ConfiguredBaseModel):
     created_by: str = Field(default=..., description="""Actor of the creating event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'WebhookSubscription']} })
     created_at: datetime  = Field(default=..., description="""Time of the creating event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
                        'WebhookSecret']} })
@@ -707,6 +746,7 @@ class Link(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -749,6 +789,7 @@ class LinkCount(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -789,6 +830,7 @@ class NumberingCounter(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -803,6 +845,7 @@ class NumberingCounter(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -852,6 +895,7 @@ class WorkflowState(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -970,6 +1014,8 @@ class RecordVoidedPayload(EventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
                        'File']} })
 
 
@@ -1002,6 +1048,8 @@ class RecordCorrectedPayload(EventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
                        'File']} })
 
 
@@ -1146,6 +1194,8 @@ class LinkDeclinedPayload(LinkPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
                        'File']} })
 
 
@@ -1194,6 +1244,7 @@ class LinkFlaggedPayload(LinkPayload):
                        'FileUploadedPayload',
                        'FileProcessedPayload',
                        'FileRejectedPayload',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -1208,6 +1259,8 @@ class LinkFlaggedPayload(LinkPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
                        'File']} })
 
 
@@ -1231,6 +1284,8 @@ class LinkRetractedPayload(LinkPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
                        'File']} })
 
 
@@ -1271,6 +1326,8 @@ class WorkflowTransitionedPayload(EventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
                        'File']} })
     conformance: Optional[str] = Field(default=None, description="""Conformance after the transition.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValuesSetPayload',
@@ -1354,6 +1411,7 @@ class FileUploadedPayload(EventPayload):
                        'FileUploadedPayload',
                        'FileProcessedPayload',
                        'FileRejectedPayload',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -1383,6 +1441,7 @@ class FileProcessedPayload(EventPayload):
                        'FileUploadedPayload',
                        'FileProcessedPayload',
                        'FileRejectedPayload',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -1415,6 +1474,7 @@ class FileRejectedPayload(EventPayload):
                        'FileUploadedPayload',
                        'FileProcessedPayload',
                        'FileRejectedPayload',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -1429,6 +1489,8 @@ class FileRejectedPayload(EventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
                        'File']} })
     report: Optional[Any] = Field(default=None, description="""Scan report.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['FileProcessedPayload', 'FileRejectedPayload', 'File']} })
@@ -1458,6 +1520,7 @@ class SchemaEffectiveChangedPayload(EventPayload):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -1486,6 +1549,7 @@ class SchemaPackagePublishedPayload(EventPayload):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -1570,6 +1634,8 @@ class WebhookSubscriptionDisabledPayload(WebhookEventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
                        'File']} })
     detail: Optional[str] = Field(default=None, description="""Free-text detail, for example the failure counts.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionDisabledPayload', 'CloudEventData']} })
 
@@ -1652,6 +1718,7 @@ class ActivityPost(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -1689,11 +1756,15 @@ class EventCard(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
     actor: str = Field(default=..., description="""Actor of the aggregated events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'EventCard', 'FeedItemRow', 'OutboxEvent']} })
-    summary: str = Field(default=..., description="""Rendered one-line summary, for example `jsmith created 14 records`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard', 'FeedItemRow']} })
+    summary: str = Field(default=..., description="""Rendered one-line summary, for example `jsmith created 14 records`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
+                       'FeedItemRow',
+                       'ProposalCreatedPayload',
+                       'ProposalRow']} })
     importance: Importance = Field(default=Importance("low"), description="""System cards are low importance.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost', 'EventCard', 'FeedPostedPayload', 'FeedItemRow'],
          'ifabsent': 'string(low)'} })
     event_type: str = Field(default=..., description="""The ledger event type every aggregated event has.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'EventCard', 'FeedItemRow', 'OutboxEvent']} })
@@ -1792,6 +1863,8 @@ class FeedRetractedPayload(EventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
                        'File']} })
 
 
@@ -1856,6 +1929,7 @@ class FeedItemRow(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -1865,9 +1939,13 @@ class FeedItemRow(ConfiguredBaseModel):
          'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'OutboxEvent',
                        'WebhookDelivery']} })
-    summary: str = Field(default=..., description="""Body of a post (empty once retracted) or the rendered summary of a card.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard', 'FeedItemRow']} })
+    summary: str = Field(default=..., description="""Body of a post (empty once retracted) or the rendered summary of a card.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
+                       'FeedItemRow',
+                       'ProposalCreatedPayload',
+                       'ProposalRow']} })
     importance: Importance = Field(default=Importance("normal"), description="""Effective importance. High when a post has a signal tag, else `base_importance`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost', 'EventCard', 'FeedPostedPayload', 'FeedItemRow'],
          'ifabsent': 'string(normal)'} })
     base_importance: Importance = Field(default=Importance("normal"), description="""Importance the author gave the post (cards are low).""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow'], 'ifabsent': 'string(normal)'} })
@@ -1886,6 +1964,7 @@ class FeedItemRow(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -1914,6 +1993,7 @@ class Hashtag(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -1936,8 +2016,219 @@ class Hashtag(ConfiguredBaseModel):
     seq: int = Field(default=..., description="""`seq` of the event that added the row; orders a card's subjects.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'OutboxEvent',
                        'WebhookDelivery']} })
+
+
+class ProposalCreatedPayload(EventPayload):
+    """
+    An agent proposed a change. `command` is the command model as the agent built it, with `actor` set to the agent and `source` to `mcp:<agent>`; accepting re-runs it as the accepting person.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Proposal.Created'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"agent": "agent:triage", "command": {"actor": '
+                                '"agent:triage", "scope": "project:P123", "source": '
+                                '"mcp:triage", "record_type": "core.Record", "title": '
+                                '"Weld NCR", "psets": {}, "numbering": {}}, '
+                                '"command_type": "CreateRecord", "proposal_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5", "summary": "Create '
+                                'record: Weld NCR", "tool": "create_record"}'}],
+         'from_schema': 'https://example.org/throughline/core/proposals'})
+
+    proposal_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload',
+                       'ProposalAcceptedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalFailedPayload',
+                       'ProposalRow']} })
+    tool: str = Field(default=..., description="""The MCP tool that was called (`create_record`, `update_psets`, `link_records`, `transition_workflow`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
+    agent: str = Field(default=..., description="""The proposing actor, `agent:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
+    command_type: str = Field(default=..., description="""Name of the command model (`CreateRecord`, `SetPsetValues`, `AddLink`, `TransitionWorkflow`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
+    command: Any = Field(default=..., description="""The command, as JSON.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
+    summary: str = Field(default=..., description="""One line for the review queue.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
+                       'FeedItemRow',
+                       'ProposalCreatedPayload',
+                       'ProposalRow']} })
+
+
+class ProposalAcceptedPayload(EventPayload):
+    """
+    A person accepted a proposal and its command ran in the same transaction.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Proposal.Accepted'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"by": "user:mlee", "proposal_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5", "result_stream_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6", "result_version": 1}'}],
+         'from_schema': 'https://example.org/throughline/core/proposals'})
+
+    proposal_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload',
+                       'ProposalAcceptedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalFailedPayload',
+                       'ProposalRow']} })
+    by: str = Field(default=..., description="""The accepting person, `user:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalFailedPayload']} })
+    result_stream_id: str = Field(default=..., description="""Stream the command wrote to (the new record, the changed record, the link).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload', 'ProposalRow']} })
+    result_version: int = Field(default=..., description="""Stream version after the command.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload']} })
+
+
+class ProposalRejectedPayload(EventPayload):
+    """
+    A person rejected a proposal. Nothing else was written.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Proposal.Rejected'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"by": "user:mlee", "proposal_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5", "reason": "Duplicate of '
+                                'NCR-0042"}'}],
+         'from_schema': 'https://example.org/throughline/core/proposals'})
+
+    proposal_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload',
+                       'ProposalAcceptedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalFailedPayload',
+                       'ProposalRow']} })
+    by: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalFailedPayload']} })
+    reason: str = Field(default=..., description="""Why, for the agent and the audit trail.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'File']} })
+
+
+class ProposalFailedPayload(EventPayload):
+    """
+    A person accepted a proposal, but the command was refused (the record changed since, a guard failed). The command's own writes were rolled back; this event is written in a fresh transaction.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Proposal.Failed'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"by": "user:mlee", "error": "ConcurrencyError: '
+                                'expected version 3, stream is at 4", "proposal_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"}'}],
+         'from_schema': 'https://example.org/throughline/core/proposals'})
+
+    proposal_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload',
+                       'ProposalAcceptedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalFailedPayload',
+                       'ProposalRow']} })
+    by: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalFailedPayload']} })
+    error: str = Field(default=..., description="""`<ErrorClass>: <message>` of the refusal.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalFailedPayload', 'WebhookAttempt']} })
+
+
+class ProposalRow(ConfiguredBaseModel):
+    """
+    One proposal: what was asked, by whom, and how it ended. Oldest first by `seq` is the review queue. `created_day` (UTC, from the `effective_at` of `Proposal.Created`) with `agent` is the budget key.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table', 'value': 'cur_proposals'}},
+         'from_schema': 'https://example.org/throughline/core/proposals'})
+
+    proposal_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload',
+                       'ProposalAcceptedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalFailedPayload',
+                       'ProposalRow']} })
+    scope: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['RecordEnvelope',
+                       'Event',
+                       'PsetValue',
+                       'Link',
+                       'LinkCount',
+                       'NumberingCounter',
+                       'WorkflowState',
+                       'SchemaEffectiveChangedPayload',
+                       'ActivityPost',
+                       'EventCard',
+                       'FeedItemRow',
+                       'Hashtag',
+                       'ProposalRow',
+                       'File',
+                       'WebhookSubscription',
+                       'OutboxEvent']} })
+    tool: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
+    agent: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
+    command_type: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
+    command: Any = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
+    summary: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
+                       'FeedItemRow',
+                       'ProposalCreatedPayload',
+                       'ProposalRow']} })
+    status: ProposalStatus = Field(default=ProposalStatus("pending"), json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['RecordEnvelope',
+                       'Link',
+                       'LinkFlaggedPayload',
+                       'FileUploadedPayload',
+                       'FileProcessedPayload',
+                       'FileRejectedPayload',
+                       'ProposalRow',
+                       'File',
+                       'WebhookSubscription',
+                       'WebhookDelivery',
+                       'WebhookAttempt'],
+         'ifabsent': 'string(pending)'} })
+    created_day: str = Field(default=..., description="""UTC day of creation, `YYYY-MM-DD`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['ProposalRow']} })
+    created_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Link',
+                       'ProposalRow',
+                       'WebhookSubscription',
+                       'WebhookDelivery',
+                       'WebhookSecret']} })
+    created_event_id: str = Field(default=..., description="""Event id of `Proposal.Created`; the cause of the accepted command's events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalRow']} })
+    decided_by: Optional[str] = Field(default=None, description="""The person who accepted, rejected or failed it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalRow']} })
+    decided_at: Optional[datetime ] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalRow']} })
+    reason: Optional[str] = Field(default=None, description="""The rejection reason, or the error of a failed proposal.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'File']} })
+    result_stream_id: Optional[str] = Field(default=None, description="""Accepted only; the stream the command wrote to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload', 'ProposalRow']} })
+    seq: int = Field(default=..., description="""`seq` of `Proposal.Created`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['Event',
+                       'FeedItemRow',
+                       'Hashtag',
+                       'ProposalRow',
+                       'OutboxEvent',
+                       'WebhookDelivery']} })
+    version: Optional[int] = Field(default=None, description="""Ledger `stream_version` of the proposal stream after the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Link',
+                       'NumberingCounter',
+                       'SchemaPackagePublishedPayload',
+                       'FeedItemRow',
+                       'ProposalRow',
+                       'File',
+                       'WebhookSubscription',
+                       'EventOrigin']} })
 
 
 class File(ConfiguredBaseModel):
@@ -1965,6 +2256,7 @@ class File(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -1990,6 +2282,7 @@ class File(ConfiguredBaseModel):
                        'FileUploadedPayload',
                        'FileProcessedPayload',
                        'FileRejectedPayload',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -2009,6 +2302,8 @@ class File(ConfiguredBaseModel):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
                        'File']} })
     uploaded_by: str = Field(default=..., description="""Actor of the `File.Uploaded` event; the only reader while the file is quarantined.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
     uploaded_at: datetime  = Field(default=..., description="""Time of the `File.Uploaded` event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
@@ -2024,6 +2319,7 @@ class File(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -2086,6 +2382,7 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -2107,6 +2404,7 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'FileUploadedPayload',
                        'FileProcessedPayload',
                        'FileRejectedPayload',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -2122,6 +2420,7 @@ class WebhookSubscription(ConfiguredBaseModel):
     created_by: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'WebhookSubscription']} })
     created_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
                        'WebhookSecret']} })
@@ -2136,6 +2435,7 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -2169,6 +2469,7 @@ class EventOrigin(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -2261,6 +2562,7 @@ class OutboxEvent(ConfiguredBaseModel):
     seq: int = Field(default=..., description="""Ledger `seq` of the event; the delivery cursor and ordering backbone.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'OutboxEvent',
                        'WebhookDelivery']} })
     event_id: str = Field(default=..., description="""Ledger event id; the CloudEvents `id` and the Standard Webhooks `webhook-id`, so receivers dedupe on it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent', 'WebhookDelivery']} })
@@ -2277,6 +2579,7 @@ class OutboxEvent(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -2341,6 +2644,7 @@ class WebhookDelivery(ConfiguredBaseModel):
     seq: int = Field(default=..., description="""Ledger `seq` of the event; deliveries of one subject go out in this order.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
+                       'ProposalRow',
                        'OutboxEvent',
                        'WebhookDelivery']} })
     event_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent', 'WebhookDelivery']} })
@@ -2353,6 +2657,7 @@ class WebhookDelivery(ConfiguredBaseModel):
                        'FileUploadedPayload',
                        'FileProcessedPayload',
                        'FileRejectedPayload',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -2365,6 +2670,7 @@ class WebhookDelivery(ConfiguredBaseModel):
     attempts: int = Field(default=0, json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookDelivery'], 'ifabsent': 'int(0)'} })
     created_at: str = Field(default=..., description="""ISO-8601 UTC. The retry deadline counts from here.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
                        'WebhookSecret']} })
@@ -2406,12 +2712,13 @@ class WebhookAttempt(ConfiguredBaseModel):
                        'FileUploadedPayload',
                        'FileProcessedPayload',
                        'FileRejectedPayload',
+                       'ProposalRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookDelivery',
                        'WebhookAttempt']} })
     outcome: str = Field(default=..., description="""`delivered`, `retry`, `dead`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookAttempt']} })
-    error: Optional[str] = Field(default=None, description="""Short failure reason.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookAttempt']} })
+    error: Optional[str] = Field(default=None, description="""Short failure reason.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalFailedPayload', 'WebhookAttempt']} })
     response_excerpt: Optional[str] = Field(default=None, description="""First 512 characters of the response body, control characters removed.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookAttempt']} })
 
 
@@ -2437,6 +2744,7 @@ class WebhookSecret(ConfiguredBaseModel):
     state: SecretState = Field(default=SecretState("active"), json_schema_extra = { "linkml_meta": {'domain_of': ['WorkflowState', 'WebhookSecret'], 'ifabsent': 'string(active)'} })
     created_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
                        'WebhookSecret']} })
@@ -2537,6 +2845,11 @@ FeedRetractedPayload.model_rebuild()
 FeedReactedPayload.model_rebuild()
 FeedItemRow.model_rebuild()
 Hashtag.model_rebuild()
+ProposalCreatedPayload.model_rebuild()
+ProposalAcceptedPayload.model_rebuild()
+ProposalRejectedPayload.model_rebuild()
+ProposalFailedPayload.model_rebuild()
+ProposalRow.model_rebuild()
 File.model_rebuild()
 SubscriptionFilter.model_rebuild()
 WebhookSubscription.model_rebuild()
