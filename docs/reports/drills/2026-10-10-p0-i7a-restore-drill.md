@@ -1,7 +1,7 @@
 # Restore drill — dev container (P0-I7 WS-A), 2026-10-10
 
-Status: passed
-Script: `dev/drills/restore.sh` at commit e73c022. Run by: root. Brief: §24.3, §24.4 (restore drills: quarterly in staging and after major upgrades; record measured RPO and RTO).
+Status: passed (ran: archive_sqlite, archive_postgres, snapshot, litestream, pgbackrest; skipped: none)
+Script: `dev/drills/restore.sh` at commit 3e677ed. Run by: root. Brief: §24.3, §24.4 (restore drills: quarterly in staging and after major upgrades; record measured RPO and RTO).
 
 The dataset is synthetic. The script writes this file from its measurements, so fill nothing in by hand; `TL_DRILL_ENV` and `TL_DRILL_OPERATOR` name the environment and the person.
 
@@ -9,7 +9,7 @@ The dataset is synthetic. The script writes this file from its measurements, so 
 | Path | What it proves | Result |
 |---|---|---|
 | Ledger archive into SQLite | The signed archive alone rebuilds a SQLite ledger and its `cur_*` tables | pass |
-| Ledger archive into Postgres | The same archive rebuilds a Postgres ledger (scratch database `tl_drill_20261010t050537_19402`) | pass |
+| Ledger archive into Postgres | The same archive rebuilds a Postgres ledger (scratch database `tl_drill_20261010t052700_14458`) | pass |
 | SQLite online snapshot | `tl backup sqlite` output is a usable ledger | pass |
 | Litestream replica | A continuously replicated copy restores after the file is lost | pass |
 | pgBackRest full backup plus WAL | A scratch Postgres cluster survives loss of its data directory | pass |
@@ -21,7 +21,7 @@ A path that was skipped says why under Findings. The shared cluster and its `tl_
 |---|---|
 | Events when the archive was sealed and the snapshot taken | 183 |
 | Events written after that, before the loss | 15 |
-| Newest event when the loss was simulated | seq 198, recorded 2026-10-10T05:05:56.737775+00:00 |
+| Newest event when the loss was simulated | seq 198, recorded 2026-10-10T05:27:19.261287+00:00 |
 | Ledger archive | 4 segments, up to seq 183 |
 | Schema packages | `TL_SCHEMA_DIR=schema/fixtures` |
 
@@ -34,35 +34,35 @@ A path that was skipped says why under Findings. The shared cluster and its `tl_
 
 | Path | RPO events | RPO seconds | RTO seconds | Brief target | Met |
 |---|---|---|---|---|---|
-| Ledger archive into SQLite | 15 | 13.91 | 9.16 | archive RPO <= 15 min, RTO <= 1 h | yes |
-| Ledger archive into Postgres | 15 | 13.91 | 10.45 | archive RPO <= 15 min, RTO <= 1 h | yes |
-| SQLite online snapshot | 15 | 13.91 | 6.56 | database RPO <= 5 min, RTO <= 1 h | yes |
-| Litestream replica | 0 | 0.00 | 8.17 | database RPO <= 5 min, RTO <= 1 h | yes |
-| pgBackRest | 15 | 4.48 | 10.47 | database RPO <= 5 min, RTO <= 1 h | yes |
+| Ledger archive into SQLite | 15 | 13.57 | 9.69 | archive RPO <= 15 min, RTO <= 1 h | yes |
+| Ledger archive into Postgres | 15 | 13.57 | 11.14 | archive RPO <= 15 min, RTO <= 1 h | yes |
+| SQLite online snapshot | 15 | 13.57 | 6.69 | database RPO <= 5 min, RTO <= 1 h | yes |
+| Litestream replica | 0 | 0.00 | 8.64 | database RPO <= 5 min, RTO <= 1 h | yes |
+| pgBackRest | 15 | 4.52 | 10.69 | database RPO <= 5 min, RTO <= 1 h | yes |
 
 The drill dataset is small, so RTO here is a floor: restore time grows with the number of events (the archive path replays every event) and with database size (pgBackRest). Compare the
 trend between drills, not one number with a target. pgBackRest `archive_timeout` was 15 s, which bounds the unswitched WAL it can lose; the full backup took
-3.76 s and the restore command 0.71 s.
+3.30 s and the restore command 0.79 s.
 
 ## Verification
 | Check | Result |
 |---|---|
 | `tl archive verify` on the archive, with the public key | pass (seq 1..183, recorded last seq and manifest present) |
-| `tl archive verify --deep --db` on each restored database (every field equal to the archive) | pass on every restored database |
-| `tl ledger verify` on each restored database (hashes recomputed, chains intact) | pass on every restored database |
-| Restored `cur_*` tables and events equal the original at the backup point (digest `events=21be1692d71b31d6 tables=7fdcd31c9a98eb64`) | pass (archive and snapshot paths) |
-| A new event is accepted by each restored database | pass |
+| `tl archive verify --deep --db` on each restored database (every field equal to the archive) | pass on: archive_sqlite, archive_postgres, snapshot, litestream |
+| `tl ledger verify` on each restored database (hashes recomputed, chains intact) | pass on: archive_sqlite, archive_postgres, snapshot, litestream |
+| Restored `cur_*` tables and events equal the original at the backup point (digest `events=f35e7fa773a45ea9 tables=7c59b4bc19c1780a`) | pass on: archive_sqlite, archive_postgres, snapshot |
+| A new event is accepted by each restored database | pass on: archive_sqlite, archive_postgres, snapshot, litestream |
 | A tampered copy of the archive is refused with the first divergence | pass: divergence: file_hash segment=000000000061-000000000120 seq=61: events.ndjson differs from its hash |
 
 ## Timeline
 | Step | Seconds |
 |---|---|
-| Populate, seal, snapshot | 17.48 |
-| Restore from archive into SQLite | 14.21 |
-| Restore from archive into Postgres | 16.87 |
-| Restore from snapshot | 11.75 |
-| Restore from Litestream | 11.57 |
-| pgBackRest (whole drill, including cluster create and drop) | 63.20 |
+| Populate, seal, snapshot | 16.93 |
+| Restore from archive into SQLite | 14.94 |
+| Restore from archive into Postgres | 17.63 |
+| Restore from snapshot | 11.78 |
+| Restore from Litestream | 12.31 |
+| pgBackRest (whole drill, including cluster create and drop) | 63.82 |
 
 ## Findings
 - none
