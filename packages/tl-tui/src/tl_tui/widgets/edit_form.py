@@ -14,6 +14,7 @@ from textual.binding import Binding, BindingType
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Button, Static
+from tl_core.ledger import ConcurrencyError
 from tl_schema.forms import FieldMeta, FormMetadata
 
 from tl_tui.client import ClientInterface
@@ -43,6 +44,7 @@ class EditForm(ModalScreen[bool]):
     #edit-box { width: 80%; height: 90%; border: round $accent; background: $surface; }
     #edit-scroll { height: 1fr; }
     #edit-buttons { height: auto; }
+    #form-conflict { height: auto; display: none; background: $error 50%; padding: 0 1; }
     .form-group { text-style: bold; margin: 1 0 0 0; }
     """
 
@@ -80,6 +82,7 @@ class EditForm(ModalScreen[bool]):
     def compose(self) -> ComposeResult:
         with Vertical(id="edit-box"):
             yield Static(f"Edit {self.record['key']}", markup=False)
+            yield Static("", id="form-conflict", markup=False)
             with VerticalScroll(id="edit-scroll"):
                 for heading, rows in self._sections():
                     self.headings.append(heading)
@@ -103,11 +106,19 @@ class EditForm(ModalScreen[bool]):
         ``actor`` and ``version`` are the writer and the record version now, when known. The
         typed values stay in the form so the user can copy them; Esc cancels.
         """
-        raise NotImplementedError("STUB (P0-I4-T63)")
+        self.conflict = True
+        who = f"{actor} changed this record" if actor else "this record changed"
+        now = f" (now v{version}, you opened v{self.opened_version})" if version else ""
+        banner = self.query_one("#form-conflict", Static)
+        banner.update(f"✗ Conflict: {who}{now}. Saving is blocked: Esc cancels, then e opens it.")
+        banner.display = True
 
     # --- actions -----------------------------------------------------------------------------
 
     def action_save(self) -> None:
+        if self.conflict:
+            self._status("Not saved: the record changed; cancel and open the form again")
+            return
         invalid = [e for e in self.editors if not e.validate()]
         if invalid:
             self._status(f"Fix {len(invalid)} field(s) first")
@@ -133,6 +144,8 @@ class EditForm(ModalScreen[bool]):
             return
         reason = describe_error(outcome.error) if outcome.error is not None else "unknown error"
         self._status(f"Not saved: {reason}")
+        if isinstance(outcome.error, ConcurrencyError):
+            self.mark_conflict()
 
     def action_cancel(self) -> None:
         self.dismiss(False)
