@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import hashlib
-from pathlib import Path
+from collections.abc import Callable
 from typing import BinaryIO
 
 from sqlalchemy import text
-from tl_adapters.sqlite.uow import create_schema, open_uow
+from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_core.files import ObjectNotFound, object_key
 from tl_core.files.reconcile import reconcile_objects
 
@@ -34,8 +34,10 @@ class Vanishing:
         raise AssertionError("not used")
 
 
-def test_an_object_that_vanishes_during_verification_is_reported_missing(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_an_object_that_vanishes_during_verification_is_reported_missing(
+    new_db: Callable[[], DbTarget],
+) -> None:
+    db = new_db()
     create_schema(db)
     with open_uow(db) as uow:
         uow.conn().execute(
@@ -43,7 +45,7 @@ def test_an_object_that_vanishes_during_verification_is_reported_missing(tmp_pat
                 "INSERT INTO cur_files (file_id, scope, record_id, slot, revision, sha256, size, "
                 "content_type, filename, status, deduplicated, uploaded_by, uploaded_at, "
                 "updated_at, version, last_seq) VALUES ('F-1', 'project:P123', 'REC', NULL, 1, "
-                ":sha, :size, 'text/plain', 'f.txt', 'available', 0, 'user:t', "
+                ":sha, :size, 'text/plain', 'f.txt', 'available', FALSE, 'user:t', "
                 "'2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00', 1, 1)"
             ),
             {"sha": DIGEST, "size": len(BODY)},

@@ -30,7 +30,6 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.query`: `parse`, `run_query`, `count_query`, `QuerySpec`, `QuerySyntaxError`, `to_text`, `use_clock` | functions, model | The shared filter language (brief 10.2, 7.5): text to AST, AST to allow-listed SQL over `cur_core_record`, `cur_pset_values` and `cur_links`. Reference: `docs/reference/query-language.md` |
 | `tl_core.query.ast` | dataclasses | `Compare`, `Text`, `Linked`, `CountLinked`, `MissingLink`, `And`, `Or`, `Not`, `RelativeDate` (frozen contract) |
 | `tl_core.changefeed`: `SubscriptionFilter`, `SubscriptionRegistry`, `ChangePoller`, `fetch_changes`, `ChangePage` | classes, function | The change feed (brief 5.3, 18.2): filters by scope, event type glob and record id; one fan-out registry fed by the bus (`registry.attach(bus)`) and by a seq-cursor poller; paged filtered reads for `/events?after=`; at-least-once, resumable from the last `seq` |
-| `tl_core.services.errors` | exceptions | `ServiceError` and its subclasses (record, pset, link, numbering, workflow and file refusals) |
 | `tl_core.files.types`: `ObjectStore`, `object_key`, `ObjectNotFound` | Protocol, functions | Frozen object-store contract (build spec 03 §7); keys are `sha256/<aa>/<bb>/<digest>` |
 | `tl_core.files.service`: `FileService`, `RegisterUpload`, `CompleteUpload`, `AttachFile`, `UploadTicket`, `FileResult` | class, models | Upload flow: server-side hash and size verification, scope-local dedupe, quarantine, `File.*` events with the `cur_files` row in one unit of work; `open_file`, `scan_pending`. Signatures: `docs/tickets/P0-I4/README-B.md` |
 | `tl_core.files.queries`: `get_file`, `list_files`, `FileInfo` | functions, model | Read side of `cur_files` (the current file per slot is `available` and not superseded) |
@@ -40,7 +39,23 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.files.reconcile`: `reconcile_objects` | function | Ledger hashes versus the store: missing, corrupt, orphans, staging (read-only) |
 | `tl_core.files.scan`: `Scanner`, `PassScanner` | Protocol, class | Malware-scan seam; Phase 0 passes everything |
 | `tl_core.projection.files.FileProjector` | class | `File.*` events to `cur_files`; rows are never deleted |
+| `tl_core.services.errors` | exceptions | `ServiceError` and its subclasses (record, pset, link, numbering, workflow, file and lock refusals) |
 | `tl_core.util`: `utcnow`, `new_ulid` | functions | Clock and id helpers |
+
+## Webhooks (`tl_core.webhooks`, P0-I5 workstream B)
+Outbox, signed delivery and the event catalog. Plan and decisions: `docs/tickets/P0-I5/README-B.md`.
+
+| Name | Kind | Purpose |
+|---|---|---|
+| `outbox.OutboxProjector` | projector (`handles_all`) | One `outbox_events` row per event, in the event's transaction |
+| `subscriptions.*` | commands | Create, update, enable, disable, `rotate_secret` (secrets never enter the ledger) |
+| `dispatch.Dispatcher` | class | Fan-out to subscriptions; `replay`, `replay_between`, `redrive` |
+| `delivery.DeliveryEngine` | class | `claim`, `attempt`, `settle`; per-subject order, retries, DLQ, auto-disable; `send_test` |
+| `signing`, `egress`, `transport` | modules | Standard Webhooks signing; SSRF policy with DNS pinning; httpx transport |
+| `queries`, `wiring`, `worker` | modules | Read views for the CLI; engine wiring; the worker loop |
+
+A test send (`tl webhook test`, `send_test`) carries the header `webhook-test: 1`; real deliveries never do. It is refused for a
+disabled or expired subscription.
 
 ## Depends on / used by
 - Depends on: `tl_schema` (generated DDL, effective schema, conformance), `sqlalchemy` (Core only), `pydantic`, `python-ulid`.
@@ -56,6 +71,7 @@ just test tests/services
 | Setting or env var | Default | Notes |
 |---|---|---|
 | `TL_SCHEMA_DIR` | `schema/fixtures` | Package directory for the default schema provider; also holds `workflows/`, `links/` and `numbering/` (read on first use; tests install their own with `use_workflows`, `use_expected_links`, `use_numbering`) |
+| `TL_WEBHOOK_ALLOWLIST` | empty | Comma-separated egress allow-list (`webhooks.egress.allowlist`): hosts, `host:port`, IPs or CIDRs that may resolve to private addresses |
 
 Adapters supply connections.
 

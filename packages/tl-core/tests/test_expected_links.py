@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
 from sqlalchemy import text
-from tl_adapters.sqlite.uow import create_schema, open_uow
+from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_core.links.expected import (
     ExpectedLink,
     ExpectedLinkError,
@@ -180,8 +180,8 @@ def test_default_expected_links_follows_the_schema_directory(
 
 
 @pytest.fixture
-def uow(tmp_path: Path) -> Iterator[UnitOfWork]:
-    db = tmp_path / "tl.db"
+def uow(new_db: Callable[[], DbTarget]) -> Iterator[UnitOfWork]:
+    db = new_db()
     create_schema(db)
     with open_uow(db) as handle:
         yield handle
@@ -196,7 +196,8 @@ def record(uow: UnitOfWork, key: str, **kw: Any) -> str:
     )
     if kw.get("voided"):
         uow.conn().execute(
-            text("UPDATE cur_core_record SET voided = 1 WHERE id = :id"), {"id": result.stream_id}
+            text("UPDATE cur_core_record SET voided = TRUE WHERE id = :id"),
+            {"id": result.stream_id},
         )
     if "type" in kw:
         uow.conn().execute(
@@ -218,7 +219,8 @@ def add_link(
         text(
             "INSERT INTO cur_links (link_id, scope, from_id, to_id, relation, status, source, "
             "declined, created_by, created_at, updated_at, version, last_seq) VALUES "
-            "(:id, 'project:P1', :f, :t, :r, :s, 'manual', 0, 'u', '2026', '2026', 1, 1)"
+            "(:id, 'project:P1', :f, :t, :r, :s, 'manual', FALSE, 'u', "
+            "'2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00', 1, 1)"
         ),
         {"id": f"L{_n}", "f": from_id, "t": to_id, "r": relation, "s": status},
     )

@@ -19,6 +19,7 @@ from pydantic import BaseModel, ValidationError
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
 from tl_core.services import errors as svc
+from tl_core.webhooks import subscriptions as wh
 from tl_core.workflow.engine import GuardResult
 
 
@@ -80,6 +81,14 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.FileRejectedError, "file_rejected", 410),
         s(svc.InvalidFileTransitionError, "invalid_file_transition", 409),
         s(svc.ObjectMissingError, "object_missing", 503),
+        # --- transactions (P0-I5): nothing was written; the caller may retry ---------------
+        s(svc.RetryableTransactionError, "retry_transaction", 503),
+        s(svc.LockTimeoutError, "lock_timeout", 503),
+        # --- webhook subscriptions (P0-I5) ---------------------------------------------------
+        s(wh.SubscriptionNotFoundError, "subscription_not_found", 404),
+        s(wh.InvalidSubscriptionError, "invalid_subscription", 422),
+        s(wh.AlreadyInStateError, "already_in_state", 409),
+        s(wh.SubscriptionNotActiveError, "subscription_not_active", 409),
     )
 
 

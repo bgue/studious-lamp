@@ -17,10 +17,6 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl schema reload` | command | Record `Schema.EffectiveChanged` for scopes whose effective schema changed |
 | `tl pset set --project ID KEY PSET NAME=VALUE... [--layer L]` | command | Calls `handle_set_pset_values`; `NAME=null` unsets a value |
 | `tl pset get --project ID KEY [PSET]` | command | Psets, stored schema hash and live conformance with issues |
-| `tl file put PATH --project ID --record KEY [--slot S] [--content-type T]` | command | Hash, upload (or dedupe) and attach a file; prints `file`, `slot`, `revision`, `status`, `size`, `sha256`, `deduplicated`, and `already attached` on a repeat |
-| `tl file get FILE_ID --project ID --out PATH [--force]` | command | Write a file's bytes, checked against the recorded SHA-256 |
-| `tl file ls --project ID --record KEY [--slot S] [--all]` | command | The current file per slot, or every file with `--all`; tab-separated `file_id, slot, revision, status, size, filename` |
-| `tl file reconcile [--verify]` | command | Ledger hashes versus the object store; exit 1 on a missing or corrupt object (runbook: `docs/runbooks/object-store-reconciliation.md`) |
 | `tl record create --project ID --title TITLE [--key KEY] [--segment NAME=VALUE]...` | command | Without `--key` the numbering pattern allocates the key (`P123-REC-0001`) |
 | `tl link add|suggest --project ID FROM TO [--relation R] [--pin P] [--note N]` | command | Create an active link, or a suggestion with `--confidence`; prints the link id, relation and status |
 | `tl link list --project ID KEY [--all]` | command | Links in both directions (`out`/`in`, label, other key, status, pin, id) and the expected links still missing |
@@ -29,6 +25,17 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl wf show --project ID KEY [--role R]...` | command | Workflow state and, for each transition, whether its guards pass |
 | `tl wf transition --project ID KEY NAME [--role R]... [--reason T]` | command | Run a transition; a blocked one prints every guard and exits 1 |
 | `tl dev token add ACTOR [--tokens PATH]` | command | Create a dev bearer token for `user:<id>` or `agent:<id>` in the token file (mode 0600, `TL_TOKENS`, default `./dev/data/tokens.json`); the token alone on stdout (ADR-0005) |
+| `tl file put PATH --project ID --record KEY [--slot S] [--content-type T]` | command | Hash, upload (or dedupe) and attach a file; prints `file`, `slot`, `revision`, `status`, `size`, `sha256`, `deduplicated`, and `already attached` on a repeat |
+| `tl file get FILE_ID --project ID --out PATH [--force]` | command | Write a file's bytes, checked against the recorded SHA-256 |
+| `tl file ls --project ID --record KEY [--slot S] [--all]` | command | The current file per slot, or every file with `--all`; tab-separated `file_id, slot, revision, status, size, filename` |
+| `tl webhook add --project ID --name N --url U [--mode M] [--event-type T]... [filters]` | command | Create a subscription; prints `subscription`, `secret_id`, `secret` (the secret once, on stdout) |
+| `tl webhook ls [--project ID \| --company]` | command | One tab-separated line per subscription: id, status, mode, name, URL, delivered, pending, dead |
+| `tl webhook test ID [--event-type T] [--allow-host H]...` | command | Send a signed catalog sample (header `webhook-test: 1`); exit 1 on a failure or a blocked target |
+| `tl webhook replay ID (--from-seq N --to-seq M \| --since T --until T)` | command | Re-send a seq range or time range; prints `replayed <n>` |
+| `tl webhook dlq ls [--subscription ID]`, `dlq redrive ID [--delivery D]...` | commands | List dead letters; re-enqueue them (runbook: `docs/runbooks/webhook-operations.md`) |
+| `tl webhook disable \| enable \| rotate-secret ID (--project ID \| --company)` | commands | Pause, resume, or issue a new secret (printed once) with an overlap |
+| `tl webhook run [--once] [--allow-host H]... [--threads N]` | command | The worker: dispatch and deliver; `--once` drains and prints a summary |
+| `tl file reconcile [--verify]` | command | Ledger hashes versus the object store; exit 1 on a missing or corrupt object (runbook: `docs/runbooks/object-store-reconciliation.md`) |
 | `tl_cli.main:app` | typer app | The `tl` entry point |
 
 ## Depends on / used by
@@ -48,10 +55,11 @@ just demo P0-I1
 | `--db PATH` / `TL_DB` | `./dev/data/tl.db` | The SQLite ledger file (git-ignored under `dev/data/`) |
 | `--actor` | `user:dev` | Actor recorded on events |
 | `--dir PATH` / `TL_SCHEMA_DIR` | `schema/fixtures` | Package directory for `tl schema` commands; file slots are read from its `files/` folder |
+| `TL_WEBHOOK_ALLOWLIST` | empty | Comma-separated egress allow-list for `tl webhook test` and `run` |
 | `TL_OBJECT_STORE`, `TL_OBJECT_ROOT`, `TL_OBJECT_SECRET`, `TL_ENV`, `TL_S3_*` | `fs`, `./dev/data/objects`, none, unset | Object store for `tl file`; see `packages/tl-adapters/README.md`. `just` exports `TL_ENV=dev` |
 
 ## Rules specific to this package
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B. `--role` is a stub list (no auth yet).
+Introduced in P0-I1; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `dev` group added in P0-I4 workstream C; `webhook` group added in P0-I5 workstream B. `--role` is a stub list (no auth yet).

@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from collections.abc import Callable
 
 import pytest
-from tl_adapters.sqlite.uow import create_schema, open_uow
+from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_core.ledger import NewEvent
 from tl_core.services.queries import get_record_by_id, list_records, record_history
 
 
-def _create(db: Path, record_id: str, key: str, record_type: str = "core.Record") -> None:
+def _create(db: DbTarget, record_id: str, key: str, record_type: str = "core.Record") -> None:
     with open_uow(db) as uow:
         uow.append(
             stream_id=record_id,
@@ -29,14 +29,14 @@ def _create(db: Path, record_id: str, key: str, record_type: str = "core.Record"
         )
 
 
-def _seed(db: Path, count: int = 5) -> None:
+def _seed(db: DbTarget, count: int = 5) -> None:
     create_schema(db)
     for i in range(count):
         _create(db, f"rec-{i}", f"T-{i}", "core.Record" if i % 2 == 0 else "other.Thing")
 
 
-def test_get_record_by_id(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_get_record_by_id(new_db: Callable[[], DbTarget]) -> None:
+    db = new_db()
     _seed(db, 2)
     with open_uow(db, readonly=True) as uow:
         found = get_record_by_id(uow, "rec-1")
@@ -46,8 +46,8 @@ def test_get_record_by_id(tmp_path: Path) -> None:
     assert missing is None
 
 
-def test_record_history_returns_stream_events_in_order(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_record_history_returns_stream_events_in_order(new_db: Callable[[], DbTarget]) -> None:
+    db = new_db()
     _seed(db, 1)
     with open_uow(db) as uow:
         uow.append(
@@ -70,8 +70,8 @@ def test_record_history_returns_stream_events_in_order(tmp_path: Path) -> None:
     assert unknown == []
 
 
-def test_list_records_record_type_filter(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_list_records_record_type_filter(new_db: Callable[[], DbTarget]) -> None:
+    db = new_db()
     _seed(db, 5)
     with open_uow(db, readonly=True) as uow:
         core = list_records(uow, "project:p1", record_type="core.Record")
@@ -80,8 +80,8 @@ def test_list_records_record_type_filter(tmp_path: Path) -> None:
     assert [r["id"] for r in other] == ["rec-1", "rec-3"]
 
 
-def test_list_records_limit_and_offset(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_list_records_limit_and_offset(new_db: Callable[[], DbTarget]) -> None:
+    db = new_db()
     _seed(db, 5)
     with open_uow(db, readonly=True) as uow:
         first = list_records(uow, "project:p1", limit=2)
@@ -94,7 +94,9 @@ def test_list_records_limit_and_offset(tmp_path: Path) -> None:
     assert beyond == []
 
 
-def _create_titled(db: Path, record_id: str, key: str, title: str, version_bumps: int = 0) -> None:
+def _create_titled(
+    db: DbTarget, record_id: str, key: str, title: str, version_bumps: int = 0
+) -> None:
     _create(db, record_id, key)
     with open_uow(db) as uow:
         uow.append(
@@ -114,8 +116,10 @@ def _create_titled(db: Path, record_id: str, key: str, title: str, version_bumps
         )
 
 
-def test_list_records_order_by_direction_tiebreak_and_nulls_last(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_list_records_order_by_direction_tiebreak_and_nulls_last(
+    new_db: Callable[[], DbTarget],
+) -> None:
+    db = new_db()
     create_schema(db)
     _create_titled(db, "rec-a", "T-1", "bravo")
     _create_titled(db, "rec-b", "T-2", "alpha")
@@ -132,8 +136,8 @@ def test_list_records_order_by_direction_tiebreak_and_nulls_last(tmp_path: Path)
     assert [r["id"] for r in paged] == ["rec-a", "rec-c"]
 
 
-def test_list_records_rejects_bad_arguments(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_list_records_rejects_bad_arguments(new_db: Callable[[], DbTarget]) -> None:
+    db = new_db()
     create_schema(db)
     with open_uow(db, readonly=True) as uow:
         for bad in (
@@ -147,8 +151,8 @@ def test_list_records_rejects_bad_arguments(tmp_path: Path) -> None:
                 list_records(uow, "project:p1", **bad)  # pyright: ignore[reportArgumentType]
 
 
-def test_order_by_treats_empty_text_like_null(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_order_by_treats_empty_text_like_null(new_db: Callable[[], DbTarget]) -> None:
+    db = new_db()
     create_schema(db)
     for record_id, key, status in (("rec-a", "T-1", ""), ("rec-b", "T-2", "open")):
         _create(db, record_id, key)

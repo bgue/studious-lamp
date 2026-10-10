@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import pytest
 from query_seed import SCOPE
-from tl_adapters.sqlite.uow import SqliteUnitOfWork
+from tl_adapters._unit import BaseUnitOfWork
 from tl_core.query import QuerySpec, QuerySyntaxError, count_query, parse, run_query
 from tl_core.query.ast import Compare, Expr
 from tl_core.query.clock import use_clock
@@ -15,7 +15,7 @@ NOW = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
 ALL = {"W-001", "W-002", "W-003", "NCR-001", "NCR-002", "PRM-001", "V-0001"}  # W-099 is voided
 
 
-def keys(uow: SqliteUnitOfWork, text: str, **spec: object) -> list[str]:
+def keys(uow: BaseUnitOfWork, text: str, **spec: object) -> list[str]:
     where = parse(text)
     with use_clock(NOW):
         rows = run_query(uow, QuerySpec(scope=SCOPE, where=where, **spec))  # type: ignore[arg-type]
@@ -25,15 +25,15 @@ def keys(uow: SqliteUnitOfWork, text: str, **spec: object) -> list[str]:
     return [str(row["key"]) for row in rows]
 
 
-def found(uow: SqliteUnitOfWork, text: str) -> set[str]:
+def found(uow: BaseUnitOfWork, text: str) -> set[str]:
     return set(keys(uow, text))
 
 
-def test_blank_query_returns_every_live_record_of_the_scope(uow: SqliteUnitOfWork) -> None:
+def test_blank_query_returns_every_live_record_of_the_scope(uow: BaseUnitOfWork) -> None:
     assert found(uow, "") == ALL
 
 
-def test_results_are_envelope_dicts_like_list_records(uow: SqliteUnitOfWork) -> None:
+def test_results_are_envelope_dicts_like_list_records(uow: BaseUnitOfWork) -> None:
     from tl_core.services.queries import list_records
 
     rows = run_query(uow, QuerySpec(scope=SCOPE))
@@ -65,7 +65,7 @@ def test_results_are_envelope_dicts_like_list_records(uow: SqliteUnitOfWork) -> 
         ("description~CHECK", {"W-002"}),
     ],
 )
-def test_envelope_comparisons(uow: SqliteUnitOfWork, text: str, expected: set[str]) -> None:
+def test_envelope_comparisons(uow: BaseUnitOfWork, text: str, expected: set[str]) -> None:
     assert found(uow, text) == expected
 
 
@@ -90,7 +90,7 @@ def test_envelope_comparisons(uow: SqliteUnitOfWork, text: str, expected: set[st
     ],
 )
 def test_text_search_covers_key_title_and_description_with_escaping(
-    uow: SqliteUnitOfWork, text: str, expected: set[str]
+    uow: BaseUnitOfWork, text: str, expected: set[str]
 ) -> None:
     assert found(uow, text) == expected
 
@@ -124,12 +124,12 @@ def test_text_search_covers_key_title_and_description_with_escaping(
     ],
 )
 def test_pset_paths_compile_to_typed_exists(
-    uow: SqliteUnitOfWork, text: str, expected: set[str]
+    uow: BaseUnitOfWork, text: str, expected: set[str]
 ) -> None:
     assert found(uow, text) == expected
 
 
-def test_boolean_logic_and_precedence(uow: SqliteUnitOfWork) -> None:
+def test_boolean_logic_and_precedence(uow: BaseUnitOfWork) -> None:
     assert found(uow, "status:open OR status:closed") == ALL - {"W-003"}
     assert found(uow, "type:piping.Weld status:open OR key:PRM-001") == {"W-001", "PRM-001"}
     assert found(uow, "type:piping.Weld (status:open OR key:PRM-001)") == {"W-001"}
@@ -178,11 +178,11 @@ def test_boolean_logic_and_precedence(uow: SqliteUnitOfWork) -> None:
         ("updated_at>=today", {"V-0001"}),
     ],
 )
-def test_date_windows(uow: SqliteUnitOfWork, text: str, expected: set[str]) -> None:
+def test_date_windows(uow: BaseUnitOfWork, text: str, expected: set[str]) -> None:
     assert found(uow, text) == expected
 
 
-def test_relative_dates_follow_the_project_time_zone(uow: SqliteUnitOfWork) -> None:
+def test_relative_dates_follow_the_project_time_zone(uow: BaseUnitOfWork) -> None:
     # 2026-10-09 01:00Z is still Oct 8 in New York (UTC-4): "today" starts at 2026-10-08 04:00Z.
     where = parse("created_at>=today")
     moment = datetime(2026, 10, 9, 1, 0, tzinfo=UTC)
@@ -197,7 +197,7 @@ def test_relative_dates_follow_the_project_time_zone(uow: SqliteUnitOfWork) -> N
     assert {r["key"] for r in rows} == {"V-0001"}
 
 
-def test_relative_dates_apply_to_pset_dates_stored_as_text(uow: SqliteUnitOfWork) -> None:
+def test_relative_dates_apply_to_pset_dates_stored_as_text(uow: BaseUnitOfWork) -> None:
     # valve_data.due is "2026-10-20"; today is 2026-10-09
     assert found(uow, "psets.valve_data.due<+7d") == set()
     assert found(uow, "psets.valve_data.due<=+11d") == {"V-0001"}
@@ -209,7 +209,7 @@ def test_relative_dates_apply_to_pset_dates_stored_as_text(uow: SqliteUnitOfWork
     assert found(uow, 'psets.valve_data.due>"2026-10-19"') == {"V-0001"}
 
 
-def test_a_clock_can_be_a_callable(uow: SqliteUnitOfWork) -> None:
+def test_a_clock_can_be_a_callable(uow: BaseUnitOfWork) -> None:
     calls: list[int] = []
 
     def tick() -> datetime:
@@ -266,7 +266,7 @@ def test_a_clock_can_be_a_callable(uow: SqliteUnitOfWork) -> None:
     ],
 )
 def test_linked_counts_live_links_in_both_directions(
-    uow: SqliteUnitOfWork, text: str, expected: set[str]
+    uow: BaseUnitOfWork, text: str, expected: set[str]
 ) -> None:
     assert found(uow, text) == expected
 
@@ -290,7 +290,7 @@ def test_linked_counts_live_links_in_both_directions(
         ("count(linked:NCR)>-1", ALL),
     ],
 )
-def test_count_linked(uow: SqliteUnitOfWork, text: str, expected: set[str]) -> None:
+def test_count_linked(uow: BaseUnitOfWork, text: str, expected: set[str]) -> None:
     assert found(uow, text) == expected
 
 
@@ -306,14 +306,14 @@ def test_count_linked(uow: SqliteUnitOfWork, text: str, expected: set[str]) -> N
         ("-missing(link:NCR)", {"W-001", "W-002"}),
     ],
 )
-def test_missing_link(uow: SqliteUnitOfWork, text: str, expected: set[str]) -> None:
+def test_missing_link(uow: BaseUnitOfWork, text: str, expected: set[str]) -> None:
     assert found(uow, text) == expected
 
 
 # --- the spec: scope, type, voided, order, paging ----------------------------------------------
 
 
-def test_scope_record_type_and_voided(uow: SqliteUnitOfWork) -> None:
+def test_scope_record_type_and_voided(uow: BaseUnitOfWork) -> None:
     assert [r["key"] for r in run_query(uow, QuerySpec(scope="project:P999"))] == ["W-001"]
     assert run_query(uow, QuerySpec(scope="project:nope")) == []
     weld = {r["key"] for r in run_query(uow, QuerySpec(scope=SCOPE, record_type="piping.Weld"))}
@@ -325,7 +325,7 @@ def test_scope_record_type_and_voided(uow: SqliteUnitOfWork) -> None:
     assert count_query(uow, with_voided) == 4
 
 
-def test_default_order_is_creation_time_then_id(uow: SqliteUnitOfWork) -> None:
+def test_default_order_is_creation_time_then_id(uow: BaseUnitOfWork) -> None:
     assert keys(uow, "") == [
         "W-001",
         "NCR-001",
@@ -337,7 +337,7 @@ def test_default_order_is_creation_time_then_id(uow: SqliteUnitOfWork) -> None:
     ]
 
 
-def test_order_by_envelope_columns_puts_empty_values_last(uow: SqliteUnitOfWork) -> None:
+def test_order_by_envelope_columns_puts_empty_values_last(uow: BaseUnitOfWork) -> None:
     asc = keys(uow, "", order_by=[("status", "asc"), ("key", "asc")])
     assert asc == ["NCR-002", "W-002", "NCR-001", "PRM-001", "V-0001", "W-001", "W-003"]
     desc = keys(uow, "", order_by=[("status", "desc"), ("key", "desc")])
@@ -346,7 +346,7 @@ def test_order_by_envelope_columns_puts_empty_values_last(uow: SqliteUnitOfWork)
     assert titles == ["W-001", "W-003", "NCR-001", "V-0001", "PRM-001", "NCR-002", "W-002"]
 
 
-def test_order_by_a_pset_path_sorts_numbers_then_text_then_missing(uow: SqliteUnitOfWork) -> None:
+def test_order_by_a_pset_path_sorts_numbers_then_text_then_missing(uow: BaseUnitOfWork) -> None:
     rows = keys(uow, "", order_by=[("psets.nde.count", "desc")])
     assert rows[:2] == ["W-002", "W-001"]
     assert rows[2:] == ["NCR-001", "NCR-002", "PRM-001", "V-0001", "W-003"]  # no value: by id
@@ -356,7 +356,7 @@ def test_order_by_a_pset_path_sorts_numbers_then_text_then_missing(uow: SqliteUn
     assert asc[:2] == ["W-002", "W-001"]
 
 
-def test_limit_offset_and_count_ignore_each_other(uow: SqliteUnitOfWork) -> None:
+def test_limit_offset_and_count_ignore_each_other(uow: BaseUnitOfWork) -> None:
     spec = QuerySpec(scope=SCOPE, order_by=[("key", "asc")], limit=3)
     assert [r["key"] for r in run_query(uow, spec)] == ["NCR-001", "NCR-002", "PRM-001"]
     paged = QuerySpec(scope=SCOPE, order_by=[("key", "asc")], limit=2, offset=3)
@@ -379,12 +379,12 @@ def test_limit_offset_and_count_ignore_each_other(uow: SqliteUnitOfWork) -> None
         QuerySpec(scope=""),
     ],
 )
-def test_bad_specs_raise_value_error(uow: SqliteUnitOfWork, spec: QuerySpec) -> None:
+def test_bad_specs_raise_value_error(uow: BaseUnitOfWork, spec: QuerySpec) -> None:
     with pytest.raises(ValueError):
         run_query(uow, spec)
 
 
-def test_bad_direction_raises_value_error(uow: SqliteUnitOfWork) -> None:
+def test_bad_direction_raises_value_error(uow: BaseUnitOfWork) -> None:
     spec = QuerySpec(scope=SCOPE, order_by=[("key", "up")])  # type: ignore[list-item]
     with pytest.raises(ValueError):
         run_query(uow, spec)
@@ -412,7 +412,7 @@ def test_bad_direction_raises_value_error(uow: SqliteUnitOfWork) -> None:
         Compare("status", "<", None),
     ],
 )
-def test_invalid_comparisons_raise_query_syntax_error(uow: SqliteUnitOfWork, where: Expr) -> None:
+def test_invalid_comparisons_raise_query_syntax_error(uow: BaseUnitOfWork, where: Expr) -> None:
     with pytest.raises(QuerySyntaxError) as info:
         run_query(uow, QuerySpec(scope=SCOPE, where=where))
     assert info.value.position == 0

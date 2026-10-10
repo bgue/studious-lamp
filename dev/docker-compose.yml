@@ -12,6 +12,16 @@ services:
       - "9001:9001"
     volumes:
       - minio-data:/data
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tl_test
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
 
 volumes:
   minio-data:
+  postgres-data:

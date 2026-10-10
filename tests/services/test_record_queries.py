@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
-from tl_adapters.sqlite.uow import create_schema, open_uow
+from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_core.ledger import NewEvent
 from tl_core.services.queries import get_record, list_records
 
@@ -29,7 +29,7 @@ ENVELOPE_KEYS = {
 
 
 def _create(
-    db: Path, record_id: str, scope: str, key: str, title: str, psets: dict[str, Any]
+    db: DbTarget, record_id: str, scope: str, key: str, title: str, psets: dict[str, Any]
 ) -> None:
     with open_uow(db) as uow:
         uow.append(
@@ -49,7 +49,7 @@ def _create(
         )
 
 
-def _void(db: Path, record_id: str, scope: str) -> None:
+def _void(db: DbTarget, record_id: str, scope: str) -> None:
     with open_uow(db) as uow:
         uow.append(
             stream_id=record_id,
@@ -63,7 +63,7 @@ def _void(db: Path, record_id: str, scope: str) -> None:
         )
 
 
-def _set_status(db: Path, record_id: str, scope: str, status: str) -> None:
+def _set_status(db: DbTarget, record_id: str, scope: str, status: str) -> None:
     with open_uow(db) as uow:
         uow.append(
             stream_id=record_id,
@@ -82,8 +82,8 @@ def _set_status(db: Path, record_id: str, scope: str, status: str) -> None:
         )
 
 
-def test_get_record_returns_envelope(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_get_record_returns_envelope(new_db: Callable[[], DbTarget]) -> None:
+    db = new_db()
     create_schema(db)
     _create(db, "rec-1", "project:p1", "T-1", "First task", {"a": 1})
 
@@ -104,8 +104,8 @@ def test_get_record_returns_envelope(tmp_path: Path) -> None:
     assert isinstance(record["updated_at"], str)
 
 
-def test_get_record_unknown_key_and_other_scope_return_none(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_get_record_unknown_key_and_other_scope_return_none(new_db: Callable[[], DbTarget]) -> None:
+    db = new_db()
     create_schema(db)
     _create(db, "rec-1", "project:p1", "T-1", "First task", {})
 
@@ -114,8 +114,8 @@ def test_get_record_unknown_key_and_other_scope_return_none(tmp_path: Path) -> N
         assert get_record(uow, "project:p2", "T-1") is None
 
 
-def test_get_record_returns_voided_record(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_get_record_returns_voided_record(new_db: Callable[[], DbTarget]) -> None:
+    db = new_db()
     create_schema(db)
     _create(db, "rec-1", "project:p1", "T-1", "First task", {})
     _void(db, "rec-1", "project:p1")
@@ -127,8 +127,8 @@ def test_get_record_returns_voided_record(tmp_path: Path) -> None:
     assert record["voided"] is True
 
 
-def test_get_record_reads_status_from_update(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_get_record_reads_status_from_update(new_db: Callable[[], DbTarget]) -> None:
+    db = new_db()
     create_schema(db)
     _create(db, "rec-1", "project:p1", "T-1", "First task", {})
     _set_status(db, "rec-1", "project:p1", "open")
@@ -141,8 +141,8 @@ def test_get_record_reads_status_from_update(tmp_path: Path) -> None:
     assert record["version"] == 2
 
 
-def test_list_records_scope_order_and_voided_filter(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_list_records_scope_order_and_voided_filter(new_db: Callable[[], DbTarget]) -> None:
+    db = new_db()
     create_schema(db)
     _create(db, "rec-a", "project:p1", "T-1", "one", {})
     _create(db, "rec-b", "project:p1", "T-2", "two", {})
@@ -160,8 +160,8 @@ def test_list_records_scope_order_and_voided_filter(tmp_path: Path) -> None:
     assert [r["voided"] for r in everything] == [False, True, False]
 
 
-def test_list_records_status_filter(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_list_records_status_filter(new_db: Callable[[], DbTarget]) -> None:
+    db = new_db()
     create_schema(db)
     _create(db, "rec-a", "project:p1", "T-1", "one", {})
     _create(db, "rec-b", "project:p1", "T-2", "two", {})
@@ -175,8 +175,8 @@ def test_list_records_status_filter(tmp_path: Path) -> None:
     assert none_matching == []
 
 
-def test_queries_on_empty_table(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_queries_on_empty_table(new_db: Callable[[], DbTarget]) -> None:
+    db = new_db()
     create_schema(db)
 
     with open_uow(db, readonly=True) as uow:

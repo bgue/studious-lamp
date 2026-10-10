@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import io
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any, BinaryIO
 
 import pytest
 from sqlalchemy import text
-from tl_adapters.sqlite.uow import create_schema, open_uow, rebuild_projections
+from tl_adapters.db import DbTarget, create_schema, open_uow, rebuild_projections
 from tl_core.files import ObjectIntegrityError, ObjectNotFound, object_key
 from tl_core.files.queries import FileInfo, get_file, list_files
 from tl_core.files.scan import ScanResult
@@ -116,7 +116,7 @@ SLOTS = FileSlotRegistry(
 class Env:
     """A ledger, a store and a service, with helpers that open one unit of work per call."""
 
-    def __init__(self, db: Path, **service_args: Any) -> None:
+    def __init__(self, db: DbTarget, **service_args: Any) -> None:
         self.db = db
         self.store = FakeStore()
         self.clock = Clock()
@@ -209,8 +209,8 @@ class Env:
 
 
 @pytest.fixture
-def env(tmp_path: Path) -> Env:
-    db = tmp_path / "tl.db"
+def env(new_db: Callable[[], DbTarget]) -> Env:
+    db = new_db()
     create_schema(db)
     return Env(db)
 
@@ -306,8 +306,10 @@ def test_slot_and_record_checks_refuse_before_anything_is_written(env: Env) -> N
     assert env.event_types() == []
 
 
-def test_a_generic_attachment_is_limited_by_the_service_maximum(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_a_generic_attachment_is_limited_by_the_service_maximum(
+    new_db: Callable[[], DbTarget],
+) -> None:
+    db = new_db()
     create_schema(db)
     small = Env(db, max_unslotted_size=10)
     rec = small.record()
@@ -455,8 +457,8 @@ def test_knowing_a_hash_is_not_enough_to_attach_another_scopes_file(env: Env) ->
     assert env.store.puts == [ticket.key]  # the object is stored once
 
 
-def test_a_quarantined_hash_cannot_be_deduped_without_bytes(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_a_quarantined_hash_cannot_be_deduped_without_bytes(new_db: Callable[[], DbTarget]) -> None:
+    db = new_db()
     create_schema(db)
     env = Env(db, scan_inline=False)
     rec_a, rec_b = env.record("REC-1"), env.record("REC-2")
@@ -481,9 +483,9 @@ def test_a_quarantined_hash_cannot_be_deduped_without_bytes(tmp_path: Path) -> N
 
 
 def test_an_already_attached_answer_does_not_expose_anothers_quarantined_file(
-    tmp_path: Path,
+    new_db: Callable[[], DbTarget],
 ) -> None:
-    db = tmp_path / "tl.db"
+    db = new_db()
     create_schema(db)
     env = Env(db, scan_inline=False)
     rec = env.record()
@@ -582,9 +584,9 @@ def test_uploading_the_same_bytes_again_to_a_slot_attaches_nothing_new(env: Env)
 
 
 def test_a_quarantined_file_is_readable_only_by_its_uploader_until_the_scan_passes(
-    tmp_path: Path,
+    new_db: Callable[[], DbTarget],
 ) -> None:
-    db = tmp_path / "tl.db"
+    db = new_db()
     create_schema(db)
     env = Env(db, scan_inline=False)
     rec = env.record()
@@ -608,8 +610,10 @@ def test_a_quarantined_file_is_readable_only_by_its_uploader_until_the_scan_pass
     assert env.event_types() == ["File.Uploaded", "File.Processed"]
 
 
-def test_a_quarantined_upload_does_not_replace_the_current_file(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_a_quarantined_upload_does_not_replace_the_current_file(
+    new_db: Callable[[], DbTarget],
+) -> None:
+    db = new_db()
     create_schema(db)
     env = Env(db, scan_inline=False)
     rec = env.record()
@@ -623,8 +627,10 @@ def test_a_quarantined_upload_does_not_replace_the_current_file(tmp_path: Path) 
     assert [f.file_id for f in env.files(rec, current_only=True)] == [second.file_id]
 
 
-def test_a_rejected_file_is_unreadable_and_its_bytes_cannot_come_back(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_a_rejected_file_is_unreadable_and_its_bytes_cannot_come_back(
+    new_db: Callable[[], DbTarget],
+) -> None:
+    db = new_db()
     create_schema(db)
     env = Env(db)
     env.service = FileService(
@@ -643,8 +649,10 @@ def test_a_rejected_file_is_unreadable_and_its_bytes_cannot_come_back(tmp_path: 
         env.register(rec, PDF, "report")
 
 
-def test_a_rejected_replacement_leaves_the_previous_file_current(tmp_path: Path) -> None:
-    db = tmp_path / "tl.db"
+def test_a_rejected_replacement_leaves_the_previous_file_current(
+    new_db: Callable[[], DbTarget],
+) -> None:
+    db = new_db()
     create_schema(db)
     env = Env(db)
     rec = env.record()

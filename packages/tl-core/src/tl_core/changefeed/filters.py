@@ -25,6 +25,14 @@ def _glob(pattern: str) -> re.Pattern[str]:
     return re.compile(translate(pattern))
 
 
+def glob_match(pattern: str, text: str) -> bool:
+    """Whether ``text`` matches the glob ``pattern`` (``*``, ``?``, ``[...]``), case-sensitive.
+
+    The one glob used by every subscription filter, here and in ``tl_core.webhooks.filters``.
+    """
+    return _glob(pattern).match(text) is not None
+
+
 @dataclass(frozen=True)
 class SubscriptionFilter:
     """Which events a subscriber wants.
@@ -65,7 +73,7 @@ class SubscriptionFilter:
         if self.scope is not None and event.scope != self.scope:
             return False
         if self.event_types is not None and not any(
-            _glob(pattern).match(event.event_type) for pattern in self.event_types
+            glob_match(pattern, event.event_type) for pattern in self.event_types
         ):
             return False
         if self.record_ids is not None:

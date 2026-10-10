@@ -62,7 +62,7 @@ Dependencies are added only by a ticket line that names the package and why.
 | `just gen` | Runs every generator from `schema/` into `packages/tl-schema/src/tl_schema/generated/` |
 | `just check` | `ruff check`, `ruff format --check`, `pyright`, codegen drift (`just gen` then `git diff --exit-code` on generated/) |
 | `just test` | `pytest` on SQLite |
-| `just test-parity` | `pytest tests/parity -p sqlite` and `-p postgres` (needs `just dev up`) |
+| `just test-parity` | `pytest -m "parity or requires_postgres" --adapters sqlite,postgres` with `TL_REQUIRE_POSTGRES=1` (needs a reachable Postgres; ADR-0002 native cluster). Parity tests live beside the code they test and are selected by marker (P0-I5 decision D7) |
 | `just test-tui` | snapshot tests |
 | `just seed [scale]` | synthetic project into the dev ledger |
 | `just serve` | API + workers on the dev ledger |
@@ -94,7 +94,7 @@ Dependencies are added only by a ticket line that names the package and why.
 
 - `tl_core` sees only the `Ledger`, `UnitOfWork`, `ProjectionStore`, `ObjectStore`, `Bus`, `Queue` Protocols.
 - `tl_adapters.sqlite` and `tl_adapters.postgres` implement them. Any SQL that differs by dialect lives there, and only there.
-- The parity suite (`tests/parity/`) runs every adapter test against both and is the gate for Postgres (§15).
+- The parity suite (tests marked `parity`, using the `adapter`/`db` fixtures from the root `conftest.py`) runs every adapter-sensitive test against both and is the gate for Postgres (§15). A converted test that bypasses the fixtures silently stops being a parity test, so reviewers check fixture use.
 
 ## 7. Phase 0 core interfaces
 

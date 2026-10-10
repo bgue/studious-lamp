@@ -20,6 +20,9 @@ class Projector(Protocol):
 
     name: str
     handles: frozenset[str]
+    # Optional: set ``handles_all = True`` (class attribute) to receive every event whatever its
+    # type; ``handles`` is then ignored for routing. Registries read it with ``getattr``, so
+    # projectors that do not define it are unaffected. Used by the outbox (P0-I5).
 
     def ddl(self, dialect: str) -> list[str]:
         """Idempotent CREATE statements (generated, never hand-written) for ``dialect``."""
