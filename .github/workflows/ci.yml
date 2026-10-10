@@ -15,3 +15,27 @@ jobs:
       - run: uv sync --all-packages
       - run: just check
       - run: just test
+
+  parity:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tl_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TL_PG_URL: postgresql://postgres:postgres@localhost:5432/tl_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: extractions/setup-just@v2
+      - run: uv sync --all-packages
+      - run: just test-parity

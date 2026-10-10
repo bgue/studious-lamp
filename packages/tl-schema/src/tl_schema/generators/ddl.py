@@ -12,6 +12,8 @@ Rules (brief 5.4, build spec 03 section 9):
 * The type comes from ``ddl_types.column_type`` after resolving the slot range: a custom type to
   its root LinkML type, an enum to ``enum``, a ``tl:json`` slot to the dialect's JSON type. Any
   other range raises ``DdlError``.
+* Postgres ``TEXT`` columns are ``COLLATE "C"`` so text orders bytewise like SQLite
+  (``ddl_types.collated``).
 * The identifier slot is ``PRIMARY KEY``; other required slots are ``NOT NULL``.
 * ``DEFAULT`` comes from ``ifabsent`` (``string(x)``, ``int(n)``, ``float(x)``, ``true``/``false``).
   A required JSON slot without ``ifabsent`` defaults to ``'{}'``.
@@ -30,7 +32,7 @@ from typing import Any, cast
 
 from linkml_runtime.utils.schemaview import SchemaView
 
-from tl_schema.generators.ddl_types import Dialect, column_type, sql_literal
+from tl_schema.generators.ddl_types import Dialect, collated, column_type, sql_literal
 
 ROOT_SCHEMA = "core.yaml"
 DIALECTS: tuple[Dialect, ...] = ("sqlite", "postgres")
@@ -112,7 +114,7 @@ def _column(view: SchemaView, slot: Any, dialect: Dialect) -> tuple[str, str]:
     is_json = bool(_annotation(slot, "tl:json"))
     name = _annotation(slot, "tl:column") or (f"{slot.name}_json" if is_json else slot.name)
     linkml_type = "string" if is_json else _root_type(view, slot)
-    parts = [str(name), column_type(linkml_type, dialect, json=is_json)]
+    parts = [str(name), collated(column_type(linkml_type, dialect, json=is_json), dialect)]
     if slot.identifier:
         parts.append("PRIMARY KEY")
     elif slot.required:

@@ -18,4 +18,8 @@ imports:
   - numbering
   - workflow
   - feed
+  - files
+  - integration
+  - outbox
+  - events
 default_range: string

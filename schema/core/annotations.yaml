@@ -10,11 +10,27 @@ description: >-
   Class-level tags
   - `tl:current_state` (boolean): generate a `cur_<module>_<class>` current-state table for this class (brief 5.4).
   - `tl:table` (string): override the generated table name (for example `cur_pset_values`).
+  Operational tables: a few classes (the `wh_*` webhook delivery state in outbox.yaml) are not projections of events. They use
+  `tl:current_state` and `tl:table` only to get one DDL for both dialects; the schema file's description says so.
   - `tl:history` (boolean): also generate a `hist_<module>_<class>` table (not used before Phase 3).
   - `tl:expects_link` (list of mappings): links a record of this class is expected to have (brief 7.1). Each entry has
     `relation` (forward relation code), optional `direction` (`out` | `in` | `either`, default `out`), optional
     `target_type`, optional `by_state` (the workflow state by which the link must exist), `label`, and optional
     `min_count` (default 1). Read at runtime by `tl_core.links.expected`; no generator reads it.
+  - `tl:file_slots` (list of mappings): the file slots of a record type (brief 20.1). Each entry has `name`
+    (lower_snake_case), optional `label`, `cardinality` (`one` | `many`, default `many`), `accepted_types`
+    (list of media types, `image/*` style wildcards allowed; empty means any), `max_size` (bytes; none means no
+    slot limit), `required_in_states` (list of workflow states by which the slot must hold an available file),
+    `capture_hint` (`camera` | `scan` | `file`, default `file`), `metadata_pset`, `processing` (pipeline names),
+    `retention_class` and `confidentiality`. Read at runtime by `tl_core.files.slots`; no generator reads it.
+    Generic, unslotted attachments need no declaration.
+
+  Event catalog tags (read by `tl_schema.generators.catalog`; set on the payload classes in events.yaml)
+  - `tl:event_type` (string): the ledger event type the class is the payload of, for example `Record.Created`. A class with
+    this tag is an event in the catalog.
+  - `tl:event_version` (string): payload version, `1` until an upcaster exists. Appears in the CloudEvents `type`
+    (`tl.core.Record.Created.v1`).
+  - `tl:sample_changes` and `tl:sample_links` (JSON text): the `data.changes` object and `data.links` list of the sample envelope.
 
   Pset class tags (written by the effective-schema compiler, brief 27.3; never authored in `schema/core`)
   - `tl:enforcement` (`advisory` | `required` | `locked`): company enforcement level of a pset or property (brief 6.3).

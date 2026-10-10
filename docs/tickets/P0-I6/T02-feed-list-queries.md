@@ -39,7 +39,7 @@ Learnings that apply:
 - Provided tests live under `docs/tickets/P0-I6/provided/*.py.txt` and you copy them into the test tree byte for byte. Do not edit the copy.
 - Commit your report at `docs/reports/P0-I6/<ticket id>.md` (it is inside your Allowed paths).
 - A fresh worktree needs `uv sync --all-packages` once before `uv run` can import the workspace packages.
-- No new dependencies. No SQLite- or Postgres-specific SQL: bound parameters only, fixed SQL text (AGENTS.md rule 5).
+- No new dependencies. The code must pass on SQLite and on Postgres (the parity suite). No SQLite- or Postgres-specific SQL: bound parameters only, fixed SQL text (AGENTS.md rule 5).
 - Remove the `STUB` paragraph from every docstring you fill in.
 - Expanding bind parameters: `text(sql).bindparams(bindparam("ids", expanding=True))`, then pass a list. `sqlalchemy` is already a dependency.
 - Rows are `Row` objects: read columns by attribute (`row.item_id`). pyright strict: annotate helper parameters; `Any` is fine for rows.
@@ -271,10 +271,11 @@ may explore: (none)
 ## Acceptance
 ```
 uv run pytest tests/services/test_feed_queries.py -q
+uv run pytest tests/services/test_feed_queries.py -q --adapters sqlite,postgres
 just check
 just test
 ```
-Expected: 13 tests pass; `just check` clean; `just test` green.
+Expected (the second run needs the native Postgres, `TL_PG_URL`; the provided tests use `new_db` and run on both): 13 tests pass; `just check` clean; `just test` green.
 
 ## Tests to add
 None beyond the provided file.

@@ -33,7 +33,7 @@ Learnings that apply:
 - Provided tests live under `docs/tickets/P0-I6/provided/*.py.txt` and you copy them into the test tree byte for byte. Do not edit the copy.
 - Commit your report at `docs/reports/P0-I6/<ticket id>.md` (it is inside your Allowed paths).
 - A fresh worktree needs `uv sync --all-packages` once before `uv run` can import the workspace packages.
-- No new dependencies. No SQLite- or Postgres-specific SQL: bound parameters only, fixed SQL text (AGENTS.md rule 5).
+- No new dependencies. The code must pass on SQLite and on Postgres (the parity suite). No SQLite- or Postgres-specific SQL: bound parameters only, fixed SQL text (AGENTS.md rule 5).
 - Remove the `STUB` paragraph from every docstring you fill in.
 - Handlers read the projection of the caller's own transaction (`load_post`) and raise before they append, so a refusal leaves nothing written.
 
@@ -129,10 +129,11 @@ may explore: (none)
 ## Acceptance
 ```
 uv run pytest tests/services/test_feed_actions.py -q
+uv run pytest tests/services/test_feed_actions.py -q --adapters sqlite,postgres
 just check
 just test
 ```
-Expected: 11 tests pass; `just check` clean; `just test` green.
+Expected (the second run needs the native Postgres, `TL_PG_URL`; the provided tests use `new_db` and run on both): 11 tests pass; `just check` clean; `just test` green.
 
 ## Tests to add
 None beyond the provided file.

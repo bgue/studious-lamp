@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import text
-from tl_adapters.sqlite.uow import create_schema, open_uow, rebuild_projections
+from tl_adapters.db import DbTarget, create_schema, open_uow, rebuild_projections
 from tl_core.ledger import ConcurrencyError
 from tl_core.services import feed_actions
 from tl_core.services.commands import CommandResult
@@ -30,19 +30,19 @@ P1 = "project:P123"
 
 
 @pytest.fixture
-def db(tmp_path: Path) -> Path:
-    path = tmp_path / "tl.db"
-    create_schema(path)
-    return path
+def db(new_db: Callable[[], DbTarget]) -> DbTarget:
+    target = new_db()
+    create_schema(target)
+    return target
 
 
-def new_post(db: Path, body: str = "Spool arrived #hold", actor: str = "user:mlee") -> str:
+def new_post(db: DbTarget, body: str = "Spool arrived #hold", actor: str = "user:mlee") -> str:
     with open_uow(db) as uow:
         cmd = PostToFeed(actor=actor, source="test", scope=P1, body=body)
         return handle_post(uow, cmd).stream_id
 
 
-def retract(db: Path, post_id: str, **kw: Any) -> CommandResult:
+def retract(db: DbTarget, post_id: str, **kw: Any) -> CommandResult:
     cmd = RetractPost(
         actor=kw.pop("actor", "user:mlee"),
         source="test",
@@ -55,7 +55,7 @@ def retract(db: Path, post_id: str, **kw: Any) -> CommandResult:
         return handle_retract_post(uow, cmd)
 
 
-def react(db: Path, post_id: str, reaction: str, actor: str, on: bool = True, **kw: Any) -> Any:
+def react(db: DbTarget, post_id: str, reaction: str, actor: str, on: bool = True, **kw: Any) -> Any:
     cmd = ReactToPost(
         actor=actor,
         source="test",
@@ -69,7 +69,7 @@ def react(db: Path, post_id: str, reaction: str, actor: str, on: bool = True, **
         return handle_react_to_post(uow, cmd)
 
 
-def row(db: Path, post_id: str) -> dict[str, Any]:
+def row(db: DbTarget, post_id: str) -> dict[str, Any]:
     with open_uow(db, readonly=True) as uow:
         found = uow.conn().execute(
             text("SELECT * FROM cur_feed_items WHERE item_id = :i"), {"i": post_id}
@@ -80,7 +80,7 @@ def row(db: Path, post_id: str) -> dict[str, Any]:
 # --- retract ----------------------------------------------------------------------------------
 
 
-def test_retract_appends_one_event_and_leaves_a_tombstone(db: Path) -> None:
+def test_retract_appends_one_event_and_leaves_a_tombstone(db: DbTarget) -> None:
     pid = new_post(db)
     result = retract(db, pid)
     assert [e.event_type for e in result.events] == ["Feed.Retracted"]
@@ -95,13 +95,13 @@ def test_retract_appends_one_event_and_leaves_a_tombstone(db: Path) -> None:
     )
 
 
-def test_anyone_may_retract_and_the_event_names_them(db: Path) -> None:
+def test_anyone_may_retract_and_the_event_names_them(db: DbTarget) -> None:
     pid = new_post(db)
     result = retract(db, pid, actor="user:boss")
     assert result.events[0].actor == "user:boss"
 
 
-def test_retract_refusals(db: Path) -> None:
+def test_retract_refusals(db: DbTarget) -> None:
     pid = new_post(db)
     with pytest.raises(PostNotFoundError):
         retract(db, "nope")
@@ -119,7 +119,7 @@ def test_retract_needs_a_reason() -> None:
         RetractPost(actor="u", source="t", scope=P1, post_id="x", reason="  ")
 
 
-def test_a_retracted_post_cannot_be_edited(db: Path) -> None:
+def test_a_retracted_post_cannot_be_edited(db: DbTarget) -> None:
     pid = new_post(db)
     retract(db, pid)
     cmd = EditPost(actor="user:mlee", source="t", scope=P1, post_id=pid, body="new text")
@@ -130,7 +130,7 @@ def test_a_retracted_post_cannot_be_edited(db: Path) -> None:
 # --- react ------------------------------------------------------------------------------------
 
 
-def test_react_appends_one_event(db: Path) -> None:
+def test_react_appends_one_event(db: DbTarget) -> None:
     pid = new_post(db)
     result = react(db, pid, "ack", "user:a")
     assert [e.event_type for e in result.events] == ["Feed.Reacted"]
@@ -140,7 +140,7 @@ def test_react_appends_one_event(db: Path) -> None:
     assert row(db, pid)["reactions_json"] == '{"ack":["user:a"]}'
 
 
-def test_reactions_of_several_actors_and_kinds_accumulate(db: Path) -> None:
+def test_reactions_of_several_actors_and_kinds_accumulate(db: DbTarget) -> None:
     pid = new_post(db)
     react(db, pid, "ack", "user:b")
     react(db, pid, "ack", "user:a")
@@ -155,7 +155,7 @@ def test_reactions_of_several_actors_and_kinds_accumulate(db: Path) -> None:
     )
 
 
-def test_setting_a_reaction_twice_or_clearing_an_unset_one_changes_nothing(db: Path) -> None:
+def test_setting_a_reaction_twice_or_clearing_an_unset_one_changes_nothing(db: DbTarget) -> None:
     pid = new_post(db)
     react(db, pid, "ack", "user:a")
     with pytest.raises(NoChangesError):
@@ -166,7 +166,7 @@ def test_setting_a_reaction_twice_or_clearing_an_unset_one_changes_nothing(db: P
         react(db, pid, "ack", "user:b", on=False)
 
 
-def test_react_refusals(db: Path) -> None:
+def test_react_refusals(db: DbTarget) -> None:
     pid = new_post(db)
     with pytest.raises(PostNotFoundError):
         react(db, "nope", "ack", "user:a")
@@ -181,14 +181,14 @@ def test_react_refusals(db: Path) -> None:
         react(db, pid, "ack", "user:a")
 
 
-def test_reactions_can_be_switched_off(db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_reactions_can_be_switched_off(db: DbTarget, monkeypatch: pytest.MonkeyPatch) -> None:
     pid = new_post(db)
     monkeypatch.setattr(feed_actions, "reactions_enabled", lambda: False)
     with pytest.raises(ReactionsDisabledError):
         react(db, pid, "ack", "user:a")
 
 
-def test_everything_survives_a_rebuild(db: Path) -> None:
+def test_everything_survives_a_rebuild(db: DbTarget) -> None:
     keep, drop = new_post(db, "keep #fyi"), new_post(db, "drop #hold")
     react(db, keep, "ack", "user:a")
     retract(db, drop)

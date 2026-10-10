@@ -282,6 +282,176 @@ test or a generated artefact already enforces, or narrative history (that belong
   meets the same refusals as on the embedded client.
   Evidence: `tests/test_fakes_links.py` (10 tests). Status: active
 
+- **L-P0-I4-B1** · 2026-10-09 · tags: env, tooling
+  A fresh `git worktree` has no `.venv` of its own; `uv sync` (without `--all-packages`) installs only the root and leaves
+  the workspace packages out, so `just check` shows about 1500 pyright "import could not be resolved" errors and `just test`
+  fails at collection. Run `uv sync --all-packages` once per new worktree.
+  Evidence: first `just check` in `/home/user/wt/p0-i4b`; `.claude/hooks/session-start.sh` line 60. Status: active
+
+- **L-P0-I4-B2** · 2026-10-09 · tags: tests, tooling
+  moto's in-process `mock_aws()` is enough for the s3 backend: no server, no network, and a presigned URL can be used with
+  `requests` inside the mock. Bucket names must be at least 3 characters (`"b"` raises `InvalidBucketName`); set fake
+  `AWS_*` variables with `monkeypatch`. A same-content `put_object` keeps the same ETag, so "never replaced" cannot be proved
+  by comparing object metadata: spy on `client.put_object` (a first version of the test survived a mutation).
+  Evidence: `docs/tickets/P0-I4/provided/test_objectstore_s3.py.txt`. Status: active
+
+- **L-P0-I4-B3** · 2026-10-09 · tags: tests
+  Test doubles for `io.BufferedReader` must subclass `io.RawIOBase` and implement `readinto`, not `read`: the buffered wrapper
+  never calls `read` on the raw object. To prove a store does not read an endless stream to the end, count the bytes asked of
+  `readinto`.
+  Evidence: `test_objectstore_fs.py.txt` `CountingReader`. Status: active
+
+- **L-P0-I4-B4** · 2026-10-09 · tags: ledger, process
+  The `ObjectStore` Protocol has no delete, list or size call. Consequences already handled: presigned uploads go to a
+  `staging/` key and are streamed into the content key through `put` (which verifies), staging leftovers need a bucket
+  lifecycle rule, and reconciliation uses `iter_keys` on the concrete backends. An object is written before the database
+  commit, so a rolled-back upload leaves an unreferenced object; that is harmless because keys are content-addressed.
+  Evidence: `tl_core/files/service.py` module docstring, `docs/tickets/P0-I4/README-B.md` D7, D11. Status: active
+
+- **L-P0-I4-B5** · 2026-10-09 · tags: process, tests
+  Stub-plus-provided-test tickets again passed the supervisor's verification on the first try because the check dropped a
+  scratch reference over the stub and ran `ruff`, `pyright` and the provided test; three references needed a fix at that stage
+  (a RawIOBase double, an over-long docstring line, a test that could not fail). Keep the references outside the repo
+  (`/home/user/wt/p0-i4b-refs/`) until the tickets merge.
+  Evidence: this round's verification runs. Status: active
+
+- **L-P0-I4-B6** · 2026-10-09 · tags: process, api
+  Security review of the upload service found four fixable things a test-by-mutation pass had not: a dedupe gate that counted
+  quarantined rows (so a second user could read a file before its scan), `hmac.compare_digest` on a client-controlled `str`
+  (raises on non-ASCII), a silent public fallback secret, and a global rejected-hash check (kept on purpose, recorded as a
+  decision). Rules: gate any "no bytes needed" shortcut on the state that grants read access, compare secrets as bytes, fail
+  closed on missing secrets, and serve client-typed files as attachments with `nosniff`.
+  Evidence: `docs/tickets/P0-I4/README-B.md` D8, D9, D12, D13; `tests/services/test_file_service.py`. Status: active
+
+- **L-P0-I4-B7** · 2026-10-09 · tags: process, ledger
+  Writing a recovery runbook step by step exposed a real defect: an idempotent-retry shortcut ("already attached") returned
+  before checking that the object still existed, so re-uploading could not heal a lost object. Every recovery step in a runbook
+  needs a test or a demo line that performs it (`test_reuploading_to_the_same_slot_restores_a_lost_object`).
+  Also: when restoring stubs over scratch references, `git checkout <dir>` reverts uncommitted doc edits in that directory too;
+  commit docs first or restore file by file.
+  Evidence: `docs/runbooks/object-store-reconciliation.md` step 3; commit 34fe583. Status: active
+
+- **L-P0-I4-B8** · 2026-10-09 · tags: tests, cli
+  `typer.testing.CliRunner.invoke` catches exceptions and returns them on the result, so a CLI test that only asserts "nothing
+  changed" passes against a command that crashes (it passed against a `NotImplementedError` stub). Assert `exit_code` and
+  `result.exception is None` in every CLI test, including negative-space ones. Implementer-found, T25.
+  Evidence: `docs/reports/P0-I4/P0-I4-T25.md`; `packages/tl-cli/tests/test_cli_file_reconcile_exit.py`. Status: active
+
+- **L-P0-I4-B9** · 2026-10-09 · tags: ledger, process
+  A spec that says two different things about one case ("a content key is never replaced" for `put`, "always replacing" for
+  `put_via_url`) makes the implementer follow the literal text and flag it; the review then rules. Write the invariant once
+  at the top of a ticket and derive per-method wording from it. Also: `FsObjectStore` objects are mode 0600 (from
+  `mkstemp`), which is kept on purpose: a service running as another user must be given access explicitly.
+  Evidence: `docs/reports/P0-I4/P0-I4-T20.md`; orchestrator ruling D14 in README-B. Status: active
+- **L-P0-I4-A1** · 2026-10-09 · tags: ledger, tests
+  A SQL comparison against a NULL column is NULL, so `NOT (status = 'open')` silently drops records with no status. Compile every
+  query predicate two-valued (`col IS NOT NULL AND col = :v`, `NOT EXISTS (...)` for psets) so `-x` and `x!=v` agree and a record
+  matches exactly one of `x` and `-x`. `test_not_partitions_the_result` (hypothesis) fails when one comparison loses its NULL guard.
+  Evidence: `tl_core/query/compiler.py`, `tests/query/test_query_properties.py`. Status: active
+
+- **L-P0-I4-A2** · 2026-10-09 · tags: ledger, sync
+  The change-feed registry drops an event whose `seq` is at or below a subscriber's cursor, which is safe only because each source
+  (the bus, a poller) hands over a contiguous ascending run: a source never delivers 10 before 9. SQLite commits serially so this
+  holds. Postgres sequences can become visible out of order (a transaction holding seq 9 commits after one holding 10), so the
+  P0-I5 poller must lag behind in-flight transactions or re-read a short window before trusting its cursor.
+  Evidence: `tl_core/changefeed/registry.py` (`_deliver`), `test_two_sources_feeding_the_same_events_deliver_each_once_in_order`. Status: active
+
+- **L-P0-I4-A3** · 2026-10-09 · tags: process, tooling
+  Run `just check` on the branch tip after every supervisor commit, including a docstring-only edit: a 102-column line in
+  `api.py` (my A7 docstring change) turned `just check` red for every ticket branch cut from that tip, and the T03 implementer
+  correctly stopped as *Blocked*. A *Blocked* caused by the base is not a strike; fix the base, merge it into the ticket branch.
+  Evidence: `docs/reports/P0-I4/P0-I4-T03.md` (Blocked, then Decision), commits 56bb651 and 34e109f. Status: active
+
+
+- **L-P0-I5-B1** · 2026-10-09 · tags: tooling, process
+  Never name a module `types.py` (or `enum.py`, `json.py`) inside a package: a script or `python -` run from that directory puts
+  it first on `sys.path` and the standard library's own imports break (`cannot import name 'MethodType' from 'types'`). The webhook
+  package uses `base.py`.
+  Evidence: `packages/tl-core/src/tl_core/webhooks/base.py` (renamed from `types.py` after the first ad-hoc script failed). Status: active
+
+- **L-P0-I5-B2** · 2026-10-09 · tags: ledger, process
+  State that a lagging consumer reads later must keep its history. A subscription row holding only its latest enable and disable
+  seq made a dispatcher pass that ran after a disable and re-enable drop the events from before the disable; `active_windows`
+  (a list of seq intervals) fixed it, and `test_the_active_window_follows_disable_and_enable` runs the late pass on purpose.
+  Operational tables that no event produces (`wh_*`) are created by a projector with empty `handles` and a no-op `reset`, so
+  `create_schema` makes them and a rebuild never clears a secret or a retry state.
+  Evidence: `tests/webhooks/test_dispatcher.py`, `packages/tl-core/src/tl_core/webhooks/state.py`. Status: active
+
+- **L-P0-I5-B3** · 2026-10-09 · tags: process, tests
+  When a stub-plus-provided-test ticket sits under code that other tests already exercise, make the stub fail loudly only for the
+  part it lacks (`matches_row` raises `NotImplementedError` when one of the five unbuilt filter parts is set) instead of ignoring
+  it or raising everywhere: the rest of the suite stays green, and a silently ignored filter part could never leak events.
+  Reference implementations for T20 to T23 were checked with `/tmp`-style scripts that copy the reference over the stub, run
+  `ruff`, `pyright` and the provided test, then `git checkout -- packages` (commit supervisor edits first: the checkout also reverts them).
+  Evidence: `packages/tl-core/src/tl_core/webhooks/filters.py`; docs/tickets/P0-I5/T22-webhook-filter-match.md. Status: active
+
+- **L-P0-I5-B4** · 2026-10-09 · tags: api, tests
+  An address allow/deny check must unwrap every IPv6 form that carries an IPv4 address, not only `::ffff:x`: NAT64
+  `64:ff9b::/96` and 6to4 `2002::/16` are judged by the address inside, local-use NAT64 `64:ff9b:1::/48` and Teredo
+  `2001::/32` are refused. `verify` must also turn non-UTF-8 body bytes into `SignatureError`. Both were found by the
+  orchestrator's review of 7b6c704; the cases are rows in `test_webhook_egress.py` and `test_webhook_signing.py`.
+  Evidence: `egress.is_public`; orchestrator review at 7b6c704. Status: active
+
+- **L-P0-I5-B5** · 2026-10-09 · tags: ledger, tests
+  `uow.ledger.stream_version()` reads through another connection, so it misses events appended earlier in the same unit of
+  work and chained commands on one stream fail with `ConcurrencyError`. Read the version with `SELECT MAX(stream_version)`
+  on `uow.conn()` (`webhooks.subscriptions.current_version`). The contract scenario chains update, rotate, disable and enable
+  in one unit of work on purpose. Also: pyright does not see a sibling test helper in another directory; the root
+  `extraPaths = ["tests/webhooks"]` lets `tests/contract` import `world.py`.
+  Evidence: `tests/contract/test_webhook_catalog_contract.py`; first run raised `expected version 1, found 2`. Status: active
+- **L-P0-I5-A1** · 2026-10-09 · tags: ledger, sync
+  On Postgres every write transaction takes one advisory lock first (`engine.write_tx`), the analogue of `BEGIN IMMEDIATE`. That
+  resolves L-P0-I4-A2 (commit order equals seq order, so a poller needs no lag window) and L-P0-I3-O2 (guard reads inside a write
+  transaction cannot go stale; no `SELECT ... FOR UPDATE` is needed). `seq` is `MAX(seq)+1` under the lock, so it stays gap-free like
+  SQLite's; an identity column would burn values on rollback. Writers queue; one that waits more than 10 s fails with a lock timeout.
+  Evidence: `test_postgres_ledger.py` (dropping the lock fails five tests); `docs/tickets/P0-I5/README-A.md` D1 to D3. Status: active
+
+- **L-P0-I5-A2** · 2026-10-09 · tags: tooling, ledger
+  The Postgres adapter registers driver loaders so `tl_core` sees SQLite-shaped values: JSON as canonical compact text, `timestamptz` as
+  `iso_utc` strings, booleans as 0/1, integer sums as ints. Consequence: do not use `sqlalchemy.inspect(conn).get_columns` (SQLAlchemy's
+  reflection expects parsed JSON and crashes on a column with a non-default collation); read column names with
+  `promoted.table_columns(conn, table)`. `events.payload` stays TEXT because JSONB re-renders numbers and would break re-hashing.
+  Evidence: `postgres/engine.py`; the crash appeared in `test_postgres_collation.py`. Status: active
+
+- **L-P0-I5-A3** · 2026-10-09 · tags: schema, tests
+  Text sorts by the server locale on Postgres (`en_US.utf8` in the default image, `C.UTF-8` in this container, so a local run hides it)
+  and bytewise on SQLite. The generator pins Postgres `TEXT` columns to `COLLATE "C"`; `test_postgres_collation.py` creates an ICU-locale
+  database to prove it. Also: LinkML `float` maps to `DOUBLE PRECISION` (Postgres `REAL` is 4 bytes). A dialect property that depends on
+  the server's configuration needs a test that creates the unfriendly configuration.
+  Evidence: `ddl_types.collated`, `tests/schema/test_generated_ddl_parity.py` precision test fails on `REAL`. Status: active
+
+- **L-P0-I5-A4** · 2026-10-09 · tags: tests
+  Hand-written SQL in tests must run on both databases: a boolean column takes `TRUE`/`FALSE` or a bound Python bool (never `0`/`1`),
+  a timestamp column takes a full ISO string (never `'x'`), binds are `text(...)` with `:name` (`exec_driver_sql` with `?` fails on
+  Postgres), and there is no `sqlite_master`. Of about 80 Postgres failures in the first parity run, all but three were these.
+  Evidence: reference conversion in the P0-I5 WS-A refs worktree; tickets T01 to T09 recipe item 4. Status: active
+
+- **L-P0-I5-A5** · 2026-10-09 · tags: tests, tooling
+  Parity fixtures: `new_db` is a function-scoped factory; a module-scoped fixture cannot depend on the adapter parameter, so shared
+  databases become per-test, and a Hypothesis test calls `new_db()` once per example and adds `HealthCheck.function_scoped_fixture`.
+  A killed pytest run leaves its `tl_pytest_<hex>` database behind (the runbook has the cleanup); a `timeout`-killed run did exactly that.
+  Evidence: `conftest.py`; `docs/runbooks/postgres-local-setup.md`. Status: active
+
+- **L-P0-I5-A6** · 2026-10-09 · tags: process
+  Triage by reference conversion paid off: converting every test module with a script in a scratch worktree and running it on Postgres
+  showed in about an hour that production code needed three fixes and the tests needed only mechanical changes, which made the
+  tickets small and their acceptance counts exact. The same worktree is the takeover path; keep it until the tickets merge.
+  Evidence: `/home/user/wt/p0-i5a-refs`; README-A "Order of work". Status: active
+
+- **L-P0-I5-A7** · 2026-10-09 · tags: process, env
+  Check a dependency's licence before adding it. psycopg 3 is LGPL-3.0; a copyleft dependency is a human gate (`04-gates.md` §2) that
+  the orchestrator's delegation does not cover, and "pre-approved" in a fanout plan named a driver, not a licence. The Postgres driver is
+  `pg8000` (BSD-3-Clause; deps scramp MIT-0, asn1crypto MIT, python-dateutil Apache-2.0/BSD). A new dependency line in a ticket or plan
+  names the package and its licence.
+  Evidence: orchestrator ruling on P0-I5 WS-A; `packages/tl-adapters/pyproject.toml`. Status: active
+
+- **L-P0-I5-A8** · 2026-10-09 · tags: tooling, ledger
+  pg8000 differences that the adapter hides: it ignores libpq `options` (the schema goes in as the startup parameter `search_path`);
+  it raises `IntegrityError` only for SQLSTATE 23505, so `engine.py` re-raises every class-23 error as `IntegrityError` (the append-only
+  trigger, NOT NULL); it has no blocking wait for `LISTEN`, so `NotifyListener` runs `SELECT 1` every 50 ms and drains
+  `conn.notifications`; result coercions are `register_in_adapter(oid, fn)` with fn taking the text value. The loader behaviour that
+  `tl_core` relies on (canonical JSON text, ISO UTC timestamps, 0/1 booleans, int sums) is the same under both drivers.
+  Evidence: `postgres/engine.py`, `postgres/notify.py`; 150 adapter tests pass on both adapters. Status: active
 - **L-P0-I3-7** · 2026-10-09 · tags: tui, tooling
   Textual `OptionList` prompts and `DataTable` cells that are plain `str` are parsed as Rich markup, so `[x]` vanished from a
   row (`▶ [x] KEY` rendered as `▶  KEY`). Wrap row text in `rich.text.Text(...)`. `query_one("#id", Select[str])` raises
@@ -329,3 +499,49 @@ test or a generated artefact already enforces, or narrative history (that belong
   `duckdb_extensions.import_extension('ducklake')` before `LOAD ducklake`. Parquet and JSON are built in. pgBackRest is
   installable with apt. GitHub release downloads work. Details: the ADR-0002 addendum.
   Evidence: orchestrator probes before P0-I7. Status: active
+- **L-P0-I5-O3** · 2026-10-09 · tags: env, process
+  Refines L-P0-I3-O1. Before resuming a ticket-batch workflow after a restart, read its journal. For every implementer
+  with no `result` line, remove its worktree and delete its ticket branch (`git worktree remove --force`, `git branch -D`),
+  so the rerun's `git worktree add -b` starts clean. Keep a worktree whose implementer finished; an interrupted review
+  re-creates its own detached worktree. Resume reviewers and supervisors with SendMessage, and tell them their
+  background test runs are gone.
+  Evidence: second restart during P0-I4/I5; resumed three workflows and four agents. Status: active
+- **L-P0-I5-O4** · 2026-10-10 · tags: process, budget
+  At about 6 h into the run, with 7 supervisors and reviewers plus 3 workflows in flight, the account hit its usage
+  limit. Every running subagent died with HTTP 429 ("session limit, resets <time>"). After the reset, workflows resume
+  as after a restart (L-P0-I5-O3): finished calls replay from the journal. Lesson: cap concurrency at about 3 or 4
+  active supervisors or workflows, and finish increments on the critical path before starting later ones.
+  Evidence: P0-I4, P0-I5 and P0-I7 batches failed together at 00:10 UTC reset notice. Status: active
+- **L-P0-I5-O5** · 2026-10-10 · tags: process, worktrees
+  Never bulk-remove `/home/user/wt/review-*` or ticket worktrees while any ticket-batch workflow is running. Reviewers
+  work in those directories, and removing one mid-review breaks that review. Clean up only the worktrees of workflows
+  that have finished, by exact name, and check the running workflows' journals for `started review` lines first.
+  Evidence: the orchestrator removed two in-flight P0-I4 review worktrees (T43, T46) during the P0-I5 cleanup. Status: active
+
+- **L-P0-I5-A9** · 2026-10-10 · tags: tests, process
+  Parity costs time: tests/query takes about 70 s on SQLite and about 7 minutes on both adapters under load, the Hypothesis property
+  tests are about ten times slower on Postgres (each example makes a schema), and the full `just test-parity` (1214 tests) took 11 minutes on a loaded container. Give a
+  CI job and any `timeout` a budget of 20 minutes, and do not wrap these runs in a 2-minute tool timeout. `just test-parity` also deselects the
+  tests that never use a database fixture, so its total is lower than a `--adapters sqlite,postgres` count by design; a ticket that quotes
+  both numbers says so.
+  Evidence: reports P0-I5-T04, T06, T07, T08, T09; `docs/reports/P0-I5-A.md`. Status: active
+
+- **L-P0-I5-A10** · 2026-10-10 · tags: tooling
+  A docstring copied from a spec into a Python file must escape backslashes (`\\s`), or the module compiles with a `SyntaxWarning` on every
+  run; a ticket that renames a test must say so in *Tests to add* when it also says "every test keeps its name"; a provided-test ticket's
+  `git diff --stat` only lists new files once they are committed.
+  Evidence: reports P0-I5-T13 and T09. Status: active
+
+- **L-P0-I5-B6** · 2026-10-09 · tags: tests
+  The ledger stamps `recorded_at` with the real clock, so a test that mixes a `FakeClock` (retry timers, lease expiry) with an
+  expiry compared against event times breaks the day the calendar passes the fake date: `test_expired_subscriptions_stop_receiving`
+  failed on 2026-10-10 because the fake "tomorrow" was already in the past of real events. Anything compared with event time uses
+  the real clock; anything compared with delivery state uses the fake one.
+  Evidence: `tests/webhooks/test_dispatcher.py`; failure on the first run after the date changed. Status: active
+
+- **L-P0-I5-B7** · 2026-10-10 · tags: process, tooling
+  When two increments create the same path (`tl_adapters/sqlite/factory.py` in P0-I4 workstream C and in P0-I5 workstream B), the
+  orchestrator names the canonical commit and the later branch copies the file verbatim and adapts its callers, rather than merging
+  two different files. After merging workstream A, `just check` failed on codegen drift because its `COLLATE "C"` change altered the
+  Postgres DDL of tables that workstream B had added: run `just gen` after every merge that touches a generator.
+  Evidence: `git show c073261:...factory.py`; `differs: ddl/postgres/wh_delivery.sql`. Status: active

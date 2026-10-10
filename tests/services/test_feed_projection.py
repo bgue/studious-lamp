@@ -3,17 +3,23 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 import pytest
 from sqlalchemy import Engine, text
 from sqlalchemy.exc import IntegrityError
-from tl_adapters.sqlite.engine import make_engine
-from tl_adapters.sqlite.ledger import SqliteLedger
-from tl_adapters.sqlite.uow import SqliteUnitOfWork, create_schema, rebuild_projections
+from tl_adapters._unit import BaseUnitOfWork
+from tl_adapters.db import (
+    DbTarget,
+    create_schema,
+    make_engine,
+    make_ledger,
+    read_tx,
+    rebuild_projections,
+    write_tx,
+)
 from tl_core.feed.types import CARD_WINDOW_SECONDS
 from tl_core.ledger import NewEvent
 from tl_core.projection.defaults import default_registry
@@ -33,18 +39,19 @@ SUBJECTS = "SELECT kind, record_id FROM cur_feed_tags WHERE item_id = :i"
 class World:
     """A ledger whose clock the test sets, with all default projectors."""
 
-    def __init__(self, path: Path) -> None:
-        self.path = path
-        create_schema(path)
-        self.engine: Engine = make_engine(path)
+    def __init__(self, target: DbTarget) -> None:
+        self.path = target
+        create_schema(target)
+        self.engine: Engine = make_engine(target)
         self.now = T0
-        self.ledger = SqliteLedger(self.engine, clock=lambda: self.now)
+        self.ledger = make_ledger(self.engine, clock=lambda: self.now)
 
     def at(self, seconds: float) -> None:
         self.now = T0 + timedelta(seconds=seconds)
 
-    def uow(self, *, readonly: bool = False) -> SqliteUnitOfWork:
-        return SqliteUnitOfWork(self.engine, self.ledger, default_registry(), readonly=readonly)
+    def uow(self, *, readonly: bool = False) -> BaseUnitOfWork:
+        open_tx = (lambda: read_tx(self.engine)) if readonly else (lambda: write_tx(self.engine))
+        return BaseUnitOfWork(self.ledger, default_registry(), None, open_tx, readonly=readonly)
 
     def create(self, actor: str = "user:jo", scope: str = P1, key: str | None = None) -> str:
         cmd = CreateRecord(
@@ -96,8 +103,8 @@ class World:
 
 
 @pytest.fixture
-def world(tmp_path: Path) -> Iterator[World]:
-    w = World(tmp_path / "tl.db")
+def world(new_db: Callable[[], DbTarget]) -> Iterator[World]:
+    w = World(new_db())
     yield w
     w.engine.dispose()
 
@@ -212,9 +219,9 @@ def test_a_scope_cannot_have_two_open_cards(world: World) -> None:
         uow.conn().execute(
             text(
                 "INSERT INTO cur_feed_items (item_id, item_type, scope, actor, occurred_at, seq, "
-                "summary, open_scope) VALUES ('x', 'card', :s, 'a', 't', 1, 's', :s)"
+                "summary, open_scope) VALUES ('x', 'card', :s, 'a', :at, 1, 's', :s)"
             ),
-            {"s": P1},
+            {"s": P1, "at": T0.isoformat()},
         )
 
 

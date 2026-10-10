@@ -1,0 +1,66 @@
+{
+  "envelope": {
+    "data": {
+      "changes": {},
+      "detail": {
+        "event_schema_version": "v1",
+        "expires_at": null,
+        "filter": {
+          "event_types": [
+            "Workflow.Transitioned"
+          ],
+          "transitions": [
+            "* -> Issued"
+          ]
+        },
+        "integration_app": null,
+        "name": "NDE requests",
+        "owner": "user:jsmith",
+        "payload_mode": "delta",
+        "secret_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PB",
+        "subscription_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PA",
+        "target_url": "https://nde.example.net/hooks/tl"
+      },
+      "links": [],
+      "origin": {
+        "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "key": "47-1234-W012",
+        "type": "core.Record",
+        "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+        "version": 7
+      }
+    },
+    "datacontenttype": "application/json",
+    "dataschema": "https://tl.example.com/schema/events/WebhookSubscription.Created/1",
+    "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+    "source": "https://tl.example.com/c/acme/p/P123",
+    "specversion": "1.0",
+    "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+    "time": "2026-10-09T03:14:07.000000Z",
+    "tlactor": "user:jsmith",
+    "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+    "tlseq": 48211933,
+    "tlstreamversion": 7,
+    "type": "tl.core.WebhookSubscription.Created.v1"
+  },
+  "payload": {
+    "event_schema_version": "v1",
+    "expires_at": null,
+    "filter": {
+      "event_types": [
+        "Workflow.Transitioned"
+      ],
+      "transitions": [
+        "* -> Issued"
+      ]
+    },
+    "integration_app": null,
+    "name": "NDE requests",
+    "owner": "user:jsmith",
+    "payload_mode": "delta",
+    "secret_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PB",
+    "subscription_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PA",
+    "target_url": "https://nde.example.net/hooks/tl"
+  }
+}

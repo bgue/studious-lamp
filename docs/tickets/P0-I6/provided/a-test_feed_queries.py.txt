@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
 import pytest
-from tl_adapters.sqlite.uow import create_schema, open_uow
+from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_core.services.commands import CreateRecord
 from tl_core.services.errors import PostNotFoundError
 from tl_core.services.feed import PostToFeed, handle_post
@@ -26,13 +26,13 @@ K1, K2, K3 = "P123-REC-0001", "P123-REC-0002", "P123-REC-0003"
 
 
 @pytest.fixture
-def db(tmp_path: Path) -> Path:
-    path = tmp_path / "tl.db"
-    create_schema(path)
-    return path
+def db(new_db: Callable[[], DbTarget]) -> DbTarget:
+    target = new_db()
+    create_schema(target)
+    return target
 
 
-def record(db: Path, key: str, scope: str = P1, actor: str = "user:jo") -> str:
+def record(db: DbTarget, key: str, scope: str = P1, actor: str = "user:jo") -> str:
     cmd = CreateRecord(
         actor=actor, source="t", scope=scope, record_type="core.Record", title=f"T {key}", key=key
     )
@@ -40,13 +40,13 @@ def record(db: Path, key: str, scope: str = P1, actor: str = "user:jo") -> str:
         return handle_create_record(uow, cmd).stream_id
 
 
-def post(db: Path, body: str, actor: str = "user:mlee", scope: str = P1, **kw: Any) -> str:
+def post(db: DbTarget, body: str, actor: str = "user:mlee", scope: str = P1, **kw: Any) -> str:
     with open_uow(db) as uow:
         cmd = PostToFeed(actor=actor, source="t", scope=scope, body=body, **kw)
         return handle_post(uow, cmd).stream_id
 
 
-def feed(db: Path, scope: str = P1, **kw: Any) -> Any:
+def feed(db: DbTarget, scope: str = P1, **kw: Any) -> Any:
     with open_uow(db, readonly=True) as uow:
         return list_feed(uow, scope, **kw)
 
@@ -55,7 +55,7 @@ def ids(page: Any) -> list[str]:
     return [item.id for item in page.items]
 
 
-def test_the_project_feed_lists_posts_and_cards_newest_first(db: Path) -> None:
+def test_the_project_feed_lists_posts_and_cards_newest_first(db: DbTarget) -> None:
     record(db, K1)
     first = post(db, "first")
     second = post(db, "second")
@@ -66,7 +66,7 @@ def test_the_project_feed_lists_posts_and_cards_newest_first(db: Path) -> None:
     assert page.next_before is None and page.suggestions == {}
 
 
-def test_item_type_filter(db: Path) -> None:
+def test_item_type_filter(db: DbTarget) -> None:
     record(db, K1)
     pid = post(db, "hello")
     assert ids(feed(db, item_type="post")) == [pid]
@@ -74,14 +74,14 @@ def test_item_type_filter(db: Path) -> None:
     assert [i.item_type for i in cards.items] == ["card"]
 
 
-def test_other_scopes_are_not_listed(db: Path) -> None:
+def test_other_scopes_are_not_listed(db: DbTarget) -> None:
     post(db, "mine")
     post(db, "theirs", scope=P2)
     assert [i.summary for i in feed(db).items] == ["mine"]
     assert [i.summary for i in feed(db, P2).items] == ["theirs"]
 
 
-def test_a_post_item_carries_tags_reactions_and_record_ids(db: Path) -> None:
+def test_a_post_item_carries_tags_reactions_and_record_ids(db: DbTarget) -> None:
     rec = record(db, K1)
     pid = post(db, f"Spool #{K1} #hold @party:fab-a", importance="low")
     with open_uow(db) as uow:
@@ -102,7 +102,7 @@ def test_a_post_item_carries_tags_reactions_and_record_ids(db: Path) -> None:
     assert item.reactions == {"ack": 2}
 
 
-def test_a_card_item_carries_its_count_and_subjects(db: Path) -> None:
+def test_a_card_item_carries_its_count_and_subjects(db: DbTarget) -> None:
     r1, r2 = record(db, K1), record(db, K2)
     (card,) = feed(db, item_type="card").items
     assert card.id.startswith("card:")
@@ -111,7 +111,7 @@ def test_a_card_item_carries_its_count_and_subjects(db: Path) -> None:
     assert card.record_ids == (r1, r2) and card.tags == ()
 
 
-def test_a_retracted_post_is_a_tombstone(db: Path) -> None:
+def test_a_retracted_post_is_a_tombstone(db: DbTarget) -> None:
     rec = record(db, K1)
     pid = post(db, f"oops #{K1} #hold")
     with open_uow(db) as uow:
@@ -125,7 +125,7 @@ def test_a_retracted_post_is_a_tombstone(db: Path) -> None:
     assert ids(feed(db, record_id=rec, item_type="post")) == [pid]
 
 
-def test_the_record_feed_has_posts_and_cards_about_the_record(db: Path) -> None:
+def test_the_record_feed_has_posts_and_cards_about_the_record(db: DbTarget) -> None:
     r1 = record(db, K1)
     r2 = record(db, K2, actor="user:al")
     about_1 = post(db, f"on #{K1}")
@@ -138,7 +138,7 @@ def test_the_record_feed_has_posts_and_cards_about_the_record(db: Path) -> None:
     assert r2 not in {rid for i in page.items for rid in i.record_ids}
 
 
-def test_the_one_hop_toggle_adds_items_of_linked_records(db: Path) -> None:
+def test_the_one_hop_toggle_adds_items_of_linked_records(db: DbTarget) -> None:
     r1, r2, r3 = record(db, K1), record(db, K2), record(db, K3)
     with open_uow(db) as uow:
         link = AddLink(actor="user:jo", source="t", scope=P1, from_id=r1, to_id=r2)
@@ -153,7 +153,7 @@ def test_the_one_hop_toggle_adds_items_of_linked_records(db: Path) -> None:
     assert r3
 
 
-def test_a_suggested_link_does_not_count_as_one_hop(db: Path) -> None:
+def test_a_suggested_link_does_not_count_as_one_hop(db: DbTarget) -> None:
     r1 = record(db, K1)
     record(db, K2)
     post(db, f"on #{K1}")  # makes a suggested link post -> r1; the post is not a record
@@ -161,7 +161,7 @@ def test_a_suggested_link_does_not_count_as_one_hop(db: Path) -> None:
     assert on_2 not in ids(feed(db, record_id=r1, include_linked=True))
 
 
-def test_hashtag_feeds(db: Path) -> None:
+def test_hashtag_feeds(db: DbTarget) -> None:
     record(db, K1)
     held = post(db, f"stop #hold #{K1}")
     topic = post(db, "bevels #Bevel-Damage and #area:A12")
@@ -176,7 +176,7 @@ def test_hashtag_feeds(db: Path) -> None:
     assert ids(feed(db, tag="nothing")) == []
 
 
-def test_pages_follow_before_seq(db: Path) -> None:
+def test_pages_follow_before_seq(db: DbTarget) -> None:
     made = [post(db, f"post {n}") for n in range(5)]
     first = feed(db, limit=2)
     assert ids(first) == [made[4], made[3]] and first.next_before == first.items[-1].seq
@@ -187,7 +187,7 @@ def test_pages_follow_before_seq(db: Path) -> None:
     assert feed(db, limit=5).next_before is None
 
 
-def test_labels_map_record_ids_to_keys(db: Path) -> None:
+def test_labels_map_record_ids_to_keys(db: DbTarget) -> None:
     r1 = record(db, K1)
     page = feed(db)
     assert page.labels == {r1: K1}
@@ -195,7 +195,7 @@ def test_labels_map_record_ids_to_keys(db: Path) -> None:
     assert feed(db, item_type="post").labels == {}
 
 
-def test_get_post(db: Path) -> None:
+def test_get_post(db: DbTarget) -> None:
     pid = post(db, "hello #bevel")
     with open_uow(db, readonly=True) as uow:
         item = get_post(uow, P1, pid)

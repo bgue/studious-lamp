@@ -20,6 +20,7 @@ imports:
   - linkml:types
   - annotations
   - record
+  - events
 default_range: string
 annotations:
   tl:module: core
@@ -145,8 +146,14 @@ classes:
         multivalued: true
         description: Records the aggregated events are about.
 
-  FeedPosted:
-    description: Payload of `Feed.Posted`, the first event of a post stream.
+  FeedPostedPayload:
+    is_a: EventPayload
+    annotations:
+      tl:event_type: Feed.Posted
+      tl:event_version: "1"
+    description: >-
+      A post was made in a project feed. It is the first event of the post stream. The projection derives
+      the effective importance from `importance` and the tags.
     attributes:
       post_id:
         range: Ulid
@@ -171,10 +178,16 @@ classes:
         range: Ulid
         multivalued: true
         description: Records the post references, without repeats.
+    examples:
+      - value: "{\"author\": \"user:mlee\", \"body\": \"Spool arrived #P123-REC-0003 #hold\", \"importance\": \"normal\", \"post_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"record_ids\": [\"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"], \"tags\": [{\"end\": 28, \"kind\": \"record\", \"namespace\": null, \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"start\": 14, \"text\": \"P123-REC-0003\"}, {\"end\": 34, \"kind\": \"signal\", \"namespace\": null, \"record_id\": null, \"start\": 29, \"text\": \"hold\"}]}"
 
-  FeedEdited:
+  FeedEditedPayload:
+    is_a: EventPayload
+    annotations:
+      tl:event_type: Feed.Edited
+      tl:event_version: "1"
     description: >-
-      Payload of `Feed.Edited`: a full replacement of the body and its tags. The earlier text stays in the
+      A post was edited. The payload is a full replacement of the body and its tags; the earlier text stays in the
       ledger, so edits are visible history (brief 21.1).
     attributes:
       post_id:
@@ -189,9 +202,16 @@ classes:
       record_ids:
         range: Ulid
         multivalued: true
+    examples:
+      - value: "{\"body\": \"Spool arrived, bevels damaged\", \"post_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"record_ids\": [], \"tags\": []}"
 
-  FeedRetracted:
-    description: Payload of `Feed.Retracted`. The projection keeps a tombstone row and drops the body.
+  FeedRetractedPayload:
+    is_a: EventPayload
+    annotations:
+      tl:event_type: Feed.Retracted
+      tl:event_version: "1"
+    description: >-
+      A post was retracted. The projection keeps a tombstone row and drops the body.
     attributes:
       post_id:
         range: Ulid
@@ -199,11 +219,17 @@ classes:
       reason:
         required: true
         description: Why the post was retracted.
+    examples:
+      - value: "{\"post_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"reason\": \"Wrong project\"}"
 
-  FeedReacted:
+  FeedReactedPayload:
+    is_a: EventPayload
+    annotations:
+      tl:event_type: Feed.Reacted
+      tl:event_version: "1"
     description: >-
-      Payload of `Feed.Reacted`: the actor of the event sets (`on` true) or clears (`on` false) one
-      acknowledgement on a post. Reactions are limited to `ack`, `+1` and `resolved` (brief 21.1).
+      A reaction was set or cleared on a post. The actor of the event sets (`on` true) or clears (`on` false)
+      one acknowledgement. Reactions are limited to `ack`, `+1` and `resolved` (brief 21.1).
     attributes:
       post_id:
         range: Ulid
@@ -217,6 +243,8 @@ classes:
         range: boolean
         required: true
         description: True to set the reaction, false to clear it.
+    examples:
+      - value: "{\"on\": true, \"post_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"reaction\": \"ack\"}"
 
   FeedItemRow:
     description: >-

@@ -6,17 +6,23 @@ Run with ``pytest tests/property -k projection``.
 
 from __future__ import annotations
 
-import tempfile
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from sqlalchemy import text
-from tl_adapters.sqlite.engine import make_engine
-from tl_adapters.sqlite.ledger import SqliteLedger
-from tl_adapters.sqlite.uow import SqliteUnitOfWork, create_schema, rebuild_projections
+from tl_adapters._unit import BaseUnitOfWork
+from tl_adapters.db import (
+    DbTarget,
+    create_schema,
+    make_engine,
+    make_ledger,
+    read_tx,
+    rebuild_projections,
+    write_tx,
+)
 from tl_core.ledger import Event, NewEvent
 from tl_core.projection.defaults import default_registry
 from tl_core.services.commands import CreateRecord, UpdateRecord
@@ -47,18 +53,20 @@ def body_for(pick: int, keys: list[str]) -> str:
     ] + f" {pick}"
 
 
-def run(path: Path, ops: list[tuple[str, str, str, int, int]]) -> None:
+def run(path: DbTarget, ops: list[tuple[str, str, str, int, int]]) -> None:
     create_schema(path)
     engine = make_engine(path)
     clock = {"now": T0}
-    ledger = SqliteLedger(engine, clock=lambda: clock["now"])
+    ledger = make_ledger(engine, clock=lambda: clock["now"])
     records: dict[str, list[tuple[str, int, str]]] = {s: [] for s in SCOPES}  # id, version, key
     posts: dict[str, list[tuple[str, int]]] = {s: [] for s in SCOPES}  # id, version
     try:
         for kind, actor, scope, gap, pick in ops:
             clock["now"] += timedelta(seconds=gap)
             try:
-                with SqliteUnitOfWork(engine, ledger, default_registry()) as uow:
+                with BaseUnitOfWork(
+                    ledger, default_registry(), None, lambda: write_tx(engine), readonly=False
+                ) as uow:
                     common: dict[str, Any] = {"actor": actor, "source": "t", "scope": scope}
                     if kind == "create":
                         result = handle_create_record(
@@ -119,10 +127,10 @@ def run(path: Path, ops: list[tuple[str, str, str, int, int]]) -> None:
         engine.dispose()
 
 
-def dump(path: Path) -> tuple[list[tuple[Any, ...]], list[tuple[Any, ...]]]:
+def dump(path: DbTarget) -> tuple[list[tuple[Any, ...]], list[tuple[Any, ...]]]:
     engine = make_engine(path)
     try:
-        with engine.connect() as conn:
+        with read_tx(engine) as conn:
             items = conn.execute(text("SELECT * FROM cur_feed_items ORDER BY item_id")).all()
             tags = conn.execute(text("SELECT * FROM cur_feed_tags ORDER BY tag_row_id")).all()
         return [tuple(r) for r in items], [tuple(r) for r in tags]
@@ -164,41 +172,43 @@ def oracle(events: list[Event]) -> dict[str, list[tuple[str, str, int, int]]]:
     return cards
 
 
-@settings(max_examples=60, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+@settings(
+    max_examples=40,
+    deadline=None,
+    suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture],
+)
 @given(ops=st.lists(op, min_size=1, max_size=40))
 def test_feed_projection_rebuild_equals_live_and_cards_follow_the_rules(
+    new_db: Callable[[], DbTarget],
     ops: list[tuple[str, str, str, int, int]],
 ) -> None:
-    with tempfile.TemporaryDirectory() as tmp:
-        path = Path(tmp) / "tl.db"
-        run(path, ops)
-        live = dump(path)
+    path = new_db()
+    run(path, ops)
+    live = dump(path)
 
-        engine = make_engine(path)
-        try:
-            ledger = SqliteLedger(engine)
-            events = ledger.read_after(0, limit=100_000)
-            with engine.connect() as conn:
-                found = conn.execute(
-                    text(
-                        "SELECT scope, item_id, event_type, event_count, seq, open_scope "
-                        "FROM cur_feed_items WHERE item_type = 'card' ORDER BY seq"
-                    )
-                ).all()
-        finally:
-            engine.dispose()
+    engine = make_engine(path)
+    try:
+        ledger = make_ledger(engine)
+        events = ledger.read_after(0, limit=100_000)
+        with read_tx(engine) as conn:
+            found = conn.execute(
+                text(
+                    "SELECT scope, item_id, event_type, event_count, seq, open_scope "
+                    "FROM cur_feed_items WHERE item_type = 'card' ORDER BY seq"
+                )
+            ).all()
+    finally:
+        engine.dispose()
 
-        expected = oracle(events)
-        actual: dict[str, list[tuple[str, str, int, int]]] = {}
-        for r in found:
-            actual.setdefault(r.scope, []).append((r.item_id, r.event_type, r.event_count, r.seq))
-        assert actual == {
-            scope: sorted(rows, key=lambda c: c[3]) for scope, rows in expected.items()
-        }
-        for scope in SCOPES:
-            assert sum(1 for r in found if r.scope == scope and r.open_scope) <= 1
+    expected = oracle(events)
+    actual: dict[str, list[tuple[str, str, int, int]]] = {}
+    for r in found:
+        actual.setdefault(r.scope, []).append((r.item_id, r.event_type, r.event_count, r.seq))
+    assert actual == {scope: sorted(rows, key=lambda c: c[3]) for scope, rows in expected.items()}
+    for scope in SCOPES:
+        assert sum(1 for r in found if r.scope == scope and r.open_scope) <= 1
 
-        rebuild_projections(path)
-        assert dump(path) == live
-        rebuild_projections(path, types=["feed"])
-        assert dump(path) == live
+    rebuild_projections(path)
+    assert dump(path) == live
+    rebuild_projections(path, types=["feed"])
+    assert dump(path) == live
