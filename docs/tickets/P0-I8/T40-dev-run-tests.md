@@ -1,6 +1,6 @@
 # P0-I8-T40 — Dev MCP tool `run_tests`
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: mcp, tests
 Depends on: P0-I8-S41 (merged into the base of this branch)

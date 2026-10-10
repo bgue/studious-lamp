@@ -1,6 +1,6 @@
 # P0-I8-T41 — Dev MCP tool `gen` (codegen drift report)
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: mcp, tests
 Depends on: P0-I8-S41 (merged into the base of this branch)
