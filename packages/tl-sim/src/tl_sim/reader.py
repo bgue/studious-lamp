@@ -12,7 +12,8 @@ from typing import Any, Protocol, cast
 from tl_api.client import ApiClient
 from tl_core.services.feed_queries import FeedPage
 
-PAGE = 500
+PAGE = 500  # the event pager's limit
+FEED_PAGE = 200  # the feed route's limit (GET /feed answers 422 above it)
 
 
 class SimReader(Protocol):
@@ -63,7 +64,7 @@ class HttpReader:
         posts: list[dict[str, Any]] = []
         before: int | None = None
         while True:
-            page = feed.feed_page(self._scope, item_type="post", limit=PAGE, before_seq=before)
+            page = feed.feed_page(self._scope, item_type="post", limit=FEED_PAGE, before_seq=before)
             posts += [
                 {"actor": i.actor, "body": i.summary, "retracted": i.retracted} for i in page.items
             ]
