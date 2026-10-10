@@ -163,6 +163,10 @@ def accept(
         list[str] | None,
         typer.Option("--role", help="A workflow role you hold (for a transition); repeatable."),
     ] = None,
+    accept_risk: Annotated[
+        bool,
+        typer.Option("--accept-risk", help="I accept the risk (a change to a dangerous setting)."),
+    ] = False,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Run the proposal's command as you. Prints `accepted <id>` and `result <stream id>`.
@@ -177,7 +181,12 @@ def accept(
     db: Path = ctx.obj
     with _service_errors():
         view = proposals.accept_or_fail(
-            _factory(db), proposal_id=proposal_id, by=actor, roles=role or [], source="cli"
+            _factory(db),
+            proposal_id=proposal_id,
+            by=actor,
+            roles=role or [],
+            accept_risk=accept_risk,
+            source="cli",
         )
     if view.status == "failed":
         typer.echo(f"failed {view.proposal_id}")

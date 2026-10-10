@@ -30,7 +30,7 @@ from __future__ import annotations
 import json
 import logging
 import random
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -183,8 +183,8 @@ class DeliveryEngine:
         open_uow: UowFactory,
         transport: Transport,
         *,
-        egress: EgressPolicy | None = None,
-        retry: RetryPolicy | None = None,
+        egress: EgressPolicy | Callable[[], EgressPolicy] | None = None,
+        retry: RetryPolicy | Callable[[], RetryPolicy] | None = None,
         health: HealthPolicy | None = None,
         clock: Clock = utc_now,
         rng: random.Random | None = None,
@@ -194,8 +194,10 @@ class DeliveryEngine:
     ) -> None:
         self._open = open_uow
         self._transport = transport
-        self._egress = egress if egress is not None else EgressPolicy()
-        self._retry = retry if retry is not None else RetryPolicy()
+        # A policy, or a function that returns the policy in force: the settings
+        # (`webhooks.egress.allowlist`, `webhooks.retry.max_hours`) change while the worker runs.
+        self._egress_source = egress if egress is not None else EgressPolicy()
+        self._retry_source = retry if retry is not None else RetryPolicy()
         self._health = health if health is not None else HealthPolicy()
         self._clock = clock
         self._rng = rng if rng is not None else random.Random()
@@ -204,6 +206,14 @@ class DeliveryEngine:
         self._timeout_s = timeout_s
         self.needs_secret: list[str] = []
         """Subscriptions the latest ``claim`` held back for want of a secret."""
+
+    def _egress(self) -> EgressPolicy:
+        source = self._egress_source
+        return source() if callable(source) else source
+
+    def _retry(self) -> RetryPolicy:
+        source = self._retry_source
+        return source() if callable(source) else source
 
     # --- claim -------------------------------------------------------------------------------
 
@@ -276,7 +286,7 @@ class DeliveryEngine:
         """
         started = self._clock()
         try:
-            target = self._egress.check(claim.target_url)
+            target = self._egress().check(claim.target_url)
         except EgressDenied as exc:
             return AttemptOutcome(started, None, permanent="egress_denied", error=str(exc)[:200])
         except ResolutionFailed as exc:
@@ -315,7 +325,7 @@ class DeliveryEngine:
             if outcome.ok:
                 state, decision_delay, dead_reason = "delivered", 0.0, None
             else:
-                decision = self._retry.decide(
+                decision = self._retry().decide(
                     attempt=attempt,
                     now=now,
                     created_at=created,

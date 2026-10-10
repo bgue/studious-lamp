@@ -5,6 +5,12 @@
         "additionalProperties": false,
         "description": "Body of ``POST /proposals/{id}/accept``.",
         "properties": {
+          "accept_risk": {
+            "default": false,
+            "description": "\"I accept the risk\": needed to accept a change to a `dangerous` setting.",
+            "title": "Accept Risk",
+            "type": "boolean"
+          },
           "roles": {
             "description": "Workflow roles the accepting person holds (a stub until auth, brief 8).",
             "items": {

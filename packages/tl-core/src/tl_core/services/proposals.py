@@ -64,12 +64,15 @@ from tl_core.services.errors import (
     ProposalNotFoundError,
     ProposalNotPendingError,
     RetryableTransactionError,
+    RiskNotAcceptedError,
     ServiceError,
 )
 from tl_core.services.links import AddLink, handle_add_link
 from tl_core.services.psets import SetPsetValues, handle_set_pset_values
 from tl_core.services.records import handle_create_record
+from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
+from tl_core.settings.resolver import value_of
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid, utcnow
 
@@ -84,6 +87,7 @@ class Factory(Protocol):
 Handler = Callable[[UnitOfWork, Any], CommandResult]
 
 BUDGET_ENV = "TL_AGENT_DAILY_PROPOSALS"
+BUDGET_SETTING = "ai.agents.daily_proposals"
 MAX_SUMMARY = 300
 MAX_REASON = 1000
 DEFAULT_SOURCE = "review"  # the Source of the decision events when the caller names none
@@ -98,6 +102,7 @@ COMMANDS: dict[str, tuple[type[Command], Handler]] = {
     "SetPsetValues": (SetPsetValues, handle_set_pset_values),
     "AddLink": (AddLink, handle_add_link),
     "TransitionWorkflow": (TransitionWorkflow, handle_transition_workflow),
+    "ChangeSetting": (ChangeSetting, handle_change_setting),
 }
 
 _COLUMNS = (
@@ -125,14 +130,19 @@ def source_for(agent: str) -> str:
     return "mcp:" + re.sub(r"[^A-Za-z0-9_.-]", "_", agent.partition(":")[2])
 
 
-def daily_budget() -> int:
-    """Proposals one agent may create per UTC day: ``TL_AGENT_DAILY_PROPOSALS`` or the default.
+def daily_budget(conn: Connection | None = None) -> int:
+    """Proposals one agent may create per UTC day.
 
-    A value that is not a non-negative whole number is ignored. 0 refuses every proposal.
+    ``TL_AGENT_DAILY_PROPOSALS`` wins when it is set to a non-negative whole number (an operator
+    or test override; anything else in it is ignored). Otherwise the company-wide setting
+    ``ai.agents.daily_proposals`` read on ``conn``, else the platform default (500). 0 refuses
+    every proposal.
     """
     raw = os.environ.get(BUDGET_ENV, "").strip()
     if raw.isdigit():
         return int(raw)
+    if conn is not None:
+        return int(value_of(conn, BUDGET_SETTING))
     return AGENT_DAILY_PROPOSALS
 
 
@@ -229,6 +239,10 @@ def _check_proposal(tool: str, agent: str, command: Command, summary: str) -> st
         raise InvalidProposalError(
             "an agent cannot claim workflow roles; the person who accepts supplies them"
         )
+    if isinstance(command, ChangeSetting) and command.accept_risk:
+        raise InvalidProposalError(
+            "an agent cannot accept a risk; the person who accepts the proposal decides"
+        )
     return clean
 
 
@@ -258,7 +272,7 @@ def propose(
     """
     clean = _check_proposal(tool, agent, command, summary)
     source = source_for(agent)
-    limit = budget if budget is not None else daily_budget()
+    limit = budget if budget is not None else daily_budget(uow.conn())
     if proposals_today(uow.conn(), agent, now=now) >= limit:
         raise BudgetExceededError(
             f"{agent} has used its {limit} proposals for today (UTC); try again tomorrow"
@@ -324,6 +338,8 @@ def precheck(factory: Factory, *, tool: str, command: Command) -> None:
             except GuardFailedError as exc:
                 if not _only_role_guards_failed(exc):
                     raise
+            except RiskNotAcceptedError:
+                pass  # a dangerous setting: the person who accepts supplies "I accept the risk"
             raise _DryRun
     except _DryRun:
         return
@@ -346,7 +362,7 @@ def submit(
     """
     _check_proposal(tool, agent, command, summary)
     with factory(readonly=True) as uow:
-        limit = budget if budget is not None else daily_budget()
+        limit = budget if budget is not None else daily_budget(uow.conn())
         if proposals_today(uow.conn(), agent, now=now) >= limit:
             raise BudgetExceededError(
                 f"{agent} has used its {limit} proposals for today (UTC); try again tomorrow"
@@ -400,6 +416,7 @@ def accept_proposal(
     proposal_id: str,
     by: str,
     roles: Sequence[str] = (),
+    accept_risk: bool = False,
     source: str = DEFAULT_SOURCE,
 ) -> ProposalView:
     """Run the stored command as ``by`` and append ``Proposal.Accepted``, in ``uow``.
@@ -408,9 +425,10 @@ def accept_proposal(
     (``ProposalNotPendingError``). The command runs with ``actor`` = ``by``, ``source`` =
     ``mcp:<agent>``, ``causation_id`` = the ``Proposal.Created`` event and ``correlation_id`` = the
     proposal id. ``roles`` are the workflow roles ``by`` holds, used by a transition (a stub until
-    auth exists, brief 8). If the command is refused its error propagates and the caller's block
-    rolls back; callers use :func:`accept_or_fail`, which then records ``Proposal.Failed``.
-    ``source`` labels the decision event (``cli``, ``api``).
+    auth exists, brief 8). ``accept_risk`` is the person's "I accept the risk" for a setting change
+    on a ``dangerous`` key (the stored command never carries it). If the command is refused its
+    error propagates and the caller's block rolls back; callers use :func:`accept_or_fail`, which
+    then records ``Proposal.Failed``. ``source`` labels the decision event (``cli``, ``api``).
     """
     _require_person(by, "accept")
     row = _pending(uow, proposal_id)
@@ -424,6 +442,8 @@ def accept_proposal(
     )
     if model is TransitionWorkflow:
         data["actor_roles"] = list(roles)
+    if model is ChangeSetting:
+        data["accept_risk"] = accept_risk
     result = handler(uow, model.model_validate(data))
     _decide(
         uow,
@@ -480,6 +500,7 @@ def accept_or_fail(
     proposal_id: str,
     by: str,
     roles: Sequence[str] = (),
+    accept_risk: bool = False,
     source: str = DEFAULT_SOURCE,
 ) -> ProposalView:
     """Accept; if the command is refused, roll it back and record ``Proposal.Failed``.
@@ -492,7 +513,14 @@ def accept_or_fail(
     """
     try:
         with factory(readonly=False) as uow:
-            return accept_proposal(uow, proposal_id=proposal_id, by=by, roles=roles, source=source)
+            return accept_proposal(
+                uow,
+                proposal_id=proposal_id,
+                by=by,
+                roles=roles,
+                accept_risk=accept_risk,
+                source=source,
+            )
     except (ProposalNotFoundError, ProposalNotPendingError, ProposalDeciderError):
         raise
     except RetryableTransactionError:
