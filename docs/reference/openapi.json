@@ -908,6 +908,7 @@
         "type": "object"
       },
       "EventPage": {
+        "description": "One page of ``GET /events``.",
         "properties": {
           "events": {
             "items": {
