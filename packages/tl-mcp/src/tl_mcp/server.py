@@ -46,8 +46,10 @@ INSTRUCTIONS = (
     "change a record: `create_record`, `update_psets`, `link_records` and `transition_workflow` "
     "each file a proposal that a person reviews and accepts, and they return the pending "
     "proposal. Each agent has a daily proposal budget. `post_feed` posts to a project feed "
-    "directly, labelled as you. Resources: tl://record/{scope}/{key}, "
-    "tl://schema/{scope}/{record_type}, tl://relations, tl://lake/schema."
+    "directly, labelled as you. A company can add record types: `list_record_types` and "
+    "`get_record_type` describe them, `get_record_body` reads the stored body of an "
+    "object-backed record. Resources: tl://record/{scope}/{key}, "
+    "tl://schema/{scope}/{record_type}, tl://types, tl://relations, tl://lake/schema."
 )
 
 LAKE_DEFAULT_LIMIT = 100

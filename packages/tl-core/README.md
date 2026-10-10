@@ -80,6 +80,20 @@ The ledger is sealed into signed, hash-chained segments that do not depend on th
 
 Restore is not here: it inserts events verbatim through `tl_adapters.<dialect>.admin.restore_events` (`tl_adapters.restore.restore_from_archive`). `events.parquet` uses the ledger `events` column names, so the lake can load a segment directly.
 
+## Extension record types (`tl_core.extypes`, P0-I8 workstream B)
+A company adds a record type with a package of files (brief 31, 27.3). Runbook: `docs/runbooks/extension-types.md`. Plan and decisions B1 to B14: `docs/tickets/P0-I8/README-B.md`. `extypes/types.py` is the frozen contract.
+
+| Name | Kind | Purpose |
+|---|---|---|
+| `validate.validate_package`, `describe_package`, `read_settings` | functions | Check a package (layout, `type.lock`, LinkML lint, compile, examples, settings); never raises, every problem is a `TypeIssue` |
+| `compile.compile_type`, `to_package_doc`, `body_schema`, `body_issues` | functions | A package into a `CompiledType` and its pset `PackageDoc`; a body against the compiled class |
+| `lock.compute_lock`, `write_lock`, `content_hash`, `names.parse_type_ref`, `pset_name` | functions | `type.lock` (sha256 per file), type refs and the pset name `co_acme_lift_plan` |
+| `registry.sync`, `scan`, `list_types`, `get_type`, `current_type`, `list_quarantined`, `deprecate`, `deprecate_type` | functions | Idempotent registration with `TypeRegistration.*` events; an edit to a registered version is a reported conflict |
+| `loader.TypeLoader`, `provider.attach`, `LedgerExtensionSource` | classes, function | Verify files against the registered hashes; add registered types to the effective schema (`DirectorySchemaProvider.attach_extensions`); call `attach(factory)` where a process opens its ledger |
+| `service.type_detail`, `summarise`, `prepare_create`, `forms.type_form`, `watch.watch` | functions | What the API, MCP and TUI return for a type; the generated form (`form.yaml` groups); a polling directory watcher |
+| `body.store_body`, `store_record_body`, `create_extension_record`, `read_body`, `load_body`, `recheck_body`, `list_body_quarantine` | functions | Object-backed bodies (`records/<type>/<id>/<sha256>.json`): validated, written once per hash, hash-verified on every read, damaged ones quarantined in `tl_body_quarantine` |
+| `errors` | exceptions | `UnknownTypeError`, `TypeNotActiveError`, `Body*Error` (all `ServiceError`) |
+
 ## Depends on / used by
 - Depends on: `tl_schema` (generated DDL, effective schema, conformance), `sqlalchemy` (Core only), `pydantic`, `python-ulid`, `duckdb==1.5.5` (MIT; writes the archive Parquet, imported lazily), `cryptography` (Apache-2.0/BSD; Ed25519).
 - Used by: `tl_adapters`, `tl_cli`, `tl_tui` (embedded client), later `tl_api`, `tl_mcp`.

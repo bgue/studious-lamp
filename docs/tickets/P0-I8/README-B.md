@@ -18,10 +18,11 @@ version.
 ```
 just demo P0-I8-B
 ```
-`dev/demos/P0-I8-B.sh` (written last): a scratch ledger and object store; `tl types sync schema/fixtures/types` registers the two example packages and a second run
-prints `up to date`; one package is broken (`examples/bad.json`) and quarantined with its issue; `tl types ls`, `show`; a `SafetyObservation` and a `LiftPlan` are
-created (the lift through the API, with its body) and found by `psets.co_acme_lift_plan.risk_class:high`; the lift's object is damaged and the next read is refused and
-the record quarantined; `tl types quarantine ls` shows it; storing the body again heals it; the MCP tools list the types and `create_record` proposes.
+`dev/demos/P0-I8-B.sh`: a scratch ledger, object store, type root and API on a free loopback port. `tl types validate` and `sync` register the two example packages (a second
+run prints `up to date`) while the API is already running; `GET /types` shows them without a restart; a `LiftPlan` is created over HTTP with its body and an invalid body is refused with
+its problems; an agent reads the types and the body over MCP; the TUI's embedded client edits the body and the index field follows; the stored object is damaged, the next read is
+a 502, `tl types quarantine ls` lists it, `recheck` says `still failing`, storing the body again heals it; a broken package is quarantined alone and an edit to a registered version is a
+`conflict`; `tl types deprecate` makes a new record a 409 while the old one still reads.
 
 ## Published for other workstreams and increments
 | Surface | Where | Notes |
@@ -65,6 +66,8 @@ the record quarantined; `tl types quarantine ls` shows it; storing the body agai
 | S23 | Body store: `store_body`, `load_body`, `read_body`, quarantine, `create_extension_record` | hash-verified load, a security-relevant rule (§31.4) | fresh reviewer, then orchestrator | done |
 | S24 | `type_form`, `type_detail`, the polling watcher, API error rows, `ApiContext.objects`, `McpContext.objects` | contracts the tickets share | | done |
 | S25 | Stubs and provided tests for T20 to T22, with scratch reference implementations | scaffolds | | done |
+| S40 | CLI help text without stub notes, the cross-surface test (CLI, API, MCP, embedded and remote TUI on one ledger), the demo, status judged before files, quiet SchemaView | polish across surfaces | | done |
+| S41 | `e` on an object-backed record opens the body edit form (T27 wired), tested on the fake, a real ledger and a remote server | app wiring | | done |
 | S33 | `ClientInterface` growth (`list_types`, `get_type`, `create_instance`, `get_record_body`, `put_record_body`), `EmbeddedClient`, the fake client's type support, `store_record_body`, `tl tui --type` | public interface and fakes | | done |
 
 ## Tickets
@@ -74,8 +77,8 @@ the record quarantined; `tl types quarantine ls` shows it; storing the body agai
 | P0-I8-T21 | API: `/types`, `/types/{ref}`, `POST /types/{name}/records`, `GET\|PUT /records/{id}/body` | haiku | S23, S24 | merged | pass, 1 round, no findings |
 | P0-I8-T22 | MCP: `list_record_types`, `get_record_type`, `get_record_body`, `tl://types` resources | haiku | S23, S24 | merged | implementation passed; provided test corrected by supervisor (pyright: `assert row is not None`) |
 | P0-I8-T23 | `ApiClient` type and body methods (9 provided tests) | haiku | T21 | merged | implementation passed; provided test corrected by supervisor (pyright, L-P0-I8B-7) |
-| P0-I8-T26 | `tl types quarantine ls\|recheck` (8 provided tests) | haiku | S23, T20 | review-only (implementation done at 37b3920; the red test it hit was on the base) | |
-| P0-I8-T27 | TUI: `extension_body` and the `ExtensionEditForm` modal for an object-backed body (15 provided tests) | haiku | S33, T25 | ready | |
+| P0-I8-T26 | `tl types quarantine ls\|recheck` (8 provided tests) | haiku | S23, T20 | merged | pass; first implementer died, second hit a red test on my base (S35, L-P0-I8B-9) |
+| P0-I8-T27 | TUI: `extension_body` and the `ExtensionEditForm` modal for an object-backed body (15 provided tests) | haiku | S33, T25 | merged | pass, 1 round, no findings; wired into `e` of the record view (S41) |
 | P0-I8-T24 | TUI: `extension_columns` (grid columns from `form.yaml`, newest active form of a type; 9 provided tests) | haiku | S33 | merged | pass, 1 round, no findings |
 | P0-I8-T25 | TUI: `extension_fields` and the `ExtensionRecordForm` modal (18 provided tests) | haiku | S33 | merged | pass, 1 round; three open questions ruled below |
 

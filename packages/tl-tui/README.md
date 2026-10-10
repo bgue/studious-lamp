@@ -34,6 +34,10 @@ The Textual application shell, grid, record view, and forms; every screen reads 
 | `tl_tui.widgets.trace_tab.TraceTab` | widget | Trace tab (`t`): n-hop tree, depth `+`/`-`, direction `o`, Enter follows |
 | `tl_tui.widgets.workflow_menu.WorkflowMenu` | modal | Workflow actions (`w`) listing each transition with its guards; a blocked one says why |
 | `tl_tui.widgets.prompt.PromptScreen` | modal | One-line input used by the links tab for notes and reasons |
+| `ClientInterface.list_types`, `get_type`, `create_instance`, `get_record_body`, `put_record_body` | methods | Extension record types (brief 31): both clients and the fakes implement them (`EmbeddedClient(object_store=, actor=)` refuses an `agent:*` actor and reports an object store failure as `BodyStoreUnavailableError`) |
+| `tl_tui.extension_columns` | module | `columns_for_type`: the grid columns `form.yaml` names (only slots stored as pset values); `form_for_type`, `form_for_record_type`, `type_warning` (a status-line warning when `--type` names a type with no active version) |
+| `tl_tui.extension_fields`, `widgets.extension_form.ExtensionRecordForm` | module, modal | The generated new-record form (`n` on an extension type): editors from the type's form, values sent as psets (managed) or a body (object-backed), a slot only when changed or required |
+| `tl_tui.extension_body`, `widgets.extension_edit_form.ExtensionEditForm` | module, modal | `e` on an object-backed record edits its stored body: only changed slots are applied, the rest of the body is kept, a stale version blocks the save |
 | `tl_tui.main.make_app`, `run`, `main` | functions | `tl-tui` / `python -m tl_tui` / `tl tui`: embedded by default, remote with `--remote URL` and a token |
 
 ## Depends on / used by
@@ -54,6 +58,8 @@ uv run pytest packages/tl-tui/tests/test_grid.py -q
 |---|---|---|
 | `TL_DB` | `./dev/data/tl.db` | SQLite ledger file for embedded mode |
 | `TL_PROJECT` | `P123` | Project whose records the grid shows (scope `project:<id>`) |
+| `TL_TYPE` / `--type` | `core.Record` | Record type the grid lists; an extension type (`co.acme.LiftPlan`) gets the columns of its `form.yaml` |
+| `TL_OBJECT_STORE`, `TL_OBJECT_ROOT`, `TL_OBJECT_SECRET` | see `tl_adapters` | Object store for record bodies in embedded mode |
 | `TL_SCHEMA_DIR` | `schema/fixtures` | Package directory the pset services read (see `tl_core.schema_provider`) |
 | `TL_REMOTE` | (unset) | API URL; when set the TUI runs remote (`--remote` overrides) |
 | `TL_TOKEN` | (unset) | Dev token for remote mode (ADR-0005); prefer it to `--token`, which shows in `ps` |
@@ -62,4 +68,4 @@ uv run pytest packages/tl-tui/tests/test_grid.py -q
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1 (skeleton). First interface: P0-I2 workstream B (shell, grid, record view, forms, key map). P0-I3 added the link, workflow, trace and tray screens, the palette, and `ClientInterface` methods for links, search, workflow, key detection and `edit_record` (atomic form save). P0-I4 workstream D added the remote client, live updates in both modes, the filter bar and the conflict banner (plan: `docs/tickets/P0-I4/README-D.md`). P0-I6 workstream B: the six feed methods of `RemoteClient` now go to the API (`GET /feed`, the feed command routes), and an open feed pane reads its first page again when any event of its project arrives (`TlApp._refresh_feed_pane`). Review-queue screens and `RemoteClient` proposal methods are not built (`ClientInterface` has no proposal methods). Known limit: the grid load, record view and filter calls still run on the UI thread (3 s timeout in remote mode); moving them to workers is a P0-I8 hardening follow-up.
+Introduced in P0-I1 (skeleton). First interface: P0-I2 workstream B (shell, grid, record view, forms, key map). P0-I3 added the link, workflow, trace and tray screens, the palette, and `ClientInterface` methods for links, search, workflow, key detection and `edit_record` (atomic form save). P0-I4 workstream D added the remote client, live updates in both modes, the filter bar and the conflict banner (plan: `docs/tickets/P0-I4/README-D.md`). P0-I6 workstream B: the six feed methods of `RemoteClient` now go to the API (`GET /feed`, the feed command routes), and an open feed pane reads its first page again when any event of its project arrives (`TlApp._refresh_feed_pane`). Review-queue screens and `RemoteClient` proposal methods are not built (`ClientInterface` has no proposal methods). Known limit: the grid load, record view and filter calls still run on the UI thread (3 s timeout in remote mode); moving them to workers is a P0-I8 hardening follow-up. Extension type grid and forms added in P0-I8 workstream B (`docs/tickets/P0-I8/README-B.md`; runbook `docs/runbooks/extension-types.md`).

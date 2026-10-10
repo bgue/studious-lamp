@@ -234,8 +234,8 @@ def prepare_create(
         )
     if found.storage_mode == "object-backed" and not allow_object_backed:
         raise BodyRequiredError(
-            f"{record_type} is object-backed: its body is stored with the record "
-            "(create_extension_record, or the API's body route)"
+            f"{record_type} is object-backed: a record needs a body, which this call cannot carry; "
+            f"create it with POST /types/{record_type}/records or in the TUI (n)"
         )
     if found.storage_mode == "object-backed" and psets:
         raise BodyNotAllowedError(

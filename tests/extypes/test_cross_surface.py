@@ -205,9 +205,9 @@ def test_a_damaged_body_is_refused_everywhere_listed_and_healed(stack: Stack) ->
     assert "still failing" in stack.tl("types", "quarantine", "recheck", record_id, expect=1)
 
     stack.embedded().put_record_body(record_id, scope=SCOPE, body=BODY)  # store it again
-    assert "restored" in stack.tl("types", "quarantine", "recheck", record_id)
-    assert api.get_record_body(record_id).body == BODY
+    assert api.get_record_body(record_id).body == BODY  # the quarantine lifted with the new object
     assert "nothing quarantined" in stack.tl("types", "quarantine", "ls")
+    assert "restored" in stack.tl("types", "quarantine", "recheck", record_id)
 
 
 def test_a_deprecated_type_takes_no_new_records_on_any_surface(stack: Stack) -> None:

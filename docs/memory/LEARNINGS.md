@@ -1003,6 +1003,15 @@ test or a generated artefact already enforces, or narrative history (that belong
   store escape the `CLIENT_ERRORS` tuple (the TUI would stop with a path in the traceback). When a surface is added to a service, copy the API's refusals (agent writes) and map operating-system
   failures to a `ServiceError` with a message that names no path. Two parallel implementations of one write (`store_body` plus a scope check in the route, and `store_record_body`) were merged into one.
   Evidence: `packages/tl-tui/tests/test_embedded_types.py` (agent guard, failing store). Status: active
+- **L-P0-I8B-12** · 2026-10-10 · tags: tickets, cli, process
+  Implementation notes written into a stub's docstring survive the implementation, and a docstring is user-facing text wherever a framework publishes it: Typer prints it as `--help`, FastAPI as
+  OpenAPI, MCP as the tool description. Three `tl types` commands shipped `registry.list_quarantined(...)` and `_fail` in their help. L-P0-I8B-6 covered OpenAPI; the rule is "notes in comments,
+  everywhere", and a test that renders every command's help and greps for internal names (`test_cli_extypes_help.py`) keeps it so.
+  Evidence: `packages/tl-cli/tests/test_cli_extypes_help.py`. Status: active
+- **L-P0-I8B-13** · 2026-10-10 · tags: demos, shell
+  A demo under `set -o pipefail` that pipes a command into `head` fails on some runs: `head` closes the pipe, the writer gets SIGPIPE and the pipeline's status is non-zero. Print the whole
+  output, or capture it in a variable first.
+  Evidence: `dev/demos/P0-I8-B.sh` failed one run in two before the pipes were removed. Status: active
 - **L-P0-I6C-12** · 2026-10-10 · tags: tests, process
   A check that fails only on an empty log still passes a run in which the interesting actor did nothing: swallowing every refusal (a budget, a bad argument) in the actor and asserting only what
   was logged made "the assistant proposed nothing" green. Tell the assertion which actors are enabled and bound to act (`Expected`), narrow what an actor may shrug off to the one benign refusal, and
