@@ -54,6 +54,8 @@ projection derives the effective importance (high when a tag is a signal tag). E
 | A6 | Reactions are one JSON object on the post row (`{reaction: [actors]}`), idempotent per actor. The pane toggles by sending `on=True` and, on `NoChangesError`, `on=False`. |
 | A7 | Retraction drops the body and the non-record tags (the post leaves hashtag feeds) and keeps the record tags (the tombstone stays in the record's feed). A retracted post's suggested links stay: only a person retracts a link. |
 | A8 | Authorisation is not enforced (ADR-0005): anyone may edit or retract a post. |
+| A9 | Reviewer ruling: a sigil inside markdown code (inline span or fenced block) or after a `/` in its word (`http://x/#frag`) is not a tag. |
+| A10 | Reviewer ruling: a post is the `from` end of a link only for the relation `references`; any other relation (or none) raises `UnknownRelationError`. |
 
 ## Supervisor-built pieces (in order)
 | # | Piece | Why supervisor-tier | Reviewer | Status |
@@ -86,6 +88,10 @@ projection derives the effective importance (high when a tag is a signal tag). E
 - Card aggregation that depends on processing order breaks rebuild determinism: the property test compares rebuild with live and with an independent reading of the rules, and fails when the window edge is mutated.
 - The projector runs for every event of the system (about three statements per event). Measure in the I8 performance pass.
 - The catalog test lists `Proposal.*` event types named in `proposals/types.py` (the frozen WS-B contract). WS-B adds their catalog classes with `proposals.yaml`; until then `packages/tl-schema/tests/test_catalog.py::test_every_event_type_the_code_names_is_in_the_catalog` fails on every branch that has `proposals/types.py`.
+
+## Accepted as is (reviewer)
+- The property test is sensitive to the window edge only because the generated gaps are biased towards 600 s; a uniform generator did not find a mutated edge in 40 examples.
+- `detect_keys` is quadratic in the length of a post at the 10 000 character cap (one regex pass per numbering pattern, overlap check against kept matches). A 100 000 character input of tags parses in under a second; posts are capped, so no change.
 
 ## Blocked / Decision
 (none)
