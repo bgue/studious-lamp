@@ -22,8 +22,9 @@ One working day (``act``), in this order, drawing from ``ctx.rng`` only where st
 
 from __future__ import annotations
 
-from tl_sim.actors.base import BaseActor, Recorder
-from tl_sim.scenario import PlannerParams
+from tl_sim.actors.base import BaseActor, Rec, Recorder
+from tl_sim.clock import WEEKDAYS
+from tl_sim.scenario import PlannerParams, draw
 from tl_sim.types import SimContext
 
 
@@ -32,4 +33,56 @@ class Planner(BaseActor):
     params: PlannerParams
 
     def act(self, ctx: SimContext, rec: Recorder) -> None:
-        raise NotImplementedError("STUB (P0-I6-T41)")
+        waiting = self._review(ctx, rec)
+        created = self._plan(ctx, rec)
+        if self._is_lookahead_day(ctx):
+            rec.post(self._lookahead(created, waiting))
+
+    def _review(self, ctx: SimContext, rec: Recorder) -> list[Rec]:
+        """Step 1: approve the first ``k`` documents in review; return those still waiting."""
+        in_review = rec.records("status:Review", title_prefix="Doc ")
+        k = draw(self.params.approvals_per_day, ctx.rng)
+        waiting: list[Rec] = []
+        for index, doc in enumerate(in_review):
+            approved = index < k and rec.transition(doc, "approve", "Approved")
+            if not approved:
+                waiting.append(doc)
+        return waiting
+
+    def _plan(self, ctx: SimContext, rec: Recorder) -> list[Rec]:
+        """Step 2: create ``m`` installation activities on lines; return them in creation order."""
+        m = draw(self.params.activities_per_day, ctx.rng)
+        lines = rec.records("", title_prefix="Line ")
+        if not lines:
+            return []
+        existing = len(rec.records("", title_prefix="Activity "))
+        approved = rec.records("status:Approved", title_prefix="Doc ")
+        created: list[Rec] = []
+        for _ in range(m):
+            line = ctx.rng.choice(lines)
+            serial = existing + len(created) + 1
+            designation = line.title.removeprefix("Line ")
+            activity = rec.create(f"Activity {serial:03d} Install spools on {designation}")
+            rec.link(activity, line, "belongs_to")
+            if approved:
+                rec.link(activity, ctx.rng.choice(approved), "requires")
+            created.append(activity)
+        return created
+
+    def _is_lookahead_day(self, ctx: SimContext) -> bool:
+        return (
+            self.params.lookahead_day is not None
+            and WEEKDAYS[ctx.now.weekday()] == self.params.lookahead_day
+        )
+
+    @staticmethod
+    def _lookahead(created: list[Rec], waiting: list[Rec]) -> str:
+        """The look-ahead text: the first three activities, then the first document on hold."""
+        body = (
+            f"Look-ahead: {len(created)} activities planned, "
+            f"{len(waiting)} documents waiting for approval."
+        )
+        body += "".join(f" #{activity.key}" for activity in created[:3])
+        if waiting:
+            body += f" #hold #{waiting[0].key}"
+        return body
