@@ -27,18 +27,14 @@ from tl_sim.assertions import AssertionReport, run_assertions
 from tl_sim.client import Keys
 from tl_sim.clock import SimClock, day_start, seed_time, working_date
 from tl_sim.injections import injected_actor
+from tl_sim.orchestrator_names import ASSISTANT, ORCHESTRATOR
 from tl_sim.reader import SimReader
 from tl_sim.rng import actor_rng
-from tl_sim.scenario import ACTOR_NAMES, InjectSpec, Scenario, Template
+from tl_sim.scenario import ROLE_NAMES, InjectSpec, Scenario, Template
 from tl_sim.state import RunError, RunInterruptedError, RunState, RunStore
 from tl_sim.types import Actor, GroundTruth, SimClient, SimContext
 
-ORCHESTRATOR = "user:sim-orchestrator"
 MAX_PENDING = 100  # queued injections per run; more would be a runaway, not a scenario
-ASSISTANT = "agent:sim-assistant"
-"""The one simulated agent. The API refuses record-changing commands from any ``agent:*`` token
-(WB B15, FANOUT D4: agents propose, people accept), so the role actors, which stand in for people,
-are ``user:sim-<role>``; the assistant only proposes (over MCP) and posts."""
 
 
 class Connector(Protocol):
@@ -86,7 +82,8 @@ def default_run_id(scenario: Scenario) -> str:
 
 
 def all_identities() -> list[str]:
-    return [ORCHESTRATOR, *(f"user:sim-{name}" for name in ACTOR_NAMES), ASSISTANT]
+    people = (*ROLE_NAMES, "approver")
+    return [ORCHESTRATOR, *(f"user:sim-{name}" for name in people), ASSISTANT]
 
 
 class Simulation:
@@ -259,6 +256,7 @@ class Simulation:
 
 
 __all__ = [
+    "ASSISTANT",
     "ORCHESTRATOR",
     "AdvanceResult",
     "Connector",

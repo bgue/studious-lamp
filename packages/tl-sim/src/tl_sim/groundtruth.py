@@ -24,6 +24,8 @@ LINK_ADDED = "link.added"
 WORKFLOW_TRANSITIONED = "workflow.transitioned"
 POST_CREATED = "post.created"
 PROPOSAL_CREATED = "proposal.created"
+PROPOSAL_ACCEPTED = "proposal.accepted"
+PROPOSAL_REJECTED = "proposal.rejected"
 INTENTS = (
     RECORD_CREATED,
     PSET_SET,
@@ -31,6 +33,8 @@ INTENTS = (
     WORKFLOW_TRANSITIONED,
     POST_CREATED,
     PROPOSAL_CREATED,
+    PROPOSAL_ACCEPTED,
+    PROPOSAL_REJECTED,
 )
 
 

@@ -10,6 +10,7 @@ dependencies = [
   "httpx2",
   "tl-core",
   "tl-api",
+  "tl-mcp",
 ]
 
 [build-system]

@@ -1,9 +1,9 @@
-"""The three real actors against the real API app: a run passes ``sim_assert``, replays identically
-from the same seed, and fails when someone else changes the project.
+"""The real actors against the real API app and MCP server: a run passes ``sim_assert``, replays
+identically from the same seed, and fails when someone else changes the project.
 
-Feed posts need ``ApiClient.feed_post`` and ``feed_page`` (workstream B), so here a post is kept
-in a list by a stand-in client and read back by a stand-in reader. Everything else (records, psets,
-links, workflow, queries, the events and their simulated times) goes over HTTP to the real app.
+Records, psets, links, workflow, feed posts, queries, the events and their simulated times go over
+HTTP to the real app. The assistant (an agent) proposes through the real MCP server, in memory on
+the same ledger, and the approver (a person) accepts or rejects over HTTP. Nothing is stood in.
 """
 
 from __future__ import annotations
@@ -15,9 +15,11 @@ from typing import Any
 
 from suite import Suite, build_suite, close_suite
 from tl_core.services.commands import CreateRecord, UpdateRecord
+from tl_mcp.server import build_server as build_mcp_server
 from tl_sim.client import HttpSimClient, Keys
 from tl_sim.clock import SimClock
-from tl_sim.orchestrator import ORCHESTRATOR, Simulation, default_run_id
+from tl_sim.mcp_caller import McpClientCaller
+from tl_sim.orchestrator import ASSISTANT, ORCHESTRATOR, Simulation, default_run_id
 from tl_sim.reader import HttpReader, SimReader
 from tl_sim.scenario import AreaSpec, Scenario, Template
 from tl_sim.state import RunStore
@@ -30,63 +32,11 @@ TEMPLATE = Template(
 )
 
 
-class PostBook:
-    """Where the stand-in clients write their posts."""
-
-    def __init__(self) -> None:
-        self.posts: list[dict[str, Any]] = []
-
-
-class StandInClient(HttpSimClient):
-    book: PostBook
-
-    def post(self, body: str) -> dict[str, Any]:
-        self._clock.tick()
-        self.book.posts.append({"actor": self._identity, "body": body, "retracted": False})
-        return {"post_id": f"p{len(self.book.posts)}", "version": 1}
-
-
-class StandInReader:
-    def __init__(self, real: HttpReader, book: PostBook) -> None:
-        self._real, self._book = real, book
-
-    def records(self) -> list[dict[str, Any]]:
-        return self._real.records()
-
-    def links(self, record_id: str) -> list[dict[str, Any]]:
-        return self._real.links(record_id)
-
-    def events(self) -> list[dict[str, Any]]:
-        """The real events plus a ``Feed.Posted`` for each stand-in post (not in the ledger)."""
-        real = self._real.events()
-        day = real[0]["effective_at"] if real else "2026-11-02T07:00:00+00:00"
-        posted = [
-            {
-                "seq": 10_000 + n,
-                "stream_id": f"stand-in-{n}",
-                "event_type": "Feed.Posted",
-                "actor": p["actor"],
-                "source": f"sim:{RUN_ID}",
-                "effective_at": day,
-                "recorded_at": "2000-01-01T00:00:00+00:00",
-                "payload": {"body": p["body"]},
-            }
-            for n, p in enumerate(self._book.posts)
-        ]
-        return real + posted
-
-    def proposals(self) -> list[dict[str, Any]]:
-        return self._real.proposals()
-
-    def posts(self) -> list[dict[str, Any]]:
-        return list(self._book.posts)
-
-
 class SuiteConnector:
-    """The orchestrator's connector over the in-process API app of a ``Suite``."""
+    """The orchestrator's connector over the in-process API app and MCP server of a ``Suite``."""
 
     def __init__(self, suite: Suite, run_id: str = RUN_ID) -> None:
-        self.suite, self.run_id, self.book = suite, run_id, PostBook()
+        self.suite, self.run_id = suite, run_id
 
     def provision(self, identities: Sequence[str]) -> dict[str, str]:
         return {identity: self.suite.tokens[identity] for identity in identities}
@@ -94,20 +44,21 @@ class SuiteConnector:
     def client(
         self, identity: str, clock: SimClock, keys: Keys, tokens: dict[str, str]
     ) -> SimClient:
-        client = StandInClient(
-            self.suite.api(identity, clock),  # type: ignore[arg-type]
+        mcp = None
+        if identity == ASSISTANT:  # the real MCP server, in memory, on the same ledger
+            mcp = McpClientCaller(build_mcp_server(self.suite.backend, actor=identity))
+        return HttpSimClient(
+            self.suite.api(identity, clock),
             run_id=self.run_id,
             scope=f"project:sim-{self.run_id}",
             clock=clock,
             keys=keys,
             identity=identity,
+            mcp=mcp,
         )
-        client.book = self.book
-        return client
 
     def reader(self, tokens: dict[str, str]) -> SimReader:
-        real = HttpReader(self.suite.api(ORCHESTRATOR), f"project:sim-{self.run_id}")
-        return StandInReader(real, self.book)
+        return HttpReader(self.suite.api(ORCHESTRATOR), f"project:sim-{self.run_id}")
 
 
 def scenario(seed: int = 4711, **extra: object) -> Scenario:
@@ -115,6 +66,7 @@ def scenario(seed: int = 4711, **extra: object) -> Scenario:
         "scenario": "e2e",
         "seed": seed,
         "start": date(2026, 11, 2),
+        "actors": {"assistant": {"proposals_per_day": 2}, "approver": {"accept_rate": 0.5}},
         "inject": [
             {"day": 1, "event": "material_late", "item": "6in flange", "days": 21},
             {"day": 2, "event": "design_revision", "count": 1},
@@ -141,6 +93,7 @@ def run(
 def test_a_run_of_the_real_actors_passes_sim_assert(suite: Suite, tmp_path: Path) -> None:
     sim, connector = run(suite, tmp_path)
     report = sim.assert_()
+    assert report.counts.get("proposal.created", 0) >= 2, report.counts
     assert report.ok, [f.line() for f in report.failures]
     assert report.counts["record.created"] > 15 and report.counts["post.created"] >= 8
     api = suite.api(ORCHESTRATOR)
@@ -153,7 +106,9 @@ def test_a_run_of_the_real_actors_passes_sim_assert(suite: Suite, tmp_path: Path
     states = {r["status"] for r in records if r["title"].startswith("Doc ")}
     assert "Approved" in states, "the planner got a document through the real approve guard"
     assert any(t.endswith("Rev B") for t in titles), "the design_revision injection issued Rev B"
-    assert any("6in flange is late by 21 days" in p["body"] for p in connector.book.posts)
+    posts = [p["body"] for p in connector.reader({}).posts()]
+    assert any("6in flange is late by 21 days" in body for body in posts)
+    assert any(body.startswith("Registered ") for body in posts)
 
 
 def test_the_valve_data_the_crew_set_is_what_the_suite_stores(suite: Suite, tmp_path: Path) -> None:
@@ -169,7 +124,7 @@ def test_the_valve_data_the_crew_set_is_what_the_suite_stores(suite: Suite, tmp_
         assert data["body_material"] == "CS" and data["size_in"] in (2, 3, 4, 6, 8)
 
 
-def test_every_event_is_simulated_time_by_a_simulated_actor_from_the_run(
+def test_every_event_is_by_a_simulated_actor_and_the_simulators_own_carry_simulated_time(
     suite: Suite, tmp_path: Path
 ) -> None:
     run(suite, tmp_path, days=3)
@@ -177,14 +132,34 @@ def test_every_event_is_simulated_time_by_a_simulated_actor_from_the_run(
         suite.api(ORCHESTRATOR).events_after(0, scope=f"project:sim-{RUN_ID}", limit=500).events
     )
     assert events
-    assert {e.source for e in events} == {f"sim:{RUN_ID}"}
-    assert all(e.actor.startswith("user:sim-") for e in events)
-    assert {e.effective_at.date().isoformat() for e in events} == {
+    assert all(e.actor.startswith(("user:sim-", "agent:sim-")) for e in events)
+    own = [e for e in events if e.source == f"sim:{RUN_ID}"]
+    assert own and all(e.actor.startswith("user:sim-") for e in own)
+    assert {e.effective_at.date().isoformat() for e in own} == {
         "2026-11-02",
         "2026-11-03",
         "2026-11-04",
     }
-    assert all(e.effective_at != e.recorded_at for e in events)
+    assert all(e.effective_at != e.recorded_at for e in own)
+    # the agent's proposals come over MCP (real time), and a person's decisions over the API
+    other = {(e.event_type, e.source) for e in events if e not in own}
+    assert ("Proposal.Created", "mcp:sim-assistant") in other
+    assert ("Proposal.Accepted", "api") in other or ("Proposal.Rejected", "api") in other
+
+
+def test_the_assistant_only_proposes_and_the_approver_decides(suite: Suite, tmp_path: Path) -> None:
+    run(suite, tmp_path, days=4)
+    api = suite.api(ORCHESTRATOR)
+    scope = f"project:sim-{RUN_ID}"
+    views = api.list_proposals(scope, status=None)
+    assert views and {v.agent for v in views} == {ASSISTANT}
+    assert {v.status for v in views} <= {"accepted", "rejected"}  # nothing is left pending
+    assert {v.decided_by for v in views} == {"user:sim-approver"}
+    accepted = [v for v in views if v.status == "accepted"]
+    events = api.events_after(0, scope=scope, limit=500).events
+    links = [e for e in events if e.event_type == "Link.Added" and e.source == "mcp:sim-assistant"]
+    assert len(links) == len(accepted)
+    assert {e.actor for e in links} == {"user:sim-approver"}  # the agent never wrote a record
 
 
 def test_the_same_seed_on_a_fresh_suite_gives_identical_ground_truth(tmp_path: Path) -> None:

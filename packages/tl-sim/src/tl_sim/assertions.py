@@ -11,6 +11,7 @@ returns now (the ``cur_*`` projections and the event pager). The two must agree:
 | ``workflow.transitioned`` | the latest intended state of each record is its status |
 | ``post.created`` | a live post by that author with that body exists (once per intended post) |
 | ``proposal.created`` | a proposal by that agent for that tool exists (once per intended one) |
+| ``proposal.accepted`` / ``rejected`` | that person decided such a proposal that way (a link too) |
 
 Each of those is also checked against the ledger event that fulfilled it: the actor that wrote
 that record, pset value, link, transition, post or proposal must be the actor the log names
@@ -36,6 +37,7 @@ from tl_sim import groundtruth as gt
 from tl_sim.reader import SimReader
 from tl_sim.types import GroundTruth
 
+DECISION_EVENTS = frozenset({"Proposal.Accepted", "Proposal.Rejected", "Proposal.Failed"})
 SIM_ACTORS = ("user:sim-", "agent:sim-")
 ENVELOPE_FIELDS = {"title": "title", "record_type": "type", "voided": "voided", "status": "status"}
 
@@ -180,25 +182,29 @@ def run_assertions(
 
     # --- links -------------------------------------------------------------------------------
     links_of: dict[str, list[dict[str, Any]]] = {}
+
+    def active_link(source_key: str, relation: str, target_key: str) -> dict[str, Any] | None:
+        source = by_key.get(source_key)
+        if source is None:
+            return None
+        if source["id"] not in links_of:
+            links_of[source["id"]] = reader.links(source["id"])
+        return next(
+            (
+                v
+                for v in links_of[source["id"]]
+                if v["direction"] == "out"
+                and v["relation"] == relation
+                and v["other_key"] == target_key
+                and v["status"] == "active"
+            ),
+            None,
+        )
+
     for item in truth:
         if item.intent != gt.LINK_ADDED:
             continue
-        source = by_key.get(item.expect["from"])
-        found: dict[str, Any] | None = None
-        if source is not None:
-            if source["id"] not in links_of:
-                links_of[source["id"]] = reader.links(source["id"])
-            found = next(
-                (
-                    v
-                    for v in links_of[source["id"]]
-                    if v["direction"] == "out"
-                    and v["relation"] == item.expect["relation"]
-                    and v["other_key"] == item.expect["to"]
-                    and v["status"] == "active"
-                ),
-                None,
-            )
+        found = active_link(item.expect["from"], item.expect["relation"], item.expect["to"])
         check(found is not None, item.intent, item.ref, "active link", True, found is not None)
         written_by(item, str(found["link_id"]) if found is not None else None, "Link.Added")
 
@@ -233,6 +239,25 @@ def run_assertions(
             proposed[by] -= 1
         check(made, "actor_mismatch", item.ref, "proposal.created by", item.actor, None)
 
+    # --- decisions on proposals: made by the person the log names, and (for a link) done --------
+    decided: Counter[tuple[str, str, str, str]] = Counter(
+        (str(p["status"]), str(p["agent"]), str(p["tool"]), str(p.get("decided_by")))
+        for p in reader.proposals()
+    )
+    for item in truth:
+        if item.intent not in (gt.PROPOSAL_ACCEPTED, gt.PROPOSAL_REJECTED):
+            continue
+        status = "accepted" if item.intent == gt.PROPOSAL_ACCEPTED else "rejected"
+        key = (status, item.expect["agent"], item.expect["tool"], item.actor)
+        have = decided[key] > 0
+        if have:
+            decided[key] -= 1
+        check(have, item.intent, item.ref, f"proposal {status} by", item.actor, None)
+        if status == "accepted" and "from" in item.expect:
+            found = active_link(item.expect["from"], item.expect["relation"], item.expect["to"])
+            check(found is not None, item.intent, item.ref, "link made", True, found is not None)
+            written_by(item, str(found["link_id"]) if found is not None else None, "Link.Added")
+
     # --- events: only the simulator wrote, and on a simulated day --------------------------------
     for event in events:
         source = str(event["source"])
@@ -244,7 +269,8 @@ def run_assertions(
                 fail("event_time", ref, "effective_at", "a played day", event["effective_at"])
         else:
             report.checked += 1
-            if not source.startswith("mcp:"):
+            decision = event["event_type"] in DECISION_EVENTS and source == "api"
+            if not (source.startswith("mcp:") or decision):  # a decision is made over the API
                 fail("event_source", ref, "source", f"sim:{run_id}", source)
         report.checked += 1
         if not str(event["actor"]).startswith(SIM_ACTORS):

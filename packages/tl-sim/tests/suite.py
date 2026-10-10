@@ -29,6 +29,7 @@ IDENTITIES = [
     "user:sim-document_controller",
     "user:sim-planner",
     "user:sim-crew",
+    "user:sim-approver",
     "agent:sim-assistant",
     "user:alice",
 ]

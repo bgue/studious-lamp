@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from tl_sim.actors.approver import Approver
+from tl_sim.actors.assistant import Assistant
 from tl_sim.actors.base import BaseActor
 from tl_sim.actors.crew import Crew
 from tl_sim.actors.document_controller import DocumentController
@@ -14,6 +16,8 @@ ACTOR_CLASSES: dict[str, type[BaseActor]] = {
     "document_controller": DocumentController,
     "planner": Planner,
     "crew": Crew,
+    "assistant": Assistant,
+    "approver": Approver,
 }
 
 

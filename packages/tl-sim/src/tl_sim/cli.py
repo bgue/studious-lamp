@@ -69,8 +69,12 @@ def root(
         Path, typer.Option("--tokens", envvar="TL_TOKENS", help="The token file the API reads.")
     ] = Path(api.DEFAULT_TOKENS),
 ) -> None:
-    """Simulation options shared by every subcommand."""
-    ctx.obj = api.SimEnv(sim_dir=sim_dir, api_url=api_url, tokens_path=tokens)
+    """Simulation options shared by every subcommand.
+
+    Under ``tl`` the ledger file is the root ``--db`` (the MCP server for the agent opens it).
+    """
+    ledger = ctx.obj if isinstance(ctx.obj, Path) else Path(api.DEFAULT_DB)
+    ctx.obj = api.SimEnv(sim_dir=sim_dir, api_url=api_url, tokens_path=tokens, db_path=ledger)
 
 
 _Run = Annotated[str | None, typer.Option("--run", help="Run id; optional when one run exists.")]

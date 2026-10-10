@@ -22,7 +22,8 @@ INJECT_EVENTS = ("material_late", "design_revision", "post")
 MAX_INJECT_COUNT = 20  # revisions one design_revision injection may force
 MAX_INJECT_KEYS = 16
 MAX_INJECT_TEXT = 2000  # characters in any string argument, a post body included
-ACTOR_NAMES = ("document_controller", "planner", "crew")  # the order they act in each day
+ROLE_NAMES = ("document_controller", "planner", "crew")  # the project team, people (user:sim-*)
+ACTOR_NAMES = (*ROLE_NAMES, "assistant", "approver")  # the order they act in each day
 
 
 class Strict(BaseModel):
@@ -88,12 +89,26 @@ class CrewParams(Strict):
     announce: str | None = None  # one-off: the `material_late` injection posts this text
 
 
+class AssistantParams(Strict):
+    """The one simulated agent: proposes cross-references over MCP, changes no record itself."""
+
+    proposals_per_day: Count = 1
+
+
+class ApproverParams(Strict):
+    """A person who works the review queue: accepts or rejects what the assistant proposed."""
+
+    accept_rate: float = Field(default=1.0, ge=0, le=1)  # chance each pending proposal is accepted
+
+
 class ActorsConfig(Strict):
     """Per-actor parameters. ``null`` in the YAML switches an actor off."""
 
     document_controller: DocumentControllerParams | None = DocumentControllerParams()
     planner: PlannerParams | None = PlannerParams()
     crew: CrewParams | None = CrewParams()
+    assistant: AssistantParams | None = None  # off unless the scenario names it: needs MCP
+    approver: ApproverParams | None = None
 
     def enabled(self) -> list[str]:
         return [name for name in ACTOR_NAMES if getattr(self, name) is not None]
@@ -146,8 +161,8 @@ class InjectSpec(BaseModel):
         missing = [name for name in required[self.event] if name not in self.args]
         if missing:
             raise ValueError(f"{self.event} needs: {', '.join(missing)}")
-        if self.event == "post" and self.args["actor"] not in ACTOR_NAMES:
-            raise ValueError(f"post actor must be one of {', '.join(ACTOR_NAMES)}")
+        if self.event == "post" and self.args["actor"] not in ROLE_NAMES:
+            raise ValueError(f"post actor must be one of {', '.join(ROLE_NAMES)}")
         return self
 
 

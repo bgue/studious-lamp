@@ -16,6 +16,11 @@ actors:
   crew:
     valves_per_day: {dist: normal, mean: 3, sd: 1}
     reject_rate: 0.1
+  # One simulated agent proposes valve-to-document references over MCP; a person works the queue.
+  assistant:
+    proposals_per_day: 1
+  approver:
+    accept_rate: 0.7
 inject:
   - {day: 2, event: material_late, item: "6in CL300 WN flange", days: 21}
   - {day: 3, event: design_revision, count: 2}

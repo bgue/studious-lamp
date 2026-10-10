@@ -2631,6 +2631,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "tl-api" },
     { name = "tl-core" },
+    { name = "tl-mcp" },
     { name = "typer" },
 ]
 
@@ -2642,6 +2643,7 @@ requires-dist = [
     { name = "pyyaml" },
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mcp", editable = "packages/tl-mcp" },
     { name = "typer" },
 ]
 

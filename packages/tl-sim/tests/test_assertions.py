@@ -191,10 +191,108 @@ def test_an_event_on_a_day_that_was_not_played_is_reported() -> None:
     assert ("event_time", "effective_at") in failures(check(world, truth))
 
 
-def test_proposals_are_matched_one_to_one() -> None:
+ASSISTANT = "agent:sim-assistant"
+APPROVER = "user:sim-approver"
+
+
+def propose_world() -> tuple[FakeWorld, Recorder, Recorder]:
+    """Two records and one proposal to link them, from the assistant; the approver's recorder."""
     world = FakeWorld("r1", "project:sim-r1")
-    rec = Recorder(make_context(world, IDENTITY, propose=True), IDENTITY)
-    rec.propose("link_records", {"a": 1})
-    assert check(world, rec.truth).ok
+    maker = Recorder(make_context(world, IDENTITY), IDENTITY)
+    valve, doc = maker.create("Valve V001"), maker.create("Doc 001")
+    agent = Recorder(make_context(world, ASSISTANT, propose=True), ASSISTANT)
+    agent.propose(
+        "link_records",
+        {
+            "scope": world.scope,
+            "from_record": valve.key,
+            "to_record": doc.key,
+            "relation": "references",
+        },
+    )
+    person = Recorder(make_context(world, APPROVER, propose=True), APPROVER)
+    return world, agent, person
+
+
+def everything(world: FakeWorld, *recorders: Recorder) -> list[GroundTruth]:
+    return [item for recorder in recorders for item in recorder.truth]
+
+
+def test_proposals_are_matched_one_to_one() -> None:
+    world, agent, _ = propose_world()
+    assert check(world, agent.truth).failures[0].check == "unexpected_record"  # records not logged
+    world.record_rows.clear()
+    assert check(world, agent.truth).ok
     world.proposal_rows.clear()
-    assert ("proposal.created", "proposal") in failures(check(world, rec.truth))
+    assert ("proposal.created", "proposal") in failures(check(world, agent.truth))
+
+
+def test_an_accepted_proposal_passes_with_its_link_made_by_the_person() -> None:
+    world, agent, person = propose_world()
+    (proposal,) = person.pending()
+    person.decide(proposal, accept=True)
+    (decision,) = person.truth
+    assert decision.intent == "proposal.accepted"
+    assert decision.expect["relation"] == "references" and decision.expect["from"].endswith("0001")
+    log = _with_records(world, agent, person)
+    assert check(world, log).ok, [f.line() for f in check(world, log).failures]
+
+
+def _with_records(world: FakeWorld, *recorders: Recorder) -> list[GroundTruth]:
+    created = [
+        GroundTruth(
+            at=recorders[0].ctx.now,
+            actor=IDENTITY,
+            intent="record.created",
+            ref=r["key"],
+            expect={"title": r["title"], "record_type": "core.Record", "voided": False},
+        )
+        for r in world.record_rows
+    ]
+    return created + everything(world, *recorders)
+
+
+def test_a_rejected_proposal_passes_and_makes_no_link() -> None:
+    world, agent, person = propose_world()
+    (proposal,) = person.pending()
+    person.decide(proposal, accept=False, reason="Not needed")
+    assert person.truth[0].intent == "proposal.rejected"
+    assert check(world, _with_records(world, agent, person)).ok
+    assert world.link_rows == []
+
+
+def test_a_decision_by_someone_else_or_the_other_way_round_fails() -> None:
+    world, agent, person = propose_world()
+    (proposal,) = person.pending()
+    person.decide(proposal, accept=True)
+    world.proposal_rows[0]["decided_by"] = "user:sim-planner"
+    assert ("proposal.accepted", "proposal accepted by") in failures(
+        check(world, _with_records(world, agent, person))
+    )
+    world.proposal_rows[0].update(decided_by=APPROVER, status="rejected")
+    assert ("proposal.accepted", "proposal accepted by") in failures(
+        check(world, _with_records(world, agent, person))
+    )
+
+
+def test_an_accepted_link_that_is_missing_fails() -> None:
+    world, agent, person = propose_world()
+    (proposal,) = person.pending()
+    person.decide(proposal, accept=True)
+    world.link_rows.clear()
+    assert ("proposal.accepted", "link made") in failures(
+        check(world, _with_records(world, agent, person))
+    )
+
+
+def test_a_decision_event_made_over_the_api_is_not_a_foreign_source() -> None:
+    world, agent, person = propose_world()
+    (proposal,) = person.pending()
+    person.decide(proposal, accept=True)
+    events = {e["event_type"]: e["source"] for e in world.event_rows}
+    assert events["Proposal.Accepted"] == "api" and events["Link.Added"] == "mcp:sim-assistant"
+    assert "event_source" not in {
+        f.check for f in check(world, _with_records(world, agent, person)).failures
+    }
+    world.event_rows[-1]["event_type"] = "Record.Updated"  # the same source on anything else is
+    assert ("event_source", "source") in failures(check(world, _with_records(world, agent, person)))

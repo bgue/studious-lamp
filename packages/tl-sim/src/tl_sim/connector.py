@@ -10,7 +10,7 @@ the run is reopened.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from tl_api.client import ApiClient
@@ -18,7 +18,8 @@ from tl_api.tokens import add_token
 
 from tl_sim.client import HttpSimClient, Keys, McpCaller, connect
 from tl_sim.clock import SimClock
-from tl_sim.orchestrator import ORCHESTRATOR
+from tl_sim.mcp_caller import stdio_caller
+from tl_sim.orchestrator import ASSISTANT, ORCHESTRATOR
 from tl_sim.reader import HttpReader, SimReader
 from tl_sim.types import SimClient
 
@@ -30,12 +31,14 @@ class HttpConnector:
         tokens_path: Path,
         *,
         run_id: str,
-        mcp: McpCaller | None = None,
+        db_path: Path | None = None,
+        mcp: Callable[[str], McpCaller | None] | None = None,
     ) -> None:
         self.base_url = base_url
         self.tokens_path = tokens_path
         self.run_id = run_id
-        self.mcp = mcp
+        self.db_path = db_path
+        self._mcp = mcp
 
     @property
     def scope(self) -> str:
@@ -55,8 +58,16 @@ class HttpConnector:
             clock=clock,
             keys=keys,
             identity=identity,
-            mcp=self.mcp,
+            mcp=self._mcp_for(identity),
         )
+
+    def _mcp_for(self, identity: str) -> McpCaller | None:
+        """The agent reaches the MCP server (a process on the ledger file); people do not."""
+        if self._mcp is not None:
+            return self._mcp(identity)
+        if identity == ASSISTANT and self.db_path is not None:
+            return stdio_caller(identity, self.db_path)
+        return None
 
     def reader(self, tokens: dict[str, str]) -> SimReader:
         return HttpReader(ApiClient(self.base_url, tokens[ORCHESTRATOR]), self.scope)

@@ -15,10 +15,11 @@ pattern, so a ``#SIMR3FA91C-REC-0007`` in a post resolves to its record.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, Protocol, cast
+from typing import Any, Protocol, runtime_checkable
 
 import httpx2
 from tl_api.client import ApiClient
+from tl_core.proposals.types import ProposalStatus, ProposalView
 from tl_core.services.commands import CommandResult, CreateRecord
 from tl_core.services.feed import PostToFeed
 from tl_core.services.links import AddLink
@@ -54,6 +55,25 @@ class ApiLike(Protocol):
     def query_records(
         self, scope: str, q: str, *, limit: int = 500, offset: int = 0
     ) -> list[dict[str, Any]]: ...
+    def list_proposals(
+        self,
+        scope: str,
+        *,
+        status: ProposalStatus | None = "pending",
+        agent: str | None = None,
+        limit: int = 200,
+    ) -> list[ProposalView]: ...
+    def accept_proposal(self, proposal_id: str, *, roles: Sequence[str] = ()) -> ProposalView: ...
+    def reject_proposal(self, proposal_id: str, reason: str) -> ProposalView: ...
+
+
+@runtime_checkable
+class ProposalDesk(Protocol):
+    """What a person working the review queue needs on top of ``SimClient`` (not part of it)."""
+
+    def pending_proposals(self) -> list[dict[str, Any]]: ...
+    def accept_proposal(self, proposal_id: str) -> dict[str, Any]: ...
+    def reject_proposal(self, proposal_id: str, reason: str) -> dict[str, Any]: ...
 
 
 class Keys:
@@ -82,8 +102,7 @@ def connect(base_url: str, token: str, clock: SimClock, *, timeout: float = 30.0
     """An ``ApiClient`` for one actor whose requests carry the simulated time."""
     http = httpx2.Client(base_url=base_url.rstrip("/"), timeout=timeout)
     install_stamp(http, clock)
-    # ApiClient gains `feed_post` with the feed methods of P0-I6 workstream B.
-    return cast("ApiLike", ApiClient(base_url, token, http=http))
+    return ApiClient(base_url, token, http=http)
 
 
 class HttpSimClient:
@@ -187,3 +206,17 @@ class HttpSimClient:
 
     def query(self, q: str, *, limit: int = 100) -> list[dict[str, Any]]:
         return self._api.query_records(self._scope, q, limit=min(limit, MAX_QUERY))
+
+    # --- the review queue, for the person who works it (``ProposalDesk``) -----------------------
+
+    def pending_proposals(self) -> list[dict[str, Any]]:
+        views = self._api.list_proposals(self._scope, status="pending")
+        return [view.model_dump(mode="json") for view in views]
+
+    def accept_proposal(self, proposal_id: str) -> dict[str, Any]:
+        self._clock.tick()
+        return self._api.accept_proposal(proposal_id, roles=self._roles).model_dump(mode="json")
+
+    def reject_proposal(self, proposal_id: str, reason: str) -> dict[str, Any]:
+        self._clock.tick()
+        return self._api.reject_proposal(proposal_id, reason).model_dump(mode="json")

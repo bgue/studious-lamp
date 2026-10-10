@@ -16,8 +16,9 @@ from typing import Any
 from tl_core.services.errors import GuardFailedError, UnknownTransitionError
 
 from tl_sim.actors.base import Rec, Recorder
-from tl_sim.client import Keys
+from tl_sim.client import Keys, ProposeUnavailableError
 from tl_sim.clock import SimClock
+from tl_sim.mcp_caller import ProposalRefusedError
 from tl_sim.rng import actor_rng
 from tl_sim.types import SimContext
 
@@ -130,10 +131,16 @@ class FakeClient:
         self.can_propose = can_propose
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
 
-    def _write(self, event_type: str, stream: str, payload: dict[str, Any] | None = None) -> None:
+    def _write(
+        self,
+        event_type: str,
+        stream: str,
+        payload: dict[str, Any] | None = None,
+        source: str | None = None,
+    ) -> None:
         when = self.clock.tick()
         self.world.emit(
-            event_type, self.identity, f"sim:{self.world.run_id}", when, stream, payload
+            event_type, self.identity, source or f"sim:{self.world.run_id}", when, stream, payload
         )
 
     def create_record(
@@ -224,15 +231,91 @@ class FakeClient:
     def propose(self, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
         self.calls.append(("propose", (tool,)))
         if not self.can_propose:
-            from tl_sim.client import ProposeUnavailableError
-
             raise ProposeUnavailableError("the fake world was built without proposals")
+        command: dict[str, Any] = {}
+        if tool == "link_records":
+            source = self._by_key(arguments["from_record"])
+            target = self._by_key(arguments["to_record"])
+            relation = arguments.get("relation") or "references"
+            if any(
+                link["from_id"] == source["id"]
+                and link["to_id"] == target["id"]
+                and link["view"]["relation"] == relation
+                for link in self.world.link_rows
+            ):
+                raise ProposalRefusedError(
+                    f"a {relation} link already exists between these records"
+                )
+            command = {"from_id": source["id"], "to_id": target["id"], "relation": relation}
         proposal_id = f"proposal-{len(self.world.proposal_rows) + 1}"
         self.world.proposal_rows.append(
-            {"id": proposal_id, "agent": self.identity, "tool": tool, "arguments": arguments}
+            {
+                "proposal_id": proposal_id,
+                "agent": self.identity,
+                "tool": tool,
+                "status": "pending",
+                "decided_by": None,
+                "reason": None,
+                "command": command,
+            }
         )
-        self._write("Proposal.Created", proposal_id, {"agent": self.identity, "tool": tool})
-        return {"proposal_id": proposal_id}
+        self._write(
+            "Proposal.Created",
+            proposal_id,
+            {"agent": self.identity, "tool": tool},
+            source=f"mcp:{self.identity.removeprefix('agent:')}",
+        )
+        return {"proposal": {"proposal_id": proposal_id, "status": "pending"}}
+
+    def _by_key(self, key: str) -> dict[str, Any]:
+        for record in self.world.record_rows:
+            if record["key"] == key:
+                return record
+        raise ProposalRefusedError(f"no record {key!r}")
+
+    # --- the review queue, for a person (the ProposalDesk of tl_sim.client) -----------------------
+
+    def pending_proposals(self) -> list[dict[str, Any]]:
+        return [dict(p) for p in self.world.proposal_rows if p["status"] == "pending"]
+
+    def _decide(self, proposal_id: str, status: str, reason: str | None) -> dict[str, Any]:
+        for proposal in self.world.proposal_rows:
+            if proposal["proposal_id"] == proposal_id and proposal["status"] == "pending":
+                proposal.update(status=status, decided_by=self.identity, reason=reason)
+                return proposal
+        raise LookupError(f"no pending proposal {proposal_id!r}")
+
+    def accept_proposal(self, proposal_id: str) -> dict[str, Any]:
+        self.calls.append(("accept_proposal", (proposal_id,)))
+        proposal = self._decide(proposal_id, "accepted", None)
+        agent_source = f"mcp:{str(proposal['agent']).removeprefix('agent:')}"
+        if proposal["tool"] == "link_records":
+            command = proposal["command"]
+            link_id = f"link-{len(self.world.link_rows) + 1}"
+            source = self.world.record(command["from_id"])
+            target = self.world.record(command["to_id"])
+            self.world.link_rows.append(
+                {
+                    "from_id": source["id"],
+                    "to_id": target["id"],
+                    "from_key": source["key"],
+                    "to_key": target["key"],
+                    "view": {
+                        "link_id": link_id,
+                        "relation": command["relation"],
+                        "status": "active",
+                    },
+                }
+            )
+            self._write("Link.Added", link_id, source=agent_source)
+        self._write("Proposal.Accepted", proposal_id, source="api")
+        return dict(proposal)
+
+    def reject_proposal(self, proposal_id: str, reason: str) -> dict[str, Any]:
+        self.calls.append(("reject_proposal", (proposal_id,)))
+        proposal = self._decide(proposal_id, "rejected", reason)
+        self._write("Proposal.Rejected", proposal_id, source="api")
+        return dict(proposal)
 
     def query(self, q: str, *, limit: int = 100) -> list[dict[str, Any]]:
         """Records of the scope. Only the filters the actors use are understood; others raise."""
@@ -242,6 +325,9 @@ class FakeClient:
             if term.startswith("title~"):
                 needle = term.removeprefix("title~").strip('"').lower()
                 found = [r for r in found if needle in r["title"].lower()]
+            elif term.startswith("id:"):
+                wanted = term.removeprefix("id:")
+                found = [r for r in found if r["id"] == wanted]
             elif term.startswith("status:"):
                 want = term.removeprefix("status:")
                 found = [r for r in found if (r["status"] or "null") == want]

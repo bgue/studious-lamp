@@ -12,6 +12,7 @@ from typing import Any, Protocol, cast
 from tl_api.client import ApiClient
 
 PAGE = 500  # the event pager's limit
+PROPOSAL_PAGE = 200  # the proposals route's limit
 FEED_PAGE = 200  # the feed route's limit (GET /feed answers 422 above it)
 
 
@@ -33,7 +34,7 @@ class SimReader(Protocol):
         ...
 
     def proposals(self) -> list[dict[str, Any]]:
-        """Every proposal of the scope: ``agent, tool, status``."""
+        """Every proposal of the scope: ``agent, tool, status, decided_by, reason``."""
         ...
 
 
@@ -84,4 +85,5 @@ class HttpReader:
             after = page.next_seq
 
     def proposals(self) -> list[dict[str, Any]]:
-        return []  # the review queue is read here once the proposals service is wired
+        views = self._api.list_proposals(self._scope, status=None, limit=PROPOSAL_PAGE)
+        return [view.model_dump(mode="json") for view in views]
