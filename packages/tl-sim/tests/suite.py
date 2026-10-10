@@ -25,9 +25,10 @@ RUN_ID = "rt1"
 SCOPE = f"project:sim-{RUN_ID}"
 START = datetime(2026, 11, 2, 7, 0, tzinfo=UTC)
 IDENTITIES = [
-    "user:sim-crew",
-    "user:sim-planner",
     "user:sim-orchestrator",
+    "user:sim-document_controller",
+    "user:sim-planner",
+    "user:sim-crew",
     "agent:sim-assistant",
     "user:alice",
 ]
@@ -62,6 +63,7 @@ class Suite:
 
 
 def build_suite(tmp_path: Path) -> Suite:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     db = tmp_path / "tl.db"
     create_schema(db)
     backend = SqliteUowFactory(db)
