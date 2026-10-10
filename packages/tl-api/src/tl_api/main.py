@@ -118,7 +118,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     backend = open_sqlite_backend(settings.db_path)
     try:
         app = create_app(backend, settings=settings, files_service=file_service_from_env())
-        started_server(app, settings, lambda: mark_server_started(backend)).run()
+        server = started_server(app, settings, lambda: mark_server_started(backend))
+        server.run()
+        if not server.started:
+            # uvicorn.run exits 3 here; run() alone returns when the app's startup failed
+            print("error: the server did not start (see the log above)", file=sys.stderr)
+            return 3
     finally:
         backend.close()
     return 0
