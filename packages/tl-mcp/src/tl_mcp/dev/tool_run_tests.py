@@ -84,7 +84,7 @@ def _write_report(ctx: DevContext, args: list[str], exit_code: int, output: str)
     command = " ".join(["python", "-m", "pytest", *args])
     body = f"{command}\nexit code: {exit_code}\n\n{_capped(output)}"
     (reports / name).write_text(body, encoding="utf-8")
-    kept = sorted(p.name for p in reports.iterdir() if _REPORT_NAME.match(p.name))
+    kept = sorted(p.name for p in reports.iterdir() if _REPORT_NAME.fullmatch(p.name))
     for old in kept[: max(0, len(kept) - MAX_REPORTS)]:
         (reports / old).unlink()
     return name

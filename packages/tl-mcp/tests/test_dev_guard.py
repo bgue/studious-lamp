@@ -32,15 +32,35 @@ def test_a_sqlite_file_under_dev_is_dev_data() -> None:
     assert resolve_target(REPO / "dev/demos/x.db", repo_root=REPO).kind == "sqlite"
 
 
+# The repository can itself be checked out under a temporary directory (a CI runner, /tmp), which
+# the guard allows, so the paths that are relative to the repository are tried against a repository
+# root that is certainly not under one.
+NOT_UNDER_TMP = Path("/srv/throughline-not-a-real-checkout")
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "tl.db",  # the repository root itself is not dev/
+        "packages/tl-core/x.db",
+        "dev/../tl.db",
+        "dev/data/../../tl.db",
+    ],
+)
+def test_a_relative_sqlite_path_outside_dev_is_refused(raw: str) -> None:
+    with pytest.raises(DevGuardError):
+        resolve_target(raw, repo_root=NOT_UNDER_TMP)
+    assert resolve_target("dev/data/tl.db", repo_root=NOT_UNDER_TMP).path == (
+        NOT_UNDER_TMP / "dev/data/tl.db"
+    )
+
+
 @pytest.mark.parametrize(
     "raw",
     [
         "/etc/passwd",
         "/home/user/other.db",
-        "tl.db",  # the repository root itself is not dev/
-        "packages/tl-core/x.db",
-        "dev/../tl.db",
-        "dev/data/../../tl.db",
+        "/tmp-evil/x.db",  # a sibling whose name starts like the temp directory
         "file:/tmp/x.db",
         "sqlite:////tmp/x.db",
         "/tmp/x.db\x00.txt",
@@ -49,7 +69,7 @@ def test_a_sqlite_file_under_dev_is_dev_data() -> None:
 )
 def test_a_sqlite_path_outside_dev_data_is_refused(raw: str) -> None:
     with pytest.raises(DevGuardError):
-        resolve_target(raw, repo_root=REPO)
+        resolve_target(raw, repo_root=NOT_UNDER_TMP)
 
 
 def test_a_symlink_that_leaves_the_allowed_roots_is_refused(tmp_path: Path) -> None:
@@ -181,7 +201,7 @@ def test_a_marker_outside_the_allow_list_is_refused(marker: str) -> None:
         select_pytest_args(repo_root=REPO, marker=marker)
 
 
-@pytest.mark.parametrize("keyword", ["-x", "a;b", "a $(id)", "a\nb", "x" * 201, "", "a.b"])
+@pytest.mark.parametrize("keyword", ["-x", "a;b", "a $(id)", "a\nb", "a\n", "x" * 201, "", "a.b"])
 def test_a_keyword_with_other_characters_is_refused(keyword: str) -> None:
     with pytest.raises(DevGuardError, match="keyword"):
         select_pytest_args(repo_root=REPO, keyword=keyword)
@@ -258,7 +278,19 @@ def test_a_document_is_found_by_its_plain_name(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "name", ["../x.md", "a/b.md", "..", ".hidden.md", "a..b.md", "x.txt", "", "a\x00.md", "x" * 200]
+    "name",
+    [
+        "../x.md",
+        "a/b.md",
+        "..",
+        ".hidden.md",
+        "a..b.md",
+        "x.txt",
+        "",
+        "a\x00.md",
+        "x.md\n",
+        "x" * 200,
+    ],
 )
 def test_a_name_that_is_not_a_plain_document_name_is_refused(tmp_path: Path, name: str) -> None:
     (tmp_path / "x.txt").write_text("x")

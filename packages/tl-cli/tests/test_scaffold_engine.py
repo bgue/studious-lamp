@@ -160,3 +160,10 @@ def test_a_record_type_needs_its_module(tmp_path: Path) -> None:
     (tmp_path / "packages/tl-modules/inspection").mkdir(parents=True)
     (tmp_path / "packages/tl-modules/inspection/pyproject.toml").write_text("x")
     require_module(tmp_path, "packages/tl-modules/inspection", "inspection")
+
+
+def test_a_trailing_newline_is_not_part_of_a_valid_event_type() -> None:
+    """`$` matches before a final newline and `--event` is not stripped: names use fullmatch."""
+    for bad in ("Weld.Created\n", "Weld\n.Created", "Weld.Created\n\n"):
+        with pytest.raises(NameError_):
+            check_event_type(bad)

@@ -123,3 +123,10 @@ def test_a_bad_name_or_event_is_refused_and_nothing_is_written(root: Path, args:
     result = tl_new(root, "projector", *args)
     assert result.exit_code != 0
     assert sorted(p.as_posix() for p in root.rglob("*") if p.is_file()) == before
+
+
+def test_an_event_with_a_trailing_newline_is_refused(root: Path) -> None:
+    before = sorted(p.as_posix() for p in root.rglob("*") if p.is_file())
+    result = tl_new(root, "projector", "inspection.counts", "--event", "Weld.Created\n")
+    assert result.exit_code != 0
+    assert sorted(p.as_posix() for p in root.rglob("*") if p.is_file()) == before

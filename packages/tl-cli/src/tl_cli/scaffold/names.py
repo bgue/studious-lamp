@@ -26,7 +26,7 @@ class NameError_(ValueError):
 
 def check_module(name: str) -> str:
     """``name`` as a module name, or :class:`NameError_`."""
-    if not _MODULE.match(name) or not 2 <= len(name) <= MAX_MODULE:
+    if not _MODULE.fullmatch(name) or not 2 <= len(name) <= MAX_MODULE:
         raise NameError_(
             f"module name {name!r}: use 2 to 20 lower-case letters, digits and single underscores, "
             "starting with a letter"
@@ -110,7 +110,7 @@ def parse_record_type(text: str) -> RecordTypeName:
         raise NameError_(
             f"record type {text!r}: write <module>.<Class>, for example inspection.Weld"
         )
-    if not _CLASS.match(cls) or len(cls) > MAX_CLASS:
+    if not _CLASS.fullmatch(cls) or len(cls) > MAX_CLASS:
         raise NameError_(
             f"class name {cls!r}: use CamelCase letters and digits (at most {MAX_CLASS}), "
             "starting with a capital"
@@ -125,7 +125,7 @@ def parse_projector(text: str) -> ProjectorName:
         raise NameError_(
             f"projector {text!r}: write <module>.<name>, for example inspection.counts"
         )
-    if not _SNAKE.match(name) or not 2 <= len(name) <= MAX_PROJECTOR:
+    if not _SNAKE.fullmatch(name) or not 2 <= len(name) <= MAX_PROJECTOR:
         raise NameError_(
             f"projector name {name!r}: use lower_snake_case letters and digits "
             f"(2 to {MAX_PROJECTOR})"
@@ -135,6 +135,6 @@ def parse_projector(text: str) -> ProjectorName:
 
 def check_event_type(text: str) -> str:
     """``Record.Created`` style event type, or :class:`NameError_`."""
-    if not _EVENT.match(text) or len(text) > 80:
+    if not _EVENT.fullmatch(text) or len(text) > 80:
         raise NameError_(f"event type {text!r}: write <Class>.<PastTenseVerb>, e.g. Weld.Created")
     return text

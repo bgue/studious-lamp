@@ -150,7 +150,7 @@ def resolve_postgres(raw: str) -> DevTarget:
             f"(got {database!r}); the dev server never touches other databases"
         )
     for key, value in url.query.items():
-        if key != "options" or not isinstance(value, str) or not _PG_OPTIONS.match(value):
+        if key != "options" or not isinstance(value, str) or not _PG_OPTIONS.fullmatch(value):
             raise DevGuardError(
                 "refused: the only URL parameter allowed is options=-csearch_path=<schema>"
             )
@@ -210,7 +210,7 @@ def select_pytest_args(
             raise DevGuardError(f"marker must be one of {', '.join(sorted(ALLOWED_MARKERS))}")
         args += ["-m", marker]
     if keyword is not None:
-        if not _KEYWORD.match(keyword):
+        if not _KEYWORD.fullmatch(keyword):
             raise DevGuardError("keyword may only hold letters, digits, _, spaces and parentheses")
         args += ["-k", keyword]
     if adapters is not None:
@@ -221,7 +221,7 @@ def select_pytest_args(
         raise DevGuardError(f"at most {MAX_TEST_PATHS} test paths")
     root = repo_root.resolve()
     for raw in paths:
-        if not _TEST_PATH.match(raw):
+        if not _TEST_PATH.fullmatch(raw):
             raise DevGuardError(
                 "a test path is relative, under packages/<package>/tests or tests, and may end "
                 "in ::test_name"
@@ -317,7 +317,7 @@ def safe_child(directory: Path, name: str, suffixes: Sequence[str]) -> Path:
     ``name`` is a plain file name: no separator, no ``..``, one of ``suffixes``. The resolved path
     must still be inside ``directory`` (a symlink that leaves it is refused).
     """
-    if not _DOC_NAME.match(name) or ".." in name or not name.endswith(tuple(suffixes)):
+    if not _DOC_NAME.fullmatch(name) or ".." in name or not name.endswith(tuple(suffixes)):
         raise DevGuardError(f"not a document name: {name[:60]!r}")
     root = directory.resolve()
     target = (root / name).resolve()
