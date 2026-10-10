@@ -16,7 +16,7 @@ from tl_core.webhooks.signing import SigningSecret, generate_secret, sign_header
 from tl_core.webhooks.transport import HttpxTransport
 from tl_schema import catalog
 
-from tl_mcp.dev.guard import check_loopback_url
+from tl_mcp.dev.guard import check_loopback_url, redact_url
 from tl_mcp.dev.runtime import DevContext, guarded
 
 SEND_ONLY = ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=False)
@@ -34,7 +34,7 @@ class WebhookTestOutput(BaseModel):
     excerpt: str  # the receiver's answer, at most 512 characters
     event_id: str
     event_type: str
-    target: str  # "<ip>:<port>", the address the request was sent to
+    target: str  # "<ip>:<port>" ("[<ipv6>]:<port>"), the address the request was sent to
     secret: str | None  # set only when the tool generated the secret; a given one is never echoed
     header: str = "webhook-test: 1"
 
@@ -79,7 +79,7 @@ def register(server: MCPServer, ctx: DevContext) -> None:
         `secret` a fresh one is generated and returned in `secret` so the receiver can be set up
         with it; a secret you pass is never echoed back.
         """
-        with guarded(ctx, "send_test_webhook", {"url": url, "event_type": event_type}):
+        with guarded(ctx, "send_test_webhook", {"url": redact_url(url), "event_type": event_type}):
             target = check_loopback_url(url)
             known = catalog.event_types()
             if event_type not in known:
@@ -125,6 +125,8 @@ def register(server: MCPServer, ctx: DevContext) -> None:
                 excerpt=result.excerpt[:EXCERPT_MAX_CHARS],
                 event_id=event_id,
                 event_type=event_type,
-                target=f"{target.ip}:{target.port}",
+                target=f"[{target.ip}]:{target.port}"
+                if ":" in target.ip
+                else f"{target.ip}:{target.port}",
                 secret=generated,
             )

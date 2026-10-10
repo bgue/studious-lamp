@@ -118,3 +118,27 @@ def test_the_child_environment_drops_the_servers_other_variables(dev_env: DevHar
     assert env["TL_ENV"] == "dev"
     assert env["PATH"] == "/usr/bin:/bin" and env["HOME"] == "/root"
     assert env["TL_DB"] == "/tmp/x.db"
+
+
+def test_stop_api_on_kills_a_server_started_in_its_own_session() -> None:
+    """The SIGKILL fallback cannot reach an API started with setsid: it is found by its port."""
+    import os
+    import subprocess
+    import sys
+    import time
+
+    from tl_mcp.dev.tool_seed import _free_loopback_port, _stop_api_on  # pyright: ignore
+
+    port = _free_loopback_port()
+    child = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)", "serve", "--port", str(port)],
+        start_new_session=True,
+    )
+    try:
+        time.sleep(0.3)
+        _stop_api_on(port)
+        assert child.wait(timeout=5) != 0
+        assert os.getpid() != child.pid
+    finally:
+        if child.poll() is None:
+            child.kill()

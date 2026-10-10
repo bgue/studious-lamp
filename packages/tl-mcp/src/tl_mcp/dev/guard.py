@@ -255,6 +255,14 @@ class LoopbackUrl:
         return host if self.port == default else f"{host}:{self.port}"
 
 
+_USERINFO = re.compile(r"^([A-Za-z][A-Za-z0-9+.-]*://)[^/?#@]*@")
+
+
+def redact_url(url: str) -> str:
+    """``url`` with any ``user:password@`` part replaced by ``***@``, for audit lines and errors."""
+    return _USERINFO.sub(r"\1***@", url)
+
+
 def check_loopback_url(url: str) -> LoopbackUrl:
     """``url`` as a loopback target, or :class:`DevGuardError`.
 

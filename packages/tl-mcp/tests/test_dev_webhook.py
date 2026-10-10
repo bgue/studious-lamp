@@ -19,6 +19,7 @@ from dev_harness import DevHarness
 from mcp.server.mcpserver.exceptions import ToolError
 from tl_core.webhooks.receiver import DevReceiver
 from tl_core.webhooks.signing import SigningSecret, generate_secret, verify
+from tl_mcp.dev.guard import redact_url
 
 WRONG_SECRET = generate_secret()
 
@@ -157,7 +158,8 @@ def test_refused_targets_are_audited_and_receive_nothing(dev_env: DevHarness, ur
         for line in dev_env.audit_lines()
         if line["tool"] == "send_test_webhook" and line["outcome"] == "refused"
     ]
-    assert any(line["detail"]["url"] == url for line in refusals)
+    expected = redact_url(url)  # a password in the URL never reaches the audit file
+    assert any(line["detail"]["url"] == expected for line in refusals)
 
 
 def test_a_malformed_secret_is_refused(dev_env: DevHarness) -> None:
@@ -237,3 +239,44 @@ def test_the_generated_secret_is_not_in_the_audit(dev_env: DevHarness) -> None:
     with DevReceiver([generate_secret()]) as receiver:
         out: dict[str, Any] = dev_env.structured("send_test_webhook", url=receiver.url)
     assert out["secret"] not in _audit_text(dev_env)
+
+
+def test_userinfo_is_redacted_in_the_audit_and_the_error(dev_env: DevHarness) -> None:
+    with pytest.raises(ToolError) as caught:
+        dev_env.call("send_test_webhook", url="http://user:s3cret@127.0.0.1:9/h")
+    assert "s3cret" not in str(caught.value)
+    assert dev_env.ctx.audit_path is not None
+    audit_text = dev_env.ctx.audit_path.read_text()
+    assert "s3cret" not in audit_text and "***@127.0.0.1" in audit_text
+
+
+def test_an_ipv6_target_is_shown_in_brackets(dev_env: DevHarness) -> None:
+    import socket
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class V6(HTTPServer):
+        address_family = socket.AF_INET6
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:  # noqa: N802
+            self.rfile.read(int(self.headers.get("content-length", "0")))
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+            pass
+
+    try:
+        server = V6(("::1", 0), Handler)
+    except OSError:
+        pytest.skip("IPv6 loopback is not available")
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        port = server.server_address[1]
+        out = dev_env.structured("send_test_webhook", url=f"http://[::1]:{port}/h")
+        assert out["ok"] is True and out["target"] == f"[::1]:{port}"
+    finally:
+        server.shutdown()
+        server.server_close()

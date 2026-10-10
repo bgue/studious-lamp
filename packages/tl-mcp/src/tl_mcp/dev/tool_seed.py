@@ -55,6 +55,25 @@ def _signal_group(pid: int, sig: signal.Signals) -> None:
         pass
 
 
+def _stop_api_on(port: int) -> None:
+    """Kill the API that ``seed.sh`` started on ``port`` (``tl serve --port <port>``).
+
+    The script starts it under ``setsid``, so a signal to the script's group does not reach it; the
+    script's own ``EXIT`` trap does, but not after SIGKILL. Find it by its command line.
+    """
+    wanted = str(port)
+    for entry in os.scandir("/proc"):
+        if not entry.name.isdigit() or int(entry.name) == os.getpid():
+            continue
+        try:
+            with open(f"/proc/{entry.name}/cmdline", "rb") as handle:
+                args = handle.read().decode(errors="replace").split("\0")
+            if "serve" in args and "--port" in args and wanted == args[args.index("--port") + 1]:
+                os.killpg(os.getpgid(int(entry.name)), signal.SIGKILL)
+        except (OSError, IndexError):  # the process ended meanwhile, or is not ours to signal
+            continue
+
+
 def _first(pattern: re.Pattern[str], text: str) -> str | None:
     match = pattern.search(text)
     return match.group(1) if match else None
@@ -124,6 +143,7 @@ def register(server: MCPServer, ctx: DevContext) -> None:
                 except subprocess.TimeoutExpired:
                     _signal_group(proc.pid, signal.SIGKILL)
                     out, _ = proc.communicate()
+                _stop_api_on(port)  # also after a clean TERM: cheap, and the API must not survive
             duration = time.monotonic() - started
             return SeedOutput(
                 ok=proc.returncode == 0 and not timed_out,
