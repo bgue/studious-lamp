@@ -1,6 +1,6 @@
 # Increment plan: P0-I6 workstream C, simulator v0
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-10
 Brief sections: §29.5, §29.1, §5.1, §18.1 to §18.3
 Branch: `p0/i6c` (worktree `/home/user/wt/p0-i6c`, base `p0/i6` at 037f4da), fanout plan `docs/tickets/P0-I6/FANOUT.md`
