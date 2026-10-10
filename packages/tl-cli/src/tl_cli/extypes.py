@@ -1,4 +1,3 @@
-# ruff: noqa: F401  (STUB P0-I8-T20: delete this line when the unused imports are gone)
 """The `tl types` group: register, list, show and retire extension record types (brief 31).
 
 Each subcommand parses options, makes one call into `tl_core.extypes`, and prints. The rules
@@ -13,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
 from pathlib import Path
-from typing import Annotated, NoReturn
+from typing import Annotated, NoReturn, cast
 
 import typer
 from pydantic import ValidationError
@@ -70,7 +69,8 @@ def issue_line(issue: TypeIssue) -> str:
     Two spaces, ``issue.kind``, a space, ``issue.path`` (``-`` when ``None``), a colon, a space,
     ``issue.detail``.
     """
-    raise NotImplementedError("STUB (P0-I8-T20)")
+    path = "-" if issue.path is None else issue.path
+    return f"  {issue.kind} {path}: {issue.detail}"
 
 
 def type_line(view: TypeView) -> str:
@@ -80,7 +80,13 @@ def type_line(view: TypeView) -> str:
     comma. A quarantined type has no storage mode or index fields yet: both columns read ``-``,
     as does an empty index field list.
     """
-    raise NotImplementedError("STUB (P0-I8-T20)")
+    reg = view.registration
+    if reg.status == "quarantined":
+        mode, fields = "-", "-"
+    else:
+        mode = reg.storage_mode
+        fields = ",".join(reg.index_fields) or "-"
+    return f"{reg.type_ref}  {reg.status}  {mode}  {fields}"
 
 
 def detail_lines(detail: TypeDetail) -> list[str]:
@@ -95,7 +101,33 @@ def detail_lines(detail: TypeDetail) -> list[str]:
     `` indexed`` when indexed (in that order); then, when ``detail.report`` is not empty, a line
     ``issues`` followed by ``issue_line(issue)`` for each.
     """
-    raise NotImplementedError("STUB (P0-I8-T20)")
+    reg = detail.registration
+    lines = [f"type {reg.type_ref}", f"status {reg.status}"]
+    if reg.status != "quarantined":
+        lines.append(f"storage {reg.storage_mode}")
+    if reg.owner:
+        lines.append(f"owner {reg.owner}")
+    lines.append(f"location {reg.location_uri}")
+    lines.append(f"content_hash {reg.content_hash}")
+    if reg.schema_hash:
+        lines.append(f"schema_hash {reg.schema_hash}")
+    if detail.unavailable is not None:
+        lines.append(f"unavailable {detail.unavailable}")
+    if detail.form is not None:
+        lines.append("fields")
+        for field in detail.form.fields():
+            parts = [f"  {field.name} {field.kind}"]
+            if field.required:
+                parts.append("required")
+            if field.multivalued:
+                parts.append("multiple")
+            if field.indexed:
+                parts.append("indexed")
+            lines.append(" ".join(parts))
+    if detail.report:
+        lines.append("issues")
+        lines.extend(issue_line(issue) for issue in detail.report)
+    return lines
 
 
 def sync_lines(db: Path, root: Path, actor: str) -> list[str]:
@@ -108,7 +140,25 @@ def sync_lines(db: Path, root: Path, actor: str) -> list[str]:
     version's entry in ``registry.list_quarantined`` (read in a read-only unit of work). When
     nothing changed the only line is ``up to date (<n> packages)``, ``n = len(scan(root))``.
     """
-    raise NotImplementedError("STUB (P0-I8-T20)")
+    if not root.is_dir():
+        _fail(f"no such directory: {root}")
+    with _service_errors():
+        views = registry.sync(_factory(db), root, actor=actor, source="cli")
+        with open_uow(db, readonly=True) as uow:
+            entries = {entry.type_ref: entry for entry in registry.list_quarantined(uow.conn())}
+    if not views:
+        return [f"up to date ({len(registry.scan(root))} packages)"]
+    lines: list[str] = []
+    for view in views:
+        ref = view.registration.type_ref
+        if view.registration.status == "active":
+            lines.append(f"registered {ref}")
+            continue
+        lines.append(f"quarantined {ref}")
+        entry = entries.get(ref)
+        if entry is not None:
+            lines.extend(issue_line(issue) for issue in entry.report)
+    return lines
 
 
 @app.command("sync")
@@ -126,7 +176,15 @@ def sync(
     ``registry.list_quarantined`` (read-only unit of work); when there are entries print
     ``<n> quarantined`` to stderr and exit 1.
     """
-    raise NotImplementedError("STUB (P0-I8-T20)")
+    db: Path = ctx.obj
+    for line in sync_lines(db, root, actor):
+        typer.echo(line)
+    if strict:
+        with _service_errors(), open_uow(db, readonly=True) as uow:
+            quarantined = len(registry.list_quarantined(uow.conn()))
+        if quarantined:
+            typer.echo(f"{quarantined} quarantined", err=True)
+            raise typer.Exit(code=1)
 
 
 @app.command("ls")
@@ -143,7 +201,14 @@ def ls(
     status=...)`` in a read-only unit of work inside ``_service_errors`` (``status=None`` for
     ``all``) and print ``type_line(view)`` for each.
     """
-    raise NotImplementedError("STUB (P0-I8-T20)")
+    db: Path = ctx.obj
+    if status != "all" and status not in _STATUSES:
+        _fail(f"--status must be active, quarantined, deprecated or all, not {status!r}")
+    chosen = None if status == "all" else cast(TypeStatus, status)
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        views = registry.list_types(uow.conn(), status=chosen)
+    for view in views:
+        typer.echo(type_line(view))
 
 
 @app.command("show")
@@ -152,7 +217,11 @@ def show(
     type_ref: Annotated[str, typer.Argument(help="For example co.acme.LiftPlan@1.0.0.")],
 ) -> None:
     """Show one registered version: its state, its fields, and why it was refused if it was."""
-    raise NotImplementedError("STUB (P0-I8-T20)")
+    db: Path = ctx.obj
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        detail = type_detail(uow, type_ref)
+    for line in detail_lines(detail):
+        typer.echo(line)
 
 
 @app.command("validate")
@@ -171,7 +240,16 @@ def validate(
     ``ok <type_ref> <storage_mode> <n> index fields`` (``n`` = the number of index fields).
     Otherwise print ``issue_line(issue)`` for each issue and exit 1.
     """
-    raise NotImplementedError("STUB (P0-I8-T20)")
+    registration, issues = validate_package(path, provider=get_provider(), root=root)
+    if registration is not None and not issues:
+        typer.echo(
+            f"ok {registration.type_ref} {registration.storage_mode} "
+            f"{len(registration.index_fields)} index fields"
+        )
+        return
+    for issue in issues:
+        typer.echo(issue_line(issue))
+    raise typer.Exit(code=1)
 
 
 @app.command("lock")
@@ -185,7 +263,11 @@ def lock(
     ``write_lock(path)``; a ``ValueError`` (a link or an oversized file in the package) is
     ``_fail`` with its message.
     """
-    raise NotImplementedError("STUB (P0-I8-T20)")
+    try:
+        content_hash = write_lock(path)
+    except ValueError as exc:
+        _fail(str(exc))
+    typer.echo(f"content_hash {content_hash}")
 
 
 @app.command("deprecate")
@@ -196,7 +278,10 @@ def deprecate(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Retire a version: existing records stay, no new ones. Prints `deprecated <type_ref>`."""
-    raise NotImplementedError("STUB (P0-I8-T20)")
+    db: Path = ctx.obj
+    with _service_errors(), open_uow(db) as uow:
+        registry.deprecate_type(uow, type_ref=type_ref, reason=reason, actor=actor, source="cli")
+    typer.echo(f"deprecated {type_ref}")
 
 
 @app.command("watch")
@@ -219,4 +304,17 @@ def watch_command(
     change, then every line of ``sync_lines(db, root, actor)``. A ``KeyboardInterrupt`` prints
     ``stopped`` and returns normally.
     """
-    raise NotImplementedError("STUB (P0-I8-T20)")
+    db: Path = ctx.obj
+    if not root.is_dir():
+        _fail(f"no such directory: {root}")
+
+    def on_change(changes: list[Change]) -> None:
+        for change in changes:
+            typer.echo(f"changed {change.path} ({change.kind})")
+        for line in sync_lines(db, root, actor):
+            typer.echo(line)
+
+    try:
+        watch(root, interval=interval, on_change=on_change, max_cycles=max_cycles)
+    except KeyboardInterrupt:
+        typer.echo("stopped")
