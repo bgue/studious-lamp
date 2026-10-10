@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import time
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
@@ -246,10 +247,21 @@ def test_postgres_refuses_writes_and_system_reads(pg_target: DevTarget) -> None:
 
 @pytest.mark.requires_postgres
 def test_the_postgres_transaction_is_read_only_even_without_the_guard(pg_target: DevTarget) -> None:
+    """Straight to the executor, past the guard: Postgres itself stops a SELECT that writes."""
+    from sqlalchemy import text
+    from tl_adapters.db import make_engine, write_tx
+
     assert pg_target.url is not None
+    engine = make_engine(pg_target.url)
+    try:
+        with write_tx(engine) as conn:
+            conn.execute(text("CREATE SEQUENCE tl_probe_seq"))
+    finally:
+        engine.dispose()
     with pytest.raises(QueryFailed, match="read-only"):
-        run_postgres(pg_target.url, "CREATE TABLE should_not_exist (a int)", 10)
-    assert run_query(pg_target, "SELECT to_regclass('should_not_exist') IS NULL").rows == [[True]]
+        run_postgres(pg_target.url, "SELECT nextval('tl_probe_seq')", 10)
+    with pytest.raises(DevGuardError, match="sequence"):
+        run_query(pg_target, "SELECT nextval('tl_probe_seq')")
 
 
 @pytest.mark.requires_postgres
@@ -295,3 +307,17 @@ def test_a_failure_is_not_reported_as_a_refusal(
 def test_file_functions_do_not_exist_in_the_python_sqlite(ledger: DevHarness) -> None:
     with pytest.raises(ToolError, match="no such function"):
         ledger.call("query_db", sql="SELECT readfile('/etc/passwd')")
+
+
+@pytest.mark.requires_postgres
+def test_a_huge_result_is_not_loaded_into_the_server(pg_target: DevTarget) -> None:
+    started = time.monotonic()
+    result = run_query(pg_target, "SELECT g FROM generate_series(1, 3000000) AS t(g)", limit=5)
+    assert len(result.rows) == 5 and result.truncated_by == "limit"
+    assert time.monotonic() - started < 5
+
+
+@pytest.mark.requires_postgres
+def test_a_trailing_semicolon_and_a_comment_are_fine_for_postgres(pg_target: DevTarget) -> None:
+    assert run_query(pg_target, "SELECT 1 AS a; ").rows == [[1]]
+    assert run_query(pg_target, "-- c\nSELECT 2 AS a").rows == [[2]]

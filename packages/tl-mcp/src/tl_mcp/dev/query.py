@@ -174,17 +174,25 @@ def run_sqlite(path: str, sql: str, limit: int) -> QueryResult:
 
 
 def run_postgres(url: str, sql: str, limit: int) -> QueryResult:
+    """Run ``sql`` through a server-side cursor and fetch at most ``limit + 1`` rows.
+
+    A cursor keeps a ``SELECT`` that would return millions of rows from being loaded into this
+    process: the server sends only what is fetched. ``DECLARE ... CURSOR FOR`` accepts exactly one
+    ``SELECT`` or ``VALUES`` query, which is one more check on the statement.
+    """
     from sqlalchemy.exc import DBAPIError, SQLAlchemyError
     from tl_adapters.db import make_engine, read_tx
 
     started = time.monotonic()
+    statement = sql.strip().rstrip(";").rstrip()
     engine = make_engine(url)
     try:
         # A READ ONLY snapshot transaction; nothing in it can write, whatever the statement says.
         with read_tx(engine) as conn:
             conn.exec_driver_sql(f"SET LOCAL statement_timeout = '{int(TIMEOUT_S * 1000)}ms'")
             conn.exec_driver_sql("SET LOCAL lock_timeout = '2s'")
-            result = conn.exec_driver_sql(sql)
+            conn.exec_driver_sql(f"DECLARE tl_dev_query NO SCROLL CURSOR FOR {statement}")
+            result = conn.exec_driver_sql(f"FETCH FORWARD {limit + 1} FROM tl_dev_query")
             columns = [str(k) for k in result.keys()]
             return _collect(columns, result.fetchmany, limit, started, "postgres")
     except DBAPIError as exc:
