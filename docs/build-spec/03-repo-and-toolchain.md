@@ -283,6 +283,8 @@ CREATE TABLE cur_core_record (
 CREATE UNIQUE INDEX ux_cur_core_record_scope_key ON cur_core_record(scope, key);
 ```
 
+Amendment (P0-I8, orchestrator decision): the table above is the column and uniqueness contract. Non-unique performance indexes declared on the LinkML class with `tl:ix_<name>` annotations (P0-I8-S61) may be generated alongside it on any `cur_*` table. They never change columns, constraints or query results.
+
 ## 10. Testing conventions
 
 - Unit tests live beside the package: `packages/<pkg>/tests/`.
