@@ -45,6 +45,7 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.services.feed_queries`: `list_feed`, `get_post`, `FeedPage`; `feed_completion`: `feed_suggestions`, `complete_tags` | functions, models | Feed by project, record (one-hop toggle) or hashtag; the `#hold` suggestion stub; composer completion after `#` and `@` |
 | `tl_core.services.errors` | exceptions | `ServiceError` and its subclasses (record, pset, link, numbering, workflow, file and lock refusals) |
 | `tl_core.util`: `utcnow`, `new_ulid` | functions | Clock and id helpers |
+| `tl_core.util.effective_time(dt)`, `current_effective_time()` | context manager, function | Simulated time (FANOUT D5): the ledger adapters stamp `dt` as `effective_at` on events that do not set their own; `recorded_at` and the hash chain are unchanged |
 
 ## Webhooks (`tl_core.webhooks`, P0-I5 workstream B)
 Outbox, signed delivery and the event catalog. Plan and decisions: `docs/tickets/P0-I5/README-B.md`.

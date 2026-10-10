@@ -10,7 +10,7 @@ The REST API, the SSE change stream and the HTTP client over the `tl_core` servi
 | `tl_api.errors` (`ERROR_TABLE`, `body_for`, `exception_for`, `ApiError`) | module | The one table that maps each `ServiceError` to a status and a stable `error` code, both directions |
 | `tl_api.auth` (`authorize`, `guard`, `AuthenticationMiddleware`) | module | Token lookup before any request is read; the allow-all hook every route calls |
 | `tl_api.tokens` (`TokenStore`, `add_token`, `check_actor`) | module | The dev token file: `{token: actor}`, mode 0600, re-read on change |
-| `tl_api.commands.COMMANDS` | table | The 13 commands served as `POST /commands/{Name}`, one generated route each |
+| `tl_api.commands.COMMANDS` | table | The 13 commands served as `POST /commands/{Name}`, one generated route each. A request may carry `X-TL-Effective-At` (ISO-8601 with offset, years 1970 to 2100): honoured only when the command's scope is `project:sim-<run>`, where it becomes the events' `effective_at`; any other scope is 400 `effective_time_forbidden`, a bad value 400 `invalid_effective_time` (`tl_api.effective`) |
 | `tl_api.feed.FeedHub` | class | Subscription registry fed by the bus and a poller; SSE framing; stream cap |
 | `tl_api.client.ApiClient(base_url, token, *, http=None, timeout=30)` | class | The HTTP client WS-D wraps as the remote `ClientInterface` (signatures: `docs/tickets/P0-I4/README-C.md`) |
 | `tl_api.openapi` | module | `python -m tl_api.openapi [--check]`; the document is `docs/reference/openapi.json` |
