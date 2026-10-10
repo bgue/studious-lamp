@@ -75,9 +75,10 @@ def record_history(uow: UnitOfWork, record_id: str) -> list[Event]:
 SORTABLE_COLUMNS = frozenset(
     {"key", "title", "status", "type", "created_at", "updated_at", "version"}
 )
-# '' sorts last like NULL. Not the timestamps: they are TIMESTAMPTZ on Postgres, which cannot be
-# compared with '' (invalid input syntax), and they are NOT NULL anyway.
-_TEXT_COLUMNS = SORTABLE_COLUMNS - {"version", "created_at", "updated_at"}
+# '' sorts last like NULL, for text columns. The others are NOT NULL (and the timestamps are
+# TIMESTAMPTZ on Postgres, which cannot be compared with '': invalid input syntax), so they get no
+# such term; without it an index on the column can serve the ORDER BY (P0-I8 D13).
+_NEVER_EMPTY = frozenset({"version", "created_at", "updated_at"})
 _MAX_LIMIT = 2**63 - 1  # portable "no limit" so OFFSET can be used on its own
 
 
@@ -122,9 +123,10 @@ def list_records(
             raise ValueError(f"cannot order by {column!r}; allowed: {sorted(SORTABLE_COLUMNS)}")
         if direction not in ("asc", "desc"):
             raise ValueError(f"direction must be 'asc' or 'desc', got {direction!r}")
-        empty = (
-            f"{column} IS NULL OR {column} = ''" if column in _TEXT_COLUMNS else f"{column} IS NULL"
-        )
+        if column in _NEVER_EMPTY:
+            terms.append(f"{column} {direction.upper()}")
+            continue
+        empty = f"{column} IS NULL OR {column} = ''"
         terms.append(f"({empty}), {column} {direction.upper()}")
     order = ", ".join([*terms, "id"]) if terms else "created_at, id"
     paging = ""

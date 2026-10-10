@@ -153,6 +153,7 @@ class SseReader:
         self._actor = actor
         self.seen: dict[str, float] = {}
         self.error: Exception | None = None
+        self._response: httpx2.Response | None = None
         self._cond = threading.Condition()
         self._connected = threading.Event()
         self._stop = threading.Event()
@@ -166,6 +167,12 @@ class SseReader:
 
     def __exit__(self, *exc: object) -> None:
         self._stop.set()
+        response = self._response
+        if response is not None:
+            try:
+                response.close()  # ends the blocked read so the server can shut down cleanly
+            except Exception:
+                pass
         self._thread.join(timeout=5)
 
     def _run(self) -> None:
@@ -183,6 +190,7 @@ class SseReader:
             with client.stream(
                 "GET", "/stream", params={"type": "Record.Created"}, headers=headers
             ) as response:
+                self._response = response
                 for line in response.iter_lines():
                     now = time.perf_counter()
                     if line.startswith(": connected"):
