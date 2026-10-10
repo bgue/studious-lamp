@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
-from builder import LedgerBuilder
+from builder import OTHER_SCOPE, SCOPE, LedgerBuilder
 from sqlalchemy import MetaData, Table, text
 from tl_lake import (
     LakeAheadError,
@@ -275,3 +275,34 @@ def test_rebuild_wipes_and_reloads(ledger: LedgerBuilder, lake: LakeConfig) -> N
     assert result.first_seq == 1 and result.last_seq == ledger.head()
     assert lake_status(lake).syncs == 1
     assert lake_rows(lake, "SELECT count(*) FROM cur_core_record") == [(3,)]
+
+
+def test_a_snapshot_id_that_differs_after_commit_is_reported_as_committed(
+    ledger: LedgerBuilder, lake: LakeConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ledger.record("A-1")
+    real = sync_module._current_snapshot  # type: ignore[attr-defined]
+    calls = {"n": 0}
+
+    def skewed(con: Any) -> int:
+        calls["n"] += 1
+        return real(con) + (5 if calls["n"] == 2 else 0)  # the check after COMMIT sees another id
+
+    monkeypatch.setattr(sync_module, "_current_snapshot", skewed)
+    with pytest.raises(LakeSyncError, match="sync committed, but the committed snapshot id"):
+        sync(ledger, lake)
+    assert lake_rows(lake, "SELECT count(*) FROM events") == [(1,)]  # the data is in the lake
+
+
+def test_two_scopes_land_in_every_table(ledger: LedgerBuilder, lake: LakeConfig) -> None:
+    a = ledger.record("A-1")
+    b = ledger.record("B-1")
+    x = ledger.record("X-1", scope=OTHER_SCOPE)
+    y = ledger.record("Y-1", scope=OTHER_SCOPE)
+    ledger.link(a, b)
+    ledger.link(x, y)
+    ledger.values(x, "valve_data", {"manufacturer": "Other"})
+    sync(ledger, lake)
+    for table in ("events", "cur_core_record", "links", "pset_values"):
+        scopes = {r[0] for r in lake_rows(lake, f"SELECT DISTINCT scope FROM {table}")}
+        assert scopes == ({SCOPE, OTHER_SCOPE} if table != "pset_values" else {OTHER_SCOPE}), table

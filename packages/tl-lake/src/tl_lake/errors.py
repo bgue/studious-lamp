@@ -16,7 +16,8 @@ class LakeLockTimeout(LakeError):
 
 
 class LakeSyncError(LakeError):
-    """A sync could not complete; nothing was committed to the lake."""
+    """A sync failed. Nothing was committed, except when the message says the committed snapshot
+    id differs from the recorded one (that check runs after COMMIT)."""
 
 
 class LakeAheadError(LakeSyncError):

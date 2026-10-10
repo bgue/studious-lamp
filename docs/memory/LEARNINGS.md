@@ -361,3 +361,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   (`error: refused:` was preceded by a JSON log line). Give a library logger a `NullHandler`, and test the CLI stderr. A module-scoped test
   fixture cannot use the function-scoped `ledger` fixture or the autouse schema provider, so lake tests build their ledger per test.
   Evidence: first `just demo P0-I7-lake`; `tests/test_query.py::test_a_refusal_prints_nothing_unless_the_application_configures_logging`; T21 report. Status: active
+- **L-P0-I7-B7** · 2026-10-10 · tags: lake, mcp, security
+  A CTE is not visible inside its own body (only the recursive term of a recursive CTE sees its name), so a guard that treats every CTE name
+  of a query as in scope lets `WITH "/path/x.parquet" AS (SELECT * FROM "/path/x.parquet")` through, and DuckDB then replacement-scans the file.
+  Scope CTE names exactly as SQL does and also refuse any table or CTE name containing `/ \ . * ? [`. Audit with a catch-all: any exception
+  (lock timeout, bad surrogate, non-text SQL) must still write one line with the same keys, written ASCII-escaped because `str.splitlines()`
+  splits on U+2028 and U+0085. Cap the returned bytes as well as rows, and strip absolute paths from error text.
+  Evidence: lake_query review of 16d1828; `tests/test_guard.py`, `tests/test_query.py`. Status: active

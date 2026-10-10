@@ -1,25 +1,29 @@
 """Property: a lake built by many incremental syncs equals one built by a single full load.
 
-Hypothesis generates a history of commands (create, edit, void, set and unset pset values with
-promoted columns appearing mid-history, add and retract links) with sync points between them. After
-the last sync, the incrementally built lake must hold exactly the rows of a lake rebuilt from
-scratch, and both must equal the ledger's own current-state tables.
+Hypothesis generates a history of commands in two project scopes (create, edit, void, set and unset
+pset values with promoted columns appearing mid-history, add and retract links) with sync points
+between them. After the last sync, the incrementally built lake must hold exactly the rows of a
+lake rebuilt from scratch, and both must equal the ledger's own tables row for row (not just in
+count), with values converted the way the loader converts them.
 """
 
 from __future__ import annotations
 
+import json
 import tempfile
 from pathlib import Path
 from typing import Any
 
-from builder import LedgerBuilder
+from builder import OTHER_SCOPE, SCOPE, LedgerBuilder
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-from sqlalchemy import text
+from sqlalchemy import Engine, text
 from tl_core.ledger import ConcurrencyError
+from tl_core.schema_provider import DirectorySchemaProvider, use_provider
 from tl_core.services.errors import ServiceError
 from tl_lake import LakeConfig, read_snapshot, sync_lake
 from tl_lake.duck import open_lake
+from tl_lake.ingest import to_json_value
 
 TABLES = {
     "events": "events",
@@ -34,28 +38,42 @@ OPS = st.tuples(
     st.integers(min_value=0, max_value=50),
 )
 
+Dump = tuple[list[str], list[str], list[tuple[Any, ...]]]
 
-def lake_dump(config: LakeConfig, table: str) -> list[tuple[Any, ...]]:
+
+def lake_dump(config: LakeConfig, table: str) -> Dump:
+    """Column names, DuckDB types and all rows (ordered), columns sorted by name."""
     with open_lake(config, write=False) as con:
-        names = sorted(
-            r[0]
-            for r in con.execute(
-                "SELECT column_name FROM duckdb_columns() "
+        described = dict(
+            con.execute(
+                "SELECT column_name, data_type FROM duckdb_columns() "
                 f"WHERE database_name = 'lake' AND table_name = '{table}'"
             ).fetchall()
         )
+        names = sorted(described)
         cols = ", ".join(f'"{n}"' for n in names)
-        return [
-            (tuple(names), *row)
-            for row in con.execute(f"SELECT {cols} FROM {table} ORDER BY ALL").fetchall()
-        ]
+        rows = con.execute(f"SELECT {cols} FROM {table} ORDER BY ALL").fetchall()
+    return names, [str(described[n]) for n in names], rows
 
 
-def do_sync(ledger: LedgerBuilder, config: LakeConfig, **kwargs: Any) -> None:
+def normalised(kinds: list[str], rows: list[tuple[Any, ...]]) -> list[str]:
+    """Rows as sorted JSON text, each value converted the way the loader converts it."""
+    return sorted(
+        json.dumps([to_json_value(k, v) for k, v in zip(kinds, row, strict=True)]) for row in rows
+    )
+
+
+def ledger_rows(engine: Engine, source: str, names: list[str]) -> list[tuple[Any, ...]]:
+    cols = ", ".join(names)
+    with engine.connect() as conn:
+        return [tuple(r) for r in conn.execute(text(f"SELECT {cols} FROM {source}")).fetchall()]
+
+
+def do_sync(ledger: LedgerBuilder, config: LakeConfig) -> None:
     engine = ledger.engine()
     try:
         with read_snapshot(engine) as conn:
-            sync_lake(config, conn, **kwargs)
+            sync_lake(config, conn)
     finally:
         engine.dispose()
 
@@ -70,7 +88,8 @@ def play(
             do_sync(ledger, config)  # a sync point in addition to the generated ones
         try:
             if kind == "create":
-                records.append(ledger.record(f"R-{n}"))
+                scope = OTHER_SCOPE if j % 3 == 0 else SCOPE
+                records.append(ledger.record(f"R-{n}", scope=scope))
             elif kind == "sync":
                 do_sync(ledger, config)
             elif not records:
@@ -109,8 +128,6 @@ def play(
 def test_incremental_lake_equals_full_rebuild_and_the_ledger(
     ops: list[tuple[str, int, int]], every: int
 ) -> None:
-    from tl_core.schema_provider import DirectorySchemaProvider, use_provider
-
     fixtures = Path(__file__).resolve().parents[3] / "schema" / "fixtures"
     with tempfile.TemporaryDirectory() as tmp, use_provider(DirectorySchemaProvider(fixtures)):
         root = Path(tmp)
@@ -126,10 +143,9 @@ def test_incremental_lake_equals_full_rebuild_and_the_ledger(
         engine = ledger.engine()
         try:
             for lake_table, source in TABLES.items():
-                got = lake_dump(incremental, lake_table)
-                assert got == lake_dump(rebuilt, lake_table), lake_table
-                with engine.connect() as conn:
-                    count = conn.execute(text(f"SELECT count(*) FROM {source}")).scalar_one()
-                assert len(got) == count, lake_table
+                names, kinds, rows = lake_dump(incremental, lake_table)
+                assert (names, kinds, rows) == lake_dump(rebuilt, lake_table), lake_table
+                expected = normalised(kinds, ledger_rows(engine, source, names))
+                assert normalised(kinds, rows) == expected, lake_table
         finally:
             engine.dispose()

@@ -18,6 +18,7 @@ from tl_lake import (
     sync_lake,
 )
 from tl_lake.duck import open_lake
+from tl_lake.errors import LakeLockTimeout
 from tl_lake.query import _sandbox
 
 
@@ -196,3 +197,105 @@ def test_a_refusal_prints_nothing_unless_the_application_configures_logging(
     captured = capfd.readouterr()
     assert captured.err == "" and captured.out == ""
     assert audit(lake)[-1]["outcome"] == "refused"
+
+
+AUDIT_KEYS = {
+    "ts",
+    "caller",
+    "sql",
+    "limit",
+    "outcome",
+    "detail",
+    "error_class",
+    "rows",
+    "truncated",
+    "as_of_seq",
+    "snapshot_id",
+    "elapsed_ms",
+}
+
+
+def test_every_failure_mode_writes_one_audit_line_with_the_same_keys(
+    synced: LedgerBuilder, lake: LakeConfig
+) -> None:
+    service = LakeQueryService(lake)
+    service.query("SELECT 1")
+    with pytest.raises(GuardError):
+        service.query("DROP TABLE events")
+    with pytest.raises(GuardError, match="text"):
+        service.query(123)  # type: ignore[arg-type]
+    with pytest.raises(GuardError, match="NUL"):
+        service.query("SELECT 1\x00")
+    with pytest.raises(QueryError):
+        service.query("SELECT CAST('x' AS INTEGER)")
+    with pytest.raises(Exception):  # noqa: B017, PT011 - a lone surrogate fails inside DuckDB
+        service.query("SELECT '\ud800'")
+    with open_lake(lake, write=True):  # a sync holds the lock, so the query cannot start
+        with pytest.raises(LakeLockTimeout):
+            LakeQueryService(lake, lock_timeout_s=0.2).query("SELECT 1", caller="agent:x")
+    lines = audit(lake)
+    assert len(lines) == 7
+    assert all(set(line) == AUDIT_KEYS for line in lines)
+    outcomes = [(line["outcome"], line["error_class"]) for line in lines]
+    assert outcomes[:4] == [("ok", None), ("refused", None), ("refused", None), ("refused", None)]
+    assert outcomes[4] == ("error", "ConversionException")
+    assert outcomes[6] == ("error", "LakeLockTimeout")
+    assert lines[6]["caller"] == "agent:x" and lines[6]["rows"] == 0
+    assert lines[1]["rows"] == 0 and lines[1]["as_of_seq"] == synced.head()
+    assert lines[2]["sql"].startswith("<int>")
+
+
+def test_a_unicode_line_separator_cannot_split_an_audit_record(
+    synced: LedgerBuilder, lake: LakeConfig
+) -> None:
+    sql = "SELECT 'a b\x85c' AS s"
+    result = LakeQueryService(lake).query(sql)
+    assert result.rows == [["a b\x85c"]]
+    text = lake.audit_log_path.read_text(encoding="ascii")
+    assert len(text.splitlines()) == 1  # str.splitlines() also splits on U+2028 and U+0085
+    assert json.loads(text)["sql"] == sql
+
+
+def test_the_result_byte_cap_truncates_and_says_so(synced: LedgerBuilder, lake: LakeConfig) -> None:
+    service = LakeQueryService(lake, max_bytes=500)
+    result = service.query("SELECT repeat('x', 100) AS s FROM range(50)", limit=50)
+    assert result.truncated and result.truncated_by == "bytes"
+    assert 1 <= result.row_count < 50
+    assert len(json.dumps(result.rows)) <= 500
+    one = service.query("SELECT repeat('x', 1000) AS s")
+    assert one.rows == [] and one.truncated_by == "bytes"
+    capped_by_rows = service.query("SELECT 1 FROM range(10)", limit=3)
+    assert capped_by_rows.truncated_by == "limit" and capped_by_rows.row_count == 3
+    whole = service.query("SELECT 1")
+    assert whole.truncated_by is None and not whole.truncated
+
+
+def test_errors_are_short_classed_and_free_of_paths(
+    synced: LedgerBuilder, lake: LakeConfig
+) -> None:
+    service = LakeQueryService(lake)
+    with pytest.raises(QueryError) as caught:
+        service.query("SELECT CAST('x' AS INTEGER)")
+    assert caught.value.error_class == "ConversionException"
+    assert str(caught.value).startswith("ConversionException: ") and len(str(caught.value)) < 260
+    text = service._scrub(
+        f"cannot read {lake.lake_dir}/data/main/events/f.parquet and /etc/passwd x"
+    )
+    assert text == "cannot read <lake>/data/main/events/f.parquet and <path> x"
+
+
+def test_a_cte_named_like_a_lake_data_file_cannot_read_it(
+    synced: LedgerBuilder, lake: LakeConfig
+) -> None:
+    [parquet, *_] = sorted(lake.data_path.rglob("*.parquet"))
+    name = str(parquet)
+    service = LakeQueryService(lake)
+    for sql in (
+        f'WITH "{name}" AS (SELECT * FROM "{name}") SELECT * FROM "{name}"',
+        f"SELECT * FROM '{name}'",
+        f"SELECT * FROM '{lake.data_path}/main/*/*.parquet'",
+    ):
+        with pytest.raises(GuardError) as caught:
+            service.query(sql)
+        assert str(lake.lake_dir) not in str(caught.value)
+    assert all(str(lake.lake_dir) not in line["detail"] for line in audit(lake))

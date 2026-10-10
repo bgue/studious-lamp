@@ -186,7 +186,8 @@ def test_refusal_messages_name_the_reason(con: duckdb.DuckDBPyConnection) -> Non
     assert "single SELECT" in refused(con, "DROP TABLE events")
     assert "exactly one statement" in refused(con, "SELECT 1; SELECT 2")
     assert "read_csv" in refused(con, "SELECT * FROM read_csv('/etc/passwd')")
-    assert "not a lake table" in refused(con, "SELECT * FROM '/etc/passwd.csv'")
+    assert "path or glob" in refused(con, "SELECT * FROM '/etc/passwd.csv'")
+    assert "not a lake table" in refused(con, "SELECT * FROM no_such_table")
     assert "longer than" in refused(con, "SELECT " + "1," * 20_000 + "1")
 
 
@@ -218,3 +219,69 @@ def test_comments_cannot_hide_a_second_statement(con: duckdb.DuckDBPyConnection,
 )
 def test_comments_around_one_select_are_fine(con: duckdb.DuckDBPyConnection, sql: str) -> None:
     check_sql(con, sql, TABLES)
+
+
+LAKE_FILE = "/home/u/lake/data/main/events/ducklake-0001.parquet"
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        # The reviewed PoC: a self-referencing CTE named like a data file scans that file.
+        f'WITH "{LAKE_FILE}" AS (SELECT * FROM "{LAKE_FILE}") SELECT seq FROM "{LAKE_FILE}"',
+        f"SELECT seq FROM '{LAKE_FILE}'",
+        # The glob variant reads every file of a table, superseded ones included.
+        'WITH "/home/u/lake/data/main/events/*.parquet" AS (SELECT * FROM "/home/u/lake/data/main/'
+        'events/*.parquet") SELECT * FROM "/home/u/lake/data/main/events/*.parquet"',
+        "SELECT * FROM '/home/u/lake/data/main/events/*.parquet'",
+        "SELECT * FROM 'events.parquet'",
+        'WITH "x.csv" AS (SELECT 1) SELECT * FROM "x.csv"',
+        'WITH "a/b" AS (SELECT 1) SELECT * FROM "a/b"',
+        'WITH "a*" AS (SELECT 1) SELECT * FROM "a*"',
+        'WITH "a?" AS (SELECT 1) SELECT * FROM "a?"',
+        'WITH "a[1]" AS (SELECT 1) SELECT * FROM "a[1]"',
+        'WITH "a\\b" AS (SELECT 1) SELECT * FROM "a\\b"',
+    ],
+)
+def test_a_cte_or_table_named_like_a_file_is_refused(
+    con: duckdb.DuckDBPyConnection, sql: str
+) -> None:
+    refused(con, sql)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        # Not visible in its own body (non-recursive): the inner name must be a lake table.
+        "WITH x AS (SELECT * FROM x) SELECT * FROM x",
+        "WITH a AS (SELECT 1), b AS (SELECT * FROM c), c AS (SELECT 2) SELECT * FROM b",
+        # Not visible in the left (non-recursive) term of a recursive CTE.
+        "WITH RECURSIVE r(n) AS (SELECT n FROM r UNION ALL SELECT 1) SELECT * FROM r",
+        # A name defined in a sibling subquery is not visible outside it.
+        "SELECT * FROM (WITH y AS (SELECT 1) SELECT * FROM y) q, y",
+    ],
+)
+def test_a_cte_is_visible_only_where_the_sql_scopes_it(
+    con: duckdb.DuckDBPyConnection, sql: str
+) -> None:
+    refused(con, sql)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "WITH a AS (SELECT 1 AS n), b AS (SELECT n + 1 AS n FROM a) SELECT * FROM b",
+        "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 3) "
+        "SELECT * FROM r",
+        "WITH events AS (SELECT * FROM events WHERE seq < 3) SELECT * FROM events",
+        "WITH RECURSIVE r(n) AS (WITH s AS (SELECT 1 AS n) SELECT n FROM s UNION ALL "
+        "SELECT n + 1 FROM r WHERE n < 3) SELECT * FROM r",
+    ],
+)
+def test_legitimate_ctes_are_accepted(con: duckdb.DuckDBPyConnection, sql: str) -> None:
+    check_sql(con, sql, TABLES)
+
+
+def test_nul_in_the_sql_is_refused(con: duckdb.DuckDBPyConnection) -> None:
+    assert "NUL" in refused(con, "SELECT 1\x00; DROP TABLE events")
+    assert "NUL" in refused(con, "SELECT '\x00'")

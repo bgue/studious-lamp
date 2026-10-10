@@ -290,8 +290,9 @@ def _sync(
     actual = _current_snapshot(con)
     if actual != predicted:
         raise LakeSyncError(
-            f"the sync committed snapshot {actual} but recorded {predicted} in {SYNC_TABLE}: "
-            "another process wrote to the lake outside the lake lock"
+            f"the sync committed, but the committed snapshot id {actual} differs from the "
+            f"{predicted} recorded in {SYNC_TABLE}: the lake may have a concurrent writer "
+            "outside the lake lock. Run `tl lake rebuild --yes` if the lake looks wrong."
         )
     return SyncResult(actual, first, head, events, silver_rows)
 

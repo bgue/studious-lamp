@@ -28,7 +28,7 @@ Objective met for everything that does not depend on P0-I4, P0-I5 or workstream 
 | Gate | Result |
 |---|---|
 | `just check` | green on `p0/i7b` (d1a1dd1) |
-| `just test` | green, 1592 passed (d1a1dd1) |
+| `just test` | green, 1619 passed after the review round |
 | `just test-parity` | not applicable: no adapter changed; Postgres untested until P0-I5 |
 | `just demo P0-I7-lake` | passes |
 
@@ -37,12 +37,26 @@ Objective met for everything that does not depend on P0-I4, P0-I5 or workstream 
 - `tl-cli` gained a dependency on `tl-lake` and `uv.lock` changed; both were done by the supervisor before dispatch.
 - Silver timestamps are `TIMESTAMP` holding UTC (not `TIMESTAMPTZ`), because fetching zone-aware values in Python needs pytz, which is not a dependency.
 
+## Review round (16d1828): changes applied
+Sync (S1) passed with low items; the guard (S2/S3) needed changes. All applied in one round.
+| # | Item | Change |
+|---|---|---|
+| 1 | CTE named like a data file got past the guard (PoC) | `guard.py`: CTE names are scoped as SQL scopes them (not in the CTE's own body; only the recursive term of a recursive CTE sees its name); any table or CTE name containing `/ \\ . * ? [` or a control character is refused. Tests: the PoC, a glob variant, scoping and recursion cases |
+| 2 | Not every call audited | `query.py`: the whole call is wrapped; any exception writes one line with `outcome` and `error_class`; every line has the same keys including `rows` (0 when refused or errored). Test covers lock timeout, bad surrogate, non-text SQL, NUL |
+| 3 | U+2028 / U+0085 could split a record | Audit lines are written with `ensure_ascii=True`; test with `str.splitlines()` |
+| 4 | Timeout not a hard bound, no byte cap | Result byte cap, 8 MiB by default (`max_bytes`), `truncated_by` = `limit` or `bytes`; rows are fetched in batches; timeout documented as best effort. CLI prints the number of rows returned |
+| 5 | NUL in SQL | `check_sql` refuses NUL |
+| 6 | DuckDB errors and paths | `QueryError` carries a short `ClassName: message` and `error_class`; the lake directory becomes `<lake>` and other absolute paths `<path>` in refusal and error text and in the audit line. Time travel stays allowed and is documented |
+| 7 | Property test used one scope and counts | Two scopes (`OTHER_SCOPE`); lake rows compared with the ledger's rows by content (sorted, values converted by the loader); mutation re-checked |
+| 8 | Post-COMMIT error said "nothing was committed" | Reworded; `LakeSyncError` docstring fixed; test |
+| 9 | Tip-only verification | Stated in the README: by design, full-chain integrity is `tl archive verify` (WS-A) |
+
 ## Escalations and decisions
 - T22: see the table above and `docs/tickets/P0-I7/B-PLAN.md` (*Blocked / Decision*).
 - Guard: a leading `--` comment line is accepted; tests show comments cannot hide a second statement.
 
 ## Learnings
-Appended: L-P0-I7-B1 to B6. T20 proposal "a rebuild resets the sync count" went into the package README; "truncated line uses `result.limit`" and the AGENTS.md question need no entry (the tl-cli rule was added to `packages/tl-cli/AGENTS.md`). T21's fixture-scope note is in B6.
+Appended: L-P0-I7-B1 to B7. T20 proposal "a rebuild resets the sync count" went into the package README; "truncated line uses `result.limit`" and the AGENTS.md question need no entry (the tl-cli rule was added to `packages/tl-cli/AGENTS.md`). T21's fixture-scope note is in B6.
 
 ## Docs
 `packages/tl-lake/README.md`, `packages/tl-lake/AGENTS.md`, `packages/tl-cli/README.md` and `AGENTS.md`, `docs/runbooks/lake-sync.md` and its index line, `docs/tickets/P0-I7/B-PLAN.md`.

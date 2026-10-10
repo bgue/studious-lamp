@@ -167,5 +167,5 @@ def query(
     for row in result.rows:
         typer.echo(" | ".join("NULL" if value is None else str(value) for value in row))
     if result.truncated:
-        typer.echo(f"truncated at {result.limit} rows")
+        typer.echo(f"truncated at {len(result.rows)} rows")
     typer.echo(result.as_of_line())

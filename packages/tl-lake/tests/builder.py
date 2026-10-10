@@ -29,6 +29,7 @@ class LedgerBuilder:
     db: Path
     versions: dict[str, int] = field(default_factory=dict)
     keys: dict[str, str] = field(default_factory=dict)
+    scopes: dict[str, str] = field(default_factory=dict)  # record or link id to its scope
 
     @classmethod
     def create(cls, db: Path) -> LedgerBuilder:
@@ -53,6 +54,7 @@ class LedgerBuilder:
             )
         self.versions[result.stream_id] = result.version
         self.keys[key] = result.stream_id
+        self.scopes[result.stream_id] = scope
         return result.stream_id
 
     def update(self, record_id: str, **changes: Any) -> None:
@@ -62,7 +64,7 @@ class LedgerBuilder:
                 UpdateRecord(
                     actor="user:u",
                     source="test",
-                    scope=SCOPE,
+                    scope=self.scopes[record_id],
                     stream_id=record_id,
                     expected_version=self.versions[record_id],
                     changes=changes,
@@ -77,7 +79,7 @@ class LedgerBuilder:
                 VoidRecord(
                     actor="user:u",
                     source="test",
-                    scope=SCOPE,
+                    scope=self.scopes[record_id],
                     stream_id=record_id,
                     expected_version=self.versions[record_id],
                     reason=reason,
@@ -92,7 +94,7 @@ class LedgerBuilder:
                 SetPsetValues(
                     actor="user:u",
                     source="test",
-                    scope=SCOPE,
+                    scope=self.scopes[record_id],
                     stream_id=record_id,
                     expected_version=self.versions[record_id],
                     pset=pset,
@@ -109,12 +111,13 @@ class LedgerBuilder:
                 AddLink(
                     actor="user:u",
                     source="test",
-                    scope=SCOPE,
+                    scope=self.scopes[from_id],
                     from_id=from_id,
                     to_id=to_id,
                     relation=relation,
                 ),
             )
+        self.scopes[result.stream_id] = self.scopes[from_id]
         return result.stream_id
 
     def retract(self, link_id: str, reason: str = "wrong") -> None:
@@ -122,7 +125,11 @@ class LedgerBuilder:
             handle_retract_link(
                 uow,
                 RetractLink(
-                    actor="user:u", source="test", scope=SCOPE, link_id=link_id, reason=reason
+                    actor="user:u",
+                    source="test",
+                    scope=self.scopes[link_id],
+                    link_id=link_id,
+                    reason=reason,
                 ),
             )
 

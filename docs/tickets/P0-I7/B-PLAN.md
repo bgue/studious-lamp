@@ -51,5 +51,6 @@ supervisor built them. The `tl-cli` dependency on `tl-lake` (and `uv.lock`) is a
 - Bronze `events` columns must match WS-A's `events.parquet`: names and order of the ledger `events` table, `recorded_at`/`effective_at`/`payload` as text. Raised in the relay NOTE.
 
 ## Blocked / Decision
+- Review of S1-S3 at 16d1828: sync passed with low items (second scope and row-content comparison in the property test, post-COMMIT error wording, tip-check note); guard needed changes (CTE scoping and path-like names, audit of every exception, ASCII-escaped audit lines, result byte cap, NUL, path-free errors). All applied in one round; see `docs/reports/P0-I7-B.md`.
 - T22 escalated by the reviewer: (1) "Safe to run during business hours" had no fact behind it; (2) operator text said "verified facts" and "Ask the supervisor". Orchestrator ruling: `tl lake sync` is safe in business hours (incremental, lock held only for the sync transaction); `tl lake rebuild --yes` is not (wipes and reloads, blocks queries); remove process language, escalate to the platform on-call, and say a wiped lake cannot be restored and is rebuilt from the ledger. Applied in `29a1242`.
 - T21 report: a leading `--` comment line is accepted by the guard. A test now proves comments cannot hide a second statement (`tests/test_guard.py`).
