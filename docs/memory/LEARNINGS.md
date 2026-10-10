@@ -595,3 +595,17 @@ test or a generated artefact already enforces, or narrative history (that belong
   payload-plus-hash edit shows up one event later in the scope (`scope_chain`) or as `db_mismatch` against an archive. The edit of a scope's
   newest event that keeps its own hash consistent needs an archive to contradict it.
   Evidence: `tests/archive/test_ledger_verify.py` (payload-only, hash-only, consistent edits; tail edit; missing event). Status: active
+
+- **L-P0-I7-A8** · 2026-10-10 · tags: env, tests
+  The scratch-cluster drill works with `sudo pg_createcluster 16 drill --port 5440`, `pg_conftool` for `archive_mode`, `archive_timeout` and `archive_command`,
+  and a postgres-owned directory for the pgBackRest repository, log, lock and spool paths. Immediate stop, erase the data directory, `pgbackrest restore`,
+  start recovered 50 of 55 events (the unswitched WAL of the last batch is lost, which `archive_timeout` bounds). A Litestream drill must be killed with
+  `kill -9 $pid`, never `pkill -f litestream`, whose pattern matches the shell that runs it. A lost SQLite file with a `-wal` sidecar must be moved with
+  its `-wal` and `-shm`, or the events in the WAL are missing from the copy used to look up lost events.
+  Evidence: `dev/drills/pgbackrest.sh`, `dev/drills/restore.sh`, the drill report. Status: active
+
+- **L-P0-I7-A9** · 2026-10-10 · tags: ledger, sync
+  A restore brings webhook subscriptions back as `active` rows, but their signing secrets (never in the ledger) and delivery state are not restored. Restored
+  databases need `tl webhook rotate-secret` per subscription before the worker runs. Whether the worker fails safely on a subscription whose secret row is
+  missing is not tested here; the restore runbook says to rotate first.
+  Evidence: `tl restore` of an archive with a subscription, then `tl webhook ls` (active, 0 delivered). Status: active
