@@ -1005,7 +1005,7 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P0-I8D-1** · 2026-10-10 · tags: env, tooling
   pg8000 talks TLS to a loopback Postgres by default, and every statement pays for it: a seed of 1,067 events took 13.6 s with TLS and 9.7 s without. The adapter
   URL now accepts `?sslmode=disable` (the bench datasets use it on loopback). Projection work on Postgres is statement-bound at about 0.5 ms per statement
-  (a link event costs eight, a new record seventeen), so a bulk load or rebuild of 100k records takes about an hour there against 8 minutes on SQLite: count statements
+  (the projectors run 17 statements for a new record and about 15 for a link event, before the ledger's three), so a bulk load or rebuild of 100k records takes about an hour there against 8 minutes on SQLite: count statements
   before optimising anything else.
   Evidence: `docs/reports/P0-I8-D.md`; `tests/bench/bench_data.py`; `packages/tl-adapters/tests/test_postgres_url.py`. Status: active
 - **L-P0-I8D-2** · 2026-10-10 · tags: schema, tests
