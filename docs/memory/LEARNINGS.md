@@ -640,3 +640,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   not N. A mark timer can fire a hair before its deadline, so it re-arms for what is left. A "changed by someone else" mark must not depend on what an earlier
   read showed: an outage refresh and a replayed event can both read the same version.
   Evidence: `tests/test_live_app.py`, `grid.py` `_expire_marks`. Status: active
+
+- **L-P0-I4-D5** · 2026-10-10 · tags: tui, api, tests
+  Review of the live path found three ordering faults that every happy-path test passes: the feed took its cursor after the grid's first read (an event in the gap
+  was lost), a command's SSE event can beat its HTTP response (so the user's own save looked foreign), and a replaced ledger leaves a cursor ahead of the head.
+  Take the cursor before the first read, hold events on an in-flight stream until the response is noted (with a cap), and compare the head with the cursor after a
+  drop. Each has a test that forces the order (a hook after the first load, a gated fake, a scripted API) and fails when the fix is removed. Also: a refresh applied
+  during shutdown posts messages to a screen that is gone, so handlers that query the DOM must tolerate it.
+  Evidence: `tests/test_live_handoff.py`, `test_live_app.py`; `app.py` `on_record_highlighted` (a 1-in-6 flake in the full-file run). Status: active

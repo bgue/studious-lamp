@@ -420,7 +420,10 @@ class TlApp(App[None]):
     # --- message routing ---------------------------------------------------------------------
 
     def on_record_highlighted(self, message: RecordHighlighted) -> None:
-        self.query_one("#context", ContextPanel).show_record(message.record)
+        # A refresh applied while the app shuts down posts this after the screen is gone.
+        panels = self.query("#context")
+        if panels:
+            panels.first(ContextPanel).show_record(message.record)
 
     def on_selection_changed(self, message: SelectionChanged) -> None:
         self.query_one("#footer", TlFooter).set_selection_count(message.count)
