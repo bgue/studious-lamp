@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 from harness import Harness
-from remote_support import SCOPE, free_port
+from remote_support import LIVE_TIMEOUT_S, SCOPE, free_port
 from tl_api.client.base import ApiUnavailableError
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
@@ -64,7 +64,7 @@ def test_relations_are_converted_to_the_tui_type(harness: Harness) -> None:
 
 def test_a_live_server_answers_reads_commands_queries_and_errors(harness: Harness) -> None:
     with harness.live() as server:
-        remote = RemoteClient.connect(server.base_url, server.token)
+        remote = RemoteClient.connect(server.base_url, server.token, timeout=LIVE_TIMEOUT_S)
         try:
             made = remote.create_record(create_cmd("R-1"))
             record = remote.get_record(SCOPE, "R-1")
@@ -94,7 +94,7 @@ def test_a_live_server_answers_reads_commands_queries_and_errors(harness: Harnes
 
 def test_events_of_own_commands_are_noted_and_reads_are_not(harness: Harness) -> None:
     with harness.live() as server:
-        remote = RemoteClient.connect(server.base_url, server.token)
+        remote = RemoteClient.connect(server.base_url, server.token, timeout=LIVE_TIMEOUT_S)
         try:
             result = remote.create_record(create_cmd("R-2"))
             remote.list_records(SCOPE)

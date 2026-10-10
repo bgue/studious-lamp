@@ -18,6 +18,9 @@ from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.records import handle_create_record, handle_update_record
 
 SCOPE = "project:P123"
+# A test that talks to a live server in a thread must not fail because the machine is busy: the
+# product default (3 s) is for a person at a keyboard, not for a loaded CI container.
+LIVE_TIMEOUT_S = 30.0
 
 
 class OtherWriter:
