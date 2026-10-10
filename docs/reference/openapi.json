@@ -305,6 +305,75 @@
         "title": "AttachFileBody",
         "type": "object"
       },
+      "BodyPointer": {
+        "properties": {
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "schema_hash": {
+            "title": "Schema Hash",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "uri": {
+            "title": "Uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "uri",
+          "hash",
+          "size",
+          "schema_hash"
+        ],
+        "title": "BodyPointer",
+        "type": "object"
+      },
+      "BodyStoredOut": {
+        "properties": {
+          "pointer": {
+            "$ref": "#/components/schemas/BodyPointer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pointer",
+          "version"
+        ],
+        "title": "BodyStoredOut",
+        "type": "object"
+      },
+      "BodyView": {
+        "description": "A verified body with the pointer it was verified against.",
+        "properties": {
+          "body": {
+            "additionalProperties": true,
+            "title": "Body",
+            "type": "object"
+          },
+          "pointer": {
+            "$ref": "#/components/schemas/BodyPointer"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_id",
+          "pointer",
+          "body"
+        ],
+        "title": "BodyView",
+        "type": "object"
+      },
       "CommandResult": {
         "properties": {
           "events": {
@@ -449,6 +518,79 @@
           "count"
         ],
         "title": "CountOut",
+        "type": "object"
+      },
+      "CreateInstanceIn": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Object-backed types: the body.",
+            "title": "Body"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "numbering": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Numbering",
+            "type": "object"
+          },
+          "psets": {
+            "additionalProperties": true,
+            "description": "Managed: initial values.",
+            "title": "Psets",
+            "type": "object"
+          },
+          "scope": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Scope",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "title"
+        ],
+        "title": "CreateInstanceIn",
         "type": "object"
       },
       "CreateRecordBody": {
@@ -2482,6 +2624,41 @@
         "title": "PsetGroupMeta",
         "type": "object"
       },
+      "PutBodyIn": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": true,
+            "title": "Body",
+            "type": "object"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The record version the editor saw; a newer one is a 409.",
+            "title": "Expected Version"
+          },
+          "scope": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "body"
+        ],
+        "title": "PutBodyIn",
+        "type": "object"
+      },
       "ReactToPostBody": {
         "additionalProperties": false,
         "properties": {
@@ -3510,6 +3687,455 @@
           "transition"
         ],
         "title": "TransitionWorkflowBody",
+        "type": "object"
+      },
+      "TypeDetail": {
+        "description": "One registered type version for a reader: its row, why it was refused, its form.",
+        "properties": {
+          "form": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TypeForm"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "registration": {
+            "$ref": "#/components/schemas/TypeRegistration"
+          },
+          "report": {
+            "items": {
+              "$ref": "#/components/schemas/TypeIssue"
+            },
+            "title": "Report",
+            "type": "array"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "unavailable": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable"
+          }
+        },
+        "required": [
+          "registration",
+          "seq",
+          "form",
+          "report",
+          "unavailable"
+        ],
+        "title": "TypeDetail",
+        "type": "object"
+      },
+      "TypeForm": {
+        "properties": {
+          "grid_columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Grid Columns",
+            "type": "array"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/TypeFormGroup"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "pset": {
+            "title": "Pset",
+            "type": "string"
+          },
+          "schema_hash": {
+            "title": "Schema Hash",
+            "type": "string"
+          },
+          "storage_mode": {
+            "title": "Storage Mode",
+            "type": "string"
+          },
+          "type_name": {
+            "title": "Type Name",
+            "type": "string"
+          },
+          "type_ref": {
+            "title": "Type Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type_ref",
+          "type_name",
+          "storage_mode",
+          "pset",
+          "schema_hash",
+          "groups",
+          "grid_columns"
+        ],
+        "title": "TypeForm",
+        "type": "object"
+      },
+      "TypeFormField": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "enum_values": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/EnumValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enum Values"
+          },
+          "help": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Help"
+          },
+          "indexed": {
+            "default": false,
+            "title": "Indexed",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "multivalued": {
+            "default": false,
+            "title": "Multivalued",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "order": {
+            "title": "Order",
+            "type": "integer"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern"
+          },
+          "required": {
+            "default": false,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "widget": {
+            "title": "Widget",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "path",
+          "label",
+          "description",
+          "kind",
+          "widget",
+          "order"
+        ],
+        "title": "TypeFormField",
+        "type": "object"
+      },
+      "TypeFormGroup": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/TypeFormField"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "fields"
+        ],
+        "title": "TypeFormGroup",
+        "type": "object"
+      },
+      "TypeIssue": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "layout",
+              "lock",
+              "lint",
+              "compile",
+              "example",
+              "settings",
+              "conflict",
+              "unsupported"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          }
+        },
+        "required": [
+          "kind",
+          "path",
+          "detail"
+        ],
+        "title": "TypeIssue",
+        "type": "object"
+      },
+      "TypeRegistration": {
+        "properties": {
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "index_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Index Fields",
+            "type": "array"
+          },
+          "location_uri": {
+            "title": "Location Uri",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          },
+          "schema_hash": {
+            "title": "Schema Hash",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "quarantined",
+              "deprecated"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "storage_mode": {
+            "enum": [
+              "managed",
+              "object-backed",
+              "directory-backed"
+            ],
+            "title": "Storage Mode",
+            "type": "string"
+          },
+          "type_ref": {
+            "title": "Type Ref",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "name",
+          "version",
+          "type_ref",
+          "location_uri",
+          "content_hash",
+          "owner",
+          "status",
+          "storage_mode",
+          "index_fields",
+          "schema_hash"
+        ],
+        "title": "TypeRegistration",
+        "type": "object"
+      },
+      "TypeSummary": {
+        "description": "One registered version without its files or form (the list rows of the API and MCP).",
+        "properties": {
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "index_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Index Fields",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "namespace": {
+            "title": "Namespace",
+            "type": "string"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          },
+          "schema_hash": {
+            "title": "Schema Hash",
+            "type": "string"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "quarantined",
+              "deprecated"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "storage_mode": {
+            "enum": [
+              "managed",
+              "object-backed",
+              "directory-backed"
+            ],
+            "title": "Storage Mode",
+            "type": "string"
+          },
+          "type_name": {
+            "title": "Type Name",
+            "type": "string"
+          },
+          "type_ref": {
+            "title": "Type Ref",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type_ref",
+          "type_name",
+          "namespace",
+          "name",
+          "version",
+          "status",
+          "storage_mode",
+          "index_fields",
+          "owner",
+          "schema_hash",
+          "content_hash",
+          "seq"
+        ],
+        "title": "TypeSummary",
         "type": "object"
       },
       "UpdateRecordBody": {
@@ -7885,6 +8511,190 @@
         ]
       }
     },
+    "/records/{record_id}/body": {
+      "get": {
+        "description": "The verified body of an object-backed record.",
+        "operationId": "get_record_body",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Record Body",
+        "tags": [
+          "extension types"
+        ]
+      },
+      "put": {
+        "description": "Validate and store a new body; the index fields follow. 422 `body_invalid` lists problems.",
+        "operationId": "put_record_body",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutBodyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyStoredOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Record Body",
+        "tags": [
+          "extension types"
+        ]
+      }
+    },
     "/records/{record_id}/conformance": {
       "get": {
         "description": "Conformance of the record's current values against its scope's effective schema.",
@@ -9065,6 +9875,298 @@
         "summary": "Stream Events",
         "tags": [
           "events"
+        ]
+      }
+    },
+    "/types": {
+      "get": {
+        "description": "Registered extension type versions, by type ref.",
+        "operationId": "list_types",
+        "parameters": [
+          {
+            "description": "Only this status.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "active",
+                    "quarantined",
+                    "deprecated"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this status.",
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TypeSummary"
+                  },
+                  "title": "Response List Types",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Types",
+        "tags": [
+          "extension types"
+        ]
+      }
+    },
+    "/types/{type_name}/records": {
+      "post": {
+        "description": "Create an instance of an extension type; the token's actor is recorded.",
+        "operationId": "create_instance",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_name",
+            "required": true,
+            "schema": {
+              "title": "Type Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInstanceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Instance",
+        "tags": [
+          "extension types"
+        ]
+      }
+    },
+    "/types/{type_ref}": {
+      "get": {
+        "description": "One version with its generated form, or why it was quarantined. 404 when unknown.",
+        "operationId": "get_type",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_ref",
+            "required": true,
+            "schema": {
+              "title": "Type Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypeDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorisation hook or by a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Type",
+        "tags": [
+          "extension types"
         ]
       }
     },

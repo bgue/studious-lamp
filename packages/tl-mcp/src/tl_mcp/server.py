@@ -21,6 +21,8 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 from tl_api.auth import authorize
 from tl_api.tokens import check_actor
+from tl_core.extypes.provider import attach as attach_extension_types
+from tl_core.files.types import ObjectStore
 from tl_core.query.parser import MAX_QUERY_LENGTH
 from tl_core.services.link_queries import LinkView
 from tl_core.services.link_trace import TraceDirection, TraceNode
@@ -32,6 +34,7 @@ from tl_mcp.context import Authorizer, McpContext, UowFactory
 from tl_mcp.errors import MAX_PART, guarded, resource_name
 from tl_mcp.models import LakeQueryOutput, SearchResult
 from tl_mcp.modes import resolve_tool_modes
+from tl_mcp.type_tools import register_type_tools
 from tl_mcp.write_tools import register_write_tools
 
 INSTRUCTIONS = (
@@ -87,15 +90,19 @@ def build_server(
     authorize_hook: Authorizer = authorize,
     tool_modes: Mapping[str, str] | None = None,
     lake_dir: str | Path | None = None,
+    object_store: ObjectStore | None = None,
 ) -> MCPServer:
     """An MCP server over ``factory`` acting as ``actor`` (``agent:<id>`` or ``user:<id>``).
 
     ``tool_modes`` maps a record-changing tool to its mode. The only mode is ``propose``; asking for
     ``write`` raises ``ToolModeError`` with the human-gate message (see ``tl_mcp.modes``).
     ``lake_dir`` is the DuckLake directory ``lake_query`` reads (default ``TL_LAKE_DIR``, else
-    ``./dev/data/lake``). The lake is opened per call, so it may not exist yet.
+    ``./dev/data/lake``). The lake is opened per call, so it may not exist yet. ``object_store``
+    holds the bodies of object-backed extension records (default: none, so body reads say so).
+    The registered extension types of ``factory``'s ledger join the effective schema.
     """
     check_actor(actor)
+    attach_extension_types(factory)
     modes = resolve_tool_modes(tool_modes)
     lake = LakeQueryService(
         LakeConfig.at(lake_dir),
@@ -103,9 +110,12 @@ def build_server(
         max_limit=LAKE_MAX_LIMIT,
         max_bytes=LAKE_MAX_BYTES,
     )
-    ctx = McpContext(factory=factory, actor=actor, authorize=authorize_hook, lake=lake)
+    ctx = McpContext(
+        factory=factory, actor=actor, authorize=authorize_hook, lake=lake, objects=object_store
+    )
     server = MCPServer("throughline", instructions=INSTRUCTIONS)
     register_write_tools(server, ctx, modes)
+    register_type_tools(server, ctx)
 
     @server.tool(annotations=READ_ONLY)
     def search_records(

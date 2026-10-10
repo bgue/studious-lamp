@@ -950,3 +950,32 @@ test or a generated artefact already enforces, or narrative history (that belong
   file, no permission) are not LakeError, and the MCP SDK masks them as a bare "Error executing tool". That safety
   depends on the SDK. P0-I8 hardening: catch Exception in `guarded`, log the error server-side, and return a fixed sentence.
   Evidence: re-review at 07ad1b0. Status: active
+- **L-P0-I8B-1** · 2026-10-10 · tags: schema, tooling
+  A LinkML package that imports a repository base class (`throughline/core/extension`) is linted and read on a private temporary copy of `schema/core` placed beside a copy of the
+  package's `type.yaml` (`tl_core/extypes/compile.py`): `Linter.lint(path)` resolves imports relative to the file and takes no import map. Annotations on a metamodel element are a
+  `JsonObj` (test `tag in element.annotations`, there is no `.get`), and pyright reports the metamodel's optional unions as errors, so type the objects as `Any`.
+  Evidence: `tests/extypes/test_validate_package.py`; `compile.py` `_workspace`. Status: active
+- **L-P0-I8B-2** · 2026-10-10 · tags: tests, env
+  `extypes.provider.attach(factory)` changes the process-wide default `DirectorySchemaProvider`, and `create_app`, `build_server`, `EmbeddedClient` and the CLI root all call it. A test that
+  registers types installs its own provider with `use_provider(DirectorySchemaProvider())` before it builds the app or ledger. The source treats any failure to read the registry (no table in an old
+  ledger, a deleted file, a closed engine) as "no types", so a stale source can never take another test's schema down.
+  Evidence: `tests/extypes/conftest.py`; `packages/tl-api/tests/test_api_extypes.py` fixture. Status: active
+- **L-P0-I8B-3** · 2026-10-10 · tags: ledger, schema
+  A registration whose files may change on disk but whose version is immutable keeps its row and records the refused change on it (`conflict_hash`, the report); flipping the status would let a stray
+  edit remove a type from the schema. Reverting the files must re-register to clear the note. The idempotence rule is one function (`registry._already_known`) used before and after validation.
+  Evidence: `tests/extypes/test_registry_sync.py::test_reverting_the_files_clears_the_conflict`. Status: active
+- **L-P0-I8B-4** · 2026-10-10 · tags: ledger, security
+  A quarantine that must survive the failing read's rollback is written by a wrapper that holds the unit-of-work *factory* (`body.read_body`), never by the function that raises (`load_body`); it is
+  operational state (`tl_body_quarantine`, like `wh_*`) so a rebuild cannot clear it. A key outside `sha256/` is overwritten by `FsObjectStore.put`, which is what heals a damaged body: re-storing
+  the same body appends no event but puts the object again and lifts the quarantine.
+  Evidence: `tests/extypes/test_body_store.py` (`test_storing_the_body_again_heals...`, `test_a_rebuild_keeps_the_quarantine...`). Status: active
+- **L-P0-I8B-5** · 2026-10-10 · tags: schema
+  A non-project pset path has exactly one segment after `psets.` (`is_property_path`), so the pset of an extension type cannot contain dots: it is `<namespace with underscores>_<snake Name>`
+  (`co_acme_lift_plan`). Namespace segments therefore forbid underscores (no double underscore, which `PackageDoc` refuses) and two types can still collide on the name (`co.acme.lift.Plan` and
+  `co.acme.LiftPlan`), which sync reports as a `conflict`.
+  Evidence: `tl_core/extypes/names.py`; `test_two_types_whose_names_give_the_same_pset_conflict`. Status: active
+- **L-P0-I8B-6** · 2026-10-10 · tags: process, tests
+  With several workstreams sharing four CPUs the whole `just test` took 13.5 minutes (4081 tests). Start it with `run_in_background` and wait with a foreground `timeout N bash -c 'while kill -0 PID ...'`
+  rather than a polling `sleep`; `pkill -f <pattern>` killed the shell again (see L-P0-I7-B5). A stub ticket's implementation notes go in comments, not the docstring, when the docstring reaches
+  the committed OpenAPI document.
+  Evidence: this round's full run; `docs/tickets/P0-I8/T21-api-types.md`. Status: active

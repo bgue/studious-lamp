@@ -17,7 +17,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from tl_core.extypes.provider import attach as attach_extension_types
 from tl_core.files.service import FileService
+from tl_core.files.types import ObjectStore
 
 from tl_api import commands
 from tl_api.auth import (
@@ -32,7 +34,7 @@ from tl_api.backend import Backend
 from tl_api.context import ApiContext
 from tl_api.errors import ERROR_TABLE, ApiError, ErrorBody, body_for
 from tl_api.feed import FeedHub
-from tl_api.routes import events, files, health, links, proposals, records, reference
+from tl_api.routes import events, extypes, files, health, links, proposals, records, reference
 from tl_api.routes import feed as feed_routes
 from tl_api.settings import ApiSettings
 from tl_api.tokens import TokenStore
@@ -120,15 +122,19 @@ def create_app(
     tokens: TokenStore | None = None,
     files_service: FileService | None = None,
     authorize_hook: Authorizer = authorize,
+    object_store: ObjectStore | None = None,
 ) -> FastAPI:
     """Build the application over ``backend``.
 
     ``tokens`` defaults to the file named in ``settings``. ``files_service`` may be ``None``: the
     file routes then answer 503. The change-feed poller starts and stops with the app's lifespan
     (it does not run under a ``TestClient`` that is not used as a context manager; in-process
-    writes still reach the stream through the bus).
+    writes still reach the stream through the bus). ``object_store`` holds the bodies of
+    object-backed extension records; ``None`` makes the body routes answer 503. The registered
+    extension types of ``backend``'s ledger join the effective schema (``extypes.provider.attach``).
     """
     cfg = settings if settings is not None else ApiSettings()
+    attach_extension_types(backend)
     feed = FeedHub(
         backend,
         poll_interval_s=cfg.poll_interval_s,
@@ -163,6 +169,7 @@ def create_app(
         feed=feed,
         settings=cfg,
         files=files_service,
+        objects=object_store,
     )
     install_error_handlers(app)
     token_store = app.state.ctx.tokens
@@ -187,7 +194,17 @@ def create_app(
             )
             return await call_next(request)
 
-    for module in (health, records, links, reference, events, files, feed_routes, proposals):
+    for module in (
+        health,
+        records,
+        links,
+        reference,
+        events,
+        files,
+        feed_routes,
+        proposals,
+        extypes,
+    ):
         app.include_router(module.router)
     app.include_router(commands.router)
     return app

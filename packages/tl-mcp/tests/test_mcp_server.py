@@ -17,7 +17,8 @@ from tl_mcp.server import build_server
 
 READ_TOOLS = {"search_records", "get_record", "get_links", "trace", "lake_query"}
 PROPOSE_TOOLS = {"create_record", "update_psets", "link_records", "transition_workflow"}
-TOOLS = READ_TOOLS | PROPOSE_TOOLS | {"post_feed"}
+TYPE_TOOLS = {"list_record_types", "get_record_type", "get_record_body"}
+TOOLS = READ_TOOLS | TYPE_TOOLS | PROPOSE_TOOLS | {"post_feed"}
 
 
 def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
@@ -28,7 +29,7 @@ def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
     for tool in tools:
         assert tool.annotations is not None
         assert tool.annotations.destructive_hint is False
-        assert (tool.annotations.read_only_hint is True) == (tool.name in READ_TOOLS)
+        assert (tool.annotations.read_only_hint is True) == (tool.name in READ_TOOLS | TYPE_TOOLS)
         assert tool.description
     by_name = {t.name: t for t in tools}
     search = by_name["search_records"].input_schema
@@ -41,10 +42,15 @@ def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
 
 def test_the_resources_are_registered(env: McpHarness) -> None:
     templates = {t.uri_template for t in asyncio.run(env.server.list_resource_templates())}
-    assert templates == {"tl://record/{scope}/{key}", "tl://schema/{scope}/{record_type}"}
+    assert templates == {
+        "tl://record/{scope}/{key}",
+        "tl://schema/{scope}/{record_type}",
+        "tl://types/{type_ref}",
+    }
     assert {str(r.uri) for r in asyncio.run(env.server.list_resources())} == {
         "tl://relations",
         "tl://lake/schema",
+        "tl://types",
     }
 
 

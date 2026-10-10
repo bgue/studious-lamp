@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from tl_adapters.sqlite.uow import create_schema, rebuild_projections
+from tl_adapters.sqlite.uow import create_schema, open_uow, rebuild_projections
+from tl_core.extypes.provider import attach
 from tl_sim import cli as sim_cli
 
 from tl_cli import (
@@ -18,6 +19,7 @@ from tl_cli import (
     backup,
     dev,
     events,
+    extypes,
     feed,
     file,
     lake,
@@ -48,6 +50,7 @@ app.add_typer(file.app, name="file")
 app.add_typer(link.app, name="link")
 app.add_typer(feed.app, name="feed")
 app.add_typer(proposal.app, name="proposal")
+app.add_typer(extypes.app, name="types")
 app.add_typer(lake.app, name="lake")
 app.add_typer(dev.app, name="dev")
 app.add_typer(webhook.app, name="webhook")
@@ -73,6 +76,9 @@ def root(
 ) -> None:
     """Throughline dev ledger commands."""
     ctx.obj = Path(db)
+    path = ctx.obj
+    # registered extension types join the effective schema of every command (brief 31)
+    attach(lambda readonly=False: open_uow(path, readonly=readonly))
 
 
 @app.command("init")
