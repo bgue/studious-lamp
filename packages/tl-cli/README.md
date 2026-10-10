@@ -24,6 +24,11 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl link trace --project ID KEY [--depth N] [--direction out|in|both]` | command | Records reachable through links, as an indented tree with stale and broken marks |
 | `tl wf show --project ID KEY [--role R]...` | command | Workflow state and, for each transition, whether its guards pass |
 | `tl wf transition --project ID KEY NAME [--role R]... [--reason T]` | command | Run a transition; a blocked one prints every guard and exits 1 |
+| `tl lake sync` | command | Calls `sync_lake`; copies new ledger events into the lake as one snapshot, prints the seq range and silver row counts |
+| `tl lake rebuild --yes` | command | Deletes the lake's files and loads everything again from the ledger; refuses without `--yes` |
+| `tl lake status` | command | Seq the lake reflects, the snapshot, the sync count and the row count of each table |
+| `tl lake tables` | command | Lake tables and their columns |
+| `tl lake query [--limit N] [--json] SQL` | command | Calls `LakeQueryService.query`; one read-only SELECT, refused queries exit 1 |
 | `tl serve [--host H] [--port N] [--tokens PATH] [--insecure-dev]` | command | The REST API and event stream on the dev ledger (`--db`); loopback unless `--insecure-dev` (ADR-0005); same as `just serve` |
 | `tl tui [--remote URL] [--token T] [--project ID] [--actor A]` | command | The TUI, embedded on the dev ledger by default; `--remote` (or `TL_REMOTE`) with a dev token (`TL_TOKEN`, preferred: arguments show in `ps`) runs it against `tl serve` |
 | `tl dev token add ACTOR [--tokens PATH]` | command | Create a dev bearer token for `user:<id>` or `agent:<id>` in the token file (mode 0600, `TL_TOKENS`, default `./dev/data/tokens.json`); the token alone on stdout (ADR-0005) |

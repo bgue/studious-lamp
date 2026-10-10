@@ -7,6 +7,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 
 from tl_core.uow import UnitOfWork
+from tl_lake import LakeQueryService
 
 #: ``factory(readonly)`` yields an entered unit of work (``SqliteUowFactory`` has this shape).
 UowFactory = Callable[[bool], AbstractContextManager[UnitOfWork]]
@@ -18,3 +19,4 @@ class McpContext:
     factory: UowFactory
     actor: str  # ``agent:<id>`` or ``user:<id>``, fixed for the life of the server (ADR-0005)
     authorize: Authorizer
+    lake: LakeQueryService  # the guarded, read-only lake_query service (brief 11.3, 28.4)

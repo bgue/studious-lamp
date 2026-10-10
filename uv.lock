@@ -13,6 +13,7 @@ members = [
     "tl-api",
     "tl-cli",
     "tl-core",
+    "tl-lake",
     "tl-mcp",
     "tl-schema",
     "tl-tui",
@@ -598,6 +599,32 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a1/43/3a5e81d1728f4d234c79bfe385808ee7c04834f7c37a4b5c257459c25614/duckdb-1.5.5-cp314-cp314-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:fbf0f2d48b43c6c304d00463b463c27ead6c4b01c3c1816b750f728decf71afe", size = 21513851, upload-time = "2026-07-22T10:55:07.864Z" },
     { url = "https://files.pythonhosted.org/packages/91/41/fc7c829172c60ca22485251eab285f4f1a0d87b486a024c726f21471d86e/duckdb-1.5.5-cp314-cp314-win_amd64.whl", hash = "sha256:9dc826c4b50e64f6c4e4d07a3a9cb075ef70ba3899dc43ec5493dc3d7b04b353", size = 13691858, upload-time = "2026-07-22T10:55:11.181Z" },
     { url = "https://files.pythonhosted.org/packages/e1/2c/95d9216b79e9273689d7ebce125a54503ed0c9bd7da931f0265888e99779/duckdb-1.5.5-cp314-cp314-win_arm64.whl", hash = "sha256:63e48d4b74b15aeacd688976432a7225163df8c226eddeb8536bba2d4d4ff433", size = 14470180, upload-time = "2026-07-22T10:55:14.445Z" },
+]
+
+[[package]]
+name = "duckdb-extension-ducklake"
+version = "1.5.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "duckdb" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b2/06/a125c52cf1df78effc154ab25d1a42d7bb541bb8ffff439f7d4f56888cfe/duckdb_extension_ducklake-1.5.5-py3-none-macosx_11_0_arm64.whl", hash = "sha256:d6a65e39a38bd03270ed54715f5c16f6695954742b74c0c77ed1cfc0eda33f67", size = 8414952, upload-time = "2026-08-10T20:08:12.285Z" },
+    { url = "https://files.pythonhosted.org/packages/56/93/3aa5778fb56f16aa8e3d5de79017bc5eea81527e36514314b731c6a831fa/duckdb_extension_ducklake-1.5.5-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:48b089cccf3d609a51e2372dabf85de9dad96ce09f478b0647a2ffd316f495ef", size = 9546006, upload-time = "2026-08-10T20:08:14.324Z" },
+    { url = "https://files.pythonhosted.org/packages/e7/f0/84b4e1dd9297b43959bb80942609ca92d39dfb5a6b9fbc5740ee5dc9e298/duckdb_extension_ducklake-1.5.5-py3-none-manylinux2014_aarch64.whl", hash = "sha256:cd8280d3a20c744f7e113137a17a053f751b9cc469a9b694c43e1b8539fd30af", size = 11101715, upload-time = "2026-08-10T20:08:16.506Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/12/d4dab9f3199b3475be36bc0a30a14ae784500396b14bcbb4a29b2e52ce6c/duckdb_extension_ducklake-1.5.5-py3-none-manylinux2014_x86_64.whl", hash = "sha256:b631ae4dd4bd649b3db35a789dbcc859476fe231ef449b3f03f4fe4e2ef4a946", size = 12645981, upload-time = "2026-08-10T20:08:19.06Z" },
+    { url = "https://files.pythonhosted.org/packages/b2/43/b1613c48170cb0d6a649682cf4705e7a37d75d8e2c603574226328959559/duckdb_extension_ducklake-1.5.5-py3-none-win_amd64.whl", hash = "sha256:f1722cf7d6fba148cc443a0f9c8bc3b20b0bce44c6c6ae54193784bd15acb0b1", size = 8539404, upload-time = "2026-08-10T20:08:21.112Z" },
+]
+
+[[package]]
+name = "duckdb-extensions"
+version = "1.5.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "duckdb" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ff/af/9b6c2e3fce62c045c4a9e9e6aaf3887ddbb13e8fcc7f5925ad69991a20a3/duckdb_extensions-1.5.5-py3-none-any.whl", hash = "sha256:d552214c9b16aa3ba654476dd1ae00b1e9a8cdb656f6dec2a0c59a3c882bfc37", size = 4748, upload-time = "2026-08-10T20:05:40.04Z" },
 ]
 
 [[package]]
@@ -2562,6 +2589,7 @@ dependencies = [
     { name = "tl-adapters" },
     { name = "tl-api" },
     { name = "tl-core" },
+    { name = "tl-lake" },
     { name = "tl-schema" },
     { name = "tl-tui" },
     { name = "typer" },
@@ -2574,6 +2602,7 @@ requires-dist = [
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-lake", editable = "packages/tl-lake" },
     { name = "tl-schema", editable = "packages/tl-schema" },
     { name = "tl-tui", editable = "packages/tl-tui" },
     { name = "typer" },
@@ -2607,6 +2636,31 @@ requires-dist = [
 ]
 
 [[package]]
+name = "tl-lake"
+version = "0.0.1"
+source = { editable = "packages/tl-lake" }
+dependencies = [
+    { name = "duckdb" },
+    { name = "duckdb-extension-ducklake" },
+    { name = "duckdb-extensions" },
+    { name = "sqlalchemy" },
+    { name = "tl-adapters" },
+    { name = "tl-core" },
+    { name = "tl-schema" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "duckdb", specifier = "==1.5.5" },
+    { name = "duckdb-extension-ducklake" },
+    { name = "duckdb-extensions" },
+    { name = "sqlalchemy", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
+]
+
+[[package]]
 name = "tl-mcp"
 version = "0.0.1"
 source = { editable = "packages/tl-mcp" }
@@ -2616,6 +2670,7 @@ dependencies = [
     { name = "tl-adapters" },
     { name = "tl-api" },
     { name = "tl-core" },
+    { name = "tl-lake" },
     { name = "tl-schema" },
 ]
 
@@ -2626,6 +2681,7 @@ requires-dist = [
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-lake", editable = "packages/tl-lake" },
     { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 

@@ -569,6 +569,45 @@ test or a generated artefact already enforces, or narrative history (that belong
   `duckdb_extensions.import_extension('ducklake')` before `LOAD ducklake`. Parquet and JSON are built in. pgBackRest is
   installable with apt. GitHub release downloads work. Details: the ADR-0002 addendum.
   Evidence: orchestrator probes before P0-I7. Status: active
+- **L-P0-I7-B1** · 2026-10-09 · tags: lake, tooling
+  Load rows into DuckDB/DuckLake through a scratch NDJSON file and `INSERT ... SELECT FROM read_json(file, columns={...})`, never
+  `executemany` or multi-row `VALUES`: 100 000 wide rows took 0.16 s that way, while 10 000 single-column rows took 7.6 s with
+  `executemany` and the multi-row insert had not finished after two minutes.
+  Evidence: scratch benchmark during P0-I7-S1; `tl_lake/ingest.py`. Status: active
+- **L-P0-I7-B2** · 2026-10-09 · tags: lake, tooling
+  DuckDB's Python client needs `pytz` to fetch any `TIMESTAMPTZ` (`lake.snapshots()`' `snapshot_time` and `now()` included), and pytz is not a
+  dependency. Store `TIMESTAMP` holding UTC, select explicit columns from `snapshots()`, and have `lake_query` cast zone-aware result columns to
+  text. In DuckLake 1.5.5 `lake.current_snapshot()` has one column, `id`.
+  Evidence: `ModuleNotFoundError: No module named 'pytz'`; `tl_lake/query.py::_tz_safe`. Status: active
+- **L-P0-I7-B3** · 2026-10-09 · tags: lake
+  DuckLake commits DDL and DML in one transaction as one snapshot, and the next snapshot id is `current_snapshot() + 1`, so a sync can write the
+  `_tl_sync` row naming its own snapshot inside the transaction and verify the id after COMMIT. Small inserts are inlined into the catalog unless
+  the attach sets `DATA_INLINING_ROW_LIMIT 0`; a moved lake directory needs `OVERRIDE_DATA_PATH true`. A DuckDB catalog file admits one writer or
+  many readers across processes, so every open goes through a lock file (`tl_lake.duck.open_lake`).
+  Evidence: `tests/test_sync.py`; scratch probes during P0-I7-S1. Status: active
+- **L-P0-I7-B4** · 2026-10-09 · tags: lake, mcp, security
+  Build a SQL read-only guard on DuckDB's own parser: `json_serialize_sql` refuses everything but SELECT and returns the tree; walk it and allow
+  tables only if they are lake tables or a CTE visible at that point. A flat set of CTE names is bypassable (a scalar subquery that defines a CTE
+  named `duckdb_settings` lets the outer FROM reach the system view), so scope them. Table functions are allow-listed, not deny-listed. Keep
+  READ_ONLY attach and `enable_external_access=false` + `lock_configuration=true` behind the guard.
+  Evidence: `tests/test_guard.py::test_a_cte_only_covers_the_query_that_defines_it`, `test_query.py::test_the_sandbox_blocks_what_the_guard_would_miss`. Status: active
+- **L-P0-I7-B5** · 2026-10-09 · tags: tests, process
+  A property test over a real storage engine is slow and shrinks slowly when it fails: with the machine shared by several workstreams (load
+  average 20 on 4 CPUs) the mutation check of the lake property test took six minutes. Keep `max_examples` near 10, run mutation checks in the
+  background and wait with a notification, and never `pkill -f` a test file name (it matches and kills the shell that runs it).
+  Evidence: `tests/test_rebuild_equals_incremental.py` mutation run. Status: active
+- **L-P0-I7-B6** · 2026-10-10 · tags: tests, process
+  A library logger with no handler prints WARNING records to stderr through Python's last-resort handler, which polluted `tl lake query` refusals
+  (`error: refused:` was preceded by a JSON log line). Give a library logger a `NullHandler`, and test the CLI stderr. A module-scoped test
+  fixture cannot use the function-scoped `ledger` fixture or the autouse schema provider, so lake tests build their ledger per test.
+  Evidence: first `just demo P0-I7-lake`; `tests/test_query.py::test_a_refusal_prints_nothing_unless_the_application_configures_logging`; T21 report. Status: active
+- **L-P0-I7-B7** · 2026-10-10 · tags: lake, mcp, security
+  A CTE is not visible inside its own body (only the recursive term of a recursive CTE sees its name), so a guard that treats every CTE name
+  of a query as in scope lets `WITH "/path/x.parquet" AS (SELECT * FROM "/path/x.parquet")` through, and DuckDB then replacement-scans the file.
+  Scope CTE names exactly as SQL does and also refuse any table or CTE name containing `/ \ . * ? [`. Audit with a catch-all: any exception
+  (lock timeout, bad surrogate, non-text SQL) must still write one line with the same keys, written ASCII-escaped because `str.splitlines()`
+  splits on U+2028 and U+0085. Cap the returned bytes as well as rows, and strip absolute paths from error text.
+  Evidence: lake_query review of 16d1828; `tests/test_guard.py`, `tests/test_query.py`. Status: active
 - **L-P0-I5-O3** · 2026-10-09 · tags: env, process
   Refines L-P0-I3-O1. Before resuming a ticket-batch workflow after a restart, read its journal. For every implementer
   with no `result` line, remove its worktree and delete its ticket branch (`git worktree remove --force`, `git branch -D`),
@@ -615,6 +654,13 @@ test or a generated artefact already enforces, or narrative history (that belong
   two different files. After merging workstream A, `just check` failed on codegen drift because its `COLLATE "C"` change altered the
   Postgres DDL of tables that workstream B had added: run `just gen` after every merge that touches a generator.
   Evidence: `git show c073261:...factory.py`; `differs: ddl/postgres/wh_delivery.sql`. Status: active
+- **L-P0-I7-B8** · 2026-10-10 · tags: lake, tooling, ledger
+  The Postgres adapter returns JSON as canonical text, booleans as 0/1, timestamptz as ISO text and sums as ints, and under that
+  `sqlalchemy.inspect(conn).get_columns` and `Table(autoload_with=conn)` fail (`TypeError` on the collation JSON). Read column names with
+  `tl_core.projection.promoted.table_columns`, select with explicit quoted columns, and get the type of a promoted column from the effective
+  schema's `promoted_columns` + `column_type(..., "postgres")` (the mapping that created it). Make tests parity tests by building the ledger
+  from the `new_db` fixture and the dialect-neutral `tl_adapters.db` functions.
+  Evidence: `tl_lake/sync.py::_extra_types`, `tests/test_parity_sync.py`, first Postgres run of `tests/test_sync.py`. Status: active
 
 - **L-P0-I4-D1** · 2026-10-10 · tags: tui, tooling
   `query` is a Textual DOM method, so `self.query = "..."` on a widget fails pyright and would break at run time (the L-P0-I2-B4 trap again, one more
