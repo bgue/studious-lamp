@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS cur_setting_lock (
+  key TEXT COLLATE "C" PRIMARY KEY,
+  locked BOOLEAN NOT NULL DEFAULT FALSE,
+  bounds_json JSONB,
+  reason TEXT COLLATE "C" NOT NULL,
+  actor TEXT COLLATE "C" NOT NULL,
+  seq BIGINT NOT NULL,
+  version BIGINT NOT NULL,
+  recorded_at TIMESTAMPTZ NOT NULL
+);

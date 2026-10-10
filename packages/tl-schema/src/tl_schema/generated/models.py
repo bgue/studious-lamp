@@ -82,6 +82,7 @@ linkml_meta = LinkMLMeta({'default_prefix': 'throughline',
                  'workflow',
                  'feed',
                  'proposals',
+                 'settings',
                  'files',
                  'integration',
                  'outbox',
@@ -219,6 +220,68 @@ class ProposalStatus(str, Enum):
     """
     A person accepted it, but the command was refused (stale version, failed guard).
     """
+
+
+class SettingType(str, Enum):
+    """
+    The value type of a setting (brief 30.1).
+    """
+    bool = "bool"
+    int = "int"
+    decimal = "decimal"
+    string = "string"
+    enum = "enum"
+    list = "list"
+    duration = "duration"
+    """
+    Whole number plus unit, `ms`, `s`, `m`, `h`, `d` or `w` (`5m`, `24h`).
+    """
+    size = "size"
+    """
+    Whole number plus unit, `B`, `KB`, `MB`, `GB` or `TB` (`50MB`).
+    """
+    date = "date"
+    """
+    ISO date, `YYYY-MM-DD`.
+    """
+    json = "json"
+
+
+class SettingScope(str, Enum):
+    """
+    Which layers may set a key. `platform` is the shipped default only; nobody sets it at run time.
+    """
+    platform = "platform"
+    company = "company"
+    project = "project"
+    user = "user"
+
+
+class SettingEffect(str, Enum):
+    """
+    What a change needs before it is fully in force (brief 30.3).
+    """
+    live = "live"
+    reindex = "reindex"
+    rebuild = "rebuild"
+    restart = "restart"
+
+
+class SettingSensitivity(str, Enum):
+    """
+    A `secret` setting would live in the vault; Phase 0 has none and refuses to set one.
+    """
+    normal = "normal"
+    secret = "secret"
+
+
+class SettingRisk(str, Enum):
+    """
+    `advanced` needs a reason with every change; `dangerous` also needs the explicit "I accept the risk".
+    """
+    normal = "normal"
+    advanced = "advanced"
+    dangerous = "dangerous"
 
 
 class FileStatus(str, Enum):
@@ -370,9 +433,18 @@ class RecordEnvelope(ConfiguredBaseModel):
     key: Optional[str] = Field(default=None, description="""Human-readable number, unique within a scope. Null until numbering assigns one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'SettingDefinition',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'EventOrigin',
                        'EventLinkRef']} })
-    type: str = Field(default=..., description="""Fully qualified record type, for example `core.Record`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'EventOrigin', 'EventLinkRef', 'CloudEvent']} })
+    type: str = Field(default=..., description="""Fully qualified record type, for example `core.Record`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'SettingDefinition',
+                       'EventOrigin',
+                       'EventLinkRef',
+                       'CloudEvent']} })
     scope: str = Field(default=..., description="""`company` or `project:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Event',
                        'PsetValue',
@@ -386,11 +458,12 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
     title: str = Field(default=..., description="""Short human-readable title.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'RecordCreatedPayload']} })
-    description: Optional[str] = Field(default=None, description="""Longer free-text description.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'RecordCreatedPayload']} })
+    description: Optional[str] = Field(default=None, description="""Longer free-text description.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'RecordCreatedPayload', 'SettingDefinition']} })
     status: Optional[str] = Field(default=None, description="""Workflow state; null when the record type has no workflow.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'LinkFlaggedPayload',
@@ -411,6 +484,8 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -461,9 +536,18 @@ class Record(RecordEnvelope):
     key: Optional[str] = Field(default=None, description="""Human-readable number, unique within a scope. Null until numbering assigns one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'SettingDefinition',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'EventOrigin',
                        'EventLinkRef']} })
-    type: str = Field(default=..., description="""Fully qualified record type, for example `core.Record`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'EventOrigin', 'EventLinkRef', 'CloudEvent']} })
+    type: str = Field(default=..., description="""Fully qualified record type, for example `core.Record`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'SettingDefinition',
+                       'EventOrigin',
+                       'EventLinkRef',
+                       'CloudEvent']} })
     scope: str = Field(default=..., description="""`company` or `project:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Event',
                        'PsetValue',
@@ -477,11 +561,12 @@ class Record(RecordEnvelope):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
     title: str = Field(default=..., description="""Short human-readable title.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'RecordCreatedPayload']} })
-    description: Optional[str] = Field(default=None, description="""Longer free-text description.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'RecordCreatedPayload']} })
+    description: Optional[str] = Field(default=None, description="""Longer free-text description.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'RecordCreatedPayload', 'SettingDefinition']} })
     status: Optional[str] = Field(default=None, description="""Workflow state; null when the record type has no workflow.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'LinkFlaggedPayload',
@@ -502,6 +587,8 @@ class Record(RecordEnvelope):
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -546,6 +633,8 @@ class Event(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'OutboxEvent',
                        'WebhookDelivery']} })
     event_id: str = Field(default=..., description="""Unique event identifier (ULID).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent', 'WebhookDelivery']} })
@@ -567,13 +656,19 @@ class Event(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
     payload: Any = Field(default=..., description="""Event payload, a JSON object validated against the event type's schema.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['Event']} })
-    actor: str = Field(default=..., description="""`user:<id>`, `svc:<name>` or `agent:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'EventCard', 'FeedItemRow', 'OutboxEvent']} })
-    recorded_at: datetime  = Field(default=..., description="""System (transaction) time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent']} })
+    actor: str = Field(default=..., description="""`user:<id>`, `svc:<name>` or `agent:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'EventCard',
+                       'FeedItemRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent']} })
+    recorded_at: datetime  = Field(default=..., description="""System (transaction) time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'SettingChangeRow', 'SettingLockRow', 'OutboxEvent']} })
     effective_at: datetime  = Field(default=..., description="""Business (valid) time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event']} })
     correlation_id: str = Field(default=..., description="""Ties a command chain, import, or automated process together.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent']} })
     causation_id: Optional[str] = Field(default=None, description="""Identifier of the event or command that caused this one; may be null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event']} })
@@ -581,6 +676,7 @@ class Event(ConfiguredBaseModel):
                        'Link',
                        'LinkAddedPayload',
                        'LinkSuggestedPayload',
+                       'SettingChangeRow',
                        'CloudEvent',
                        'OutboxEvent']} })
     prev_hash: Optional[str] = Field(default=None, description="""Hash of the previous event in the same scope; null for the first.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event']} })
@@ -621,6 +717,7 @@ class PsetValue(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -628,7 +725,11 @@ class PsetValue(ConfiguredBaseModel):
          'domain_of': ['PsetValue']} })
     pset: str = Field(default=..., description="""Pset name, for example `valve_data` or `prj.shutdown_tie_in`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue', 'PsetValuesSetPayload']} })
     property_name: str = Field(default=..., description="""Property relative to the pset; custom-section properties start with `x.`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue']} })
-    layer: PsetLayer = Field(default=..., description="""Layer derived from the path.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue', 'PsetValuesSetPayload']} })
+    layer: PsetLayer = Field(default=..., description="""Layer derived from the path.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue',
+                       'PsetValuesSetPayload',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow']} })
     value_type: PsetValueType = Field(default=..., description="""Which of the typed value columns is set.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue']} })
     value_text: Optional[str] = Field(default=None, description="""String values.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue']} })
     value_num: Optional[float] = Field(default=None, description="""Integer and decimal values.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue']} })
@@ -677,6 +778,7 @@ class Link(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -709,6 +811,7 @@ class Link(ConfiguredBaseModel):
                        'Link',
                        'LinkAddedPayload',
                        'LinkSuggestedPayload',
+                       'SettingChangeRow',
                        'CloudEvent',
                        'OutboxEvent']} })
     confidence: Optional[float] = Field(default=None, description="""Confidence of a suggested link, between 0 and 1.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'LinkAddedPayload', 'LinkSuggestedPayload']} })
@@ -724,6 +827,10 @@ class Link(ConfiguredBaseModel):
                        'FeedRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File']} })
     declined: bool = Field(default=False, description="""True when the link was a suggestion that a person declined. Declines are remembered.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link'], 'ifabsent': 'false'} })
     verified_by: Optional[str] = Field(default=None, description="""Actor of the last `Link.Verified` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
@@ -747,6 +854,8 @@ class Link(ConfiguredBaseModel):
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -790,6 +899,7 @@ class LinkCount(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -831,10 +941,13 @@ class NumberingCounter(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
-    pattern: str = Field(default=..., description="""Identifier of the numbering pattern.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter', 'NumberingAllocatedPayload']} })
+    pattern: str = Field(default=..., description="""Identifier of the numbering pattern.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter',
+                       'NumberingAllocatedPayload',
+                       'SettingValidation']} })
     prefix: str = Field(default=..., description="""The rendered key without its sequence number, for example `P123-REC-`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter', 'NumberingAllocatedPayload']} })
     last_sequence: int = Field(default=..., description="""The highest sequence number allocated so far.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter']} })
     last_key: str = Field(default=..., description="""The key built from `last_sequence`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter']} })
@@ -846,6 +959,8 @@ class NumberingCounter(ConfiguredBaseModel):
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -896,6 +1011,7 @@ class WorkflowState(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -965,10 +1081,15 @@ class RecordCreatedPayload(EventPayload):
     key: Optional[str] = Field(default=None, description="""Human-readable key; null until numbering assigns one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'SettingDefinition',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'EventOrigin',
                        'EventLinkRef']} })
     title: str = Field(default=..., description="""Title.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'RecordCreatedPayload']} })
-    description: Optional[str] = Field(default=None, description="""Description.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'RecordCreatedPayload']} })
+    description: Optional[str] = Field(default=None, description="""Description.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'RecordCreatedPayload', 'SettingDefinition']} })
     psets: Optional[Any] = Field(default=None, description="""Initial property-set values keyed by pset name.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['RecordEnvelope', 'RecordCreatedPayload']} })
 
@@ -1016,6 +1137,10 @@ class RecordVoidedPayload(EventPayload):
                        'FeedRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File']} })
 
 
@@ -1050,6 +1175,10 @@ class RecordCorrectedPayload(EventPayload):
                        'FeedRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File']} })
 
 
@@ -1070,7 +1199,11 @@ class PsetValuesSetPayload(EventPayload):
          'from_schema': 'https://example.org/throughline/core/events'})
 
     pset: str = Field(default=..., description="""Property-set name.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue', 'PsetValuesSetPayload']} })
-    layer: str = Field(default=..., description="""Pset layer: standard, custom or project.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue', 'PsetValuesSetPayload']} })
+    layer: str = Field(default=..., description="""Pset layer: standard, custom or project.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue',
+                       'PsetValuesSetPayload',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow']} })
     values: Any = Field(default=..., description="""Object of property name to value.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['PsetValuesSetPayload']} })
     effective_schema_hash: Optional[str] = Field(default=None, description="""Hash of the effective schema in force.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
@@ -1116,6 +1249,7 @@ class LinkAddedPayload(LinkPayload):
                        'Link',
                        'LinkAddedPayload',
                        'LinkSuggestedPayload',
+                       'SettingChangeRow',
                        'CloudEvent',
                        'OutboxEvent']} })
     confidence: Optional[float] = Field(default=None, description="""Confidence of a suggested link, 0 to 1.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'LinkAddedPayload', 'LinkSuggestedPayload']} })
@@ -1153,6 +1287,7 @@ class LinkSuggestedPayload(LinkPayload):
                        'Link',
                        'LinkAddedPayload',
                        'LinkSuggestedPayload',
+                       'SettingChangeRow',
                        'CloudEvent',
                        'OutboxEvent']} })
     confidence: Optional[float] = Field(default=None, description="""Confidence, 0 to 1.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'LinkAddedPayload', 'LinkSuggestedPayload']} })
@@ -1196,6 +1331,10 @@ class LinkDeclinedPayload(LinkPayload):
                        'FeedRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File']} })
 
 
@@ -1261,6 +1400,10 @@ class LinkFlaggedPayload(LinkPayload):
                        'FeedRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File']} })
 
 
@@ -1286,6 +1429,10 @@ class LinkRetractedPayload(LinkPayload):
                        'FeedRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File']} })
 
 
@@ -1328,6 +1475,10 @@ class WorkflowTransitionedPayload(EventPayload):
                        'FeedRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File']} })
     conformance: Optional[str] = Field(default=None, description="""Conformance after the transition.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValuesSetPayload',
@@ -1351,10 +1502,17 @@ class NumberingAllocatedPayload(EventPayload):
                                 '"core.Record", "sequence": 1}'}],
          'from_schema': 'https://example.org/throughline/core/events'})
 
-    pattern: str = Field(default=..., description="""Numbering pattern id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter', 'NumberingAllocatedPayload']} })
+    pattern: str = Field(default=..., description="""Numbering pattern id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter',
+                       'NumberingAllocatedPayload',
+                       'SettingValidation']} })
     key: str = Field(default=..., description="""The key built.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'SettingDefinition',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'EventOrigin',
                        'EventLinkRef']} })
     sequence: int = Field(default=..., description="""The sequence number.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingAllocatedPayload']} })
@@ -1491,6 +1649,10 @@ class FileRejectedPayload(EventPayload):
                        'FeedRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File']} })
     report: Optional[Any] = Field(default=None, description="""Scan report.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['FileProcessedPayload', 'FileRejectedPayload', 'File']} })
@@ -1521,6 +1683,7 @@ class SchemaEffectiveChangedPayload(EventPayload):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -1550,6 +1713,8 @@ class SchemaPackagePublishedPayload(EventPayload):
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -1581,7 +1746,9 @@ class WebhookSubscriptionCreatedPayload(WebhookEventPayload):
     name: str = Field(default=..., description="""Label.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'WebhookSubscription',
                        'WebhookCursor']} })
-    owner: str = Field(default=..., description="""Owner actor.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload', 'WebhookSubscription']} })
+    owner: str = Field(default=..., description="""Owner actor.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
+                       'SettingDefinition',
+                       'WebhookSubscription']} })
     integration_app: Optional[str] = Field(default=None, description="""Integration app.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload', 'WebhookSubscription']} })
     target_url: str = Field(default=..., description="""Receiver URL.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload', 'WebhookSubscription']} })
     filter: Any = Field(default=..., description="""SubscriptionFilter object.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
@@ -1636,6 +1803,10 @@ class WebhookSubscriptionDisabledPayload(WebhookEventPayload):
                        'FeedRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File']} })
     detail: Optional[str] = Field(default=None, description="""Free-text detail, for example the failure counts.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionDisabledPayload', 'CloudEventData']} })
 
@@ -1719,6 +1890,7 @@ class ActivityPost(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -1757,10 +1929,16 @@ class EventCard(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
-    actor: str = Field(default=..., description="""Actor of the aggregated events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'EventCard', 'FeedItemRow', 'OutboxEvent']} })
+    actor: str = Field(default=..., description="""Actor of the aggregated events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'EventCard',
+                       'FeedItemRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent']} })
     summary: str = Field(default=..., description="""Rendered one-line summary, for example `jsmith created 14 records`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
                        'FeedItemRow',
                        'ProposalCreatedPayload',
@@ -1865,6 +2043,10 @@ class FeedRetractedPayload(EventPayload):
                        'FeedRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File']} })
 
 
@@ -1930,16 +2112,24 @@ class FeedItemRow(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
-    actor: str = Field(default=..., description="""Author of a post, or the actor of a card's events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'EventCard', 'FeedItemRow', 'OutboxEvent']} })
+    actor: str = Field(default=..., description="""Author of a post, or the actor of a card's events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'EventCard',
+                       'FeedItemRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent']} })
     occurred_at: datetime  = Field(default=..., description="""`recorded_at` of the post, or of the latest event of a card.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow']} })
     seq: int = Field(default=..., description="""`seq` of the posted event, or of the latest event of a card.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'OutboxEvent',
                        'WebhookDelivery']} })
     summary: str = Field(default=..., description="""Body of a post (empty once retracted) or the rendered summary of a card.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
@@ -1965,6 +2155,8 @@ class FeedItemRow(ConfiguredBaseModel):
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -1994,6 +2186,7 @@ class Hashtag(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -2017,6 +2210,8 @@ class Hashtag(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'OutboxEvent',
                        'WebhookDelivery']} })
 
@@ -2109,6 +2304,10 @@ class ProposalRejectedPayload(EventPayload):
                        'FeedRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File']} })
 
 
@@ -2162,6 +2361,7 @@ class ProposalRow(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -2211,6 +2411,10 @@ class ProposalRow(ConfiguredBaseModel):
                        'FeedRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File']} })
     result_stream_id: Optional[str] = Field(default=None, description="""Accepted only; the stream the command wrote to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload', 'ProposalRow']} })
     seq: int = Field(default=..., description="""`seq` of `Proposal.Created`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
@@ -2218,6 +2422,8 @@ class ProposalRow(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'OutboxEvent',
                        'WebhookDelivery']} })
     version: Optional[int] = Field(default=None, description="""Ledger `stream_version` of the proposal stream after the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
@@ -2226,9 +2432,372 @@ class ProposalRow(ConfiguredBaseModel):
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
+
+
+class SettingValidation(ConfiguredBaseModel):
+    """
+    Range, choices or pattern of a value. For `list` values `choices` and `pattern` apply to each item; for `duration` and `size` the range is in seconds and bytes.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'from_schema': 'https://example.org/throughline/core/settings'})
+
+    minimum: Optional[float] = Field(default=None, description="""Smallest allowed value.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingValidation']} })
+    maximum: Optional[float] = Field(default=None, description="""Largest allowed value.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingValidation']} })
+    choices: Optional[Any] = Field(default=None, description="""The allowed values (a JSON list), for an enum or the items of a list.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['SettingValidation']} })
+    pattern: Optional[str] = Field(default=None, description="""Regular expression a string value (or each list item) must match in full.""", json_schema_extra = { "linkml_meta": {'domain_of': ['NumberingCounter',
+                       'NumberingAllocatedPayload',
+                       'SettingValidation']} })
+
+
+class SettingDefinition(ConfiguredBaseModel):
+    """
+    One setting (brief 30.1). Definitions are data: `schema/settings/platform.yaml` and the `settings.yaml` of an extension type package list them under a top-level `settings:` key.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'from_schema': 'https://example.org/throughline/core/settings'})
+
+    key: str = Field(default=..., description="""Dotted and namespaced, lower-case words, for example `feed.reactions.enabled`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'RecordCreatedPayload',
+                       'NumberingAllocatedPayload',
+                       'SettingDefinition',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'EventOrigin',
+                       'EventLinkRef']} })
+    type: SettingType = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'SettingDefinition',
+                       'EventOrigin',
+                       'EventLinkRef',
+                       'CloudEvent']} })
+    default: Any = Field(default=..., description="""The platform default (a JSON value that satisfies `type` and `validation`).""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['SettingDefinition']} })
+    description: str = Field(default=..., description="""One sentence shown beside the key.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'RecordCreatedPayload', 'SettingDefinition']} })
+    docs: Optional[str] = Field(default=None, description="""Longer explanation shown in the detail pane.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingDefinition']} })
+    scopes: list[SettingScope] = Field(default=..., description="""Which layers may set the key.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingDefinition']} })
+    lockable: Optional[bool] = Field(default=False, description="""Whether the company can lock the key, or bound its values, for its projects.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingDefinition'], 'ifabsent': 'false'} })
+    validation: Optional[SettingValidation] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['SettingDefinition']} })
+    effect: Optional[SettingEffect] = Field(default=SettingEffect("live"), json_schema_extra = { "linkml_meta": {'domain_of': ['SettingDefinition', 'SettingEffectApplied'],
+         'ifabsent': 'string(live)'} })
+    sensitivity: Optional[SettingSensitivity] = Field(default=SettingSensitivity("normal"), json_schema_extra = { "linkml_meta": {'domain_of': ['SettingDefinition'], 'ifabsent': 'string(normal)'} })
+    risk: Optional[SettingRisk] = Field(default=SettingRisk("normal"), json_schema_extra = { "linkml_meta": {'domain_of': ['SettingDefinition'], 'ifabsent': 'string(normal)'} })
+    since: str = Field(default=..., description="""The platform or package version that introduced the key.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingDefinition']} })
+    deprecated: Optional[str] = Field(default=None, description="""Set when the key is going away; says what replaces it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingDefinition']} })
+    owner: Optional[str] = Field(default="platform", description="""`platform`, or `<namespace>.<TypeName>` for the extension type that defines the key.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
+                       'SettingDefinition',
+                       'WebhookSubscription'],
+         'ifabsent': 'string(platform)'} })
+
+    @field_validator('key')
+    def pattern_key(cls, v):
+        pattern=re.compile(r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$")
+        if isinstance(v, list):
+            for element in v:
+                if isinstance(element, str) and not pattern.search(element):
+                    err_msg = f"Invalid key format: {element}"
+                    raise ValueError(err_msg)
+        elif isinstance(v, str) and not pattern.search(v):
+            err_msg = f"Invalid key format: {v}"
+            raise ValueError(err_msg)
+        return v
+
+
+class SettingChangedPayload(EventPayload):
+    """
+    One key was set, or reset to what the layer above gives, at one layer. The stream is `setting:<layer>:<key>`. A change with `applies_at` in the future takes effect then (and not before): resolution is time-based, so no job applies it.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Setting.Changed'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"accept_risk": false, "applies_at": null, "key": '
+                                '"feed.reactions.enabled", "layer": "project:P123", '
+                                '"new_value": false, "old_set": false, "old_value": '
+                                'null, "reason": null, "reset": false}'}],
+         'from_schema': 'https://example.org/throughline/core/settings'})
+
+    key: str = Field(default=..., description="""The setting key.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'RecordCreatedPayload',
+                       'NumberingAllocatedPayload',
+                       'SettingDefinition',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'EventOrigin',
+                       'EventLinkRef']} })
+    layer: str = Field(default=..., description="""`company`, `project:<id>` or `user:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue',
+                       'PsetValuesSetPayload',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow']} })
+    old_value: Optional[Any] = Field(default=None, description="""The value the layer held when the change was recorded (null when it held none).""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
+    old_set: Optional[bool] = Field(default=None, description="""Whether the layer held a value of its own before (false: it was inheriting).""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
+    new_value: Optional[Any] = Field(default=None, description="""The new value; null with `reset` true.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['SettingChangedPayload']} })
+    reset: Optional[bool] = Field(default=None, description="""True when the layer goes back to inheriting.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
+    reason: Optional[str] = Field(default=None, description="""Why. Required for `advanced` and `dangerous` keys.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File']} })
+    applies_at: Optional[datetime ] = Field(default=None, description="""When the change takes effect, if later than the time it was recorded.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
+    accept_risk: Optional[bool] = Field(default=None, description="""The person confirmed \"I accept the risk\" (a `dangerous` key).""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
+
+
+class SettingLockedPayload(EventPayload):
+    """
+    The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to. The stream is `setting:company:<key>`.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Setting.Locked'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"bounds": null, "key": "ai.agents.default_mode", '
+                                '"layer": "company", "locked": true, "reason": '
+                                '"Company policy: agents propose, people decide"}'}],
+         'from_schema': 'https://example.org/throughline/core/settings'})
+
+    key: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'RecordCreatedPayload',
+                       'NumberingAllocatedPayload',
+                       'SettingDefinition',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'EventOrigin',
+                       'EventLinkRef']} })
+    layer: str = Field(default=..., description="""Always `company`; only the company layer locks or bounds a key.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue',
+                       'PsetValuesSetPayload',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow']} })
+    locked: bool = Field(default=..., description="""True when projects may not override the key.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingLockedPayload', 'SettingLockRow']} })
+    bounds: Optional[Any] = Field(default=None, description="""Limits for project values: `minimum`, `maximum` and/or `choices`; null for none.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['SettingLockedPayload', 'SettingLockRow']} })
+    reason: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File']} })
+
+
+class SettingChangeRow(ConfiguredBaseModel):
+    """
+    One `Setting.Changed` event: the history of a key at a layer, and the entries the resolver reads. The row in force at time t is the one with the greatest `effective_us` (then `seq`) not after t.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table', 'value': 'cur_setting'}},
+         'from_schema': 'https://example.org/throughline/core/settings'})
+
+    change_id: str = Field(default=..., description="""Event id of the `Setting.Changed` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangeRow']} })
+    key: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['RecordEnvelope',
+                       'RecordCreatedPayload',
+                       'NumberingAllocatedPayload',
+                       'SettingDefinition',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'EventOrigin',
+                       'EventLinkRef']} })
+    layer: str = Field(default=..., description="""`company`, `project:<id>` or `user:<id>`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['PsetValue',
+                       'PsetValuesSetPayload',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow']} })
+    scope: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Event',
+                       'PsetValue',
+                       'Link',
+                       'LinkCount',
+                       'NumberingCounter',
+                       'WorkflowState',
+                       'SchemaEffectiveChangedPayload',
+                       'ActivityPost',
+                       'EventCard',
+                       'FeedItemRow',
+                       'Hashtag',
+                       'ProposalRow',
+                       'SettingChangeRow',
+                       'File',
+                       'WebhookSubscription',
+                       'OutboxEvent']} })
+    value: Any = Field(default=..., description="""The new value as JSON; `null` for a reset.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['SettingChangeRow']} })
+    reset: bool = Field(default=False, json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow'],
+         'ifabsent': 'false'} })
+    old_value: Any = Field(default=..., description="""The value the layer held before, as JSON.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
+    old_set: bool = Field(default=False, json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow'],
+         'ifabsent': 'false'} })
+    reason: Optional[str] = Field(default=None, description="""Why the change was made.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File']} })
+    actor: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'EventCard',
+                       'FeedItemRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent']} })
+    source: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'Link',
+                       'LinkAddedPayload',
+                       'LinkSuggestedPayload',
+                       'SettingChangeRow',
+                       'CloudEvent',
+                       'OutboxEvent']} })
+    accept_risk: bool = Field(default=False, json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow'],
+         'ifabsent': 'false'} })
+    applies_at: Optional[datetime ] = Field(default=None, description="""Set only for a change that was scheduled for later.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
+    effective_us: int = Field(default=..., description="""Microseconds since the epoch at which the change takes effect (`applies_at`, else the time it was recorded).""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangeRow']} })
+    recorded_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'SettingChangeRow', 'SettingLockRow', 'OutboxEvent']} })
+    seq: int = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['Event',
+                       'FeedItemRow',
+                       'Hashtag',
+                       'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent',
+                       'WebhookDelivery']} })
+    version: int = Field(default=..., description="""Ledger `stream_version` of the setting stream after this event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Link',
+                       'NumberingCounter',
+                       'SchemaPackagePublishedPayload',
+                       'FeedItemRow',
+                       'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File',
+                       'WebhookSubscription',
+                       'EventOrigin']} })
+
+
+class SettingLockRow(ConfiguredBaseModel):
+    """
+    The lock and bounds of one key, as the latest `Setting.Locked` event left them.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table', 'value': 'cur_setting_lock'}},
+         'from_schema': 'https://example.org/throughline/core/settings'})
+
+    key: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'RecordCreatedPayload',
+                       'NumberingAllocatedPayload',
+                       'SettingDefinition',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'EventOrigin',
+                       'EventLinkRef']} })
+    locked: bool = Field(default=False, json_schema_extra = { "linkml_meta": {'domain_of': ['SettingLockedPayload', 'SettingLockRow'], 'ifabsent': 'false'} })
+    bounds: Optional[Any] = Field(default=None, description="""The bounds as JSON, or null for none.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['SettingLockedPayload', 'SettingLockRow']} })
+    reason: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File']} })
+    actor: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'EventCard',
+                       'FeedItemRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent']} })
+    seq: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'FeedItemRow',
+                       'Hashtag',
+                       'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent',
+                       'WebhookDelivery']} })
+    version: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Link',
+                       'NumberingCounter',
+                       'SchemaPackagePublishedPayload',
+                       'FeedItemRow',
+                       'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File',
+                       'WebhookSubscription',
+                       'EventOrigin']} })
+    recorded_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'SettingChangeRow', 'SettingLockRow', 'OutboxEvent']} })
+
+
+class SettingEffectApplied(ConfiguredBaseModel):
+    """
+    Operational, not a projection (no event produces it and a rebuild never clears it): the last point at which each follow-up effect (`reindex`, `rebuild`, `restart`) was carried out. A key whose effect is not `live` owes that effect while it has a change newer than this point. `tl projections rebuild` and the server start write it.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table',
+                                      'value': 'setting_effect_applied'}},
+         'from_schema': 'https://example.org/throughline/core/settings'})
+
+    effect: str = Field(default=..., description="""`reindex`, `rebuild` or `restart`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingDefinition', 'SettingEffectApplied']} })
+    applied_seq: int = Field(default=..., description="""The ledger head when the effect was carried out.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingEffectApplied']} })
+    applied_us: int = Field(default=..., description="""Microseconds since the epoch when it was carried out.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingEffectApplied']} })
+    applied_by: str = Field(default=..., description="""What did it (`rebuild`, `reindex`, `server`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingEffectApplied']} })
 
 
 class File(ConfiguredBaseModel):
@@ -2257,6 +2826,7 @@ class File(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -2304,6 +2874,10 @@ class File(ConfiguredBaseModel):
                        'FeedRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File']} })
     uploaded_by: str = Field(default=..., description="""Actor of the `File.Uploaded` event; the only reader while the file is quarantined.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
     uploaded_at: datetime  = Field(default=..., description="""Time of the `File.Uploaded` event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
@@ -2320,6 +2894,8 @@ class File(ConfiguredBaseModel):
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -2383,13 +2959,16 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
     name: str = Field(default=..., description="""Short label for lists and logs.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'WebhookSubscription',
                        'WebhookCursor']} })
-    owner: str = Field(default=..., description="""Actor who owns the subscription and is notified of auto-disable.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload', 'WebhookSubscription']} })
+    owner: str = Field(default=..., description="""Actor who owns the subscription and is notified of auto-disable.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
+                       'SettingDefinition',
+                       'WebhookSubscription']} })
     integration_app: Optional[str] = Field(default=None, description="""The integration app the subscription belongs to, when there is one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload', 'WebhookSubscription']} })
     target_url: str = Field(default=..., description="""`https://` URL of the receiver. Checked against the egress policy at every attempt.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload', 'WebhookSubscription']} })
     filter: Any = Field(default=..., description="""A `SubscriptionFilter` as a JSON object; `{}` selects every event.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
@@ -2436,6 +3015,8 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -2460,9 +3041,18 @@ class EventOrigin(ConfiguredBaseModel):
     key: Optional[str] = Field(default=None, description="""Human-readable key.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'SettingDefinition',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'EventOrigin',
                        'EventLinkRef']} })
-    type: Optional[str] = Field(default=None, description="""Record type.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'EventOrigin', 'EventLinkRef', 'CloudEvent']} })
+    type: Optional[str] = Field(default=None, description="""Record type.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'SettingDefinition',
+                       'EventOrigin',
+                       'EventLinkRef',
+                       'CloudEvent']} })
     uri: str = Field(default=..., description="""Resolvable URI of the record at this version (`...@v7`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventOrigin', 'EventLinkRef']} })
     version: int = Field(default=..., description="""Version of the record after the event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
@@ -2470,6 +3060,8 @@ class EventOrigin(ConfiguredBaseModel):
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'File',
                        'WebhookSubscription',
                        'EventOrigin']} })
@@ -2484,10 +3076,19 @@ class EventLinkRef(ConfiguredBaseModel):
 
     rel: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['EventLinkRef']} })
     id: Optional[str] = Field(default=None, description="""`urn:tl:<ulid>` of the record at the other end.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'EventOrigin', 'EventLinkRef', 'CloudEvent']} })
-    type: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'EventOrigin', 'EventLinkRef', 'CloudEvent']} })
+    type: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'SettingDefinition',
+                       'EventOrigin',
+                       'EventLinkRef',
+                       'CloudEvent']} })
     key: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'SettingDefinition',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'EventOrigin',
                        'EventLinkRef']} })
     uri: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['EventOrigin', 'EventLinkRef']} })
@@ -2524,9 +3125,14 @@ class CloudEvent(ConfiguredBaseModel):
                        'Link',
                        'LinkAddedPayload',
                        'LinkSuggestedPayload',
+                       'SettingChangeRow',
                        'CloudEvent',
                        'OutboxEvent']} })
-    type: str = Field(default=..., description="""`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope', 'EventOrigin', 'EventLinkRef', 'CloudEvent']} })
+    type: str = Field(default=..., description="""`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'SettingDefinition',
+                       'EventOrigin',
+                       'EventLinkRef',
+                       'CloudEvent']} })
     time: datetime  = Field(default=..., description="""When the ledger committed the event (UTC).""", json_schema_extra = { "linkml_meta": {'domain_of': ['CloudEvent']} })
     subject: str = Field(default=..., description="""`urn:tl:<ulid>` of the subject record, the ordering key.""", json_schema_extra = { "linkml_meta": {'domain_of': ['CloudEvent']} })
     dataschema: str = Field(default=..., description="""URI of the catalog schema of this event type.""", json_schema_extra = { "linkml_meta": {'domain_of': ['CloudEvent']} })
@@ -2563,6 +3169,8 @@ class OutboxEvent(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'OutboxEvent',
                        'WebhookDelivery']} })
     event_id: str = Field(default=..., description="""Ledger event id; the CloudEvents `id` and the Standard Webhooks `webhook-id`, so receivers dedupe on it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent', 'WebhookDelivery']} })
@@ -2580,6 +3188,7 @@ class OutboxEvent(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
                        'File',
                        'WebhookSubscription',
                        'OutboxEvent']} })
@@ -2593,14 +3202,20 @@ class OutboxEvent(ConfiguredBaseModel):
     subject_type: Optional[str] = Field(default=None, description="""Record type of the subject (`core.Record`), when it is a known record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['OutboxEvent']} })
     subject_key: Optional[str] = Field(default=None, description="""Human-readable key of the subject, when it has one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['OutboxEvent']} })
     subject_version: Optional[int] = Field(default=None, description="""Version of the subject record after the event (the stream version when the stream is the subject).""", json_schema_extra = { "linkml_meta": {'domain_of': ['OutboxEvent']} })
-    actor: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'EventCard', 'FeedItemRow', 'OutboxEvent']} })
+    actor: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'EventCard',
+                       'FeedItemRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent']} })
     source: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'Link',
                        'LinkAddedPayload',
                        'LinkSuggestedPayload',
+                       'SettingChangeRow',
                        'CloudEvent',
                        'OutboxEvent']} })
-    recorded_at: str = Field(default=..., description="""ISO-8601 UTC time of the event (the CloudEvents `time`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent']} })
+    recorded_at: str = Field(default=..., description="""ISO-8601 UTC time of the event (the CloudEvents `time`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'SettingChangeRow', 'SettingLockRow', 'OutboxEvent']} })
     correlation_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent']} })
     changed_fields: Any = Field(default=..., description="""JSON list of changed field paths (`status`, `psets.vt.result`), for filters.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['SubscriptionFilter', 'OutboxEvent']} })
@@ -2645,6 +3260,8 @@ class WebhookDelivery(ConfiguredBaseModel):
                        'FeedItemRow',
                        'Hashtag',
                        'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
                        'OutboxEvent',
                        'WebhookDelivery']} })
     event_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent', 'WebhookDelivery']} })
@@ -2850,6 +3467,13 @@ ProposalAcceptedPayload.model_rebuild()
 ProposalRejectedPayload.model_rebuild()
 ProposalFailedPayload.model_rebuild()
 ProposalRow.model_rebuild()
+SettingValidation.model_rebuild()
+SettingDefinition.model_rebuild()
+SettingChangedPayload.model_rebuild()
+SettingLockedPayload.model_rebuild()
+SettingChangeRow.model_rebuild()
+SettingLockRow.model_rebuild()
+SettingEffectApplied.model_rebuild()
 File.model_rebuild()
 SubscriptionFilter.model_rebuild()
 WebhookSubscription.model_rebuild()
