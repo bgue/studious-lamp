@@ -1,6 +1,6 @@
 # P0-I7-T21 — Lake demo queries
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: tests, docs
 Depends on: P0-I7-S1, S2, S3 (merged into the base of this branch)

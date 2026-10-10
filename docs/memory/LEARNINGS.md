@@ -356,3 +356,8 @@ test or a generated artefact already enforces, or narrative history (that belong
   average 20 on 4 CPUs) the mutation check of the lake property test took six minutes. Keep `max_examples` near 10, run mutation checks in the
   background and wait with a notification, and never `pkill -f` a test file name (it matches and kills the shell that runs it).
   Evidence: `tests/test_rebuild_equals_incremental.py` mutation run. Status: active
+- **L-P0-I7-B6** · 2026-10-10 · tags: tests, process
+  A library logger with no handler prints WARNING records to stderr through Python's last-resort handler, which polluted `tl lake query` refusals
+  (`error: refused:` was preceded by a JSON log line). Give a library logger a `NullHandler`, and test the CLI stderr. A module-scoped test
+  fixture cannot use the function-scoped `ledger` fixture or the autouse schema provider, so lake tests build their ledger per test.
+  Evidence: first `just demo P0-I7-lake`; `tests/test_query.py::test_a_refusal_prints_nothing_unless_the_application_configures_logging`; T21 report. Status: active

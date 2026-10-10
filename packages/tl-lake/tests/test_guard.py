@@ -188,3 +188,33 @@ def test_refusal_messages_name_the_reason(con: duckdb.DuckDBPyConnection) -> Non
     assert "read_csv" in refused(con, "SELECT * FROM read_csv('/etc/passwd')")
     assert "not a lake table" in refused(con, "SELECT * FROM '/etc/passwd.csv'")
     assert "longer than" in refused(con, "SELECT " + "1," * 20_000 + "1")
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT 1; -- harmless\nDROP TABLE events",
+        "SELECT 1 /* ; */; DROP TABLE events",
+        "-- note\nSELECT 1; DROP TABLE events",
+        "SELECT 1 -- one\n; SELECT 2",
+        "/* a */ SELECT 1; /* b */ INSERT INTO events SELECT * FROM events",
+        "-- SELECT 1\nDROP TABLE events",
+        "/* SELECT 1 */ DROP TABLE events",
+    ],
+)
+def test_comments_cannot_hide_a_second_statement(con: duckdb.DuckDBPyConnection, sql: str) -> None:
+    refused(con, sql)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "-- what this answers\nSELECT * FROM events",
+        "/* what this answers */ SELECT * FROM events",
+        "SELECT * FROM events -- trailing; DROP TABLE events",
+        "SELECT '-- not a comment; DROP TABLE events' AS s",
+        "SELECT 1; -- only a comment follows",
+    ],
+)
+def test_comments_around_one_select_are_fine(con: duckdb.DuckDBPyConnection, sql: str) -> None:
+    check_sql(con, sql, TABLES)

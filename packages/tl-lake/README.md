@@ -14,6 +14,8 @@ The DuckLake analytics copy of the ledger: an incremental sync by `seq`, a silve
 | `lake_query(sql, limit=, lake_dir=, caller=)` | function | The MCP tool body (the registration arrives with P0-I4) |
 | `GuardError`, `QueryError`, `LakeError` and subclasses | exceptions | A refusal; a failed or timed-out statement; everything else |
 
+Demo queries: `dev/lake/queries/*.sql` (events by type, records overview, links by relation, valve sizes, pset coverage, as-of seq), tested by `tests/test_demo_queries.py`. A rebuild resets the sync count (`syncs 1`).
+
 CLI: `tl lake sync | rebuild --yes | status | tables | query SQL [--limit N] [--json]` (in `tl-cli`).
 
 ## How a sync works
@@ -39,7 +41,7 @@ Exactly one statement, parsed by DuckDB; SELECT only; tables must be lake tables
 
 ## Depends on / used by
 - Depends on: `duckdb==1.5.5`, `duckdb-extensions`, `duckdb-extension-ducklake` (all MIT; the extension wheel's version must equal duckdb's), `sqlalchemy`, `tl_schema` (generated DDL), `tl_core`.
-- Used by: `tl_cli` (`tl lake`), the `lake_query` MCP tool (P0-I4 and later), `just demo P0-I7-lake`.
+- Used by: `tl_cli` (`tl lake`), the `lake_query` MCP tool (P0-I4 and later), `just demo P0-I7-lake`. Runbook: `docs/runbooks/lake-sync.md`.
 
 ## Commands
 ```

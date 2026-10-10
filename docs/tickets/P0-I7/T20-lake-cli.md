@@ -1,6 +1,6 @@
 # P0-I7-T20 — `tl lake` commands
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: cli
 Depends on: P0-I7-S1, S2, S3 (the `tl_lake` service functions, merged into the base of this branch)

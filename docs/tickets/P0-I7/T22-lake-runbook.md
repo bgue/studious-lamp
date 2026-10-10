@@ -1,6 +1,6 @@
 # P0-I7-T22 — Runbook: lake sync and lake_query
 
-Status: ready
+Status: merged (taken-over: wording and business-hours ruling)
 Tier: haiku
 Labels: docs
 Depends on: —

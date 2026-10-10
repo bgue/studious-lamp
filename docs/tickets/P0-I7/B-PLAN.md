@@ -23,14 +23,15 @@ It seeds a small ledger, runs `tl lake sync`, `tl lake status`, the queries in `
 | S1 | DuckLake bootstrap (`duck.py`), sync engine, watermark and transaction boundary (`sync.py`, `ingest.py`), silver mapping (`schema.py`) | Sync/merge-class engine; the transaction boundary defines correctness (§28.3) | orchestrator or human | merged on `p0/i7b` |
 | S2 | `lake_query` guard (`guard.py`) | Security-sensitive, open to agents (FANOUT D6) | orchestrator or human | merged on `p0/i7b` |
 | S3 | `lake_query` service (`query.py`): sandbox, row limit, timeout, audit log | Same | orchestrator or human | merged on `p0/i7b` |
+| S5 | `dev/demos/P0-I7-lake.sh` (standalone, or included with `TL_DB`/`TL_LAKE_DIR` set) | Demo script | — | merged on `p0/i7b` |
 | S4 | Property test: incremental equals full rebuild; test scaffolds; CLI stub and provided test | Test scaffolds first | — | merged on `p0/i7b` |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| P0-I7-T20 | `tl lake` commands | haiku | S1–S3 | ready | |
-| P0-I7-T21 | Lake demo queries and their test | haiku | S1–S3 | ready | |
-| P0-I7-T22 | Runbook: lake sync and `lake_query` | haiku | — | ready | |
+| P0-I7-T20 | `tl lake` commands | haiku | S1–S3 | merged | merged, 1 review round (pass) |
+| P0-I7-T21 | Lake demo queries and their test | haiku | S1–S3 | merged | merged, 1 review round (pass) |
+| P0-I7-T22 | Runbook: lake sync and `lake_query` | haiku | — | merged | taken-over: the reviewer escalated an unanswered business-hours question and authoring-process wording; the orchestrator ruled, the supervisor finished it on the ticket branch |
 | P0-I7-T23 | `lake_query` MCP tool registration | haiku | P0-I4 on the trunk | draft (deferred) | |
 
 Haiku-ability checklist (`01-tiers.md` §6), each ticket: files to read ≤ 6, interfaces already in the repo, a test or acceptance commands, diff ≤ 400 lines over ≤ 5 files, none of
@@ -50,4 +51,5 @@ supervisor built them. The `tl-cli` dependency on `tl-lake` (and `uv.lock`) is a
 - Bronze `events` columns must match WS-A's `events.parquet`: names and order of the ledger `events` table, `recorded_at`/`effective_at`/`payload` as text. Raised in the relay NOTE.
 
 ## Blocked / Decision
-(none)
+- T22 escalated by the reviewer: (1) "Safe to run during business hours" had no fact behind it; (2) operator text said "verified facts" and "Ask the supervisor". Orchestrator ruling: `tl lake sync` is safe in business hours (incremental, lock held only for the sync transaction); `tl lake rebuild --yes` is not (wipes and reloads, blocks queries); remove process language, escalate to the platform on-call, and say a wiped lake cannot be restored and is rebuilt from the ledger. Applied in `29a1242`.
+- T21 report: a leading `--` comment line is accepted by the guard. A test now proves comments cannot hide a second statement (`tests/test_guard.py`).

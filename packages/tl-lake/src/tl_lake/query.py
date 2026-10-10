@@ -35,6 +35,7 @@ from tl_lake.guard import GuardError, check_sql
 from tl_lake.status import as_of
 
 log = logging.getLogger("tl_lake.query")
+log.addHandler(logging.NullHandler())  # a library prints nothing until the application opts in
 
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 10_000

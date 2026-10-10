@@ -186,3 +186,13 @@ def test_the_sandbox_blocks_what_the_guard_would_miss(
         ):
             with pytest.raises(Exception):  # noqa: B017, PT011 - any refusal will do here
                 con.execute(sql)
+
+
+def test_a_refusal_prints_nothing_unless_the_application_configures_logging(
+    synced: LedgerBuilder, lake: LakeConfig, capfd: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(GuardError):
+        LakeQueryService(lake).query("DROP TABLE events")
+    captured = capfd.readouterr()
+    assert captured.err == "" and captured.out == ""
+    assert audit(lake)[-1]["outcome"] == "refused"
