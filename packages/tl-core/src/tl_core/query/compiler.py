@@ -10,11 +10,16 @@ dict of bound parameters. The security rules, which tests pin:
 * Every predicate is two-valued (never SQL ``NULL``), so ``NOT`` and ``!=`` behave: ``status!=open``
   also matches records with no status, exactly like ``-status:open``.
 * Pset paths compile to ``id IN (SELECT record_id FROM cur_pset_values ...)`` when the test must
-  hold and to a correlated ``NOT EXISTS`` when it must not; links to ``id IN`` over the link
-  ends (both directions), or to a correlated ``COUNT`` when the count may be zero. The ``IN`` form
-  is a set built once from ``cur_pset_values`` or ``cur_links`` (indexed by path and value, by
-  relation and status), so a filter that matches few rows no longer probes the table once per
-  record (P0-I8 D13: 150 ms to a few ms for a selective pset filter on SQLite at 100k records).
+  hold and, for ``!=`` and for ``= null`` on a pset, to a correlated ``NOT EXISTS``; links to
+  ``id IN`` over the link ends (both directions), ``missing(...)`` to a correlated ``NOT EXISTS``,
+  and a count that may be zero to a correlated ``COUNT``. An explicit ``-x``, ``NOT`` or
+  ``-linked(x)`` negates whatever ``x`` compiled to, so it is ``NOT (id IN (set))``: correct
+  because the ids are never NULL, and a hashed SubPlan on Postgres that degrades only when the set
+  outgrows ``work_mem``.
+* The ``IN`` form is a set built once from ``cur_pset_values`` or ``cur_links`` (indexed by path
+  and value, by relation and status), so a filter that matches few rows no longer probes the
+  table once per record (P0-I8 D13: 150 ms to a few ms for a selective pset filter on SQLite at
+  100k records).
 * Only portable SQL: ``LIKE ... ESCAPE``, ``LOWER``, ``COALESCE``, ``EXISTS``, ``LIMIT/OFFSET``.
 
 Text search is ``LIKE`` over key, title and description (case-insensitive; SQLite's ``LOWER``
@@ -391,26 +396,23 @@ class _Builder:
             parts.append(self.expr(node.where, other, depth + 1))
         return " AND ".join(parts)
 
-    def link_end(
-        self, node: Linked, outbound: bool, depth: int, select: str | None = None
-    ) -> tuple[str, str, str]:
-        """``(link alias, other alias, FROM and WHERE tail)`` of the links that satisfy ``node``.
+    def link_end(self, node: Linked, outbound: bool, depth: int) -> tuple[str, str]:
+        """``(link alias, FROM and WHERE tail)`` of the live links that satisfy ``node``.
 
-        ``outbound`` links leave the record, so the record is the ``from`` end. The record at the
-        other end is joined only when the type or a nested condition looks at it.
+        ``outbound`` links leave the record, so the record is the ``from`` end. A link counts only
+        when the record at its other end exists, as it always did, so that record is joined (by
+        primary key) even when neither the type nor a nested condition looks at it.
         """
         link, other = self.alias("l"), self.alias("o")
         theirs = "to_id" if outbound else "from_id"
         tail = self.link_filter(node, link, other, depth)
-        source = f"cur_links {link}"
-        if node.target_type is not None or node.where is not None:
-            source += f" JOIN cur_core_record {other} ON {other}.id = {link}.{theirs}"
-        return link, other, f"FROM {source} WHERE {tail}"
+        source = f"cur_links {link} JOIN cur_core_record {other} ON {other}.id = {link}.{theirs}"
+        return link, f"FROM {source} WHERE {tail}"
 
     def linked_exists(self, node: Linked, rec: str, depth: int) -> str:
         """``rec`` has a live link that satisfies ``node``: a set of ids per direction."""
-        out_link, _, out_tail = self.link_end(node, True, depth)
-        in_link, _, in_tail = self.link_end(node, False, depth)
+        out_link, out_tail = self.link_end(node, True, depth)
+        in_link, in_tail = self.link_end(node, False, depth)
         return (
             f"({rec}.id IN (SELECT {out_link}.from_id {out_tail}) "
             f"OR {rec}.id IN (SELECT {in_link}.to_id {in_tail}))"
@@ -418,8 +420,8 @@ class _Builder:
 
     def linked_missing(self, node: Linked, rec: str, depth: int) -> str:
         """``rec`` has no such link; correlated, since ``NOT IN (big set)`` plans badly."""
-        out_link, _, out_tail = self.link_end(node, True, depth)
-        in_link, _, in_tail = self.link_end(node, False, depth)
+        out_link, out_tail = self.link_end(node, True, depth)
+        in_link, in_tail = self.link_end(node, False, depth)
         return (
             f"(NOT EXISTS (SELECT 1 {out_tail} AND {out_link}.from_id = {rec}.id) "
             f"AND NOT EXISTS (SELECT 1 {in_tail} AND {in_link}.to_id = {rec}.id))"
@@ -432,8 +434,8 @@ class _Builder:
         if isinstance(value, bool) or abs(value) > MAX_INT:
             raise self.fail("count(...) is compared with a whole number")
         zero_matches = _COUNT_TESTS[node.op](0, value)
-        out_link, _, out_tail = self.link_end(node.linked, True, depth)
-        in_link, _, in_tail = self.link_end(node.linked, False, depth)
+        out_link, out_tail = self.link_end(node.linked, True, depth)
+        in_link, in_tail = self.link_end(node.linked, False, depth)
         if not zero_matches:
             # A record with no link cannot match, so group the link ends once instead of
             # counting per record: the ids whose number of links passes the test.
