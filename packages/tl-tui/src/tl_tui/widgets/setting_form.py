@@ -139,11 +139,8 @@ class SettingForm(ModalScreen[bool]):
                     self.key, layer=self.target, reason=reason, accept_risk=accept
                 )
             elif self.action in ("lock", "unlock"):
-                if reason is None:
-                    self._error("A reason is required")
-                    return
                 self.client.lock_setting(
-                    self.key, locked=self.action == "lock", reason=reason, bounds=None
+                    self.key, locked=self.action == "lock", reason=reason or "", bounds=None
                 )
             else:
                 assert self.seq is not None

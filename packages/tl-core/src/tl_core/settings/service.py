@@ -92,7 +92,7 @@ def _version(uow: UnitOfWork, sid: str) -> int:
     return int(found.scalar_one())
 
 
-def _clean_reason(reason: str | None) -> str | None:
+def clean_reason(reason: str | None) -> str | None:
     if reason is None or not reason.strip():
         return None
     clean = reason.strip()
@@ -112,7 +112,7 @@ def _writable(key: str, layer: str) -> tuple[SettingDefinition, LayerRef]:
     return defn, ref
 
 
-def _check_risk(defn: SettingDefinition, reason: str | None, accept_risk: bool) -> None:
+def check_risk(defn: SettingDefinition, reason: str | None, accept_risk: bool) -> None:
     if defn.risk != "normal" and reason is None:
         raise ReasonRequiredError(f"{defn.key} is {defn.risk}: say why you are changing it")
     if defn.risk == "dangerous" and not accept_risk:
@@ -214,7 +214,7 @@ def change_setting(
     """
     defn, ref = _writable(key, layer)
     clean = None if reset else normalise(defn, value)
-    note = _clean_reason(reason)
+    note = clean_reason(reason)
     snapshot = load_snapshot(uow.conn(), [key])
     if not reset and ref.kind != "company":
         lock = snapshot.locks.get(key, NO_LOCK)
@@ -222,7 +222,7 @@ def change_setting(
             raise SettingLockedError(f"{key} is locked by the company; projects cannot change it")
         check_bounds(defn, lock.bounds, clean)
     when = _future(applies_at)  # everything that does not depend on the risk comes first
-    _check_risk(defn, note, accept_risk)
+    check_risk(defn, note, accept_risk)
     here = in_force(snapshot.entries.get(key, ()), ref.name, to_us(utcnow()))
     holds = here is not None and not here.reset
     if reset:
@@ -344,7 +344,7 @@ def lock_setting(
     defn = get_definition(key)
     if not defn.lockable:
         raise SettingNotLockableError(f"{key} cannot be locked or bounded by the company")
-    note = _clean_reason(reason)
+    note = clean_reason(reason)
     if note is None:
         raise ReasonRequiredError(f"say why you are changing the lock on {key}")
     clean = check_bounds_shape(defn, bounds) if bounds else None

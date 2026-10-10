@@ -12,6 +12,12 @@ from tl_tui.main import build_app, make_app
 MESSAGE = "agent_must_propose: an agent cannot use the embedded client to change records"
 
 
+def test_the_code_is_the_one_the_api_and_the_cli_use() -> None:
+    from tl_api.auth import AGENT_MUST_PROPOSE
+
+    assert MESSAGE.startswith(AGENT_MUST_PROPOSE + ": ")
+
+
 def test_an_agent_actor_is_refused_when_the_client_is_made(tmp_path: Path) -> None:
     db = tmp_path / "tl.db"
     create_schema(db)

@@ -2,7 +2,13 @@
 
 It keeps the real definitions (the platform file) and the real value checks, and a small model of
 the layers: the user value beats the project value beats the company value beats the default; a
-company lock hides project values; every change is one history row with a fixed clock. Not
+company lock hides project values; every change is one history row with a fixed clock.
+
+The write rules are the service's: the same helpers (`require_layer`, `normalise`, `check_bounds`,
+`check_bounds_shape`, `check_risk`, `clean_reason`), the same order of checks, no history row for a
+change that changes nothing, and an undo that appends a row of its own. The messages that live
+inside the service functions are copied here; `test_embedded_settings.py` runs the same script on
+this fake and on the embedded client and compares the messages, so a drift fails there. Not
 modelled: scheduled changes (`applies_at` is accepted and ignored) and pending effects.
 """
 
@@ -15,17 +21,17 @@ from typing import Any
 
 from tl_core.services.errors import (
     ReasonRequiredError,
-    RiskNotAcceptedError,
+    SecretSettingUnavailableError,
     SettingChangeNotFoundError,
     SettingLockedError,
     SettingNotLockableError,
     SettingRevertNotLatestError,
-    SettingScopeError,
 )
 from tl_core.settings import definitions, get_definition
-from tl_core.settings.layers import LayerRef, parse_layer
+from tl_core.settings.layers import LayerRef, parse_layer, require_layer
+from tl_core.settings.service import check_risk, clean_reason
 from tl_core.settings.types import EffectiveSetting, SettingChange, SettingDefinition
-from tl_core.settings.values import normalise
+from tl_core.settings.values import check_bounds, check_bounds_shape, normalise, same_json
 from tl_core.settings.views import SettingView
 
 _SETTINGS_T0 = datetime(2026, 10, 9, 9, 0, 0, tzinfo=UTC)
@@ -38,8 +44,8 @@ class FakeSettingsSupport:
     def _init_settings(self) -> None:
         self._values: dict[tuple[str, str], Any] = {}  # (key, layer name) -> value
         self._locks: dict[str, dict[str, Any]] = {}  # key -> {"locked": bool, "bounds": ...}
+        self._had_old: dict[int, bool] = {}  # change seq -> the layer held a value before it
         self._changes: dict[str, list[SettingChange]] = defaultdict(list)
-        self._undo: dict[tuple[str, str], list[Any]] = defaultdict(list)  # prior values
         self._setting_seq = 0
         self.setting_actor = "user:dev"
         self.setting_calls: list[tuple[str, dict[str, Any]]] = []  # (method, arguments)
@@ -122,21 +128,34 @@ class FakeSettingsSupport:
 
     # --- writes -----------------------------------------------------------------------------
 
-    def _log_change(self, key: str, layer: str, new: Any, reset: bool, reason: str | None) -> None:
+    def _writable(self, key: str, layer: str) -> tuple[SettingDefinition, LayerRef]:
+        defn = get_definition(key)
+        if defn.sensitivity == "secret":
+            raise SecretSettingUnavailableError(
+                f"{key} is secret; secrets need a vault, which is not available yet (a human gate)"
+            )
+        ref = parse_layer(layer)
+        require_layer(defn, ref)
+        return defn, ref
+
+    def _log_change(
+        self, key: str, ref: LayerRef, new: Any, reset: bool, reason: str | None
+    ) -> None:
         self._setting_seq += 1
-        old = self._values.get((key, layer))
-        self._undo[(key, layer)].append(old if (key, layer) in self._values else _MISSING)
+        held = (key, ref.name) in self._values
+        old = self._values.get((key, ref.name))
+        self._had_old[self._setting_seq] = held
         if reset:
-            self._values.pop((key, layer), None)
+            self._values.pop((key, ref.name), None)
         else:
-            self._values[(key, layer)] = deepcopy(new)
+            self._values[(key, ref.name)] = deepcopy(new)
         at = (_SETTINGS_T0 + timedelta(minutes=self._setting_seq)).isoformat()
         self._changes[key].append(
             SettingChange(
                 seq=self._setting_seq,
                 key=key,
-                layer=layer,
-                old_value=old,
+                layer=ref.name,
+                old_value=deepcopy(old),
                 new_value=None if reset else deepcopy(new),
                 reset=reset,
                 actor=self.setting_actor,
@@ -146,19 +165,36 @@ class FakeSettingsSupport:
             )
         )
 
-    def _check_write(
-        self, defn: SettingDefinition, layer: str, reason: str | None, accept_risk: bool
-    ) -> LayerRef:
-        ref = parse_layer(layer)
-        if ref.kind not in defn.scopes:
-            raise SettingScopeError(f"{defn.key} cannot be set at {layer}")
-        if ref.kind == "project" and self._locks.get(defn.key, {}).get("locked"):
-            raise SettingLockedError(f"{defn.key} is locked by the company")
-        if defn.risk != "normal" and not (reason or "").strip():
-            raise ReasonRequiredError(f"{defn.key} needs a reason")
-        if defn.risk == "dangerous" and not accept_risk:
-            raise RiskNotAcceptedError(f"{defn.key} is dangerous: accept the risk")
-        return ref
+    def _change(
+        self,
+        key: str,
+        layer: str,
+        *,
+        value: Any,
+        reset: bool,
+        reason: str | None,
+        accept_risk: bool,
+    ) -> SettingView:
+        """``change_setting`` in miniature: the same checks in the same order."""
+        defn, ref = self._writable(key, layer)
+        clean = None if reset else normalise(defn, value)
+        note = clean_reason(reason)
+        if not reset and ref.kind != "company":
+            lock = self._locks.get(key, {})
+            if lock.get("locked"):
+                raise SettingLockedError(
+                    f"{key} is locked by the company; projects cannot change it"
+                )
+            check_bounds(defn, lock.get("bounds"), clean)
+        check_risk(defn, note, accept_risk)
+        holds = (key, ref.name) in self._values
+        if reset:
+            needed = holds
+        else:
+            needed = not (holds and same_json(self._values[(key, ref.name)], clean))
+        if needed:
+            self._log_change(key, ref, clean, reset, note)
+        return self._view_at(key, layer)
 
     def set_setting(
         self,
@@ -171,11 +207,9 @@ class FakeSettingsSupport:
         applies_at: datetime | None = None,
     ) -> SettingView:
         self.setting_calls.append(("set_setting", {"key": key, "layer": layer, "value": value}))
-        defn = get_definition(key)
-        ref = self._check_write(defn, layer, reason, accept_risk)
-        checked = normalise(defn, value)
-        self._log_change(key, ref.name, checked, False, reason)
-        return self._view_at(key, layer)
+        return self._change(
+            key, layer, value=value, reset=False, reason=reason, accept_risk=accept_risk
+        )
 
     def reset_setting(
         self,
@@ -187,10 +221,9 @@ class FakeSettingsSupport:
         applies_at: datetime | None = None,
     ) -> SettingView:
         self.setting_calls.append(("reset_setting", {"key": key, "layer": layer}))
-        defn = get_definition(key)
-        ref = self._check_write(defn, layer, reason, accept_risk)
-        self._log_change(key, ref.name, None, True, reason)
-        return self._view_at(key, layer)
+        return self._change(
+            key, layer, value=None, reset=True, reason=reason, accept_risk=accept_risk
+        )
 
     def lock_setting(
         self,
@@ -203,8 +236,11 @@ class FakeSettingsSupport:
         self.setting_calls.append(("lock_setting", {"key": key, "locked": locked}))
         defn = get_definition(key)
         if not defn.lockable:
-            raise SettingNotLockableError(f"{key} cannot be locked or bounded")
-        self._locks[key] = {"locked": locked, "bounds": deepcopy(bounds)}
+            raise SettingNotLockableError(f"{key} cannot be locked or bounded by the company")
+        if clean_reason(reason) is None:
+            raise ReasonRequiredError(f"say why you are changing the lock on {key}")
+        clean = check_bounds_shape(defn, bounds) if bounds else None
+        self._locks[key] = {"locked": locked, "bounds": deepcopy(clean)}
         return self._view_at(key, "company")
 
     def revert_setting(
@@ -217,16 +253,27 @@ class FakeSettingsSupport:
         accept_risk: bool = False,
     ) -> SettingView:
         self.setting_calls.append(("revert_setting", {"key": key, "layer": layer, "seq": seq}))
-        get_definition(key)
-        here = [c for c in self._changes.get(key, []) if c.layer == layer]
-        if not any(c.seq == seq for c in here):
-            raise SettingChangeNotFoundError(f"{key} has no change {seq} at {layer}")
+        _, ref = self._writable(key, layer)
+        here = [c for c in self._changes.get(key, []) if c.layer == ref.name]
+        change = next((c for c in here if c.seq == seq), None)
+        if change is None:
+            raise SettingChangeNotFoundError(
+                f"{key} has no change at seq {seq} on layer {ref.name}"
+            )
         if here[-1].seq != seq:
-            raise SettingRevertNotLatestError(f"change {seq} is not the latest at {layer}")
-        prior = self._undo[(key, layer)].pop()
-        if prior is _MISSING:
-            self._values.pop((key, layer), None)
-        else:
-            self._values[(key, layer)] = prior
-        self._changes[key] = [c for c in self._changes[key] if c.seq != seq]
-        return self._view_at(key, layer)
+            raise SettingRevertNotLatestError(
+                f"change {seq} of {key} on {ref.name} is not the latest there; undoing it would "
+                "also discard the later changes. Revert the latest first, or set the value you want"
+            )
+        if self._had_old[seq]:
+            return self._change(
+                key,
+                layer,
+                value=change.old_value,
+                reset=False,
+                reason=reason,
+                accept_risk=accept_risk,
+            )
+        return self._change(
+            key, layer, value=None, reset=True, reason=reason, accept_risk=accept_risk
+        )

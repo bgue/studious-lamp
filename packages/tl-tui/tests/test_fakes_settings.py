@@ -11,6 +11,7 @@ from tl_core.services.errors import (
     SettingChangeNotFoundError,
     SettingLockedError,
     SettingNotLockableError,
+    SettingOutOfBoundsError,
     SettingRevertNotLatestError,
     SettingScopeError,
     UnknownSettingError,
@@ -70,20 +71,60 @@ def test_a_lock_hides_project_values_and_refuses_new_ones(client: FakeClient) ->
         client.set_setting(KEY, layer="project:P1", value=False)
 
 
-def test_history_has_a_fixed_clock_and_revert_takes_back_only_the_latest(
-    client: FakeClient,
-) -> None:
+def test_history_has_a_fixed_clock_and_an_undo_adds_a_row(client: FakeClient) -> None:
     client.set_setting("feed.signal_tags", layer="company", value=["a"])
     client.set_setting("feed.signal_tags", layer="company", value=["b"])
     first, second = client.setting_history("feed.signal_tags")
     assert (first.seq, second.seq) == (1, 2) and first.recorded_at < second.recorded_at
     assert second.old_value == ["a"] and second.actor == "user:dev"
-    with pytest.raises(SettingRevertNotLatestError):
+    with pytest.raises(SettingRevertNotLatestError, match="is not the latest there"):
         client.revert_setting("feed.signal_tags", layer="company", seq=1)
-    with pytest.raises(SettingChangeNotFoundError):
+    with pytest.raises(SettingChangeNotFoundError, match="has no change at seq 9 on layer"):
         client.revert_setting("feed.signal_tags", layer="company", seq=9)
     back = client.revert_setting("feed.signal_tags", layer="company", seq=2)
     assert back.effective.value == ["a"]
-    assert [c.seq for c in client.setting_history("feed.signal_tags")] == [1]
-    client.revert_setting("feed.signal_tags", layer="company", seq=1)
-    assert client.get_setting("feed.signal_tags").effective.origin == "default"
+    rows = client.setting_history("feed.signal_tags")
+    assert [(c.seq, c.old_value, c.new_value) for c in rows] == [
+        (1, None, ["a"]),
+        (2, ["a"], ["b"]),
+        (3, ["b"], ["a"]),
+    ]
+    # the undo is itself the latest change: undoing it brings back "b"; the first change is
+    # still not the latest
+    with pytest.raises(SettingRevertNotLatestError):
+        client.revert_setting("feed.signal_tags", layer="company", seq=2)
+    assert client.revert_setting("feed.signal_tags", layer="company", seq=3).effective.value == [
+        "b"
+    ]
+
+
+def test_undoing_the_first_change_resets_the_layer(client: FakeClient) -> None:
+    client.set_setting("feed.signal_tags", layer="company", value=["a"])
+    back = client.revert_setting("feed.signal_tags", layer="company", seq=1)
+    assert back.effective.origin == "default"
+    assert [c.reset for c in client.setting_history("feed.signal_tags")] == [False, True]
+
+
+def test_a_change_that_changes_nothing_adds_no_history_row(client: FakeClient) -> None:
+    client.set_setting(KEY, layer="company", value=False)
+    client.set_setting(KEY, layer="company", value=False)
+    client.reset_setting(KEY, layer="project:P1")  # nothing to reset there
+    assert len(client.setting_history(KEY)) == 1
+
+
+def test_lock_needs_a_reason_and_secrets_and_risk_follow_the_service(client: FakeClient) -> None:
+    with pytest.raises(ReasonRequiredError, match="say why you are changing the lock on"):
+        client.lock_setting(KEY, locked=True, reason="  ")
+    client.set_setting(
+        "webhooks.egress.allowlist", layer="company", value=[], reason="r", accept_risk=True
+    )
+    with pytest.raises(RiskNotAcceptedError):
+        client.revert_setting("webhooks.egress.allowlist", layer="company", seq=1, reason="r")
+    with pytest.raises(ReasonRequiredError):
+        client.revert_setting("webhooks.egress.allowlist", layer="company", seq=1)
+
+
+def test_a_company_bound_limits_project_values(client: FakeClient) -> None:
+    client.lock_setting("project.mode", locked=False, bounds={"choices": ["live"]}, reason="p")
+    with pytest.raises(SettingOutOfBoundsError):
+        client.set_setting("project.mode", layer="project:P1", value="sandbox", reason="r")

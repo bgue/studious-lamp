@@ -193,12 +193,8 @@ class SettingsScreen(ModalScreen[None]):
         if layer is None:
             self._say(f"{defn.key} has only a platform default; it cannot be changed here.")
             return
-        if view.effective.locked and layer.startswith("project:"):
-            self._say(f"{defn.key} is locked by the company; projects cannot change it.")
-            return
-        if action == "reset" and not self._set_here(view):
-            self._say(f"{defn.key} is not set at {layer}; there is nothing to reset.")
-            return
+        # No rule is checked here: a locked key, a missing reason or nothing to reset is the
+        # service's refusal (or no-op), shown by the form, so the screen cannot disagree with it.
 
         def done(result: bool | None) -> None:
             if result:
@@ -206,13 +202,6 @@ class SettingsScreen(ModalScreen[None]):
                 self._say(f"{action.capitalize()}: {defn.key}")
 
         self.app.push_screen(SettingForm(self.client, view, action, layer), done)
-
-    def _set_here(self, view: SettingView) -> bool:
-        return view.effective.modified_here and view.effective.origin in (
-            "user",
-            "project",
-            "company",
-        )
 
     def action_edit(self) -> None:
         if isinstance(self.focused, Input):
@@ -225,9 +214,6 @@ class SettingsScreen(ModalScreen[None]):
     def action_lock(self) -> None:
         view = self.current()
         if view is None:
-            return
-        if not view.definition.lockable:
-            self._say(f"{view.definition.key} cannot be locked.")
             return
         self._change_lock(view)
 

@@ -1,5 +1,9 @@
 """What the about:config screens show, as pure functions (P0-I8-S19; brief 30.2, 30.3).
 
+Everything here is a hint for the person: which layer a change is sent to, how to type a value,
+that a key is risky. None of it decides anything. The service refuses what is not allowed, and the
+screens show its message.
+
 The rows, the detail lines and the hints are text built from a ``SettingView`` and nothing else, so
 the tests check them without a terminal. The layer a change goes to follows one rule
 (:func:`target_layer`): UI keys go to the person's own layer; every other key goes to the project
