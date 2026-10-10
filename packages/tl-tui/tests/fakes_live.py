@@ -22,11 +22,18 @@ class FakeFeed:
         self.started = threading.Event()
         self.closed = False
 
+    def head(self) -> int | None:
+        return None
+
     def push(self, *events: Event) -> None:
         self._items.put(("events", list(events)))
 
     def state(self, state: ConnectionState, detail: str = "") -> None:
         self._items.put(("state", (state, detail)))
+
+    def reset(self, detail: str) -> None:
+        """Make the feed report a ledger reset to the app."""
+        self._items.put(("reset", detail))
 
     def follow(self, sink: FeedSink, stop: threading.Event) -> None:
         sink.connection("live")
@@ -38,8 +45,39 @@ class FakeFeed:
                 continue
             if kind == "events":
                 sink.events(payload)
+            elif kind == "reset":
+                sink.reset(payload)
             else:
                 sink.connection(*payload)
 
     def close(self) -> None:
         self.closed = True
+
+
+def make_event(
+    seq: int,
+    kind: str = "Record.Updated",
+    stream: str = "R1",
+    version: int = 2,
+    actor: str = "user:bob",
+    **payload: Any,
+) -> Event:
+    """A stored event with the given identity; everything else is fixed (deterministic)."""
+    return Event(
+        event_type=kind,
+        payload=payload,
+        seq=seq,
+        event_id=f"EV{seq:024d}",
+        stream_id=stream,
+        stream_type="core.Record",
+        stream_version=version,
+        scope="project:P123",
+        actor=actor,
+        recorded_at="2026-10-10T09:00:00Z",  # type: ignore[arg-type]
+        effective_at="2026-10-10T09:00:00Z",  # type: ignore[arg-type]
+        correlation_id="C" * 26,
+        causation_id=None,
+        source="test",
+        prev_hash=None,
+        hash="0" * 64,
+    )

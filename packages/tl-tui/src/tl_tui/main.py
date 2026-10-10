@@ -98,7 +98,10 @@ def run(
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="tl-tui", description="Throughline terminal UI.")
     parser.add_argument("--remote", metavar="URL", help="API server URL (default: embedded)")
-    parser.add_argument("--token", help="dev token for --remote (or set TL_TOKEN)")
+    parser.add_argument(
+        "--token",
+        help="dev token for --remote; prefer TL_TOKEN (command-line arguments are visible in ps)",
+    )
     parser.add_argument("--db", help=f"embedded: SQLite ledger (TL_DB, default {DEFAULT_DB})")
     parser.add_argument("--project", help=f"project id (TL_PROJECT, default {DEFAULT_PROJECT})")
     parser.add_argument("--actor", help="remote: the name the header shows")

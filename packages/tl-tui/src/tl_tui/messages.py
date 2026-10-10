@@ -103,6 +103,14 @@ class ConnectionChanged(Message):
         self.detail = detail
 
 
+class LedgerReset(Message):
+    """The server's ledger is behind what this client had seen (replaced or restored)."""
+
+    def __init__(self, detail: str = "") -> None:
+        super().__init__()
+        self.detail = detail
+
+
 class FilterSubmitted(Message):
     """The user pressed Enter in the filter bar with this query text (blank clears the filter)."""
 

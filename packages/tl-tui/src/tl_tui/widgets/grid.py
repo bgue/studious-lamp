@@ -15,6 +15,7 @@ them with `call_from_thread`, and marks the rows of `ids` with a bullet for `hig
 from __future__ import annotations
 
 import json
+import logging
 import time
 from collections.abc import Collection
 from dataclasses import dataclass
@@ -37,6 +38,8 @@ from tl_tui.errors import CLIENT_ERRORS, describe_error
 from tl_tui.messages import OpenRecord, RecordHighlighted, SelectionChanged, StatusMessage
 from tl_tui.paths import pset_value
 from tl_tui.text import CONFORMANCE_MARK, format_value, timestamp
+
+log = logging.getLogger(__name__)
 
 END_CAP = 5_000  # rows the End key will load; beyond it the user narrows the list instead
 # Envelope columns the server can order by (tl_core.services.queries.SORTABLE_COLUMNS).
@@ -320,9 +323,10 @@ class RecordGrid(ScrollView, can_focus=True):
 
         The fetch runs in a worker thread and the result is applied with ``call_from_thread``;
         calls made while one is running are merged into one more pass. A result is dropped when the
-        rows were replaced meanwhile (a sort, a filter, End). Rows of ``record_ids`` that are in the
-        result get a bullet for ``highlight_seconds`` (``record_ids`` are records someone else
-        just changed, so the mark does not depend on what an earlier read already showed).
+        rows were replaced meanwhile (a sort, a filter, End); the marks are then put on the rows
+        now shown. Rows of ``record_ids`` get a bullet for ``highlight_seconds`` (they are records
+        someone else just changed, so the mark does not depend on what an earlier read showed).
+        A mark is forgotten only once it has been applied: a failed read keeps it for the next one.
         """
         self._live_marks.update(record_ids)
         if self._live_running:
@@ -331,7 +335,6 @@ class RecordGrid(ScrollView, can_focus=True):
         self._live_running = True
         self._live_again = False
         marks = frozenset(self._live_marks)
-        self._live_marks.clear()
         count = min(max(self.page_size, len(self.rows)), END_CAP)
         self.run_worker(
             partial(self._live_fetch, self._generation, count, marks),
@@ -340,13 +343,26 @@ class RecordGrid(ScrollView, can_focus=True):
         )
 
     def _live_fetch(self, generation: int, count: int, marks: frozenset[str]) -> None:
-        """Worker thread: read the rows (and the match count); hand them to the UI thread."""
-        page = self._fetch(count, 0)
-        matches = self._count() if self.filter_text and page is not None else None
+        """Worker thread: read the rows (and the match count); hand them to the UI thread.
+
+        Whatever goes wrong, ``_live_running`` is reset and the user is told, so the next event
+        can start a new refresh instead of finding the grid stuck "refreshing".
+        """
+        page: list[dict[str, Any]] | None = None
+        matches: int | None = None
+        try:
+            page = self._fetch(count, 0)  # CLIENT_ERRORS: reported by _fetch, page is None
+            if self.filter_text and page is not None:
+                matches = self._count()
+        except Exception as exc:  # a bug or an unexpected error: log it, do not lose the grid
+            log.exception("live refresh failed")
+            page = None
+            self.post_message(StatusMessage(f"Live refresh failed: {exc}", "error"))
         try:
             self.app.call_from_thread(self._apply_live, generation, count, marks, page, matches)
-        except RuntimeError:
-            self._live_running = False  # the app is shutting down; nobody is listening
+        except Exception:  # the app is shutting down, or applying the result raised
+            log.warning("live refresh could not be applied", exc_info=True)
+            self._live_running = False
 
     def _apply_live(
         self,
@@ -357,15 +373,12 @@ class RecordGrid(ScrollView, can_focus=True):
         matches: int | None,
     ) -> None:
         self._live_running = False
-        if page is not None and generation == self._generation:
+        if page is None:
+            return  # failed: the marks stay for the next refresh; the error was reported
+        self._live_marks -= marks
+        if generation == self._generation:
             current = self.cursor_record
-            if self.highlight_seconds > 0:
-                until = time.monotonic() + self.highlight_seconds
-                fresh = [row["id"] for row in page if row["id"] in marks]
-                for record_id in fresh:
-                    self.changed_until[record_id] = until
-                if fresh:
-                    self.set_timer(self.highlight_seconds, self._expire_marks)
+            self._mark_rows(page, marks)
             old_cursor = self.cursor_row
             self._generation += 1
             self.rows = page
@@ -376,8 +389,23 @@ class RecordGrid(ScrollView, can_focus=True):
             if current is not None:
                 self._move_to_id(current["id"])
             self._after_rows_changed()
-        if self._live_again or self._live_marks:
+        else:  # the rows were replaced (sort, filter, End) while we read: mark what is shown now
+            self._mark_rows(self.rows, marks)
+            self.refresh()
+        if self._live_again:
             self.refresh_live()
+
+    def _mark_rows(self, rows: list[dict[str, Any]], ids: frozenset[str]) -> None:
+        """Start the mark on the rows of ``rows`` whose id is in ``ids``."""
+        if self.highlight_seconds <= 0:
+            return
+        fresh = [row["id"] for row in rows if row["id"] in ids]
+        if not fresh:
+            return
+        until = time.monotonic() + self.highlight_seconds
+        for record_id in fresh:
+            self.changed_until[record_id] = until
+        self.set_timer(self.highlight_seconds, self._expire_marks)
 
     def _expire_marks(self) -> None:
         """Drop the marks whose time is up, redraw, and re-arm for the ones still running."""

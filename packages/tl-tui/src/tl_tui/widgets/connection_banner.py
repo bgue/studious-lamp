@@ -41,3 +41,8 @@ class ConnectionBanner(Static):
         text = banner_text(state, detail)
         self.update(text)
         self.display = bool(text)
+
+    def notice(self, text: str) -> None:
+        """Show a one-off line (for example "server ledger changed; reloaded") until `show`."""
+        self.update(f"! {text}")
+        self.display = True

@@ -15,12 +15,14 @@ from textual.binding import Binding, BindingType
 from textual.containers import Horizontal
 from textual.screen import ModalScreen
 from textual.widget import Widget
+from tl_core.ledger import Event
 
 from tl_tui.client import ClientInterface
 from tl_tui.commands import command_by_id
 from tl_tui.live import (
     ChangeFeed,
     LiveUpdates,
+    OwnWrites,
     describe_changes,
     latest_by_record,
     touched_record_ids,
@@ -29,6 +31,7 @@ from tl_tui.messages import (
     CloseRecord,
     ConnectionChanged,
     ConnectionState,
+    LedgerReset,
     LiveEvents,
     NavSelected,
     OpenRecord,
@@ -108,7 +111,11 @@ class TlApp(App[None]):
         # Live updates: a feed of committed events (embedded: bus and poller; remote: SSE). Without
         # one the screens show what they last read until the user reloads.
         self._live = LiveUpdates(feed, self) if feed is not None else None
+        if feed is not None:
+            feed.head()  # the cursor is taken before the grid's first read: no gap in between
         self._reachable = True
+        self._seen_live = False
+        self._held: list[Event] = []  # events that may be this client's own; see _release_held
 
     # --- layout ------------------------------------------------------------------------------
 
@@ -448,10 +455,25 @@ class TlApp(App[None]):
     def on_connection_changed(self, message: ConnectionChanged) -> None:
         self.query_one("#connection", ConnectionBanner).show(message.state, message.detail)
         came_back = message.state == "live" and not self._reachable
+        first_live = message.state == "live" and not self._seen_live
         self._reachable = message.state == "live"
+        self._seen_live = self._seen_live or message.state == "live"
         if came_back:
             self._say("Connection restored", "info")
-            self.query_one("#grid", RecordGrid).refresh_live()  # rows read during the outage
+        if came_back or first_live:
+            # Rows read during an outage, or between the first read and the feed's start, may be
+            # stale; the feed replays from its cursor, and this read is the safety net.
+            self.query_one("#grid", RecordGrid).refresh_live()
+
+    def on_ledger_reset(self, message: LedgerReset) -> None:
+        """The server's ledger went backwards: nothing shown can be trusted, so read it again."""
+        self.query_one("#grid", RecordGrid).refresh_live()
+        view = self._record_view()
+        if view is not None:
+            view.reload()
+        banner = self.query_one("#connection", ConnectionBanner)
+        banner.notice(message.detail or "server ledger changed; reloaded")
+        self.set_timer(8.0, lambda: banner.show(banner.state))
 
     def on_live_events(self, message: LiveEvents) -> None:
         """Events committed by anyone: refresh the grid, and the open record if it was touched.
@@ -460,12 +482,17 @@ class TlApp(App[None]):
         path already reloaded it) but not for the open record, which also hears about link and
         workflow changes made elsewhere.
         """
-        own = getattr(self.client, "own_writes", None)
-        foreign = [e for e in message.events if own is None or e.event_id not in own]
-        foreign_ids = touched_record_ids(foreign)
-        if foreign_ids:
-            self.query_one("#grid", RecordGrid).refresh_live(foreign_ids)
-            self._say(describe_changes(foreign), "info")
+        own: OwnWrites | None = getattr(self.client, "own_writes", None)
+        foreign: list[Event] = []
+        for event in message.events:
+            origin = "foreign" if own is None else own.classify(event)
+            if origin == "foreign":
+                foreign.append(event)
+            elif origin == "pending":  # a command of ours is in flight on this stream
+                self._held.append(event)
+        if self._held:
+            self.set_timer(0.1, self._release_held)
+        self._mark_foreign(foreign)
         view = self._record_view()
         if view is None or view.record is None:
             return
@@ -477,6 +504,32 @@ class TlApp(App[None]):
         linked = any(e.event_type.startswith("Link.") for e in message.events)
         if moved or linked:
             view.reload()
+
+    def _mark_foreign(self, events: list[Event]) -> None:
+        ids = touched_record_ids(events)
+        if ids:
+            self.query_one("#grid", RecordGrid).refresh_live(ids)
+            self._say(describe_changes(events), "info")
+
+    def _release_held(self) -> None:
+        """Classify the held events again: own ones are dropped, the rest are someone else's.
+
+        An event is held while a command of ours that may have produced it is in flight; after
+        the response is noted it is ``own``, or, when the in-flight window ends (response or
+        ``OwnWrites.HOLD_CAP_S``), ``foreign``.
+        """
+        own: OwnWrites | None = getattr(self.client, "own_writes", None)
+        held, self._held = self._held, []
+        ready: list[Event] = []
+        for event in held:
+            origin = "foreign" if own is None else own.classify(event)
+            if origin == "foreign":
+                ready.append(event)
+            elif origin == "pending":
+                self._held.append(event)
+        if self._held:
+            self.set_timer(0.1, self._release_held)
+        self._mark_foreign(ready)
 
     async def _show_record(
         self, scope: str, key: str, *, follow: bool = False, navigate: bool = True

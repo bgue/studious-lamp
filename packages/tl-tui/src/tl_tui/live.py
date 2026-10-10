@@ -18,10 +18,13 @@ The decisions the screens make from events are pure functions here (``touched_re
 
 from __future__ import annotations
 
+import logging
 import threading
+import time
 from collections import deque
-from collections.abc import Iterable, Sequence
-from typing import Protocol
+from collections.abc import Generator, Iterable, Sequence
+from contextlib import contextmanager
+from typing import Literal, Protocol
 
 from textual.message_pump import MessagePump
 from tl_core.bus import Bus
@@ -34,7 +37,9 @@ from tl_core.changefeed import (
 from tl_core.ledger import Event, Ledger
 from tl_core.services.commands import CommandResult
 
-from tl_tui.messages import ConnectionChanged, ConnectionState, LiveEvents
+from tl_tui.messages import ConnectionChanged, ConnectionState, LedgerReset, LiveEvents
+
+log = logging.getLogger(__name__)
 
 #: Event types whose stream is a record (the stream id is the record id).
 RECORD_PREFIXES = ("Record.", "Pset.", "Workflow.")
@@ -50,9 +55,22 @@ class FeedSink(Protocol):
 
     def connection(self, state: ConnectionState, detail: str = "") -> None: ...
 
+    def reset(self, detail: str) -> None:
+        """The ledger is behind the feed's cursor (replaced or restored): reload everything."""
+        ...
+
 
 class ChangeFeed(Protocol):
     """A source of committed events. ``follow`` blocks until ``stop`` is set."""
+
+    def head(self) -> int | None:
+        """The ledger's head ``seq`` now (or ``None`` if it cannot be read), and start there.
+
+        The app calls this once *before* its first read of the rows; ``follow`` then delivers
+        everything committed after that seq, so nothing committed between the first read and the
+        start of the thread is lost.
+        """
+        ...
 
     def follow(self, sink: FeedSink, stop: threading.Event) -> None:
         """Deliver live events (from now on) to ``sink``; report the connection state.
@@ -66,18 +84,56 @@ class ChangeFeed(Protocol):
         ...
 
 
+Origin = Literal["own", "foreign", "pending"]
+
+
 class OwnWrites:
     """The ids of events this client's own commands produced (bounded, newest kept).
 
     A screen skips the "changed by someone else" highlight and banner for these: the user knows
     about their own save. Two TUIs run by the same user are told apart by event id, not by actor.
+
+    A command's events can reach the feed before its response reaches the caller (the SSE stream
+    and the HTTP response are separate connections). While a command is in flight
+    (``in_flight``), events on its stream are ``pending``, not ``foreign``: the app holds them
+    until the response has been noted, but never longer than ``HOLD_CAP_S``.
     """
+
+    HOLD_CAP_S = 2.0
 
     def __init__(self, capacity: int = 2000) -> None:
         self._ids: set[str] = set()
         self._order: deque[str] = deque()
         self._capacity = capacity
         self._lock = threading.Lock()
+        self._flight: dict[int, tuple[str | None, float]] = {}
+        self._next = 0
+
+    @contextmanager
+    def in_flight(self, stream_id: str | None) -> Generator[None]:
+        """Mark a command as sent and not yet answered. ``stream_id`` ``None``: any stream."""
+        with self._lock:
+            self._next += 1
+            key = self._next
+            self._flight[key] = (stream_id, time.monotonic())
+        try:
+            yield
+        finally:
+            with self._lock:
+                self._flight.pop(key, None)
+
+    def classify(self, event: Event) -> Origin:
+        """``own`` (noted), ``pending`` (a command that may own it is in flight), or ``foreign``."""
+        with self._lock:
+            if event.event_id in self._ids:
+                return "own"
+            now = time.monotonic()
+            for stream_id, started in self._flight.values():
+                if (stream_id is None or stream_id == event.stream_id) and (
+                    now - started < self.HOLD_CAP_S
+                ):
+                    return "pending"
+        return "foreign"
 
     def note(self, result: CommandResult) -> CommandResult:
         """Remember the events of ``result`` and return it (so a call can wrap its return)."""
@@ -147,15 +203,29 @@ class EmbeddedFeed:
         self._bus = bus
         self._scope = scope
         self._interval = interval_s
+        self._start: int | None = None
+
+    def head(self) -> int | None:
+        try:
+            self._start = self._ledger.head_seq()
+        except Exception:  # an unreadable ledger: follow() will take the head itself
+            log.warning("could not read the ledger head", exc_info=True)
+            self._start = None
+        return self._start
 
     def follow(self, sink: FeedSink, stop: threading.Event) -> None:
         flt = SubscriptionFilter(scope=self._scope) if self._scope else None
         registry = SubscriptionRegistry(self._ledger)
         attached = registry.attach(self._bus)
+        # From the head the app saw before its first read: events committed since are replayed.
         poller = ChangePoller(
-            self._ledger, registry, scope=self._scope, interval_s=self._interval
-        )  # starts at the ledger head: only later events are seen
-        sub = registry.subscribe_queue(flt)
+            self._ledger,
+            registry,
+            after_seq=self._start,
+            scope=self._scope,
+            interval_s=self._interval,
+        )
+        sub = registry.subscribe_queue(flt, after_seq=self._start)
         poller.start()
         sink.connection("live")
         try:
@@ -189,6 +259,9 @@ class _PostingSink:
 
     def connection(self, state: ConnectionState, detail: str = "") -> None:
         self._target.post_message(ConnectionChanged(state, detail))
+
+    def reset(self, detail: str) -> None:
+        self._target.post_message(LedgerReset(detail))
 
 
 class LiveUpdates:

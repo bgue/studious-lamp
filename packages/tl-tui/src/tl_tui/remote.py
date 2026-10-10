@@ -22,11 +22,12 @@ from __future__ import annotations
 import functools
 import threading
 from collections.abc import Callable
+from contextlib import AbstractContextManager, nullcontext
 from typing import Any, cast
 
 import httpx2
 from tl_api.client import ApiClient
-from tl_core.services.commands import CommandResult
+from tl_core.services.commands import Command, CommandResult
 
 from tl_tui.client import ClientInterface, RelationInfo
 from tl_tui.live import ChangeFeed, FeedSink, OwnWrites
@@ -34,6 +35,11 @@ from tl_tui.messages import ConnectionState
 
 #: ``ApiClient`` attributes that are not request/response calls (no connection state to report).
 UNTRACKED = frozenset({"stream_events", "close", "base_url"})
+
+#: Seconds a call may take. The screens call the server on the UI thread (the grid load, a record
+#: view, a save), so this is how long the interface can freeze; past it the banner says why.
+#: Moving those calls to workers is the P0-I8 hardening follow-up.
+INTERACTIVE_TIMEOUT_S = 3.0
 
 
 def find_head(api: ApiClient) -> int:
@@ -86,18 +92,35 @@ class RemoteFeed:
         self._lock = threading.Lock()
         self.cursor: int | None = None  # seq of the last event delivered (or the head at start)
 
+    def head(self) -> int | None:
+        """The server's head now, which becomes the cursor; ``None`` when it cannot be read."""
+        api = self._make_api()
+        try:
+            self.cursor = find_head(api)
+        except Exception:  # unreachable: follow() retries and takes the head itself
+            return None
+        finally:
+            api.close()
+        return self.cursor
+
     def follow(self, sink: FeedSink, stop: threading.Event) -> None:
         api = self._make_api()
         with self._lock:
             self._api = api
         delay = self._first
+        checked = self.cursor is not None  # a cursor from head() was read a moment ago
         try:
             while not stop.is_set():
                 try:
                     if self.cursor is None:
                         self.cursor = find_head(api)
-                    else:
-                        api.events_after(self.cursor, limit=1)  # is the server back?
+                    elif not checked:
+                        # Back after a drop: is it the same ledger? (replaced or restored: lower)
+                        head = find_head(api)
+                        if head < self.cursor:
+                            self.cursor = head
+                            sink.reset("server ledger changed; reloaded")
+                    checked = False
                 except Exception as exc:  # unreachable, refused (401) or a bad answer
                     if stop.is_set():
                         return
@@ -160,7 +183,9 @@ class RemoteClient:
         self._lock = threading.Lock()
 
     @classmethod
-    def connect(cls, base_url: str, token: str, *, timeout: float = 10.0) -> RemoteClient:
+    def connect(
+        cls, base_url: str, token: str, *, timeout: float = INTERACTIVE_TIMEOUT_S
+    ) -> RemoteClient:
         """A client for the API at ``base_url`` using the dev token ``token``.
 
         Nothing is sent yet: an unreachable server shows up on the first call, as a banner.
@@ -220,14 +245,23 @@ class RemoteClient:
     def _track(self, call: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(call)
         def tracked(*args: Any, **kwargs: Any) -> Any:
-            try:
-                result = call(*args, **kwargs)
-            except httpx2.TransportError as exc:  # includes ApiUnavailableError
-                self._report("unreachable", _short(exc))
-                raise
-            self._report("live", "")
-            if isinstance(result, CommandResult):
-                self.own_writes.note(result)
+            command = args[0] if args and isinstance(args[0], Command) else None
+            # Events of a command may reach the feed before its response reaches us: until the
+            # response has been noted, events on the command's stream are "pending", not foreign.
+            flight: AbstractContextManager[None] = (
+                self.own_writes.in_flight(getattr(command, "stream_id", None))
+                if command is not None
+                else nullcontext()
+            )
+            with flight:
+                try:
+                    result = call(*args, **kwargs)
+                except httpx2.TransportError as exc:  # includes ApiUnavailableError
+                    self._report("unreachable", _short(exc))
+                    raise
+                self._report("live", "")
+                if isinstance(result, CommandResult):
+                    self.own_writes.note(result)
             return result
 
         return tracked
