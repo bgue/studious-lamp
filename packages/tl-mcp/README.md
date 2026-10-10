@@ -22,18 +22,36 @@ The MCP server for AI agents: read tools and resources over the same query langu
 | resource `tl://schema/{scope}/{record_type}` | resource | JSON: the form metadata (fields and psets) of a type |
 | resource `tl://relations` | resource | JSON: the relation vocabulary |
 | `python -m tl_mcp --actor agent:<id> [--db PATH] [--lake-dir DIR]` | command | Serve on stdio |
+| `tl_mcp.context.McpContext` | class | What every tool and resource needs: a unit-of-work factory, the actor and the authorise hook |
+| `tl_mcp.errors.guarded` | function | Authorises, then turns the failures a tool or resource can meet into `ToolError` or `ResourceError` |
+| `tl_mcp.models` | module | The structured results of the tools (the schema agents see) |
+| `python -m tl_mcp.dev [--db TARGET]` | command | The dev MCP server (below), stdio only, dev data only |
 
 The read tools are annotated read-only; the five write tools are not (and none is destructive). Inputs are bounded and checked before the authorise hook runs: query 2000 characters, scope and ids 128, title 500, description and post body 10 000, summary 300, note and reason 1 000, `order_by` 256; `psets` and `values` are bounded as JSON text (64 000 characters). A test fails if any string in a tool schema has no limit. Everything done for the agent carries `source=mcp:<id>`; each agent may file `TL_AGENT_DAILY_PROPOSALS` proposals per UTC day (default 500), after which the tool says so. There is no tool that accepts or rejects: a person does that (`tl proposal`, `POST /proposals/{id}/accept`). `lake_query` is read-only and calls the hook as `mcp.lake_query` on `lake:main`; its SQL is bounded at 20 000 characters.
 
 A call the authorise hook refuses never reaches the lake service, so it writes no `lake_query.log.jsonl` line; the hook owns the record of denials. Accepted, refused and failed statements are all logged, with the acting agent. Lake failures reach the agent as fixed sentences (`the lake has not been synced yet: run `tl lake sync``, `the lake is busy`) or, for a failing statement, a short message with the DuckDB error class; the lake directory and other server paths are never returned.
 
+## Dev MCP server (`tl_mcp.dev`)
+A separate entry point for coding agents (brief 25.3), not the product server: no actor, no record tools, and a guard (`tl_mcp.dev.guard`) that refuses anything but dev data (SQLite under `dev/` or a temp directory; a local `tl_test*`/`tl_dev*` Postgres; `TL_ENV` unset, dev, test or ci). Runbook: `docs/runbooks/dev-mcp.md`.
+
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `tl_mcp.dev.server.build_dev_server(ctx)` | function | The `throughline-dev` server over a `DevContext` (repository root, the one database, audit file) |
+| tools `run_tests`, `gen`, `query_db`, `rebuild_projections`, `seed`, `send_test_webhook`, `render_screen` | tools | One module each, `tl_mcp/dev/tool_*.py`; `query_db` is read-only SQLite (`sqlguard.py`, `query.py`) |
+| resources `tl://dev/schema-graph`, `event-catalog`, `event-sample/{type}`, `adrs`, `runbooks`, `test-reports` (and `adr/{name}`, `runbook/{name}`, `test-report/{name}`) | resources | `resources_schema.py`, `resources_docs.py` |
+| `tl_mcp.dev.guard` | module | Database target rule, pytest allow-lists, loopback URL check, plain-name document lookup, `redact_url` |
+
+Every tool call writes one audit line to `dev/data/dev-mcp.log.jsonl`. Postgres is refused by `query_db` (deviation C4, follow-up: a non-superuser reader role and a function allow-list).
+
 ## Depends on / used by
 - Depends on: `tl_lake` (the guarded query service), `tl_core`, `tl_schema`, `tl_adapters`, `tl_api` (the `authorize` hook, `check_actor`, and `build_spec` so `q` and `order_by` mean what they mean in the API), `mcp` 2.x.
 - Used by: agents (stdio), `just demo P0-I4-C`, the P0-I4 demo (WS-D).
+- The dev server also uses `tl_tui` (`render_screen`) and `tl_schema` (`gen`, the catalog); the product server does not import `tl_mcp.dev`.
 
 ## Commands
 ```
 uv run python -m tl_mcp --actor agent:triage       # stdio server on TL_DB
+uv run python -m tl_mcp.dev                        # the dev server on TL_DB (dev data only)
 just test packages/tl-mcp
 ```
 Runbook: `docs/runbooks/api-and-mcp-dev.md`.
@@ -50,4 +68,4 @@ Runbook: `docs/runbooks/api-and-mcp-dev.md`.
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I4 (workstream C); write tools added in P0-I6 workstream B (decisions B1 to B14: `docs/tickets/P0-I6/README-B.md`). Per-role tool permissions and a direct-write mode are the permission model, a human gate, and are not built. Resource-change notifications through the change feed (brief 11.3) are a follow-up.
+Introduced in P0-I4 (workstream C); the dev server (`tl_mcp.dev`) was added in P0-I8 workstream C; write tools added in P0-I6 workstream B (decisions B1 to B14: `docs/tickets/P0-I6/README-B.md`). Per-role tool permissions and a direct-write mode are the permission model, a human gate, and are not built. Resource-change notifications through the change feed (brief 11.3) are a follow-up.

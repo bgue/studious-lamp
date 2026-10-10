@@ -86,3 +86,17 @@ demo id:
 # measured RPO and RTO (needs sudo and pgBackRest for the Postgres part; see docs/runbooks)
 drill *args:
     bash dev/drills/restore.sh {{args}}
+
+# Secret tripwire over the files git tracks (04-gates section 1, "Security scan")
+scan-secrets:
+    uv run python dev/tools/scan_secrets.py
+
+# Known-vulnerability audit of the locked dependencies (needs network; pip-audit runs through uvx
+# and is not a dependency of the project)
+audit-deps:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    requirements="$(mktemp)"
+    trap 'rm -f "$requirements"' EXIT
+    uv export --frozen --no-hashes --all-packages --no-emit-workspace -q > "$requirements"
+    uvx pip-audit -r "$requirements" --disable-pip --no-deps

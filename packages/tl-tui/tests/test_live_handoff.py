@@ -23,7 +23,7 @@ from fakes import SCOPE, FakeClient
 from fakes_live import FakeFeed, make_event
 from harness import Harness
 from helpers import run_pilot, screen_text
-from remote_support import OtherWriter, wait_for
+from remote_support import LIVE_TIMEOUT_S, OtherWriter, wait_for
 from textual.pilot import Pilot
 from tl_adapters.sqlite.uow import create_schema
 from tl_core.ledger import Event
@@ -116,7 +116,7 @@ def test_remote_an_event_between_the_first_read_and_the_feed_start_is_marked(
     writer = OtherWriter(harness)
     first = writer.create("G-1", "a")
     with harness.live() as server:
-        client = RemoteClient.connect(server.base_url, server.token)
+        client = RemoteClient.connect(server.base_url, server.token, timeout=LIVE_TIMEOUT_S)
         feed = client.change_feed(SCOPE)
         after_the_first_load(
             monkeypatch, lambda: writer.update(first.stream_id, 1, title="in the gap")
@@ -337,7 +337,12 @@ def test_the_app_reads_everything_again_and_says_so_when_the_ledger_resets() -> 
         feed.reset("server ledger changed; reloaded")
         banner = app.query_one("#connection", ConnectionBanner)
         await until(pilot, lambda: banner.display, what="the notice")
-        assert "server ledger changed; reloaded" in screen_text(app)
+        # The banner is shown before the compositor has painted it; wait for the text.
+        await until(
+            pilot,
+            lambda: "server ledger changed; reloaded" in screen_text(app),
+            what="the notice on screen",
+        )
         await until(pilot, lambda: "list_records" in client.calls, what="the reload")
 
     run_pilot(app, scenario)

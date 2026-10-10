@@ -10,6 +10,7 @@ dependencies = [
   "tl-adapters",
   "tl-api",
   "tl-lake",
+  "tl-tui",
 ]
 
 [project.scripts]
