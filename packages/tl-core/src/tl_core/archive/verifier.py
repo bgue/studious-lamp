@@ -13,6 +13,7 @@ from collections.abc import Iterator
 from sqlalchemy import Connection, text
 
 from tl_core.archive.errors import ArchiveError
+from tl_core.archive.sealer import read_events
 from tl_core.archive.segments import (
     MANIFEST,
     NDJSON,
@@ -32,6 +33,7 @@ from tl_core.archive.signing import key_id_of, verify_signature
 from tl_core.archive.types import ArchiveStore, ScopeChain, SegmentManifest, VerifyIssue
 from tl_core.ledger import Event
 
+_HEAD = text("SELECT COALESCE(MAX(seq), 0) FROM events")
 _DB_HASHES = text("SELECT seq, hash FROM events WHERE seq >= :first AND seq <= :last ORDER BY seq")
 
 
@@ -185,9 +187,16 @@ def _check_segment(
     return issue, manifest, manifest_data, events
 
 
+def _differing_fields(row: Event, event: Event) -> str:
+    names = [name for name in Event.model_fields if getattr(row, name) != getattr(event, name)]
+    return ", ".join(names)
+
+
 def _check_database(
-    conn: Connection, manifest: SegmentManifest, events: list[Event], name: str
+    conn: Connection, manifest: SegmentManifest, events: list[Event], name: str, deep: bool
 ) -> VerifyIssue | None:
+    if deep:
+        return _check_database_rows(conn, manifest, events, name)
     rows = conn.execute(_DB_HASHES, {"first": manifest.first_seq, "last": manifest.last_seq}).all()
     stored = {int(row[0]): str(row[1]) for row in rows}
     for event in events:
@@ -199,6 +208,92 @@ def _check_database(
                 "db_mismatch", name, event.seq, "the database hash differs from the archive"
             )
     return None
+
+
+def _check_database_rows(
+    conn: Connection, manifest: SegmentManifest, events: list[Event], name: str
+) -> VerifyIssue | None:
+    """Deep: recompute each database event's hash from its stored fields, then compare every field.
+
+    A payload-only edit, a hash-only edit and a consistent payload-plus-hash edit are each caught
+    here, in seq order.
+    """
+    stored = {row.seq: row for row in read_events(conn, manifest.first_seq, manifest.last_seq)}
+    for event in events:
+        row = stored.get(event.seq)
+        if row is None:
+            return _issue("db_mismatch", name, event.seq, "the database has no event at this seq")
+        if recomputed_hash(row) != row.hash:
+            return _issue(
+                "event_hash",
+                name,
+                event.seq,
+                "the database event's stored hash does not match its fields",
+            )
+        if row != event:
+            return _issue(
+                "db_mismatch",
+                name,
+                event.seq,
+                f"the database row differs from the archive in: {_differing_fields(row, event)}",
+            )
+    return None
+
+
+LEDGER_PAGE = 2000
+
+
+def _scan_ledger(conn: Connection, start_seq: int, running: dict[str, str]) -> VerifyIssue | None:
+    """Recompute the hash of every database event from ``start_seq`` on and check its chain.
+
+    ``running`` is each scope's newest hash before ``start_seq`` (updated as the scan goes).
+    Checks gap-free seq, the hash against the event's own fields, and ``prev_hash`` against the
+    scope's previous event.
+    """
+    expected = start_seq
+    while True:
+        page = read_events(conn, expected, expected + LEDGER_PAGE - 1)
+        if not page:
+            head = int(conn.execute(_HEAD).scalar_one())
+            if head >= expected:
+                return _issue("seq_gap", None, expected, f"no event at seq {expected}")
+            return None
+        for event in page:
+            if event.seq != expected:
+                return _issue(
+                    "seq_gap", None, expected, f"expected seq {expected}, found {event.seq}"
+                )
+            if recomputed_hash(event) != event.hash:
+                return _issue(
+                    "event_hash",
+                    None,
+                    event.seq,
+                    "the database event's stored hash does not match its fields",
+                )
+            if event.prev_hash != running.get(event.scope):
+                return _issue(
+                    "scope_chain",
+                    None,
+                    event.seq,
+                    f"prev_hash does not continue scope {event.scope!r}",
+                )
+            running[event.scope] = event.hash
+            expected += 1
+        if len(page) < LEDGER_PAGE:
+            return None
+
+
+def verify_ledger(conn: Connection) -> list[VerifyIssue]:
+    """Verify the database alone: gap-free seq, every event hash recomputed from its stored fields,
+    and every scope's ``prev_hash`` chain (brief 24.5, "hash-chain verification tool").
+
+    Returns at most one issue, the first divergence in seq order; an empty list means the chain
+    is intact. It cannot see an edit to a scope's newest event that keeps its own hash
+    consistent (no later event contradicts it): compare with an archive for that
+    (``verify_archive(conn=..., deep=True)``).
+    """
+    issue = _scan_ledger(conn, 1, {})
+    return [issue] if issue is not None else []
 
 
 def verify_archive(
@@ -214,7 +309,9 @@ def verify_archive(
     """Verify the archive; an empty list means verified.
 
     ``conn`` also checks that the database holds the same event hashes up to the last sealed seq.
-    ``deep`` also checks that each ``events.parquet`` holds exactly its ndjson events.
+    ``deep`` also checks that each ``events.parquet`` holds exactly its ndjson events and, with
+    ``conn``, recomputes every database event's hash from its stored fields, compares every field
+    with the archive, and checks the chain of database events newer than the archive.
     ``stop_at_first`` (the default) returns as soon as one divergence is found; otherwise at most
     one issue per segment is reported, in segment order.
 
@@ -237,7 +334,7 @@ def verify_archive(
             store, name, files, public_key, chain, deep
         )
         if issue is None and conn is not None and manifest is not None:
-            issue = _check_database(conn, manifest, events, name)
+            issue = _check_database(conn, manifest, events, name, deep)
         if issue is not None:
             issues.append(issue)
             if stop_at_first:
@@ -249,6 +346,12 @@ def verify_archive(
             for scope, scope_chain in manifest.scopes.items():
                 chain.scope_last[scope] = scope_chain.last_hash
     have = chain.next_seq - 1
+    if deep and conn is not None and not issues:
+        tail = _scan_ledger(conn, have + 1, dict(chain.scope_last))
+        if tail is not None:
+            issues.append(tail)
+            if stop_at_first:
+                return issues
     if expect_last_seq is not None and have < expect_last_seq:
         issues.append(
             _issue(

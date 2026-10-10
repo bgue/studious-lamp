@@ -6,6 +6,12 @@ leaves a directory whose name fixes the seq range, and the next call seals exact
 (checking that any file already there matches what the database yields) before it takes new events.
 So a crash never produces a different segment, and sealing never needs a delete (the store is
 write-once).
+
+Limit. Before sealing, the sealer checks that the database agrees with what is already sealed at
+each scope's newest sealed event (one lookup per scope), and it recomputes and chain-checks every
+event it is about to seal. It does not re-read the older events in between, so a consistent edit in
+the middle of a scope's history is not its job to find. Full detection is
+``verify_archive(conn=..., deep=True)`` or ``verify_ledger``; the restore drill runs it.
 """
 
 from __future__ import annotations

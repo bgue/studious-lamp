@@ -19,6 +19,7 @@ WS-B owns `dev/demos/P0-I7.sh`. This workstream's own check is the drill (`bash 
 | S10 | `tl_core.archive`: sealer (crash-idempotent), verifier (first divergence per `VerifyIssue` kind), Ed25519 `Signer`, segment encodings (NDJSON, Parquet by DuckDB) | Hash-chain integrity and crash safety; migration-like data path | orchestrator | done (abf5c2b) |
 | S11 | `restore_events` in `tl_adapters.{sqlite,postgres}.admin` and `tl_adapters.restore.restore_from_archive` | Writes events outside `Ledger.append` (D1); data conversion path | orchestrator | done (18e2bfe); review fixes in S14 |
 | S14 | Review fixes to S10 and S11: missing-directory handling, sealed-prefix check for every scope, one-transaction restore with a schema check first and schema-hash warnings, `--expect-last-seq`/`--expect-manifest`, key file mode | Same pieces | orchestrator (short re-review of items 2 and 3) | done |
+| S15 | Second review round: `verify_archive(conn, deep=True)` recomputes database hashes, compares every field and checks the tail; `verify_ledger`; `tl ledger verify`; the closing restore verify runs before the commit | Same pieces | orchestrator | done |
 | S12 | pgBackRest config and `dev/drills/pgbackrest.sh` against a scratch cluster; Litestream config | Needs sudo, a scratch cluster and measurements; not ticket-shaped | reviewer | planned |
 | S13 | `dev/drills/restore.sh` and `docs/templates/restore-drill.md` | Measures RPO and RTO across SQLite, Postgres and archive | reviewer | planned |
 
@@ -27,8 +28,8 @@ WS-B owns `dev/demos/P0-I7.sh`. This workstream's own check is the drill (`bash 
 |---|---|---|---|---|---|
 | P0-I7-T01 | Filesystem ArchiveStore (write-once) | haiku | S10 | merged (2a0df2f) | passed review first attempt |
 | P0-I7-T02 | `tl backup sqlite` and `backup_database` | haiku | none | merged (f4236e7) | passed review first attempt; hard-link OSError wrapped by supervisor (452ef1e) per ruling |
-| P0-I7-T03 | `tl archive keygen\|seal\|verify` | haiku | T01, S10 | ready | |
-| P0-I7-T04 | `tl restore --from-archive` | haiku | T01, S11 | ready | |
+| P0-I7-T03 | `tl archive keygen\|seal\|verify` | haiku | T01, S10 | merged (5e16010) | passed review first attempt |
+| P0-I7-T04 | `tl restore --from-archive` | haiku | T01, S11 | merged (05f13ae) | passed review first attempt; seq 0 prints as 0 (accepted) |
 | P0-I7-T05 | Runbooks: archive and verify, restore from archive | haiku | T03, T04 | draft (batch 3) | |
 | P0-I7-T06 | Runbooks: pgBackRest restore, SQLite backup and Litestream | haiku | S12, T02 | draft (batch 3) | |
 

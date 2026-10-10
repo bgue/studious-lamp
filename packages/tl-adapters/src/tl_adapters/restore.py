@@ -36,7 +36,7 @@ from tl_schema.effective import EffectiveSchema
 
 from tl_adapters import postgres, sqlite
 from tl_adapters._unit import replay
-from tl_adapters.db import DbTarget, create_schema, is_postgres, make_engine, read_tx, write_tx
+from tl_adapters.db import DbTarget, create_schema, is_postgres, make_engine, write_tx
 
 
 @dataclass(frozen=True)
@@ -123,8 +123,15 @@ def _restore_in_one_transaction(
     schemas: dict[str, EffectiveSchema],
     registry: ProjectorRegistry,
     seen: dict[str, str],
-) -> tuple[int, float]:
-    """Insert, add promoted columns, replay: all or nothing. Returns (events, insert-done time)."""
+    public_key: bytes,
+) -> tuple[int, float, float]:
+    """Insert, add promoted columns, replay, verify: all or nothing.
+
+    Returns the event count and the ``perf_counter`` times at which the insert and the replay ended.
+
+    The closing verification against the archive runs before the commit, so a mismatch rolls
+    everything back and leaves an empty database that the same call can restore into again.
+    """
     insert = postgres.admin.restore_events if is_postgres(target) else sqlite.admin.restore_events
     with write_tx(engine) as conn:
         count = insert(conn, _recording(iter_segment_events(store), seen))
@@ -132,7 +139,11 @@ def _restore_in_one_transaction(
         for schema in schemas.values():
             ensure_promoted_columns(conn, schema)
         replay(conn, cast(Ledger, _ReplayLedger(conn)), registry, list(registry.all()), None)
-    return count, inserted
+        rebuilt_at = time.perf_counter()
+        issues = verify_archive(store, public_key=public_key, conn=conn)
+        if issues:
+            raise _fail(issues, "the restored database does not match the archive")
+    return count, inserted, rebuilt_at
 
 
 def restore_from_archive(
@@ -172,12 +183,9 @@ def restore_from_archive(
     seen: dict[str, str] = {}
     engine = make_engine(target)
     try:
-        count, inserted = _restore_in_one_transaction(engine, target, store, schemas, reg, seen)
-        rebuilt = time.perf_counter()
-        with read_tx(engine) as conn:
-            issues = verify_archive(store, public_key=public_key, conn=conn)
-        if issues:
-            raise _fail(issues, "the restored database does not match the archive")
+        count, inserted, rebuilt = _restore_in_one_transaction(
+            engine, target, store, schemas, reg, seen, public_key
+        )
     finally:
         engine.dispose()
     return RestoreResult(

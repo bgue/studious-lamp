@@ -587,3 +587,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   `tl archive verify --expect-last-seq N --expect-manifest SHA`.
   Evidence: `test_the_sealer_notices_a_divergence_in_a_scope_the_new_segment_does_not_touch`,
   `test_a_failure_during_the_replay_rolls_everything_back_and_a_rerun_works`, `test_dropping_trailing_segments_...`. Status: active
+
+- **L-P0-I7-A7** · 2026-10-10 · tags: ledger, tests
+  Comparing stored hash columns is not a hash-chain check: a payload-only edit in the database returned no issue from `verify_archive(conn=...)`.
+  A real check recomputes each hash from the stored fields. `verify_archive(conn=..., deep=True)` does that, compares every field with the archive
+  and chain-checks the events newer than the archive; `verify_ledger(conn)` and `tl ledger verify` do it for the database alone. A consistent
+  payload-plus-hash edit shows up one event later in the scope (`scope_chain`) or as `db_mismatch` against an archive. The edit of a scope's
+  newest event that keeps its own hash consistent needs an archive to contradict it.
+  Evidence: `tests/archive/test_ledger_verify.py` (payload-only, hash-only, consistent edits; tail edit; missing event). Status: active

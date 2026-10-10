@@ -26,7 +26,7 @@ from tl_core.archive.types import (
     SegmentSignature,
     VerifyIssue,
 )
-from tl_core.archive.verifier import iter_segment_events, verify_archive
+from tl_core.archive.verifier import iter_segment_events, verify_archive, verify_ledger
 
 __all__ = [
     "ARCHIVE_FORMAT",
@@ -54,5 +54,6 @@ __all__ = [
     "seal_segment",
     "summarize_archive",
     "verify_archive",
+    "verify_ledger",
     "write_keypair",
 ]

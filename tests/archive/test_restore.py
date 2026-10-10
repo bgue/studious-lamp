@@ -444,3 +444,31 @@ def test_restore_reports_the_schema_hashes_and_warns_when_they_differ_from_the_l
     assert warning.startswith(f"scope {SCOPE}: the ledger last recorded effective schema ")
     assert "TL_SCHEMA_DIR" in warning
     assert other.schema_hashes[SCOPE] == "f" * 64
+
+
+def test_a_mismatch_found_by_the_closing_verify_rolls_everything_back(
+    new_db: Callable[[], DbTarget],
+    memory_store: Callable[..., Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import tl_adapters.restore as restore_module
+    from tl_core.archive import VerifyIssue
+
+    original, store, signer = sealed_original(new_db, memory_store)
+    real = verify_archive
+
+    def lying(*args: Any, **kwargs: Any) -> list[VerifyIssue]:
+        if kwargs.get("conn") is not None:
+            return [VerifyIssue(kind="db_mismatch", segment="s", seq=3, detail="forced")]
+        return real(*args, **kwargs)
+
+    target = new_db()
+    monkeypatch.setattr(restore_module, "verify_archive", lying)
+    with pytest.raises(RestoreError, match="does not match the archive") as caught:
+        restore_from_archive(store, target, public_key=signer.public_key)
+    assert caught.value.issue is not None and caught.value.issue.seq == 3
+    assert count_events(target) == 0  # rolled back, not left populated
+
+    monkeypatch.undo()
+    restore_from_archive(store, target, public_key=signer.public_key)  # the same call works now
+    assert snapshot(target) == snapshot(original)
