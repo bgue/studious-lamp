@@ -4,8 +4,15 @@ version = "0.0.1"
 requires-python = ">=3.12"
 dependencies = [
   "mcp",
+  "pydantic>=2",
   "tl-core",
+  "tl-schema",
+  "tl-adapters",
+  "tl-api",
 ]
+
+[project.scripts]
+tl-mcp = "tl_mcp.main:main"
 
 [build-system]
 requires = ["hatchling"]

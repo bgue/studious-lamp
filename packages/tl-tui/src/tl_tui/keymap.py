@@ -41,6 +41,7 @@ KEYMAP: tuple[KeyEntry, ...] = (
     KeyEntry("App", "F3", "Show or hide the context panel", "TlApp", "f3"),
     KeyEntry("App", "F6  Shift+F6", "Move focus between panels", "TlApp", "f6"),
     KeyEntry("App", "n", "New record", "TlApp", "n"),
+    KeyEntry("App", "/", "Filter the list with the query language", "TlApp", "slash"),
     KeyEntry("App", "Esc", "Close an open side panel (narrow terminals)", "TlApp", "escape"),
     KeyEntry(
         "App", "Ctrl+P  :", "Command palette: commands, records, go to a key", "TlApp", "ctrl+p"

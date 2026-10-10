@@ -8,6 +8,8 @@ dependencies = [
   "tl-core",
   "tl-schema",
   "tl-adapters",
+  "tl-api",
+  "httpx2",
 ]
 
 [project.scripts]
