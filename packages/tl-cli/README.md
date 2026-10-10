@@ -27,6 +27,8 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl feed retract --project ID POST_ID --reason R`, `tl feed react --project ID POST_ID [--reaction ack|+1|resolved] [--off]` | command | Tombstone a post; set or clear an acknowledgement |
 | `tl wf show --project ID KEY [--role R]...` | command | Workflow state and, for each transition, whether its guards pass |
 | `tl wf transition --project ID KEY NAME [--role R]... [--reason T]` | command | Run a transition; a blocked one prints every guard and exits 1 |
+| `tl serve [--host H] [--port N] [--tokens PATH] [--insecure-dev]` | command | The REST API and event stream on the dev ledger (`--db`); loopback unless `--insecure-dev` (ADR-0005); same as `just serve` |
+| `tl tui [--remote URL] [--token T] [--project ID] [--actor A]` | command | The TUI, embedded on the dev ledger by default; `--remote` (or `TL_REMOTE`) with a dev token (`TL_TOKEN`, preferred: arguments show in `ps`) runs it against `tl serve` |
 | `tl dev token add ACTOR [--tokens PATH]` | command | Create a dev bearer token for `user:<id>` or `agent:<id>` in the token file (mode 0600, `TL_TOKENS`, default `./dev/data/tokens.json`); the token alone on stdout (ADR-0005) |
 | `tl file put PATH --project ID --record KEY [--slot S] [--content-type T]` | command | Hash, upload (or dedupe) and attach a file; prints `file`, `slot`, `revision`, `status`, `size`, `sha256`, `deduplicated`, and `already attached` on a repeat |
 | `tl file get FILE_ID --project ID --out PATH [--force]` | command | Write a file's bytes, checked against the recorded SHA-256 |

@@ -645,3 +645,49 @@ test or a generated artefact already enforces, or narrative history (that belong
   imports and calls; if another ticket owns it, the two are not independent. After the fact the fix was an integration merge of the
   base into the ticket branch and a re-run of its tests on both adapters.
   Evidence: relay outcomes of workflow wkzasjo4a; T03 passes 13 of 13 only with T02 merged. Status: active
+
+- **L-P0-I4-D1** · 2026-10-10 · tags: tui, tooling
+  `query` is a Textual DOM method, so `self.query = "..."` on a widget fails pyright and would break at run time (the L-P0-I2-B4 trap again, one more
+  name: `filter_text` is the grid's). Widget `DEFAULT_CSS` loses to the base widget's pseudo-class rule: `FilterBar Input { border: none }` was ignored
+  while the `Input` had focus; write `FilterBar Input, FilterBar Input:focus { ... }`.
+  Evidence: `widgets/grid.py` (`filter_text`), `widgets/filter_bar.py` CSS; the first pilot run drew a tall border over the caret line. Status: active
+
+- **L-P0-I4-D2** · 2026-10-10 · tags: process, tooling
+  Never undo a mutation check with `git checkout <file>` when the file holds uncommitted work: it reverted every uncommitted edit of `app.py`, which had to be
+  rewritten. Copy the file aside first (`cp f /tmp/f.bak`) or commit, then restore from the copy. Same root as L-P0-I4-B7.
+  Evidence: the `own_writes` mutation run in this workstream. Status: active
+
+- **L-P0-I4-D3** · 2026-10-10 · tags: tui, api
+  `ApiClient.stream_events(reconnect=True)` swallows outages, so a TUI that wants a "server unreachable" banner must use `reconnect=False` and run its own loop
+  (probe, state, backoff, resume from the last `seq`). The API has no head endpoint: `tl_tui.remote.find_head` bisects `GET /events?limit=1`
+  (about 2 log2 n requests) to start a feed at "now" with no gap. A listener attached after the first failed call (the grid loads before the app attaches)
+  must be told the current state at once, or the banner never shows.
+  Evidence: `tests/test_remote_feed.py` (restart, unreachable at start), `test_live_remote_app.py`; mutations of `after=` and of `find_head` fail them. Status: active
+
+- **L-P0-I4-D4** · 2026-10-10 · tags: tui, tests
+  Threaded refreshes need three tests that a happy-path run does not give: the UI answers a key while the worker sleeps (`test_the_ui_stays_responsive...`), a result
+  that arrives after the rows were replaced is dropped (generation guard; the mutation that removes it fails two tests), and a burst of N events costs a few reads,
+  not N. A mark timer can fire a hair before its deadline, so it re-arms for what is left. A "changed by someone else" mark must not depend on what an earlier
+  read showed: an outage refresh and a replayed event can both read the same version.
+  Evidence: `tests/test_live_app.py`, `grid.py` `_expire_marks`. Status: active
+
+- **L-P0-I4-D5** · 2026-10-10 · tags: tui, api, tests
+  Review of the live path found three ordering faults that every happy-path test passes: the feed took its cursor after the grid's first read (an event in the gap
+  was lost), a command's SSE event can beat its HTTP response (so the user's own save looked foreign), and a replaced ledger leaves a cursor ahead of the head.
+  Take the cursor before the first read, hold events on an in-flight stream until the response is noted (with a cap), and compare the head with the cursor after a
+  drop. Each has a test that forces the order (a hook after the first load, a gated fake, a scripted API) and fails when the fix is removed. Also: a refresh applied
+  during shutdown posts messages to a screen that is gone, so handlers that query the DOM must tolerate it.
+  Evidence: `tests/test_live_handoff.py`, `test_live_app.py`; `app.py` `on_record_highlighted` (a 1-in-6 flake in the full-file run). Status: active
+
+- **L-P0-I4-D6** · 2026-10-10 · tags: tests, tui
+  An intermittent test failure is two readers of one fact racing, not noise: the outage test asserted "row is marked" at the first moment the row existed, but the row
+  can arrive through the read after "connection restored" and the mark through the replayed event a few milliseconds later. Fix the assertion to wait for the end state
+  (the claim is that both orders end marked), prove it 20 of 20 and 30 of 30 in a loop, and write down which two events race. A failing test on the base also blocks every
+  ticket's whole-suite acceptance command (T60 was reported blocked by it).
+  Evidence: `test_live_remote_app.py::test_remote_the_banner_shows_during_an_outage_and_the_feed_resumes` failed 7 of 20 before, 0 of 50 after. Status: active
+- **L-P0-I4-O1** · 2026-10-10 · tags: tui, follow-up
+  P0-I8 hardening follow-ups from the P0-I4 WS-D re-review: there are no tests yet for RemoteFeed.head() against an
+  unreachable server, for a raising command clearing OwnWrites.in_flight, or for concurrent in-flight commands on real
+  threads. The code handles all three. Synchronous remote calls on the UI thread (3 s interactive timeout) should move
+  to workers.
+  Evidence: P0-I4 WS-D re-review at c033469. Status: active
