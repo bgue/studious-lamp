@@ -65,6 +65,7 @@ the record quarantined; `tl types quarantine ls` shows it; storing the body agai
 | S23 | Body store: `store_body`, `load_body`, `read_body`, quarantine, `create_extension_record` | hash-verified load, a security-relevant rule (§31.4) | fresh reviewer, then orchestrator | done |
 | S24 | `type_form`, `type_detail`, the polling watcher, API error rows, `ApiContext.objects`, `McpContext.objects` | contracts the tickets share | | done |
 | S25 | Stubs and provided tests for T20 to T22, with scratch reference implementations | scaffolds | | done |
+| S33 | `ClientInterface` growth (`list_types`, `get_type`, `create_instance`, `get_record_body`, `put_record_body`), `EmbeddedClient`, the fake client's type support, `store_record_body`, `tl tui --type` | public interface and fakes | | done |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
@@ -72,12 +73,13 @@ the record quarantined; `tl types quarantine ls` shows it; storing the body agai
 | P0-I8-T20 | `tl types sync\|ls\|show\|validate\|lock\|deprecate\|watch` (23 provided tests) | haiku | S22, S24 | merged | pass, 1 round; supervisor fix S29: `sync` prints `conflict` for a refused edit (orchestrator ruling) |
 | P0-I8-T21 | API: `/types`, `/types/{ref}`, `POST /types/{name}/records`, `GET\|PUT /records/{id}/body` | haiku | S23, S24 | merged | pass, 1 round, no findings |
 | P0-I8-T22 | MCP: `list_record_types`, `get_record_type`, `get_record_body`, `tl://types` resources | haiku | S23, S24 | merged | implementation passed; provided test corrected by supervisor (pyright: `assert row is not None`) |
-
 | P0-I8-T23 | `ApiClient` type and body methods (9 provided tests) | haiku | T21 | merged | implementation passed; provided test corrected by supervisor (pyright, L-P0-I8B-7) |
-| P0-I8-T26 | `tl types quarantine ls\|recheck` (8 provided tests) | haiku | S23, T20 | ready | |
+| P0-I8-T26 | `tl types quarantine ls\|recheck` (8 provided tests) | haiku | S23, T20 | ready (re-dispatched after its first implementer died) | |
+| P0-I8-T24 | TUI: `extension_columns` (grid columns from `form.yaml`, newest active form of a type; 9 provided tests) | haiku | S33 | ready | |
+| P0-I8-T25 | TUI: `extension_fields` and the `ExtensionRecordForm` modal (18 provided tests) | haiku | S33 | ready | |
 
-Later rounds (tickets written when their dependencies are merged): `ApiClient` and `RemoteClient` type and body methods; the `ClientInterface` growth and fakes (supervisor), then the TUI grid
-for a type and the generated form with `form.yaml` hints; `tl types quarantine ls\|recheck`; the runbook; cross-surface parity tests; the demo; and, once WS-A is merged, registering a
+Later rounds (tickets written when their dependencies are merged): `RemoteClient` type and body methods; the object-backed body edit form (T27); wiring of `columns_for_type` and
+`ExtensionRecordForm` into `TlApp` (supervisor, after T24 and T25 merge); the runbook; cross-surface parity tests; the demo; and, once WS-A is merged, registering a
 package's `settings.yaml` through `tl_core.settings.register_definitions`.
 
 ## Order of work
