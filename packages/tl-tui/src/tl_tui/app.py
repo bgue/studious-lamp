@@ -7,6 +7,7 @@ F2/F3; at 80 columns or less they become overlays (sketch 11).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any, ClassVar
 
 from textual import events
@@ -596,6 +597,7 @@ class TlApp(App[None]):
             self.set_timer(0.1, self._release_held)
         self._mark_foreign(foreign)
         self._flag_conflict(foreign)
+        self._refresh_feed_pane(message.events)
         view = self._record_view()
         if view is None or view.record is None:
             return
@@ -612,6 +614,16 @@ class TlApp(App[None]):
         if elsewhere and view.record is not None:  # someone else did it: say who and when
             last = elsewhere[-1]
             view.note_remote_update(last.actor, int(view.record["version"]), last.recorded_at)
+
+    def _refresh_feed_pane(self, events: Sequence[Event]) -> None:
+        """An open feed shows a post or a card made by anyone, as it happens (brief 21.1).
+
+        Cards are made of every event type, so any event of the pane's project can change the feed;
+        the pane reads its first page again (its own filter and highlight are kept).
+        """
+        pane = self._feed_pane()
+        if pane is not None and any(event.scope == pane.scope for event in events):
+            pane.reload()
 
     def _flag_conflict(self, foreign: list[Event]) -> None:
         """An open edit form whose record moved past the version it was opened at: say so now."""

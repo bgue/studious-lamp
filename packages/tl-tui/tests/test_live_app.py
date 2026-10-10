@@ -461,3 +461,29 @@ def test_a_change_to_another_record_does_not_flag_the_open_form() -> None:
         assert not form.conflict
 
     run_pilot(app, scenario, size=(120, 50))
+
+
+def test_an_open_feed_shows_a_post_made_elsewhere_as_it_happens() -> None:
+    from fakes_live import make_event
+    from tl_tui.widgets.feed_pane import FeedPane
+
+    app, client, feed = build()
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        await pilot.press("F")
+        await pilot.pause()
+        pane = app.query_one(FeedPane)
+        assert pane.items == []
+        client.seed_post("Valve arrived with a cracked flange", actor="user:bob")
+        feed.push(make_event(500, "Feed.Posted", stream="P1", actor="user:bob", body="x"))
+        await until(pilot, lambda: len(pane.items) == 1)
+        assert "cracked flange" in screen_text(app)
+        # an event of another project does not read the feed again
+        reads = client.calls.count("feed_page")
+        other = make_event(501, "Record.Updated", stream="R9")
+        feed.push(other.model_copy(update={"scope": "project:OTHER"}))
+        await pilot.pause(0.3)
+        assert client.calls.count("feed_page") == reads
+
+    run_pilot(app, scenario)
