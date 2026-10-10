@@ -650,7 +650,7 @@ test or a generated artefact already enforces, or narrative history (that belong
   A new event type in the catalog breaks two tests the schema package does not run: `tests/contract/test_webhook_catalog_contract.py`
   requires the webhook scenario (`tests/webhooks/scenario.py`) to produce every catalog type, and a type that is only a decision of
   an existing stream (`Proposal.Accepted`) needs a stream opened first. After any `schema/core` event change run
-  `uv run pytest tests/contract tests/webhooks` as well as `packages/tl-schema`. A stub for a hand-created record key that matches a
+  `uv run pytest tests/contract tests/webhooks` as well as `packages/tl-schema`. A hand-created record key that matches a
   numbering pattern (`P123-REC-0001`) also advances that counter, so a test that needs a collision uses a key the allocator will not hand out.
   Evidence: S21 left the contract test red until S24 added the Proposal events to the scenario; `test_a_command_refused_on_accept_leaves_only_the_failed_event`. Status: active
 

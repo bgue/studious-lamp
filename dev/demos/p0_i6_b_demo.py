@@ -22,6 +22,7 @@ from typing import Any
 
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import CallToolResult
+from sqlalchemy import text
 from tl_adapters.sqlite.factory import SqliteUowFactory
 from tl_api.client import ApiClient
 from tl_core.services.errors import ProposalDeciderError
@@ -71,9 +72,11 @@ def agent_session() -> None:
 def provenance(key: str) -> None:
     factory = SqliteUowFactory(os.environ["TL_DB"])
     with factory(True) as uow:
-        row = uow.conn().exec_driver_sql(
-            "SELECT id FROM cur_core_record WHERE key = ?", (key,)
-        ).first()
+        row = (
+            uow.conn()
+            .execute(text("SELECT id FROM cur_core_record WHERE key = :key"), {"key": key})
+            .first()
+        )
         assert row is not None, f"no record {key}"
         (made,) = uow.ledger.read_stream(row[0])
         cause = [e for e in uow.ledger.read_after(0, limit=1000) if e.event_id == made.causation_id]
