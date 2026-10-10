@@ -11,6 +11,7 @@ Storage adapters that implement the `tl_core` Protocols: SQLite, PostgreSQL 16 a
 | `tl_adapters.sqlite.schema.sql` | resource | The `events` table, index, and triggers that reject UPDATE and DELETE |
 | `tl_adapters.sqlite.factory.SqliteUowFactory(path)` | class | One engine, many short units of work (`factory()`, `factory(readonly=True)`, `dispose()`); what long-running workers use |
 | `tl_adapters.sqlite.uow.SqliteUnitOfWork`, `open_uow(path, readonly=False)` | class, context manager | Append plus inline projectors in one transaction; publish after commit |
+| `tl_adapters.sqlite.factory.SqliteUowFactory(path, bus=None)` | class | For servers: one engine, ledger and `InProcessBus` for the process; `factory(readonly)` (positional or keyword) yields an entered unit of work; `.engine`, `.ledger`, `.bus`; `close()` / `dispose()`. The Postgres factory has the same call shape |
 | `tl_adapters.sqlite.uow.create_schema(path)` | function | Events table and every default projector's tables; idempotent |
 | `tl_adapters.sqlite.uow.rebuild_projections(path, types=None)` | function | Reset projectors and replay the ledger in one transaction; returns events replayed |
 | `tl_adapters.db` (`open_uow`, `create_schema`, `rebuild_projections`, `make_engine`, `make_ledger`, `DbTarget`) | module | Picks the adapter from the target: a SQLite path or a `postgresql://` URL. Callers and tests are written once |
@@ -28,7 +29,7 @@ Storage adapters that implement the `tl_core` Protocols: SQLite, PostgreSQL 16 a
 
 ## Depends on / used by
 - Depends on: `tl_core`, `sqlalchemy`, `pg8000` (Postgres driver, BSD-3-Clause), `python-ulid`, `boto3` (s3 backend; tests use `moto`, no MinIO).
-- Used by: `tl_cli`, tests, later the API and TUI embedded mode.
+- Used by: `tl_cli`, `tl_api`, `tl_mcp`, tests, the TUI embedded mode.
 
 ## Commands
 ```

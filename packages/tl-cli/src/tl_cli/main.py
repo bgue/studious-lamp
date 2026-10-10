@@ -1,4 +1,4 @@
-"""The `tl` command: the typer root app, `init`, and the `projections` group (brief 29.4).
+"""The `tl` command: the typer root app, `init`, `serve`, `tui` and the `projections` group (29.4).
 
 Each subcommand parses options, makes one call into tl_core or tl_adapters, and prints. No rules
 live here.
@@ -12,7 +12,7 @@ from typing import Annotated
 import typer
 from tl_adapters.sqlite.uow import create_schema, rebuild_projections
 
-from tl_cli import events, file, link, pset, record, schema, webhook, wf
+from tl_cli import dev, events, file, link, pset, record, schema, serve, tui, webhook, wf
 
 app = typer.Typer(
     name="tl",
@@ -26,7 +26,10 @@ app.add_typer(pset.app, name="pset")
 app.add_typer(wf.app, name="wf")
 app.add_typer(file.app, name="file")
 app.add_typer(link.app, name="link")
+app.add_typer(dev.app, name="dev")
 app.add_typer(webhook.app, name="webhook")
+app.command("serve")(serve.serve)
+app.command("tui")(tui.tui)
 
 projections = typer.Typer(help="Maintain projections from the ledger.", no_args_is_help=True)
 app.add_typer(projections, name="projections")

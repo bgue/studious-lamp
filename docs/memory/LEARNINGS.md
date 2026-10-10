@@ -493,6 +493,76 @@ test or a generated artefact already enforces, or narrative history (that belong
   Postgres, and keep the root `override-dependencies` that swaps in `jsonschema[format-nongpl]`. Name the licence in
   the relay NOTE and in APPROVALS.md. Policy and allow-list: ADR-0006.
   Evidence: orchestrator licence scan during P0-I5. Status: active
+
+- **L-P0-I4-C1** · 2026-10-09 · tags: api, tests
+  FastAPI 0.143 keeps included routers lazy: `app.routes` holds `_IncludedRouter` objects, not `APIRoute`s. To visit every
+  operation (for example to prove each route calls the authorise hook) iterate `app.openapi()["paths"]`. Dependencies with `yield`
+  exit after the response is built, so a command route opens its unit of work inside the handler, never in a `yield` dependency.
+  Evidence: `packages/tl-api/tests/test_auth.py::test_every_route_calls_the_hook`; `routes/files.py`. Status: active
+
+- **L-P0-I4-C2** · 2026-10-09 · tags: api, tests
+  Starlette's `TestClient` (an httpx2 client) and httpx's ASGI transport return only when the whole response is complete, so an SSE
+  stream never reaches the test. Run the app under uvicorn on `127.0.0.1:0` in a daemon thread (`Harness.live()`), read it with an
+  `httpx2.Client.stream(...)` and a short `Timeout`, and stop it with `server.should_exit`. Give the app a lifespan so the change-feed
+  poller runs there; a `TestClient` used without `with` runs no lifespan.
+  Evidence: `packages/tl-api/tests/harness.py`, `test_stream.py` (10 tests, stable over repeated runs). Status: active
+
+- **L-P0-I4-C3** · 2026-10-09 · tags: api, tooling
+  A module that builds FastAPI endpoints in a loop must not use `from __future__ import annotations`: FastAPI evaluates the string
+  annotations in the module's globals, so `Annotated[str, Depends(guard(action))]` fails with `NameError` when `action` is a closure
+  variable. `tl_api/commands.py` omits the import; body models are set through `endpoint.__annotations__["body"] = model`. A body
+  model built at run time also needs `# pyright: ignore[reportInvalidTypeForm]` where it is used as an annotation.
+  Evidence: `packages/tl-api/src/tl_api/commands.py`, `routes/files.py`. Status: active
+
+- **L-P0-I4-C4** · 2026-10-09 · tags: env, mcp, api
+  This environment resolves `mcp` 2.x and `httpx2`: `FastMCP` is now `mcp.server.mcpserver.MCPServer`, `mcp.Client(server)` talks to
+  a server in memory, and there is no `httpx` module (use `httpx2`; Starlette's `TestClient` already does). `fastapi.sse` exists but
+  the API hand-rolls its SSE framing (`tl_api/feed.py`) so the wire format is fixed by our tests, not a library default.
+  Evidence: `uv run python -c "import httpx"` fails; `.venv/.../mcp/server/fastmcp.py` raises ModuleNotFoundError. Status: active
+
+- **L-P0-I4-C5** · 2026-10-09 · tags: process, env
+  Licence check for a new dependency (ADR-0006): walk `Requires-Dist` from the new roots through `importlib.metadata` and print
+  `License-Expression` or the classifiers for every distribution in the closure, then list `uv.lock` entries that exist only behind
+  platform markers. fastapi, uvicorn, httpx2 and mcp pull MIT, BSD-3-Clause, Apache-2.0 and PSF-2.0 distributions only.
+  Evidence: scratch scan of 27 distributions, no GPL, LGPL, AGPL or MPL. Status: active
+
+- **L-P0-I4-C6** · 2026-10-09 · tags: process, api
+  A route stub ticket must keep every decorator, parameter, annotation and docstring that reaches the OpenAPI document, because the
+  document is committed and drift-checked. Dropping the scratch reference over the stub and running `python -m tl_api.openapi --check`
+  caught a description that differed between reference and stub (it would have turned `just check` red on every ticket branch).
+  Evidence: T42 `role` query description; `docs/tickets/P0-I4/T42-reference-routes.md`. Status: active
+
+- **L-P0-I4-C7** · 2026-10-09 · tags: api, security
+  FastAPI reads and decodes the request body before it runs dependencies, so a `guard` dependency alone answers an unauthenticated request
+  with a broken JSON body 422, not 401 (the security review found it on 14 routes). Authenticate in an ASGI middleware that runs before the
+  route, keep `guard` for the per-route `authorize` call, and serve `/openapi.json` ourselves (`openapi_url=None` plus a guarded route
+  with `include_in_schema=False`) so no default route sits outside the token. A streaming response releases its resources in the response
+  object (`SlotResponse.__call__`), not in the generator: a generator the server never starts never runs its `finally`.
+  Evidence: `test_authentication_comes_before_the_body_is_read`, `test_the_slot_is_released_even_when_the_response_never_starts`; each fails when its fix is removed. Status: active
+
+- **L-P0-I4-C8** · 2026-10-09 · tags: process, tests
+  Making a stub ticket from a finished reference is mechanical: copy the reference outside the repo, replace every function body with
+  `raise NotImplementedError("STUB (<ticket>)")` using `ast` line numbers (`/home/user/wt/p0-i4c-refs/stubify.py`), let `ruff check --fix`
+  drop the imports the stub no longer uses, then diff the import lines of stub and reference: that diff is the "imports to add" list the
+  ticket must carry (without it an implementer meets `F401`/`F821` and guesses). Run the OpenAPI check before committing the stubs: the
+  `EventPage` docstring I added while moving it changed the committed document and I had committed it red once.
+  Evidence: S9/S10 commits; ticket texts T43, T46-T48. Status: active
+
+- **L-P0-I4-C9** · 2026-10-09 · tags: api, tests
+  A catch-all `@app.exception_handler(Exception)` is run by Starlette's `ServerErrorMiddleware`, which sends the handler's response and
+  then re-raises: uvicorn logs a traceback and closes the keep-alive connection, so the next pooled client request fails with a raw
+  `ReadError` (4 of 10 calls in the review's repro). Register one handler per mapped class (`app.add_exception_handler(cls, ...)` for every
+  row of `ERROR_TABLE`, plus pydantic's `ValidationError`) and keep the `Exception` handler for real 500s only. A single request over
+  `TestClient` never shows it; the regression test sends 20 sequential errors over one pooled connection to a live server.
+  Evidence: `test_mapped_errors_leave_the_connection_usable` (fails before the fix). Status: active
+
+- **L-P0-I4-C10** · 2026-10-09 · tags: process
+  A stub script that replaces every function body also stubs the helpers a ticket calls "given" (T43's `dump`), and the ticket then
+  contradicts its own stub; the implementer rightly implemented it and reported a deviation. Keep given helpers out of the stubbing
+  (list them to the script) or say "implement" in the ticket. Also: a review fix that changes a base class the open tickets rely on (here
+  `ApiClientBase._send` raising `ApiUnavailableError`) must stay compatible with their provided tests, because a changed provided file
+  makes the reviewer's `diff` fail: the new error subclasses `httpx2.TransportError` for that reason.
+  Evidence: `docs/reports/P0-I4/P0-I4-T43.md` deviation; `ApiUnavailableError` in `client/base.py`. Status: active
 - **L-P0-I5-O2** · 2026-10-09 · tags: environment, lake
   DuckDB cannot `INSTALL` extensions here because extensions.duckdb.org is refused. Install the PyPI packages
   `duckdb-extensions` and `duckdb-extension-ducklake`, with `duckdb` pinned to the same version (1.5.5), and call
@@ -545,3 +615,49 @@ test or a generated artefact already enforces, or narrative history (that belong
   two different files. After merging workstream A, `just check` failed on codegen drift because its `COLLATE "C"` change altered the
   Postgres DDL of tables that workstream B had added: run `just gen` after every merge that touches a generator.
   Evidence: `git show c073261:...factory.py`; `differs: ddl/postgres/wh_delivery.sql`. Status: active
+
+- **L-P0-I4-D1** · 2026-10-10 · tags: tui, tooling
+  `query` is a Textual DOM method, so `self.query = "..."` on a widget fails pyright and would break at run time (the L-P0-I2-B4 trap again, one more
+  name: `filter_text` is the grid's). Widget `DEFAULT_CSS` loses to the base widget's pseudo-class rule: `FilterBar Input { border: none }` was ignored
+  while the `Input` had focus; write `FilterBar Input, FilterBar Input:focus { ... }`.
+  Evidence: `widgets/grid.py` (`filter_text`), `widgets/filter_bar.py` CSS; the first pilot run drew a tall border over the caret line. Status: active
+
+- **L-P0-I4-D2** · 2026-10-10 · tags: process, tooling
+  Never undo a mutation check with `git checkout <file>` when the file holds uncommitted work: it reverted every uncommitted edit of `app.py`, which had to be
+  rewritten. Copy the file aside first (`cp f /tmp/f.bak`) or commit, then restore from the copy. Same root as L-P0-I4-B7.
+  Evidence: the `own_writes` mutation run in this workstream. Status: active
+
+- **L-P0-I4-D3** · 2026-10-10 · tags: tui, api
+  `ApiClient.stream_events(reconnect=True)` swallows outages, so a TUI that wants a "server unreachable" banner must use `reconnect=False` and run its own loop
+  (probe, state, backoff, resume from the last `seq`). The API has no head endpoint: `tl_tui.remote.find_head` bisects `GET /events?limit=1`
+  (about 2 log2 n requests) to start a feed at "now" with no gap. A listener attached after the first failed call (the grid loads before the app attaches)
+  must be told the current state at once, or the banner never shows.
+  Evidence: `tests/test_remote_feed.py` (restart, unreachable at start), `test_live_remote_app.py`; mutations of `after=` and of `find_head` fail them. Status: active
+
+- **L-P0-I4-D4** · 2026-10-10 · tags: tui, tests
+  Threaded refreshes need three tests that a happy-path run does not give: the UI answers a key while the worker sleeps (`test_the_ui_stays_responsive...`), a result
+  that arrives after the rows were replaced is dropped (generation guard; the mutation that removes it fails two tests), and a burst of N events costs a few reads,
+  not N. A mark timer can fire a hair before its deadline, so it re-arms for what is left. A "changed by someone else" mark must not depend on what an earlier
+  read showed: an outage refresh and a replayed event can both read the same version.
+  Evidence: `tests/test_live_app.py`, `grid.py` `_expire_marks`. Status: active
+
+- **L-P0-I4-D5** · 2026-10-10 · tags: tui, api, tests
+  Review of the live path found three ordering faults that every happy-path test passes: the feed took its cursor after the grid's first read (an event in the gap
+  was lost), a command's SSE event can beat its HTTP response (so the user's own save looked foreign), and a replaced ledger leaves a cursor ahead of the head.
+  Take the cursor before the first read, hold events on an in-flight stream until the response is noted (with a cap), and compare the head with the cursor after a
+  drop. Each has a test that forces the order (a hook after the first load, a gated fake, a scripted API) and fails when the fix is removed. Also: a refresh applied
+  during shutdown posts messages to a screen that is gone, so handlers that query the DOM must tolerate it.
+  Evidence: `tests/test_live_handoff.py`, `test_live_app.py`; `app.py` `on_record_highlighted` (a 1-in-6 flake in the full-file run). Status: active
+
+- **L-P0-I4-D6** · 2026-10-10 · tags: tests, tui
+  An intermittent test failure is two readers of one fact racing, not noise: the outage test asserted "row is marked" at the first moment the row existed, but the row
+  can arrive through the read after "connection restored" and the mark through the replayed event a few milliseconds later. Fix the assertion to wait for the end state
+  (the claim is that both orders end marked), prove it 20 of 20 and 30 of 30 in a loop, and write down which two events race. A failing test on the base also blocks every
+  ticket's whole-suite acceptance command (T60 was reported blocked by it).
+  Evidence: `test_live_remote_app.py::test_remote_the_banner_shows_during_an_outage_and_the_feed_resumes` failed 7 of 20 before, 0 of 50 after. Status: active
+- **L-P0-I4-O1** · 2026-10-10 · tags: tui, follow-up
+  P0-I8 hardening follow-ups from the P0-I4 WS-D re-review: there are no tests yet for RemoteFeed.head() against an
+  unreachable server, for a raising command clearing OwnWrites.in_flight, or for concurrent in-flight commands on real
+  threads. The code handles all three. Synchronous remote calls on the UI thread (3 s interactive timeout) should move
+  to workers.
+  Evidence: P0-I4 WS-D re-review at c033469. Status: active
