@@ -59,7 +59,10 @@ def draw(count: Count, rng: Random) -> int:
 
 
 class DocumentControllerParams(Strict):
-    """Registers documents against lines, submits them for review and issues new revisions."""
+    """Registers documents against lines, submits them for review and issues new revisions.
+
+    Revisions run Rev A, Rev B, ... Rev Z. Rev Z is the last: a document at Rev Z is never revised.
+    """
 
     documents_per_day: Count = CountRange(min=1, max=2)
     revision_rate: float = Field(default=0.25, ge=0, le=1)  # chance per day of one new revision

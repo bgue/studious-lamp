@@ -20,14 +20,18 @@ One working day (``act``), in this order, drawing from ``ctx.rng`` only where st
    (``Rev A`` to ``Rev B``, and so on), link it ``supersedes`` the old one and ``references`` the
    drawn line, and ``submit`` it.
 6. If anything was created, post ``Registered <k> documents: #<key> #<key> ...`` (``k`` is the
-   count, keys in creation order).
+   count and the noun is singular for one: ``Registered 1 document: #<key>``; keys in creation
+   order).
+
+Rev Z is the last revision: a document whose newest revision is ``Rev Z`` is never a candidate in
+step 5, because no letter follows it, so its stem stays at ``Rev Z`` for the rest of the run.
 """
 
 from __future__ import annotations
 
 import re
 
-from tl_sim.actors.base import BaseActor, Rec, Recorder
+from tl_sim.actors.base import BaseActor, Rec, Recorder, plural
 from tl_sim.scenario import DocumentControllerParams, draw
 from tl_sim.types import SimContext
 
@@ -114,4 +118,4 @@ class DocumentController(BaseActor):
 
         if created:
             keys = " ".join(f"#{doc.key}" for doc in created)
-            rec.post(f"Registered {len(created)} documents: {keys}")
+            rec.post(f"Registered {plural(len(created), 'document')}: {keys}")

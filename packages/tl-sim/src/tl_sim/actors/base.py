@@ -26,6 +26,11 @@ REFUSALS = (GuardFailedError, InvalidStateError, UnknownTransitionError)
 MAX_RECORDS = 5000  # the API's page limit; a Phase 0 simulation stays far below it
 
 
+def plural(count: int, one: str, many: str | None = None) -> str:
+    """``1 valve``, ``2 valves``, ``0 valves``: the count and the right form of the noun."""
+    return f"{count} {one if count == 1 else (many or one + 's')}"
+
+
 @dataclass(frozen=True)
 class Rec:
     """The part of a record an actor needs: ids to write with, the key to talk about."""

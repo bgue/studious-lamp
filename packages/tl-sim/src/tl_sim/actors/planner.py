@@ -14,7 +14,8 @@ One working day (``act``), in this order, drawing from ``ctx.rng`` only where st
    (``status:Approved``, title starts ``Doc ``); if there are any, draw ``ctx.rng.choice`` of them
    (key order) and link the activity ``requires`` that document.
 3. If ``params.lookahead_day`` is set and ``ctx.now`` falls on that weekday, post
-   ``Look-ahead: <a> activities planned, <w> documents waiting for approval.`` where ``a`` is the
+   ``Look-ahead: <a> activities planned, <w> documents waiting for approval.`` (``1 activity``
+   and ``1 document`` in the singular) where ``a`` is the
    number of activities this step created and ``w`` the number still in review after step 1. For
    each of the first three activities created add `` #<key>``; when ``w`` is above 0 append
    `` #hold`` and `` #<key>`` of the first document still waiting.
@@ -22,7 +23,7 @@ One working day (``act``), in this order, drawing from ``ctx.rng`` only where st
 
 from __future__ import annotations
 
-from tl_sim.actors.base import BaseActor, Rec, Recorder
+from tl_sim.actors.base import BaseActor, Rec, Recorder, plural
 from tl_sim.clock import WEEKDAYS
 from tl_sim.scenario import PlannerParams, draw
 from tl_sim.types import SimContext
@@ -79,8 +80,8 @@ class Planner(BaseActor):
     def _lookahead(created: list[Rec], waiting: list[Rec]) -> str:
         """The look-ahead text: the first three activities, then the first document on hold."""
         body = (
-            f"Look-ahead: {len(created)} activities planned, "
-            f"{len(waiting)} documents waiting for approval."
+            f"Look-ahead: {plural(len(created), 'activity', 'activities')} planned, "
+            f"{plural(len(waiting), 'document')} waiting for approval."
         )
         body += "".join(f" #{activity.key}" for activity in created[:3])
         if waiting:

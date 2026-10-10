@@ -5,12 +5,13 @@ from __future__ import annotations
 from typing import Any, cast
 
 from tl_sim import groundtruth as gt
+from tl_sim.actors.base import Recorder
 from tl_sim.actors.document_controller import DocumentController
 from tl_sim.scenario import CountRange, DocumentControllerParams
 from tl_sim.testing import FakeClient, FakeWorld, make_context, seed_lines
 from tl_sim.types import GroundTruth
 
-IDENTITY = "agent:sim-document_controller"
+IDENTITY = "user:sim-document_controller"
 
 
 def world_with_lines(lines: int = 3) -> FakeWorld:
@@ -109,7 +110,7 @@ def test_a_forced_revision_supersedes_the_latest_document_and_is_submitted() -> 
         gt.WORKFLOW_TRANSITIONED,
         gt.POST_CREATED,
     ]
-    assert world.posts()[-1]["body"] == f"Registered 1 documents: #{new['key']}"
+    assert world.posts()[-1]["body"] == f"Registered 1 document: #{new['key']}"
 
 
 def test_a_second_revision_goes_to_the_newest_letter() -> None:
@@ -118,6 +119,17 @@ def test_a_second_revision_goes_to_the_newest_letter() -> None:
     step(world, documents_per_day=0, forced_revisions=1, day=1)
     step(world, documents_per_day=0, forced_revisions=1, day=2)
     assert [t[-5:] for t in titles(world)] == ["Rev A", "Rev B", "Rev C"]
+
+
+def test_rev_z_is_the_last_revision_and_is_never_revised() -> None:
+    world = world_with_lines()
+    ctx = make_context(world, "user:sim-document_controller")
+    maker = Recorder(ctx, "user:sim-document_controller")
+    doc = maker.create("Doc 001 Piping isometric Rev Z")
+    maker.link(doc, maker.records(title_prefix="Line ")[0], "references")
+    maker.transition(doc, "submit", "Review")
+    assert step(world, documents_per_day=0, forced_revisions=3, day=1) == []
+    assert titles(world) == ["Doc 001 Piping isometric Rev Z"]
 
 
 def test_a_revision_needs_a_document_in_review_or_approved() -> None:
@@ -144,12 +156,12 @@ def test_the_same_seed_gives_the_same_day_and_another_seed_a_different_one() -> 
 
 
 def test_the_draws_happen_in_the_documented_order() -> None:
-    """Pinned for seed 7 and three lines: a different order of draws gives different documents."""
+    """Pinned for seed 3 and three lines: a different order of draws gives different documents."""
     world = world_with_lines()
-    step(world, seed=7, documents_per_day=2, revision_rate=0.0)
+    step(world, seed=3, documents_per_day=2, revision_rate=0.0)
     assert titles(world) == [
-        "Doc 001 Civil datasheet Rev A",
-        "Doc 002 Instrumentation layout Rev A",
+        "Doc 001 Civil procedure Rev A",
+        "Doc 002 Mechanical isometric Rev A",
     ]
     by_key = {r["key"]: r["title"] for r in world.records()}
     lines = [
@@ -159,7 +171,7 @@ def test_the_draws_happen_in_the_documented_order() -> None:
         for v in world.links(r["id"])
         if v["direction"] == "out"
     ]
-    assert lines == ["Line 6-CS-1003", "Line 6-CS-1001"]
+    assert lines == ["Line 6-CS-1002", "Line 6-CS-1003"]
 
 
 def test_it_reads_and_writes_only_through_the_client() -> None:

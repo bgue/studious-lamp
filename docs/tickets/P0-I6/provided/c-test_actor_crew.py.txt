@@ -10,10 +10,10 @@ from tl_sim.scenario import CountRange, CrewParams
 from tl_sim.testing import FakeClient, FakeWorld, make_context, seed_lines
 from tl_sim.types import GroundTruth
 
-IDENTITY = "agent:sim-crew"
+IDENTITY = "user:sim-crew"
 PINNED = [
-    "Valve V001 4in on 6-CS-1001",
-    "Valve V002 8in on 6-CS-1005",
+    "Valve V001 4in on 6-CS-1004",
+    "Valve V002 4in on 6-CS-1001",
     "Valve V003 4in on 6-CS-1004",
 ]
 
@@ -84,6 +84,13 @@ def test_one_progress_post_lists_the_valves_installed() -> None:
     (post,) = world.posts()
     assert post["actor"] == IDENTITY
     assert post["body"] == f"Installed 2 valves: #{keys[0]} #{keys[1]}"
+
+
+def test_one_valve_is_reported_in_the_singular() -> None:
+    world = world_with_lines()
+    step(world, valves_per_day=1, reject_rate=0.0)
+    (key,) = [v["key"] for v in valves(world)]
+    assert world.posts()[0]["body"] == f"Installed 1 valve: #{key}"
 
 
 def test_no_valves_means_no_progress_post_and_no_rejection() -> None:

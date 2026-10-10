@@ -11,7 +11,8 @@ One working day (``act``), in this order, drawing from ``ctx.rng`` only where st
    ``designation`` is the line title without ``Line ``). Set the pset
    ``valve_data`` to ``{"size_in": size, "body_material": "CS", "manufacturer": maker}`` and link
    the valve ``belongs_to`` the line.
-4. If valves were installed, post ``Installed <n> valves: #<key> #<key> ...`` (creation order).
+4. If valves were installed, post ``Installed <n> valves: #<key> #<key> ...`` in creation order
+   (``Installed 1 valve: #<key>`` for one).
 5. Draw ``roll = ctx.rng.random()`` (always). When valves were installed and
    ``roll < params.reject_rate``, draw ``ctx.rng.choice(installed)`` and post
    ``Inspection failed on #<key>, needs rework #hold``.
@@ -19,7 +20,7 @@ One working day (``act``), in this order, drawing from ``ctx.rng`` only where st
 
 from __future__ import annotations
 
-from tl_sim.actors.base import BaseActor, Rec, Recorder
+from tl_sim.actors.base import BaseActor, Rec, Recorder, plural
 from tl_sim.scenario import CrewParams, draw
 from tl_sim.types import SimContext
 
@@ -42,7 +43,7 @@ class Crew(BaseActor):
         installed = self._install(ctx, rec, lines, count, serial_base)
         if installed:
             refs = " ".join(f"#{valve.key}" for valve in installed)
-            rec.post(f"Installed {len(installed)} valves: {refs}")
+            rec.post(f"Installed {plural(len(installed), 'valve')}: {refs}")
         roll = ctx.rng.random()
         if installed and roll < self.params.reject_rate:
             flagged = ctx.rng.choice(installed)

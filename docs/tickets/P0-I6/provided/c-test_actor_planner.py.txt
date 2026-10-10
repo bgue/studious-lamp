@@ -12,14 +12,12 @@ from tl_sim.scenario import CountRange, PlannerParams
 from tl_sim.testing import FakeClient, FakeWorld, make_context, seed_lines
 from tl_sim.types import GroundTruth
 
-IDENTITY = "agent:sim-planner"
+IDENTITY = "user:sim-planner"
 PINNED = [
-    "Activity 001 Install spools on 6-CS-1004",
-    "Activity 002 Install spools on 6-CS-1002",
-    "Activity 003 Install spools on 6-CS-1005",
-    "Activity 004 Install spools on 6-CS-1001",
-    "Activity 005 Install spools on 6-CS-1004",
-    "Activity 006 Install spools on 6-CS-1001",
+    "Activity 001 Install spools on 6-CS-1002",
+    "Activity 002 Install spools on 6-CS-1003",
+    "Activity 003 Install spools on 6-CS-1002",
+    "Activity 004 Install spools on 6-CS-1002",
 ]
 MONDAY = datetime(2026, 11, 2, 7, 30, tzinfo=UTC)
 TUESDAY = datetime(2026, 11, 3, 7, 30, tzinfo=UTC)
@@ -29,8 +27,8 @@ def world_with_documents(documents: int = 3, lines: int = 3, *, linked: bool = T
     """Lines plus ``documents`` records ``Doc 00n ...`` submitted for review."""
     world = FakeWorld("r1", "project:sim-r1")
     found = seed_lines(world, lines)
-    ctx = make_context(world, "agent:sim-document_controller")
-    maker = Recorder(ctx, "agent:sim-document_controller")
+    ctx = make_context(world, "user:sim-document_controller")
+    maker = Recorder(ctx, "user:sim-document_controller")
     for n in range(1, documents + 1):
         doc = maker.create(f"Doc {n:03d} Piping isometric Rev A")
         if linked:
@@ -120,6 +118,15 @@ def test_the_look_ahead_is_posted_on_the_configured_weekday_only() -> None:
     assert (
         world.posts()[0]["body"]
         == "Look-ahead: 0 activities planned, 0 documents waiting for approval."
+    )
+
+
+def test_one_activity_and_one_waiting_document_are_singular() -> None:
+    world = world_with_documents(2)
+    step(world, approvals_per_day=1, activities_per_day=1, lookahead_day="mon", now=MONDAY)
+    (post,) = world.posts()
+    assert post["body"].startswith(
+        "Look-ahead: 1 activity planned, 1 document waiting for approval."
     )
 
 
