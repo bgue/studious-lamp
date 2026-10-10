@@ -272,7 +272,7 @@ may explore: (none)
 1. Write a plain function `gen_report(schema_dir: Path, out_dir: Path, *, apply: bool) -> GenOutput` that calls `outputs(schema_dir)` and `problems(out_dir, files)`. If `apply` and there are problems, call `write(out_dir, files)` and compute `problems` again. Model `GenOutput`: `in_sync: bool` (no problems after any apply), `file_count: int` (the number of generated files), `drift: list[DriftItem]` (`path: str`, `kind: Literal["missing", "differs", "stale"]`; parse the `problems` lines `kind: path`), `diff: str` (unified diff, via `difflib.unified_diff`, of at most 5 differing files: current text against what the generators produce, file labels `a/<path>` and `b/<path>`, the whole string capped at 20000 characters with `... (cut)` at the end), `applied: bool`.
 2. The tool `gen(apply: bool = False)` calls `gen_report(ctx.repo_root / "schema" / "core", ctx.repo_root / "packages" / "tl-schema" / "src" / "tl_schema" / "generated", apply=apply)` inside `guarded(ctx, "gen", {"apply": apply})`. Before it writes (`apply=True`), check that `out_dir` is inside `ctx.repo_root` after `resolve()`; otherwise raise `DevGuardError`.
 3. Annotate the tool `ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False)`; the docstring says that without `apply` nothing is written and what `apply` does.
-4. Do not import `tl_schema.generate` at module top level if that makes `tl_mcp.dev.server` slower to start than 1 s; a local import inside the function is fine.
+4. The generators change the process working directory while they run (`contextlib.chdir`), and the server runs sync tools on worker threads. Hold one module-level `threading.Lock` for the whole of `gen_report` so two `gen` calls never overlap, and say in a comment why. Import `tl_schema.generate` inside the function, not at module top level, so `tl_mcp.dev.server` stays quick to start.
 
 ## Acceptance
 ```
@@ -288,6 +288,7 @@ Expected: all pass; `just check` clean.
 - Drift is reported: copy `packages/tl-schema/src/tl_schema/generated` to `tmp_path / "generated"` with `shutil.copytree`, then (a) edit one file, (b) delete one file, (c) add a file `extra.txt`. `gen_report(SCHEMA_DIR, copy, apply=False)` returns three drift items with kinds `differs`, `missing`, `stale`, `in_sync is False`, a `diff` that contains `--- a/<edited path>` and the changed line, and the copy is unchanged (nothing written).
 - `apply=True` on the copy rewrites it: afterwards `in_sync is True`, `applied is True`, and the copy equals the real generated directory (compare file names and bytes).
 - The diff is capped: a copy where 10 files were edited shows at most 5 files in `diff` and `len(diff) <= 20000 + 20`.
+- Two calls from two threads at once both return (the lock does not deadlock) and report the same drift.
 - Through the server: `env.call("gen", apply=False)` is audited as `ok`; `git status --porcelain packages/tl-schema` is empty after the whole test module (the tool did not touch the real tree when `apply` is false).
 
 ## Report requirements

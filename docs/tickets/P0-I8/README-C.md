@@ -29,7 +29,7 @@ Coding agents can inspect the running system and scaffold new work without break
 |---|---|---|---|---|
 | S41 | Dev MCP server core: `tl_mcp/dev/` guard, SQL guard, `query_db`, runtime, server, entry point, tests | Security guard for what agents may touch (Sonnet-authored, auth-adjacent); orchestrator relay review in fresh context, security focus | fresh reviewer, then orchestrator | built |
 | S42 | `tl new` scaffold engine and `tl new module` | Shared engine two tickets build on; writes files into the repository | reviewer | built |
-| S43 | Docs audit tool and the AGENTS.md audit | Cross-package read | self | tool built; audit in progress |
+| S43 | Docs audit tool and the AGENTS.md audit | Cross-package read | self | tool built; mechanical findings go to T50, the rules read goes on during the batches |
 | S44 | CI workflow review against `04-gates.md` §1 | Gates policy | self | planned |
 | S45 | Runbook `docs/runbooks/dev-mcp.md`, package READMEs and AGENTS.md for `tl-mcp` and `tl-cli`, learnings | Needs every tool merged | self | planned |
 | S46 | Integration test, demo `dev/demos/P0-I8-C.sh`, report `docs/reports/P0-I8-C.md` | Closes the workstream | self | planned |
@@ -40,16 +40,19 @@ Coding agents can inspect the running system and scaffold new work without break
 | T40 | `run_tests` tool | haiku | S41 | ready | |
 | T41 | `gen` tool (drift report) | haiku | S41 | ready | |
 | T42 | `rebuild_projections` tool | haiku | S41 | ready | |
-| T43 | `seed` tool | haiku | S41 | draft | |
-| T44 | `send_test_webhook` tool | haiku | S41 | draft | |
-| T45 | `render_screen` tool | haiku | S41 | draft | |
-| T46 | resources: schema graph and event catalog | haiku | S41 | draft | |
-| T47 | resources: ADRs, runbooks, test reports | haiku | S41 | draft | |
-| T48 | `tl new record-type` | haiku | S42 | draft | |
-| T49 | `tl new projector` | haiku | S42 | draft | |
-| T50 | docs: modules the audit found undocumented (tl-api, tl-lake, tl-sim, tl-cli) | haiku | S43 | draft | |
+| T43 | `seed` tool | haiku | S41 | ready | |
+| T44 | `send_test_webhook` tool | haiku | S41 | ready | |
+| T45 | `render_screen` tool | haiku | S41 | ready | |
+| T46 | resources: schema graph and event catalog | haiku | S41 | ready | |
+| T47 | resources: ADRs, runbooks, test reports | haiku | S41 | ready | |
+| T48 | `tl new record-type` | haiku | S42 | ready | |
+| T49 | `tl new projector` | haiku | S42 | ready | |
+| T50 | docs: modules the audit found undocumented (tl-api, tl-lake, tl-sim, tl-cli) | haiku | S43 | ready | |
 
-Batches (concurrency cap 3, disjoint *Allowed paths*, dependencies already merged): T40 + T41 + T42; then T43 + T44 + T45; then T46 + T47 + T48; then T49 + T50.
+Batches (concurrency cap 3, disjoint *Allowed paths*, dependencies already merged): T40 + T41 + T42; then T43 + T44 + T45; then T46 + T47 + T48; then T49 + T50. T48 and T49 have provided tests (`packages/tl-cli/tests/test_cli_new_record_type.py`, `test_cli_new_projector.py`) and expected output files; the supervisor ran both against a reference implementation (not committed) before dispatch (L-P0-I6A-5).
+
+## Haiku-ability checklist (`01-tiers.md` §6)
+Run on every ticket. T40 to T47: files read 5 plus the ticket (yes); interfaces already in the repo (yes); acceptance commands with expected output and the test behaviours listed (yes); diff about 150 to 350 lines in 2 to 4 files (yes); none of the Sonnet-authored areas (the guard that those tools lean on is S41, not theirs) (yes); no `schema/**`, migration, dependency or public-interface change (yes; the `tl-tui` and `duckdb` dependencies were added by S41); reviewable from diff and commands (yes). T48, T49: provided tests, 4 to 6 files read, the templates are a mechanical rename of provided files (yes to all). T50: four README edits of pasted rows (yes).
 
 ## Order of work
 1. S41 and S42 (done), S43 tool (done), tickets T40 to T42, first relay (S41 goes to the security review at the same time).
