@@ -9,8 +9,10 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from textual.message import Message
+from tl_core.ledger import Event
 
 Severity = Literal["info", "warning", "error"]
+ConnectionState = Literal["live", "reconnecting", "unreachable"]
 
 
 class OpenRecord(Message):
@@ -82,3 +84,40 @@ class NavSelected(Message):
     def __init__(self, view_id: str) -> None:
         super().__init__()
         self.view_id = view_id
+
+
+class LiveEvents(Message):
+    """Committed events from the change feed, oldest first (posted from the feed thread)."""
+
+    def __init__(self, events: list[Event]) -> None:
+        super().__init__()
+        self.events = events
+
+
+class ConnectionChanged(Message):
+    """The link to the ledger or server changed: ``live``, ``reconnecting`` or ``unreachable``."""
+
+    def __init__(self, state: ConnectionState, detail: str = "") -> None:
+        super().__init__()
+        self.state: ConnectionState = state
+        self.detail = detail
+
+
+class LedgerReset(Message):
+    """The server's ledger is behind what this client had seen (replaced or restored)."""
+
+    def __init__(self, detail: str = "") -> None:
+        super().__init__()
+        self.detail = detail
+
+
+class FilterSubmitted(Message):
+    """The user pressed Enter in the filter bar with this query text (blank clears the filter)."""
+
+    def __init__(self, text: str) -> None:
+        super().__init__()
+        self.text = text
+
+
+class FilterClosed(Message):
+    """The user left the filter bar (Esc); focus returns to the grid."""

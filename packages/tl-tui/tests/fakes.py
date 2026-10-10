@@ -17,6 +17,7 @@ from typing import Any, Literal
 
 from fakes_feed import FakeFeedSupport
 from fakes_links import FakeLinkSupport
+from fakes_query import FakeQuerySupport
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord
@@ -201,7 +202,7 @@ def set_path(data: dict[str, Any], dotted: str, value: Any) -> None:
     node[parts[-1]] = value
 
 
-class FakeClient(FakeLinkSupport, FakeFeedSupport):
+class FakeClient(FakeQuerySupport, FakeLinkSupport, FakeFeedSupport):
     """Implements `tl_tui.client.ClientInterface` in memory."""
 
     def __init__(self, scope: str = SCOPE) -> None:
