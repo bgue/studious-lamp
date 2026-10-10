@@ -54,6 +54,27 @@ class ClientInterface(Protocol):
         order_by: list[tuple[str, Literal["asc", "desc"]]] | None = None,
     ) -> list[dict[str, Any]]: ...
 
+    def query_records(
+        self,
+        scope: str,
+        q: str,
+        *,
+        limit: int = 500,
+        offset: int = 0,
+        order_by: list[tuple[str, Literal["asc", "desc"]]] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Records of ``scope`` matching the query-language text ``q`` (the filter bar, P0-I4).
+
+        Blank ``q`` matches every record. Raises ``QuerySyntaxError`` (with ``position``) for text
+        that does not parse. Unlike ``list_records`` it does not filter on a record type: say
+        ``type:...`` in the text.
+        """
+        ...
+
+    def count_records(self, scope: str, q: str) -> int:
+        """How many records of ``scope`` match ``q``; ``limit`` and ``offset`` do not apply."""
+        ...
+
     def get_record(self, scope: str, key: str) -> dict[str, Any] | None: ...
 
     def get_record_by_id(self, record_id: str) -> dict[str, Any] | None: ...
