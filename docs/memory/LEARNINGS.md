@@ -617,3 +617,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   state that a restore does not carry, so the dispatcher restarts at seq 0 and queues every event since each subscription was created.
   Evidence: `tests/archive/test_restore_webhooks.py` (fails with the filter removed); 427 + 223 webhook and CLI tests green on both adapters. Status: active
 
+
+- **L-P0-I7-A11** · 2026-10-10 · tags: env, process
+  Restoring a SQLite snapshot over a WAL-mode ledger must delete the old `tl.db-wal` and `tl.db-shm` first, or SQLite applies the old log to the restored file. Runbook
+  tickets worked well when the supervisor pasted commands with their real output, but each ticket needs to say which linked runbooks exist yet, and a checker for fenced
+  commands must match indented fences (`^ *```), because steps indent them. Business-hours safety, which command takes `--all`, and the success line of a flag variant are
+  facts the supervisor must include; three implementers asked for them.
+  Evidence: reports P0-I7-T05 to T08 (open questions); `docs/runbooks/sqlite-backup-and-litestream.md`. Status: active

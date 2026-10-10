@@ -39,8 +39,9 @@ Run every command from the repository root. The paths below are relative to that
 
 ### Restore a snapshot
 1. Stop every process that writes to `dev/data/tl.db` (the TUI, the webhook worker, `tl` commands). Events written after the snapshot are lost when you restore it.
-2. Copy the snapshot over the ledger and make the copy writable.
+2. Remove the old ledger together with its `-wal` and `-shm` sidecar files, then copy the snapshot in and make it writable. A leftover `-wal` file from the old ledger would be applied to the restored one and corrupt it.
    ```
+   rm -f dev/data/tl.db dev/data/tl.db-wal dev/data/tl.db-shm
    cp dev/data/backups/tl-snap.db dev/data/tl.db && chmod 644 dev/data/tl.db
    ```
    Expected: no error message.
