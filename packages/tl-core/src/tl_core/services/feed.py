@@ -161,7 +161,7 @@ def parse_post(uow: UnitOfWork, scope: str, body: str) -> list[ParsedTag]:
         body,
         patterns=get_numbering().for_scope(scope),
         resolve=resolve,
-        signal_tags=signal_tags(),
+        signal_tags=signal_tags(uow.conn(), scope),
     )
 
 
