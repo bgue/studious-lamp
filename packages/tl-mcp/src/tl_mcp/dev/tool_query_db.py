@@ -43,8 +43,10 @@ def register(server: MCPServer, ctx: DevContext) -> None:
             int, Field(ge=1, le=query.MAX_LIMIT, description="Maximum rows to return.")
         ] = query.DEFAULT_LIMIT,
     ) -> QueryDbOutput:
-        """Run read-only SQL on the dev database (a SQLite file under dev/ or a temp directory, or a
-        local tl_test*/tl_dev* Postgres).
+        """Run read-only SQL on the SQLite dev database (a file under dev/ or a temp directory).
+
+        A Postgres dev database is refused: Postgres support needs a non-superuser reader role and a
+        function allow-list, and is a follow-up.
 
         Only one SELECT or WITH ... SELECT is accepted: no DDL, DML, PRAGMA, ATTACH, SET or stacked
         statements. Tables are `events` (the ledger), the `cur_*` current-state tables, `wh_*`

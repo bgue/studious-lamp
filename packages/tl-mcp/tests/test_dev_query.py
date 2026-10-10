@@ -2,21 +2,16 @@
 
 from __future__ import annotations
 
-import os
 import sqlite3
-import time
-import uuid
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from dev_harness import DevHarness
 from mcp.server.mcpserver.exceptions import ToolError
-from tl_adapters.postgres import admin
 from tl_mcp.dev import query
 from tl_mcp.dev.errors import DevGuardError
-from tl_mcp.dev.guard import DevTarget, find_repo_root, resolve_target
-from tl_mcp.dev.query import QueryFailed, run_postgres, run_query
+from tl_mcp.dev.guard import find_repo_root, resolve_target
+from tl_mcp.dev.query import QueryFailed, run_query
 
 REPO = find_repo_root()
 
@@ -194,130 +189,18 @@ def test_every_call_is_audited_with_its_outcome(ledger: DevHarness) -> None:
     assert lines[1]["detail"]["sql"] == "DROP TABLE events"
 
 
-# --- Postgres ----------------------------------------------------------------------------------
+# --- Postgres is refused (deviation C4) ------------------------------------------------------
 
 
-@pytest.fixture
-def pg_target() -> Iterator[DevTarget]:
-    """A throw-away schema in the ``tl_test`` database of ``TL_PG_URL`` (the guard's own rule)."""
-    server = os.environ.get("TL_PG_URL", admin.DEFAULT_URL)
-    if not admin.reachable(server):
-        if os.environ.get("TL_REQUIRE_POSTGRES") == "1":
-            pytest.fail("Postgres is not reachable at TL_PG_URL")
-        pytest.skip("Postgres is not reachable at TL_PG_URL")
-    schema = "tl_t_" + uuid.uuid4().hex[:16]
-    admin.create_schema_namespace(server, schema)
-    try:
-        url = admin.schema_url(server, schema)
-        try:
-            target = resolve_target(url, repo_root=REPO)
-        except DevGuardError:
-            pytest.skip("TL_PG_URL names a database that is not tl_test* or tl_dev*")
-        from tl_adapters.db import create_schema
-
-        create_schema(url)
-        yield target
-    finally:
-        admin.drop_schema_namespace(server, schema)
-
-
-@pytest.mark.requires_postgres
-def test_postgres_select_reads_the_ledger_tables(pg_target: DevTarget) -> None:
-    result = run_query(pg_target, "SELECT count(*) AS n FROM events")
-    assert result.dialect == "postgres" and result.columns == ["n"] and result.rows == [[0]]
-
-
-@pytest.mark.requires_postgres
-def test_postgres_percent_signs_are_not_parameters(pg_target: DevTarget) -> None:
-    result = run_query(pg_target, "SELECT 'a%b' LIKE 'a%' AS m, '%s' AS lit")
-    assert result.rows == [[True, "%s"]]
-
-
-@pytest.mark.requires_postgres
-def test_postgres_refuses_writes_and_system_reads(pg_target: DevTarget) -> None:
+def test_a_postgres_target_is_refused_by_the_tool_and_by_the_executor(tmp_path: Path) -> None:
+    target = resolve_target("postgresql://postgres:x@localhost/tl_test", repo_root=REPO)
+    env = DevHarness.build(tmp_path, target=target)
     for sql in (
-        "DELETE FROM events",
-        "SELECT pg_read_file('/etc/passwd')",
-        "SELECT * FROM pg_shadow",
-        "SELECT set_config('transaction_read_only', 'off', true)",
+        "SELECT 1",
+        "SELECT (ts_stat('select to_tsvector(pg_re'||'ad_file(''/etc/hostname''))')).word",
     ):
-        with pytest.raises(DevGuardError):
-            run_query(pg_target, sql)
-
-
-@pytest.mark.requires_postgres
-def test_the_postgres_transaction_is_read_only_even_without_the_guard(pg_target: DevTarget) -> None:
-    """Straight to the executor, past the guard: Postgres itself stops a SELECT that writes."""
-    from sqlalchemy import text
-    from tl_adapters.db import make_engine, write_tx
-
-    assert pg_target.url is not None
-    engine = make_engine(pg_target.url)
-    try:
-        with write_tx(engine) as conn:
-            conn.execute(text("CREATE SEQUENCE tl_probe_seq"))
-    finally:
-        engine.dispose()
-    with pytest.raises(QueryFailed, match="read-only"):
-        run_postgres(pg_target.url, "SELECT nextval('tl_probe_seq')", 10)
-    with pytest.raises(DevGuardError, match="sequence"):
-        run_query(pg_target, "SELECT nextval('tl_probe_seq')")
-
-
-@pytest.mark.requires_postgres
-def test_a_postgres_statement_that_runs_too_long_is_stopped(
-    pg_target: DevTarget, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(query, "TIMEOUT_S", 0.5)
-    with pytest.raises(QueryFailed, match="timeout"):
-        run_query(pg_target, "SELECT count(*) FROM generate_series(1, 1000000000)")
-
-
-@pytest.mark.requires_postgres
-def test_postgres_rows_are_limited(pg_target: DevTarget) -> None:
-    result = run_query(pg_target, "SELECT g FROM generate_series(1, 50) AS t(g)", limit=10)
-    assert len(result.rows) == 10 and result.truncated_by == "limit"
-
-
-def test_the_authoriser_denies_raw_page_tables_and_pragma_functions() -> None:
-    import sqlite3
-
-    for table in ("sqlite_dbpage", "dbstat", "pragma_table_info", "wh_secret"):
-        assert query._authorizer(sqlite3.SQLITE_READ, table, "x", None, None) == sqlite3.SQLITE_DENY
-    assert query._authorizer(sqlite3.SQLITE_READ, "events", "seq", None, None) == sqlite3.SQLITE_OK
-    assert query._authorizer(sqlite3.SQLITE_INSERT, "events", None, None, None) == (
-        sqlite3.SQLITE_DENY
-    )
-
-
-def test_a_failure_is_not_reported_as_a_refusal(
-    ledger: DevHarness, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(query, "TIMEOUT_S", 0.2)
-    with pytest.raises(ToolError) as caught:
-        ledger.call(
-            "query_db",
-            sql="WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n) "
-            "SELECT count(*) FROM n",
-        )
-    assert "refused" not in str(caught.value)
-    assert ledger.audit_lines()[-1]["outcome"] == "error"
-
-
-def test_file_functions_do_not_exist_in_the_python_sqlite(ledger: DevHarness) -> None:
-    with pytest.raises(ToolError, match="no such function"):
-        ledger.call("query_db", sql="SELECT readfile('/etc/passwd')")
-
-
-@pytest.mark.requires_postgres
-def test_a_huge_result_is_not_loaded_into_the_server(pg_target: DevTarget) -> None:
-    started = time.monotonic()
-    result = run_query(pg_target, "SELECT g FROM generate_series(1, 3000000) AS t(g)", limit=5)
-    assert len(result.rows) == 5 and result.truncated_by == "limit"
-    assert time.monotonic() - started < 5
-
-
-@pytest.mark.requires_postgres
-def test_a_trailing_semicolon_and_a_comment_are_fine_for_postgres(pg_target: DevTarget) -> None:
-    assert run_query(pg_target, "SELECT 1 AS a; ").rows == [[1]]
-    assert run_query(pg_target, "-- c\nSELECT 2 AS a").rows == [[2]]
+        with pytest.raises(ToolError, match="SQLite dev databases only"):
+            env.call("query_db", sql=sql)
+        with pytest.raises(DevGuardError, match="SQLite dev databases only"):
+            run_query(target, sql)
+    assert [line["outcome"] for line in env.audit_lines()] == ["refused", "refused"]

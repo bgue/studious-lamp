@@ -1,14 +1,12 @@
 """Run one guarded SELECT against the dev database, read-only, with limits (``query_db``).
 
 Layers, in order: the SQL guard (:mod:`tl_mcp.dev.sqlguard`); a read-only connection; and the
-database's own enforcement.
+database's own enforcement. SQLite only: a Postgres target is refused (deviation C4, see the guard).
 
 * SQLite: the file is opened ``mode=ro`` with ``PRAGMA query_only``, and an authoriser allows only
   SELECT, reads of non-secret columns, recursion, and functions outside a short deny-list;
   statement length, string length and compound-select size are capped; a progress handler stops a
   statement after the timeout.
-* Postgres: one transaction that is ``READ ONLY`` with ``statement_timeout`` and ``lock_timeout``
-  set locally; the transaction is always rolled back.
 
 Rows, bytes and time are limited. Error text is short and carries no absolute path.
 """
@@ -173,45 +171,12 @@ def run_sqlite(path: str, sql: str, limit: int) -> QueryResult:
         con.close()
 
 
-def run_postgres(url: str, sql: str, limit: int) -> QueryResult:
-    """Run ``sql`` through a server-side cursor and fetch at most ``limit + 1`` rows.
-
-    A cursor keeps a ``SELECT`` that would return millions of rows from being loaded into this
-    process: the server sends only what is fetched. ``DECLARE ... CURSOR FOR`` accepts exactly one
-    ``SELECT`` or ``VALUES`` query, which is one more check on the statement.
-    """
-    from sqlalchemy.exc import DBAPIError, SQLAlchemyError
-    from tl_adapters.db import make_engine, read_tx
-
-    started = time.monotonic()
-    statement = sql.strip().rstrip(";").rstrip()
-    engine = make_engine(url)
-    try:
-        # A READ ONLY snapshot transaction; nothing in it can write, whatever the statement says.
-        with read_tx(engine) as conn:
-            conn.exec_driver_sql(f"SET LOCAL statement_timeout = '{int(TIMEOUT_S * 1000)}ms'")
-            conn.exec_driver_sql("SET LOCAL lock_timeout = '2s'")
-            conn.exec_driver_sql(f"DECLARE tl_dev_query NO SCROLL CURSOR FOR {statement}")
-            result = conn.exec_driver_sql(f"FETCH FORWARD {limit + 1} FROM tl_dev_query")
-            columns = [str(k) for k in result.keys()]
-            return _collect(columns, result.fetchmany, limit, started, "postgres")
-    except DBAPIError as exc:
-        raise QueryFailed(clean_error(exc.orig or exc)) from exc
-    except SQLAlchemyError as exc:
-        raise QueryFailed(clean_error(exc)) from exc
-    finally:
-        engine.dispose()
-
-
 def run_query(target: DevTarget, sql: str, limit: int = DEFAULT_LIMIT) -> QueryResult:
     """Guard, then run, ``sql`` on ``target``; raises :class:`DevGuardError` or ``QueryFailed``."""
     if not 1 <= limit <= MAX_LIMIT:
         raise DevGuardError(f"limit must be between 1 and {MAX_LIMIT}")
     sqlguard.check_select(sql, target.dialect)
-    if target.kind == "sqlite":
-        assert target.path is not None
-        if not target.path.is_file():
-            raise QueryFailed("the dev database does not exist yet: run `tl init` or the seed tool")
-        return run_sqlite(str(target.path), sql, limit)
-    assert target.url is not None
-    return run_postgres(target.url, sql, limit)
+    assert target.path is not None  # check_select refused a Postgres target
+    if not target.path.is_file():
+        raise QueryFailed("the dev database does not exist yet: run `tl init` or the seed tool")
+    return run_sqlite(str(target.path), sql, limit)
