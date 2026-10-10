@@ -16,3 +16,5 @@ Read the root `AGENTS.md` first. These rules add to it.
 - Tests use `FsObjectStore` or moto's in-process `mock_aws`; never a live MinIO, never the network. `s3.py` starts with `# pyright: basic` because boto3 has no stubs; keep that to the one file.
 - `object_secret()` fails closed. Never add a default secret or log one.
 - `FsObjectStore` writes objects with mode 0600 (temp files come from `mkstemp`). Keep it: widening access is an operator decision, not a code default.
+- `restore_events` is the only way events enter a database without `Ledger.append`, and only into an empty `events` table inside `write_tx`; it never recomputes anything. A restore is one transaction (events, promoted columns, replay, verification), so a failure leaves an empty database; keep it that way.
+- `FsArchiveStore` never replaces a key (`os.link` fails if it exists; never use `rename` or `replace`) and a snapshot or archive file is never written in place. A drill touches only scratch clusters or databases it creates itself; never `tl_test`, never the cluster on 5432 beyond creating and dropping its own scratch database.
