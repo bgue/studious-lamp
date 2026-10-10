@@ -91,7 +91,7 @@ def handle_react_to_post(uow: UnitOfWork, cmd: ReactToPost) -> CommandResult:
     ``feed.reactions.enabled`` switch is off), ``PostNotFoundError``, ``PostRetractedError``,
     ``NoChangesError`` (the reaction is already in the state asked for) or ``ConcurrencyError``.
     """
-    if not reactions_enabled():
+    if not reactions_enabled(uow.conn(), cmd.scope):
         raise ReactionsDisabledError("reactions are switched off (feed.reactions.enabled)")
     post = load_post(uow, cmd.scope, cmd.post_id)
     if post.retracted:

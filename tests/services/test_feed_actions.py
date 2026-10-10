@@ -9,8 +9,8 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy import text
 from tl_adapters.db import DbTarget, create_schema, open_uow, rebuild_projections
+from tl_core import settings
 from tl_core.ledger import ConcurrencyError
-from tl_core.services import feed_actions
 from tl_core.services.commands import CommandResult
 from tl_core.services.errors import (
     NoChangesError,
@@ -202,9 +202,12 @@ def test_react_refusals(db: DbTarget) -> None:
         react(db, pid, "ack", "user:a")
 
 
-def test_reactions_can_be_switched_off(db: DbTarget, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_reactions_can_be_switched_off(db: DbTarget) -> None:
     pid = new_post(db)
-    monkeypatch.setattr(feed_actions, "reactions_enabled", lambda: False)
+    with open_uow(db) as uow:
+        settings.set_setting(
+            uow, key="feed.reactions.enabled", layer=P1, value=False, actor="user:a", source="test"
+        )
     with pytest.raises(ReactionsDisabledError):
         react(db, pid, "ack", "user:a")
 
