@@ -15,6 +15,7 @@ from typing import Annotated, Any
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from tl_core.files.service import FileService
 
@@ -29,7 +30,7 @@ from tl_api.auth import (
 )
 from tl_api.backend import Backend
 from tl_api.context import ApiContext
-from tl_api.errors import ApiError, ErrorBody, body_for
+from tl_api.errors import ERROR_TABLE, ApiError, ErrorBody, body_for
 from tl_api.feed import FeedHub
 from tl_api.routes import events, files, health, links, records, reference
 from tl_api.settings import ApiSettings
@@ -92,13 +93,22 @@ def install_error_handlers(app: FastAPI) -> None:
         code = names.get(exc.status_code, "http_error")
         return _json(exc.status_code, ErrorBody(error=code, message=str(exc.detail)))
 
-    @app.exception_handler(Exception)
-    async def _expected_or_internal(_: Request, exc: Exception) -> JSONResponse:
+    async def _mapped(_: Request, exc: Exception) -> JSONResponse:
         mapped = body_for(exc)
-        if mapped is not None:
-            status, body = mapped
-            return _json(status, body)
-        log.exception("unhandled error")
+        assert mapped is not None  # registered only for classes the table knows
+        status, body = mapped
+        return _json(status, body)
+
+    # One handler per mapped class, so expected errors are answered by ExceptionMiddleware. A
+    # catch-all ``Exception`` handler would send the same response from ServerErrorMiddleware, which
+    # then re-raises: uvicorn logs a traceback and closes the keep-alive connection.
+    for spec in ERROR_TABLE:
+        app.add_exception_handler(spec.exc, _mapped)
+    app.add_exception_handler(ValidationError, _mapped)
+
+    @app.exception_handler(Exception)
+    async def _internal(_: Request, exc: Exception) -> JSONResponse:
+        log.error("unhandled error", exc_info=exc)
         return _json(500, ErrorBody(error="internal_error", message="internal server error"))
 
 

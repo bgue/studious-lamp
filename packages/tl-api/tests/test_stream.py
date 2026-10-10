@@ -249,3 +249,30 @@ def test_the_slot_is_released_even_when_the_response_never_starts() -> None:
 
     asyncio.run(run())
     assert released == [1]
+
+
+def test_mapped_errors_leave_the_connection_usable(harness: Harness) -> None:
+    """Expected errors must not reach the server-error middleware.
+
+    It re-raises after sending the response, uvicorn then closes the keep-alive connection, and the
+    next pooled request fails with ReadError (4 of 10 calls in the review's reproduction)."""
+    with harness.live() as server, httpx2.Client(base_url=server.base_url, timeout=TIMEOUT) as c:
+        headers = {"Authorization": f"Bearer {server.token}"}
+        for n in range(20):
+            response = c.get("/records/NOPE/links", headers=headers)
+            assert response.status_code == 404, n
+            assert response.json()["error"] == "record_not_found"
+        bad = c.post("/commands/CreateRecord", json={"scope": "x"}, headers=headers)  # validation
+        assert bad.status_code == 422
+        stale = c.post(
+            "/commands/UpdateRecord",
+            json={
+                "scope": SCOPE,
+                "stream_id": "nope",
+                "expected_version": 1,
+                "changes": {"title": "t"},
+            },
+            headers=headers,
+        )
+        assert stale.status_code == 404
+        assert c.get("/health").status_code == 200  # the same pooled connection still works

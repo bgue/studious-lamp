@@ -457,3 +457,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   ticket must carry (without it an implementer meets `F401`/`F821` and guesses). Run the OpenAPI check before committing the stubs: the
   `EventPage` docstring I added while moving it changed the committed document and I had committed it red once.
   Evidence: S9/S10 commits; ticket texts T43, T46-T48. Status: active
+
+- **L-P0-I4-C9** · 2026-10-09 · tags: api, tests
+  A catch-all `@app.exception_handler(Exception)` is run by Starlette's `ServerErrorMiddleware`, which sends the handler's response and
+  then re-raises: uvicorn logs a traceback and closes the keep-alive connection, so the next pooled client request fails with a raw
+  `ReadError` (4 of 10 calls in the review's repro). Register one handler per mapped class (`app.add_exception_handler(cls, ...)` for every
+  row of `ERROR_TABLE`, plus pydantic's `ValidationError`) and keep the `Exception` handler for real 500s only. A single request over
+  `TestClient` never shows it; the regression test sends 20 sequential errors over one pooled connection to a live server.
+  Evidence: `test_mapped_errors_leave_the_connection_usable` (fails before the fix). Status: active

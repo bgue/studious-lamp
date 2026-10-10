@@ -9,6 +9,8 @@ import pytest
 from mcp.server.mcpserver.exceptions import ResourceError, ToolError
 from mcp_harness import ACTOR, McpHarness
 from tl_api.auth import Forbidden
+from tl_mcp.context import McpContext
+from tl_mcp.errors import guarded, resource_name
 from tl_mcp.main import main, parse_args
 from tl_mcp.server import build_server
 
@@ -100,3 +102,76 @@ def test_the_entry_point_checks_its_arguments(
     assert "agent:<id>" in capsys.readouterr().err
     assert main(["--actor", "agent:a", "--db", str(tmp_path / "missing.db")]) == 2
     assert "tl init" in capsys.readouterr().err
+
+
+def recording_env(tmp_path: Path) -> tuple[McpHarness, list[tuple[str, str, str]]]:
+    """A server whose hook records each call and then refuses, so nothing after it ever runs."""
+    seen: list[tuple[str, str, str]] = []
+
+    def record_and_deny(actor: str, action: str, resource: str) -> None:
+        seen.append((actor, action, resource))
+        raise Forbidden("stop here")
+
+    return McpHarness.build(tmp_path, authorize_hook=record_and_deny), seen
+
+
+def test_oversized_input_is_rejected_before_the_hook_runs(tmp_path: Path) -> None:
+    env, seen = recording_env(tmp_path)
+    try:
+        too_big = {
+            "search_records": [
+                {"scope": "project:P123", "q": "x" * 2001},
+                {"scope": "s" * 129},
+                {"scope": "project:P123", "order_by": "o" * 257},
+                {"scope": ""},
+            ],
+            "get_record": [
+                {"record": "r" * 129},
+                {"record": ""},
+                {"record": "K", "scope": "s" * 129},
+            ],
+            "get_links": [{"record": "r" * 129}],
+            "trace": [{"record": "r" * 129}],
+        }
+        for tool, variants in too_big.items():
+            for args in variants:
+                with pytest.raises(ToolError):
+                    env.call(tool, **args)
+        assert seen == []  # the schema stopped every one of them first
+        # the same arguments at the limit get as far as the hook (which then refuses)
+        for tool, args in {
+            "search_records": {"scope": "s" * 128, "q": "x" * 2000, "order_by": "o" * 256},
+            "get_record": {"record": "r" * 128, "scope": "s" * 128},
+        }.items():
+            with pytest.raises(ToolError, match="not allowed"):
+                env.call(tool, **args)
+        assert len(seen) == 2
+    finally:
+        env.close()
+
+
+def test_resource_parts_are_checked_before_the_hook_and_quoted_for_it(tmp_path: Path) -> None:
+    env, seen = recording_env(tmp_path)
+    try:
+        ctx = McpContext(env.factory, ACTOR, lambda *a: seen.append(a))
+        for parts in (
+            [("scope", ""), ("key", "K")],
+            [("scope", "s"), ("key", " ")],
+            [("key", "k" * 129)],
+        ):
+            with (
+                pytest.raises(ResourceError),
+                guarded(ctx, "t", "r", error=ResourceError, parts=parts),
+            ):
+                pytest.fail("the body must not run")
+        assert seen == []
+        with guarded(ctx, "t", "r", parts=[("scope", "project:P1"), ("key", "K-1")]):
+            pass
+        assert seen == [(ACTOR, "mcp.t", "r")]
+    finally:
+        env.close()
+    assert resource_name("record", "project:P1", "K-1") == "record:project%3AP1/K-1"
+    assert resource_name("record", "project:P1", "a/b") == "record:project%3AP1/a%2Fb"
+    assert resource_name("schema", "company", "core.Record") == "schema:company/core.Record"
+    # a key that contains the separator cannot be confused with a different scope and key
+    assert resource_name("record", "a", "b/c") != resource_name("record", "a/b", "c")
