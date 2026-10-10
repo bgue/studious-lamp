@@ -39,6 +39,11 @@ class WebhookTestOutput(BaseModel):
     header: str = "webhook-test: 1"
 
 
+def format_target(ip: str, port: int) -> str:
+    """``127.0.0.1:9000``, or ``[::1]:9000`` for an IPv6 address."""
+    return f"[{ip}]:{port}" if ":" in ip else f"{ip}:{port}"
+
+
 def register(server: MCPServer, ctx: DevContext) -> None:
     @server.tool(annotations=SEND_ONLY)
     def send_test_webhook(
@@ -125,8 +130,6 @@ def register(server: MCPServer, ctx: DevContext) -> None:
                 excerpt=result.excerpt[:EXCERPT_MAX_CHARS],
                 event_id=event_id,
                 event_type=event_type,
-                target=f"[{target.ip}]:{target.port}"
-                if ":" in target.ip
-                else f"{target.ip}:{target.port}",
+                target=format_target(target.ip, target.port),
                 secret=generated,
             )

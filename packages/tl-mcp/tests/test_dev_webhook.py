@@ -280,3 +280,10 @@ def test_an_ipv6_target_is_shown_in_brackets(dev_env: DevHarness) -> None:
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_format_target_brackets_ipv6() -> None:
+    from tl_mcp.dev.tool_webhook import format_target
+
+    assert format_target("127.0.0.1", 9000) == "127.0.0.1:9000"
+    assert format_target("::1", 9000) == "[::1]:9000"
