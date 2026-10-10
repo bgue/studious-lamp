@@ -42,6 +42,21 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.services.errors` | exceptions | `ServiceError` and its subclasses (record, pset, link, numbering, workflow, file and lock refusals) |
 | `tl_core.util`: `utcnow`, `new_ulid` | functions | Clock and id helpers |
 
+## Webhooks (`tl_core.webhooks`, P0-I5 workstream B)
+Outbox, signed delivery and the event catalog. Plan and decisions: `docs/tickets/P0-I5/README-B.md`.
+
+| Name | Kind | Purpose |
+|---|---|---|
+| `outbox.OutboxProjector` | projector (`handles_all`) | One `outbox_events` row per event, in the event's transaction |
+| `subscriptions.*` | commands | Create, update, enable, disable, `rotate_secret` (secrets never enter the ledger) |
+| `dispatch.Dispatcher` | class | Fan-out to subscriptions; `replay`, `replay_between`, `redrive` |
+| `delivery.DeliveryEngine` | class | `claim`, `attempt`, `settle`; per-subject order, retries, DLQ, auto-disable; `send_test` |
+| `signing`, `egress`, `transport` | modules | Standard Webhooks signing; SSRF policy with DNS pinning; httpx transport |
+| `queries`, `wiring`, `worker` | modules | Read views for the CLI; engine wiring; the worker loop |
+
+A test send (`tl webhook test`, `send_test`) carries the header `webhook-test: 1`; real deliveries never do. It is refused for a
+disabled or expired subscription.
+
 ## Depends on / used by
 - Depends on: `tl_schema` (generated DDL, effective schema, conformance), `sqlalchemy` (Core only), `pydantic`, `python-ulid`.
 - Used by: `tl_adapters`, `tl_cli`, `tl_tui` (embedded client), later `tl_api`, `tl_mcp`.
@@ -56,6 +71,7 @@ just test tests/services
 | Setting or env var | Default | Notes |
 |---|---|---|
 | `TL_SCHEMA_DIR` | `schema/fixtures` | Package directory for the default schema provider; also holds `workflows/`, `links/` and `numbering/` (read on first use; tests install their own with `use_workflows`, `use_expected_links`, `use_numbering`) |
+| `TL_WEBHOOK_ALLOWLIST` | empty | Comma-separated egress allow-list (`webhooks.egress.allowlist`): hosts, `host:port`, IPs or CIDRs that may resolve to private addresses |
 
 Adapters supply connections.
 

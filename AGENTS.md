@@ -68,4 +68,5 @@ Details: `docs/build-spec/03-repo-and-toolchain.md`.
 | Project memory | `docs/memory/LEARNINGS.md` (active), `docs/memory/archive/` |
 | Runbooks | `docs/runbooks/` |
 | Reference pages (user-facing language and API references) | `docs/reference/` |
+| Event catalog (generated: schemas, samples, AsyncAPI, page) | `packages/tl-schema/src/tl_schema/generated/catalog/`, `generated/docs/event-catalog.md` |
 | Docs and memory rules | `.claude/skills/throughline-docs/SKILL.md` |

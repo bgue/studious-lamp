@@ -22,6 +22,138 @@
             "title": "CaptureHint",
             "type": "string"
         },
+        "CloudEvent": {
+            "additionalProperties": false,
+            "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+            "properties": {
+                "data": {
+                    "$ref": "#/$defs/CloudEventData"
+                },
+                "datacontenttype": {
+                    "const": "application/json",
+                    "type": "string"
+                },
+                "dataschema": {
+                    "description": "URI of the catalog schema of this event type.",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "The ledger event id. Receivers dedupe on it.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "source": {
+                    "description": "URI of the company and project the event came from.",
+                    "type": "string"
+                },
+                "specversion": {
+                    "const": "1.0",
+                    "type": "string"
+                },
+                "subject": {
+                    "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+                    "type": "string"
+                },
+                "time": {
+                    "description": "When the ledger committed the event (UTC).",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "tlactor": {
+                    "type": "string"
+                },
+                "tlcorrelationid": {
+                    "type": "string"
+                },
+                "tlseq": {
+                    "description": "Ledger `seq`.",
+                    "type": "integer"
+                },
+                "tlstreamversion": {
+                    "description": "Version within the event's stream.",
+                    "type": "integer"
+                },
+                "type": {
+                    "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+                    "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "specversion",
+                "id",
+                "source",
+                "type",
+                "time",
+                "subject",
+                "dataschema",
+                "datacontenttype",
+                "tlseq",
+                "tlstreamversion",
+                "tlcorrelationid",
+                "tlactor",
+                "data"
+            ],
+            "title": "CloudEvent",
+            "type": "object"
+        },
+        "CloudEventData": {
+            "additionalProperties": false,
+            "description": "The `data` member of a webhook CloudEvent.",
+            "properties": {
+                "changes": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Delta and full modes. The ledger event payload, described per event type in the catalog."
+                },
+                "links": {
+                    "description": "Delta and full modes. Immediate links.",
+                    "items": {
+                        "$ref": "#/$defs/EventLinkRef"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "origin": {
+                    "$ref": "#/$defs/EventOrigin"
+                },
+                "record": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+            },
+            "required": [
+                "origin"
+            ],
+            "title": "CloudEventData",
+            "type": "object"
+        },
         "ConformanceStatus": {
             "description": "Result of evaluating a record against its effective schema (brief 6.3).",
             "enum": [
@@ -31,6 +163,36 @@
                 "waived"
             ],
             "title": "ConformanceStatus",
+            "type": "string"
+        },
+        "DeliveryOrigin": {
+            "description": "Why a delivery row exists.",
+            "enum": [
+                "live",
+                "replay",
+                "redrive"
+            ],
+            "title": "DeliveryOrigin",
+            "type": "string"
+        },
+        "DeliveryStatus": {
+            "description": "Where one webhook delivery is in its life.",
+            "enum": [
+                "pending",
+                "delivered",
+                "dead",
+                "redriven"
+            ],
+            "title": "DeliveryStatus",
+            "type": "string"
+        },
+        "DisabledReason": {
+            "description": "Why a subscription is disabled.",
+            "enum": [
+                "owner",
+                "sustained_failure"
+            ],
+            "title": "DisabledReason",
             "type": "string"
         },
         "Event": {
@@ -134,6 +296,97 @@
                 "hash"
             ],
             "title": "Event",
+            "type": "object"
+        },
+        "EventLinkRef": {
+            "additionalProperties": false,
+            "description": "One immediate link of the origin record (delta mode).",
+            "properties": {
+                "id": {
+                    "description": "`urn:tl:<ulid>` of the record at the other end.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "key": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "rel": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "uri": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "rel"
+            ],
+            "title": "EventLinkRef",
+            "type": "object"
+        },
+        "EventOrigin": {
+            "additionalProperties": false,
+            "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+            "properties": {
+                "api": {
+                    "description": "API URL of the record.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "`urn:tl:<ulid>` of the record.",
+                    "type": "string"
+                },
+                "key": {
+                    "description": "Human-readable key.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "type": {
+                    "description": "Record type.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "uri": {
+                    "description": "Resolvable URI of the record at this version (`...@v7`).",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Version of the record after the event.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "id",
+                "uri",
+                "version"
+            ],
+            "title": "EventOrigin",
+            "type": "object"
+        },
+        "EventPayload": {
+            "additionalProperties": false,
+            "description": "Common parent of the event payload classes. Payloads are open: new optional fields are additive.",
+            "title": "EventPayload",
             "type": "object"
         },
         "File": {
@@ -267,6 +520,94 @@
             "title": "File",
             "type": "object"
         },
+        "FileProcessedPayload": {
+            "additionalProperties": false,
+            "description": "A file passed its scan and is available.",
+            "examples": [
+                "{\"file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\", \"report\": {\"scanner\": \"stub\"}, \"status\": \"available\", \"supersedes\": []}"
+            ],
+            "properties": {
+                "file_id": {
+                    "description": "File id.",
+                    "type": "string"
+                },
+                "report": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Scan report."
+                },
+                "status": {
+                    "description": "available.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "supersedes": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Ids of the files this one replaced in a single-file slot."
+                }
+            },
+            "required": [
+                "file_id"
+            ],
+            "title": "FileProcessedPayload",
+            "type": "object"
+        },
+        "FileRejectedPayload": {
+            "additionalProperties": false,
+            "description": "A file failed its scan and was rejected.",
+            "examples": [
+                "{\"file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\", \"reason\": \"malware signature\", \"report\": {\"scanner\": \"stub\"}, \"status\": \"rejected\"}"
+            ],
+            "properties": {
+                "file_id": {
+                    "description": "File id.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why it was rejected.",
+                    "type": "string"
+                },
+                "report": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Scan report."
+                },
+                "status": {
+                    "description": "rejected.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "file_id",
+                "reason"
+            ],
+            "title": "FileRejectedPayload",
+            "type": "object"
+        },
         "FileSlotCardinality": {
             "description": "How many current files a slot holds (brief 20.1).",
             "enum": [
@@ -285,6 +626,77 @@
             ],
             "title": "FileStatus",
             "type": "string"
+        },
+        "FileUploadedPayload": {
+            "additionalProperties": false,
+            "description": "A file was uploaded and attached to a record; it is quarantined until its scan finishes.",
+            "examples": [
+                "{\"content_type\": \"application/pdf\", \"deduplicated\": false, \"file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\", \"filename\": \"mtr.pdf\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"revision\": 1, \"sha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"size\": 1024, \"slot\": \"mtr\", \"status\": \"quarantined\"}"
+            ],
+            "properties": {
+                "content_type": {
+                    "description": "Media type.",
+                    "type": "string"
+                },
+                "deduplicated": {
+                    "description": "True when the bytes already existed.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "file_id": {
+                    "description": "File id.",
+                    "type": "string"
+                },
+                "filename": {
+                    "description": "Original file name.",
+                    "type": "string"
+                },
+                "record_id": {
+                    "description": "The record the file is attached to.",
+                    "type": "string"
+                },
+                "revision": {
+                    "description": "Position in the slot.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "sha256": {
+                    "description": "SHA-256 of the bytes.",
+                    "type": "string"
+                },
+                "size": {
+                    "description": "Size in bytes.",
+                    "type": "integer"
+                },
+                "slot": {
+                    "description": "File slot; null for a generic attachment.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "status": {
+                    "description": "quarantined.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "file_id",
+                "record_id",
+                "sha256",
+                "size",
+                "content_type",
+                "filename"
+            ],
+            "title": "FileUploadedPayload",
+            "type": "object"
         },
         "Link": {
             "additionalProperties": false,
@@ -410,6 +822,80 @@
             "title": "Link",
             "type": "object"
         },
+        "LinkAcceptedPayload": {
+            "additionalProperties": false,
+            "description": "A suggested link was accepted and is now active.",
+            "examples": [
+                "{\"note\": \"Confirmed on site\"}"
+            ],
+            "properties": {
+                "note": {
+                    "description": "Free-text note.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "LinkAcceptedPayload",
+            "type": "object"
+        },
+        "LinkAddedPayload": {
+            "additionalProperties": false,
+            "description": "A link between two records became active.",
+            "examples": [
+                "{\"confidence\": null, \"from_ref\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"note\": null, \"pin\": null, \"relation\": \"raised_against\", \"source\": \"manual\", \"to_ref\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+            ],
+            "properties": {
+                "confidence": {
+                    "description": "Confidence of a suggested link, 0 to 1.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "from_ref": {
+                    "description": "Record id at the start of the link.",
+                    "type": "string"
+                },
+                "note": {
+                    "description": "Free-text note.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "pin": {
+                    "description": "Revision the link is pinned to; null for a floating link.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "relation": {
+                    "description": "Relation code.",
+                    "type": "string"
+                },
+                "source": {
+                    "description": "Who or what made the link: manual, rule, ai or import.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "to_ref": {
+                    "description": "Record id at the end of the link.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "from_ref",
+                "to_ref",
+                "relation"
+            ],
+            "title": "LinkAddedPayload",
+            "type": "object"
+        },
         "LinkCount": {
             "additionalProperties": false,
             "description": "Per-record link counts, maintained with `cur_links` (brief 7.4).",
@@ -462,6 +948,55 @@
             "title": "LinkCount",
             "type": "object"
         },
+        "LinkDeclinedPayload": {
+            "additionalProperties": false,
+            "description": "A suggested link was declined; it will not be suggested again.",
+            "examples": [
+                "{\"reason\": \"Different valve\"}"
+            ],
+            "properties": {
+                "reason": {
+                    "description": "Why it was declined.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "LinkDeclinedPayload",
+            "type": "object"
+        },
+        "LinkFlaggedPayload": {
+            "additionalProperties": false,
+            "description": "A link was flagged stale or broken.",
+            "examples": [
+                "{\"reason\": \"revision B issued\", \"status\": \"stale\"}"
+            ],
+            "properties": {
+                "reason": {
+                    "description": "Why it was flagged.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "status": {
+                    "description": "stale or broken.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "status"
+            ],
+            "title": "LinkFlaggedPayload",
+            "type": "object"
+        },
+        "LinkPayload": {
+            "additionalProperties": false,
+            "description": "Payload of a `Link.*` event. The stream is the link, `link_id`.",
+            "title": "LinkPayload",
+            "type": "object"
+        },
         "LinkRelation": {
             "description": "Built-in relation codes (brief 7.1). Documentation only: the vocabulary is extensible, so link rows store the code as a string.",
             "enum": [
@@ -481,6 +1016,42 @@
             ],
             "title": "LinkRelation",
             "type": "string"
+        },
+        "LinkRepinnedPayload": {
+            "additionalProperties": false,
+            "description": "The pin of a link was set to another revision.",
+            "examples": [
+                "{\"pin\": \"B\"}"
+            ],
+            "properties": {
+                "pin": {
+                    "description": "The new pin; null makes the link floating.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "LinkRepinnedPayload",
+            "type": "object"
+        },
+        "LinkRetractedPayload": {
+            "additionalProperties": false,
+            "description": "A link was retracted. Its row and history stay.",
+            "examples": [
+                "{\"reason\": \"Wrong record\"}"
+            ],
+            "properties": {
+                "reason": {
+                    "description": "Why it was retracted.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "LinkRetractedPayload",
+            "type": "object"
         },
         "LinkSource": {
             "description": "How a link came to exist (brief 7.1).",
@@ -510,6 +1081,120 @@
             ],
             "title": "LinkStatus",
             "type": "string"
+        },
+        "LinkSuggestedPayload": {
+            "additionalProperties": false,
+            "description": "A link was suggested and waits for a person to accept or decline.",
+            "examples": [
+                "{\"confidence\": 0.82, \"from_ref\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"note\": null, \"pin\": null, \"relation\": \"references\", \"source\": \"ai\", \"to_ref\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+            ],
+            "properties": {
+                "confidence": {
+                    "description": "Confidence, 0 to 1.",
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "from_ref": {
+                    "description": "Record id at the start of the link.",
+                    "type": "string"
+                },
+                "note": {
+                    "description": "Free-text note.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "pin": {
+                    "description": "Revision the link is pinned to.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "relation": {
+                    "description": "Relation code.",
+                    "type": "string"
+                },
+                "source": {
+                    "description": "Origin of the suggestion: rule, ai or import.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "to_ref": {
+                    "description": "Record id at the end of the link.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "from_ref",
+                "to_ref",
+                "relation"
+            ],
+            "title": "LinkSuggestedPayload",
+            "type": "object"
+        },
+        "LinkVerifiedPayload": {
+            "additionalProperties": false,
+            "description": "A person verified an active link.",
+            "examples": [
+                "{}"
+            ],
+            "title": "LinkVerifiedPayload",
+            "type": "object"
+        },
+        "NumberingAllocatedPayload": {
+            "additionalProperties": false,
+            "description": "A number was allocated from a counter.",
+            "examples": [
+                "{\"key\": \"P123-REC-0001\", \"pattern\": \"rec\", \"prefix\": \"P123-REC-\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"record_type\": \"core.Record\", \"sequence\": 1}"
+            ],
+            "properties": {
+                "key": {
+                    "description": "The key built.",
+                    "type": "string"
+                },
+                "pattern": {
+                    "description": "Numbering pattern id.",
+                    "type": "string"
+                },
+                "prefix": {
+                    "description": "The key without its sequence.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "record_id": {
+                    "description": "The record the number was allocated for.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "record_type": {
+                    "description": "Record type.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "sequence": {
+                    "description": "The sequence number.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "pattern",
+                "key",
+                "sequence"
+            ],
+            "title": "NumberingAllocatedPayload",
+            "type": "object"
         },
         "NumberingCounter": {
             "additionalProperties": false,
@@ -580,6 +1265,154 @@
             ],
             "title": "NumberingCounter",
             "type": "object"
+        },
+        "OutboxEvent": {
+            "additionalProperties": false,
+            "description": "One ledger event as delivery needs it. Immutable once written.",
+            "properties": {
+                "actor": {
+                    "type": "string"
+                },
+                "changed_fields": {
+                    "$ref": "#/$defs/Any",
+                    "description": "JSON list of changed field paths (`status`, `psets.vt.result`), for filters."
+                },
+                "correlation_id": {
+                    "type": "string"
+                },
+                "data": {
+                    "$ref": "#/$defs/Any",
+                    "description": "URI-free envelope data: `origin` (id, key, type, version), `changes` (field to [old, new]), `links` (immediate link refs of link events) and `detail` (the ledger payload)."
+                },
+                "event_id": {
+                    "description": "Ledger event id; the CloudEvents `id` and the Standard Webhooks `webhook-id`, so receivers dedupe on it.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "event_type": {
+                    "description": "Ledger event type, for example `Record.Created`.",
+                    "type": "string"
+                },
+                "file_slot": {
+                    "description": "File slot of a `File.*` event.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "from_state": {
+                    "description": "Workflow state before a `Workflow.Transitioned`.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "hashtags": {
+                    "$ref": "#/$defs/Any",
+                    "description": "JSON list of hashtags in the event payload (feed posts, later)."
+                },
+                "link_relations": {
+                    "$ref": "#/$defs/Any",
+                    "description": "JSON list of link relation codes the event is about."
+                },
+                "recorded_at": {
+                    "description": "ISO-8601 UTC time of the event (the CloudEvents `time`).",
+                    "type": "string"
+                },
+                "related_ids": {
+                    "$ref": "#/$defs/Any",
+                    "description": "JSON list of the other records the event is about (the far end of a link), for the `record_ids` filter."
+                },
+                "schema_version": {
+                    "type": "integer"
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "seq": {
+                    "description": "Ledger `seq` of the event; the delivery cursor and ordering backbone.",
+                    "type": "integer"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "stream_id": {
+                    "description": "The stream the event was appended to.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "stream_type": {
+                    "type": "string"
+                },
+                "stream_version": {
+                    "type": "integer"
+                },
+                "subject_id": {
+                    "description": "The record the event is about, and the delivery ordering key: the stream for record events, the `from` record for link events, the record of a file, the record of a numbering allocation. Equal to `stream_id` when the event has no other subject.",
+                    "type": "string"
+                },
+                "subject_key": {
+                    "description": "Human-readable key of the subject, when it has one.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "subject_type": {
+                    "description": "Record type of the subject (`core.Record`), when it is a known record.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "subject_version": {
+                    "description": "Version of the subject record after the event (the stream version when the stream is the subject).",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "to_state": {
+                    "description": "Workflow state after a `Workflow.Transitioned`.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "seq",
+                "event_id",
+                "scope",
+                "event_type",
+                "schema_version",
+                "stream_id",
+                "stream_type",
+                "stream_version",
+                "subject_id",
+                "actor",
+                "source",
+                "recorded_at",
+                "correlation_id",
+                "changed_fields",
+                "related_ids",
+                "link_relations",
+                "hashtags",
+                "data"
+            ],
+            "title": "OutboxEvent",
+            "type": "object"
+        },
+        "PayloadMode": {
+            "description": "How much of the record a webhook carries (brief 18.3). Restricted confidentiality forces `thin`.",
+            "enum": [
+                "thin",
+                "delta",
+                "full"
+            ],
+            "title": "PayloadMode",
+            "type": "string"
         },
         "PsetLayer": {
             "description": "Layer a pset value belongs to (brief 6.3).",
@@ -701,6 +1534,59 @@
             "title": "PsetValueType",
             "type": "string"
         },
+        "PsetValuesSetPayload": {
+            "additionalProperties": false,
+            "description": "Values of a property set were written on a record.",
+            "examples": [
+                "{\"conformance\": \"ok\", \"effective_schema_hash\": \"9f2c\", \"layer\": \"standard\", \"pset\": \"valve_data\", \"units\": {\"size_in\": \"in\"}, \"values\": {\"size_in\": 4}}"
+            ],
+            "properties": {
+                "conformance": {
+                    "description": "Conformance after the write: ok, warning, nonconformant or waived.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "effective_schema_hash": {
+                    "description": "Hash of the effective schema in force.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "layer": {
+                    "description": "Pset layer: standard, custom or project.",
+                    "type": "string"
+                },
+                "pset": {
+                    "description": "Property-set name.",
+                    "type": "string"
+                },
+                "units": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Units of the written properties, when the schema declares them."
+                },
+                "values": {
+                    "$ref": "#/$defs/Any",
+                    "description": "Object of property name to value."
+                }
+            },
+            "required": [
+                "pset",
+                "layer",
+                "values"
+            ],
+            "title": "PsetValuesSetPayload",
+            "type": "object"
+        },
         "Record": {
             "additionalProperties": false,
             "description": "The generic Phase 0 record type, `core.Record`.",
@@ -796,6 +1682,77 @@
                 "updated_at"
             ],
             "title": "Record",
+            "type": "object"
+        },
+        "RecordCorrectedPayload": {
+            "additionalProperties": false,
+            "description": "A recorded value was corrected after the fact; history keeps the original.",
+            "examples": [
+                "{\"changes\": {\"title\": [\"Gate vlave\", \"Gate valve\"]}, \"reason\": \"Typo\"}"
+            ],
+            "properties": {
+                "changes": {
+                    "$ref": "#/$defs/Any",
+                    "description": "Object of field name to [old, new]."
+                },
+                "reason": {
+                    "description": "Why it was corrected.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "changes",
+                "reason"
+            ],
+            "title": "RecordCorrectedPayload",
+            "type": "object"
+        },
+        "RecordCreatedPayload": {
+            "additionalProperties": false,
+            "description": "A record was created.",
+            "examples": [
+                "{\"description\": null, \"key\": \"P123-REC-0001\", \"psets\": {}, \"record_type\": \"core.Record\", \"title\": \"Gate valve 47-1234\"}"
+            ],
+            "properties": {
+                "description": {
+                    "description": "Description.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "key": {
+                    "description": "Human-readable key; null until numbering assigns one.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "psets": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Initial property-set values keyed by pset name."
+                },
+                "record_type": {
+                    "description": "Fully qualified record type.",
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Title.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "record_type",
+                "title"
+            ],
+            "title": "RecordCreatedPayload",
             "type": "object"
         },
         "RecordEnvelope": {
@@ -895,6 +1852,784 @@
             "title": "RecordEnvelope",
             "type": "object"
         },
+        "RecordUpdatedPayload": {
+            "additionalProperties": false,
+            "description": "One or more fields of a record changed.",
+            "examples": [
+                "{\"changes\": {\"title\": [\"Gate valve\", \"Gate valve 47-1234\"]}}"
+            ],
+            "properties": {
+                "changes": {
+                    "$ref": "#/$defs/Any",
+                    "description": "Object of field name to [old, new]."
+                }
+            },
+            "required": [
+                "changes"
+            ],
+            "title": "RecordUpdatedPayload",
+            "type": "object"
+        },
+        "RecordVoidedPayload": {
+            "additionalProperties": false,
+            "description": "A record was voided. The record stays in the ledger.",
+            "examples": [
+                "{\"reason\": \"Entered in error\"}"
+            ],
+            "properties": {
+                "reason": {
+                    "description": "Why it was voided.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "reason"
+            ],
+            "title": "RecordVoidedPayload",
+            "type": "object"
+        },
+        "SchemaEffectiveChangedPayload": {
+            "additionalProperties": false,
+            "description": "The effective schema of a scope changed.",
+            "examples": [
+                "{\"effective_schema_hash\": \"9f2c\", \"packages\": [\"co.acme.engineering@3.2.0\"], \"previous_hash\": null, \"scope\": \"project:P123\"}"
+            ],
+            "properties": {
+                "effective_schema_hash": {
+                    "description": "New hash.",
+                    "type": "string"
+                },
+                "packages": {
+                    "description": "Adopted packages as name@version.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "previous_hash": {
+                    "description": "Previous hash; null the first time.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "scope": {
+                    "description": "Scope id.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "scope",
+                "effective_schema_hash"
+            ],
+            "title": "SchemaEffectiveChangedPayload",
+            "type": "object"
+        },
+        "SchemaPackagePublishedPayload": {
+            "additionalProperties": false,
+            "description": "A schema package version was published.",
+            "examples": [
+                "{\"package\": \"co.acme.engineering\", \"version\": \"3.2.0\"}"
+            ],
+            "properties": {
+                "package": {
+                    "description": "Package name.",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Package version.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "package",
+                "version"
+            ],
+            "title": "SchemaPackagePublishedPayload",
+            "type": "object"
+        },
+        "SecretState": {
+            "description": "Whether a signing secret is still used.",
+            "enum": [
+                "active",
+                "retired"
+            ],
+            "title": "SecretState",
+            "type": "string"
+        },
+        "SubscriptionFilter": {
+            "additionalProperties": false,
+            "description": "Which events a subscription (or rule, or stream) wants (brief 18.2). Every part that is set must match; a part that is absent matches everything. Globs use `*` and `?` and are case-sensitive.",
+            "properties": {
+                "changed_fields": {
+                    "description": "Field paths or globs that must appear among the event's changes (`status`, `psets.vt.*`).",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "event_types": {
+                    "description": "Ledger event type names or globs (`Record.*`, `*.Created`, `Link.Added`).",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "file_slots": {
+                    "description": "File slot names (or globs) of a file event.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "hashtags": {
+                    "description": "Hashtags (without `#`, case-insensitive) in a feed post.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "link_relations": {
+                    "description": "Link relation codes (or globs) of a link event.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "record_ids": {
+                    "description": "Ids of the subject records. A link event also matches through the record at its other end.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "record_selector": {
+                    "description": "A query-language expression (`status:open type:core.Record`) the event's subject record must match.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "scope_selector": {
+                    "description": "A scope id or glob (`project:P123`, `project:*`). A subscription that lives in a project is restricted to that project whatever this says.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "transitions": {
+                    "description": "Workflow transitions as `<from> -> <to>` with `*` as a wildcard (`InReview -> Issued`, `* -> Passed`).",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "title": "SubscriptionFilter",
+            "type": "object"
+        },
+        "SubscriptionStatus": {
+            "description": "Whether a subscription receives events.",
+            "enum": [
+                "active",
+                "disabled"
+            ],
+            "title": "SubscriptionStatus",
+            "type": "string"
+        },
+        "WebhookAttempt": {
+            "additionalProperties": false,
+            "description": "The log of one delivery attempt (status, latency, response excerpt).",
+            "properties": {
+                "attempt": {
+                    "description": "1 for the first attempt of the delivery.",
+                    "type": "integer"
+                },
+                "attempt_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "delivery_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "error": {
+                    "description": "Short failure reason.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "latency_ms": {
+                    "type": "integer"
+                },
+                "outcome": {
+                    "description": "`delivered`, `retry`, `dead`.",
+                    "type": "string"
+                },
+                "response_excerpt": {
+                    "description": "First 512 characters of the response body, control characters removed.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "HTTP status; null when no response was received.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "subscription_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "attempt_id",
+                "delivery_id",
+                "subscription_id",
+                "attempt",
+                "started_at",
+                "latency_ms",
+                "outcome"
+            ],
+            "title": "WebhookAttempt",
+            "type": "object"
+        },
+        "WebhookCursor": {
+            "additionalProperties": false,
+            "description": "How far the dispatcher has read the outbox.",
+            "properties": {
+                "last_seq": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "name",
+                "last_seq"
+            ],
+            "title": "WebhookCursor",
+            "type": "object"
+        },
+        "WebhookDelivery": {
+            "additionalProperties": false,
+            "description": "One event to be delivered to one subscription, with its retry state.",
+            "properties": {
+                "attempts": {
+                    "type": "integer"
+                },
+                "body": {
+                    "description": "The exact JSON text that is sent (and re-sent on every retry), built once when the delivery was created.",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "ISO-8601 UTC. The retry deadline counts from here.",
+                    "type": "string"
+                },
+                "dead_at": {
+                    "description": "ISO-8601 UTC when the delivery was dead-lettered.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "dead_reason": {
+                    "description": "`retries_exhausted`, `gone`, `egress_denied`, `unreachable_permanently` or `subscription_removed`.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "dedupe_key": {
+                    "description": "`<seq>` for a live delivery, `<seq>:<origin>:<ulid>` for a replay or redrive.",
+                    "type": "string"
+                },
+                "delivered_at": {
+                    "description": "ISO-8601 UTC of the successful attempt.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "delivery_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "event_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "last_error": {
+                    "description": "Short reason of the last failure (no secrets, no response bodies beyond an excerpt).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "last_status": {
+                    "description": "HTTP status of the last attempt; null for a network error or a blocked target.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "lease_owner": {
+                    "description": "Worker id that holds the lease.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "lease_until": {
+                    "description": "ISO-8601 UTC while a worker holds the delivery; an expired lease can be taken over.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "next_attempt_at": {
+                    "description": "ISO-8601 UTC. A pending delivery is not tried before this time.",
+                    "type": "string"
+                },
+                "origin": {
+                    "$ref": "#/$defs/DeliveryOrigin"
+                },
+                "replay_of": {
+                    "description": "For a redrive, the dead delivery it re-enqueued.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "seq": {
+                    "description": "Ledger `seq` of the event; deliveries of one subject go out in this order.",
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/$defs/DeliveryStatus"
+                },
+                "subject_id": {
+                    "description": "The delivery ordering key (see `OutboxEvent.subject_id`).",
+                    "type": "string"
+                },
+                "subscription_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "delivery_id",
+                "subscription_id",
+                "dedupe_key",
+                "seq",
+                "event_id",
+                "subject_id",
+                "origin",
+                "status",
+                "body",
+                "attempts",
+                "created_at",
+                "next_attempt_at"
+            ],
+            "title": "WebhookDelivery",
+            "type": "object"
+        },
+        "WebhookEventPayload": {
+            "additionalProperties": false,
+            "description": "Payload of a `WebhookSubscription.*` event. The stream is the subscription.",
+            "title": "WebhookEventPayload",
+            "type": "object"
+        },
+        "WebhookHealth": {
+            "additionalProperties": false,
+            "description": "Failure bookkeeping per subscription, for auto-disable and the operator screens.",
+            "properties": {
+                "consecutive_dead": {
+                    "description": "Deliveries dead-lettered since the last success.",
+                    "type": "integer"
+                },
+                "delivered_total": {
+                    "type": "integer"
+                },
+                "failed_total": {
+                    "type": "integer"
+                },
+                "failing_since": {
+                    "description": "ISO-8601 UTC of the first failed attempt since the last success; null while healthy.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "last_failure_at": {
+                    "description": "ISO-8601 UTC.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "last_success_at": {
+                    "description": "ISO-8601 UTC.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "subscription_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "subscription_id",
+                "consecutive_dead",
+                "delivered_total",
+                "failed_total"
+            ],
+            "title": "WebhookHealth",
+            "type": "object"
+        },
+        "WebhookSecret": {
+            "additionalProperties": false,
+            "description": "A signing secret of a subscription. Secrets never enter the ledger or the logs.",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "description": "ISO-8601 UTC. A rotated-out secret keeps signing until this time (the overlap), then retires.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "secret": {
+                    "description": "`whsec_` plus the base64 of 32 random bytes (the Standard Webhooks format).",
+                    "type": "string"
+                },
+                "secret_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "state": {
+                    "$ref": "#/$defs/SecretState"
+                },
+                "subscription_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "secret_id",
+                "subscription_id",
+                "secret",
+                "state",
+                "created_at"
+            ],
+            "title": "WebhookSecret",
+            "type": "object"
+        },
+        "WebhookSubscription": {
+            "additionalProperties": false,
+            "description": "An outbound webhook (brief 18.4): where to send, what to send, and how. One row per subscription in its current state.",
+            "properties": {
+                "active_windows": {
+                    "$ref": "#/$defs/Any",
+                    "description": "JSON list of `{\"from\": seq, \"until\": seq or null}`. An event is delivered when `from < seq <= until` for some window (`until` null is open). Creation and every enable open a window; a disable closes the open one. Events committed while disabled are not delivered unless replayed."
+                },
+                "created_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "current_secret_id": {
+                    "description": "The newest signing secret (the value lives in `wh_secret`, never here).",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "disabled_reason": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/DisabledReason"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "event_schema_version": {
+                    "description": "Event schema version pin. Only `v1` exists.",
+                    "type": "string"
+                },
+                "expires_at": {
+                    "description": "After this time the subscription no longer receives events.",
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "filter": {
+                    "$ref": "#/$defs/Any",
+                    "description": "A `SubscriptionFilter` as a JSON object; `{}` selects every event."
+                },
+                "integration_app": {
+                    "description": "The integration app the subscription belongs to, when there is one.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "last_seq": {
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "Short label for lists and logs.",
+                    "type": "string"
+                },
+                "owner": {
+                    "description": "Actor who owns the subscription and is notified of auto-disable.",
+                    "type": "string"
+                },
+                "payload_mode": {
+                    "$ref": "#/$defs/PayloadMode"
+                },
+                "scope": {
+                    "description": "The scope the subscription lives in. `company` sees every project; a project sees itself.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/$defs/SubscriptionStatus"
+                },
+                "subscription_id": {
+                    "description": "Immutable id; equals the ledger `stream_id`.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "target_url": {
+                    "description": "`https://` URL of the receiver. Checked against the egress policy at every attempt.",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "subscription_id",
+                "scope",
+                "name",
+                "owner",
+                "target_url",
+                "filter",
+                "payload_mode",
+                "event_schema_version",
+                "status",
+                "active_windows",
+                "created_by",
+                "created_at",
+                "updated_at",
+                "version",
+                "last_seq"
+            ],
+            "title": "WebhookSubscription",
+            "type": "object"
+        },
+        "WebhookSubscriptionCreatedPayload": {
+            "additionalProperties": false,
+            "description": "A webhook subscription was created. The signing secret is held outside the ledger.",
+            "examples": [
+                "{\"event_schema_version\": \"v1\", \"expires_at\": null, \"filter\": {\"event_types\": [\"Workflow.Transitioned\"], \"transitions\": [\"* -> Issued\"]}, \"integration_app\": null, \"name\": \"NDE requests\", \"owner\": \"user:jsmith\", \"payload_mode\": \"delta\", \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PB\", \"subscription_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"target_url\": \"https://nde.example.net/hooks/tl\"}"
+            ],
+            "properties": {
+                "event_schema_version": {
+                    "description": "Schema pin.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "expires_at": {
+                    "description": "ISO-8601 time after which the subscription stops.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "filter": {
+                    "$ref": "#/$defs/Any",
+                    "description": "SubscriptionFilter object."
+                },
+                "integration_app": {
+                    "description": "Integration app.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "name": {
+                    "description": "Label.",
+                    "type": "string"
+                },
+                "owner": {
+                    "description": "Owner actor.",
+                    "type": "string"
+                },
+                "payload_mode": {
+                    "description": "thin, delta or full.",
+                    "type": "string"
+                },
+                "secret_id": {
+                    "description": "Id of the first signing secret (not the secret).",
+                    "type": "string"
+                },
+                "subscription_id": {
+                    "description": "Subscription id.",
+                    "type": "string"
+                },
+                "target_url": {
+                    "description": "Receiver URL.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "subscription_id",
+                "name",
+                "owner",
+                "target_url",
+                "filter",
+                "payload_mode",
+                "secret_id"
+            ],
+            "title": "WebhookSubscriptionCreatedPayload",
+            "type": "object"
+        },
+        "WebhookSubscriptionDisabledPayload": {
+            "additionalProperties": false,
+            "description": "A subscription stopped receiving events.",
+            "examples": [
+                "{\"detail\": \"5 deliveries dead-lettered since the last success\", \"reason\": \"sustained_failure\"}"
+            ],
+            "properties": {
+                "detail": {
+                    "description": "Free-text detail, for example the failure counts.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "reason": {
+                    "description": "owner or sustained_failure.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "reason"
+            ],
+            "title": "WebhookSubscriptionDisabledPayload",
+            "type": "object"
+        },
+        "WebhookSubscriptionEnabledPayload": {
+            "additionalProperties": false,
+            "description": "A disabled subscription started receiving events again, from this event on.",
+            "examples": [
+                "{}"
+            ],
+            "title": "WebhookSubscriptionEnabledPayload",
+            "type": "object"
+        },
+        "WebhookSubscriptionSecretRotatedPayload": {
+            "additionalProperties": false,
+            "description": "A new signing secret was issued; the previous one keeps signing until the overlap ends.",
+            "examples": [
+                "{\"previous_expires_at\": \"2026-10-10T03:14:07.000000Z\", \"previous_secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PC\", \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PB\"}"
+            ],
+            "properties": {
+                "previous_expires_at": {
+                    "description": "ISO-8601 time when the previous secret stops signing.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "previous_secret_id": {
+                    "description": "Id of the secret that is being replaced.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "secret_id": {
+                    "description": "Id of the new secret (not the secret).",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "secret_id"
+            ],
+            "title": "WebhookSubscriptionSecretRotatedPayload",
+            "type": "object"
+        },
+        "WebhookSubscriptionUpdatedPayload": {
+            "additionalProperties": false,
+            "description": "A subscription's name, target, filter or payload mode changed.",
+            "examples": [
+                "{\"changes\": {\"payload_mode\": [\"thin\", \"delta\"]}}"
+            ],
+            "properties": {
+                "changes": {
+                    "$ref": "#/$defs/Any",
+                    "description": "Object of field name to [old, new]."
+                }
+            },
+            "required": [
+                "changes"
+            ],
+            "title": "WebhookSubscriptionUpdatedPayload",
+            "type": "object"
+        },
         "WorkflowState": {
             "additionalProperties": false,
             "description": "The state a record is in, since when, and by which transition it got there.",
@@ -951,6 +2686,89 @@
                 "last_seq"
             ],
             "title": "WorkflowState",
+            "type": "object"
+        },
+        "WorkflowTransitionedPayload": {
+            "additionalProperties": false,
+            "description": "A record moved from one workflow state to another.",
+            "examples": [
+                "{\"conformance\": \"ok\", \"effective_schema_hash\": \"9f2c\", \"from_state\": \"InReview\", \"guards_evaluated\": [{\"kind\": \"required_pset\", \"message\": \"\", \"passed\": true}], \"reason\": null, \"signature\": null, \"to_state\": \"Issued\", \"transition\": \"issue\", \"workflow\": \"document\", \"workflow_version\": 1}"
+            ],
+            "properties": {
+                "conformance": {
+                    "description": "Conformance after the transition.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "effective_schema_hash": {
+                    "description": "Hash of the effective schema in force.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "from_state": {
+                    "description": "State before.",
+                    "type": "string"
+                },
+                "guards_evaluated": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "List of {kind, passed, message} for each guard that ran."
+                },
+                "reason": {
+                    "description": "Free-text reason.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "signature": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Signature data when the transition was signed."
+                },
+                "to_state": {
+                    "description": "State after.",
+                    "type": "string"
+                },
+                "transition": {
+                    "description": "Transition name.",
+                    "type": "string"
+                },
+                "workflow": {
+                    "description": "Workflow id.",
+                    "type": "string"
+                },
+                "workflow_version": {
+                    "description": "Workflow version.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "workflow",
+                "from_state",
+                "to_state",
+                "transition"
+            ],
+            "title": "WorkflowTransitionedPayload",
             "type": "object"
         }
     },

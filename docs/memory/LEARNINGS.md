@@ -363,6 +363,42 @@ test or a generated artefact already enforces, or narrative history (that belong
   Evidence: `docs/reports/P0-I4/P0-I4-T03.md` (Blocked, then Decision), commits 56bb651 and 34e109f. Status: active
 
 
+- **L-P0-I5-B1** · 2026-10-09 · tags: tooling, process
+  Never name a module `types.py` (or `enum.py`, `json.py`) inside a package: a script or `python -` run from that directory puts
+  it first on `sys.path` and the standard library's own imports break (`cannot import name 'MethodType' from 'types'`). The webhook
+  package uses `base.py`.
+  Evidence: `packages/tl-core/src/tl_core/webhooks/base.py` (renamed from `types.py` after the first ad-hoc script failed). Status: active
+
+- **L-P0-I5-B2** · 2026-10-09 · tags: ledger, process
+  State that a lagging consumer reads later must keep its history. A subscription row holding only its latest enable and disable
+  seq made a dispatcher pass that ran after a disable and re-enable drop the events from before the disable; `active_windows`
+  (a list of seq intervals) fixed it, and `test_the_active_window_follows_disable_and_enable` runs the late pass on purpose.
+  Operational tables that no event produces (`wh_*`) are created by a projector with empty `handles` and a no-op `reset`, so
+  `create_schema` makes them and a rebuild never clears a secret or a retry state.
+  Evidence: `tests/webhooks/test_dispatcher.py`, `packages/tl-core/src/tl_core/webhooks/state.py`. Status: active
+
+- **L-P0-I5-B3** · 2026-10-09 · tags: process, tests
+  When a stub-plus-provided-test ticket sits under code that other tests already exercise, make the stub fail loudly only for the
+  part it lacks (`matches_row` raises `NotImplementedError` when one of the five unbuilt filter parts is set) instead of ignoring
+  it or raising everywhere: the rest of the suite stays green, and a silently ignored filter part could never leak events.
+  Reference implementations for T20 to T23 were checked with `/tmp`-style scripts that copy the reference over the stub, run
+  `ruff`, `pyright` and the provided test, then `git checkout -- packages` (commit supervisor edits first: the checkout also reverts them).
+  Evidence: `packages/tl-core/src/tl_core/webhooks/filters.py`; docs/tickets/P0-I5/T22-webhook-filter-match.md. Status: active
+
+- **L-P0-I5-B4** · 2026-10-09 · tags: api, tests
+  An address allow/deny check must unwrap every IPv6 form that carries an IPv4 address, not only `::ffff:x`: NAT64
+  `64:ff9b::/96` and 6to4 `2002::/16` are judged by the address inside, local-use NAT64 `64:ff9b:1::/48` and Teredo
+  `2001::/32` are refused. `verify` must also turn non-UTF-8 body bytes into `SignatureError`. Both were found by the
+  orchestrator's review of 7b6c704; the cases are rows in `test_webhook_egress.py` and `test_webhook_signing.py`.
+  Evidence: `egress.is_public`; orchestrator review at 7b6c704. Status: active
+
+- **L-P0-I5-B5** · 2026-10-09 · tags: ledger, tests
+  `uow.ledger.stream_version()` reads through another connection, so it misses events appended earlier in the same unit of
+  work and chained commands on one stream fail with `ConcurrencyError`. Read the version with `SELECT MAX(stream_version)`
+  on `uow.conn()` (`webhooks.subscriptions.current_version`). The contract scenario chains update, rotate, disable and enable
+  in one unit of work on purpose. Also: pyright does not see a sibling test helper in another directory; the root
+  `extraPaths = ["tests/webhooks"]` lets `tests/contract` import `world.py`.
+  Evidence: `tests/contract/test_webhook_catalog_contract.py`; first run raised `expected version 1, found 2`. Status: active
 - **L-P0-I5-A1** · 2026-10-09 · tags: ledger, sync
   On Postgres every write transaction takes one advisory lock first (`engine.write_tx`), the analogue of `BEGIN IMMEDIATE`. That
   resolves L-P0-I4-A2 (commit order equals seq order, so a poller needs no lag window) and L-P0-I3-O2 (guard reads inside a write
@@ -484,3 +520,17 @@ test or a generated artefact already enforces, or narrative history (that belong
   run; a ticket that renames a test must say so in *Tests to add* when it also says "every test keeps its name"; a provided-test ticket's
   `git diff --stat` only lists new files once they are committed.
   Evidence: reports P0-I5-T13 and T09. Status: active
+
+- **L-P0-I5-B6** · 2026-10-09 · tags: tests
+  The ledger stamps `recorded_at` with the real clock, so a test that mixes a `FakeClock` (retry timers, lease expiry) with an
+  expiry compared against event times breaks the day the calendar passes the fake date: `test_expired_subscriptions_stop_receiving`
+  failed on 2026-10-10 because the fake "tomorrow" was already in the past of real events. Anything compared with event time uses
+  the real clock; anything compared with delivery state uses the fake one.
+  Evidence: `tests/webhooks/test_dispatcher.py`; failure on the first run after the date changed. Status: active
+
+- **L-P0-I5-B7** · 2026-10-10 · tags: process, tooling
+  When two increments create the same path (`tl_adapters/sqlite/factory.py` in P0-I4 workstream C and in P0-I5 workstream B), the
+  orchestrator names the canonical commit and the later branch copies the file verbatim and adapts its callers, rather than merging
+  two different files. After merging workstream A, `just check` failed on codegen drift because its `COLLATE "C"` change altered the
+  Postgres DDL of tables that workstream B had added: run `just gen` after every merge that touches a generator.
+  Evidence: `git show c073261:...factory.py`; `differs: ddl/postgres/wh_delivery.sql`. Status: active

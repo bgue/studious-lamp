@@ -110,3 +110,20 @@ def rebuild_projections(
     return sqlite.uow.rebuild_projections(
         target, types=types, registry=registry, on_progress=on_progress
     )
+
+
+def make_uow_factory(
+    target: DbTarget,
+    *,
+    registry: ProjectorRegistry | None = None,
+    bus: Bus | None = None,
+) -> sqlite.factory.SqliteUowFactory | postgres.factory.PostgresUowFactory:
+    """A long-lived unit-of-work factory for ``target`` (one engine, many short transactions).
+
+    ``factory()`` opens a write unit of work and ``factory(readonly=True)`` a read snapshot on
+    either adapter; ``dispose()`` ends it. Servers and workers (the webhook worker, the API) build
+    one at start-up and pass it around.
+    """
+    if is_postgres(target):
+        return postgres.factory.PostgresUowFactory(str(target), registry=registry, bus=bus)
+    return sqlite.factory.SqliteUowFactory(target, registry=registry, bus=bus)
