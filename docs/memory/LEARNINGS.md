@@ -574,6 +574,6 @@ test or a generated artefact already enforces, or narrative history (that belong
 
 - **L-P0-I7-A5** · 2026-10-10 · tags: env
   `api.github.com` is refused (403) but release tarballs at `github.com/<owner>/<repo>/releases/download/<tag>/...` download. Litestream
-  v0.3.13 (Apache-2.0, `litestream-v0.3.13-linux-amd64.tar.gz`, sha256 eb75a3de...ba3b0) is unpacked into the git-ignored `dev/data/tools/`.
+  v0.3.13 (Apache-2.0, `litestream-v0.3.13-linux-amd64.tar.gz`, sha256 eb75a3de5cab03875cdae9f5f539e6aedadd66607003d9b1e7a9077948818ba0) is unpacked into the git-ignored `dev/data/tools/`.
   pgBackRest comes from `sudo apt-get install -y pgbackrest` (2.50).
   Evidence: this round's fetch. Status: active
