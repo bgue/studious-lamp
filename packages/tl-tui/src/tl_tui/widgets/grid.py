@@ -9,8 +9,7 @@ widgets.
 Filter (P0-I4): `apply_filter(text)` switches the rows to `ClientInterface.query_records` and keeps
 the match count from `count_records`; a syntax error is returned with its position and changes
 nothing. Live updates: `refresh_live(ids)` re-reads the loaded rows on a worker thread, applies
-them with `call_from_thread`, and marks the rows of `ids` that are new or changed with a bullet
-for `highlight_seconds`.
+them with `call_from_thread`, and marks the rows of `ids` with a bullet for `highlight_seconds`.
 """
 
 from __future__ import annotations
@@ -321,8 +320,9 @@ class RecordGrid(ScrollView, can_focus=True):
 
         The fetch runs in a worker thread and the result is applied with ``call_from_thread``;
         calls made while one is running are merged into one more pass. A result is dropped when the
-        rows were replaced meanwhile (a sort, a filter, End). Rows of ``record_ids`` that are new
-        or whose ``version`` differs from what was shown get a bullet for ``highlight_seconds``.
+        rows were replaced meanwhile (a sort, a filter, End). Rows of ``record_ids`` that are in the
+        result get a bullet for ``highlight_seconds`` (``record_ids`` are records someone else
+        just changed, so the mark does not depend on what an earlier read already showed).
         """
         self._live_marks.update(record_ids)
         if self._live_running:
@@ -358,15 +358,10 @@ class RecordGrid(ScrollView, can_focus=True):
     ) -> None:
         self._live_running = False
         if page is not None and generation == self._generation:
-            shown = {row["id"]: row.get("version") for row in self.rows}
             current = self.cursor_record
             if self.highlight_seconds > 0:
                 until = time.monotonic() + self.highlight_seconds
-                fresh = [
-                    row["id"]
-                    for row in page
-                    if row["id"] in marks and shown.get(row["id"], -1) != row.get("version")
-                ]
+                fresh = [row["id"] for row in page if row["id"] in marks]
                 for record_id in fresh:
                     self.changed_until[record_id] = until
                 if fresh:
@@ -385,9 +380,12 @@ class RecordGrid(ScrollView, can_focus=True):
             self.refresh_live()
 
     def _expire_marks(self) -> None:
+        """Drop the marks whose time is up, redraw, and re-arm for the ones still running."""
         now = time.monotonic()
         self.changed_until = {i: t for i, t in self.changed_until.items() if t > now}
         self.refresh()
+        if self.changed_until:  # a timer can fire a hair early: come back for what is left
+            self.set_timer(min(self.changed_until.values()) - now + 0.02, self._expire_marks)
 
     def is_marked(self, record_id: str) -> bool:
         """Whether the row shows the "changed by someone else" mark now."""

@@ -154,9 +154,9 @@ class RemoteClient:
         self._api = api
         self._feed_api = feed_api if feed_api is not None else (lambda: api)
         self.own_writes = OwnWrites()
-        #: Called as ``listener(state, detail)`` when reachability changes (any thread).
-        self.connection_listener: Callable[[ConnectionState, str], None] | None = None
+        self._listener: Callable[[ConnectionState, str], None] | None = None
         self._state: ConnectionState = "live"
+        self._detail = ""
         self._lock = threading.Lock()
 
     @classmethod
@@ -169,6 +169,23 @@ class RemoteClient:
             ApiClient(base_url, token, timeout=timeout),
             feed_api=lambda: ApiClient(base_url, token, timeout=timeout),
         )
+
+    @property
+    def connection_listener(self) -> Callable[[ConnectionState, str], None] | None:
+        """Called as ``listener(state, detail)`` when reachability changes (from any thread).
+
+        Setting a listener tells it the current state at once if that is not "live": the first
+        failed call (the grid's load) may happen before the app has attached.
+        """
+        return self._listener
+
+    @connection_listener.setter
+    def connection_listener(self, listener: Callable[[ConnectionState, str], None] | None) -> None:
+        with self._lock:
+            self._listener = listener
+            state, detail = self._state, self._detail
+        if listener is not None and state != "live":
+            listener(state, detail)
 
     @property
     def base_url(self) -> str:
@@ -219,7 +236,7 @@ class RemoteClient:
         with self._lock:
             if state == self._state:
                 return
-            self._state = state
-            listener = self.connection_listener
+            self._state, self._detail = state, detail
+            listener = self._listener
         if listener is not None:
             listener(state, detail)

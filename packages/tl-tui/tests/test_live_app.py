@@ -187,7 +187,7 @@ def test_the_mark_fades_after_highlight_seconds() -> None:
         record_id = row_of(grid, "FV-1002")["id"]
         await until(pilot, lambda: grid.is_marked(record_id))
         await until(pilot, lambda: not grid.is_marked(record_id))
-        assert "•" not in screen_text(app)
+        await until(pilot, lambda: "•" not in screen_text(app))
 
     run_pilot(app, scenario)
 
