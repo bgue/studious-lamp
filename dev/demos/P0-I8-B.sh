@@ -78,6 +78,11 @@ if grep -q 'registered' <<<"$out"; then echo "DEMO FAILED: a second sync registe
 tl types ls
 tl types show co.acme.LiftPlan@1.0.0
 
+step "the package's settings.yaml is registered: about:config knows its key"
+out="$(tl config get co.acme.lift_plan.max_load_tonnes --long)"
+echo "$out"
+expect "$out" '250'
+
 step "the running API serves the new type without a restart (the schema provider notices it)"
 for _ in $(seq 1 30); do
   out="$(api GET /types)"

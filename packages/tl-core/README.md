@@ -93,7 +93,7 @@ The ledger is sealed into signed, hash-chained segments that do not depend on th
 Restore is not here: it inserts events verbatim through `tl_adapters.<dialect>.admin.restore_events` (`tl_adapters.restore.restore_from_archive`). `events.parquet` uses the ledger `events` column names, so the lake can load a segment directly.
 
 ## Extension record types (`tl_core.extypes`, P0-I8 workstream B)
-A company adds a record type with a package of files (brief 31, 27.3). Runbook: `docs/runbooks/extension-types.md`. Plan and decisions B1 to B14: `docs/tickets/P0-I8/README-B.md`. `extypes/types.py` is the frozen contract.
+A company adds a record type with a package of files (brief 31, 27.3). Runbook: `docs/runbooks/extension-types.md`. Plan and decisions B1 to B15: `docs/tickets/P0-I8/README-B.md`. `extypes/types.py` is the frozen contract.
 
 | Name | Kind | Purpose |
 |---|---|---|
@@ -104,6 +104,7 @@ A company adds a record type with a package of files (brief 31, 27.3). Runbook: 
 | `loader.TypeLoader`, `provider.attach`, `LedgerExtensionSource` | classes, function | Verify files against the registered hashes; add registered types to the effective schema (`DirectorySchemaProvider.attach_extensions`); call `attach(factory)` where a process opens its ledger |
 | `service.type_detail`, `summarise`, `prepare_create`, `forms.type_form`, `watch.watch` | functions | What the API, MCP and TUI return for a type; the generated form (`form.yaml` groups); a polling directory watcher |
 | `body.store_body`, `store_record_body`, `create_extension_record`, `read_body`, `load_body`, `recheck_body`, `list_body_quarantine` | functions | Object-backed bodies (`records/<type>/<id>/<sha256>.json`): validated, written once per hash, hash-verified on every read, damaged ones quarantined in `tl_body_quarantine` |
+| `settings_link.refresh`, `refresh_from_ledger`, `clash_issues` | functions | The `settings.yaml` keys of the newest verified version of each usable type, registered in `tl_core.settings.registry` under the type name; a key another owner defines quarantines the package at sync |
 | `errors` | exceptions | `UnknownTypeError`, `TypeNotActiveError`, `Body*Error` (all `ServiceError`) |
 
 ## Depends on / used by

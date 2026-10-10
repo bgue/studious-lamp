@@ -96,6 +96,10 @@ class TypeLoader:
                 self._checked[key] = now
         return result
 
+    def verify(self, registration: TypeRegistration) -> str | None:
+        """Why the files no longer match ``registration``, or ``None`` when they do (no compile)."""
+        return self._files_problem(registration)
+
     def forget(self) -> None:
         with self._lock:
             self._loaded.clear()

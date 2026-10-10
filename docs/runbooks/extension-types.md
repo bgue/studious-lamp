@@ -44,6 +44,8 @@ Purpose: add, check, change and retire a company record type (a package of files
 1. `tl types quarantine ls` repeats the report; `tl types show <type_ref>` shows one version.
 2. Fix the files, run `tl types lock`, then `tl types sync <root>`: the version registers.
 
+A `settings` issue `key '<key>' is already defined by <owner>` means another type (or the platform) owns a key of this package's `settings.yaml`. Rename the key, then `tl types lock` and sync (the changed hash makes sync look again).
+
 ### `conflict <type_ref> (kept <hash>)`
 The files of a registered version were edited. The registration stays and the edit is refused; a version is immutable.
 1. Put the files back (the version registers cleanly again), or publish the change as a new version directory (`1.1.0`) and sync.
@@ -72,6 +74,12 @@ tl types deprecate <type_ref> --reason "replaced by 2.0.0"
 ```
 Expected: `deprecated <type_ref>`. Existing records stay readable and editable; creating one answers 409 `type_not_active`.
 
+### Settings of a type
+A package's `settings.yaml` defines keys that start with its namespace (`co.acme.lift_plan.max_load_tonnes`). The newest usable version of each type registers them, under the type name as owner, in every process that attaches to the ledger (the CLI, the API, MCP, the TUI), so `tl config ls|get|set`, the API and the TUI list and validate them like platform keys. A key leaves the registry when its type's files no longer match the registration (or the type is quarantined) and returns with them; values already stored stay in the ledger. A long-running server picks up another process's `tl types sync` at its next record read (about a second).
+```
+tl config get co.acme.lift_plan.max_load_tonnes --long
+```
+
 ### Use a type
 - API: `GET /types`, `POST /types/<ns.Name>/records` (`body` for an object-backed type, `psets` for a managed one), `GET|PUT /records/<id>/body`.
 - CLI: `tl record create --type <ns.Name> ...` for a managed type; an object-backed type needs a body, so use the API or the TUI.
@@ -87,5 +95,6 @@ Expected: `deprecated <type_ref>`. Existing records stay readable and editable; 
 - Edits to a registered version's files are refused, so there is nothing to undo; restore the files from version control.
 
 ## Related
-- Plan and decisions B1 to B14: `docs/tickets/P0-I8/README-B.md`. Object store: `docs/runbooks/object-store-reconciliation.md`. Rebuilding projections keeps `tl_body_quarantine`: `docs/runbooks/rebuild-projections.md`.
+- Plan and decisions B1 to B15: `docs/tickets/P0-I8/README-B.md`. Object store: `docs/runbooks/object-store-reconciliation.md`. Rebuilding projections keeps `tl_body_quarantine`: `docs/runbooks/rebuild-projections.md`.
+- Settings: `docs/runbooks/workflow-link-numbering-config.md` and `tl config --help`.
 - Known limits (v0): directory-backed storage and external writers, `type.lock` signing, a change-classification gate between versions, activating `workflow.yaml`, proposable bodies for agents.

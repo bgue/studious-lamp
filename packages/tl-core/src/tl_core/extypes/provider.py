@@ -27,8 +27,9 @@ from collections.abc import Callable
 from sqlalchemy import text
 from tl_schema.packages import PackageDoc
 
-from tl_core.extypes import registry
+from tl_core.extypes import registry, settings_link
 from tl_core.extypes.loader import LoadedType, TypeLoader, default_loader
+from tl_core.extypes.types import TypeView
 from tl_core.schema_provider import DirectorySchemaProvider, get_provider
 
 DEFAULT_TTL_SECONDS = 1.0
@@ -117,7 +118,18 @@ class LedgerExtensionSource:
                 unavailable[view.registration.type_ref] = loaded.reason
         with self._lock:
             self._unavailable = unavailable
+        self._refresh_settings(views)
         return documents
+
+    def refresh_settings(self) -> None:
+        """Make the settings registry hold the keys of this ledger's registered types."""
+        settings_link.refresh_from_ledger(self._factory, self._loader.verify)
+
+    def _refresh_settings(self, views: list[TypeView]) -> None:
+        try:
+            settings_link.refresh(views, self._loader.verify)
+        except Exception as exc:  # the schema must never fail because a settings key did
+            log.warning("extension type settings not refreshed: %s", exc)
 
     def unavailable(self) -> dict[str, str]:
         """Type ref to the reason, for registered types left out of the schema at the last read."""
@@ -138,4 +150,5 @@ def attach(
         return None
     source = LedgerExtensionSource(factory, ttl=ttl)
     provider.attach_extensions(source)
+    source.refresh_settings()  # the settings keys of the registered types, before the first read
     return source

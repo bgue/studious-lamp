@@ -36,8 +36,10 @@ from typing import Any, Protocol
 from pydantic import BaseModel
 from sqlalchemy import Connection, text
 
+from tl_core.extypes import settings_link
 from tl_core.extypes.compile import TYPE_FILE
 from tl_core.extypes.errors import TypeNotActiveError, UnknownTypeError
+from tl_core.extypes.loader import default_loader
 from tl_core.extypes.lock import LOCK_NAME
 from tl_core.extypes.names import (
     REGISTRY_SCOPE,
@@ -339,6 +341,8 @@ def sync(
     """
     schema_provider = provider if provider is not None else get_provider()
     changed: list[TypeView] = []
+    # the keys the registered types define, so a new package that repeats one is quarantined
+    settings_link.refresh_from_ledger(uow_factory, default_loader().verify)
     for package in scan(root):
         try:
             described = describe_package(package, root)
@@ -350,6 +354,8 @@ def sync(
         )
         if view is not None:
             changed.append(view)
+            # a type registered in this call defines its keys for the next package of the scan
+            settings_link.refresh_from_ledger(uow_factory, default_loader().verify)
     return changed
 
 
@@ -377,6 +383,10 @@ def _register_package(
         if validated is None:
             validated = validate_package(package, provider=provider, root=root, described=described)
         registration, issues = validated
+        if registration is not None and described.coords is not None:
+            clashes = settings_link.clash_issues(package, described.coords)
+            if clashes:
+                registration, issues = None, clashes
         try:
             with uow_factory(readonly=False) as uow:
                 decision = _decide(uow, described, registration, issues, actor=actor)

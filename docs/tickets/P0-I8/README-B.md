@@ -1,6 +1,6 @@
 # Increment plan: P0-I8 workstream B, extension record type registry v0
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-10
 Brief sections: §31 (extension record types), §27.3 and §27.4 (effective schema, package lifecycle), §6.3 (psets), §30 (settings, for the last ticket)
 Branch: `p0/i8b` (worktree `/home/user/wt/p0-i8b`), based on `p0/i8`; fanout plan `docs/tickets/P0-I8/FANOUT.md` (decisions D7 to D11 bind this workstream)
@@ -56,6 +56,7 @@ a 502, `tl types quarantine ls` lists it, `recheck` says `still failing`, storin
 | B12 | **Discovery is polling (D8).** `watch` compares per-package signatures (file sizes, mtimes, the lock bytes) every interval and syncs on a change. The schema provider asks the database for a cheap token at most once a second (and at once after this process registers something), so a `tl types sync` in another process shows up within a second. |
 | B13 | **Not in v0** (recorded as follow-ups): directory-backed storage and external `incoming/` writers (D11); signing `type.lock` on publish (D9); a change-classification gate between versions of one type (§27.5: additive, constraining, breaking); `workflow.yaml` is validated but not yet loaded into the workflow registry; proposable `store_body`; bucket events. |
 | B14 | **A ledger made before this change has no registry tables.** The source treats any failure to read them as "no types", so nothing else breaks; `tl init` (idempotent) adds the tables. |
+| B15 | **Settings keys of a type.** `read_settings` validates `settings.yaml` at sync (namespace prefix, owner = type name, no secret keys). `extypes/settings_link.py` keeps the settings registry equal to the keys of the newest *verified* version of each usable type: `refresh` runs when a process attaches, at every effective-schema read of the source and in `sync` (before the scan and after each registration). Departed types are unregistered. A key another owner defines quarantines the package at sync (a `settings` issue); if one still reaches `refresh` it is logged and that type's settings are skipped. Stored values stay in the ledger. |
 
 ## Supervisor-built pieces (in order)
 | # | Piece | Why supervisor-tier | Reviewer | Status |
@@ -67,6 +68,7 @@ a 502, `tl types quarantine ls` lists it, `recheck` says `still failing`, storin
 | S24 | `type_form`, `type_detail`, the polling watcher, API error rows, `ApiContext.objects`, `McpContext.objects` | contracts the tickets share | | done |
 | S25 | Stubs and provided tests for T20 to T22, with scratch reference implementations | scaffolds | | done |
 | S40 | CLI help text without stub notes, the cross-surface test (CLI, API, MCP, embedded and remote TUI on one ledger), the demo, status judged before files, quiet SchemaView | polish across surfaces | | done |
+| S44 | Settings registration (`settings_link`), the `settings` clash check in `sync`, the base merge of workstream A | last planned piece (needs A's `register_definitions`) | | done |
 | S41 | `e` on an object-backed record opens the body edit form (T27 wired), tested on the fake, a real ledger and a remote server | app wiring | | done |
 | S33 | `ClientInterface` growth (`list_types`, `get_type`, `create_instance`, `get_record_body`, `put_record_body`), `EmbeddedClient`, the fake client's type support, `store_record_body`, `tl tui --type` | public interface and fakes | | done |
 
