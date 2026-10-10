@@ -84,6 +84,9 @@ def write_keypair(path: Path, *, overwrite: bool = False) -> Ed25519Signer:
     path.parent.mkdir(parents=True, exist_ok=True)
     pem = signer.private_pem()
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(
+        fd, 0o600
+    )  # the mode above applies only to a new file; an overwrite keeps the old one
     with os.fdopen(fd, "wb") as handle:
         handle.write(pem)
     public_key_path(path).write_text(signer.public_key.hex() + "\n", encoding="utf-8")

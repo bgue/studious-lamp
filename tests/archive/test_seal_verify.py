@@ -515,3 +515,88 @@ def test_manifest_json_is_canonical(sealed: tuple[Any, Any]) -> None:
     assert data == canonical_bytes(json.loads(data))
     signing = manifest_signing_bytes(SegmentManifest.model_validate_json(data))
     assert b'"signature"' not in signing
+
+
+# --- review round: missing directories, untouched scopes, trailing segments, key mode ---------
+
+
+def test_a_segment_directory_with_no_ndjson_and_no_manifest_is_a_missing_file(
+    sealed: tuple[Any, Any], signer: Any
+) -> None:
+    _, store = sealed
+    for name in (NDJSON, MANIFEST):
+        store.remove(f"{SEG2}/{name}")
+    [issue] = verify(store, signer)
+    assert (issue.kind, issue.segment) == ("missing_file", SEG2.split("/")[1])
+    assert "events.ndjson is missing" in issue.detail
+
+
+def test_the_sealer_notices_a_divergence_in_a_scope_the_new_segment_does_not_touch(
+    make_box: MakeBox, memory_store: MakeStore, signer: Ed25519Signer, tmp_path: Path
+) -> None:
+    """Seq 3 (scope company) is altered consistently; the new event is in another scope."""
+    import sqlite3
+
+    one = make_box("a")
+    one.add(4)
+    store = memory_store()
+    seal(one, store, signer)
+    two_path = tmp_path / "copy.db"
+    source, copy = sqlite3.connect(one.path), sqlite3.connect(two_path)
+    source.backup(copy)  # a database whose first four events are the sealed ones
+    source.close()
+    copy.close()
+    conn = sqlite3.connect(two_path)
+    conn.execute("DROP TRIGGER trg_events_no_update")
+    row = conn.execute("SELECT * FROM events WHERE seq = 3").fetchone()
+    assert row[7] == "company"
+    payload = '{"n":99,"tag":"x","text":"café"}'
+    new_hash = event_hash(row[14], row[1], row[2], row[4], row[5], payload, row[10])
+    conn.execute("UPDATE events SET payload = ?, hash = ? WHERE seq = 3", (payload, new_hash))
+    conn.commit()
+    conn.close()
+    from tl_adapters.sqlite.engine import make_engine
+    from tl_adapters.sqlite.ledger import SqliteLedger
+    from tl_core.ledger import NewEvent
+
+    engine = make_engine(two_path)
+    SqliteLedger(engine).append(
+        stream_id="late",
+        stream_type="test.Thing",
+        scope="project:P2",  # not the scope that was altered
+        expected_version=0,
+        events=[NewEvent(event_type="Thing.Created", payload={"n": 5})],
+        actor="user:u-1",
+        source="test",
+        correlation_id="c-late",
+    )
+    with read_tx(engine) as db:
+        with pytest.raises(ArchiveError, match="diverged"):
+            seal_segment(db, store, signer)
+    engine.dispose()
+
+
+def test_dropping_trailing_segments_is_only_found_with_a_recorded_last_seq_or_manifest(
+    sealed: tuple[Any, Any], signer: Any
+) -> None:
+    _, store = sealed
+    recorded_sha = sha256_hex(store.get_bytes(f"{SEG3}/{MANIFEST}"))
+    assert verify(store, signer, expect_last_seq=15, expect_manifest_sha256=recorded_sha) == []
+    assert verify(store, signer, expect_last_seq=9) == []  # a longer archive is fine
+    copy = store.copy()
+    for name in (NDJSON, PARQUET, MANIFEST):
+        copy.remove(f"{SEG3}/{name}")
+    assert verify(copy, signer) == []  # nothing inside the archive shows the loss
+    [issue] = verify(copy, signer, expect_last_seq=15)
+    assert (issue.kind, issue.seq) == ("seq_gap", 13)
+    assert "trailing segments are missing" in issue.detail
+    [issue] = verify(copy, signer, expect_manifest_sha256=recorded_sha)
+    assert issue.kind == "manifest_chain" and "not in the archive" in issue.detail
+
+
+def test_a_replaced_key_file_ends_up_private_even_if_it_was_world_readable(tmp_path: Path) -> None:
+    path = tmp_path / "k.key"
+    write_keypair(path)
+    path.chmod(0o644)
+    write_keypair(path, overwrite=True)
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import stat
 from pathlib import Path
@@ -52,6 +53,10 @@ class World:
 
     def run(self, *args: str, extra_env: dict[str, str] | None = None):  # noqa: ANN201
         return runner.invoke(app, list(args), env={**self.env, **(extra_env or {})})
+
+    def manifest_sha(self, segment: str) -> str:
+        data = (self.archive / "segments" / segment / "manifest.json").read_bytes()
+        return hashlib.sha256(data).hexdigest()
 
     def seal(self, *more: str):  # noqa: ANN201
         return self.run(
@@ -119,7 +124,10 @@ def test_seal_writes_segments_then_reports_nothing_new_then_continues(sealed: Wo
     assert sorted(p.name for p in (sealed.archive / "segments").iterdir()) == [SEG1, SEG2, SEG3]
     again = sealed.seal("--max-events", "4")
     assert again.exit_code == 0, again.output
-    assert again.stdout.splitlines() == ["nothing new to seal; archive is at seq 10"]
+    assert again.stdout.splitlines() == [
+        "nothing new to seal; archive is at seq 10",
+        f"record outside the archive: last_seq 10 manifest_sha256 {sealed.manifest_sha(SEG3)}",
+    ]
 
     add_events(sealed.db, 11, 3)
     more = sealed.seal("--max-events", "4")
@@ -127,6 +135,8 @@ def test_seal_writes_segments_then_reports_nothing_new_then_continues(sealed: Wo
     assert more.stdout.splitlines() == [
         "sealed segment 000000000011-000000000013 (3 events, seq 11..13)",
         "sealed 1 segments; archive is at seq 13",
+        "record outside the archive: last_seq 13 manifest_sha256 "
+        + sealed.manifest_sha("000000000011-000000000013"),
     ]
 
 
@@ -140,6 +150,7 @@ def test_the_first_seal_prints_one_line_per_segment_and_a_summary(world: World) 
         f"sealed segment {SEG2} (4 events, seq 5..8)",
         f"sealed segment {SEG3} (2 events, seq 9..10)",
         "sealed 3 segments; archive is at seq 10",
+        f"record outside the archive: last_seq 10 manifest_sha256 {world.manifest_sha(SEG3)}",
     ]
 
 
@@ -258,3 +269,30 @@ def test_verify_needs_an_archive_and_a_readable_public_key(world: World, sealed:
         str(world.archive / "absent.pub"),
     )
     assert no_key.exit_code == 1 and "error: cannot read the public key" in no_key.stderr
+
+
+def test_verify_catches_dropped_trailing_segments_with_the_recorded_seq_and_manifest(
+    sealed: World,
+) -> None:
+    recorded = sealed.manifest_sha(SEG3)
+    ok = sealed.verify("--expect-last-seq", "10", "--expect-manifest", recorded)
+    assert ok.exit_code == 0, ok.output
+    assert ok.stdout.splitlines() == ["verified 3 segments, seq 1..10 (10 events)"]
+
+    seg3 = sealed.archive / "segments" / SEG3
+    for name in ("events.ndjson", "events.parquet", "manifest.json"):
+        (seg3 / name).chmod(0o644)
+        (seg3 / name).unlink()
+    seg3.rmdir()
+    assert sealed.verify().exit_code == 0  # nothing inside the archive shows the loss
+    short = sealed.verify("--expect-last-seq", "10")
+    assert short.exit_code == 1 and isinstance(short.exception, SystemExit)
+    assert short.stdout.splitlines() == [
+        "divergence: seq_gap segment=- seq=9: the archive ends at seq 8 but the record says it "
+        "reached 10: trailing segments are missing"
+    ]
+    wrong = sealed.verify("--expect-manifest", recorded)
+    assert wrong.exit_code == 1
+    assert wrong.stdout.startswith(
+        "divergence: manifest_chain segment=- seq=-: the recorded manifest "
+    )

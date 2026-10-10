@@ -123,7 +123,7 @@ def _check_segment(
     for filename in SEGMENT_FILES:
         if filename not in files:
             missing = _issue("missing_file", name, None, f"{filename} is missing")
-            if filename == MANIFEST:
+            if MANIFEST not in files:
                 return missing, None, None, []
             # The manifest still tells the chain where it stands, so later segments are judged
             # on their own faults rather than on this one.
@@ -208,6 +208,8 @@ def verify_archive(
     conn: Connection | None = None,
     deep: bool = False,
     stop_at_first: bool = True,
+    expect_last_seq: int | None = None,
+    expect_manifest_sha256: str | None = None,
 ) -> list[VerifyIssue]:
     """Verify the archive; an empty list means verified.
 
@@ -215,9 +217,21 @@ def verify_archive(
     ``deep`` also checks that each ``events.parquet`` holds exactly its ndjson events.
     ``stop_at_first`` (the default) returns as soon as one divergence is found; otherwise at most
     one issue per segment is reported, in segment order.
+
+    The archive cannot show that whole trailing segments were removed: an archive that lags the
+    database is normal. Record the last seq and the SHA-256 of the newest manifest outside the
+    archive store (``tl archive seal`` prints them) and pass them back as ``expect_last_seq``
+    (the archive must reach at least that seq) and ``expect_manifest_sha256`` (that manifest must
+    still be in the chain). An archive longer than the record is fine.
+
+    Design notes. Extra, unsigned fields added to a manifest are not covered by its signature but
+    are covered by the next manifest's ``prev_manifest_sha256``, so adding one to anything but the
+    newest manifest breaks the chain. ``sealed_at`` is not part of a segment's content: a seal that
+    is re-run after a crash records a new time, which is fine.
     """
     issues: list[VerifyIssue] = []
     chain = _Chain()
+    seen_manifests: set[str] = set()
     for name, files in list_segment_names(store).items():
         issue, manifest, manifest_data, events = _check_segment(
             store, name, files, public_key, chain, deep
@@ -231,8 +245,31 @@ def verify_archive(
         if manifest is not None and manifest_data is not None:
             chain.next_seq = manifest.last_seq + 1
             chain.prev_manifest_sha = sha256_hex(manifest_data)
+            seen_manifests.add(chain.prev_manifest_sha)
             for scope, scope_chain in manifest.scopes.items():
                 chain.scope_last[scope] = scope_chain.last_hash
+    have = chain.next_seq - 1
+    if expect_last_seq is not None and have < expect_last_seq:
+        issues.append(
+            _issue(
+                "seq_gap",
+                None,
+                have + 1,
+                f"the archive ends at seq {have} but the record says it reached {expect_last_seq}: "
+                "trailing segments are missing",
+            )
+        )
+        if stop_at_first:
+            return issues
+    if expect_manifest_sha256 is not None and expect_manifest_sha256 not in seen_manifests:
+        issues.append(
+            _issue(
+                "manifest_chain",
+                None,
+                None,
+                f"the recorded manifest {expect_manifest_sha256[:16]}... is not in the archive",
+            )
+        )
     return issues
 
 

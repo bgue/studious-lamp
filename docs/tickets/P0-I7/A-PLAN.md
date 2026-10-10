@@ -17,7 +17,8 @@ WS-B owns `dev/demos/P0-I7.sh`. This workstream's own check is the drill (`bash 
 | # | Piece | Why supervisor-tier | Reviewer | Status |
 |---|---|---|---|---|
 | S10 | `tl_core.archive`: sealer (crash-idempotent), verifier (first divergence per `VerifyIssue` kind), Ed25519 `Signer`, segment encodings (NDJSON, Parquet by DuckDB) | Hash-chain integrity and crash safety; migration-like data path | orchestrator | done (abf5c2b) |
-| S11 | `restore_events` in `tl_adapters.{sqlite,postgres}.admin` and `tl_adapters.restore.restore_from_archive` | Writes events outside `Ledger.append` (D1); data conversion path | orchestrator | done (18e2bfe) |
+| S11 | `restore_events` in `tl_adapters.{sqlite,postgres}.admin` and `tl_adapters.restore.restore_from_archive` | Writes events outside `Ledger.append` (D1); data conversion path | orchestrator | done (18e2bfe); review fixes in S14 |
+| S14 | Review fixes to S10 and S11: missing-directory handling, sealed-prefix check for every scope, one-transaction restore with a schema check first and schema-hash warnings, `--expect-last-seq`/`--expect-manifest`, key file mode | Same pieces | orchestrator (short re-review of items 2 and 3) | done |
 | S12 | pgBackRest config and `dev/drills/pgbackrest.sh` against a scratch cluster; Litestream config | Needs sudo, a scratch cluster and measurements; not ticket-shaped | reviewer | planned |
 | S13 | `dev/drills/restore.sh` and `docs/templates/restore-drill.md` | Measures RPO and RTO across SQLite, Postgres and archive | reviewer | planned |
 

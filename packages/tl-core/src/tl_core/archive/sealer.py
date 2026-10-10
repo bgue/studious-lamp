@@ -122,6 +122,27 @@ def _scope_chains(events: list[Event], state: ChainState) -> dict[str, ScopeChai
     return chains
 
 
+_SCOPE_HASH = text(
+    "SELECT hash FROM events WHERE scope = :scope AND seq <= :last ORDER BY seq DESC LIMIT 1"
+)
+
+
+def _check_sealed_prefix(conn: Connection, state: ChainState) -> None:
+    """Refuse to continue when the database disagrees with what is already sealed.
+
+    Every scope's newest sealed event must be the database's newest event of that scope at or
+    below the last sealed seq. That covers the event at the last sealed seq itself and every scope
+    the new segment does not touch, which the per-event chain check cannot see.
+    """
+    for scope, sealed_hash in sorted(state.scope_last.items()):
+        found = conn.execute(_SCOPE_HASH, {"scope": scope, "last": state.last_seq}).scalar()
+        if found != sealed_hash:
+            raise ArchiveError(
+                f"the database has diverged from what is sealed: scope {scope!r} ends at hash "
+                f"{found!r} at or below seq {state.last_seq}, the archive says {sealed_hash!r}"
+            )
+
+
 def _put_same(store: ArchiveStore, key: str, data: bytes) -> None:
     """Write ``data`` at ``key``; a file already there is accepted only if it is identical."""
     if store.exists(key):
@@ -155,6 +176,7 @@ def seal_segment(
         raise ArchiveError(
             f"the database head ({head}) is behind the last sealed seq ({state.last_seq})"
         )
+    _check_sealed_prefix(conn, state)
     if state.orphan is not None:
         first, last, _ = state.orphan
         if last > head:

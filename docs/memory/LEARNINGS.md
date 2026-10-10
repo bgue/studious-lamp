@@ -577,3 +577,13 @@ test or a generated artefact already enforces, or narrative history (that belong
   v0.3.13 (Apache-2.0, `litestream-v0.3.13-linux-amd64.tar.gz`, sha256 eb75a3de5cab03875cdae9f5f539e6aedadd66607003d9b1e7a9077948818ba0) is unpacked into the git-ignored `dev/data/tools/`.
   pgBackRest comes from `sudo apt-get install -y pgbackrest` (2.50).
   Evidence: this round's fetch. Status: active
+
+- **L-P0-I7-A6** · 2026-10-10 · tags: ledger, process
+  Review of the sealer found three rules worth keeping. (1) A sealer must compare the database with what is already sealed for every scope, not only
+  the scopes in the new segment: an altered old event in an untouched scope is invisible to the per-event chain check. (2) A restore must be one
+  transaction (insert, promoted columns, replay through the same connection), because a committed insert followed by a failed rebuild leaves a
+  database that the next run refuses as "not empty". Check the schema provider before writing anything. (3) Nothing inside an archive shows that
+  trailing segments were removed; `tl archive seal` prints `last_seq` and the newest manifest sha, to be kept elsewhere and passed to
+  `tl archive verify --expect-last-seq N --expect-manifest SHA`.
+  Evidence: `test_the_sealer_notices_a_divergence_in_a_scope_the_new_segment_does_not_touch`,
+  `test_a_failure_during_the_replay_rolls_everything_back_and_a_rerun_works`, `test_dropping_trailing_segments_...`. Status: active

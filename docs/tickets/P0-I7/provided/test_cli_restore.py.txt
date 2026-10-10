@@ -193,3 +193,31 @@ def test_restore_into_an_empty_postgres_schema_hides_the_password(world: World, 
     finally:
         engine.dispose()
     assert hashes == [row[16] for row in event_rows(world.db)]
+
+
+def test_schema_warnings_go_to_stderr_after_the_two_summary_lines(
+    world: World, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import tl_cli.restore as restore_module
+    from tl_adapters.restore import RestoreResult
+
+    def fake(*args: object, **kwargs: object) -> RestoreResult:
+        return RestoreResult(
+            events=1,
+            segments=1,
+            last_seq=1,
+            verify_seconds=0.0,
+            insert_seconds=0.0,
+            rebuild_seconds=0.0,
+            total_seconds=0.0,
+            warnings=("scope project:P1: schemas differ", "scope company: schemas differ"),
+        )
+
+    monkeypatch.setattr(restore_module, "restore_from_archive", fake)
+    result = world.restore(str(tmp_path / "w.db"))
+    assert result.exit_code == 0, result.output
+    assert len(result.stdout.splitlines()) == 2
+    assert result.stderr.splitlines() == [
+        "warning: scope project:P1: schemas differ",
+        "warning: scope company: schemas differ",
+    ]

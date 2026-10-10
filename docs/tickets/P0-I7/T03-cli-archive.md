@@ -9,7 +9,7 @@ Branch: `p0/i7a-t03-cli-archive`
 ## Goal
 Three commands drive the ledger archive from the command line: create the signing key, seal new events into segments, and verify the archive (optionally against a database), printing the
 first divergence. The group, its option aliases, `_fail`, `_target` and `_signer` exist in `packages/tl-cli/src/tl_cli/archive.py` and are registered in `main.py`; the three command bodies
-raise `NotImplementedError`. A provided test file (12 tests) must pass. The commands contain no archive rules: they parse options, call `tl_core.archive` and `tl_adapters`, and print.
+raise `NotImplementedError`. A provided test file (13 tests) must pass. The commands contain no archive rules: they parse options, call `tl_core.archive` and `tl_adapters`, and print.
 
 ## Brief references (pasted)
 > **24.3 Ledger archive:** sealed segments, NDJSON + Parquet, with a signed hash manifest continuing the hash chain, written to an independent location. A database-independent restore path.
@@ -23,11 +23,13 @@ raise `NotImplementedError`. A provided test file (12 tests) must pass. The comm
   `engine = make_engine(target)`. Loop: `with read_tx(engine) as conn: manifest = seal_segment(conn, store, signer, max_events=max_events)`; stop when it returns `None`. For each manifest print
   `sealed segment {segment_name(first_seq, last_seq)} ({event_count} events, seq {first_seq}..{last_seq})`. Turn `ArchiveError` into `_fail(str(exc))`; always `engine.dispose()` in a `finally`.
   After the loop, `summary = summarize_archive(store)` and print `sealed {n} segments; archive is at seq {summary.last_seq}` (always the word "segments"), or, when `n == 0`,
-  `nothing new to seal; archive is at seq {summary.last_seq}`.
-- `verify` (`--archive DIR`, `--public-key FILE`, `--db TARGET`, `--deep`, `--all`): fail with `no archive at {archive}` unless `archive.is_dir()` (do this before building a store: `FsArchiveStore` creates
+  `nothing new to seal; archive is at seq {summary.last_seq}`. If `summary.last_manifest_sha256` is not `None`, print one more line (also when nothing was sealed):
+  `record outside the archive: last_seq {summary.last_seq} manifest_sha256 {summary.last_manifest_sha256}`. Operators keep that line somewhere the archive store cannot reach,
+  because dropped trailing segments are invisible from inside the archive.
+- `verify` (`--archive DIR`, `--public-key FILE`, `--db TARGET`, `--deep`, `--all`, `--expect-last-seq N`, `--expect-manifest SHA`): fail with `no archive at {archive}` unless `archive.is_dir()` (do this before building a store: `FsArchiveStore` creates
   its directory). The public key path is `--public-key` or, when absent, `public_key_path(DEFAULT_KEY_PATH)`; `load_public_key` raising `FileNotFoundError` or `ValueError` goes to
   `_fail(f"cannot read the public key {path}: {exc}")`. If `--db` is a SQLite path (not `is_postgres`) that is not a file, `_fail(f"no ledger at {db}")`. Then call `verify_archive(store, public_key=..., deep=deep,
-  stop_at_first=not all_issues)`, adding `conn=` from `with read_tx(make_engine(db)) as conn` when `--db` is given (dispose the engine). Turn `ArchiveError` into `_fail(str(exc))`.
+  stop_at_first=not all_issues, expect_last_seq=expect_last_seq, expect_manifest_sha256=expect_manifest)`, adding `conn=` from `with read_tx(make_engine(db)) as conn` when `--db` is given (dispose the engine). Turn `ArchiveError` into `_fail(str(exc))`.
   For each issue print `divergence: {kind} segment={segment or '-'} seq={seq or '-'}: {detail}` (use `-` only when `seq` is `None`; a seq of 0 does not occur) and exit with `raise typer.Exit(code=1)`; print
   nothing else on failure. With no issue: `summary = summarize_archive(store)`; print `verified {segments} segments, seq 1..{last_seq} ({events} events)`, or `verified 0 segments (the archive is empty)` when
   `segments == 0`; and when `--db` was given a second line `database {display_target(db)} agrees up to seq {last_seq}`.
@@ -45,8 +47,10 @@ Learnings that apply:
 def seal_segment(conn: Connection, store: ArchiveStore, signer: Signer, *, max_events: int = 10_000,
                  clock=...) -> SegmentManifest | None
 def verify_archive(store: ArchiveStore, *, public_key: bytes, conn: Connection | None = None,
-                   deep: bool = False, stop_at_first: bool = True) -> list[VerifyIssue]
-def summarize_archive(store: ArchiveStore) -> ArchiveSummary   # .segments .events .last_seq .unsealed
+                   deep: bool = False, stop_at_first: bool = True,
+                   expect_last_seq: int | None = None,
+                   expect_manifest_sha256: str | None = None) -> list[VerifyIssue]
+def summarize_archive(store: ArchiveStore) -> ArchiveSummary   # .segments .events .last_seq .unsealed .last_manifest_sha256 (str | None)
 def write_keypair(path: Path, *, overwrite: bool = False) -> Ed25519Signer   # .key_id; raises FileExistsError
 def load_signer(path: Path) -> Ed25519Signer
 def load_public_key(path: Path) -> bytes          # FileNotFoundError / ValueError
@@ -88,7 +92,7 @@ uv run pytest packages/tl-cli/tests/test_cli_archive.py -q
 just check
 diff docs/tickets/P0-I7/provided/test_cli_archive.py.txt packages/tl-cli/tests/test_cli_archive.py
 ```
-Expected: 12 passed; `just check` clean; `diff` prints nothing.
+Expected: 13 passed; `just check` clean; `diff` prints nothing.
 
 ## Tests to add
 None beyond the provided file.

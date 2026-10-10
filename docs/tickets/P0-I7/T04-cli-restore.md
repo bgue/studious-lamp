@@ -8,7 +8,7 @@ Branch: `p0/i7a-t04-cli-restore`
 
 ## Goal
 `tl restore` rebuilds an empty SQLite file or an empty Postgres schema from a ledger archive alone and prints what it did. The command skeleton, `_fail`, the option declarations and its registration
-in `main.py` (`tl restore`, a top-level command) exist in `packages/tl-cli/src/tl_cli/restore.py`; the body raises `NotImplementedError`. A provided test file (7 tests) must pass. The command contains
+in `main.py` (`tl restore`, a top-level command) exist in `packages/tl-cli/src/tl_cli/restore.py`; the body raises `NotImplementedError`. A provided test file (8 tests) must pass. The command contains
 no restore logic: it parses options, makes one call into `tl_adapters.restore`, and prints.
 
 ## Brief references (pasted)
@@ -27,6 +27,8 @@ Body of `restore(from_archive, db, public_key)`, in this order:
    - any other `ArchiveError`: `_fail(str(exc))`.
 5. On success print two lines: `restored {events} events from {segments} segments into {display_target(db)} (last seq {last_seq})` and
    `verify {verify_seconds:.2f}s, insert {insert_seconds:.2f}s, rebuild {rebuild_seconds:.2f}s, total {total_seconds:.2f}s`.
+   Then, for each string in `result.warnings`, print `warning: {text}` to **stderr** (`typer.echo(..., err=True)`); a warning does not change the exit code. The warnings say the schema packages in force
+   now differ from the ones the ledger last recorded (promoted columns may differ).
 `display_target` hides a Postgres password; never print the raw `db` string.
 
 Learnings that apply:
@@ -45,6 +47,8 @@ def restore_from_archive(store: ArchiveStore, target: DbTarget, *, public_key: b
 class RestoreResult:
     events: int; segments: int; last_seq: int
     verify_seconds: float; insert_seconds: float; rebuild_seconds: float; total_seconds: float
+    schema_hashes: dict[str, str]; ledger_schema_hashes: dict[str, str]
+    warnings: tuple[str, ...]
 # tl_core.archive
 class ArchiveError(Exception): ...
 class RestoreError(ArchiveError):
@@ -82,7 +86,7 @@ uv run pytest packages/tl-cli/tests/test_cli_restore.py -q
 just check
 diff docs/tickets/P0-I7/provided/test_cli_restore.py.txt packages/tl-cli/tests/test_cli_restore.py
 ```
-Expected: 7 passed (the Postgres test included when the cluster is up); `just check` clean; `diff` prints nothing.
+Expected: 8 passed (the Postgres test included when the cluster is up); `just check` clean; `diff` prints nothing.
 
 
 ## Tests to add

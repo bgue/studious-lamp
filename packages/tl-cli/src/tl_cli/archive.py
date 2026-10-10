@@ -105,6 +105,19 @@ def verify(
     all_issues: Annotated[
         bool, typer.Option("--all", help="Report one divergence per segment, not only the first.")
     ] = False,
+    expect_last_seq: Annotated[
+        int | None,
+        typer.Option(
+            "--expect-last-seq", help="The archive must reach this seq (recorded at seal time)."
+        ),
+    ] = None,
+    expect_manifest: Annotated[
+        str | None,
+        typer.Option(
+            "--expect-manifest",
+            help="This manifest SHA-256 (recorded at seal time) must be in the chain.",
+        ),
+    ] = None,
 ) -> None:
     """Verify signatures, the manifest chain, every event hash and the per-scope chains."""
     raise NotImplementedError

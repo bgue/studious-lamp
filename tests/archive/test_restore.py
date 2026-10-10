@@ -329,3 +329,118 @@ def test_restore_events_demands_gap_free_seqs_from_one(
                 insert(conn, events)
     finally:
         engine.dispose()
+
+
+# --- review round: one transaction, provider checked first, schema warnings -----------------
+
+
+class Bomb:
+    """A projector that fails on the third record, to force a failure during the replay."""
+
+    name = "bomb"
+    handles = frozenset({"Record.Created"})
+
+    def __init__(self) -> None:
+        self.seen = 0
+
+    def ddl(self, dialect: str) -> list[str]:
+        return []
+
+    def reset(self, conn: Any) -> None:
+        self.seen = 0
+
+    def apply(self, conn: Any, event: Any) -> None:
+        self.seen += 1
+        if self.seen == 3:
+            raise RuntimeError("boom")
+
+
+def sealed_original(
+    new_db: Callable[[], DbTarget], memory_store: Callable[..., Any]
+) -> tuple[DbTarget, Store, Ed25519Signer]:
+    signer = generate_signer()
+    original = new_db()
+    create_schema(original)
+    populate(original)
+    store = memory_store()
+    seal_all(original, store, signer)
+    return original, store, signer
+
+
+def count_events(db: DbTarget) -> int:
+    engine = make_engine(db)
+    try:
+        with read_tx(engine) as conn:
+            return int(conn.execute(text("SELECT COUNT(*) FROM events")).scalar_one())
+    finally:
+        engine.dispose()
+
+
+def test_a_failure_during_the_replay_rolls_everything_back_and_a_rerun_works(
+    new_db: Callable[[], DbTarget], memory_store: Callable[..., Any]
+) -> None:
+    original, store, signer = sealed_original(new_db, memory_store)
+    target = new_db()
+    registry = default_registry()
+    registry.register(Bomb())
+    with pytest.raises(RuntimeError, match="boom"):
+        restore_from_archive(store, target, public_key=signer.public_key, registry=registry)
+    assert count_events(target) == 0  # the events went back with the failed replay
+
+    result = restore_from_archive(store, target, public_key=signer.public_key)
+    assert result.events == count_events(original)
+    assert snapshot(target) == snapshot(original)
+
+
+class Refusing:
+    def effective(self, scope: str) -> Any:
+        raise ValueError(f"no packages for {scope}")
+
+    def scopes(self) -> list[str]:
+        return []
+
+
+def test_an_unloadable_schema_is_found_before_anything_is_written(
+    new_db: Callable[[], DbTarget], memory_store: Callable[..., Any]
+) -> None:
+    _, store, signer = sealed_original(new_db, memory_store)
+    target = new_db()
+    with pytest.raises(RestoreError, match="nothing was written"):
+        restore_from_archive(
+            store, target, public_key=signer.public_key, schema_provider=Refusing()
+        )
+    if not str(target).startswith("postgresql://"):
+        assert not Path(str(target)).exists()  # not even the SQLite file was created
+
+
+class OtherHashes:
+    """The real provider, but every effective schema reports a different hash."""
+
+    def __init__(self, inner: Any) -> None:
+        self.inner = inner
+
+    def effective(self, scope: str) -> Any:
+        return self.inner.effective(scope).model_copy(update={"hash": "f" * 64})
+
+    def scopes(self) -> list[str]:
+        return self.inner.scopes()
+
+
+def test_restore_reports_the_schema_hashes_and_warns_when_they_differ_from_the_ledger(
+    new_db: Callable[[], DbTarget], memory_store: Callable[..., Any]
+) -> None:
+    from tl_core.schema_provider import get_provider
+
+    _, store, signer = sealed_original(new_db, memory_store)
+    same = restore_from_archive(store, new_db(), public_key=signer.public_key)
+    assert same.warnings == ()
+    assert set(same.schema_hashes) == {"company", SCOPE, "project:P2"}
+    assert same.ledger_schema_hashes == {SCOPE: same.schema_hashes[SCOPE]}  # one pset write
+
+    other = restore_from_archive(
+        store, new_db(), public_key=signer.public_key, schema_provider=OtherHashes(get_provider())
+    )
+    [warning] = other.warnings
+    assert warning.startswith(f"scope {SCOPE}: the ledger last recorded effective schema ")
+    assert "TL_SCHEMA_DIR" in warning
+    assert other.schema_hashes[SCOPE] == "f" * 64

@@ -91,6 +91,7 @@ class ArchiveSummary:
     events: int
     last_seq: int  # 0 when empty
     unsealed: str | None  # name of a segment directory without a manifest, if any
+    last_manifest_sha256: str | None  # SHA-256 of the newest manifest's bytes
 
 
 def summarize_archive(store: ArchiveStore) -> ArchiveSummary:
@@ -101,4 +102,11 @@ def summarize_archive(store: ArchiveStore) -> ArchiveSummary:
         events=state.last_seq,
         last_seq=state.last_seq,
         unsealed=state.orphan[2] if state.orphan else None,
+        last_manifest_sha256=state.last_manifest_sha256,
     )
+
+
+def archive_scopes(store: ArchiveStore) -> list[str]:
+    """Every scope that has an event in a sealed segment, sorted."""
+    state = load_chain_state(store)
+    return sorted({scope for segment in state.sealed for scope in segment.manifest.scopes})

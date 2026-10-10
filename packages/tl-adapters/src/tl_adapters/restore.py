@@ -1,40 +1,42 @@
 """Rebuild a database from a ledger archive alone (brief 24.4, "rebuild-from-archive").
 
-Verify the archive, create the schema in an empty database, insert the archived events verbatim
-through the dialect's ``restore_events``, add the promoted pset columns the schema packages in
-force ask for, rebuild the projections, then verify again, this time against the new database.
-Works for a SQLite file and for a Postgres URL; everything dialect specific stays in
+Verify the archive, check that the schema packages in force can be loaded for every scope in it,
+create the schema in an empty database, then in ONE transaction insert the archived events
+verbatim through the dialect's ``restore_events``, add the promoted pset columns and replay the
+events into the projections. If any of that fails the transaction rolls back, the database is
+empty again, and the restore can simply be run again. Last, verify the new database against the
+archive. Works for a SQLite file and for a Postgres URL; everything dialect specific stays in
 ``tl_adapters.<dialect>.admin``.
 """
 
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from collections.abc import Iterator
+from dataclasses import dataclass, field
+from typing import cast
 
-from sqlalchemy import Engine, text
+from sqlalchemy import Connection, Engine
 from tl_core.archive import (
     ArchiveStore,
     RestoreError,
     VerifyIssue,
+    archive_scopes,
     iter_segment_events,
+    read_events,
     verify_archive,
 )
 from tl_core.archive.segments import list_segment_names
+from tl_core.ledger import Event, Ledger
+from tl_core.projection.defaults import default_registry
 from tl_core.projection.promoted import ensure_promoted_columns
 from tl_core.projection.types import ProjectorRegistry
 from tl_core.schema_provider import SchemaProvider, get_provider
+from tl_schema.effective import EffectiveSchema
 
 from tl_adapters import postgres, sqlite
-from tl_adapters.db import (
-    DbTarget,
-    create_schema,
-    is_postgres,
-    make_engine,
-    read_tx,
-    rebuild_projections,
-    write_tx,
-)
+from tl_adapters._unit import replay
+from tl_adapters.db import DbTarget, create_schema, is_postgres, make_engine, read_tx, write_tx
 
 
 @dataclass(frozen=True)
@@ -48,6 +50,12 @@ class RestoreResult:
     insert_seconds: float
     rebuild_seconds: float
     total_seconds: float
+    schema_hashes: dict[str, str] = field(default_factory=dict[str, str])
+    """Scope to the hash of the effective schema in force at restore time."""
+    ledger_schema_hashes: dict[str, str] = field(default_factory=dict[str, str])
+    """Scope to the last ``effective_schema_hash`` an archived event recorded."""
+    warnings: tuple[str, ...] = ()
+    """Differences between the two that may change the promoted columns."""
 
 
 def _fail(issues: list[VerifyIssue], stage: str) -> RestoreError:
@@ -58,18 +66,73 @@ def _fail(issues: list[VerifyIssue], stage: str) -> RestoreError:
     )
 
 
-def _ensure_promoted(engine: Engine, provider: SchemaProvider) -> None:
+class _ReplayLedger:
+    """Just enough of a ``Ledger`` for ``replay``: pages of events read through ``conn``.
+
+    The restore transaction has not committed, so another connection could not see its events.
+    """
+
+    def __init__(self, conn: Connection) -> None:
+        self._conn = conn
+
+    def read_after(self, seq: int, *, scope: str | None = None, limit: int = 1000) -> list[Event]:
+        return read_events(self._conn, seq + 1, seq + limit)
+
+
+def _schemas(store: ArchiveStore, provider: SchemaProvider) -> dict[str, EffectiveSchema]:
+    """The effective schema of every scope in the archive, loaded before anything is written."""
+    schemas: dict[str, EffectiveSchema] = {}
+    for scope in archive_scopes(store):
+        try:
+            schemas[scope] = provider.effective(scope)
+        except Exception as error:
+            raise RestoreError(
+                f"cannot load the effective schema of scope {scope!r} to add promoted "
+                f"columns: {error}; nothing was written"
+            ) from error
+    return schemas
+
+
+def _recording(events: Iterator[Event], seen: dict[str, str]) -> Iterator[Event]:
+    """Pass events through, noting the last ``effective_schema_hash`` each scope recorded."""
+    for event in events:
+        recorded = event.payload.get("effective_schema_hash")
+        if isinstance(recorded, str):
+            seen[event.scope] = recorded
+        yield event
+
+
+def _warnings(schemas: dict[str, EffectiveSchema], recorded: dict[str, str]) -> tuple[str, ...]:
+    found: list[str] = []
+    for scope in sorted(recorded):
+        schema = schemas.get(scope)
+        if schema is not None and schema.hash != recorded[scope]:
+            found.append(
+                f"scope {scope}: the ledger last recorded effective schema "
+                f"{recorded[scope][:12]}, the schema packages in force now give "
+                f"{schema.hash[:12]}; promoted columns may differ from the original "
+                "(restore with the TL_SCHEMA_DIR the ledger used)"
+            )
+    return tuple(found)
+
+
+def _restore_in_one_transaction(
+    engine: Engine,
+    target: DbTarget,
+    store: ArchiveStore,
+    schemas: dict[str, EffectiveSchema],
+    registry: ProjectorRegistry,
+    seen: dict[str, str],
+) -> tuple[int, float]:
+    """Insert, add promoted columns, replay: all or nothing. Returns (events, insert-done time)."""
+    insert = postgres.admin.restore_events if is_postgres(target) else sqlite.admin.restore_events
     with write_tx(engine) as conn:
-        scopes = [str(row[0]) for row in conn.execute(text("SELECT DISTINCT scope FROM events"))]
-        for scope in sorted(scopes):
-            try:
-                schema = provider.effective(scope)
-            except Exception as error:
-                raise RestoreError(
-                    f"cannot load the effective schema of scope {scope!r} to add promoted "
-                    f"columns: {error}"
-                ) from error
+        count = insert(conn, _recording(iter_segment_events(store), seen))
+        inserted = time.perf_counter()
+        for schema in schemas.values():
             ensure_promoted_columns(conn, schema)
+        replay(conn, cast(Ledger, _ReplayLedger(conn)), registry, list(registry.all()), None)
+    return count, inserted
 
 
 def restore_from_archive(
@@ -84,12 +147,15 @@ def restore_from_archive(
 
     Refuses an archive that does not verify and a database whose ``events`` table is not empty.
     Raises ``RestoreError`` with the first divergence when verification fails, before or after.
+    Insert, promoted columns and projections commit together, so a failure leaves the database
+    with empty tables and the same call can be repeated.
 
     Promoted pset columns of ``cur_core_record`` are not events: they exist because a schema package
     marks a property ``materialize: true``. They are added from the effective schema of every scope
     in the archive, taken from ``schema_provider`` (default: the process-wide one), so the schema
-    packages in force at restore time decide them. Without them a rebuild would silently drop the
-    promoted values.
+    packages in force at restore time decide them. The provider is consulted before anything is
+    written. ``RestoreResult.warnings`` says when the schema now in force differs from the one the
+    ledger last recorded.
     """
     started = time.perf_counter()
     segments = len(list_segment_names(store))
@@ -98,23 +164,16 @@ def restore_from_archive(
     issues = verify_archive(store, public_key=public_key)
     if issues:
         raise _fail(issues, "the archive does not verify")
+    schemas = _schemas(store, schema_provider if schema_provider else get_provider())
     verified = time.perf_counter()
 
-    create_schema(target, registry=registry)
+    reg = registry if registry is not None else default_registry()
+    create_schema(target, registry=reg)
+    seen: dict[str, str] = {}
     engine = make_engine(target)
     try:
-        insert = (
-            postgres.admin.restore_events if is_postgres(target) else sqlite.admin.restore_events
-        )
-        with write_tx(engine) as conn:
-            count = insert(conn, iter_segment_events(store))
-        inserted = time.perf_counter()
-
-        _ensure_promoted(engine, schema_provider if schema_provider else get_provider())
-
-        rebuild_projections(target, registry=registry)
+        count, inserted = _restore_in_one_transaction(engine, target, store, schemas, reg, seen)
         rebuilt = time.perf_counter()
-
         with read_tx(engine) as conn:
             issues = verify_archive(store, public_key=public_key, conn=conn)
         if issues:
@@ -129,4 +188,7 @@ def restore_from_archive(
         insert_seconds=inserted - verified,
         rebuild_seconds=rebuilt - inserted,
         total_seconds=time.perf_counter() - started,
+        schema_hashes={scope: schema.hash for scope, schema in schemas.items()},
+        ledger_schema_hashes=dict(seen),
+        warnings=_warnings(schemas, seen),
     )
