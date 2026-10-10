@@ -40,12 +40,25 @@ _UNITS_SQL = text(
     "SELECT path, unit FROM cur_pset_values WHERE record_id = :id AND unit IS NOT NULL"
 )
 _DELETE_SQL = text("DELETE FROM cur_pset_values WHERE record_id = :id")
-_INSERT_SQL = text(
-    "INSERT INTO cur_pset_values (record_id, scope, path, pset, property_name, layer, value_type, "
-    "value_text, value_num, value_bool, value_json, unit, last_seq, updated_at) VALUES "
-    "(:record_id, :scope, :path, :pset, :property_name, :layer, :value_type, "
-    ":value_text, :value_num, :value_bool, :value_json, :unit, :last_seq, :updated_at)"
+_INSERT_COLUMNS = (
+    "record_id",
+    "scope",
+    "path",
+    "pset",
+    "property_name",
+    "layer",
+    "value_type",
+    "value_text",
+    "value_num",
+    "value_bool",
+    "value_json",
+    "unit",
+    "last_seq",
+    "updated_at",
 )
+_INSERT_HEAD = f"INSERT INTO cur_pset_values ({', '.join(_INSERT_COLUMNS)}) VALUES "
+# 500 rows x 14 columns = 7000 bound parameters per statement, under both engines' limits.
+_CHUNK_ROWS = 500
 
 
 def set_nested(root: dict[str, Any], segments: list[str], value: Any) -> None:
@@ -166,6 +179,26 @@ def typed_columns(value: Any) -> dict[str, Any]:
     return columns
 
 
+def _insert_rows(conn: Connection, rows: list[dict[str, Any]]) -> None:
+    """Insert ``rows`` (dicts keyed by column name) with one multi-row statement per chunk.
+
+    Every value is a bound parameter named ``<column>_<row index in chunk>``; no value is spliced
+    into the SQL text. An empty list runs no statement.
+    """
+    for start in range(0, len(rows), _CHUNK_ROWS):
+        chunk = rows[start : start + _CHUNK_ROWS]
+        groups: list[str] = []
+        params: dict[str, Any] = {}
+        for index, row in enumerate(chunk):
+            names: list[str] = []
+            for column in _INSERT_COLUMNS:
+                name = f"{column}_{index}"
+                names.append(f":{name}")
+                params[name] = row[column]
+            groups.append(f"({', '.join(names)})")
+        conn.execute(text(_INSERT_HEAD + ", ".join(groups)), params)
+
+
 class PsetProjector:
     name = "pset_values"
     handles = _HANDLED
@@ -182,10 +215,10 @@ class PsetProjector:
             self._values_set(conn, event)
             return
         if event.event_type == "Record.Created":
-            touched = "psets" in event.payload
-        else:
-            touched = "psets" in event.payload.get("changes", {})
-        if touched:
+            if "psets" in event.payload:
+                self._create(conn, event)
+            return
+        if "psets" in event.payload.get("changes", {}):
             self._sync(conn, event, {})
 
     def reset(self, conn: Connection) -> None:
@@ -220,6 +253,15 @@ class PsetProjector:
         )
         self._sync(conn, event, units, psets)
 
+    def _create(self, conn: Connection, event: Event) -> None:
+        """Project a ``Record.Created`` value set: a new record has no rows and no units to keep.
+
+        Reads nothing back and deletes nothing; the record's rows are only inserted.
+        """
+        psets: dict[str, Any] = event.payload.get("psets") or {}
+        _insert_rows(conn, self._rows(event, psets, {}, {}))
+        self._update_promoted(conn, event.stream_id, psets)
+
     def _sync(
         self,
         conn: Connection,
@@ -232,12 +274,23 @@ class PsetProjector:
             psets = self._load(conn, event)
         kept = {r.path: r.unit for r in conn.execute(_UNITS_SQL, {"id": event.stream_id})}
         conn.execute(_DELETE_SQL, {"id": event.stream_id})
+        _insert_rows(conn, self._rows(event, psets, new_units, kept))
+        self._update_promoted(conn, event.stream_id, psets)
+
+    @staticmethod
+    def _rows(
+        event: Event,
+        psets: dict[str, Any],
+        new_units: dict[str, str],
+        kept: dict[str, str | None],
+    ) -> list[dict[str, Any]]:
+        """One ``cur_pset_values`` row per property value of ``psets``, sorted by path."""
         stamp = iso_utc(event.recorded_at)
+        rows: list[dict[str, Any]] = []
         for segments, value in flatten(psets):
             path = "psets." + ".".join(segments)
             pset, prop, layer = classify(segments)
-            conn.execute(
-                _INSERT_SQL,
+            rows.append(
                 {
                     "record_id": event.stream_id,
                     "scope": event.scope,
@@ -249,9 +302,9 @@ class PsetProjector:
                     "last_seq": event.seq,
                     "updated_at": stamp,
                     **typed_columns(value),
-                },
+                }
             )
-        self._update_promoted(conn, event.stream_id, psets)
+        return rows
 
     @staticmethod
     def _update_promoted(conn: Connection, record_id: str, psets: dict[str, Any]) -> None:
