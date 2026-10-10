@@ -1002,3 +1002,28 @@ test or a generated artefact already enforces, or narrative history (that belong
   printed counts. `just check` stops at its first failing step, so one lint error hides the pyright, codegen, openapi and licence steps; run the
   steps one by one when diagnosing.
   Evidence: T50, T47 and T48 reports. Status: active
+- **L-P0-I8D-1** · 2026-10-10 · tags: env, tooling
+  pg8000 talks TLS to a loopback Postgres by default, and every statement pays for it: a seed of 1,067 events took 13.6 s with TLS and 9.7 s without. The adapter
+  URL now accepts `?sslmode=disable` (the bench datasets use it on loopback). Projection work on Postgres is statement-bound at about 0.5 ms per statement
+  (a link event costs eight, a new record seventeen), so a bulk load or rebuild of 100k records takes about an hour there against 8 minutes on SQLite: count statements
+  before optimising anything else.
+  Evidence: `docs/reports/P0-I8-D.md`; `tests/bench/bench_data.py`; `packages/tl-adapters/tests/test_postgres_url.py`. Status: active
+- **L-P0-I8D-2** · 2026-10-10 · tags: schema, tests
+  An `ORDER BY (col IS NULL), col, id` cannot use an index on `col`, and a top-N sort over 100k rows costs 40 ms or 280 ms on SQLite depending on the order the rows
+  arrive (a descending sort of keys inserted ascending is the worst case, and it is the common one: newest first). Fixes that held on both engines: drop the NULL term for NOT NULL
+  columns, and index the exact expression `(col IS NULL OR col = '')` for text (`tl:ix_<name>: "scope, voided, empty_last(key), key desc, id"`). Check a plan with
+  `EXPLAIN QUERY PLAN` (`tests/query/test_query_plans.py`) and never trust a timing of the dataset's lucky order.
+  Evidence: `docs/reports/P0-I8-perf.md` sort table; S61 and S62 commits. Status: active
+- **L-P0-I8D-3** · 2026-10-10 · tags: schema, tests
+  Do not turn a negated pset or link predicate into `NOT IN (SELECT ...)`: Postgres plans it as a hashed SubPlan only while the set fits `work_mem`, otherwise it rescans per row.
+  Positive predicates compile to `id IN (set)` built from a covering index (150 ms to 0.2 ms for a one-record pset filter at 100k rows on SQLite); negations stay correlated `NOT EXISTS`.
+  `cur_link_counts` looks like the cheap answer to `count(linked)` but the query tests seed `cur_links` alone and the contract says `cur_links`: it was tried and reverted.
+  Evidence: `tl_core/query/compiler.py`; `tests/query/test_run_query.py` (four failures with the shortcut). Status: active
+- **L-P0-I8D-4** · 2026-10-10 · tags: tests, process
+  A bench finds real defects: `list_records(order_by=[("created_at", ...)])` raised `invalid input syntax for type timestamp with time zone: ""` on Postgres because the
+  "empty text sorts last" rule compared a TIMESTAMPTZ column with `''`. No parity test ordered by a timestamp. When a rule is written for "text columns", derive the set from the DDL, not from a list.
+  Evidence: `tests/services/test_record_queries_ui.py::test_order_by_timestamp_columns_works_on_both_adapters`. Status: active
+- **L-P0-I8D-5** · 2026-10-10 · tags: process, tests
+  A shared container makes timings 1.5 to 3 times worse and noisy (load average 3 to 10 on 4 CPUs while other agents run). Store the load average before every round with the result,
+  keep the p95 of each round next to the pooled p95, and compare a fix against a baseline taken at a similar load; one-call `min of 3` timings (`explore.py` style) are the right tool for deciding whether a change helps, the harness for the report.
+  Evidence: `tests/bench/bench_stats.py`; baseline file `dev/data/bench/results/*baseline-sqlite*`. Status: active
