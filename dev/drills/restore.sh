@@ -105,6 +105,7 @@ $TL --db "$SOURCE" backup sqlite --to "$WORK/snapshot.db" >/dev/null || exit 1
 SNAPSHOT_HEAD=$(word "$($TOOLS head --db "$WORK/snapshot.db" 2>/dev/null)" head)
 
 LITESTREAM_READY=0
+LS_SKIP="--skip-litestream was given"
 if [ "$SKIP_LITESTREAM" = 0 ]; then
   if bash dev/drills/fetch_litestream.sh 2>"$WORK/fetch-litestream.log"; then
     export TL_DB=$SOURCE LITESTREAM_REPLICA=$WORK/litestream
@@ -113,6 +114,7 @@ if [ "$SKIP_LITESTREAM" = 0 ]; then
     sleep 3
     LITESTREAM_READY=1
   else
+    LS_SKIP="the pinned release could not be fetched"
     finding "Litestream was skipped: the pinned release could not be fetched ($(tail -1 "$WORK/fetch-litestream.log")). The snapshot path covers the SQLite database layer."
   fi
 fi
@@ -189,9 +191,10 @@ PY
 if [ "$SKIP_POSTGRES" = 0 ] && uv run python -c "import sys; from tl_adapters.postgres import admin; sys.exit(0 if admin.reachable(sys.argv[1]) else 1)" "$PG_URL" 2>/dev/null; then
   run_path archive_postgres archive_postgres
 else
-  m archive_postgres_status skipped
+  if [ "$SKIP_POSTGRES" = 1 ]; then PG_SKIP="--skip-postgres was given"; else PG_SKIP="Postgres is not reachable at TL_PG_URL"; fi
+  m archive_postgres_status "skipped ($PG_SKIP)"
   m pg_scratch_database "(none)"
-  finding "The Postgres archive restore was skipped: Postgres is not reachable at TL_PG_URL, or --skip-postgres was given."
+  finding "The Postgres archive restore was skipped: $PG_SKIP."
 fi
 
 # --- the SQLite online snapshot ----------------------------------------------------------------------
@@ -224,7 +227,7 @@ litestream() {
 if [ "$LITESTREAM_READY" = 1 ]; then
   run_path litestream litestream
 else
-  m litestream_status skipped
+  m litestream_status "skipped ($LS_SKIP)"
 fi
 
 # --- pgBackRest -------------------------------------------------------------------------------------------
@@ -243,8 +246,11 @@ if [ "$SKIP_PGBACKREST" = 0 ] && command -v pgbackrest >/dev/null && sudo -n tru
   fi
   m t_pgbackrest "$(since "$T")"
 else
-  m pgbackrest_status skipped
-  finding "pgBackRest was skipped (--skip-pgbackrest, pgbackrest not installed, or no passwordless sudo)."
+  if [ "$SKIP_PGBACKREST" = 1 ]; then BR_SKIP="--skip-pgbackrest was given"
+  elif ! command -v pgbackrest >/dev/null; then BR_SKIP="pgbackrest is not installed"
+  else BR_SKIP="no passwordless sudo"; fi
+  m pgbackrest_status "skipped ($BR_SKIP)"
+  finding "pgBackRest was skipped: $BR_SKIP."
 fi
 
 # --- a tampered copy of the archive is refused -------------------------------------------------------------
@@ -271,25 +277,33 @@ else
 fi
 
 # --- report ------------------------------------------------------------------------------------------------------
-all_pass() { # every exercised path passed its checks
-  local status
-  for p in archive_sqlite archive_postgres snapshot litestream pgbackrest; do
-    status=$(awk -F'\t' -v k="${p}_status" '$1==k{print $2}' "$MEAS")
-    [ "$status" = FAIL ] && return 1
-  done
-  return 0
-}
+PATHS="archive_sqlite archive_postgres snapshot litestream pgbackrest"
 status_of() { awk -F'\t' -v k="$1" '$1==k{print $2}' "$MEAS"; }
-if all_pass && [ "$FAILED" = 0 ]; then
-  m status passed
-  m check_deep_verify "pass on every restored database"
-  m check_ledger_verify "pass on every restored database"
-  m check_digest "pass (archive and snapshot paths)"
-  m check_probe "pass"
+RAN=""; SKIPPED=""; BROKEN=""
+for p in $PATHS; do
+  status=$(status_of "${p}_status")
+  case "$status" in
+    pass) RAN="$RAN${RAN:+, }$p" ;;
+    skipped*) SKIPPED="$SKIPPED${SKIPPED:+; }$p ${status#skipped }" ;;
+    *) BROKEN="$BROKEN${BROKEN:+, }$p" ;;
+  esac
+done
+[ -n "$RAN" ] || RAN="none"
+[ -n "$SKIPPED" ] || SKIPPED="none"
+RESTORED=$(for p in archive_sqlite archive_postgres snapshot litestream; do [ "$(status_of "${p}_status")" = pass ] && echo "$p"; done | paste -sd, - | sed 's/,/, /g')
+DIGESTED=$(for p in archive_sqlite archive_postgres snapshot; do [ "$(status_of "${p}_status")" = pass ] && echo "$p"; done | paste -sd, - | sed 's/,/, /g')
+if [ -z "$BROKEN" ] && [ "$FAILED" = 0 ]; then
+  m status "passed (ran: $RAN; skipped: $SKIPPED)"
+  m check_deep_verify "pass on: ${RESTORED:-none}"
+  m check_ledger_verify "pass on: ${RESTORED:-none}"
+  m check_digest "pass on: ${DIGESTED:-none}"
+  m check_probe "pass on: ${RESTORED:-none}"
 else
-  m status FAILED
+  m status "FAILED (ran: $RAN; failed: ${BROKEN:-see findings}; skipped: $SKIPPED)"
   m check_deep_verify "see findings"; m check_ledger_verify "see findings"; m check_digest "see findings"; m check_probe "see findings"
 fi
+say "paths run: $RAN"
+say "paths skipped: $SKIPPED"
 m digest_original "$DIGEST0"
 m environment "${TL_DRILL_ENV:-dev container}"
 m date "$(date +%Y-%m-%d)"

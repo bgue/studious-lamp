@@ -243,3 +243,22 @@ def test_the_cli_shows_needs_secret_after_a_restore_and_active_after_rotating(
     assert rotated.exit_code == 0 and rotated.exception is None, rotated.output
     listing = runner.invoke(app, ["--db", restored, "webhook", "ls"], env=env)
     assert listing.stdout.split("\t")[:2] == [subscription, "active"]
+
+
+def test_send_test_refuses_a_subscription_without_a_secret_before_any_egress_check(
+    restored_world: tuple[World, str, list[str]],
+) -> None:
+    from tl_core.webhooks.subscriptions import SubscriptionNotActiveError
+
+    world, subscription_id, _ = restored_world
+    engine = world.engine()
+    with pytest.raises(
+        SubscriptionNotActiveError,
+        match=f"no active signing secret; run `tl webhook rotate-secret {subscription_id}`",
+    ):
+        engine.send_test(subscription_id)
+    assert world.resolver_calls == [] and world.transport.sent == []  # no DNS, no request
+
+    rotate(world, subscription_id)
+    assert engine.send_test(subscription_id).ok
+    assert len(world.transport.sent) == 1

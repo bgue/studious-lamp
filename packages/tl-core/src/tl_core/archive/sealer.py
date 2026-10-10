@@ -58,6 +58,11 @@ _SELECT_RANGE = text(
     "scope, payload, actor, recorded_at, effective_at, correlation_id, causation_id, source, "
     "prev_hash, hash FROM events WHERE seq >= :first AND seq <= :last ORDER BY seq"
 )
+_SELECT_AFTER = text(
+    "SELECT seq, event_id, stream_id, stream_type, stream_version, event_type, schema_version, "
+    "scope, payload, actor, recorded_at, effective_at, correlation_id, causation_id, source, "
+    "prev_hash, hash FROM events WHERE seq > :after ORDER BY seq LIMIT :limit"
+)
 _HEAD = text("SELECT COALESCE(MAX(seq), 0) FROM events")
 
 
@@ -65,31 +70,39 @@ def _moment(value: Any) -> datetime:
     return value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
 
 
+def _event_from_row(row: Any) -> Event:
+    return Event(
+        event_type=row["event_type"],
+        schema_version=row["schema_version"],
+        payload=json.loads(row["payload"]),
+        seq=row["seq"],
+        event_id=row["event_id"],
+        stream_id=row["stream_id"],
+        stream_type=row["stream_type"],
+        stream_version=row["stream_version"],
+        scope=row["scope"],
+        actor=row["actor"],
+        recorded_at=_moment(row["recorded_at"]),
+        effective_at=_moment(row["effective_at"]),
+        correlation_id=row["correlation_id"],
+        causation_id=row["causation_id"],
+        source=row["source"],
+        prev_hash=row["prev_hash"],
+        hash=row["hash"],
+    )
+
+
 def read_events(conn: Connection, first_seq: int, last_seq: int) -> list[Event]:
     """The events ``first_seq`` to ``last_seq`` from the ledger table, in seq order."""
     rows = conn.execute(_SELECT_RANGE, {"first": first_seq, "last": last_seq}).mappings().all()
-    return [
-        Event(
-            event_type=row["event_type"],
-            schema_version=row["schema_version"],
-            payload=json.loads(row["payload"]),
-            seq=row["seq"],
-            event_id=row["event_id"],
-            stream_id=row["stream_id"],
-            stream_type=row["stream_type"],
-            stream_version=row["stream_version"],
-            scope=row["scope"],
-            actor=row["actor"],
-            recorded_at=_moment(row["recorded_at"]),
-            effective_at=_moment(row["effective_at"]),
-            correlation_id=row["correlation_id"],
-            causation_id=row["causation_id"],
-            source=row["source"],
-            prev_hash=row["prev_hash"],
-            hash=row["hash"],
-        )
-        for row in rows
-    ]
+    return [_event_from_row(row) for row in rows]
+
+
+def read_events_after(conn: Connection, after_seq: int, limit: int) -> list[Event]:
+    """Up to ``limit`` events with ``seq > after_seq``, in seq order (a cursor, so gaps in the
+    numbers do not end a page early)."""
+    rows = conn.execute(_SELECT_AFTER, {"after": after_seq, "limit": limit}).mappings().all()
+    return [_event_from_row(row) for row in rows]
 
 
 def _utc_z(moment: datetime) -> str:

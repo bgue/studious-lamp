@@ -632,3 +632,10 @@ test or a generated artefact already enforces, or narrative history (that belong
   deliveries after rotating must expect that one.
   Evidence: `tests/archive/test_restore_webhooks.py` (both adapters). Status: active
 
+
+- **L-P0-I7-A13** · 2026-10-10 · tags: ledger, tests
+  Page a seq-ordered scan with a cursor (`WHERE seq > :last ORDER BY seq LIMIT n`) and stop only on an empty page. Paging by seq ranges and stopping on a short page
+  silently skipped a missing event at the end of a page window (`verify_ledger` returned no issue for a deleted seq 2000). A page-size parameter that tests lower to 3, 4 and 5
+  puts the gap at the end, across and at the start of a page; reverting to range paging fails 8 of those tests. `verify_ledger` cannot see a seq swap between scopes (seq is not
+  hashed) or deleted trailing events; only an archive and a recorded last seq can.
+  Evidence: `tests/archive/test_ledger_verify_parity.py` (both adapters); `verifier._scan_ledger`. Status: active

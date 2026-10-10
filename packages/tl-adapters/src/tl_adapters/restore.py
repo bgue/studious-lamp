@@ -184,8 +184,9 @@ def _restore_in_one_transaction(
     Returns the event count, the ``perf_counter`` times at which the insert and the replay ended,
     and the webhook warnings.
 
-    The closing verification against the archive runs before the commit, so a mismatch rolls
-    everything back and leaves an empty database that the same call can restore into again.
+    The closing verification against the archive is deep (every hash recomputed, every field
+    compared) and runs before the commit, so a mismatch rolls everything back and leaves an empty
+    database that the same call can restore into again. A restore is rare, so the cost is accepted.
     """
     insert = postgres.admin.restore_events if is_postgres(target) else sqlite.admin.restore_events
     with write_tx(engine) as conn:
@@ -195,7 +196,7 @@ def _restore_in_one_transaction(
             ensure_promoted_columns(conn, schema)
         replay(conn, cast(Ledger, _ReplayLedger(conn)), registry, list(registry.all()), None)
         rebuilt_at = time.perf_counter()
-        issues = verify_archive(store, public_key=public_key, conn=conn)
+        issues = verify_archive(store, public_key=public_key, conn=conn, deep=True)
         if issues:
             raise _fail(issues, "the restored database does not match the archive")
         _start_dispatcher_at_head(conn, count)

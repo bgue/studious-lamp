@@ -42,6 +42,7 @@ Merged 8 / taken over 0 / abandoned 0.
 | S13 | (with S12) | the drill report template and measurements | pending |
 | S14 | 4fa7c6c | review fixes: missing-directory `missing_file`, sealed-prefix check for every scope, one-transaction restore with a schema check first and schema-hash warnings, `expect_last_seq` / `expect_manifest_sha256`, key file mode | re-reviewed: items 2 and 3 clean |
 | S15 | ec27c11 | `verify_archive(conn, deep=True)` recomputes database hashes, compares every field, checks the tail; `verify_ledger`; `tl ledger verify`; the closing restore verify runs before the commit | pending |
+| S18 | (see below) | second review round: `_scan_ledger` pages by a `seq >` cursor and stops only on an empty page (a missing event at the end of a page window was missed); the restore's closing verify is deep; `verify_ledger` limits documented; Postgres coverage for the ledger and deep checks; `send_test` refuses a subscription with no secret before any egress check; the drill reports skipped paths as skipped | short re-review of item 1 |
 | S17 | ab19220 | the dispatcher cursor starts at the restored head inside the restore transaction; the restore warning names `tl webhook replay`; the "After a restore" runbook section | pending |
 | S16 | 9ec9b2b | outside WS-A scope, by orchestrator ruling: `DeliveryEngine.claim` holds back a subscription with no signing secret (pending, not sent, not dead-lettered, one log line per cycle), `tl webhook ls` shows `needs_secret`, restore returns a warning per subscription | pending |
 
@@ -70,7 +71,7 @@ Files: `packages/tl-core/src/tl_core/archive/`, `packages/tl-adapters/src/tl_ada
 - Ruled and done (S17): after a restore the webhook dispatcher cursor starts at the restored head, so history is not queued again; `tl webhook replay ID --from-seq N --to-seq M` covers a range a receiver may have missed (named in the warning and the runbook).
 
 ## Learnings
-Appended L-P0-I7-A1 to A12 to `docs/memory/LEARNINGS.md`: promoted columns on restore (A1), crash-safe sealing (A2), `types.py` module name (A3), sibling tickets and fixtures (A4), egress and downloads (A5), three review rules (A6), deep database verification (A7), drill mechanics (A8), webhook secrets after restore (A9, A10), WAL sidecars and runbook tickets (A11), dispatcher cursor after a restore (A12). Implementer proposals declined: none; the `^ *```` checker note was folded into A11.
+Appended L-P0-I7-A1 to A13 to `docs/memory/LEARNINGS.md`: promoted columns on restore (A1), crash-safe sealing (A2), `types.py` module name (A3), sibling tickets and fixtures (A4), egress and downloads (A5), three review rules (A6), deep database verification (A7), drill mechanics (A8), webhook secrets after restore (A9, A10), WAL sidecars and runbook tickets (A11), dispatcher cursor after a restore (A12), cursor paging (A13). Implementer proposals declined: none; the `^ *```` checker note was folded into A11.
 
 ## Docs
 - Runbooks: `docs/runbooks/{ledger-archive-and-verify,restore-from-archive,pgbackrest-restore,sqlite-backup-and-litestream}.md`; index and `webhook-operations.md` updated.

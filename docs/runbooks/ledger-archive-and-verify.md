@@ -100,6 +100,7 @@ Example: `divergence: file_hash segment=000000000011-000000000018 seq=11: events
 
 ### Limits
 - Sealing checks the database against the archive at each scope's newest sealed event. It does not check the middle of history. Full detection is the deep archive verify (step 3 above) or the database verify (step 4 above). The restore drill runs both.
+- `uv run tl ledger verify` (and the database check without an archive) cannot see: an edit to a scope's newest event that keeps its own hash consistent; two events of different scopes that swapped their `seq` values (`seq` is not part of the hash and each scope's chain still holds); or events deleted from the end of the ledger. The remedies are the deep archive verify (step 3 above), which compares every field with the sealed copy, and the recorded last seq with `uv run tl archive verify --expect-last-seq N`.
 - Fields added to a manifest are not covered by that manifest's own signature. They are covered by the next manifest's chain hash, so adding a field to any manifest except the newest breaks the chain.
 
 ## Roll back

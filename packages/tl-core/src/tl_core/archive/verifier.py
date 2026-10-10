@@ -13,7 +13,7 @@ from collections.abc import Iterator
 from sqlalchemy import Connection, text
 
 from tl_core.archive.errors import ArchiveError
-from tl_core.archive.sealer import read_events
+from tl_core.archive.sealer import read_events, read_events_after
 from tl_core.archive.segments import (
     MANIFEST,
     NDJSON,
@@ -243,26 +243,26 @@ def _check_database_rows(
 LEDGER_PAGE = 2000
 
 
-def _scan_ledger(conn: Connection, start_seq: int, running: dict[str, str]) -> VerifyIssue | None:
+def _scan_ledger(
+    conn: Connection, start_seq: int, running: dict[str, str], page_size: int | None = None
+) -> VerifyIssue | None:
     """Recompute the hash of every database event from ``start_seq`` on and check its chain.
 
     ``running`` is each scope's newest hash before ``start_seq`` (updated as the scan goes).
-    Checks gap-free seq, the hash against the event's own fields, and ``prev_hash`` against the
-    scope's previous event.
+    Checks gap-free seq (across page boundaries too: pages are read by a ``seq >`` cursor and the
+    scan ends only on an empty page), the hash against the event's own fields, and ``prev_hash``
+    against the scope's previous event.
     """
+    size = page_size if page_size is not None else LEDGER_PAGE
     expected = start_seq
     while True:
-        page = read_events(conn, expected, expected + LEDGER_PAGE - 1)
+        page = read_events_after(conn, expected - 1, size)
         if not page:
-            head = int(conn.execute(_HEAD).scalar_one())
-            if head >= expected:
-                return _issue("seq_gap", None, expected, f"no event at seq {expected}")
-            return None
+            break
         for event in page:
             if event.seq != expected:
-                return _issue(
-                    "seq_gap", None, expected, f"expected seq {expected}, found {event.seq}"
-                )
+                detail = f"expected seq {expected}, found {event.seq}"
+                return _issue("seq_gap", None, expected, detail)
             if recomputed_hash(event) != event.hash:
                 return _issue(
                     "event_hash",
@@ -279,18 +279,28 @@ def _scan_ledger(conn: Connection, start_seq: int, running: dict[str, str]) -> V
                 )
             running[event.scope] = event.hash
             expected += 1
-        if len(page) < LEDGER_PAGE:
-            return None
+    head = int(conn.execute(_HEAD).scalar_one())
+    if head != expected - 1 and head >= start_seq:
+        return _issue(
+            "seq_gap", None, expected, f"scanned up to seq {expected - 1}, head is {head}"
+        )
+    return None
 
 
 def verify_ledger(conn: Connection) -> list[VerifyIssue]:
-    """Verify the database alone: gap-free seq, every event hash recomputed from its stored fields,
-    and every scope's ``prev_hash`` chain (brief 24.5, "hash-chain verification tool").
+    """Verify the database alone: gap-free seq, every event hash recomputed from its stored
+    fields, and every scope's ``prev_hash`` chain (brief 24.5, "hash-chain verification tool").
 
     Returns at most one issue, the first divergence in seq order; an empty list means the chain
-    is intact. It cannot see an edit to a scope's newest event that keeps its own hash
-    consistent (no later event contradicts it): compare with an archive for that
-    (``verify_archive(conn=..., deep=True)``).
+    is intact. What it cannot see, because the database holds nothing to contradict it:
+    - an edit to a scope's newest event that keeps that event's own hash consistent;
+    - two events of different scopes that swapped their ``seq`` values (``seq`` is not part of the
+      hash, and each scope's chain still holds);
+    - events deleted from the end of the ledger.
+    The remedies are an archive and a record outside the database: ``verify_archive(conn=...,
+    deep=True)`` compares every field with the sealed copy, and ``expect_last_seq`` /
+    ``expect_manifest_sha256`` (``tl archive verify --expect-last-seq N``) catch a shortened
+    archive.
     """
     issue = _scan_ledger(conn, 1, {})
     return [issue] if issue is not None else []

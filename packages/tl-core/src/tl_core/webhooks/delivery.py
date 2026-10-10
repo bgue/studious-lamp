@@ -474,8 +474,9 @@ class DeliveryEngine:
         recorded: it is a one-shot check of reachability, signature handling and egress policy,
         and the receiver sees ``data.detail`` of the sample. The request carries the header
         ``webhook-test: 1`` so a receiver can tell it from a real delivery. A disabled or expired
-        subscription is refused with :class:`SubscriptionNotActiveError`. The result says what
-        happened.
+        subscription, or one with no active signing secret (a restored database), is refused with
+        :class:`SubscriptionNotActiveError` before anything is checked or sent. The result says
+        what happened.
         """
         from tl_schema.catalog import sample
 
@@ -499,6 +500,11 @@ class DeliveryEngine:
             if row.expires_at is not None and parse_iso(str(row.expires_at)) <= now:
                 raise SubscriptionNotActiveError(f"subscription {subscription_id} has expired")
             secrets = self._active_secrets(uow.conn(), subscription_id, now)
+        if not secrets:  # refuse before any egress check or DNS lookup
+            raise SubscriptionNotActiveError(
+                f"subscription {subscription_id} has no active signing secret; "
+                f"run `tl webhook rotate-secret {subscription_id}`"
+            )
         envelope = dict(sample(event_type)["envelope"])
         envelope["id"] = new_ulid()
         envelope["time"] = iso_z(now)
