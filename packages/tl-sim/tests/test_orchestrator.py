@@ -69,9 +69,10 @@ def test_create_makes_the_run_provisions_actors_and_seeds_the_template(tmp_path:
     assert sim.state.scope == f"project:sim-{sim.state.run_id}"
     assert connector.provisioned == [
         ORCHESTRATOR,
-        "agent:sim-document_controller",
-        "agent:sim-planner",
-        "agent:sim-crew",
+        "user:sim-document_controller",
+        "user:sim-planner",
+        "user:sim-crew",
+        "agent:sim-assistant",
     ]
     assert sim.state.seeded and sim.state.in_progress is None and sim.state.day == 0
     titles = [r["title"] for r in connector.world.records()]
@@ -133,9 +134,9 @@ def test_each_actor_starts_later_than_the_one_before(
     by_actor: dict[str, str] = {}
     for event in connector.world.events():
         by_actor.setdefault(event["actor"], event["effective_at"])
-    assert by_actor["agent:sim-crew"] < by_actor["agent:sim-planner"]
-    assert by_actor["agent:sim-crew"].startswith("2026-11-02T07:0")
-    assert by_actor["agent:sim-planner"].startswith("2026-11-02T07:3")
+    assert by_actor["user:sim-crew"] < by_actor["user:sim-planner"]
+    assert by_actor["user:sim-crew"].startswith("2026-11-02T07:0")
+    assert by_actor["user:sim-planner"].startswith("2026-11-02T07:3")
 
 
 def test_the_same_seed_gives_the_same_ground_truth_and_world(tmp_path: Path) -> None:
@@ -214,16 +215,16 @@ def test_an_injection_is_queued_and_played_after_the_regular_actors(tmp_path: Pa
     sim.advance(1)
     posts = connector.world.posts()
     assert [(p["actor"], p["body"]) for p in posts][-1] == (
-        "agent:sim-planner",
+        "user:sim-planner",
         "Heads up: crane booked",
     )
-    assert posts[0]["actor"] == "agent:sim-crew"
+    assert posts[0]["actor"] == "user:sim-crew"
     assert sim.status().pending == []
-    later = [e for e in connector.world.events() if e["actor"] == "agent:sim-planner"]
+    later = [e for e in connector.world.events() if e["actor"] == "user:sim-planner"]
     # one regular actor takes slot 0 (07:00), so the injection is in slot 1 (07:30)
     assert later[0]["effective_at"].startswith("2026-11-02T07:3")
     sim.advance(1)
-    assert sum(1 for p in connector.world.posts() if p["actor"] == "agent:sim-planner") == 1
+    assert sum(1 for p in connector.world.posts() if p["actor"] == "user:sim-planner") == 1
 
 
 def test_a_scenario_injection_plays_on_its_day_only(tmp_path: Path) -> None:
@@ -265,7 +266,7 @@ def test_injected_events_map_to_one_step_of_an_actor_with_one_off_parameters() -
         InjectSpec.model_validate({"day": 0, "event": "post", "actor": "planner", "body": "x"}),
         sc,
     )
-    assert isinstance(said, Poster) and said.identity == "agent:sim-planner"
+    assert isinstance(said, Poster) and said.identity == "user:sim-planner"
 
 
 def test_a_step_that_dies_leaves_the_run_flagged_and_it_refuses_to_go_on(

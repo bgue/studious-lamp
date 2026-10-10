@@ -33,7 +33,11 @@ from tl_sim.scenario import ACTOR_NAMES, InjectSpec, Scenario, Template
 from tl_sim.state import RunError, RunInterruptedError, RunState, RunStore
 from tl_sim.types import Actor, GroundTruth, SimClient, SimContext
 
-ORCHESTRATOR = "agent:sim-orchestrator"
+ORCHESTRATOR = "user:sim-orchestrator"
+ASSISTANT = "agent:sim-assistant"
+"""The one simulated agent. The API refuses record-changing commands from any ``agent:*`` token
+(WB B15, FANOUT D4: agents propose, people accept), so the role actors, which stand in for people,
+are ``user:sim-<role>``; the assistant only proposes (over MCP) and posts."""
 
 
 class Connector(Protocol):
@@ -81,7 +85,7 @@ def default_run_id(scenario: Scenario) -> str:
 
 
 def all_identities() -> list[str]:
-    return [ORCHESTRATOR, *(f"agent:sim-{name}" for name in ACTOR_NAMES)]
+    return [ORCHESTRATOR, *(f"user:sim-{name}" for name in ACTOR_NAMES), ASSISTANT]
 
 
 class Simulation:

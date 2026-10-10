@@ -14,8 +14,8 @@ returns now (the ``cur_*`` projections and the event pager). The two must agree:
 
 Three more checks catch what the scenario did not intend: the scope holds no record the log does
 not name, every event in the scope was written by the simulator (``source`` ``sim:<run>``, or an
-MCP proposal by a simulated agent), and every simulator event carries a simulated time on a day
-that was played (``effective_at``, FANOUT D5).
+MCP proposal, by a ``user:sim-*`` or ``agent:sim-*`` actor), and every simulator event carries a
+simulated time on a day that was played (``effective_at``, FANOUT D5).
 """
 
 from __future__ import annotations
@@ -31,6 +31,7 @@ from tl_sim import groundtruth as gt
 from tl_sim.reader import SimReader
 from tl_sim.types import GroundTruth
 
+SIM_ACTORS = ("user:sim-", "agent:sim-")
 ENVELOPE_FIELDS = {"title": "title", "record_type": "type", "voided": "voided", "status": "status"}
 
 
@@ -193,4 +194,7 @@ def run_assertions(
             report.checked += 1
             if not source.startswith("mcp:"):
                 fail("event_source", ref, "source", f"sim:{run_id}", source)
+        report.checked += 1
+        if not str(event["actor"]).startswith(SIM_ACTORS):
+            fail("event_actor", ref, "actor", "user:sim-* or agent:sim-*", event["actor"])
     return report

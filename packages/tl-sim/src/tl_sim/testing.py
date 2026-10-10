@@ -283,6 +283,6 @@ def make_context(
 
 def seed_lines(world: FakeWorld, count: int = 3, keys: Keys | None = None) -> list[Rec]:
     """``count`` lines ``Line 6-CS-100n`` in the world, written by the orchestrator."""
-    ctx = make_context(world, "agent:sim-orchestrator", keys=keys)
-    recorder = Recorder(ctx, "agent:sim-orchestrator")
+    ctx = make_context(world, "user:sim-orchestrator", keys=keys)
+    recorder = Recorder(ctx, "user:sim-orchestrator")
     return [recorder.create(f"Line 6-CS-{1000 + n}") for n in range(1, count + 1)]

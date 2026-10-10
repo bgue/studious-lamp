@@ -24,7 +24,13 @@ from tl_sim.clock import SimClock
 RUN_ID = "rt1"
 SCOPE = f"project:sim-{RUN_ID}"
 START = datetime(2026, 11, 2, 7, 0, tzinfo=UTC)
-IDENTITIES = ["agent:sim-crew", "agent:sim-planner", "agent:sim-orchestrator", "user:alice"]
+IDENTITIES = [
+    "user:sim-crew",
+    "user:sim-planner",
+    "user:sim-orchestrator",
+    "agent:sim-assistant",
+    "user:alice",
+]
 
 
 @dataclass

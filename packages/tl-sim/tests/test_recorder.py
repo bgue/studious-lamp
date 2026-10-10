@@ -9,7 +9,7 @@ from tl_sim import groundtruth as gt
 from tl_sim.actors.base import BaseActor, Rec, Recorder
 from tl_sim.testing import FakeWorld, make_context, seed_lines
 
-IDENTITY = "agent:sim-crew"
+IDENTITY = "user:sim-crew"
 
 
 def recorder(world: FakeWorld, **kw: object) -> Recorder:
@@ -91,4 +91,4 @@ def test_a_base_actor_derives_its_identity_from_its_name() -> None:
     class Noisy(BaseActor):
         name = "planner"
 
-    assert Noisy(None).identity == "agent:sim-planner"
+    assert Noisy(None).identity == "user:sim-planner"

@@ -1,9 +1,11 @@
 """``HttpConnector``: the orchestrator's door to a running suite (API over HTTP, MCP for proposals).
 
 ``provision`` makes one dev token per simulated identity in the token file the server reads
-(``tl_api.tokens.add_token``, ADR-0005: dev identity, not an auth model), so every simulated actor
-is a distinct ``agent:sim-<name>`` in the ledger. A token already issued for a run is kept in the
-run state and reused when the run is reopened.
+(``tl_api.tokens.add_token``, ADR-0005: dev identity, not an auth model). The role actors stand in
+for people, so they are ``user:sim-<role>``: the API refuses record-changing commands from an
+``agent:*`` token (agents propose, people accept). The one simulated agent is
+``agent:sim-assistant``. A token already issued for a run is kept in the run state and reused when
+the run is reopened.
 """
 
 from __future__ import annotations

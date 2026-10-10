@@ -13,7 +13,7 @@ A deterministic simulated project team that plays working days against a running
 | `tl_sim.types` | module | The frozen `SimClient`, `SimContext`, `GroundTruth` and `Actor` interface |
 | `tl_sim.orchestrator.Simulation` | class | The loop behind the five operations, over a `Connector` |
 | `tl_sim.client.HttpSimClient` | class | `SimClient` over `ApiClient`, MCP and the simulated clock |
-| `tl_sim.actors` | package | `BaseActor`, `Recorder`, and the document controller, planner and crew |
+| `tl_sim.actors` | package | `BaseActor`, `Recorder`, and the document controller, planner and crew (acting as `user:sim-<role>`; `agent:sim-assistant` proposes) |
 | `tl_sim.scenario_loader.load_scenario(source)` | function | A scenario from YAML (`dev/seed/scenarios`) |
 | `tl_sim.testing.FakeWorld` | class | An in-memory suite for tests |
 | `tl sim ...` | CLI | The five operations plus `run` and `seed` (see Commands) |

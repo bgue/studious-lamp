@@ -14,7 +14,7 @@ SCENARIO = Scenario(scenario="t", seed=1, start=date(2026, 11, 2))
 
 
 def state(run_id: str = "r1") -> RunState:
-    return RunState(run_id=run_id, scenario=SCENARIO, tokens={"agent:sim-crew": "secret"})
+    return RunState(run_id=run_id, scenario=SCENARIO, tokens={"user:sim-crew": "secret"})
 
 
 def test_a_run_saves_and_loads_unchanged(tmp_path: Path) -> None:

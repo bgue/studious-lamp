@@ -12,7 +12,7 @@ from tl_core.services.errors import GuardFailedError, UnknownTransitionError
 from tl_sim.client import ProposeUnavailableError, install_stamp
 from tl_sim.clock import SimClock
 
-CREW = "agent:sim-crew"
+CREW = "user:sim-crew"
 
 
 def test_a_record_is_created_with_a_client_key_the_actors_token_and_the_run_source(
@@ -32,7 +32,7 @@ def test_keys_run_on_across_records_and_clients(suite: Suite) -> None:
         suite.client(CREW).create_record(record_type="core.Record", title=f"R{n}")["key"]
         for n in range(3)
     ]
-    other = suite.client("agent:sim-planner").create_record(record_type="core.Record", title="P")
+    other = suite.client("user:sim-planner").create_record(record_type="core.Record", title="P")
     assert keys + [other["key"]] == [f"SIMRT1-REC-000{n}" for n in range(1, 5)]
 
 

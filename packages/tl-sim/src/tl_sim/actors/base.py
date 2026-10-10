@@ -141,7 +141,7 @@ class BaseActor:
 
     def __init__(self, params: Any) -> None:
         self.params = params
-        self.identity: str = f"agent:sim-{self.name}"
+        self.identity: str = f"user:sim-{self.name}"
 
     def step(self, ctx: SimContext) -> list[GroundTruth]:
         recorder = Recorder(ctx, self.identity)

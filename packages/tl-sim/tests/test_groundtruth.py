@@ -13,17 +13,17 @@ AT = datetime(2026, 11, 2, 7, 0, tzinfo=UTC)
 
 def item(ref: str = "K-1", **expect: object) -> GroundTruth:
     return GroundTruth(
-        at=AT, actor="agent:sim-crew", intent=gt.RECORD_CREATED, ref=ref, expect=expect or {"a": 1}
+        at=AT, actor="user:sim-crew", intent=gt.RECORD_CREATED, ref=ref, expect=expect or {"a": 1}
     )
 
 
 def test_a_line_is_compact_sorted_json_in_utc() -> None:
     other_zone = AT.astimezone(timezone(timedelta(hours=2)))
     line = gt.to_line(
-        GroundTruth(other_zone, "agent:sim-crew", "post.created", "p", {"b": 1, "a": 2})
+        GroundTruth(other_zone, "user:sim-crew", "post.created", "p", {"b": 1, "a": 2})
     )
     assert line == (
-        '{"actor":"agent:sim-crew","at":"2026-11-02T07:00:00+00:00","expect":{"a":2,"b":1},'
+        '{"actor":"user:sim-crew","at":"2026-11-02T07:00:00+00:00","expect":{"a":2,"b":1},'
         '"intent":"post.created","ref":"p"}'
     )
 

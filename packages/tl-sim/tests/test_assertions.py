@@ -11,7 +11,7 @@ from tl_sim.assertions import AssertionReport, run_assertions
 from tl_sim.testing import FakeWorld, make_context
 from tl_sim.types import GroundTruth
 
-IDENTITY = "agent:sim-crew"
+IDENTITY = "user:sim-crew"
 PLAYED = {date(2026, 11, 2)}
 
 
@@ -126,7 +126,7 @@ def test_a_retracted_post_does_not_count() -> None:
 
 def test_a_record_nobody_intended_is_reported() -> None:
     world, truth = play()
-    stray = Recorder(make_context(world, "agent:sim-planner"), "agent:sim-planner")
+    stray = Recorder(make_context(world, "user:sim-planner"), "user:sim-planner")
     stray.create("Stray")
     report = check(world, truth)
     assert ("unexpected_record", "key") in failures(report)
@@ -136,8 +136,16 @@ def test_an_event_from_another_source_is_reported() -> None:
     world, truth = play()
     world.event_rows[0]["source"] = "api"
     assert ("event_source", "source") in failures(check(world, truth))
-    world.event_rows[0]["source"] = "mcp:agent:sim-planner"
+    world.event_rows[0]["source"] = "mcp:agent:sim-assistant"
     assert check(world, truth).ok  # a proposal made over MCP is the simulator too
+
+
+def test_an_event_by_an_actor_that_is_not_simulated_is_reported() -> None:
+    world, truth = play()
+    world.event_rows[0]["actor"] = "user:alice"
+    assert ("event_actor", "actor") in failures(check(world, truth))
+    world.event_rows[0]["actor"] = "agent:sim-assistant"
+    assert check(world, truth).ok
 
 
 def test_an_event_on_a_day_that_was_not_played_is_reported() -> None:
