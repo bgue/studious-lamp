@@ -40,9 +40,9 @@ test-parity *args:
 test-tui *args:
     uv run pytest packages/tl-tui -q {{args}}
 
-# Synthetic project into the dev ledger (arrives with P0-I6)
-seed scale="xs":
-    @echo "seed {{scale}}: not yet (arrives with P0-I6)"
+# Synthetic project into the dev ledger, written through the API by the simulator (xs, s or m)
+seed scale="xs" *args:
+    bash dev/seed/seed.sh {{scale}} {{args}}
 
 # REST API and SSE stream on the dev ledger (TL_DB, TL_TOKENS; loopback only unless --insecure-dev)
 serve *args:

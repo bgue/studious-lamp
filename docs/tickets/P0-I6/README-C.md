@@ -39,17 +39,20 @@ runs `sim_assert` (green), re-runs the same seed on a fresh ledger and compares 
 | S41 | `tl-sim` package: types, rng, clock, ground truth, scenario models, run state, `HttpSimClient`, reader, assertions, orchestrator loop, injections, `FakeWorld`, actor base and `Recorder` | orchestrator loop and determinism, ground-truth assertion | orchestrator | done |
 | S42 | Stubs and provided tests for T40 to T43, reference implementations kept in the scratchpad | scaffolds | | done |
 | S43 | Roles act as `user:sim-<role>`, `agent:sim-assistant` provisioned, actor check in `sim_assert` (C9) | identity of the simulator | orchestrator | done |
-| S44 | `tl sim` wiring, `just seed`, end-to-end tests, demo | wiring | | pending |
+| S44 | After batch 1: identities and plural fixes, Rev Z rule | reviewer rulings | | done |
+| S45 | End-to-end tests: the real actors against the real API app | determinism and the ground-truth assertion in practice | orchestrator | done (posts use a stand-in until WS-B is merged) |
+| S46 | `tl sim`, `tl_sim.mcp_server`, `just seed` (`dev/seed/seed.sh`) | wiring | | done |
+| S47 | Demo `P0-I6-C`, merge of WS-B, `P0-I6` demo and report | closing work | | pending |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| P0-I6-T40 | Document controller actor (13 provided tests) | haiku | S41 | ready | |
-| P0-I6-T41 | Planner actor (12 provided tests) | haiku | S41 | ready | |
-| P0-I6-T42 | Crew actor (12 provided tests) | haiku | S41 | ready | |
-| P0-I6-T43 | Scenario and template loader (25 provided tests) | haiku | S41 | ready | |
-| P0-I6-T44 | `tl sim` CLI group (planned, round 2) | haiku | S41, T43 | draft | |
-| P0-I6-T45 | Simulation MCP server, five tools (planned, round 2) | haiku | S41, T43 | draft | |
+| P0-I6-T40 | Document controller actor (13 provided tests) | haiku | S41 | merged | pass, 1 round. Reviewer question answered: Rev Z is the last revision and is never revised (documented in the docstring and `DocumentControllerParams`, with a test) |
+| P0-I6-T41 | Planner actor (12 provided tests) | haiku | S41 | merged | pass, 1 round |
+| P0-I6-T42 | Crew actor (12 provided tests) | haiku | S41 | merged | pass, 1 round. Reviewer ruling: singular and plural in posts (`1 valve`); applied to the three actors in S44 |
+| P0-I6-T43 | Scenario and template loader (25 provided tests) | haiku | S41 | merged | pass, 1 round |
+| P0-I6-T44 | `tl sim` CLI group | supervisor | S41, T43 | taken by supervisor | not dispatched: the reference (`tl_sim/cli.py`, 18 tests with the five operations faked) was written to verify the ticket and is two hundred lines of formatting; usage limits (L-P0-I5-O4) |
+| P0-I6-T45 | Simulation MCP server, five tools | supervisor | S41 | taken by supervisor | not dispatched, same reason; `tl_sim/mcp_server.py`, 11 tests |
 
 ## Order of work
 1. Round 1 (this round): S40 to S42, DISPATCH T40 to T43.

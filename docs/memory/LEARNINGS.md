@@ -720,3 +720,20 @@ test or a generated artefact already enforces, or narrative history (that belong
   threads. The code handles all three. Synchronous remote calls on the UI thread (3 s interactive timeout) should move
   to workers.
   Evidence: P0-I4 WS-D re-review at c033469. Status: active
+- **L-P0-I6C-6** · 2026-10-10 · tags: process, tickets
+  A spec that prints a count must say how the singular reads: the crew actor followed `Installed <n> valves` literally and posted "Installed 1 valves" while a provided test
+  only covered 2 and 3. Write a `plural(count, noun)` into the shared base and name it in the spec. Also: the stream of a seeded generator is keyed by the actor identity string, so
+  changing an identity (user: instead of agent:) changes every pinned draw; keep pins in one `PINNED` constant per test file so a re-pin is one edit.
+  Evidence: reviewer ruling on T42; S44 re-pinned three tests. Status: active
+
+- **L-P0-I6C-7** · 2026-10-10 · tags: tooling
+  pydantic's `ValidationError` is a subclass of `ValueError`, so an `except (…, ValueError)` placed before `except ValidationError` makes the second unreachable (pyright
+  `reportUnusedExcept`). Put `ValidationError` first, as the two `tl_sim` error wrappers do. The mcp SDK reports an exception a tool did not convert as a generic
+  `UnexpectedToolError("Error executing tool x")`: the message is not leaked, which a test can rely on.
+  Evidence: `tl_sim/cli.py`, `tl_sim/mcp_server.py`, `tests/test_mcp_server.py::test_a_bug_is_not_turned_into_a_known_failure_message`. Status: active
+
+- **L-P0-I6C-8** · 2026-10-10 · tags: env, tooling
+  Two implementer reports found shell traps in the Bash tool: `pkill -f <pattern>` matches the shell that runs it when the pattern is in the command line (exit 144), and a
+  multi-line `cat > file <<'EOF'` inside a `&&` chain once hung until the 120 s timeout while the Write tool created the file at once. Use `pgrep` and a PID, and write files with
+  the Write tool.
+  Evidence: `docs/reports/P0-I6/P0-I6-T41.md`. Status: active
