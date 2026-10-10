@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import stat
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
@@ -14,7 +14,12 @@ SCENARIO = Scenario(scenario="t", seed=1, start=date(2026, 11, 2))
 
 
 def state(run_id: str = "r1") -> RunState:
-    return RunState(run_id=run_id, scenario=SCENARIO, tokens={"user:sim-crew": "secret"})
+    return RunState(
+        run_id=run_id,
+        scenario=SCENARIO,
+        tokens={"user:sim-crew": "secret"},
+        created_at=datetime(2026, 11, 2, tzinfo=UTC),
+    )
 
 
 def test_a_run_saves_and_loads_unchanged(tmp_path: Path) -> None:

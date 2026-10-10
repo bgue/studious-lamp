@@ -144,8 +144,45 @@ def test_an_event_by_an_actor_that_is_not_simulated_is_reported() -> None:
     world, truth = play()
     world.event_rows[0]["actor"] = "user:alice"
     assert ("event_actor", "actor") in failures(check(world, truth))
-    world.event_rows[0]["actor"] = "agent:sim-assistant"
-    assert check(world, truth).ok
+    world.event_rows[0]["actor"] = (
+        "agent:sim-assistant"  # a simulated actor, but not the one logged
+    )
+    seen = failures(check(world, truth))
+    assert ("event_actor", "actor") not in seen
+    assert ("actor_mismatch", "record.created by") in seen
+
+
+def test_a_record_written_by_the_wrong_simulated_actor_fails() -> None:
+    world = FakeWorld("r1", "project:sim-r1")
+    wrong = Recorder(make_context(world, "user:sim-planner"), "user:sim-crew")  # writes as planner
+    wrong.create("Valve V001")
+    report = check(world, wrong.truth)  # the log says the crew did it
+    assert [(f.check, f.expected, f.actual) for f in report.failures] == [
+        ("actor_mismatch", "user:sim-crew", ["user:sim-planner"])
+    ]
+
+
+@pytest.mark.parametrize("intent", ["pset", "link", "transition", "post"])
+def test_every_kind_of_write_is_checked_against_the_actor_of_its_event(intent: str) -> None:
+    world, truth = play()
+    wanted = {
+        "pset": "Pset.ValuesSet",
+        "link": "Link.Added",
+        "transition": "Workflow.Transitioned",
+        "post": "Feed.Posted",
+    }[intent]
+    for event in world.event_rows:
+        if event["event_type"] == wanted:
+            event["actor"] = "user:sim-planner"
+    report = check(world, truth)
+    assert {f.check for f in report.failures} == {"actor_mismatch"}, intent
+    assert report.failures
+
+
+def test_an_empty_log_fails_closed() -> None:
+    world, _ = play()
+    report = check(world, [])
+    assert not report.ok and [f.check for f in report.failures] == ["empty_ground_truth"]
 
 
 def test_an_event_on_a_day_that_was_not_played_is_reported() -> None:

@@ -10,7 +10,6 @@ from __future__ import annotations
 from typing import Any, Protocol, cast
 
 from tl_api.client import ApiClient
-from tl_core.services.feed_queries import FeedPage
 
 PAGE = 500  # the event pager's limit
 FEED_PAGE = 200  # the feed route's limit (GET /feed answers 422 above it)
@@ -30,7 +29,7 @@ class SimReader(Protocol):
         ...
 
     def events(self) -> list[dict[str, Any]]:
-        """Every event of the scope: ``event_type, actor, source, effective_at, recorded_at``."""
+        """Every event of the scope: ``stream_id, event_type, actor, source, payload``, times."""
         ...
 
     def proposals(self) -> list[dict[str, Any]]:
@@ -43,7 +42,9 @@ class FeedApi(Protocol):
 
     def feed_page(
         self, scope: str, *, item_type: Any = None, limit: int = 50, before_seq: int | None = None
-    ) -> FeedPage: ...
+    ) -> Any:
+        """A ``FeedPage``: ``items`` (``actor``, ``summary``, ``retracted``) and ``next_before``."""
+        ...
 
 
 class HttpReader:

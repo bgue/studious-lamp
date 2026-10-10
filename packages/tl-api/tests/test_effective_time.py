@@ -69,6 +69,39 @@ def test_a_failed_command_leaves_the_override_unset_for_the_next_request(
     assert event["effective_at"] == event["recorded_at"]
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        "0001-01-01T00:00:00+05:00",  # overflows when converted to UTC
+        "9999-12-31T23:59:59-05:00",  # overflows the other way
+        "1969-12-31T23:59:59Z",
+        "2101-01-01T00:00:00Z",
+        "0001-01-01T00:00:00Z",
+    ],
+)
+def test_an_instant_outside_1970_to_2100_or_that_overflows_is_a_400_not_a_500(
+    harness: Harness, value: str
+) -> None:
+    response = create(harness, SIM, "O-1", {EFFECTIVE_AT_HEADER: value})
+    assert response.status_code == 400
+    assert response.json()["error"] == "invalid_effective_time"
+    assert create(harness, SIM, "O-1").status_code == 200  # nothing was written
+
+
+@pytest.mark.parametrize("value", ["1970-01-01T00:00:00Z", "2100-12-31T23:59:59Z"])
+def test_the_ends_of_the_accepted_range_work(harness: Harness, value: str) -> None:
+    response = create(harness, SIM, "R-" + value[:4], {EFFECTIVE_AT_HEADER: value})
+    assert response.status_code == 200
+    assert response.json()["events"][0]["effective_at"].startswith(value[:19])
+
+
+@pytest.mark.parametrize("value", ["2100-12-31T23:00:00-02:00", "1970-01-01T01:00:00+02:00"])
+def test_the_range_is_checked_in_utc_not_in_the_given_offset(value: str) -> None:
+    with pytest.raises(ApiError) as raised:
+        resolve_effective_at(value, SIM)  # 2101-01-01T01:00Z and 1969-12-31T23:00Z
+    assert (raised.value.status, raised.value.error) == (400, "invalid_effective_time")
+
+
 def test_the_stored_event_carries_it_for_readers(harness: Harness) -> None:
     create(harness, SIM, "E-1", {EFFECTIVE_AT_HEADER: "2026-11-03T09:00:00+02:00"})
     page = harness.client_for(ALICE).get("/events", params={"scope": SIM}).json()

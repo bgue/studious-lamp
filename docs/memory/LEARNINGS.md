@@ -737,3 +737,8 @@ test or a generated artefact already enforces, or narrative history (that belong
   multi-line `cat > file <<'EOF'` inside a `&&` chain once hung until the 120 s timeout while the Write tool created the file at once. Use `pgrep` and a PID, and write files with
   the Write tool.
   Evidence: `docs/reports/P0-I6/P0-I6-T41.md`. Status: active
+- **L-P0-I6C-9** · 2026-10-10 · tags: tests, security
+  An import-boundary test that only reads `ast.ImportFrom.module` misses `from tl_core import ledger` (the forbidden thing is `module.name`), `import x as y; y.ledger`, and a module
+  loaded by string. Test the dotted name of every `from` import, follow aliases through attribute chains, forbid `importlib`/`__import__`, and keep negative fixtures that prove each
+  spelling is caught. A timestamp parser also needs a range: `datetime.astimezone(UTC)` raises `OverflowError` at year 1 or 9999, which became a 500 until it was caught.
+  Evidence: review of S40 to S43; `tests/test_contract_and_boundary.py`, `packages/tl-api/tests/test_effective_time.py`. Status: active

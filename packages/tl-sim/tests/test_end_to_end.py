@@ -57,7 +57,23 @@ class StandInReader:
         return self._real.links(record_id)
 
     def events(self) -> list[dict[str, Any]]:
-        return self._real.events()
+        """The real events plus a ``Feed.Posted`` for each stand-in post (not in the ledger)."""
+        real = self._real.events()
+        day = real[0]["effective_at"] if real else "2026-11-02T07:00:00+00:00"
+        posted = [
+            {
+                "seq": 10_000 + n,
+                "stream_id": f"stand-in-{n}",
+                "event_type": "Feed.Posted",
+                "actor": p["actor"],
+                "source": f"sim:{RUN_ID}",
+                "effective_at": day,
+                "recorded_at": "2000-01-01T00:00:00+00:00",
+                "payload": {"body": p["body"]},
+            }
+            for n, p in enumerate(self._book.posts)
+        ]
+        return real + posted
 
     def proposals(self) -> list[dict[str, Any]]:
         return self._real.proposals()

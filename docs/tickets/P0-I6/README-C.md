@@ -59,6 +59,16 @@ runs `sim_assert` (green), re-runs the same seed on a fresh ledger and compares 
 2. Round 2: merge batch 1, then change `IDENTITY` in the three provided actor tests (`provided/c-test_actor_*.py.txt`, T40 to T42 texts) and in the merged `test_actor_*.py` to `user:sim-<role>` (C9; batch 1 was dispatched before the ruling, and `BaseActor.identity` already answers `user:sim-<name>`, so the three identity tests fail until then); real-actor end-to-end tests against the API (reference check); T44 and T45 with stubs and provided tests; DISPATCH.
 3. Round 3: merge batch 2; `just seed`, demo `P0-I6-C`; docs; gates. Then, when told workstream B is on `p0/i6`: merge it, wire `post` (`feed_post`), proposals (`McpCaller`) and the review-queue read, then `dev/demos/P0-I6.sh` and `docs/reports/P0-I6.md`.
 
+## Review of S40 to S43 (fresh reviewer, changes requested; fixed in S48)
+| # | Finding | Fix |
+|---|---|---|
+| 1 | `X-TL-Effective-At` at the ends of the calendar gave 500 (`OverflowError`) | caught and 400 `invalid_effective_time`; accepted years 1970 to 2100, checked in UTC |
+| 2 | `sim_assert` passed on an empty log | fails closed: `empty_ground_truth`, `nothing_checked` |
+| 3 | The actor check was a prefix test | each record, pset, link, transition, post and proposal intent is compared with the actor of the ledger event that fulfilled it (`actor_mismatch`); readers return `stream_id` and `payload` |
+| 4 | The import-boundary test missed `from x import y` and aliases | dotted-name check, alias attribute chains, `importlib`/`__import__`, negative fixtures |
+| 5 | `RunState.created_at` read the wall clock; a docstring named the wrong test file | the caller supplies it (the scenario start at 00:00 UTC); docstring fixed |
+| 6 | `HttpReader.proposals()` returns `[]` until WS-B merges | accepted (fails closed: a logged proposal is then reported missing) |
+
 ## Risks and escalation triggers
 - The feed post and feed read need workstream B (`ApiClient.feed_post`, `feed_page`, the `PostToFeed` route). Until it is merged the real-API tests cover every write except `post`, and `HttpReader.posts` is only exercised on `FakeWorld`.
 - A change to `Command`, `Event`, `Ledger` or `event_hash` would be a stop condition. D5 needed none.

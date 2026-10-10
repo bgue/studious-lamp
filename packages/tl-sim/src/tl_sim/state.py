@@ -15,7 +15,7 @@ import json
 import os
 import re
 import secrets
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -45,7 +45,7 @@ class RunState(BaseModel):
     tokens: dict[str, str] = Field(default_factory=dict[str, str])  # actor identity -> token
     pending: list[InjectSpec] = []  # injections queued for the next day that is played
     in_progress: str | None = None  # "<day>:<actor>" while a step runs
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime  # the caller supplies it: the state never reads the wall clock
 
     @property
     def scope(self) -> str:

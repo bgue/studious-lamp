@@ -17,7 +17,7 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import UTC, date, datetime, time
 from typing import Any, Protocol
 
 from tl_sim import groundtruth as gt
@@ -111,7 +111,8 @@ class Simulation:
         run_id = run_id or default_run_id(scenario)
         if store.exists(run_id):
             raise RunError(f"run {run_id!r} already exists in {store.base}; choose another run id")
-        state = RunState(run_id=run_id, scenario=scenario)
+        created = datetime.combine(scenario.start, time(0), tzinfo=UTC)  # simulated, not the clock
+        state = RunState(run_id=run_id, scenario=scenario, created_at=created)
         state.tokens = connector.provision(all_identities())
         store.save(state)
         sim = cls(state, store, connector)

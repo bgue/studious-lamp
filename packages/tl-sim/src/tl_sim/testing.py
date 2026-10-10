@@ -46,7 +46,15 @@ class FakeWorld:
 
     # --- the store -------------------------------------------------------------------------
 
-    def emit(self, event_type: str, actor: str, source: str, when: datetime, stream: str) -> None:
+    def emit(
+        self,
+        event_type: str,
+        actor: str,
+        source: str,
+        when: datetime,
+        stream: str,
+        payload: dict[str, Any] | None = None,
+    ) -> None:
         self._seq += 1
         self.event_rows.append(
             {
@@ -57,6 +65,7 @@ class FakeWorld:
                 "effective_at": when.isoformat(),
                 "recorded_at": when.isoformat(),
                 "stream_id": stream,
+                "payload": payload or {},
             }
         )
 
@@ -121,9 +130,11 @@ class FakeClient:
         self.can_propose = can_propose
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
 
-    def _write(self, event_type: str, stream: str) -> None:
+    def _write(self, event_type: str, stream: str, payload: dict[str, Any] | None = None) -> None:
         when = self.clock.tick()
-        self.world.emit(event_type, self.identity, f"sim:{self.world.run_id}", when, stream)
+        self.world.emit(
+            event_type, self.identity, f"sim:{self.world.run_id}", when, stream, payload
+        )
 
     def create_record(
         self, *, record_type: str, title: str, psets: dict[str, Any] | None = None
@@ -207,7 +218,7 @@ class FakeClient:
         self.world.post_rows.append(
             {"id": post_id, "actor": self.identity, "body": body, "retracted": False}
         )
-        self._write("Feed.Posted", post_id)
+        self._write("Feed.Posted", post_id, {"body": body})
         return {"post_id": post_id, "version": 1}
 
     def propose(self, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -220,7 +231,7 @@ class FakeClient:
         self.world.proposal_rows.append(
             {"id": proposal_id, "agent": self.identity, "tool": tool, "arguments": arguments}
         )
-        self._write("Proposal.Created", proposal_id)
+        self._write("Proposal.Created", proposal_id, {"agent": self.identity, "tool": tool})
         return {"proposal_id": proposal_id}
 
     def query(self, q: str, *, limit: int = 100) -> list[dict[str, Any]]:

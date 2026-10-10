@@ -4,7 +4,7 @@ Every write is a request to the REST API (``tl_api.client.ApiClient``) made with
 token, stamped with the simulated time (``X-TL-Effective-At``, FANOUT D5) and tagged
 ``source=sim:<run_id>``. ``propose`` goes to the MCP server through an ``McpCaller``. Nothing here
 opens the ledger, a unit of work or a handler: the simulator dogfoods the open interfaces
-(brief 29.1), which ``tests/test_boundary.py`` enforces by reading the imports.
+(brief 29.1), which ``tests/test_contract_and_boundary.py`` enforces by reading the imports.
 
 Keys. A simulation scope is ``project:sim-<run>``, and the numbering pattern's ``{project}`` takes
 letters and digits only, so the suite cannot number records there. The client assigns the keys:

@@ -16,6 +16,8 @@ from tl_api.errors import ApiError
 
 EFFECTIVE_AT_HEADER = "X-TL-Effective-At"
 SIM_SCOPE = re.compile(r"project:sim-[A-Za-z0-9_.-]+")
+MIN_YEAR = 1970  # a sanity bound: a simulation plays real calendar dates, not the ends of time
+MAX_YEAR = 2100
 
 
 def resolve_effective_at(value: str | None, scope: str) -> datetime | None:
@@ -23,7 +25,8 @@ def resolve_effective_at(value: str | None, scope: str) -> datetime | None:
 
     Raises ``ApiError`` 400 ``effective_time_forbidden`` when the scope is not a simulation scope
     and ``invalid_effective_time`` when the value is not an ISO-8601 instant with a UTC offset
-    (``2026-11-02T08:00:00Z`` or ``+00:00``). The value is returned in UTC.
+    (``2026-11-02T08:00:00Z`` or ``+00:00``) or falls outside the years 1970 to 2100 (also when
+    the conversion to UTC overflows). The value is returned in UTC.
     """
     if value is None:
         return None
@@ -34,15 +37,19 @@ def resolve_effective_at(value: str | None, scope: str) -> datetime | None:
             f"{EFFECTIVE_AT_HEADER} is only accepted for simulation scopes (project:sim-<run>), "
             f"not {scope!r}",
         )
+    problem = ApiError(
+        400,
+        "invalid_effective_time",
+        f"{EFFECTIVE_AT_HEADER} must be an ISO-8601 instant with an offset between "
+        f"{MIN_YEAR} and {MAX_YEAR}, for example 2026-11-02T08:00:00Z",
+    )
     try:
         parsed = datetime.fromisoformat(value.strip())
-    except ValueError:
-        parsed = None
-    if parsed is None or parsed.tzinfo is None:
-        raise ApiError(
-            400,
-            "invalid_effective_time",
-            f"{EFFECTIVE_AT_HEADER} must be an ISO-8601 instant with an offset, "
-            "for example 2026-11-02T08:00:00Z",
-        )
-    return parsed.astimezone(UTC)
+        if parsed.tzinfo is None:
+            raise problem
+        utc = parsed.astimezone(UTC)  # OverflowError at the ends of the calendar
+    except (ValueError, OverflowError):
+        raise problem from None
+    if not MIN_YEAR <= utc.year <= MAX_YEAR:
+        raise problem
+    return utc

@@ -12,6 +12,11 @@ returns now (the ``cur_*`` projections and the event pager). The two must agree:
 | ``post.created`` | a live post by that author with that body exists (once per intended post) |
 | ``proposal.created`` | a proposal by that agent for that tool exists (once per intended one) |
 
+Each of those is also checked against the ledger event that fulfilled it: the actor that wrote
+that record, pset value, link, transition, post or proposal must be the actor the log names
+(``actor_mismatch``). The check fails closed: an empty log, or a run that checked nothing, is a
+failure, not a pass.
+
 Three more checks catch what the scenario did not intend: the scope holds no record the log does
 not name, every event in the scope was written by the simulator (``source`` ``sim:<run>``, or an
 MCP proposal, by a ``user:sim-*`` or ``agent:sim-*`` actor), and every simulator event carries a
@@ -97,6 +102,9 @@ def run_assertions(
 ) -> AssertionReport:
     """Check every intent in ``truth`` against ``reader``; ``played`` holds the simulated dates."""
     report = AssertionReport(counts=dict(Counter(item.intent for item in truth)))
+    if not truth:  # nothing intended is nothing proved
+        report.failures.append(Failure("empty_ground_truth", "-", "log", "at least one intent", 0))
+        return report
 
     def fail(check: str, ref: str, name: str, expected: Any, actual: Any) -> None:
         report.failures.append(Failure(check, ref, name, expected, actual))
@@ -107,6 +115,32 @@ def run_assertions(
             fail(check_name, ref, name, expected, actual)
 
     by_key = {str(r["key"]): r for r in reader.records()}
+    events = reader.events()
+    writers: dict[tuple[str, str], set[str]] = {}  # (stream id, event type) -> actors
+    posted: Counter[tuple[str, str]] = Counter()  # (actor, body) of Feed.Posted
+    proposed: Counter[tuple[str, str, str]] = Counter()  # (actor, agent, tool) of Proposal.Created
+    for event in events:
+        writers.setdefault((str(event["stream_id"]), str(event["event_type"])), set()).add(
+            str(event["actor"])
+        )
+        payload = event.get("payload") or {}
+        if event["event_type"] == "Feed.Posted":
+            posted[(str(event["actor"]), str(payload.get("body")))] += 1
+        elif event["event_type"] == "Proposal.Created":
+            key = (str(event["actor"]), str(payload.get("agent")), str(payload.get("tool")))
+            proposed[key] += 1
+
+    def written_by(item: GroundTruth, stream: str | None, event_type: str) -> None:
+        """The event of ``event_type`` on ``stream`` was written by the actor the log names."""
+        found = writers.get((stream, event_type), set()) if stream is not None else set()
+        check(
+            item.actor in found,
+            "actor_mismatch",
+            item.ref,
+            f"{item.intent} by",
+            item.actor,
+            sorted(found) or None,
+        )
 
     # --- records ---------------------------------------------------------------------------
     created = {item.ref for item in truth if item.intent == gt.RECORD_CREATED}
@@ -120,6 +154,7 @@ def run_assertions(
         for name, value in item.expect.items():
             actual = record.get(ENVELOPE_FIELDS.get(name, name))
             check(_same(value, actual), item.intent, item.ref, name, value, actual)
+        written_by(item, str(record["id"]), "Record.Created")
     for key in sorted(set(by_key) - created):
         fail("unexpected_record", key, "key", None, by_key[key].get("title"))
         report.checked += 1
@@ -135,6 +170,13 @@ def run_assertions(
         record = by_key.get(ref)
         actual = record.get("status") if record is not None else None
         check(_same(value, actual), gt.WORKFLOW_TRANSITIONED, ref, name, value, actual)
+    for intent, event_type in (
+        (gt.PSET_SET, "Pset.ValuesSet"),
+        (gt.WORKFLOW_TRANSITIONED, "Workflow.Transitioned"),
+    ):
+        for item in {(i.ref, i.actor): i for i in truth if i.intent == intent}.values():
+            record = by_key.get(item.ref)
+            written_by(item, str(record["id"]) if record is not None else None, event_type)
 
     # --- links -------------------------------------------------------------------------------
     links_of: dict[str, list[dict[str, Any]]] = {}
@@ -158,6 +200,7 @@ def run_assertions(
                 None,
             )
         check(found is not None, item.intent, item.ref, "active link", True, found is not None)
+        written_by(item, str(found["link_id"]) if found is not None else None, "Link.Added")
 
     # --- posts and proposals: each intended one needs its own match ------------------------------
     live = Counter((p["actor"], p["body"]) for p in reader.posts() if not p.get("retracted"))
@@ -169,6 +212,10 @@ def run_assertions(
         if have:
             live[want] -= 1
         check(have, item.intent, item.ref, "post", item.expect["body"], None if not have else "ok")
+        made = posted[(item.actor, item.expect["body"])] > 0
+        if made:
+            posted[(item.actor, item.expect["body"])] -= 1
+        check(made, "actor_mismatch", item.ref, "post.created by", item.actor, None)
     queue = Counter((p["agent"], p["tool"]) for p in reader.proposals())
     for item in truth:
         if item.intent != gt.PROPOSAL_CREATED:
@@ -180,9 +227,14 @@ def run_assertions(
         check(
             have, item.intent, item.ref, "proposal", item.expect["tool"], None if not have else "ok"
         )
+        by = (item.actor, item.expect["agent"], item.expect["tool"])
+        made = proposed[by] > 0
+        if made:
+            proposed[by] -= 1
+        check(made, "actor_mismatch", item.ref, "proposal.created by", item.actor, None)
 
     # --- events: only the simulator wrote, and on a simulated day --------------------------------
-    for event in reader.events():
+    for event in events:
         source = str(event["source"])
         ref = f"seq {event.get('seq')} {event['event_type']}"
         if source == f"sim:{run_id}":
@@ -197,4 +249,6 @@ def run_assertions(
         report.checked += 1
         if not str(event["actor"]).startswith(SIM_ACTORS):
             fail("event_actor", ref, "actor", "user:sim-* or agent:sim-*", event["actor"])
+    if report.checked == 0:  # fail closed
+        report.failures.append(Failure("nothing_checked", "-", "checks", "at least one", 0))
     return report
