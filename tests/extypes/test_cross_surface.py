@@ -33,6 +33,7 @@ from tl_mcp.server import build_server
 from tl_tui.app import TlApp
 from tl_tui.embedded import EmbeddedClient
 from tl_tui.remote import RemoteClient
+from tl_tui.widgets.extension_edit_form import ExtensionEditForm
 from tl_tui.widgets.extension_form import ExtensionRecordForm
 from typer.testing import CliRunner
 
@@ -217,3 +218,40 @@ def test_a_deprecated_type_takes_no_new_records_on_any_surface(stack: Stack) -> 
     with pytest.raises(TypeNotActiveError):
         stack.embedded().create_instance(LIFT, scope=SCOPE, title="x", key="LP-9", body=BODY)
     assert stack.embedded().get_record(SCOPE, "LP-9") is None
+
+
+def test_the_remote_tui_edits_a_body_with_e(stack: Stack) -> None:
+    record_id = _register_and_create(stack)
+    with stack.harness.live() as server:
+        client = RemoteClient.connect(server.base_url, server.token, timeout=5.0)
+        tui = TlApp(client.as_client(), scope=SCOPE, record_type=LIFT, mode="remote")
+
+        async def settle(pilot: Pilot[Any], done: Any) -> None:
+            for _ in range(100):
+                await pilot.pause(0.05)
+                if done():
+                    return
+            raise AssertionError("timed out")
+
+        async def scenario(pilot: Pilot[Any]) -> None:
+            await settle(pilot, lambda: "LP-1" in screen_text(tui))
+            await pilot.press("enter")
+            await settle(pilot, lambda: "Skid lift" in screen_text(tui))
+            await pilot.press("e")
+            await settle(pilot, lambda: isinstance(tui.screen, ExtensionEditForm))
+            form = tui.screen
+            assert isinstance(form, ExtensionEditForm)
+            assert form.query_one("#ext_crane Input", Input).value == "CR-12"
+            form.query_one("#ext_crane Input", Input).value = "CR-15"
+            await pilot.pause()
+            await pilot.press("ctrl+s")
+            await settle(pilot, lambda: not isinstance(tui.screen, ExtensionEditForm))
+
+        try:
+            run_pilot(tui, scenario, size=(160, 110))
+        finally:
+            client.close()
+    api = stack.harness.api()
+    assert api.get_record_body(record_id).body == {**BODY, "crane": "CR-15"}
+    row = api.get_record_by_id(record_id)
+    assert row is not None and row["psets"]["co_acme_lift_plan"]["crane"] == "CR-15"

@@ -258,12 +258,37 @@ class RecordView(Vertical, can_focus=True):
         """Make the tab ``details``, ``psets``, ``links``, ``history`` or ``trace`` active."""
         self.query_one("#rv-tabs", TabbedContent).active = TABS[name]
 
+    def _edit_body(self, record: dict[str, Any]) -> bool:
+        """Open the body edit form when ``record`` is an object-backed extension record."""
+        from tl_tui.extension_columns import form_for_record_type  # noqa: PLC0415
+        from tl_tui.widgets.extension_edit_form import ExtensionEditForm  # noqa: PLC0415
+
+        form = form_for_record_type(self.client, record["type"])
+        if form is None or form.storage_mode != "object-backed":
+            return False
+        try:
+            stored = self.client.get_record_body(record["id"])
+        except CLIENT_ERRORS as exc:
+            self.post_message(StatusMessage(describe_error(exc), "error"))
+            return True
+
+        def saved(done: bool | None) -> None:
+            if done:
+                self.post_message(RecordChanged(record["id"]))
+
+        self.app.push_screen(
+            ExtensionEditForm(self.client, self.scope, record, form, stored.body), saved
+        )
+        return True
+
     def action_edit(self) -> None:
         record = self.record
         if record is None:
             return
         from tl_tui.widgets.edit_form import EditForm  # new module; imported here on purpose
 
+        if self._edit_body(record):  # an object-backed extension record: its body is the content
+            return
         try:
             meta = self.client.form_metadata(self.scope, record["type"])
         except NotImplementedError:

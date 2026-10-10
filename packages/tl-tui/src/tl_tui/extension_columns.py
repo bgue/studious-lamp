@@ -104,3 +104,24 @@ def type_warning(client: ClientInterface, record_type: str | None) -> str | None
         return f"{record_type} is not a registered record type (tl types sync registers a package)"
     states = sorted({s.status for s in known})
     return f"{record_type} has no active version ({', '.join(states)}): its grid may be empty"
+
+
+def form_for_record_type(client: ClientInterface, record_type: str | None) -> TypeForm | None:
+    """The form to edit a record of ``record_type`` with: its newest active or deprecated version.
+
+    A retired version still has records, and they stay editable. ``None`` for ``core.Record``,
+    for a type with no such version, and when the client cannot say.
+    """
+    if record_type is None or record_type == CORE_TYPE:
+        return None
+    try:
+        usable = [
+            s
+            for s in client.list_types()
+            if s.type_name == record_type and s.status in ("active", "deprecated")
+        ]
+        if not usable:
+            return None
+        return client.get_type(max(usable, key=_version_key).type_ref).form
+    except CLIENT_ERRORS:
+        return None
