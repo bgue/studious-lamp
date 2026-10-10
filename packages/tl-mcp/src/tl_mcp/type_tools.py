@@ -1,4 +1,3 @@
-# ruff: noqa: F401  (STUB P0-I8-T22: delete this line when the unused imports are gone)
 """Extension type tools and resources: list and read the types, read an object-backed body.
 
 Brief 31.3 ("generic ... MCP tools"). All three tools are read-only. Creating an instance stays
@@ -38,7 +37,9 @@ def list_record_types_impl(ctx: McpContext, *, status: TypeStatus | None) -> lis
     One read-only unit of work (``ctx.factory(True)``); ``registry.list_types(uow.conn(),
     status=status)``; each view through ``summarise``.
     """
-    raise NotImplementedError("STUB (P0-I8-T22)")
+    with ctx.factory(True) as uow:
+        views = registry.list_types(uow.conn(), status=status)
+    return [summarise(view) for view in views]
 
 
 def get_record_type_impl(ctx: McpContext, *, type_ref: str) -> TypeDetail:
@@ -46,7 +47,8 @@ def get_record_type_impl(ctx: McpContext, *, type_ref: str) -> TypeDetail:
 
     Raises ``UnknownTypeError`` (mapped by ``guarded``) when there is no such registration.
     """
-    raise NotImplementedError("STUB (P0-I8-T22)")
+    with ctx.factory(True) as uow:
+        return type_detail(uow, type_ref)
 
 
 def get_record_body_impl(ctx: McpContext, *, record: str, scope: str | None) -> BodyView:
@@ -58,17 +60,25 @@ def get_record_body_impl(ctx: McpContext, *, record: str, scope: str | None) -> 
     stream_id=id)``, which quarantines the record when the object fails verification and raises
     ``BodyHashMismatchError`` (mapped by ``guarded``).
     """
-    raise NotImplementedError("STUB (P0-I8-T22)")
+    if ctx.objects is None:
+        raise ValueError(NO_STORE)
+    with ctx.factory(True) as uow:
+        record_id = resolve_record_id(uow, record, scope)
+        pointer = bodies.body_pointer(uow.conn(), record_id)
+    if pointer is None:
+        raise BodyNotFoundError(f"record {record_id!r} has no stored body")
+    body = bodies.read_body(ctx.factory, ctx.objects, stream_id=record_id)
+    return BodyView(record_id=record_id, pointer=pointer, body=body)
 
 
 def types_resource(ctx: McpContext) -> str:
     """The registered versions as JSON (``list_record_types_impl`` with no status)."""
-    raise NotImplementedError("STUB (P0-I8-T22)")
+    return dump([row.model_dump(mode="json") for row in list_record_types_impl(ctx, status=None)])
 
 
 def type_resource(ctx: McpContext, *, type_ref: str) -> str:
     """One version with its form as JSON (``get_record_type_impl``)."""
-    raise NotImplementedError("STUB (P0-I8-T22)")
+    return dump(get_record_type_impl(ctx, type_ref=type_ref).model_dump(mode="json"))
 
 
 TypeRef = Annotated[
