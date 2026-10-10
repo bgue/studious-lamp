@@ -1,6 +1,6 @@
 # Increment plan — P0-I5 workstream B: Outbox, webhooks, event catalog
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-09
 Brief sections: §18.2 (integration points, `SubscriptionFilter`), §18.3 (event catalog, CloudEvents envelope, payload modes), §18.4 (outbound webhooks), §19.1 to §19.2 (URIs, LinkML sketch), §30.5 (`webhooks.retry.max_hours`, `webhooks.egress.allowlist`)
 Branch: `p0/i5b` (integration branch `p0/i5`; trunk `claude/wizardly-allen-m2v96s`). Ticket branches `p0/i5b-t<nn>-<slug>`. Fanout: `docs/tickets/P0-I5/FANOUT.md` (contracts C1 to C3).
@@ -60,7 +60,7 @@ REVIEW-SUPERVISOR-PIECES: items 2 to 8 are in the Sonnet-authored list (webhook 
 | 8 | Envelope builder, payload modes, confidentiality seam | Contract used by every consumer | orchestrator | built |
 | 9 | Catalog generator core (`tl_schema.generators.catalog`) and the generated files | Generator logic, 01 section 7 | reviewer | built, reviewed (minor findings fixed) |
 | 10 | `tl_adapters.sqlite.factory.SqliteUowFactory` | Adapter-boundary helper; WS-A provides the same call shape for Postgres | reviewer | built |
-| 11 | Outbox and delivery parity tests after WS-A lands | Needs `p0/i5` | reviewer | planned (after WS-A) |
+| 11 | Outbox and delivery parity tests after WS-A lands | Needs `p0/i5` | reviewer | built (`tests/parity/test_webhooks_parity.py`) |
 | 12 | `tl webhook run`, `dev/demos/P0-I5.sh`, `docs/runbooks/webhook-operations.md`, contract tests | Operational glue and proof | reviewer | built |
 
 ## Tickets

@@ -520,3 +520,17 @@ test or a generated artefact already enforces, or narrative history (that belong
   run; a ticket that renames a test must say so in *Tests to add* when it also says "every test keeps its name"; a provided-test ticket's
   `git diff --stat` only lists new files once they are committed.
   Evidence: reports P0-I5-T13 and T09. Status: active
+
+- **L-P0-I5-B6** · 2026-10-09 · tags: tests
+  The ledger stamps `recorded_at` with the real clock, so a test that mixes a `FakeClock` (retry timers, lease expiry) with an
+  expiry compared against event times breaks the day the calendar passes the fake date: `test_expired_subscriptions_stop_receiving`
+  failed on 2026-10-10 because the fake "tomorrow" was already in the past of real events. Anything compared with event time uses
+  the real clock; anything compared with delivery state uses the fake one.
+  Evidence: `tests/webhooks/test_dispatcher.py`; failure on the first run after the date changed. Status: active
+
+- **L-P0-I5-B7** · 2026-10-10 · tags: process, tooling
+  When two increments create the same path (`tl_adapters/sqlite/factory.py` in P0-I4 workstream C and in P0-I5 workstream B), the
+  orchestrator names the canonical commit and the later branch copies the file verbatim and adapts its callers, rather than merging
+  two different files. After merging workstream A, `just check` failed on codegen drift because its `COLLATE "C"` change altered the
+  Postgres DDL of tables that workstream B had added: run `just gen` after every merge that touches a generator.
+  Evidence: `git show c073261:...factory.py`; `differs: ddl/postgres/wh_delivery.sql`. Status: active
