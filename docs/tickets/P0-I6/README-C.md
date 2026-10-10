@@ -38,7 +38,8 @@ runs `sim_assert` (green), re-runs the same seed on a fresh ledger and compares 
 | S40 | `effective_time`, adapter use, `X-TL-Effective-At`, parity tests | touches the ledger adapters and the API contract (D5) | orchestrator | done |
 | S41 | `tl-sim` package: types, rng, clock, ground truth, scenario models, run state, `HttpSimClient`, reader, assertions, orchestrator loop, injections, `FakeWorld`, actor base and `Recorder` | orchestrator loop and determinism, ground-truth assertion | orchestrator | done |
 | S42 | Stubs and provided tests for T40 to T43, reference implementations kept in the scratchpad | scaffolds | | done |
-| S43 | `tl sim` wiring, `just seed`, end-to-end tests, demo | wiring | | pending |
+| S43 | Roles act as `user:sim-<role>`, `agent:sim-assistant` provisioned, actor check in `sim_assert` (C9) | identity of the simulator | orchestrator | done |
+| S44 | `tl sim` wiring, `just seed`, end-to-end tests, demo | wiring | | pending |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
