@@ -655,3 +655,9 @@ test or a generated artefact already enforces, or narrative history (that belong
   (the claim is that both orders end marked), prove it 20 of 20 and 30 of 30 in a loop, and write down which two events race. A failing test on the base also blocks every
   ticket's whole-suite acceptance command (T60 was reported blocked by it).
   Evidence: `test_live_remote_app.py::test_remote_the_banner_shows_during_an_outage_and_the_feed_resumes` failed 7 of 20 before, 0 of 50 after. Status: active
+- **L-P0-I4-O1** · 2026-10-10 · tags: tui, follow-up
+  P0-I8 hardening follow-ups from the P0-I4 WS-D re-review: there are no tests yet for RemoteFeed.head() against an
+  unreachable server, for a raising command clearing OwnWrites.in_flight, or for concurrent in-flight commands on real
+  threads. The code handles all three. Synchronous remote calls on the UI thread (3 s interactive timeout) should move
+  to workers.
+  Evidence: P0-I4 WS-D re-review at c033469. Status: active
