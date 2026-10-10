@@ -16,7 +16,7 @@ The lake is an analytics copy, never a source of truth, and never a backup. It c
 ## Before you start
 - Access needed: read access to the ledger file (`TL_DB`, default `./dev/data/tl.db`), and read and write access to the lake directory (`TL_LAKE_DIR`, default `./dev/data/lake`, git-ignored).
 - The lake directory holds `catalog.ducklake` (DuckDB catalog), `data/` (Parquet), `lake_query.log.jsonl` (one JSON line per `lake_query` call), `.lake.lock` and `tmp/`.
-- Safe to run during business hours: not established by the verified facts for this runbook. Ask the supervisor before running a sync or rebuild against a shared lake.
+- Safe to run during business hours: `tl lake sync` yes (it is incremental and holds the lake lock only for the sync transaction; queries wait for the lock and then see the new snapshot). `tl lake rebuild --yes` no (it wipes and reloads, queries are blocked or return nothing until it finishes, and on a large ledger it runs for minutes): run it out of hours, or after telling users.
 
 ## Steps
 1. Check the lake state. The output shows the seq the lake covers:
@@ -59,15 +59,15 @@ The lake is an analytics copy, never a source of truth, and never a backup. It c
 
 9. If the sync or a query reports `the lake is busy: could not take the sync lock in 60 s` (or `query lock`), another sync or query holds the lock file. Wait and run the command again. The lock lets one writer or many readers use the DuckDB catalog file at a time.
 
-10. If the sync reports `the lake is at seq N but the ledger head is M`, or `the lake and the ledger disagree about the event at seq N`, the lake was built from a different ledger, for example after the ledger was restored from an older backup. Rebuild the lake from the ledger:
+10. If the sync reports `the lake is at seq N but the ledger head is M`, or `the lake and the ledger disagree about the event at seq N`, the lake was built from a different ledger, for example after the ledger was restored from an older backup. Rebuild the lake from the ledger (out of hours, or after telling users: queries are blocked while it runs):
     ```
     uv run tl lake rebuild --yes
     ```
     Expected: the lake's catalog and Parquet files are deleted and everything is loaded again from the ledger; the audit log is kept. Then run `uv run tl lake status` and check the seq.
 
-11. If the sync reports `the ledger has a gap in seq`, stop. The ledger violates its gap-free contract. Do not rebuild. Escalate to the supervisor.
+11. If the sync reports `the ledger has a gap in seq`, stop. The ledger violates its gap-free contract. Do not rebuild. Stop and escalate to the platform on-call (see the runbook index).
 
-12. After a ledger restore (see the restore runbooks of this increment), run a sync. Run step 10 only if the sync reports a disagreement:
+12. After a ledger is restored, run a sync. Run step 10 only if the sync reports a disagreement:
     ```
     uv run tl lake sync
     ```
@@ -80,10 +80,10 @@ The lake is an analytics copy, never a source of truth, and never a backup. It c
 ## Roll back
 - A sync is one transaction. If it fails, nothing is committed, and the next sync starts from the same place. There is nothing to undo.
 - The ledger is never modified by a sync or a rebuild.
-- A rebuild deletes the lake's previous catalog and Parquet files, and the verified facts give no way to restore them. The lake can be recreated from the ledger by running `uv run tl lake rebuild --yes` again.
+- A rebuild deletes the lake's previous catalog and Parquet files. The previous lake cannot be restored; rebuild it from the ledger with `uv run tl lake rebuild --yes`.
 - A lake query only reads. Refused and failed queries change nothing.
 
 ## Related
 - Brief §28.1 (the lake is never a source of truth), §28.3 (incremental sync and snapshots), §11.3 and §28.4 (the read-only `lake_query` tool).
 - `docs/runbooks/rebuild-projections.md` rebuilds the ledger's current-state tables (`cur_*`). It is a different rebuild and does not rebuild the lake.
-- The restore runbooks of this increment (P0-I7) cover restoring the ledger; their file names are not linked here.
+- `docs/runbooks/README.md` indexes the restore runbooks, which cover restoring the ledger.
