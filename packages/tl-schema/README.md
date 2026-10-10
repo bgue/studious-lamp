@@ -22,6 +22,9 @@ The schema runtime: generators that turn the LinkML sources in `schema/` into Py
 | `tl_schema.formgen.form_metadata` | function | `FormMetadata` for the TUI (contract models in `tl_schema.forms`) |
 | `tl_schema.lint.lint_documents` | function | Lint rules L001 to L007 over package documents |
 | `tl_schema.linkml_render`: `build_view`, `linkml_yaml` | functions | The effective schema as LinkML (pset classes merged into core) for lint and export |
+| `tl_schema.generators.catalog.generate`, `build_events` | functions | The event catalog from the `tl:event_type` classes in `schema/core/events.yaml`: a CloudEvents JSON Schema and a sample per event type, `catalog/asyncapi.json`, `docs/event-catalog.md` (all under `generated/`) |
+| `tl_schema.catalog`: `event_types`, `envelope_schema`, `sample`, `asyncapi` | functions | Read the committed catalog at runtime (`tl webhook test`, contract tests) |
+| `tl_schema.catalog_asyncapi.asyncapi_document`, `catalog_markdown.render_catalog_markdown`, `catalog_types.EventTypeInfo` | functions, model | Pure renderers of the catalog and the data they take |
 | `tl_schema.generated.*` | package | Generated output. Never edit by hand |
 
 ## Depends on / used by
@@ -45,4 +48,4 @@ just test packages/tl-schema
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1. Last interface change: P0-I2 workstream A (decisions A1 to A19 in `docs/tickets/P0-I2/README-A.md`). P0-I3 added the `core.Link`, numbering and workflow classes and the `tl:expects_link` annotation to `schema/core` (current-state tables `cur_links`, `cur_link_counts`, `cur_numbering`, `cur_workflow_state`). Known gaps: `class_filter` is parsed, not evaluated; waivers are declared in a package, not ledgered records.
+Introduced in P0-I1. Last interface change: P0-I5 workstream B (event catalog, `schema/core/integration.yaml`, `outbox.yaml`, `events.yaml`; `docs/tickets/P0-I5/README-B.md`). Before that: P0-I2 workstream A (decisions A1 to A19 in `docs/tickets/P0-I2/README-A.md`). P0-I3 added the `core.Link`, numbering and workflow classes and the `tl:expects_link` annotation to `schema/core` (current-state tables `cur_links`, `cur_link_counts`, `cur_numbering`, `cur_workflow_state`). Known gaps: `class_filter` is parsed, not evaluated; waivers are declared in a package, not ledgered records.

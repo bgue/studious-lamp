@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
-from sqlalchemy import Engine, create_engine, text
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import Engine, text
 from tl_core.ledger import Event
 from tl_core.links.lifecycle import LINK_EVENT_TYPES
 from tl_core.projection.defaults import default_registry
@@ -101,11 +100,11 @@ class Events:
 
 
 @pytest.fixture
-def engine() -> Iterator[Engine]:
-    eng = create_engine("sqlite://", poolclass=StaticPool)
+def engine(new_engine: Callable[[], Engine], dialect: str) -> Iterator[Engine]:
+    eng = new_engine()
     with eng.begin() as conn:
         for projector in default_registry().all():
-            for statement in projector.ddl("sqlite"):
+            for statement in projector.ddl(dialect):
                 conn.exec_driver_sql(statement)
     yield eng
     eng.dispose()
@@ -442,7 +441,9 @@ def test_reset_empties_both_tables(engine: Engine, ev: Events) -> None:
     assert count_rows(engine, "cur_link_counts") == 0
 
 
-def test_replaying_the_same_events_gives_identical_rows(ev: Events) -> None:
+def test_replaying_the_same_events_gives_identical_rows(
+    ev: Events, new_engine: Callable[[], Engine], dialect: str
+) -> None:
     events = [
         ev.record(A),
         ev.record(B),
@@ -454,10 +455,10 @@ def test_replaying_the_same_events_gives_identical_rows(ev: Events) -> None:
     ]
 
     def snapshot() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        eng = create_engine("sqlite://", poolclass=StaticPool)
+        eng = new_engine()
         with eng.begin() as conn:
             for projector in default_registry().all():
-                for statement in projector.ddl("sqlite"):
+                for statement in projector.ddl(dialect):
                     conn.exec_driver_sql(statement)
         apply(eng, *events)
         with eng.connect() as conn:

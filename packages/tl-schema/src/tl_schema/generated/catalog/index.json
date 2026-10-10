@@ -1,0 +1,229 @@
+{
+  "events": [
+    {
+      "ce_type": "tl.core.File.Processed.v1",
+      "event_type": "File.Processed",
+      "payload_class": "FileProcessedPayload",
+      "sample": "samples/File.Processed.v1.json",
+      "schema": "schemas/File.Processed.v1.json",
+      "title": "A file passed its scan and is available.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.File.Rejected.v1",
+      "event_type": "File.Rejected",
+      "payload_class": "FileRejectedPayload",
+      "sample": "samples/File.Rejected.v1.json",
+      "schema": "schemas/File.Rejected.v1.json",
+      "title": "A file failed its scan and was rejected.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.File.Uploaded.v1",
+      "event_type": "File.Uploaded",
+      "payload_class": "FileUploadedPayload",
+      "sample": "samples/File.Uploaded.v1.json",
+      "schema": "schemas/File.Uploaded.v1.json",
+      "title": "A file was uploaded and attached to a record; it is quarantined until its scan finishes.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Link.Accepted.v1",
+      "event_type": "Link.Accepted",
+      "payload_class": "LinkAcceptedPayload",
+      "sample": "samples/Link.Accepted.v1.json",
+      "schema": "schemas/Link.Accepted.v1.json",
+      "title": "A suggested link was accepted and is now active.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Link.Added.v1",
+      "event_type": "Link.Added",
+      "payload_class": "LinkAddedPayload",
+      "sample": "samples/Link.Added.v1.json",
+      "schema": "schemas/Link.Added.v1.json",
+      "title": "A link between two records became active.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Link.Declined.v1",
+      "event_type": "Link.Declined",
+      "payload_class": "LinkDeclinedPayload",
+      "sample": "samples/Link.Declined.v1.json",
+      "schema": "schemas/Link.Declined.v1.json",
+      "title": "A suggested link was declined; it will not be suggested again.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Link.Flagged.v1",
+      "event_type": "Link.Flagged",
+      "payload_class": "LinkFlaggedPayload",
+      "sample": "samples/Link.Flagged.v1.json",
+      "schema": "schemas/Link.Flagged.v1.json",
+      "title": "A link was flagged stale or broken.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Link.Repinned.v1",
+      "event_type": "Link.Repinned",
+      "payload_class": "LinkRepinnedPayload",
+      "sample": "samples/Link.Repinned.v1.json",
+      "schema": "schemas/Link.Repinned.v1.json",
+      "title": "The pin of a link was set to another revision.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Link.Retracted.v1",
+      "event_type": "Link.Retracted",
+      "payload_class": "LinkRetractedPayload",
+      "sample": "samples/Link.Retracted.v1.json",
+      "schema": "schemas/Link.Retracted.v1.json",
+      "title": "A link was retracted.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Link.Suggested.v1",
+      "event_type": "Link.Suggested",
+      "payload_class": "LinkSuggestedPayload",
+      "sample": "samples/Link.Suggested.v1.json",
+      "schema": "schemas/Link.Suggested.v1.json",
+      "title": "A link was suggested and waits for a person to accept or decline.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Link.Verified.v1",
+      "event_type": "Link.Verified",
+      "payload_class": "LinkVerifiedPayload",
+      "sample": "samples/Link.Verified.v1.json",
+      "schema": "schemas/Link.Verified.v1.json",
+      "title": "A person verified an active link.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Numbering.Allocated.v1",
+      "event_type": "Numbering.Allocated",
+      "payload_class": "NumberingAllocatedPayload",
+      "sample": "samples/Numbering.Allocated.v1.json",
+      "schema": "schemas/Numbering.Allocated.v1.json",
+      "title": "A number was allocated from a counter.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Pset.ValuesSet.v1",
+      "event_type": "Pset.ValuesSet",
+      "payload_class": "PsetValuesSetPayload",
+      "sample": "samples/Pset.ValuesSet.v1.json",
+      "schema": "schemas/Pset.ValuesSet.v1.json",
+      "title": "Values of a property set were written on a record.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Record.Corrected.v1",
+      "event_type": "Record.Corrected",
+      "payload_class": "RecordCorrectedPayload",
+      "sample": "samples/Record.Corrected.v1.json",
+      "schema": "schemas/Record.Corrected.v1.json",
+      "title": "A recorded value was corrected after the fact; history keeps the original.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Record.Created.v1",
+      "event_type": "Record.Created",
+      "payload_class": "RecordCreatedPayload",
+      "sample": "samples/Record.Created.v1.json",
+      "schema": "schemas/Record.Created.v1.json",
+      "title": "A record was created.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Record.Updated.v1",
+      "event_type": "Record.Updated",
+      "payload_class": "RecordUpdatedPayload",
+      "sample": "samples/Record.Updated.v1.json",
+      "schema": "schemas/Record.Updated.v1.json",
+      "title": "One or more fields of a record changed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Record.Voided.v1",
+      "event_type": "Record.Voided",
+      "payload_class": "RecordVoidedPayload",
+      "sample": "samples/Record.Voided.v1.json",
+      "schema": "schemas/Record.Voided.v1.json",
+      "title": "A record was voided.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Schema.EffectiveChanged.v1",
+      "event_type": "Schema.EffectiveChanged",
+      "payload_class": "SchemaEffectiveChangedPayload",
+      "sample": "samples/Schema.EffectiveChanged.v1.json",
+      "schema": "schemas/Schema.EffectiveChanged.v1.json",
+      "title": "The effective schema of a scope changed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.Published.v1",
+      "event_type": "SchemaPackage.Published",
+      "payload_class": "SchemaPackagePublishedPayload",
+      "sample": "samples/SchemaPackage.Published.v1.json",
+      "schema": "schemas/SchemaPackage.Published.v1.json",
+      "title": "A schema package version was published.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WebhookSubscription.Created.v1",
+      "event_type": "WebhookSubscription.Created",
+      "payload_class": "WebhookSubscriptionCreatedPayload",
+      "sample": "samples/WebhookSubscription.Created.v1.json",
+      "schema": "schemas/WebhookSubscription.Created.v1.json",
+      "title": "A webhook subscription was created.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WebhookSubscription.Disabled.v1",
+      "event_type": "WebhookSubscription.Disabled",
+      "payload_class": "WebhookSubscriptionDisabledPayload",
+      "sample": "samples/WebhookSubscription.Disabled.v1.json",
+      "schema": "schemas/WebhookSubscription.Disabled.v1.json",
+      "title": "A subscription stopped receiving events.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WebhookSubscription.Enabled.v1",
+      "event_type": "WebhookSubscription.Enabled",
+      "payload_class": "WebhookSubscriptionEnabledPayload",
+      "sample": "samples/WebhookSubscription.Enabled.v1.json",
+      "schema": "schemas/WebhookSubscription.Enabled.v1.json",
+      "title": "A disabled subscription started receiving events again, from this event on.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WebhookSubscription.SecretRotated.v1",
+      "event_type": "WebhookSubscription.SecretRotated",
+      "payload_class": "WebhookSubscriptionSecretRotatedPayload",
+      "sample": "samples/WebhookSubscription.SecretRotated.v1.json",
+      "schema": "schemas/WebhookSubscription.SecretRotated.v1.json",
+      "title": "A new signing secret was issued; the previous one keeps signing until the overlap ends.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.WebhookSubscription.Updated.v1",
+      "event_type": "WebhookSubscription.Updated",
+      "payload_class": "WebhookSubscriptionUpdatedPayload",
+      "sample": "samples/WebhookSubscription.Updated.v1.json",
+      "schema": "schemas/WebhookSubscription.Updated.v1.json",
+      "title": "A subscription's name, target, filter or payload mode changed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Workflow.Transitioned.v1",
+      "event_type": "Workflow.Transitioned",
+      "payload_class": "WorkflowTransitionedPayload",
+      "sample": "samples/Workflow.Transitioned.v1.json",
+      "schema": "schemas/Workflow.Transitioned.v1.json",
+      "title": "A record moved from one workflow state to another.",
+      "version": 1
+    }
+  ]
+}

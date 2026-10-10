@@ -7,13 +7,12 @@ creators are covered by ``test_concurrent_creators_never_get_the_same_key`` in
 
 from __future__ import annotations
 
-import tempfile
 from collections import defaultdict
-from pathlib import Path
+from collections.abc import Callable
 
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-from tl_adapters.sqlite.uow import create_schema, open_uow
+from tl_adapters.db import DbTarget, create_schema, open_uow
 from tl_core.numbering.config import NumberingPattern, NumberingRegistry, use_numbering
 from tl_core.services.commands import CreateRecord
 from tl_core.services.records import handle_create_record
@@ -33,13 +32,18 @@ creates = st.lists(
 )
 
 
-@settings(max_examples=25, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+@settings(
+    max_examples=25,
+    deadline=None,
+    suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture],
+)
 @given(plan=creates)
 def test_numbering_keys_are_unique_and_contiguous_per_counter(
+    new_db: Callable[[], DbTarget],
     plan: list[tuple[str, str]],
 ) -> None:
-    with tempfile.TemporaryDirectory() as tmp, use_numbering(NumberingRegistry([PATTERN])):
-        db = Path(tmp) / "tl.db"
+    with use_numbering(NumberingRegistry([PATTERN])):
+        db = new_db()
         create_schema(db)
         keys: list[str] = []
         per_counter: dict[tuple[str, str], list[int]] = defaultdict(list)
