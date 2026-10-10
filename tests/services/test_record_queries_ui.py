@@ -180,7 +180,7 @@ def test_order_by_treats_empty_text_like_null(new_db: Callable[[], DbTarget]) ->
 
 
 def test_order_by_timestamp_columns_works_on_both_adapters(new_db: Callable[[], DbTarget]) -> None:
-    """``created_at`` and ``updated_at`` are timestamps on Postgres: no comparison with ''."""
+    """Ordering by a timestamp column ran ``col = ''`` before the fix, which Postgres rejects."""
     db = new_db()
     _seed(db, 3)
     with open_uow(db, readonly=True) as uow:

@@ -1021,9 +1021,16 @@ test or a generated artefact already enforces, or narrative history (that belong
   Evidence: `tl_core/query/compiler.py`; `tests/query/test_run_query.py` (four failures with the shortcut). Status: active
 - **L-P0-I8D-4** · 2026-10-10 · tags: tests, process
   A bench finds real defects: `list_records(order_by=[("created_at", ...)])` raised `invalid input syntax for type timestamp with time zone: ""` on Postgres because the
-  "empty text sorts last" rule compared a TIMESTAMPTZ column with `''`. No parity test ordered by a timestamp. When a rule is written for "text columns", derive the set from the DDL, not from a list.
+  "empty text sorts last" rule (`col IS NULL OR col = ''`) was applied to a TIMESTAMPTZ column; the fix first limited it to text columns, and S62 then dropped the NULL term
+  altogether for the NOT NULL non-text columns. No parity test ordered by a timestamp. When a rule is written for "text columns", derive the set from the DDL, not from a list.
   Evidence: `tests/services/test_record_queries_ui.py::test_order_by_timestamp_columns_works_on_both_adapters`. Status: active
 - **L-P0-I8D-5** · 2026-10-10 · tags: process, tests
   A shared container makes timings 1.5 to 3 times worse and noisy (load average 3 to 10 on 4 CPUs while other agents run). Store the load average before every round with the result,
   keep the p95 of each round next to the pooled p95, and compare a fix against a baseline taken at a similar load; one-call `min of 3` timings (`explore.py` style) are the right tool for deciding whether a change helps, the harness for the report.
   Evidence: `tests/bench/bench_stats.py`; baseline file `dev/data/bench/results/*baseline-sqlite*`. Status: active
+- **L-P0-I8D-6** · 2026-10-10 · tags: tests, process
+  A performance change must not change query results, including for data the tests never build. S62 joined the record at the other end of a link only when the type or a nested
+  condition looked at it, so a link to a missing record began to count; the review found it with a differential run of about 16k queries, old compiler against new. Before a
+  rewrite of a compiler or projector, keep the old version in the scratchpad, diff results over generated queries and edge data (dangling links, empty and NULL values), and pin each edge in a test
+  (`tests/query/test_dangling_links.py`).
+  Evidence: review of S61/S62; `tests/query/test_dangling_links.py` fails on 9f96286 and passes now. Status: active
