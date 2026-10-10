@@ -17,7 +17,8 @@ Warning: never run these commands against the shared development cluster on port
 - Config: the template is `dev/backup/pgbackrest.conf.tmpl`. It has three placeholders: `@ROOT@`, `@PGDATA@` and `@PORT@`. The drill fills them in with `sed` and writes the result to the config file, which the commands below call `$CONF`. In the drill, `$CONF` is `/var/lib/postgresql/tl-drill/pgbackrest.conf`. Set `CONF` in your shell to your own config file before you run the commands that use `"$CONF"`.
 - Stanza: the commands use the stanza name `drill`. Substitute your own stanza name and cluster name on a real cluster. Step 2 creates the stanza.
 - Production repository settings (encrypted S3 repository, cipher, keys) are commented out in the template. They need real keys and a bucket, and they are not configured by this repository.
-- Safe to run during business hours: no, for steps 1, 3 and 5 on a live cluster. Step 5 stops the cluster. The drill is safe at any time because it uses its own cluster on port 5440.
+- Safe to run during business hours: backups (steps 2 to 4) yes, because pgBackRest backs up a running cluster online; the one-time setup in step 1 needs a restart, so use a window; a restore (step 5) no, because it stops the cluster and replaces its data. The drill is safe at any time because it uses its own cluster on port 5440.
+- A SQL client for steps 4 and 5: the examples use `psql` as the `postgres` user against the cluster's port (`5440` in the drill). Substitute your port and database.
 
 ## The safe way to practise: the drill
 Run this from the repository root. It needs sudo.
@@ -46,7 +47,7 @@ These steps are the drill's procedure. Commands are run from the repository root
    ```
    Expected: the three settings are written to `postgresql.conf` with no error.
 
-   Then restart the cluster, because `archive_mode` only takes effect after a restart. The facts list no graceful restart command, so this uses the stop and start commands below. Do this in a window with no writes, because the stop is immediate.
+   Then restart the cluster, because `archive_mode` only takes effect after a restart. Do this in a window with no writes, because the stop is immediate.
    ```
    sudo pg_ctlcluster 16 drill stop -m immediate
    sudo pg_ctlcluster 16 drill start
@@ -66,9 +67,9 @@ These steps are the drill's procedure. Commands are run from the repository root
    ```
    Expected: the output ends with `new backup label = <timestamp>F`, a line starting `full backup size = `, and `backup command end: completed successfully`. The `F` at the end of the label marks a full backup.
 
-4. Force a recovery point now, when you need one. Run this SQL in a PostgreSQL client connected to the cluster. In the drill the URL is `postgresql://postgres:drill@localhost:5440/tl_drill`.
+4. Force a recovery point now, when you need one. Run this SQL against the cluster (the drill's database is `tl_drill` on port 5440):
    ```
-   SELECT pg_switch_wal()
+   cd /tmp && sudo -u postgres psql -X -q -p 5440 -d tl_drill -At -c "SELECT pg_switch_wal()"
    ```
    Expected: the statement returns a log sequence number. WAL that is not yet archived when the machine is lost is lost. `archive_timeout` bounds how long that can be.
 
@@ -81,9 +82,9 @@ These steps are the drill's procedure. Commands are run from the repository root
    ```
    Expected: the restore output includes `restore backup set <label>` and `restore command end: completed successfully`.
 
-   Then run this SQL in a PostgreSQL client connected to the restored cluster. Repeat it until it returns `f`.
+   Then run this SQL against the restored cluster. Repeat it until it returns `f`.
    ```
-   SELECT pg_is_in_recovery()
+   cd /tmp && sudo -u postgres psql -X -q -p 5440 -d tl_drill -At -c "SELECT pg_is_in_recovery()"
    ```
    Expected: `f`. Recovery has finished. By default, pgBackRest recovers to the end of the archived WAL. Point-in-time recovery (`--type=time --target=...`) is a pgBackRest option that the drill does not exercise.
 
@@ -101,10 +102,10 @@ These steps are the drill's procedure. Commands are run from the repository root
 - Events written after the last archived WAL switch are not in the restored database. The drill reports that count as `pgbackrest_rpo_events`.
 
 ## Measured numbers (one dev run, small dataset)
-This is one dev run on 2026-10-10 with 30 records and 5 events per tail. It is not a benchmark, and it did not use the 60 records and 10 events per tail shown in the drill command above.
+This is one dev run on 2026-10-10 of `bash dev/drills/pgbackrest.sh --records 30 --tail 5`. The script's own defaults, and the command shown above, are 60 records and 10 events per tail; only the numbers below come from the smaller run. It is not a benchmark. The full drill (`just drill`) records its own table in the report it writes.
 - Full backup: 3.2 s.
 - Restore command: 1.1 s.
-- RTO: 13.9 s. The drill starts this timer when it erases the data directory. It stops the timer after the restore, the cluster start, the recovery wait, `ledger verify` and `archive verify`.
+- RTO: 13.9 s. The drill starts this timer as soon as the data directory has been erased. It stops it after the restore, the cluster start, the recovery wait, `ledger verify`, `archive verify --deep` and one probe write. So the RTO includes verification; the restore command alone took 1.1 s.
 - Recovered: 50 of 55 events. The 5 events written after the last WAL switch were lost. `archive_timeout` was 15 s.
 
 The brief sets production targets of RPO at most 5 minutes and RTO at most 1 hour for a single-database failover (§24.3). One small dev run does not show that production meets them.
@@ -119,11 +120,13 @@ The brief sets production targets of RPO at most 5 minutes and RTO at most 1 hou
 - A failed restore leaves the data directory half written. Empty it with the `find` command in step 5, then run the restore again.
 - A restore never modifies the repository (`repo1-path`).
 - If an interrupted drill leaves cluster `16/drill` behind, the next drill run removes it. To remove it by hand, first check with `pg_lsclusters`, then run `sudo pg_dropcluster 16 drill --stop`.
-- The step 1 settings have no listed rollback. See the report's open questions.
+- Step 1 changes only the cluster's `postgresql.conf`. To undo it, set the three settings back (`archive_mode off`) and restart the cluster.
 
 ## Related
 - `docs/runbooks/postgres-local-setup.md` — local Postgres setup.
-- `restore-from-archive.md` and `ledger-archive-and-verify.md` — added by P0-I7-T06 and P0-I7-T05. They are not on this branch yet. Step 6 follows the verify steps in `restore-from-archive.md`.
+- `docs/runbooks/restore-from-archive.md` — step 6 follows its Verify section.
+- `docs/runbooks/ledger-archive-and-verify.md` — sealing and verifying the archive that step 6 checks against.
+- `docs/runbooks/sqlite-backup-and-litestream.md` — the SQLite counterpart.
 - `docs/templates/restore-drill.md` — the report that `just drill` fills.
 - `dev/backup/pgbackrest.conf.tmpl` and `dev/drills/pgbackrest.sh` — the config template and the drill.
 - Brief §24.3 (backup) and §24.4 (full disaster recovery).

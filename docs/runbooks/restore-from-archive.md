@@ -15,7 +15,7 @@ Only events up to the archive's last sealed segment come back. Read "What is los
 - Know the values recorded when the archive was sealed: the last `seq` and the manifest `sha256`. See `docs/runbooks/ledger-archive-and-verify.md`.
 - The target must be empty. Use a new SQLite file (its directory is created) or an empty Postgres database or schema. Never restore into the shared parity-test database `tl_test`.
 - Use the same schema packages the ledger used. Promoted pset columns of `cur_core_record` come from the schema packages in force at restore time, not from events.
-- Safe to run during business hours: yes. The restore writes only to the empty target. The archive and any other database are not touched.
+- Safe to run during business hours: no. The restore itself writes only to the empty target and touches neither the archive nor any other database, but the point of a restore is the cut-over (below), which stops writes to the old database and restarts services. Plan a window. Practising a restore into a scratch target is safe at any time.
 - Production key custody, retention classes and object lock are not built. They are human follow-ups.
 
 ## Steps
@@ -93,14 +93,14 @@ Every refusal exits with code 1 and prints `error: ...` on stderr.
 - **The public key cannot be read.** Expected text: `error: cannot read the public key ...`. Check the `--public-key` path or `TL_ARCHIVE_PUBLIC_KEY`. The default key path is `dev/data/archive-signing.pub`.
 
 ## Warnings
-Warnings go to stderr after the two summary lines. They do not change the exit code. This warning means the schema packages in force now differ from the ledger's:
+Warnings go to stderr after the two summary lines. They do not change the exit code. Two kinds exist. The webhook ones are described under "What is lost". This one means the schema packages in force now differ from the ledger's:
 ```
 warning: scope <scope>: the ledger last recorded effective schema <hash12>, the schema packages in force now give <hash12>; promoted columns may differ from the original (restore with the TL_SCHEMA_DIR the ledger used)
 ```
 Fix the schema directory and restore again into a fresh database.
 
 ## Verify
-Run both commands on the restored database. Both must exit 0.
+Run both commands on the restored database. Both must exit 0. The examples use a SQLite file; for the Postgres database created in step 4 pass its URL to `--db` instead.
 
 1. Check the ledger hash chains:
    ```
@@ -118,6 +118,18 @@ Run both commands on the restored database. Both must exit 0.
    database /path/to/new.db agrees up to seq 18
    ```
 
+Postgres variants (the password is hidden in the output):
+```
+uv run tl ledger verify --db postgresql://postgres:postgres@localhost:5432/tl_restored
+uv run tl archive verify --archive /path/to/archive --public-key /path/to/archive-signing.pub --db postgresql://postgres:postgres@localhost:5432/tl_restored --deep
+```
+Expected:
+```
+verified ledger postgresql://postgres:***@localhost:5432/tl_restored: 18 events, hash chains intact
+verified 2 segments, seq 1..18 (18 events)
+database postgresql://postgres:***@localhost:5432/tl_restored agrees up to seq 18
+```
+
 ## What is lost
 - Only events up to the archive's last `seq` come back. Events written after the last sealed segment are gone. That gap is the archive recovery point: seal often.
 - Record files are in the object store, not in the archive. Reconcile them after the restore:
@@ -125,8 +137,8 @@ Run both commands on the restored database. Both must exit 0.
   uv run tl file reconcile
   ```
   For the output and what to do with missing files, see `docs/runbooks/object-store-reconciliation.md`.
-- Webhook subscriptions come back with status `active`, because they are rebuilt from their events. A signing secret is never in the ledger, and delivery state is not restored. Before you start the webhook worker:
-  1. List the subscriptions:
+- Webhook subscriptions come back with status `active`, because they are rebuilt from their events. A signing secret is never in the ledger, and delivery state is not restored. A subscription without a secret sends nothing: the worker keeps its deliveries pending (none are sent unsigned or dead-lettered) and logs one warning per subscription per cycle, and `tl webhook ls` shows it as `needs_secret`. The restore prints one `warning: webhook subscription ...` line per subscription, then a line saying the dispatcher starts again from seq 0, so events since each subscription was created are queued and are sent once its secret exists (receivers dedupe on the event id). To release them:
+  1. List the subscriptions (`needs_secret` in the second column):
      ```
      uv run tl webhook ls
      ```
@@ -134,14 +146,16 @@ Run both commands on the restored database. Both must exit 0.
      ```
      uv run tl webhook rotate-secret <subscription id> --project P123 --overlap-hours 24
      ```
-  3. Give each receiver its new secret.
+  3. Give each receiver its new secret. The pending deliveries are then sent signed.
+
+  The `tl webhook` and `tl file` commands take a SQLite file (`--db`) in this phase, not a Postgres URL.
 
   See `docs/runbooks/webhook-operations.md`.
 
 ## Cut over
 1. Run the verify commands above and confirm both exit 0.
-2. Point the services at the new database. Set `TL_DB` for SQLite, or the URL for Postgres.
-3. Restart the services.
+2. Point the services at the new database. For SQLite set `TL_DB` to the new file. For Postgres use the URL in the service's configuration (the parity tests and drills read it from `TL_PG_URL`); the URL printed above has its password hidden, so take the real one from your own configuration.
+3. Stop the services that write to the old database, then restart them against the new one. Events written to the old database after the archive's last seq are not in the new one.
 4. New events continue at seq max+1, with the hash chain intact.
 
 ## Roll back

@@ -16,7 +16,7 @@ Purpose: seal the ledger into signed archive segments kept apart from the databa
   - read access to the public key `dev/data/archive-signing.pub` (hex), or `--public-key` / `TL_ARCHIVE_PUBLIC_KEY`;
   - read access to the ledger: the root `--db` / `TL_DB` (default `./dev/data/tl.db`), or `--db TARGET` for a SQLite file or a `postgresql://` URL. Pass a URL with `--db`; do not paste credentials into tickets;
   - a place the archive store cannot write, for the recorded seal line (a ticket or a vault note).
-- Safe to run during business hours: not established for production. In dev the sealing commands are run hourly; whether sealing blocks writers is not stated (see open questions in the report).
+- Safe to run during business hours: yes. `tl archive seal` and every verify command read the ledger in a read-only snapshot and never block writers; sealing writes only to the archive directory. A verify with `--deep` reads every event, so on a large ledger run it off-peak.
 - Not built: production key custody (KMS, HSM), retention classes and object lock. These are later human decisions. Until they are made, the key is a file on disk and the archive is not object-locked.
 
 ## Steps
@@ -31,7 +31,7 @@ Purpose: seal the ledger into signed archive segments kept apart from the databa
    ```
    uv run tl archive seal
    ```
-   Expected, when new events exist: one `sealed segment <first>-<last> (<n> events, seq <first>..<last>)` line per new segment, then `sealed <n> segments; archive is at seq <N>`, then the record line (step 3).
+   Expected, when new events exist: one `sealed segment <first>-<last> (<n> events, seq <first>..<last>)` line per new segment, then `sealed <n> segments; archive is at seq <N>` (the word is always "segments", also for one), then the record line (step 3).
    Example output: `sealed segment 000000000001-000000000010 (10 events, seq 1..10)`, `sealed segment 000000000011-000000000018 (8 events, seq 11..18)`, `sealed 2 segments; archive is at seq 18`.
    Several segments are written when more than `--max-events` (default 10000) events are new.
    Each segment is a directory `segments/<first_seq>-<last_seq>/` in the archive directory, holding `events.ndjson`, `events.parquet` and `manifest.json`. All three are read-only. The store never overwrites a file.
@@ -63,7 +63,7 @@ A segment is written in the order `events.ndjson`, `events.parquet`, `manifest.j
    ```
    uv run tl archive verify --expect-last-seq 18 --expect-manifest dab83c9a325152d42d82b9c2937e5fcdc97b0f807b9d974f0528c12dcbdb99c2
    ```
-   Expected: the normal success line, if the archive reaches at least seq 18 with that manifest still in its chain.
+   Expected, if the archive reaches at least seq 18 with that manifest still in its chain: `verified 2 segments, seq 1..18 (18 events)` (the same line as without the flags; a longer archive prints its own counts).
    If the archive is shorter, the output is one divergence line and exit 1. Example, for a record that says the archive reached seq 99: `divergence: seq_gap segment=- seq=19: the archive ends at seq 18 but the record says it reached 99: trailing segments are missing`.
 
 3. Verify the archive against the database. This also checks that the database agrees up to the last sealed seq.
@@ -81,7 +81,7 @@ A segment is written in the order `events.ndjson`, `events.parquet`, `manifest.j
    Expected: `verified ledger dev/data/tl.db: 18 events, hash chains intact`.
 
 ### Reading a divergence
-A divergence prints one line per issue and exits 1. Only the first line is shown, unless `--all` is passed; then there is one line per broken segment. Read the first line first.
+A divergence prints one line per issue and exits 1. Only the first line is shown, unless `--all` is passed to `tl archive verify` (the only command with that option); then there is one line per broken segment. Read the first line first.
 
 Format: `divergence: <kind> segment=<directory or -> seq=<number or ->: <detail>`
 
@@ -104,10 +104,16 @@ Example: `divergence: file_hash segment=000000000011-000000000018 seq=11: events
 
 ## Roll back
 - Nothing to undo. Segments are never deleted or rewritten, and sealing and verifying do not change the ledger.
-- Replacing the key with `--force` makes older segments fail to verify with the new public key. Keep the old key pair with the old archive.
+- Replacing the key with `--force` makes older segments fail to verify with the new public key. Keep the old public key with the old archive and verify it with that key:
+  ```
+  uv run tl archive verify --archive /path/to/old/archive --public-key /path/to/old/archive-signing.pub
+  ```
 - To start a fresh archive (for example after replacing the key), use a new archive directory and keep the old one.
 
 ## Related
 - `docs/runbooks/rebuild-projections.md` (rebuild the current-state tables from the ledger).
-- Named in the build spec but not yet in `docs/runbooks/`: `restore-from-archive.md`, `sqlite-backup-and-litestream.md`, `pgbackrest-restore.md`.
+- `docs/runbooks/restore-from-archive.md` (rebuild a database from this archive).
+- `docs/runbooks/sqlite-backup-and-litestream.md` (SQLite snapshots and Litestream).
+- `docs/runbooks/pgbackrest-restore.md` (Postgres backup and restore).
+- `docs/runbooks/webhook-operations.md` (subscriptions after a restore).
 - Brief §24.3 (ledger archive), §24.5 (tampering suspicion), §24.6 (runbooks).

@@ -10,9 +10,9 @@ Run every command from the repository root. The paths below are relative to that
 - Trigger: the dev ledger file is lost. Restore the Litestream replica into a new file.
 - Limit: a snapshot holds only the events written before it was taken. Its RPO is the interval between snapshots.
 - Limit: Litestream replicates the dev ledger with a sync interval of 1 s. It is a dev tool.
-- Limit: production database backup is pgBackRest, not Litestream. See `pgbackrest-restore.md`.
+- Limit: production database backup is pgBackRest, not Litestream. See `docs/runbooks/pgbackrest-restore.md`.
 - Limit: production key custody, retention classes and object lock are not built. They are human follow-ups.
-- Limit: the ledger archive is the database-independent restore path. See `restore-from-archive.md`.
+- Limit: the ledger archive is the database-independent restore path. See `docs/runbooks/restore-from-archive.md`.
 
 ## Before you start
 - Access needed: a checkout of this repository with its Python environment installed. Outbound HTTPS to GitHub is needed once, for the Litestream fetch.
@@ -38,7 +38,7 @@ Run every command from the repository root. The paths below are relative to that
    Nothing is left behind after an error.
 
 ### Restore a snapshot
-1. Stop anything that writes to `dev/data/tl.db`. This runbook lists no command for that step. Events written after the snapshot are lost when you restore it.
+1. Stop every process that writes to `dev/data/tl.db` (the TUI, the webhook worker, `tl` commands). Events written after the snapshot are lost when you restore it.
 2. Copy the snapshot over the ledger and make the copy writable.
    ```
    cp dev/data/backups/tl-snap.db dev/data/tl.db && chmod 644 dev/data/tl.db
@@ -56,7 +56,7 @@ Run every command from the repository root. The paths below are relative to that
    bash dev/drills/fetch_litestream.sh
    ```
    Expected: `Litestream v0.3.13 is in dev/data/tools/litestream`, or no output if the binary is already there.
-2. If the download fails, do not retry in a loop. The script makes one attempt and checks the checksum. A proxy can refuse the host. Use snapshots and the ledger archive instead (`restore-from-archive.md`).
+2. If the download fails, do not retry in a loop. The script makes one attempt and checks the checksum. A proxy can refuse the host. Use snapshots and the ledger archive instead (`docs/runbooks/restore-from-archive.md`).
 
 ### Run Litestream
 1. In a shell, set the ledger path and the replica directory, then start replication in the foreground.
@@ -79,31 +79,35 @@ Use this after the ledger file is lost. It writes a new file and leaves `dev/dat
    ```
    uv run tl ledger verify --db dev/data/restored.db
    ```
-   Expected: a line that starts with `verified ledger dev/data/restored.db`.
+   Expected: `verified ledger dev/data/restored.db: <n> events, hash chains intact`.
 
 ### Compare with the archive
 1. Compare the ledger with the ledger archive.
    ```
    uv run tl archive verify --db dev/data/tl.db --deep
    ```
-   Expected: the output described in `ledger-archive-and-verify.md`.
+   Expected: the output described in `docs/runbooks/ledger-archive-and-verify.md`.
 
 ## Verify
-- A snapshot is good when its sha256 matches the value you recorded at the snapshot step. This runbook lists no command that recomputes that hash.
+- A snapshot is good when its sha256 matches the value you recorded at the snapshot step.
+- A snapshot's file can be checked against its recorded hash with `sha256sum dev/data/backups/tl-snap.db`.
 - A restored snapshot is good when `uv run tl ledger verify` prints `verified ledger dev/data/tl.db: <n> events, hash chains intact`, with the event count you expect.
 - A Litestream restore is good when the restore log ends with `renaming database from temporary location` and `uv run tl ledger verify --db dev/data/restored.db` prints a verified line.
-- The ledger and the archive agree when `uv run tl archive verify --db dev/data/tl.db --deep` reports success, as described in `ledger-archive-and-verify.md`.
-- The drill measures RPO and RTO for all the paths: `just drill`. See `pgbackrest-restore.md` and `docs/templates/restore-drill.md`.
+- The ledger and the archive agree when `uv run tl archive verify --db dev/data/tl.db --deep` reports success, as described in `docs/runbooks/ledger-archive-and-verify.md`.
+- The drill measures RPO and RTO for all the paths: `just drill`. See `docs/runbooks/pgbackrest-restore.md` and `docs/templates/restore-drill.md`.
 
 ## Roll back
-- A snapshot file and a restored file are new files. Delete the file by hand to roll back. This runbook lists no delete command.
+- A snapshot file and a restored file are new files. Delete them to roll back (snapshots are read-only, which `rm` still removes):
+  ```
+  rm dev/data/backups/tl-snap.db dev/data/restored.db
+  ```
 - To stop replication, stop the foreground Litestream process. The ledger is not changed.
 - A snapshot restore that copied over `dev/data/tl.db` replaces the ledger. Events written after the snapshot are lost.
 
 ## Related
-- `ledger-archive-and-verify.md` — archive verification, including `--deep`.
-- `restore-from-archive.md` — the database-independent restore path.
-- `pgbackrest-restore.md` — production database backup and restore.
+- `docs/runbooks/ledger-archive-and-verify.md` — archive verification, including `--deep`.
+- `docs/runbooks/restore-from-archive.md` — the database-independent restore path.
+- `docs/runbooks/pgbackrest-restore.md` — production database backup and restore.
 - `docs/templates/restore-drill.md` — the drill report template, run with `just drill`.
 - `dev/backup/litestream.yml` — the Litestream configuration.
 - `dev/drills/fetch_litestream.sh` — the pinned Litestream fetch.
