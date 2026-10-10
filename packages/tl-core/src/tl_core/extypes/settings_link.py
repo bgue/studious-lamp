@@ -21,6 +21,7 @@ import logging
 import threading
 from collections.abc import Callable, Iterable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from tl_core.extypes.loader import package_path
 from tl_core.extypes.names import Coordinates, LayoutError, parse_type_ref
@@ -33,6 +34,9 @@ from tl_core.settings.registry import (
     unregister_definitions,
 )
 from tl_core.settings.types import SettingDefinition
+
+if TYPE_CHECKING:
+    from tl_core.extypes.registry import UowFactory
 
 log = logging.getLogger("tl_core.extypes")
 
@@ -98,13 +102,13 @@ def refresh(views: Iterable[TypeView], verify: Verify) -> None:
                 _owners.add(owner)
 
 
-def refresh_from_ledger(factory: Callable[..., object], verify: Verify) -> None:
+def refresh_from_ledger(factory: UowFactory, verify: Verify) -> None:
     """``refresh`` over the usable registrations of a ledger; a ledger that cannot be read changes
     nothing (an old ledger without the registry tables has no types, and no keys to remove)."""
     from tl_core.extypes import registry  # registry imports this module
 
     try:
-        with factory(readonly=True) as uow:  # type: ignore[operator]
+        with factory(readonly=True) as uow:
             views = registry.usable_types(uow.conn())
     except Exception as exc:
         log.debug("extension type settings unavailable: %s", exc)

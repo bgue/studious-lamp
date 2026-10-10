@@ -6,6 +6,7 @@ Runs on each adapter (the ``world`` fixture uses ``new_db``).
 from __future__ import annotations
 
 import logging
+from contextlib import AbstractContextManager
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,7 @@ from tl_core.settings.registry import (
     unregister_definitions,
 )
 from tl_core.settings.types import SettingDefinition
+from tl_core.uow import UnitOfWork
 
 KEY = "co.acme.lift_plan.max_load_tonnes"
 
@@ -149,7 +151,7 @@ def test_a_clash_that_reaches_the_registry_is_logged_and_skipped(
 def test_an_unreadable_ledger_changes_nothing(world: World) -> None:
     world.sync()
 
-    def broken(readonly: bool = False) -> object:
+    def broken(readonly: bool = False) -> AbstractContextManager[UnitOfWork]:
         raise RuntimeError("database is gone")
 
     settings_link.refresh_from_ledger(broken, world.source._loader.verify)  # pyright: ignore[reportPrivateUsage]
