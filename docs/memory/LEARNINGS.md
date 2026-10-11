@@ -286,4 +286,7 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P1-I0B-6** · 2026-10-11 · tags: process, tooling
   `pgrep -f '<pattern>'` run from a Bash command whose own text contains the pattern matches that shell, and `kill` of the result kills it (exit 144): the third time after L-P0-I6C-8 and L-P0-I7-B5. Find a server you started by its port (`ss -ltnp | grep :PORT`) or note the PID when you start it, and kill that PID.
   Evidence: the seed check of S35. Status: active
+- **L-P1-I0B-7** · 2026-10-11 · tags: tests, process
+  A package may have a boundary test that forbids imports a feature seems to need: the simulator may import nothing from `tl_adapters` (brief 29.1, `packages/tl-sim/tests/test_contract_and_boundary.py`), so passing a Postgres URL through it had to be an opaque `LedgerTarget` that the MCP child validates, and `tl_sim/types.py` is a verbatim contract that cannot take a helper. Run the package's own tests after touching its imports, before the full gate: the first full `just test` after the merge cost 24 minutes to find four failures that `pytest packages/tl-sim` finds in 50 seconds.
+  Evidence: S35 fix commit; the failures `test_the_simulator_never_reaches_the_ledger_or_a_handler`, `test_types_py_is_the_contract_of_the_fanout_plan_verbatim`. Status: active
 

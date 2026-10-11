@@ -73,7 +73,7 @@ No ticket was taken over. A reference implementation of T31 to T38 (branch `p1/i
 - Nothing else was escalated; no `schema/**` change (nothing to list under SCHEMA_APPROVALS); no new external dependency.
 
 ## Learnings
-`L-P1-I0B-1` to `L-P1-I0B-6` (tests, process, security, tooling). Implementer proposals declined: none.
+`L-P1-I0B-1` to `L-P1-I0B-7` (tests, process, security, tooling). Implementer proposals declined: none.
 
 ## Docs
 - New: `docs/runbooks/run-on-postgres.md` (indexed in `docs/runbooks/README.md`); the plan `docs/tickets/P1-I0/README-B.md`; tickets T30 to T39; ticket reports `docs/reports/P1-I0/P1-I0-T31.md` to `T39.md`.
