@@ -35,6 +35,11 @@ from tl_core.services.errors import ServiceError
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
 
+try:
+    import fcntl
+except ImportError:  # not POSIX
+    fcntl = None  # type: ignore[assignment]
+
 SESSION_FILE_ENV = "TL_SESSION_FILE"
 DEV_ACTOR = "user:dev"
 SIGN_IN_HINT = "run `tl login <username>`"
@@ -121,17 +126,37 @@ def _write_all(path: Path, entries: dict[str, dict[str, str]]) -> None:
         temp.unlink(missing_ok=True)
 
 
+@contextmanager
+def _exclusive(path: Path) -> Iterator[None]:
+    """Hold an exclusive lock on the session file's lock file while a change is read and written.
+
+    Without it two ``tl login`` running at once each read the old file and the later write drops
+    the other's entry. Where ``fcntl`` is missing (Windows) the change is unlocked.
+    """
+    if fcntl is None:
+        yield
+        return
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    fd = os.open(path.with_name(f".{path.name}.lock"), os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(fd)  # closing releases the lock
+
+
 def save(stored: StoredSession) -> None:
     """Store (or replace) the session of ``stored.target`` in the session file, mode 0600."""
     path = session_file()
-    entries = _read_all(path)
-    entries[stored.target] = {
-        "username": stored.username,
-        "actor": stored.actor,
-        "expires_at": stored.expires_at,
-        "token": stored.token,
-    }
-    _write_all(path, entries)
+    with _exclusive(path):
+        entries = _read_all(path)
+        entries[stored.target] = {
+            "username": stored.username,
+            "actor": stored.actor,
+            "expires_at": stored.expires_at,
+            "token": stored.token,
+        }
+        _write_all(path, entries)
 
 
 def load(target: str) -> StoredSession | None:
@@ -155,14 +180,15 @@ def load(target: str) -> StoredSession | None:
 def forget(target: str) -> StoredSession | None:
     """Remove the session of ``target`` and return it (even an expired one), or None."""
     path = session_file()
-    entries = _read_all(path)
-    entry = entries.pop(target, None)
-    if entry is None:
-        return None
-    if entries:
-        _write_all(path, entries)
-    else:
-        path.unlink(missing_ok=True)
+    with _exclusive(path):
+        entries = _read_all(path)
+        entry = entries.pop(target, None)
+        if entry is None:
+            return None
+        if entries:
+            _write_all(path, entries)
+        else:
+            path.unlink(missing_ok=True)
     return StoredSession(
         target=target,
         username=entry.get("username", ""),
@@ -230,14 +256,37 @@ def current_principal(db: Path) -> Principal | None:
         return None
 
 
-def default_actor(db: Path) -> str:
-    """The default ``--actor``: the session's, else ``user:dev`` in dev, test or ci, else error."""
+def is_local_target(raw: str) -> bool:
+    """Whether ``--db`` names a ledger file, not a database server (anything with ``scheme://``)."""
+    return "://" not in raw
+
+
+def default_actor(db: Path, *, local: bool = True) -> str:
+    """The default ``--actor``: the session's, else ``user:dev`` for a file in dev, test or ci."""
     principal = current_principal(db)
     if principal is not None:
         return principal.actor
-    if dev_tokens_allowed():
+    if local and dev_tokens_allowed():
         return DEV_ACTOR
-    fail(f"not signed in: {SIGN_IN_HINT}, or pass --actor")
+    fail(f"not signed in: {SIGN_IN_HINT}")
+
+
+def check_actor(db: Path, actor: str, *, local: bool = True) -> str:
+    """``actor`` if this command may act as it, else `error: ...` and exit 1 (ADR-0009 sec. 7).
+
+    Allowed: the signed-in session's own actor; or, only on a ledger file and only where
+    ``TL_ENV`` is dev, test or ci, any actor (the file's owner can write the file anyway). A
+    database server is never a file the caller owns, so there a session is always required and
+    nobody can act as someone else.
+    """
+    principal = current_principal(db)
+    if principal is not None and principal.actor == actor:
+        return actor
+    if local and dev_tokens_allowed():
+        return actor
+    if principal is None:
+        fail(f"not signed in: {SIGN_IN_HINT} (--actor alone is accepted only in a dev setup)")
+    fail(f"--actor {actor} is not the signed-in user ({principal.actor})")
 
 
 def require_session(db: Path) -> Principal:

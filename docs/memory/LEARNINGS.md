@@ -256,3 +256,9 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P1-I0A-18** · 2026-10-11 · tags: tooling
   `Monitor` loops that wait with `pgrep -f NAME` match their own command line and never end. Wait on a pid, a marker file or a `grep` of the output file instead.
   Evidence: three monitors on `mut2.sh` expired without an event. Status: active
+- **L-P1-I0A-19** · 2026-10-11 · tags: process, tests
+  The third base-red relay of Phase 1 (L-P0-I8C-6): `just check` plus the new tests were green, but the packages touched by the wiring (tl-cli, tl-tui) had tests of their own that pin the old behaviour (`tl tui` call arguments, the key map's contexts, the palette snapshot). Before relaying a batch run the whole suite of every package the supervisor pieces touched, in parallel shards (`pytest -q packages/tl-cli packages/tl-tui packages/tl-api`, `tests`, the rest), and read the failure list, not the exit code.
+  Evidence: S5b relayed with 5 red tests; fixed in P1-I0-S11. Status: active
+- **L-P1-I0A-20** · 2026-10-11 · tags: security, cli
+  An option default that is only used when the flag is left out does not protect anything: `--actor user:root` bypassed the session check that the default went through. Put the check on the value (a click callback runs on defaults and explicit values alike), and let the target decide how much a stated identity is worth: a file you own, versus a shared database.
+  Evidence: `tl_cli/actor_hook.py`, `session.check_actor`; `test_cli_session.py::test_outside_dev_no_actor_can_be_used_without_a_sign_in_not_even_a_named_one`. Status: active

@@ -143,7 +143,15 @@ def test_only_an_active_admin_account_may_call_and_everything_else_is_forbidden(
             password=prepare_password(GOOD), by="svc:test",
         )  # fmt: skip
     db = tmp_path / "tl.db"
-    for actor in ("user:amy", "user:dev", "user:ghost", "svc:importer"):
+    for actor in (
+        "user:amy",
+        "user:dev",
+        "user:ghost",
+        "svc:importer",
+        "svc:boss",  # the admin's name under another kind of actor
+        "USER:BOSS",
+        "user:Boss",
+    ):
         client = EmbeddedClient.for_sqlite(db, actor=actor)
         for call in (
             lambda c=client: c.list_accounts(),

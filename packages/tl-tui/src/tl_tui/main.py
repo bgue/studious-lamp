@@ -12,14 +12,16 @@ list: an agent or dev token, honoured by the server only where it allows them).
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from tl_tui.app import TlApp
 from tl_tui.embedded import DEFAULT_ACTOR, EmbeddedAuthenticator, EmbeddedClient
-from tl_tui.remote import RemoteAuthenticator, RemoteClient
+from tl_tui.remote import RemoteAuthenticator, RemoteClient, sign_out
 from tl_tui.sign_in import SignedIn, SignInApp
 
 DEFAULT_DB = "./dev/data/tl.db"
@@ -121,6 +123,20 @@ def make_app(
     return build_remote_app(url, secret, proj, actor=who, record_type=rtype, is_admin=admin)
 
 
+def plain_http_warning(url: str) -> str | None:
+    """A line for the sign-in screen when the password would cross the network unencrypted."""
+    parts = urlsplit(url)
+    host = (parts.hostname or "").lower()
+    if parts.scheme != "http" or host == "localhost":
+        return None
+    try:
+        if ipaddress.ip_address(host).is_loopback:
+            return None
+    except ValueError:
+        pass
+    return f"warning: {host or url} is plain http: your password would be sent unencrypted"
+
+
 def needs_sign_in(*, remote: str | None = None, token: str | None = None) -> bool:
     """Whether the options leave open who is using the TUI: embedded, or remote without a token."""
     if not (remote or os.environ.get("TL_REMOTE")):
@@ -138,7 +154,9 @@ def sign_in_first(*, remote: str | None = None, db: str | Path | None = None) ->
     if url is not None:
         if not url.startswith(("http://", "https://")):
             raise ValueError(f"--remote must be an http(s) URL, got {url!r}")
-        return SignInApp(RemoteAuthenticator(url), target=f"server {url}").run()
+        return SignInApp(
+            RemoteAuthenticator(url), target=f"server {url}", hint=plain_http_warning(url)
+        ).run()
     path = Path(db or os.environ.get("TL_DB", DEFAULT_DB))
     if not path.is_file():
         raise ValueError(f"no ledger at {path}; run `tl init` first")
@@ -160,25 +178,32 @@ def run(
 
     Quitting the sign-in screen ends the run without opening the ledger.
     """
+    url = remote or os.environ.get("TL_REMOTE") or None
+    session_token: str | None = None  # a server session this call made and must end
     if signed_in is None and needs_sign_in(remote=remote, token=token):
         signed_in = sign_in_first(remote=remote, db=db)
         if signed_in is None:
             return  # the person left the sign-in screen
-    app = make_app(
-        remote=remote,
-        token=token,
-        db=db,
-        project=project,
-        actor=actor,
-        record_type=record_type,
-        signed_in=signed_in,
-    )
+        session_token = signed_in.token if url is not None else None
     try:
-        app.run()
+        app = make_app(
+            remote=remote,
+            token=token,
+            db=db,
+            project=project,
+            actor=actor,
+            record_type=record_type,
+            signed_in=signed_in,
+        )
+        try:
+            app.run()
+        finally:
+            close = getattr(app.client, "close", None)
+            if callable(close):
+                close()
     finally:
-        close = getattr(app.client, "close", None)
-        if callable(close):
-            close()
+        if url is not None and session_token is not None:
+            sign_out(url, session_token)  # on every way out: the session is not left to expire
 
 
 def main(argv: Sequence[str] | None = None) -> int:

@@ -15,7 +15,7 @@ Purpose: create and manage accounts, roles and agent tokens, get back in after a
 
 ### Sign in and out
 1. Terminal: `uv run tl login <username>` (asks for the password without echo, or reads one line with `--password-stdin`; the session is kept in a file with mode 0600 under your user config directory, `TL_SESSION_FILE` overrides it, and lasts 12 hours), `uv run tl whoami`, `uv run tl logout`.
-   The TUI (`uv run tl tui`) shows its own sign-in screen unless you are already signed in with `tl login`; with `--remote URL` it signs in to the server. `F10` opens the accounts screen for an admin. Every `tl` command then acts as you; `--actor` still overrides it, and outside `TL_ENV` dev, test or ci a command with no session and no `--actor` stops with `error: not signed in`.
+   The TUI (`uv run tl tui`) shows its own sign-in screen unless you are already signed in with `tl login`; with `--remote URL` it signs in to the server. `F10` opens the accounts screen for an admin. Every `tl` command then acts as you; `--actor` may name someone else only in a dev setup (`TL_ENV` dev, test or ci) on a ledger file; anywhere else, and for any `--db` that is a database URL, a command with no session stops with `error: not signed in`, and `--actor` must be your own.
 2. API: `POST /auth/sign-in` with `{"username", "password"}` answers a token for `Authorization: Bearer`. It lives 12 hours. `POST /auth/sign-out` ends it; `POST /auth/password` changes your own password and ends every session.
 3. After 5 failed sign-ins of a name within 15 minutes the name is locked for 15 minutes, for every name alike. From one address, 20 failures in 10 minutes give 429 `rate_limited`.
 

@@ -59,12 +59,17 @@ def seed_demo(uow_factory: UowFactory, *, env: str, clock: Clock = utcnow) -> Ac
         )
 
 
+def _detail(what: str, operator: str | None) -> str:
+    return what if not operator else f"{what} by {operator}"[:80]
+
+
 def bootstrap_admin(
     uow_factory: UowFactory,
     *,
     username: str,
     password: str,
     display_name: str | None = None,
+    operator: str | None = None,
     clock: Clock = utcnow,
 ) -> AccountView:
     """Local recovery: create the first admin, or reset an existing admin's password and lock.
@@ -74,7 +79,8 @@ def bootstrap_admin(
     whether or not other admins have passwords: this is how a locked-out sole admin gets back in.
     With a new name it creates an admin, but only while no active admin has a password (a new
     database, or a restore that left accounts without passwords); otherwise add users with
-    ``tl admin user add``. Anything else is refused.
+    ``tl admin user add``. Anything else is refused. ``operator`` (the OS user running the
+    command) is written to the audit row, so a shared machine shows who recovered what.
     """
     name = check_username(username)
     prepared = pw.prepare_password(password, username=name)  # policy and hash, before the write
@@ -104,7 +110,8 @@ def bootstrap_admin(
             )
             audit.record(
                 conn, "bootstrap", now=clock(), username_key=username_key(name),
-                account_id=view.account_id, actor=BOOTSTRAP_ACTOR, detail="created",
+                account_id=view.account_id, actor=BOOTSTRAP_ACTOR,
+                detail=_detail("created", operator),
             )  # fmt: skip
             return view
         if existing.kind != "person" or "admin" not in existing.roles:
@@ -121,6 +128,7 @@ def bootstrap_admin(
         )
         audit.record(
             conn, "bootstrap", now=clock(), username_key=username_key(name),
-            account_id=existing.account_id, actor=BOOTSTRAP_ACTOR, detail="reset",
+            account_id=existing.account_id, actor=BOOTSTRAP_ACTOR,
+            detail=_detail("reset", operator),
         )  # fmt: skip
         return existing.model_copy(update={"locked_until": None})

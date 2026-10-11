@@ -665,7 +665,14 @@ class EmbeddedClient:
         """Only an active account with the admin role may use the calls below (as the API says)."""
         name = self.actor.partition(":")[2]
         found = account_queries.find_account(uow.conn(), username=name)
-        if found is None or found.status != "active" or "admin" not in found.roles:
+        # the actor must be the account's own, character for character: `svc:root` and
+        # `USER:ROOT` are not `user:root`, whatever the name lookup folds them to
+        if (
+            found is None
+            or account_queries.actor_of(found) != self.actor
+            or found.status != "active"
+            or "admin" not in found.roles
+        ):
             raise ForbiddenError("this action needs the admin role")
 
     def list_accounts(self) -> list[AccountView]:
