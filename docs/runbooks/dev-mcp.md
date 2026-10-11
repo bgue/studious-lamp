@@ -30,7 +30,7 @@ Purpose: start `python -m tl_mcp.dev`, connect a coding agent to it, use its too
    |---|---|---|
    | `run_tests` | One filtered pytest in a child process, no shell | `paths` under `packages/<pkg>/tests` or `tests`, `marker` `parity` or `requires_postgres`, `keyword`, `adapters`; at least one filter; the full output is stored in `dev/data/test-reports/` |
    | `gen` | Runs the generators in memory and reports drift (`missing`, `differs`, `stale`) with a short diff | `apply=true` regenerates (what `just gen` does); the answer then describes the state after the write |
-   | `query_db` | One read-only SELECT or WITH on the dev SQLite ledger | At most 1000 rows, 1 MiB, 10 s; `wh_secret` cannot be read; a Postgres target is refused (follow-up, deviation C4) |
+   | `query_db` | One read-only SELECT or WITH on the dev SQLite ledger | At most 1000 rows, 1 MiB, 10 s; `wh_secret` and the `auth_*` credential tables cannot be read; a Postgres target is refused (follow-up, deviation C4) |
    | `rebuild_projections` | Resets the named projectors (default all) and replays the ledger | SQLite or a dev Postgres; one transaction; the ledger is never changed |
    | `seed` | Runs `dev/seed/seed.sh` (the simulator through a short-lived API) | `scale` `xs` (about 15 s), `s`, `m`; adds one more simulated project per call; SQLite only |
    | `send_test_webhook` | Sends one signed catalog sample to a receiver on this machine | Loopback only (`localhost`, `127.x.x.x`, `::1`), no redirects, proxy variables ignored; without `secret` a fresh one is returned |

@@ -11,6 +11,7 @@ from jsonschema import Draft202012Validator
 from scenario import run_scenario
 from sqlalchemy import text
 from tl_adapters.db import rebuild_projections
+from tl_core.auth.projector import ACCOUNT_EVENT_TYPES
 from tl_core.webhooks import queries
 from tl_core.webhooks.rows import OutboxRow, load_json
 from tl_core.webhooks.signing import SigningSecret, verify
@@ -245,7 +246,8 @@ def test_every_catalog_event_type_is_delivered_and_valid(pworld: World) -> None:
             errors = list(checker.iter_errors(body))
             assert not errors, (event_type, errors[0].message)
             seen.add(event_type)
-    assert seen == set(catalog.event_types())
+    # account events are in the catalog but internal: never delivered (ADR-0009)
+    assert seen == set(catalog.event_types()) - ACCOUNT_EVENT_TYPES
 
 
 def test_make_uow_factory_gives_the_adapters_factory_with_one_call_shape(pworld: World) -> None:

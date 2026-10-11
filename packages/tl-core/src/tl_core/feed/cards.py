@@ -11,9 +11,10 @@ Each scope has at most one *open* card. For every event the projector asks ``dis
   every ``Record.Created`` that takes a number, and ``Link.Suggested`` is written when a post tags a
   record; both would otherwise cut every burst in two. ``Webhook.*`` are operations events.
   ``Proposal.*`` belong to the review queue, and ``Proposal.Accepted`` follows each accepted
-  command, so counting it would turn "mlee created 14 records" into 14 cards. ``Setting.*`` are
-  configuration (personal ones included) and have their own history in about:config. These events
-  become no card and leave the open card as it is.
+  command, so counting it would turn "mlee created 14 records" into 14 cards. ``Account.*`` and
+  ``AgentToken.*`` are admin operations (ADR-0009): a user's feed never shows them. ``Setting.*``
+  are configuration (personal ones included) and have their own history in about:config. These
+  events become no card and leave the open card as it is.
 * ``close``: a ``Feed.*`` event. It never becomes a card (contract in ``feed.types``) and, as any
   other event in the scope that is not part of the burst, it closes the open card, so posts and
   cards stay in the order things happened.
@@ -38,7 +39,13 @@ from tl_core.ledger import Event
 Disposition = Literal["ignore", "close", "extend", "start"]
 
 TRANSPARENT_EVENT_TYPES: frozenset[str] = frozenset({"Numbering.Allocated", "Link.Suggested"})
-TRANSPARENT_PREFIXES: tuple[str, ...] = ("Webhook.", "Proposal.", "Setting.")
+TRANSPARENT_PREFIXES: tuple[str, ...] = (
+    "Webhook.",
+    "Proposal.",
+    "Setting.",
+    "Account.",
+    "AgentToken.",
+)
 
 # Event types whose stream is the subject record (the card is about that record).
 _STREAM_SUBJECT_PREFIXES: tuple[str, ...] = ("Record.", "Pset.", "Workflow.")

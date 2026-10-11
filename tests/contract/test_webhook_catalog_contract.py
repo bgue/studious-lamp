@@ -14,9 +14,13 @@ from typing import Any
 import pytest
 from jsonschema import Draft202012Validator
 from scenario import run_scenario
+from tl_core.auth.projector import ACCOUNT_EVENT_TYPES
 from tl_core.webhooks.signing import SigningSecret, verify
 from tl_schema import catalog
 from world import World
+
+#: Account events are in the catalog but internal: the dispatcher never delivers them (ADR-0009).
+DELIVERABLE = set(catalog.event_types()) - ACCOUNT_EVENT_TYPES
 
 
 @pytest.fixture
@@ -39,7 +43,7 @@ def test_the_scenario_delivers_every_event_type_of_the_catalog(
     # The thin subscription is never disabled, so it hears every event type. (The delta one is
     # disabled and re-enabled in the scenario and, by design, does not receive its own `Enabled`.)
     seen = {event_type_of(body) for body in delivered["thin"]}
-    assert seen == set(catalog.event_types())
+    assert seen == DELIVERABLE
 
 
 def test_every_delivered_body_validates_against_the_catalog_schema_of_its_type(
@@ -53,7 +57,7 @@ def test_every_delivered_body_validates_against_the_catalog_schema_of_its_type(
             assert not errors, (mode, event_type, errors[0].message, list(errors[0].path))
             assert body["dataschema"] == catalog.envelope_schema(event_type)["$id"]
             checked += 1
-    assert checked >= 3 * len(catalog.event_types())
+    assert checked >= 3 * len(DELIVERABLE)
 
 
 def test_the_three_modes_carry_the_same_events_with_the_documented_members(

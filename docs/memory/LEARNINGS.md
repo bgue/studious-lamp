@@ -201,3 +201,22 @@ test or a generated artefact already enforces, or narrative history (that belong
   decision). Rules: gate any "no bytes needed" shortcut on the state that grants read access, compare secrets as bytes, fail
   closed on missing secrets, and serve client-typed files as attachments with `nosniff`.
   Evidence: `docs/tickets/P0-I4/README-B.md` D8, D9, D12, D13; `tests/services/test_file_service.py`. Status: active
+
+- **L-P1-I0A-1** · 2026-10-11 · tags: tests, tooling
+  A test helper module shared through pyright `extraPaths` needs a name no other test directory uses: `tests/webhooks/world.py` already exists, so `from world import World` in a second directory resolved to the wrong module under pyright (175 errors) and would clash in `sys.modules` at run time. The auth tests use `authworld.py`.
+  Evidence: `tests/auth/authworld.py`; first `pyright` run after adding `tests/auth`. Status: active
+- **L-P1-I0A-2** · 2026-10-11 · tags: security, ledger
+  Anything that must survive a refusal (the failed-sign-in counter) cannot be written inside the unit of work that then raises: leaving the `with` block by exception rolls it back. `tl_core.auth.sessions` reads in a snapshot, hashes outside any transaction, writes the counter in a short transaction and raises after that block ends. Never hash inside a write transaction: it holds the single writer lock.
+  Evidence: `tl_core/auth/sessions.py` module docstring; `tests/auth/test_sessions.py::test_five_failures_lock_the_name_even_against_the_right_password`. Status: active
+- **L-P1-I0A-3** · 2026-10-11 · tags: tests, ledger
+  Both adapters take the ledger's single writer lock when a write transaction begins, so a barrier test of two concurrent roster changes passes with or without a guard row (a mutation that removed the guard survived three runs). Do not add serialisation rows or tables for roster races; keep a test that fails if the lock ever becomes finer.
+  Evidence: `postgres/engine.py` `write_tx`; `tests/auth/test_accounts.py::test_two_admins_cannot_disable_each_other_at_once`. Status: active
+- **L-P1-I0A-4** · 2026-10-11 · tags: tests, process
+  Adding catalog event types breaks more than `test_catalog.py`: the webhook contract tests assume every catalogued type is delivered (`tests/contract/test_webhook_catalog_contract.py`, `tests/parity/test_webhooks_parity.py`), so internal types must be subtracted there; the lists in `test_ddl.py` and `test_generate.py` need the new tables; a changed `ErrorBody` needs `uv run python -m tl_api.openapi` (about 100 s) before `just check` passes. `packages/tl-mcp/tests/test_dev_gen.py` fails at teardown while `packages/tl-schema` has uncommitted changes, so run the full suite after committing generated files.
+  Evidence: the first full `just test` of P1-I0A (3 failures and 1 teardown error). Status: active
+- **L-P1-I0A-5** · 2026-10-11 · tags: tests, api
+  The Starlette `TestClient` (httpx) refuses a header value with a non-ASCII character. To test a bearer token with one, pass the latin-1 encoded bytes (annotate as `Any` for pyright); the server reads headers as latin-1.
+  Evidence: `packages/tl-api/tests/test_auth_roles.py::test_garbage_and_look_alike_tokens_are_401_not_500`. Status: active
+- **L-P1-I0A-6** · 2026-10-11 · tags: process, budget
+  With workstream B running at the same time the full `just test` took 22 minutes (5,480 tests). Run the packages a change touches first (`tests/auth`, `packages/tl-api`, `tests/archive`), the full suite once per round, and wait for it with `timeout N bash -c 'until grep -q "^EXIT" log; do sleep 10; done'` after starting it in the background.
+  Evidence: `/tmp/p1i0a-test.log` of 2026-10-11. Status: active
