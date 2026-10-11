@@ -5,7 +5,7 @@ Branch: `p0/i8b` (base `p0/i8`, merged in four times; workstream A's settings v1
 ## Outcome
 Objective met: yes. A company can add a record type by putting a package of files in a directory. `tl types sync <root>` validates each package, registers it with one ledger event or quarantines it with a report, and does nothing the second time. A registered type works as a generic record type on every surface: `CreateRecord.record_type = "co.acme.LiftPlan"`; the query language filters its index fields; the CLI, the REST API, the MCP read tools and the TUI list, create, read and (for bodies) edit it. A managed type keeps its values in the ledger. An object-backed type keeps its body in the object store as a content-addressed, hash-verified document; a mismatch is quarantined, listed by `tl types quarantine ls`, refused on every surface and healed by storing the body again. Editing the files of a registered version is a reported `conflict` that never removes the registration.
 
-**Settings registration (S44 to S46, supervisor piece).** A package's `settings.yaml` now reaches the settings registry from workstream A (`register_definitions`). `extypes/settings_link.py` keeps the registry equal to the keys of the newest *verified* version of each usable type, under the type name as owner: `refresh` runs when a process attaches (API app, MCP server, embedded client, CLI for an existing ledger), at every effective-schema read of the type source, and in `sync` (before the scan and after each registration); types that left (files changed, quarantined) are unregistered and return with their files. At `sync`, a key that another owner or the platform defines quarantines the package with a `settings` issue; a clash that still reaches `refresh` is logged and that type's settings are skipped. `tl config get|set` works on `co.acme.lift_plan.max_load_tonnes` after a sync (decision B15).
+**Settings registration (S44 to S46, supervisor piece).** A package's `settings.yaml` now reaches the settings registry from workstream A (`register_definitions`). `extypes/settings_link.py` keeps the registry equal to the keys of the newest *verified* version of each usable type, under the type name as owner: `refresh` runs when a process attaches (API app, MCP server, embedded client, CLI for an existing ledger), at every effective-schema read of the type source, and in `sync` (before the scan and after each registration); types that left (files changed, quarantined) are unregistered and return with their files. At `sync`, a key that another owner or the platform defines quarantines the package with a `settings` issue; a clash that still reaches `refresh` is logged and that type's settings are skipped. `tl config get|set` works on `co.acme.lift_plan.max_load_tonnes` after a sync (decision B15; keys start with `<namespace>.<snake_case(TypeName)>.`, D15).
 
 Demo verified (`just demo P0-I8-B`, "P0-I8-B demo ok", run three times; it failed once in two before a `| head` under `pipefail` was removed, L-P0-I8B-13).
 
@@ -22,7 +22,7 @@ Demo verified (`just demo P0-I8-B`, "P0-I8-B demo ok", run three times; it faile
 | T27 TUI edit form for an object-backed body | merged | 1 | Wired into `e` of the record view by the supervisor (S41); `record["id"]` confirmed with the embedded and the remote client |
 | Settings registration (supervisor piece S44 to S46) | done | | Needed workstream A's `register_definitions`; see above |
 
-Taken over: none. Abandoned: none. Supervisor pieces: S20 `schema/core/extension.yaml` and catalog updates; S21 package model, validator, compiler, example packages; S22 registry, projectors, loader, schema provider hook; S23 body store and quarantine; S24 forms, `type_detail`, watcher, API error rows; S25 stubs and provided tests; S26 to S32 review fixes (imports confined, per-package validation, loader re-verification, lost-race retry, hidden files locked, `registry.deprecate`); S33 `ClientInterface` growth, `EmbeddedClient`, fakes; S34, S37 tickets; S35 to S39 wiring and the S33 review fixes; S40 cross-surface test, demo, CLI help, deprecated-first status; S41 body edit wiring; S42 runbook and docs; S43 report; S44 to S46 settings registration (`settings_link`, the sync clash check, `attach(prime=)`).
+Taken over: none. Abandoned: none. Supervisor pieces: S20 `schema/core/extension.yaml` and catalog updates; S21 package model, validator, compiler, example packages; S22 registry, projectors, loader, schema provider hook; S23 body store and quarantine; S24 forms, `type_detail`, watcher, API error rows; S25 stubs and provided tests; S26 to S32 review fixes (imports confined, per-package validation, loader re-verification, lost-race retry, hidden files locked, `registry.deprecate`); S33 `ClientInterface` growth, `EmbeddedClient`, fakes; S34, S37 tickets; S35 to S39 wiring and the S33 review fixes; S40 cross-surface test, demo, CLI help, deprecated-first status; S41 body edit wiring; S42 runbook and docs; S43 report; S44 to S46 settings registration (`settings_link`, the sync clash check, `attach(prime=)`); S48 the review fixes of S44 to S46 (D15 key prefix, reserved namespaces, secret and listing order, base merge of f85f2a2).
 
 ## Reviews
 - Fresh-context review of S20 to S24: changes-requested (1 high, 2 medium, 3 low), fixed in S26 and S27, re-review passed. The high finding: a package could import outside itself and one bad package stopped a sync; imports are now confined and `validate_package` never raises.
@@ -30,16 +30,7 @@ Taken over: none. Abandoned: none. Supervisor pieces: S20 `schema/core/extension
 - Core-engine pieces (S21 to S24, S44) were not merged by me into `p0/i8`; they are for the orchestrator's merge. S44 to S46 are for a short review.
 
 ## Gates
-Run at db05245 (the code tip; later commits are documentation only).
-
-| Gate | Result |
-|---|---|
-| `just check` | green |
-| `just test` | 5216 passed, 1 skipped |
-| `just test-tui` | 608 passed, 26 snapshots |
-| `just test-parity` (SQLite and Postgres) | 2114 passed |
-| `just demo P0-I8-B` | ok (includes the settings key step) |
-| `uv run python dev/tools/audit_docs.py --strict` | 0 findings |
+After the review fixes (a79788c): `just check` green; `just test` 5229 passed, 1 skipped (it includes `packages/tl-tui`: 26 snapshots); `just demo P0-I8-B` ok; `tests/extypes` on SQLite and Postgres 353 passed. `just test-tui` (608 passed) and `just test-parity` (2114 passed) ran at db05245, before the review fixes; no adapter changed since, so parity was not rerun in full. `audit_docs --strict`: 0 findings.
 
 Cross-surface coverage (`tests/extypes/test_cross_surface.py`, 7 tests on a real SQLite ledger, filesystem store and loopback server): register with the CLI, create over HTTP, read over MCP and the embedded client, edit with the embedded client, create and edit in the remote TUI, a damaged body refused on all surfaces and healed, a retired type refused everywhere. `tests/extypes` also runs on Postgres (211 tests at the review fixes).
 
