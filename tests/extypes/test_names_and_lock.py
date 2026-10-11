@@ -70,6 +70,10 @@ def test_malformed_type_refs_are_refused(bad: str) -> None:
         ("co_acme", "LiftPlan", "1.0.0"),
         ("core", "Thing", "1.0.0"),
         ("tl.x", "Thing", "1.0.0"),
+        # the first segment of a platform setting key (and `schema`) is reserved too (D15)
+        *[(first, "Thing", "1.0.0") for first in ("ai", "feed", "lake", "project", "schema")],
+        ("ui.panel", "Thing", "1.0.0"),
+        ("webhooks", "Thing", "1.0.0"),
     ],
 )
 def test_bad_coordinates_are_refused(namespace: str, name: str, version: str) -> None:

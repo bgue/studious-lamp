@@ -10,14 +10,17 @@ from contextlib import AbstractContextManager
 from pathlib import Path
 
 import pytest
-from extworld import LIFT, OBSERVATION, World
+import yaml
+from extworld import LIFT, World
 from tl_core.extypes import registry, settings_link
 from tl_core.extypes.lock import write_lock
+from tl_core.extypes.names import coordinates
 from tl_core.extypes.provider import attach
 from tl_core.services.errors import UnknownSettingError
 from tl_core.settings.registry import (
     definitions,
     get_definition,
+    parse_definitions,
     register_definitions,
     unregister_definitions,
 )
@@ -95,34 +98,52 @@ def test_the_newest_version_defines_the_keys(world: World) -> None:
     assert get_definition(KEY).default == 300
 
 
-def _clashing_package(world: World) -> Path:
-    """SafetyObservation with a settings.yaml that repeats LiftPlan's key."""
-    package = world.package(OBSERVATION)
-    text = (
+def test_a_package_that_repeats_another_types_key_is_quarantined_at_sync(
+    world: World, tmp_path: Path
+) -> None:
+    """Two type names that snake-case alike (``HTTPServer``, ``HttpServer``) share a key prefix."""
+    world.sync()
+    settings_link.forget_all()
+    first = parse_definitions(
+        yaml.safe_dump(
+            {
+                "settings": [
+                    {
+                        "key": "co.acme.http_server.port",
+                        "type": "int",
+                        "default": 80,
+                        "description": "Port.",
+                        "scopes": ["platform"],
+                        "since": "1.0.0",
+                    }
+                ]
+            }
+        ),
+        owner="co.acme.HTTPServer",
+    )
+    register_definitions(first, owner="co.acme.HTTPServer")
+    try:
+        _check_clash(world, tmp_path)
+    finally:
+        unregister_definitions("co.acme.HTTPServer")
+
+
+def _check_clash(world: World, tmp_path: Path) -> None:
+    package = tmp_path / "co.acme" / "HttpServer" / "1.0.0"
+    package.mkdir(parents=True)
+    (package / "settings.yaml").write_text(
         (world.package() / "settings.yaml")
         .read_text()
-        .replace("owner: co.acme.LiftPlan", f"owner: {OBSERVATION}")
+        .replace(KEY, "co.acme.http_server.port")
+        .replace("co.acme.LiftPlan", "co.acme.HttpServer")
     )
-    (package / "settings.yaml").write_text(text)
-    write_lock(package)
-    return package
-
-
-def test_sync_quarantines_a_package_that_repeats_another_types_key(world: World) -> None:
-    _clashing_package(world)
-    changed = world.sync()
-    by_ref = {v.registration.type_ref: v for v in changed}
-    assert by_ref[f"{LIFT}@1.0.0"].registration.status == "active"
-    clashed = by_ref[f"{OBSERVATION}@1.0.0"]
-    assert clashed.registration.status == "quarantined"
-    with world.factory(readonly=True) as uow:
-        report = [
-            e for e in registry.list_quarantined(uow.conn()) if e.type_ref.startswith(OBSERVATION)
-        ]
-    issue = report[0].report[0]
-    assert issue.kind == "settings" and issue.path == "settings.yaml"
-    assert KEY in issue.detail and LIFT in issue.detail
-    assert get_definition(KEY).owner == LIFT  # the first owner keeps the key
+    issues = settings_link.clash_issues(package, coordinates("co.acme", "HttpServer", "1.0.0"))
+    assert [(i.kind, i.path) for i in issues] == [("settings", "settings.yaml")]
+    assert (
+        "co.acme.http_server.port" in issues[0].detail and "co.acme.HTTPServer" in issues[0].detail
+    )
+    mine = settings_link.clash_issues(package, coordinates("co.acme", "HTTPServer", "1.0.0"))
+    assert mine == []  # the owner itself is no clash
 
 
 def test_a_clash_that_reaches_the_registry_is_logged_and_skipped(
@@ -137,16 +158,16 @@ def test_a_clash_that_reaches_the_registry_is_logged_and_skipped(
         description="Registered first by someone else.",
         scopes=["platform"],
         since="1.0.0",
-        owner="co.acme.Squatter",
+        owner="co.acme.Lift_Plan",
     )
-    register_definitions([squatter], owner="co.acme.Squatter")
+    register_definitions([squatter], owner="co.acme.Lift_Plan")
     try:
         with caplog.at_level(logging.WARNING, logger="tl_core.extypes"):
             world.source.refresh_settings()  # must not raise
-        assert get_definition(KEY).owner == "co.acme.Squatter"
+        assert get_definition(KEY).owner == "co.acme.Lift_Plan"
         assert any("settings not registered" in r.getMessage() for r in caplog.records)
     finally:
-        unregister_definitions("co.acme.Squatter")
+        unregister_definitions("co.acme.Lift_Plan")
 
 
 def test_an_unreadable_ledger_changes_nothing(world: World) -> None:

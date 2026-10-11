@@ -29,8 +29,13 @@ _TYPE_REF = re.compile(
 )
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 
-#: Namespaces the platform keeps for itself; a package cannot register a type in them.
-RESERVED_NAMESPACES = frozenset({"core", "tl", "throughline"})
+#: Namespaces the platform keeps for itself; a package cannot register a type in them. The second
+#: row is the first segment of every platform setting key (``feed.``, ``ui.`` ...) and ``schema``:
+#: a type's setting keys start with its namespace (decision D15), so they can never fall in a
+#: platform family.
+RESERVED_NAMESPACES = frozenset(
+    {"core", "tl", "throughline"} | {"ai", "feed", "lake", "project", "schema", "ui", "webhooks"}
+)
 
 STREAM_TYPE = "core.TypeRegistration"
 STREAM_PREFIX = "type:"
@@ -55,6 +60,11 @@ class Coordinates:
     @property
     def type_ref(self) -> str:
         return f"{self.namespace}.{self.name}@{self.version}"
+
+
+def settings_key_prefix(coords: Coordinates) -> str:
+    """``co.acme.lift_plan.``: how every setting key of ``co.acme.LiftPlan`` starts."""
+    return f"{coords.namespace}.{snake_case(coords.name)}."
 
 
 def snake_case(name: str) -> str:

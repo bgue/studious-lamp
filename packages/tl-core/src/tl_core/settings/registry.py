@@ -24,6 +24,7 @@ from typing import Any, cast
 import yaml
 from pydantic import ValidationError
 
+from tl_core.extypes.names import snake_case
 from tl_core.services.errors import UnknownSettingError
 from tl_core.settings.types import SettingDefinition
 from tl_core.settings.values import check_definition
@@ -117,9 +118,10 @@ _registry = _Registry()
 def definitions() -> dict[str, SettingDefinition]:
     """Every definition in force, platform and extension types, by key, sorted by key."""
     with _registry.lock:
-        merged = dict(_registry.platform_defs())
+        merged: dict[str, SettingDefinition] = {}
         for owned in _registry.extensions.values():
             merged.update(owned)
+        merged.update(_registry.platform_defs())  # a platform key always wins, as in get_definition
         return dict(sorted(merged.items()))
 
 
@@ -138,30 +140,44 @@ def get_definition(key: str) -> SettingDefinition:
 
 
 def namespace_of(owner: str) -> str:
-    """``co.acme`` for the extension type ``co.acme.LiftPlan``: the prefix its keys must carry."""
+    """``co.acme`` for the extension type ``co.acme.LiftPlan``: the namespace of its keys."""
     head, dot, _ = owner.rpartition(".")
     if not dot or not head:
         raise SettingDefinitionError(f"{owner!r} is not '<namespace>.<TypeName>'")
     return head
 
 
+def key_prefix(owner: str) -> str:
+    """``co.acme.lift_plan.`` for ``co.acme.LiftPlan``: how its keys start (decision D15).
+
+    The type's own name is part of the prefix, so two types of one namespace cannot take each
+    other's keys, and a one-segment namespace (``co``) cannot reach ``co.acme.`` keys.
+    """
+    return f"{namespace_of(owner)}.{snake_case(owner.rpartition('.')[2])}."
+
+
 def register_definitions(defs: Iterable[SettingDefinition], *, owner: str) -> None:
     """Register an extension type's keys (brief 31.1). ``owner`` is ``<namespace>.<TypeName>``.
 
-    Every key must start with the type's namespace plus a dot (``co.acme.`` for
-    ``co.acme.LiftPlan``) and so can never shadow a platform key; a key that another owner or the
-    platform already defines raises ``SettingDefinitionError`` and nothing is registered.
+    Every key must start with the type's namespace and snake-cased name (``co.acme.lift_plan.``
+    for ``co.acme.LiftPlan``, decision D15), and the first segment of a namespace is never a
+    platform one (``feed``, ``ui``, ... are reserved type namespaces), so a type's keys can neither
+    shadow a platform key nor another type's. A secret definition is refused (a vault is a human
+    gate). A key that another owner or the platform already defines raises
+    ``SettingDefinitionError`` and nothing is registered.
     Registering an owner again replaces its earlier definitions (a type sync is idempotent).
     ``owner`` ``platform`` is refused: platform keys come from the platform file.
     """
     if owner == PLATFORM_OWNER:
         raise SettingDefinitionError("platform keys come from schema/settings/platform.yaml")
-    prefix = namespace_of(owner) + "."
+    prefix = key_prefix(owner)
     accepted: dict[str, SettingDefinition] = {}
     for defn in defs:
         claimed = defn.model_copy(update={"owner": owner}) if defn.owner == PLATFORM_OWNER else defn
         if claimed.owner != owner:
             raise SettingDefinitionError(f"{defn.key}: owner {claimed.owner!r} is not {owner!r}")
+        if defn.sensitivity == "secret":
+            raise SettingDefinitionError(f"{defn.key}: secret settings are not available")
         if not defn.key.startswith(prefix):
             raise SettingDefinitionError(f"{defn.key}: keys of {owner} must start with {prefix!r}")
         try:

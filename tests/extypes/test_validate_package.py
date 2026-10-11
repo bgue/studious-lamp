@@ -409,7 +409,16 @@ def test_a_workflow_with_an_unknown_state_is_refused(lift: Pkg) -> None:
 def test_a_setting_key_outside_the_namespace_is_refused(lift: Pkg) -> None:
     lift.edit("settings.yaml", "co.acme.lift_plan.max_load_tonnes", "feed.reactions.enabled")
     assert ("settings", "settings.yaml") in lift.issues()
-    assert "must start with co.acme." in lift.details()
+    assert "must start with co.acme.lift_plan." in lift.details()
+
+
+def test_a_setting_key_of_the_namespace_but_not_of_the_type_is_refused(lift: Pkg) -> None:
+    """Prefix ``<namespace>.<snake_case(Name)>.`` (D15): a one-segment namespace cannot squat."""
+    lift.edit("settings.yaml", "co.acme.lift_plan.max_load_tonnes", "co.acme.max_load_tonnes")
+    assert ("settings", "settings.yaml") in lift.issues()
+    assert "must start with co.acme.lift_plan." in lift.details()
+    lift.edit("settings.yaml", "co.acme.max_load_tonnes", "co.acme.lift_plans.max_load_tonnes")
+    assert "must start with co.acme.lift_plan." in lift.details()
 
 
 def test_a_secret_setting_is_refused(lift: Pkg) -> None:

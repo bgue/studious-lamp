@@ -110,7 +110,9 @@ class SettingDiff(BaseModel):
 # Service signatures (implemented in tl_core.settings; supervisor-built: resolver and service):
 #   definitions() -> dict[str, SettingDefinition]
 #   register_definitions(defs: list[SettingDefinition], *, owner: str) -> None
-#       Extension-type keys must start with the package namespace; a clash raises.
+#       Extension-type keys must start with `<namespace>.<snake_case(TypeName)>.` (D15, amending
+#       "the package namespace"), the first segment of a type namespace is never a platform one,
+#       and a secret definition is refused; a clash raises.
 #   resolve(conn, key, *, project: str | None = None, user: str | None = None,
 #           at: datetime | None = None) -> EffectiveSetting
 #   resolve_all(conn, *, project=None, user=None, prefix: str | None = None)

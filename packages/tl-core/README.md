@@ -52,7 +52,7 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 ## Settings (`tl_core.settings`, P0-I8 workstream A; brief 30)
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `tl_core.settings.definitions()`, `get_definition`, `register_definitions`, `use_definitions` | functions | The setting definitions: the platform file `schema/settings/platform.yaml` plus keys extension packages register under their namespace |
+| `tl_core.settings.definitions()`, `get_definition`, `register_definitions`, `use_definitions` | functions | The setting definitions: the platform file `schema/settings/platform.yaml` plus keys extension packages register under `<namespace>.<snake_case(TypeName)>.` (D15; secret keys refused; a platform key wins a listing clash) |
 | `tl_core.settings.resolve`, `resolve_all`, `value_of(conn, key, project=, user=)`, `history`, `diff` | functions | The effective value (default, company, project, user), its origin, `modified_here`, lock, bounds, scheduled changes and `pending_effect`; time-based, from the `cur_setting*` tables. Use `value_of` inside a transaction |
 | `tl_core.settings.set_setting`, `reset_setting`, `lock_setting`, `revert_setting`, `service.change_setting` | functions | Change a layer. Locks and bounds are enforced here and again when resolving; a reason is required for `advanced` and `dangerous` keys and `accept_risk` for `dangerous` ones; secrets are refused; only the latest change at a layer is reverted |
 | `tl_core.settings.export_yaml`, `import_yaml` | functions | One layer as a YAML template; import is all or nothing and refuses aliases, non-JSON values and oversized files |
