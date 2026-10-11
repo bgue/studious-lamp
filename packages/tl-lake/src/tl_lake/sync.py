@@ -100,24 +100,40 @@ def _event_rows(conn: Connection, after: int, upto: int, size: int) -> Iterator[
 
 
 #: Streams whose events never reach the lake (usernames and roles of accounts, ADR-0009). The lake
-#: is queryable by every user, so the row stays, for the gap-free `seq` and the hash tip check, but
-#: says nothing: no stream, type, actor or payload.
+#: is queryable by every user, so the row stays, for the gap-free `seq`, but says as little as a row
+#: can: no stream, type, actor, payload, hash or exact time, and a constant version, so it reveals
+#: neither how many accounts exist nor how many events each has (only that `seq` N was internal).
 INTERNAL_STREAM_TYPES = frozenset({"core.Account"})
+REDACTED_TYPE = "Internal." + "Redacted"
+REDACTED_HASH = "redacted"
+
+
+def _day(stamp: Any) -> str:
+    """The day of a ledger timestamp, at midnight UTC, in the ledger's text form."""
+    return str(stamp)[:10] + "T00:00:00.000000+00:00"
 
 
 def _redacted(rows: Iterator[Mapping[str, Any]]) -> Iterator[Mapping[str, Any]]:
     for row in rows:
         if row["stream_type"] in INTERNAL_STREAM_TYPES:
+            marker = f"redacted-{row['seq']}"
             yield {
                 **row,
-                "stream_id": row["event_id"],
+                "event_id": marker,
+                "stream_id": "internal",
                 "stream_type": "internal",
-                "event_type": "Internal.Redacted",
+                "stream_version": 1,
+                "event_type": REDACTED_TYPE,
+                "schema_version": 1,
                 "payload": "{}",
                 "actor": "internal",
-                "correlation_id": row["event_id"],
+                "recorded_at": _day(row["recorded_at"]),
+                "effective_at": _day(row["effective_at"]),
+                "correlation_id": marker,
                 "causation_id": None,
                 "source": "internal",
+                "prev_hash": None,
+                "hash": REDACTED_HASH,
             }
         else:
             yield row
@@ -259,17 +275,32 @@ def _watermark(con: Duck) -> int:
 
 
 def _verify_tip(con: Duck, ledger: Connection, seq: int) -> None:
-    """The event at ``seq`` must be the same event in the lake and in the ledger."""
-    mine = ledger.execute(
-        text(f"SELECT hash FROM {EVENTS_TABLE} WHERE seq = :seq"), {"seq": seq}
-    ).scalar()
+    """The newest event the lake holds in full must be the same event in the lake and the ledger.
+
+    A redacted row has no hash to compare, so the check walks back to the newest row that is not
+    redacted; with none (a lake of nothing but redacted rows) there is nothing to compare.
+    """
     row = con.execute(
-        f"SELECT hash FROM {table_ref(EVENTS_TABLE)} WHERE seq = {int(seq)}"
+        f"SELECT seq, hash FROM {table_ref(EVENTS_TABLE)} "
+        f"WHERE seq <= {int(seq)} AND hash <> '{REDACTED_HASH}' ORDER BY seq DESC LIMIT 1"
     ).fetchone()
-    theirs = None if row is None else row[0]
+    if row is None:
+        held = con.execute(
+            f"SELECT count(*) FROM {table_ref(EVENTS_TABLE)} WHERE seq = {int(seq)}"
+        ).fetchone()
+        if held is None or held[0] == 0:  # the tip is missing altogether: not the lake we built
+            raise LakeDivergedError(
+                f"the lake has no event at seq {seq}, where its watermark says it should. "
+                "This is not the ledger the lake was built from; run `tl lake rebuild`."
+            )
+        return  # the lake holds nothing but redacted rows: nothing to compare
+    at, theirs = int(row[0]), row[1]
+    mine = ledger.execute(
+        text(f"SELECT hash FROM {EVENTS_TABLE} WHERE seq = :seq"), {"seq": at}
+    ).scalar()
     if mine != theirs:
         raise LakeDivergedError(
-            f"the lake and the ledger disagree about the event at seq {seq}: "
+            f"the lake and the ledger disagree about the event at seq {at}: "
             f"ledger hash {mine}, lake hash {theirs}. This is not the ledger the lake was built "
             "from; run `tl lake rebuild`."
         )
