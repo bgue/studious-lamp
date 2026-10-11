@@ -10,6 +10,7 @@ from textual.binding import Binding
 from textual.pilot import Pilot
 from tl_tui.app import TlApp
 from tl_tui.keymap import CONTEXTS, KEYMAP, KeyEntry, help_text
+from tl_tui.widgets.admin_screen import AdminScreen
 from tl_tui.widgets.composer import ComposerScreen
 from tl_tui.widgets.edit_form import EditForm
 from tl_tui.widgets.feed_pane import FeedPane
@@ -43,6 +44,7 @@ OWNERS: dict[str, Any] = {
     "ComposerScreen": ComposerScreen,
     "SettingsScreen": SettingsScreen,
     "SettingForm": SettingForm,
+    "AdminScreen": AdminScreen,
 }
 
 
@@ -80,6 +82,7 @@ def test_every_context_has_entries_and_every_entry_has_a_known_context() -> None
         "Composer",
         "Forms",
         "About:config",
+        "Accounts",
     )
     assert {e.context for e in KEYMAP} == set(CONTEXTS)
     assert all(isinstance(e, KeyEntry) and e.keys and e.description for e in KEYMAP)

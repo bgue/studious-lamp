@@ -31,6 +31,7 @@ from tl_api.client.auth import sign_in
 from tl_core.services.commands import Command, CommandResult
 
 from tl_tui.client import ClientInterface, RelationInfo
+from tl_tui.errors import CLIENT_ERRORS
 from tl_tui.live import ChangeFeed, FeedSink, OwnWrites
 from tl_tui.messages import ConnectionState
 from tl_tui.sign_in import SignedIn
@@ -300,3 +301,18 @@ class RemoteAuthenticator:
             roles=tuple(out.principal.roles),
             token=out.token,
         )
+
+
+def sign_out(base_url: str, token: str, *, http: httpx2.Client | None = None) -> None:
+    """End a server session made by :class:`RemoteAuthenticator` (``POST /auth/sign-out``).
+
+    Best effort: a server that cannot be reached, or that already ended the session, is ignored
+    (the token expires on its own after 12 hours). Never raises, never logs the token.
+    """
+    client = ApiClient(base_url, token, http=http, timeout=INTERACTIVE_TIMEOUT_S)
+    try:
+        client.sign_out()
+    except (*CLIENT_ERRORS, httpx2.HTTPError):
+        pass
+    finally:
+        client.close()

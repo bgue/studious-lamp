@@ -181,9 +181,9 @@ def test_an_unconfigured_secret_is_an_error_not_a_crash(
 ) -> None:
     monkeypatch.delenv("TL_ENV", raising=False)
     monkeypatch.delenv("TL_OBJECT_SECRET", raising=False)
-    # TL_ENV is empty, so the default actor would ask for a sign-in: name the actor
+    # TL_ENV=test lets `--actor` stand without a sign-in; only dev has the public object secret
     result = put(
-        env | {"TL_ENV": ""},
+        env | {"TL_ENV": "test"},
         make(tmp_path, "r.pdf", PDF),
         "--slot",
         "report",

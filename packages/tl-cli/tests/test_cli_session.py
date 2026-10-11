@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import getpass
 import json
 import os
 import sqlite3
@@ -52,6 +53,16 @@ def last_actor(env: dict[str, str]) -> str:
             "SELECT actor FROM events WHERE event_type NOT LIKE 'Account.%' ORDER BY seq DESC"
         ).fetchone()
     return str(row[0])
+
+
+def rows_of_events(env: dict[str, str]) -> int:
+    with sqlite3.connect(env["TL_DB"]) as conn:
+        return int(
+            conn.execute(
+                "SELECT COUNT(*) FROM events WHERE event_type NOT LIKE 'Account.%' "
+                "AND event_type NOT LIKE 'AgentToken.%'"
+            ).fetchone()[0]
+        )
 
 
 def create_record(env: dict[str, str], *extra: str) -> RunResult:
@@ -117,6 +128,36 @@ def test_a_planted_temp_file_is_not_followed_and_a_foreign_owner_is_refused(
         session.load("db:/a")
 
 
+@pytest.mark.skipif(os.name != "posix", reason="file locks")
+def test_concurrent_saves_and_forgets_lose_nothing() -> None:
+    import threading
+
+    def save_one(n: int) -> None:
+        session.save(stored(f"db:/{n}", f"tls_{n}"))
+
+    threads = [threading.Thread(target=save_one, args=(n,)) for n in range(16)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert all(session.load(f"db:/{n}") is not None for n in range(16))
+    removers = [
+        threading.Thread(target=session.forget, args=(f"db:/{n}",)) for n in range(0, 16, 2)
+    ]
+    for thread in removers:
+        thread.start()
+    for thread in removers:
+        thread.join()
+    kept = [n for n in range(16) if session.load(f"db:/{n}") is not None]
+    assert kept == list(range(1, 16, 2))
+    assert (
+        stat.S_IMODE(
+            (session.session_file().parent / f".{session.session_file().name}.lock").stat().st_mode
+        )
+        == 0o600
+    )
+
+
 def test_the_token_never_shows_in_a_repr_or_a_listing() -> None:
     item = stored("db:/a", "tls_very_secret")
     assert "tls_very_secret" not in repr(item) and "tls_very_secret" not in str(item)
@@ -169,15 +210,72 @@ def test_in_dev_without_a_session_the_default_actor_is_user_dev(env: dict[str, s
     assert last_actor(env) == "user:dev"
 
 
-def test_outside_dev_the_default_actor_needs_a_sign_in_but_an_explicit_actor_is_honoured(
+def test_outside_dev_no_actor_can_be_used_without_a_sign_in_not_even_a_named_one(
     env: dict[str, str],
 ) -> None:
     prod = env | {"TL_ENV": "prod"}
     refused = create_record(prod)
     assert refused.exit_code == 1 and refused.stdout == ""
     assert refused.stderr.startswith("error: not signed in: run `tl login")
-    assert create_record(prod, "--actor", "user:ops").exit_code == 0
+    named = create_record(prod, "--actor", "user:root")  # the ledger file trusts nobody's word
+    assert named.exit_code == 1 and named.stdout == ""
+    assert named.stderr.startswith("error: not signed in: run `tl login")
+    assert "--actor alone is accepted only in a dev setup" in named.stderr
+    unset = create_record(env | {"TL_ENV": ""}, "--actor", "user:root")
+    assert unset.exit_code == 1 and unset.stderr.startswith("error: not signed in")
+    assert rows_of_events(env) == 0  # nothing was written
+
+
+@pytest.mark.parametrize("mode", ["dev", "test", "ci"])
+def test_in_a_dev_setup_a_named_actor_stands_for_a_ledger_file(
+    env: dict[str, str], mode: str
+) -> None:
+    assert create_record(env | {"TL_ENV": mode}, "--actor", "user:ops").exit_code == 0
     assert last_actor(env) == "user:ops"
+
+
+def test_a_signed_in_person_may_act_only_as_themselves_outside_a_dev_setup(
+    env: dict[str, str],
+) -> None:
+    assert bootstrap(env).exit_code == 0
+    sign_in_to_file(env)
+    prod = env | {"TL_ENV": "prod"}
+    assert create_record(prod, "--actor", "user:root").exit_code == 0
+    assert last_actor(env) == "user:root"
+    other = create_record(prod, "--actor", "user:amy")
+    assert other.exit_code == 1 and other.stdout == ""
+    assert other.stderr == "error: --actor user:amy is not the signed-in user (user:root)\n"
+    assert last_actor(env) == "user:root"
+
+
+def test_the_actor_check_runs_after_the_agent_refusal_of_a_config_command(
+    env: dict[str, str],
+) -> None:
+    result = run(
+        env | {"TL_ENV": "prod"},
+        "config", "set", "feed.reactions.enabled", "false", "--company", "--actor", "agent:x",
+    )  # fmt: skip
+    assert result.exit_code == 1 and result.stderr.startswith("error: agent_must_propose")
+
+
+@pytest.mark.parametrize("mode", ["dev", "prod"])
+def test_a_database_server_always_needs_a_session_even_in_dev(
+    env: dict[str, str], mode: str
+) -> None:
+    server = {"TL_DB": "postgresql://tl:secret@127.0.0.1:1/none", "TL_ENV": mode}
+    for extra in ([], ["--actor", "user:root"], ["--actor", "user:dev"]):
+        result = create_record(server, *extra)
+        assert result.exit_code == 1 and result.stdout == "", extra
+        assert result.stderr.startswith("error: not signed in"), extra
+        assert "secret" not in result.output  # the URL's password is never echoed
+
+
+def test_the_local_target_test_is_about_the_scheme_only() -> None:
+    assert session.is_local_target("./dev/data/tl.db")
+    assert session.is_local_target("/tmp/a b/tl.db")
+    assert session.is_local_target("C:\\data\\tl.db")
+    assert not session.is_local_target("postgresql://u@h/db")
+    assert not session.is_local_target("postgres://h/db")
 
 
 def test_a_signed_in_session_is_the_default_actor_everywhere(env: dict[str, str]) -> None:
@@ -186,8 +284,8 @@ def test_a_signed_in_session_is_the_default_actor_everywhere(env: dict[str, str]
     for mode in ("dev", "prod"):
         assert create_record(env | {"TL_ENV": mode}).exit_code == 0
         assert last_actor(env) == "user:root"
-    assert create_record(env, "--actor", "user:other").exit_code == 0
-    assert last_actor(env) == "user:other"  # explicit still wins (the embedded trust boundary)
+    assert create_record(env, "--actor", "user:other").exit_code == 0  # dev: a named actor stands
+    assert last_actor(env) == "user:other"
 
 
 def test_a_session_for_another_ledger_is_not_used(env: dict[str, str], tmp_path: Path) -> None:
@@ -319,13 +417,19 @@ def test_unlock_clears_a_locked_name_and_audit_shows_both(env: dict[str, str]) -
     assert "unlocked" in text and "sign_in_failed" in text and "bootstrap" in text
     assert "x5" in text or "x4" in text  # repeated failures share a row with a count
     assert GOOD not in text
+    me = getpass.getuser()  # the OS user is on the recovery rows: who ran them on a shared machine
+    lines = {line.split("  ")[1]: line for line in text.splitlines()}
+    assert f"by svc:cli:{me}" in lines["unlocked"]
+    assert f"created by {me}" in lines["bootstrap"]
 
 
 def test_audit_filters_limits_and_prints_json(env: dict[str, str]) -> None:
     assert bootstrap(env).exit_code == 0
     only = run(env, "admin", "audit", "--event", "bootstrap", "--json")
     rows = json.loads(only.stdout)
-    assert [r["event"] for r in rows] == ["bootstrap"] and rows[0]["detail"] == "created"
+    assert [r["event"] for r in rows] == ["bootstrap"] and rows[0][
+        "detail"
+    ] == f"created by {getpass.getuser()}"
     assert len(json.loads(run(env, "admin", "audit", "--limit", "1", "--json").stdout)) == 1
     bad_event = run(env, "admin", "audit", "--event", "nonsense")
     assert bad_event.exit_code == 1 and "unknown audit event" in bad_event.stderr
