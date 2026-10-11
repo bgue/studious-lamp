@@ -23,7 +23,7 @@ tickets in `docs/tickets/`, reports in `docs/reports/`, decisions in `docs/adr/`
 2. **Generated code is never edited by hand.** Change the LinkML source or the generator, run `just gen`, commit both.
 3. **Events are immutable.** No UPDATE or DELETE on event tables, no rewriting history, no fixing an event in place. Corrections are new events (§5.2).
 4. **Current-state DDL is generated.** No hand-written `cur_*`, `hist_*`, or `v_*` objects (§5.4).
-5. **Dialect-neutral core.** Runtime SQLite- or Postgres-specific SQL lives only under `packages/tl-adapters/`.
+5. **Dialect-neutral core.** Runtime SQLite- or Postgres-specific SQL lives only under `packages/tl-adapters/`. Entry points (API, TUI, MCP, simulator, `tl` commands) take the database as a `DbTarget` (a SQLite path or a `postgresql://` URL, read with `tl_adapters.db.as_target`) and open it through `tl_adapters.db` or `tl_adapters.backend`; they never import `tl_adapters.sqlite` (`tests/tools/test_no_sqlite_imports.py`) and never print a URL, only `display_target(...)`.
    Codegen is the one exception: `tl_schema.generators` emits per-dialect DDL, which adapters execute.
 6. **Run before done.** Run every command the ticket lists and paste the output into the report. Unrun commands mean the ticket is not done.
 7. **Deviations first.** If anything changed outside the ticket's scope, say so in the first line of the report.

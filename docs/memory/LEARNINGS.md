@@ -280,3 +280,10 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P1-I0A-22** · 2026-10-11 · tags: security, mcp
   A long-lived stdio server must not trust its start-up check. The MCP server now looks the agent token up on every tool and resource call (`principal_for_bearer`), so a revoked token, an expired one or a disabled agent stops at the next call; a cached principal would have kept working until the process ended. A test revokes mid-session and the mutation that caches the principal fails it.
   Evidence: `tl_mcp/identity.py`; `test_mcp_identity.py::test_a_revoked_token_stops_working_at_the_next_call_not_the_next_start`. Status: active
+- **L-P1-I0B-5** · 2026-10-11 · tags: process, security
+  When a security workstream (auth) and an infrastructure workstream (a second database) run in parallel, the merge hides the real conflicts in files that merge cleanly: A's CLI session had `db.is_file()`, `Path`-typed parameters and a scheme test in nine places that git merged without complaint and that only fail with a URL. After the textual merge, grep the other side's new code for the assumption (`is_file`, `Path`, `exists`, `sqlite`) and put it under a guard test (`tests/tools/test_no_sqlite_imports.py`); a stored sign-in needs a password-free key per ledger (`target_key`).
+  Evidence: the merge `03f1f40`; `packages/tl-cli/src/tl_cli/session.py`, `packages/tl-cli/tests/test_cli_auth_targets.py`. Status: active
+- **L-P1-I0B-6** · 2026-10-11 · tags: process, tooling
+  `pgrep -f '<pattern>'` run from a Bash command whose own text contains the pattern matches that shell, and `kill` of the result kills it (exit 144): the third time after L-P0-I6C-8 and L-P0-I7-B5. Find a server you started by its port (`ss -ltnp | grep :PORT`) or note the PID when you start it, and kill that PID.
+  Evidence: the seed check of S35. Status: active
+

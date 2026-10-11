@@ -25,7 +25,7 @@ The MCP server for AI agents: read tools and resources over the same query langu
 | resource `tl://relations` | resource | JSON: the relation vocabulary |
 | tool `list_record_types(status=None)`, `get_record_type(type_ref)`, `get_record_body(record, scope=None)` | tools | Extension record types (`tl_mcp.type_tools`, brief 31): the registered versions, one version with its generated form, and the verified body of an object-backed record. Read-only. `create_record` with a type name proposes a managed instance; an object-backed type is refused (a proposal carries no body) |
 | resources `tl://types`, `tl://types/{type_ref}` | resources | JSON: the registered versions; one version with its form |
-| `TL_AGENT_TOKEN=... python -m tl_mcp [--db PATH] [--lake-dir DIR]` | command | Serve on stdio as the agent the token belongs to |
+| `TL_AGENT_TOKEN=... python -m tl_mcp [--db TARGET] [--lake-dir DIR]` | command | Serve on stdio as the agent the token belongs to |
 | `tl_mcp.identity` (`token_from_env`, `resolve_agent`, `token_authorizer`) | module | Reads the agent token, finds its agent, and builds the hook that checks the token and the agent's allowance on every call (P1-I0, ADR-0009) |
 | `tl_mcp.context.McpContext` | class | What every tool and resource needs: a unit-of-work factory, the actor and the authorise hook |
 | `tl_mcp.errors.guarded` | function | Authorises, then turns the failures a tool or resource can meet into `ToolError` or `ResourceError` |
@@ -65,7 +65,7 @@ Runbook: `docs/runbooks/api-and-mcp-dev.md`.
 ## Configuration
 | Setting or env var | Default | Notes |
 |---|---|---|
-| `TL_DB` / `--db` | `./dev/data/tl.db` | Each call opens its own short transaction, so the server can run beside the API or the TUI |
+| `TL_DB` / `--db` | `./dev/data/tl.db` | A SQLite file or a `postgresql://` URL (prefer the variable). Each call opens its own short transaction, so the server can run beside the API or the TUI |
 | `TL_AGENT_DAILY_PROPOSALS` | `500` | Proposals one agent may file per UTC day; `0` refuses every proposal |
 | `TL_LAKE_DIR` / `--lake-dir` | `./dev/data/lake` | The lake `lake_query` reads; it is opened per call and may not exist yet (the tool then says to run `tl lake sync`) |
 | `TL_AGENT_TOKEN` | required | An agent token from `tl admin token issue <agent> --label <what for>`. It names the actor for the life of the server and is checked again on every call: a revoked or expired token, or a disabled agent, stops at the next call. A person's session token is refused. Never pass it as an argument. `--actor` was removed |

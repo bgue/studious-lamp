@@ -6,7 +6,7 @@ The REST API, the SSE change stream and the HTTP client over the `tl_core` servi
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `tl_api.app.create_app(backend, *, settings, tokens, files_service, authorize_hook)` | function | Build the FastAPI app over a `Backend`. No state beyond `app.state.ctx` |
-| `tl_api.backend.Backend`, `open_sqlite_backend(path)` | protocol, function | The storage seam: `backend(readonly)` yields an entered unit of work; `.ledger`, `.bus`, `.close()`. SQLite today (`SqliteUowFactory`), Postgres in P0-I5 |
+| `tl_api.backend.Backend`, `open_backend(target)` | protocol, function | The storage seam: `backend(readonly)` yields an entered unit of work; `.ledger`, `.bus`, `.close()`. `open_backend` takes a SQLite path or a `postgresql://` URL (`tl_adapters.backend`); the live feed gets the bus for this process's writes and a 0.25 s poll for other processes' |
 | `tl_api.errors` (`ERROR_TABLE`, `body_for`, `exception_for`, `ApiError`) | module | The one table that maps each `ServiceError` to a status and a stable `error` code, both directions |
 | `tl_api.auth` (`guard`, `Resolver`, `current_principal`, `AuthenticationMiddleware`, `BodyLimitMiddleware`) | module | A bearer token (session, agent or dev) becomes a `Principal` before any request body is read; `guard(action)` runs the role `Authorizer` (closed for agents, `admin.*` for admins) and returns the actor. `authorize` is the old allow-all hook the MCP server and tests may still pass |
 | `tl_api.ratelimit` (`SourceLimiter`, `RateLimitMiddleware`, `client_key`) | module | 20 failed `POST /auth/sign-in` per client address in 10 minutes, then 429 `rate_limited` with `Retry-After` before any hash. In memory, per process: a second layer behind a front-door limiter |
@@ -47,7 +47,7 @@ Runbook: `docs/runbooks/api-and-mcp-dev.md`.
 ## Configuration
 | Setting or env var | Default | Notes |
 |---|---|---|
-| `TL_DB` / `--db` | `./dev/data/tl.db` | SQLite ledger; create it with `tl init` |
+| `TL_DB` / `--db` | `./dev/data/tl.db` | The ledger: a SQLite file or a `postgresql://` URL (prefer the variable for a URL, it carries the password); create it with `tl init`. `ApiSettings.db_path` holds it as a `DbTarget` |
 | `TL_TOKENS` / `--tokens` | `./dev/data/tokens.json` | Must be mode 0600; a looser file is refused and the server will not start |
 | `TL_API_HOST`, `TL_API_PORT` / `--host`, `--port` | `127.0.0.1`, `8765` | A non-loopback host needs `--insecure-dev`, which logs a warning per request |
 | `TL_OBJECT_STORE`, `TL_OBJECT_ROOT`, `TL_OBJECT_SECRET`, `TL_ENV=dev` | `fs`, `./dev/data/objects` | As the CLI; without a store the file routes answer 503 |

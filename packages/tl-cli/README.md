@@ -1,6 +1,6 @@
 # tl-cli (`tl_cli`)
 
-The `tl` command: a thin typer front end over the `tl_core` command and query services and the SQLite adapter (§25.2, §29.4).
+The `tl` command: a thin typer front end over the `tl_core` command and query services and the SQLite and Postgres adapters (§25.2, §29.4). The database is the root `--db` / `TL_DB`: a SQLite file or a `postgresql://` URL, read through `tl_adapters.db.as_target` into `ctx.obj`.
 
 ## Public interface
 | Symbol | Kind | Purpose |
@@ -60,7 +60,7 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl archive verify [--archive DIR] [--public-key FILE] [--db TARGET] [--deep] [--all] [--expect-last-seq N] [--expect-manifest SHA]` | command | Verify the archive (and a database); prints `divergence: <kind> segment=.. seq=..: <detail>` and exits 1 on the first divergence (runbook: `docs/runbooks/ledger-archive-and-verify.md`) |
 | `tl ledger verify [--db TARGET]` | command | Recompute every event hash and check every scope chain in the database alone |
 | `tl restore --from-archive DIR --db TARGET [--public-key FILE]` | command | Rebuild an empty SQLite file or Postgres database from the archive alone (runbook: `docs/runbooks/restore-from-archive.md`); warnings on stderr |
-| `tl backup sqlite --to FILE` | command | Online snapshot of the SQLite ledger (runbook: `docs/runbooks/sqlite-backup-and-litestream.md`) |
+| `tl backup sqlite --to FILE` | command | Online snapshot of the SQLite ledger (runbook: `docs/runbooks/sqlite-backup-and-litestream.md`); refuses a Postgres target and points to pgBackRest and `tl archive seal` |
 | `tl_cli.file_reconcile` | module | `tl file reconcile`: compare the ledger's file rows with the object store |
 | `tl_cli.webhook_common` | module | Helpers shared by the `tl webhook` commands: the unit-of-work factory, scope and error output |
 | `tl_cli.webhook_ops` | module | The second half of `tl webhook`: `dlq ls`, `dlq redrive`, `disable`, `enable`, `rotate-secret` |
@@ -88,7 +88,7 @@ just demo P0-I1
 ## Configuration
 | Setting or env var | Default | Notes |
 |---|---|---|
-| `--db PATH` / `TL_DB` | `./dev/data/tl.db` | The SQLite ledger file (git-ignored under `dev/data/`) |
+| `--db TARGET` / `TL_DB` | `./dev/data/tl.db` | The ledger: a SQLite file (git-ignored under `dev/data/`) or a `postgresql://` URL (`?sslmode=`, `?options=-csearch_path=<schema>`). Prefer `TL_DB` for a URL: a command line is visible in the process list. A value that is not a target (another `scheme://`, no user, an unescaped `@`, an unsupported `sslmode`) is `error: ...`, exit 2; an unreachable server, a wrong password or a missing database is one `error: cannot reach the database ...` line, exit 1, from every command. Output shows the URL without its password |
 | `--actor` | the signed-in user (`user:dev` in a dev setup without a session) | Actor recorded on events; see `tl_cli.actor_hook` |
 | `TL_SESSION_FILE` | `~/.config/throughline/session.json` | Where `tl login` keeps the session token (mode 0600) |
 | `TL_SIM_AGENT_TOKEN` | unset | An agent token for the simulated assistant outside a dev setup (`tl_cli.sim_agent` makes one in dev) |

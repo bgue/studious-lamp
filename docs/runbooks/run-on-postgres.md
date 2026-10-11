@@ -32,10 +32,9 @@ Purpose: point `tl serve`, `tl tui`, `tl webhook`, `tl lake`, `tl file` and ever
    Expected: `initialised postgresql://postgres:***@localhost:5432/tl_dev?sslmode=disable`. Running it again prints the same line. The password is never printed; every command shows `***`.
 4. Check it:
    ```
-   uv run tl record create --project P123 --key REC-1 --title "Pour slab"
    uv run tl ledger verify
    ```
-   Expected: `created <id>`, `key REC-1`, `version 1`, then `verified ledger postgresql://postgres:***@...: 1 events, hash chains intact`.
+   Expected: `verified ledger postgresql://postgres:***@...: 0 events, hash chains intact`. Writing a record needs a session on a Postgres ledger: step 6 signs in, and the first record is then `uv run tl record create --project P123 --key REC-1 --title "Pour slab"` (`created <id>`, `key REC-1`, `version 1`).
 5. Run the services and workers on it. All of them read `TL_DB`:
 
    | Command | What it does on Postgres |
@@ -48,8 +47,18 @@ Purpose: point `tl serve`, `tl tui`, `tl webhook`, `tl lake`, `tl file` and ever
    | `uv run tl projections rebuild` | Replays the ledger in one transaction. On Postgres this is statement-bound: about 160 events a second (`docs/reports/P0-I8-perf.md`), so 100k records take about 40 minutes |
    | `uv run tl archive seal\|verify`, `tl restore`, `tl ledger verify` | Take a URL with `--db` or the root `TL_DB` |
 
-6. Take a backup. `tl backup sqlite` refuses a Postgres ledger and says so (`error: tl backup sqlite takes a SQLite ledger; ...`). Use pgBackRest (`docs/runbooks/pgbackrest-restore.md`) for the database and `tl archive seal` (`docs/runbooks/ledger-archive-and-verify.md`) for the portable, signed copy.
-7. Move a ledger from SQLite to Postgres, or back. There is no `tl migrate` (a human gate, `docs/tickets/P0-I5/T99-migrate-sqlite-to-postgres.md`). Seal the archive from the source and restore it into an empty target:
+6. Sign in, and run the seed and an agent. Accounts live in the same database (`docs/runbooks/accounts-and-access.md`):
+   ```
+   uv run tl init --dev                          # TL_ENV=dev: also creates demo / demo (admin); refused in prod
+   uv run tl login demo                          # password: demo; or: uv run tl admin bootstrap
+   just seed                                     # the simulator writes a project through the API on TL_DB
+   ```
+   - After signing in, create the first record: `uv run tl record create --project P123 --key REC-1 --title "Pour slab"`.
+   - A Postgres ledger is never a file you own, so every command needs a session (`tl login`), even in a dev setup, and `--actor` is honoured only when it is your own actor. On a SQLite file in a dev setup `--actor user:other` is still accepted. The session file keeps one entry per ledger, keyed `pg:user@host:port/database[?options]`: no password and no `sslmode` in it, so a change of TLS mode keeps your session.
+   - The MCP server (`TL_AGENT_TOKEN=... uv run python -m tl_mcp`) and the simulator's agent read `TL_DB` too. The simulator starts the MCP child with `TL_DB` and `TL_AGENT_TOKEN` in its environment, so no URL or password is on a command line.
+   - The embedded TUI shows its sign-in screen (or uses the session `tl login` made); the screen names the ledger without the password.
+7. Take a backup. `tl backup sqlite` refuses a Postgres ledger and says so (`error: tl backup sqlite takes a SQLite ledger; ...`). Use pgBackRest (`docs/runbooks/pgbackrest-restore.md`) for the database and `tl archive seal` (`docs/runbooks/ledger-archive-and-verify.md`) for the portable, signed copy.
+8. Move a ledger from SQLite to Postgres, or back. There is no `tl migrate` (a human gate, `docs/tickets/P0-I5/T99-migrate-sqlite-to-postgres.md`). Seal the archive from the source and restore it into an empty target:
    ```
    uv run tl --db ./dev/data/tl.db archive seal
    uv run tl restore --from-archive ./dev/data/archive --db "$TL_DB"
@@ -58,7 +67,7 @@ Purpose: point `tl serve`, `tl tui`, `tl webhook`, `tl lake`, `tl file` and ever
 
 ## Verify
 - `uv run tl ledger verify` prints `hash chains intact`.
-- `curl -s localhost:8765/health` prints `{"status":"ok"}` with `tl serve` running; `GET /records?scope=project:P123` with a token lists `REC-1`.
+- `curl -s localhost:8765/health` prints `{"status":"ok"}` with `tl serve` running. Sign in (`curl -s -X POST localhost:8765/auth/sign-in -H 'content-type: application/json' -d '{"username":"demo","password":"demo"}'` in a dev setup) and `GET /records?scope=project:P123` with `Authorization: Bearer <token>` lists `REC-1`.
 - `psql "$TL_DB" -c "SELECT count(*) FROM events"` equals the event count `tl ledger verify` printed.
 
 ## Roll back
@@ -80,6 +89,6 @@ Purpose: point `tl serve`, `tl tui`, `tl webhook`, `tl lake`, `tl file` and ever
 
 ## Related
 - `docs/runbooks/postgres-local-setup.md` (start the cluster, the parity suite, scratch schemas).
-- `docs/runbooks/api-and-mcp-dev.md`, `docs/runbooks/tui-dev.md`, `docs/runbooks/webhook-operations.md`, `docs/runbooks/lake-sync.md`.
+- `docs/runbooks/accounts-and-access.md` (sign-in, roles, agent tokens), `docs/runbooks/api-and-mcp-dev.md`, `docs/runbooks/tui-dev.md`, `docs/runbooks/simulator.md`, `docs/runbooks/webhook-operations.md`, `docs/runbooks/lake-sync.md`.
 - `docs/adr/0002-build-environment-constraints.md` (native Postgres 16, no Docker daemon).
 - `packages/tl-adapters/README.md` (`open_backend`, `as_target`, `ledger_exists`).

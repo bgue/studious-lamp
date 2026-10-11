@@ -1,6 +1,6 @@
 # Increment plan: P1-I0 workstream B, Postgres for the services
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-11
 Brief sections: §14 (storage), §16 Phase 1 and the Phase 0 audit (`docs/reports/PHASE-0-AUDIT.md` bullet 2), §24 (operations)
 Branch: `p1/i0b` (worktree `/home/user/wt/p1-i0b`), based on `p1/i0`; fanout plan `docs/tickets/P1-I0/FANOUT.md`; owner decisions `docs/adr/0008-phase1-owner-decisions.md`
@@ -39,6 +39,8 @@ The runbook `docs/runbooks/run-on-postgres.md` has the full procedure and what d
 | B10 | **`ApiSettings.db_path` keeps its name** and is typed `DbTarget`. A rename would touch every test and conflict with workstream A's edits to the same file; the field has a comment. |
 | B11 | **Not in this increment:** the MCP server's `--db` and the simulator's ledger path (`tl_mcp/main.py`, `tl_sim`) are edited by workstream A for agent tokens and seeded accounts; B takes them after A merges (see *Order of work*). The dev MCP server's `query_db` and `render_screen` stay SQLite-only (decision C4). `just seed` and the demo scripts are A's. |
 | B12 | **Review fixes (fresh-context review of S30 to S34).** `as_target` and `is_postgres` match the scheme in any letter case and accept `postgresql+pg8000://`; any other `scheme://` value, a URL without a user, and an unescaped `@` in the password raise `ValueError` without repeating the value. `display_target` drops `password` and `sslpassword` query parameters and shows `<invalid database URL>` for a URL it cannot parse safely. SQLite `read_tx` sets `PRAGMA query_only=ON` for the transaction (and OFF after), so `DatabaseBackend.read_connection` and the readonly unit of work refuse raw writes as Postgres does (25006). The root `tl` group (`TlGroup`) turns any connection failure (`connection_failure`: refused, wrong password, missing database) into one `error:` line with exit 1; `tl_tui.main.main` and `tl_api.main.main` do the same for a bad or unreachable target. The re-review's residual (an unsupported `sslmode` reaching lazy commands as a traceback) is fixed in S35b: `as_target` runs a Postgres URL through `split_url`, so the root callback refuses it with one error line. |
+| B13 | **The CLI session of a Postgres ledger (S35, after A merged).** A's `tl_cli.session` assumed a ledger file. Now every `db` parameter is a `DbTarget`; "local" is `not is_postgres(target)` (`is_local_target` is gone: `as_target` already refuses every `scheme://` value that is not Postgres, so there is no third kind of target). The stored sign-in is keyed by `tl_adapters.db.target_key`: `db:<absolute path>` or `pg:user@host:port/database[?options]`, with no password and no `sslmode`. ADR-0009 sections 4 and 7 are kept: a server target always needs a session, `--actor` is honoured only for the session's own actor, and on a file also in dev, test or ci. **ADR-0009 names only the file key; the orchestrator should add the `pg:` key as an addendum** (a security-relevant choice: the key is stored in clear in the session file). |
+| B14 | **MCP and simulator (S35).** `tl_mcp --db` and `TL_DB` take a target and the server runs on `open_backend`. The simulator's ledger is a `DbTarget`; its MCP child gets `TL_DB` and `TL_AGENT_TOKEN` in its environment, never a URL on a command line. `tl-sim` now declares its workspace dependency on `tl-adapters` (`uv.lock` follows; no external dependency). `tests/tools/test_no_sqlite_imports.py` covers `tl-api`, `tl-cli`, `tl-mcp`, `tl-sim` and `tl-tui`. |
 
 ## Supervisor-built pieces (in order)
 | # | Piece | Why supervisor-tier | Reviewer | Status |
@@ -48,11 +50,11 @@ The runbook `docs/runbooks/run-on-postgres.md` has the full procedure and what d
 | S32 | The root `tl` callback, `tl init`, `tl projections rebuild`, `tl serve`, `tl tui`; `EmbeddedClient.for_target`; `tl_tui.main`; parity conversion of the embedded-client tests | Entry points every command uses; conflicts with A in `tl_cli/main.py` | same | done |
 | S33 | The provided tests of T30 to T38 (CLI env fixtures on `new_db`, adapter-based helpers) | Test specification for the tickets | n/a | done |
 | S34 | `tl record` and `tl events` on `DbTarget` (`record.py`, `events.py`) | Every other group's provided tests call `tl record create`, so on Postgres nothing else could pass first (T30 folded in) | same | done |
-| S35 | After A merges: `tl_mcp/main.py` and `tl_sim` on `open_backend`; the guard test that no command imports `tl_adapters.sqlite` (except `backup`) | Touches A's files | same | planned |
+| S35 | Merge of `p1/i0` (A, 608fdf6) with conflict resolution; `tl_mcp/main.py`, `tl_sim` and A's CLI session on a `DbTarget`; parity tests for sign-in, the actor rules, the API and MCP on Postgres | Touches A's files and the session's trust rules | fresh-context review requested | done (03f1f40, 649f828) |
 | S35a | Fixes of the review of S30 to S34 (B12) | Security-relevant handling of credentials in URLs | short re-review | done |
 | S35b | `as_target` validates `sslmode` (re-review residual) | same | same | done |
 | S35c | `tests/tools/test_no_sqlite_imports.py`: no module of `tl-api`, `tl-cli` or `tl-tui` imports `tl_adapters.sqlite` except `backup.py` (`tl-mcp` joins in S35) | Pins decision B1 | same | done |
-| S36 | Runbook `docs/runbooks/run-on-postgres.md` (written; MCP and simulator sections after S35); package READMEs and AGENTS.md; learnings; the report | Docs of the new operating mode | n/a | runbook written |
+| S36 | Runbook `docs/runbooks/run-on-postgres.md`; package READMEs and AGENTS.md; runbooks of the TUI, API, simulator and accounts; learnings; the report `docs/reports/P1-I0-B.md` | Docs of the new operating mode | n/a | done |
 
 ## Tickets
 T31 to T38 swap one command group each from the SQLite-only `open_uow` and a `Path` to `tl_adapters.db.open_uow` and a `DbTarget`. Each is small (a few lines per file; the file count is above the checklist's five because the test files are provided and read-only). A scratch reference implementation of every ticket is kept on the branch `p1/i0b-ref` (not merged) as the takeover path (L-P0-I2-3).

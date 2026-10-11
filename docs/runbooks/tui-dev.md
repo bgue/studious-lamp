@@ -1,6 +1,6 @@
 # Runbook — Run the TUI on the dev ledger
 
-Purpose: start the Textual TUI in embedded mode against the SQLite dev ledger, load some records, and recover from the usual first-run problems. Brief: §4, §10.
+Purpose: start the Textual TUI in embedded mode against the dev ledger (a SQLite file, or a Postgres database: see `docs/runbooks/run-on-postgres.md`), load some records, and recover from the usual first-run problems. Brief: §4, §10.
 
 ## When to use
 - Trigger: a developer or demo needs to see or edit records and psets in the TUI.
@@ -49,7 +49,7 @@ Purpose: start the Textual TUI in embedded mode against the SQLite dev ledger, l
 - Terminal too narrow: at 80 columns or fewer the side panels become overlays on `F2` and `F3`.
 - Red line under the header, "Server unreachable" (remote): the TUI cannot reach the API. Check `tl serve` is running and the URL and token are right; the TUI retries (0.25 s growing to 5 s) and resumes from the last event it saw, so nothing is missed or repeated. "server ledger changed; reloaded" means the server's ledger was replaced or restored; the TUI read everything again.
 - A 401 in remote mode with a token from `TL_TOKEN`: the token is not in the server's token file (`uv run tl dev token add user:<id>`; the file must be mode 0600).
-- No live marks in embedded mode when another process writes: both must use the same `TL_DB` file; the TUI polls the file every 0.25 s.
+- No live marks in embedded mode when another process writes: both must use the same `TL_DB` (the same file, or the same Postgres database and schema); the TUI polls the ledger every 0.25 s on either database.
 
 ## Related
 - `packages/tl-tui/README.md`; `docs/runbooks/rebuild-projections.md`; `docs/runbooks/schema-package-change.md`.

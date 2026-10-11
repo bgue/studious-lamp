@@ -48,7 +48,7 @@ just test -- packages/tl-sim
 | `TL_API_URL` | `http://127.0.0.1:8765` | The running API |
 | `TL_SIM_AGENT_TOKEN` | unset | An agent token an admin issued for the simulated assistant. Under `tl sim` in a dev setup it is not needed: `tl_cli.sim_agent` makes the agent `sim-assistant` and a short-lived token on the dev ledger. Any other setup needs it |
 | `TL_TOKENS` | `./dev/data/tokens.json` | The token file the API reads; `sim_create` adds one token per simulated actor |
-| `TL_DB` | `./dev/data/tl.db` | The ledger file the agent's MCP server opens (under `tl`, the root `--db`) |
+| `TL_DB` | `./dev/data/tl.db` | The ledger the agent's MCP server opens, a SQLite file or a `postgresql://` URL (under `tl`, the root `--db`). The child process gets it, and the agent token, in its environment, never on its command line |
 | `TL_SEED_DIR` | `dev/seed` in the repository | `scenarios/*.yaml` and `templates/*.yaml` |
 
 ## Rules specific to this package

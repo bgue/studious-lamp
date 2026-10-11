@@ -7,7 +7,7 @@ Purpose: create and manage accounts, roles and agent tokens, get back in after a
 
 ## Before you start
 - Roles are `admin` (everything, including the admin module) and `user` (everything except `admin.*`). An agent (`agent:<name>`) is never admin and always propose-only.
-- Access needed: for `tl admin ...` and recovery, read and write access to the database (SQLite path or `postgresql://` URL) on the host. For the API, an admin session.
+- Access needed: for `tl admin ...` and recovery, read and write access to the database (SQLite path or `postgresql://` URL) on the host. `tl login` keeps one session per ledger, keyed `db:<absolute path>` for a file and `pg:user@host:port/database` for Postgres (never a password); a Postgres ledger always needs a session, and `--actor` is honoured on it only when it is your own. For the API, an admin session.
 - Safe to run during business hours: yes. A password hash takes about a quarter of a second of CPU.
 - **Trust boundary of the embedded modes (decision D3).** The embedded TUI and the CLI open the database directly. Whoever can read the file can read the password hashes and write rows; file permissions are the real boundary there, and sign-in only identifies the actor and applies the roles. Remote use goes through the API.
 
