@@ -1,6 +1,6 @@
 # Increment plan — P0-I8 workstream E: Exit (demo, audit, risks, phase report)
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-11
 Brief sections: §16 Phase 0 and its Exit line, §15 (targets), §17 (risks), §24 (operations, for the audit of upgrade tooling), §7 (cross-reference operations)
 Branch: `p0/i8e` (base `p0/i8`; worktree `/home/user/wt/p0-i8e`). Fanout: `docs/tickets/P0-I8/FANOUT.md` (workstream E, decision D14).
@@ -22,7 +22,8 @@ Takes about 90 seconds. It starts `tl serve` over a temporary ledger, seeds a si
 | S82 | `PHASE-0.md` draft | Consolidates every report | none (document) | built, final numbers pending |
 | S85 | Extension-type demo step | Needs B | | built |
 | S86 | B rows of audit, risks, phase report | Needs B | | built |
-| S87 | Gate check on the merged branch, D rows, increment report | Needs D merged | | pending |
+| S88 | D rows of audit, risks, phase report | Needs D | | built |
+| S89 | Gate check on the merged branch, increment report | Needs D merged | | built |
 
 ## Tickets
 None dispatched. The Haiku-ability checklist (`01-tiers.md` §6) was run on the candidate "a demo step helper": it fails items 2 and 7 (the helper's interface is the demo's, which is not yet stable, and a reviewer cannot verify an evidence claim from a diff). The documents fail item 5's spirit (judgment about status and risk). Fewer agents were also safer: usage limits cut earlier sessions three times.
@@ -31,7 +32,7 @@ None dispatched. The Haiku-ability checklist (`01-tiers.md` §6) was run on the 
 |---|---|---|---|---|---|
 | (none) | | | | | |
 
-## Order of work
+## Order of work (all done)
 1. Read the reports, learnings and code behind each §16 bullet (done).
 2. Demo skeleton on `p0/i8` (A and C only): the four clauses, the settings extra (done, S80).
 3. Audit, risk register, phase report draft (done, S81, S82).
