@@ -8,14 +8,7 @@ token for the highlighted agent (shown once) and ``x`` revokes the highlighted t
 view (P1-I0-T09b). The service decides what is allowed (the last active admin cannot
 be disabled or demoted): a refusal is shown in the status line and nothing changes. Every change is
 one client call and the lists are read again afterwards; nothing is stored here.
-
-STUB (P1-I0-T09b): the bodies of `current_token` and `action_add`, `action_password`,
-`action_issue` and `action_revoke` raise NotImplementedError and have a STEPS comment; everything
-else is final. Implement them, then delete this paragraph, the STEPS comments and the
-`ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -156,9 +149,10 @@ class AdminScreen(ModalScreen[None]):
         return self.accounts[table.cursor_row]
 
     def current_token(self) -> AgentTokenView | None:
-        # STEPS: the token under the "#admin-tokens" cursor (cursor_row), or None when there are
-        # no tokens or the row is out of range (like current_account).
-        raise NotImplementedError
+        table = self.query_one("#admin-tokens", DataTable)
+        if not self.tokens or not 0 <= table.cursor_row < len(self.tokens):
+            return None
+        return self.tokens[table.cursor_row]
 
     def _describe(self) -> None:
         detail = self.query_one("#admin-detail", Static)
@@ -251,41 +245,66 @@ class AdminScreen(ModalScreen[None]):
         self.dismiss(None)
 
     def action_add(self) -> None:
-        # STEPS: push AccountForm(self.client) on self.app with a callback `done(view)`: when the
-        # form was cancelled (None) do nothing; else self.reload() and
-        # self._say(f"Added {view.username}").
-        raise NotImplementedError
+        def done(view: AccountView | None) -> None:
+            if view is None:
+                return
+            self.reload()
+            self._say(f"Added {view.username}")
+
+        self.app.push_screen(AccountForm(self.client), done)
 
     def action_password(self) -> None:
-        # STEPS
-        # 1. view = self.current_account(); return if None or showing_tokens.
-        # 2. view.kind == "agent": self._say(f"{view.username} is an agent: it has tokens, not a
-        #    password.") and return (no form).
-        # 3. Push PasswordForm(self.client, view) with a callback `done(result)`: None (cancelled):
-        #    nothing; else self.reload() and
-        #    self._say(f"Password reset for {view.username}; their sessions ended").
-        raise NotImplementedError
+        view = self.current_account()
+        if view is None or self.showing_tokens:
+            return
+        if view.kind == "agent":
+            self._say(f"{view.username} is an agent: it has tokens, not a password.")
+            return
+
+        def done(result: AccountView | None) -> None:
+            if result is None:
+                return
+            self.reload()
+            self._say(f"Password reset for {view.username}; their sessions ended")
+
+        self.app.push_screen(PasswordForm(self.client, view), done)
 
     def action_issue(self) -> None:
-        # STEPS
-        # 1. While showing_tokens: self._say("Press t for the accounts, pick the agent, then i.")
-        #    and return.
-        # 2. view = self.current_account(); return if None. A kind other than "agent":
-        #    self._say(f"Only agents have tokens; {view.username} is a {view.kind} account.") and
-        #    return.
-        # 3. Push TokenForm(self.client, view) with a callback `done(result)`: None (cancelled):
-        #    nothing; else (label, token) = result: self.reload();
-        #    self._say(f"Issued token {label} for {view.username}"); then
-        #    self.app.push_screen(TokenShown(label, token)). Keep the token in no attribute and in
-        #    no message.
-        raise NotImplementedError
+        if self.showing_tokens:
+            self._say("Press t for the accounts, pick the agent, then i.")
+            return
+        view = self.current_account()
+        if view is None:
+            return
+        if view.kind != "agent":
+            self._say(f"Only agents have tokens; {view.username} is a {view.kind} account.")
+            return
+
+        def done(result: tuple[str, str] | None) -> None:
+            if result is None:
+                return
+            label, token = result
+            self.reload()
+            self._say(f"Issued token {label} for {view.username}")
+            self.app.push_screen(TokenShown(label, token))
+
+        self.app.push_screen(TokenForm(self.client, view), done)
 
     def action_revoke(self) -> None:
-        # STEPS
-        # 1. Not showing_tokens: self._say("Press t for the tokens, pick one, then x.") and return.
-        # 2. token = self.current_token(); return if None.
-        # 3. self._ask_reason(f"Revoke token {token.label}", apply) where apply(reason) calls
-        #    client.revoke_agent_token(token.token_id, reason=reason); on CLIENT_ERRORS
-        #    self._say(describe_error(exc), error=True) and return (nothing changes; check no rule
-        #    here); on success self.reload() and self._say(f"Revoked token {token.label}").
-        raise NotImplementedError
+        if not self.showing_tokens:
+            self._say("Press t for the tokens, pick one, then x.")
+            return
+        token = self.current_token()
+        if token is None:
+            return
+
+        def apply(reason: str | None) -> None:
+            try:
+                self.client.revoke_agent_token(token.token_id, reason=reason)
+            except CLIENT_ERRORS as exc:
+                self._say(describe_error(exc), error=True)
+                return
+            self.reload()
+            self._say(f"Revoked token {token.label}")
+
+        self._ask_reason(f"Revoke token {token.label}", apply)
