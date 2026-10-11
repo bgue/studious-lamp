@@ -1,5 +1,250 @@
 {
     "$defs": {
+        "Account": {
+            "additionalProperties": false,
+            "description": "One account in its current state. A projection of the `Account.*` events.",
+            "properties": {
+                "account_id": {
+                    "description": "Immutable id; the ledger stream is `account:<account_id>`.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "description": "Actor that created the account.",
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "is_admin": {
+                    "description": "1 when `roles` holds `admin`. Lets the last-admin check count in plain SQL.",
+                    "type": "integer"
+                },
+                "kind": {
+                    "$ref": "#/$defs/AccountKind"
+                },
+                "last_seq": {
+                    "type": "integer"
+                },
+                "roles": {
+                    "$ref": "#/$defs/Any",
+                    "description": "JSON list of roles, `[\"admin\"]`, `[\"user\"]` or both."
+                },
+                "status": {
+                    "$ref": "#/$defs/AccountStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
+                    "description": "Normalised (NFKC, lower case) and matching `[a-z0-9][a-z0-9_.@-]{0,63}`.",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Version of the account stream after the last event.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "account_id",
+                "username",
+                "display_name",
+                "kind",
+                "roles",
+                "is_admin",
+                "status",
+                "created_by",
+                "created_at",
+                "updated_at",
+                "version",
+                "last_seq"
+            ],
+            "title": "Account",
+            "type": "object"
+        },
+        "AccountCreatedPayload": {
+            "additionalProperties": false,
+            "description": "An account was created. A password, if any, is held outside the ledger. Internal: never delivered to webhooks.",
+            "examples": [
+                "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"display_name\": \"Demo User\", \"kind\": \"person\", \"roles\": [\"admin\"], \"username\": \"demo\"}"
+            ],
+            "properties": {
+                "account_id": {
+                    "description": "Account id.",
+                    "type": "string"
+                },
+                "display_name": {
+                    "description": "Name shown in lists.",
+                    "type": "string"
+                },
+                "kind": {
+                    "$ref": "#/$defs/AccountKind",
+                    "description": "person, agent or sim."
+                },
+                "roles": {
+                    "$ref": "#/$defs/Any",
+                    "description": "List of roles."
+                },
+                "username": {
+                    "description": "Normalised username.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "account_id",
+                "username",
+                "display_name",
+                "kind",
+                "roles"
+            ],
+            "title": "AccountCreatedPayload",
+            "type": "object"
+        },
+        "AccountDisabledPayload": {
+            "additionalProperties": false,
+            "description": "An account was disabled: it cannot sign in and its sessions and agent tokens stop working. Internal: never delivered to webhooks.",
+            "examples": [
+                "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"reason\": \"left the project\"}"
+            ],
+            "properties": {
+                "account_id": {
+                    "description": "Account id.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why it was disabled.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "account_id"
+            ],
+            "title": "AccountDisabledPayload",
+            "type": "object"
+        },
+        "AccountEnabledPayload": {
+            "additionalProperties": false,
+            "description": "A disabled account was enabled again. Internal: never delivered to webhooks.",
+            "examples": [
+                "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"reason\": \"returned\"}"
+            ],
+            "properties": {
+                "account_id": {
+                    "description": "Account id.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why it was enabled.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "account_id"
+            ],
+            "title": "AccountEnabledPayload",
+            "type": "object"
+        },
+        "AccountEventPayload": {
+            "additionalProperties": false,
+            "description": "Payload of an `Account.*` or `AgentToken.*` event. The stream is `account:<account_id>`; no payload holds a secret. These events are internal: the webhook dispatcher never delivers them and the events API shows them to admins only.",
+            "title": "AccountEventPayload",
+            "type": "object"
+        },
+        "AccountKind": {
+            "description": "What kind of principal an account is.",
+            "enum": [
+                "person",
+                "agent",
+                "sim"
+            ],
+            "title": "AccountKind",
+            "type": "string"
+        },
+        "AccountPasswordChangedPayload": {
+            "additionalProperties": false,
+            "description": "The password of an account was set or changed. The event records that it happened, never the password or its hash. Internal: never delivered to webhooks.",
+            "examples": [
+                "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"by\": \"user:demo\", \"forced\": true}"
+            ],
+            "properties": {
+                "account_id": {
+                    "description": "Account id.",
+                    "type": "string"
+                },
+                "by": {
+                    "description": "Actor that changed it.",
+                    "type": "string"
+                },
+                "forced": {
+                    "description": "True for an admin reset or a bootstrap, false for the person changing their own.",
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "account_id",
+                "by",
+                "forced"
+            ],
+            "title": "AccountPasswordChangedPayload",
+            "type": "object"
+        },
+        "AccountRole": {
+            "description": "The two roles of Phase 1 (ADR-0008 decision 3).",
+            "enum": [
+                "admin",
+                "user"
+            ],
+            "title": "AccountRole",
+            "type": "string"
+        },
+        "AccountRolesSetPayload": {
+            "additionalProperties": false,
+            "description": "The roles of an account were replaced. Internal: never delivered to webhooks.",
+            "examples": [
+                "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"reason\": \"promoted to run the admin module\", \"roles\": [\"admin\", \"user\"]}"
+            ],
+            "properties": {
+                "account_id": {
+                    "description": "Account id.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why the roles changed.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "roles": {
+                    "$ref": "#/$defs/Any",
+                    "description": "The new list of roles."
+                }
+            },
+            "required": [
+                "account_id",
+                "roles"
+            ],
+            "title": "AccountRolesSetPayload",
+            "type": "object"
+        },
+        "AccountStatus": {
+            "description": "Whether an account may authenticate.",
+            "enum": [
+                "active",
+                "disabled"
+            ],
+            "title": "AccountStatus",
+            "type": "string"
+        },
         "ActivityPost": {
             "additionalProperties": false,
             "description": "A broadcast post (brief 19.2, 21.1). Authored by a person, an agent or an external party; an agent's posts are labelled by its `agent:<id>` actor. A post has no replies.",
@@ -58,6 +303,133 @@
             "title": "ActivityPost",
             "type": "object"
         },
+        "AgentToken": {
+            "additionalProperties": false,
+            "description": "The metadata of one agent token. The token itself is only in `auth_token_secret`, as a hash.",
+            "properties": {
+                "account_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "expires_at": {
+                    "description": "ISO-8601 UTC; null for a token that does not expire.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "issued_at": {
+                    "type": "string"
+                },
+                "issued_by": {
+                    "type": "string"
+                },
+                "label": {
+                    "description": "What the token is for; shown in lists.",
+                    "type": "string"
+                },
+                "last_seq": {
+                    "type": "integer"
+                },
+                "revoke_reason": {
+                    "description": "Free text, no secrets.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "revoked": {
+                    "type": "integer"
+                },
+                "revoked_at": {
+                    "description": "ISO-8601 UTC.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "token_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "token_id",
+                "account_id",
+                "label",
+                "revoked",
+                "issued_by",
+                "issued_at",
+                "last_seq"
+            ],
+            "title": "AgentToken",
+            "type": "object"
+        },
+        "AgentTokenIssuedPayload": {
+            "additionalProperties": false,
+            "description": "An agent token was issued. The event holds its metadata; the token is shown once and stored only as a hash. Internal: never delivered to webhooks.",
+            "examples": [
+                "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PB\", \"expires_at\": \"2027-01-09T03:14:07.000000Z\", \"label\": \"triage assistant\", \"token_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PC\"}"
+            ],
+            "properties": {
+                "account_id": {
+                    "description": "The agent account.",
+                    "type": "string"
+                },
+                "expires_at": {
+                    "description": "ISO-8601 time after which the token stops working; null for none.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "label": {
+                    "description": "What the token is for.",
+                    "type": "string"
+                },
+                "token_id": {
+                    "description": "Token id.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "token_id",
+                "account_id",
+                "label"
+            ],
+            "title": "AgentTokenIssuedPayload",
+            "type": "object"
+        },
+        "AgentTokenRevokedPayload": {
+            "additionalProperties": false,
+            "description": "An agent token was revoked and no longer authenticates. Internal: never delivered to webhooks.",
+            "examples": [
+                "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PB\", \"reason\": \"rotated\", \"token_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PC\"}"
+            ],
+            "properties": {
+                "account_id": {
+                    "description": "The agent account.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why it was revoked.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "token_id": {
+                    "description": "Token id.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "token_id",
+                "account_id"
+            ],
+            "title": "AgentTokenRevokedPayload",
+            "type": "object"
+        },
         "Any": {
             "additionalProperties": true,
             "description": "Any JSON value. Used with `tl:json` for slots stored as JSON columns.",
@@ -69,6 +441,176 @@
                 "number",
                 "string"
             ]
+        },
+        "AuthAttempt": {
+            "additionalProperties": false,
+            "description": "Failed-sign-in counters, keyed by normalised username whether or not an account exists. A lock lasts 15 minutes, for every name (a longer lock for some names would tell which exist).",
+            "properties": {
+                "failed_count": {
+                    "type": "integer"
+                },
+                "last_failed_at": {
+                    "type": "string"
+                },
+                "locked_until": {
+                    "description": "ISO-8601 UTC while locked.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "username_key": {
+                    "description": "The normalised username, cut to 64 characters.",
+                    "type": "string"
+                },
+                "window_started_at": {
+                    "description": "ISO-8601 UTC of the first failure in the current window.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "username_key",
+                "failed_count",
+                "window_started_at",
+                "last_failed_at"
+            ],
+            "title": "AuthAttempt",
+            "type": "object"
+        },
+        "AuthAudit": {
+            "additionalProperties": false,
+            "description": "The operational audit of authentication: sign-in success and failure, locks, unlocks, sign-out, agent token issue and revoke, password resets. It holds no secret (never a password, hash or token) and is kept 90 days. It is not a projection and not in the ledger, the archive or the lake; `tl admin audit` lists it.",
+            "properties": {
+                "account_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "actor": {
+                    "description": "The actor that did it, when there is one.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "at": {
+                    "description": "ISO-8601 UTC.",
+                    "type": "string"
+                },
+                "audit_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "count": {
+                    "description": "How many times this happened in a row; repeated failures of one name in a lock window share one row, and `at` is the last of them.",
+                    "type": "integer"
+                },
+                "detail": {
+                    "description": "A short reason code or id (`bad_credentials`, `disabled`, a token id, the end of a lock). Never a secret.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "event": {
+                    "description": "`sign_in_ok`, `sign_in_failed`, `locked`, `unlocked`, `sign_out`, `token_issued`, `token_revoked`, `password_reset` or `bootstrap`.",
+                    "type": "string"
+                },
+                "username_key": {
+                    "description": "The normalised username the attempt named, whether or not an account exists, or `<invalid>` when what was typed cannot be a username (it may have been a password, so it is never kept).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "audit_id",
+                "at",
+                "event",
+                "count"
+            ],
+            "title": "AuthAudit",
+            "type": "object"
+        },
+        "AuthCredential": {
+            "additionalProperties": false,
+            "description": "A password hash. Operational; never in the ledger, the archive, the lake or webhooks.",
+            "properties": {
+                "account_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "password_hash": {
+                    "description": "`scrypt$<log2 N>$<r>$<p>$<salt>$<hash>` (ADR-0009 section 2).",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "account_id",
+                "password_hash",
+                "updated_at"
+            ],
+            "title": "AuthCredential",
+            "type": "object"
+        },
+        "AuthSession": {
+            "additionalProperties": false,
+            "description": "A signed-in session. Only the SHA-256 of the token is stored; ending a session deletes the row.",
+            "properties": {
+                "account_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "description": "ISO-8601 UTC. Sign-out, disable and a password change delete the row.",
+                    "type": "string"
+                },
+                "token_hash": {
+                    "description": "Hex SHA-256 of the `tls_` token.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "token_hash",
+                "account_id",
+                "created_at",
+                "expires_at"
+            ],
+            "title": "AuthSession",
+            "type": "object"
+        },
+        "AuthTokenSecret": {
+            "additionalProperties": false,
+            "description": "The hash of one agent token. Only a `token_id` links it to the ledger metadata.",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "token_hash": {
+                    "description": "Hex SHA-256 of the `tla_` token.",
+                    "type": "string"
+                },
+                "token_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "token_hash",
+                "token_id",
+                "created_at"
+            ],
+            "title": "AuthTokenSecret",
+            "type": "object"
         },
         "BodyQuarantine": {
             "additionalProperties": false,

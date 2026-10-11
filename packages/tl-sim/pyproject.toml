@@ -9,6 +9,7 @@ dependencies = [
   "mcp",
   "httpx2",
   "tl-core",
+  "tl-adapters",
   "tl-api",
   "tl-mcp",
 ]

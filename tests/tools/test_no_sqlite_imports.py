@@ -1,6 +1,6 @@
 """No service entry point opens SQLite directly (P1-I0 workstream B, decision B1).
 
-The API, the TUI and the `tl` commands take their database from
+The API, the TUI, the MCP server, the simulator and the `tl` commands take their database from
 `tl_adapters.db` / `tl_adapters.backend`, which pick the adapter from the target (a SQLite path or
 a `postgresql://` URL). An import of `tl_adapters.sqlite` in one of them would turn a Postgres URL
 back into a file name for that path, so this test fails on it. `tl backup sqlite` is the one
@@ -13,8 +13,7 @@ import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-# tl-mcp joins once its `--db` takes a target (S35, after workstream A's edits to the same file)
-TREES = ("tl-api", "tl-cli", "tl-tui")
+TREES = ("tl-api", "tl-cli", "tl-mcp", "tl-sim", "tl-tui")
 ALLOWED = {"packages/tl-cli/src/tl_cli/backup.py"}
 
 

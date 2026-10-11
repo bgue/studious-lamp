@@ -39,13 +39,7 @@ def test_every_event_class_is_in_the_catalog_with_a_stable_name(events: list[Any
 #: String literals shaped like an event type that are not catalog events, each with its reason.
 NOT_EVENTS = {
     "Test.Bumped": "event type of the test-only counter projector (projection/testing.py)",
-    "Account.Created": "P1-I0 contract (tl_core/auth/types.py); catalogued by WS-A",
-    "Account.RolesSet": "P1-I0 contract (tl_core/auth/types.py); catalogued by WS-A",
-    "Account.Disabled": "P1-I0 contract (tl_core/auth/types.py); catalogued by WS-A",
-    "Account.Enabled": "P1-I0 contract (tl_core/auth/types.py); catalogued by WS-A",
-    "Account.PasswordChanged": "P1-I0 contract (tl_core/auth/types.py); catalogued by WS-A",
-    "AgentToken.Issued": "P1-I0 contract (tl_core/auth/types.py); catalogued by WS-A",
-    "AgentToken.Revoked": "P1-I0 contract (tl_core/auth/types.py); catalogued by WS-A",
+    "Internal.Redacted": "placeholder type of a redacted account event in the lake (tl_lake.sync)",
 }
 EVENT_LITERAL = re.compile(r"[A-Z]\w*\.[A-Z]\w*")
 

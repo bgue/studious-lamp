@@ -14,7 +14,11 @@ from dataclasses import dataclass
 from fnmatch import translate
 from functools import lru_cache
 
+from tl_core.auth.projector import ACCOUNT_STREAM_TYPE
 from tl_core.ledger import Event
+
+#: Streams no default filter lets through.
+INTERNAL_STREAM_TYPES: frozenset[str] = frozenset({ACCOUNT_STREAM_TYPE})
 
 #: Payload keys through which a link event refers to the records at its two ends.
 LINK_END_KEYS = ("from_ref", "to_ref")
@@ -47,6 +51,11 @@ class SubscriptionFilter:
     scope: str | None = None
     event_types: tuple[str, ...] | None = None
     record_ids: frozenset[str] | None = None
+    #: Streams whose events this subscriber must never see. **Fail closed:** the default hides
+    #: the account streams (usernames, roles; ADR-0009), so a consumer that builds a filter without
+    #: thinking about it (the embedded TUI, ``tl events``, the registry) never shows them. A caller
+    #: that holds an admin principal passes ``hide_stream_types=()``.
+    hide_stream_types: frozenset[str] = INTERNAL_STREAM_TYPES
 
     def __post_init__(self) -> None:
         if self.event_types is not None and not self.event_types:
@@ -60,16 +69,20 @@ class SubscriptionFilter:
         scope: str | None = None,
         event_types: Iterable[str] | None = None,
         record_ids: Iterable[str] | None = None,
+        hide_stream_types: Iterable[str] | None = None,
     ) -> SubscriptionFilter:
         """Build a filter from any iterables (a list of types, a set of ids)."""
         return SubscriptionFilter(
             scope,
             None if event_types is None else tuple(event_types),
             None if record_ids is None else frozenset(record_ids),
+            INTERNAL_STREAM_TYPES if hide_stream_types is None else frozenset(hide_stream_types),
         )
 
     def matches(self, event: Event) -> bool:
         """Whether ``event`` passes every part of the filter that is set."""
+        if event.stream_type in self.hide_stream_types:
+            return False
         if self.scope is not None and event.scope != self.scope:
             return False
         if self.event_types is not None and not any(
@@ -84,4 +97,4 @@ class SubscriptionFilter:
         return True
 
 
-ANY = SubscriptionFilter()
+ANY = SubscriptionFilter()  # hides the internal streams like every default filter

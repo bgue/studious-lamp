@@ -170,6 +170,39 @@ def _secret_warnings(conn: Connection, head: int) -> tuple[str, ...]:
     return tuple(found)
 
 
+def _account_warnings(conn: Connection) -> tuple[str, ...]:
+    """Accounts come back from events but passwords and agent token secrets do not (ADR-0009).
+
+    Hashes live in operational tables outside the ledger, so every restored account has no
+    password and every restored agent token has no secret: nobody can sign in until an admin acts.
+    """
+    people = conn.execute(
+        text(
+            "SELECT username, is_admin FROM cur_account WHERE status = 'active' "
+            "AND kind <> 'agent' ORDER BY created_at, account_id"
+        )
+    ).all()
+    tokens = conn.execute(
+        text("SELECT COUNT(*) FROM cur_agent_token WHERE revoked = 0")
+    ).scalar_one()
+    found: list[str] = []
+    if people:
+        admins = [str(row[0]) for row in people if int(row[1]) == 1]
+        first = admins[0] if admins else "<admin username>"
+        found.append(
+            f"{len(people)} account(s) have no password after the restore (passwords are never in "
+            f"the ledger), so nobody can sign in. Set the first admin's password with: "
+            f"tl admin bootstrap --username {first}; then reset the others with: "
+            "tl admin user reset-password <username>"
+        )
+    if int(tokens) > 0:
+        found.append(
+            f"{int(tokens)} agent token(s) have no secret after the restore and authenticate "
+            "nothing; issue new ones with: tl admin token issue <agent> and revoke the old ones"
+        )
+    return tuple(found)
+
+
 def _restore_in_one_transaction(
     engine: Engine,
     target: DbTarget,
@@ -200,7 +233,7 @@ def _restore_in_one_transaction(
         if issues:
             raise _fail(issues, "the restored database does not match the archive")
         _start_dispatcher_at_head(conn, count)
-        warnings = _secret_warnings(conn, count)
+        warnings = (*_secret_warnings(conn, count), *_account_warnings(conn))
     return count, inserted, rebuilt_at, warnings
 
 

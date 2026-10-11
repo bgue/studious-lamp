@@ -50,9 +50,9 @@ def register(server: MCPServer, ctx: DevContext) -> None:
 
         Only one SELECT or WITH ... SELECT is accepted: no DDL, DML, PRAGMA, ATTACH, SET or stacked
         statements. Tables are `events` (the ledger), the `cur_*` current-state tables, `wh_*`
-        webhook state and `outbox_events`; `wh_secret` cannot be read. On SQLite
-        `SELECT name, sql FROM sqlite_master` lists the tables. Rows (default 100, at most 1000),
-        result size (1 MiB) and time (10 s) are limited.
+        webhook state and `outbox_events`; `wh_secret` and the `auth_*` credential tables cannot
+        be read. On SQLite `SELECT name, sql FROM sqlite_master` lists the tables. Rows (default
+        100, at most 1000), result size (1 MiB) and time (10 s) are limited.
         """
         with guarded(ctx, "query_db", {"sql": sql, "limit": limit}):
             result = query.run_query(ctx.target, sql, limit)

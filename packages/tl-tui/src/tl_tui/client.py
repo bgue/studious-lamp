@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
+from tl_core.auth.types import AccountKind, AccountView, AgentTokenView
 from tl_core.extypes.service import BodyStoredOut, BodyView, TypeDetail, TypeSummary
 from tl_core.extypes.types import TypeStatus
 from tl_core.ledger import Event
@@ -326,4 +327,68 @@ class ClientInterface(Protocol):
         accept_risk: bool = False,
     ) -> SettingView:
         """Undo the latest change of the key at ``layer`` (``seq`` is that change's number)."""
+        ...
+
+    # --- accounts and agent tokens (P1-I0; ADR-0009) ------------------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.AdminApi`` (the remote client passes them
+    # through). Only an admin may call them: the API answers 403 ``forbidden`` to anyone else and
+    # the embedded client raises ``ForbiddenError`` unless its actor is an active admin account.
+    # Failures raise the ``tl_core.auth.errors`` classes (``AccountNotFoundError``,
+    # ``UsernameTakenError``, ``LastAdminError``, ``WeakPasswordError`` with ``issues``,
+    # ``AccountStateError`` ...). A password or a token is passed in and never returned, except
+    # that ``issue_agent_token`` returns the new token once.
+
+    def list_accounts(self) -> list[AccountView]:
+        """Every account with its roles, status and any lock in force, oldest first."""
+        ...
+
+    def get_account(self, account_id: str) -> AccountView:
+        """One account by id; ``AccountNotFoundError``."""
+        ...
+
+    def create_account(
+        self,
+        username: str,
+        display_name: str,
+        *,
+        kind: AccountKind = "person",
+        roles: Sequence[str] = ("user",),
+        password: str | None = None,
+    ) -> AccountView:
+        """Create an account. A person or sim account needs a password; an agent takes none."""
+        ...
+
+    def set_roles(
+        self, account_id: str, roles: Sequence[str], *, reason: str | None = None
+    ) -> AccountView:
+        """Replace the roles. The last active admin cannot be demoted (``LastAdminError``)."""
+        ...
+
+    def disable_account(self, account_id: str, *, reason: str | None = None) -> AccountView:
+        """Disable an account: its sessions and agent tokens stop working."""
+        ...
+
+    def enable_account(self, account_id: str, *, reason: str | None = None) -> AccountView:
+        """Enable a disabled account again."""
+        ...
+
+    def reset_password(self, account_id: str, new_password: str) -> AccountView:
+        """Set a new password without the old one; ends the account's sessions, clears its lock."""
+        ...
+
+    def list_agent_tokens(
+        self, account_id: str | None = None, *, include_revoked: bool = True
+    ) -> list[AgentTokenView]:
+        """Agent token metadata, oldest first. The tokens themselves cannot be read back."""
+        ...
+
+    def issue_agent_token(
+        self, account_id: str, label: str, *, expires_in_days: int | None = 90
+    ) -> tuple[AgentTokenView, str]:
+        """Issue a token (``None`` days: no expiry). Returns the view and the token, once."""
+        ...
+
+    def revoke_agent_token(self, token_id: str, *, reason: str | None = None) -> AgentTokenView:
+        """Revoke a token at once."""
         ...

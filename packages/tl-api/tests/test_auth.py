@@ -48,13 +48,17 @@ def test_the_hook_sees_the_actor_the_action_and_the_resource(harness: Harness) -
     assert seen == [(BOB, "events.read", "/events")]
 
 
+#: Routes that need no token (`tl_api.auth.OPEN_PATHS`): they authenticate by their own means.
+OPEN_ROUTES = {"/health", "/auth/sign-in"}
+
+
 def deny(actor: str, action: str, resource: str) -> None:
     raise Forbidden(f"{actor} may not {action}")
 
 
 def test_every_route_calls_the_hook(harness: Harness) -> None:
-    """A deny-all hook turns every route except /health into a 403, even with a body that would
-    fail validation: the hook runs before the body is used. Routes come from the OpenAPI paths."""
+    """A deny-all hook turns every route except the open ones into a 403, even with a body that
+    would fail validation: the hook runs before the body is used. Routes come from OpenAPI."""
     from fastapi.testclient import TestClient
 
     app = create_app(
@@ -70,7 +74,7 @@ def test_every_route_calls_the_hook(harness: Harness) -> None:
         (path, list(operations)) for path, operations in app.openapi()["paths"].items()
     ]
     for route_path, methods in routes:
-        if route_path == "/health":
+        if route_path in OPEN_ROUTES:
             continue
         path = route_path.replace("{", "x").replace("}", "")  # any value will do
         for method in methods:
@@ -148,8 +152,12 @@ def body_routes(h: Harness) -> list[tuple[str, str]]:
     """Every (method, path) of the committed document that takes a request body."""
     found = []
     for path, operations in h.app.openapi()["paths"].items():
-        for method in operations:
-            if method in ("post", "put") and path != "/health":
+        for method, operation in operations.items():
+            if (
+                method in ("post", "put")
+                and path not in OPEN_ROUTES
+                and operation.get("requestBody")
+            ):
                 found.append((method.upper(), path.replace("{", "x").replace("}", "")))
     return found
 

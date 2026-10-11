@@ -21,7 +21,12 @@ from tl_lake.guard import MAX_SQL_CHARS
 
 from tl_mcp.dev.errors import DevGuardError
 
-DENIED_TABLES = frozenset({"wh_secret"})
+CREDENTIAL_TABLES = frozenset(
+    {"auth_credential", "auth_session", "auth_token_secret", "auth_attempt", "auth_audit"}
+)
+"""Operational tables of authentication (ADR-0009): password hashes, session and agent token
+hashes and the failed-sign-in counters."""
+DENIED_TABLES = frozenset({"wh_secret"}) | CREDENTIAL_TABLES
 """Tables no dev tool may read: webhook signing secrets live in ``wh_secret.secret``."""
 
 POSTGRES_REFUSAL = (
@@ -55,6 +60,9 @@ def check_sqlite_select(sql: str) -> None:
         raise DevGuardError("only a single SELECT (or WITH ... SELECT) statement is allowed")
     if re.search(r"wh_secret", sql, re.IGNORECASE):
         raise DevGuardError("wh_secret holds signing secrets and cannot be read")
+    for table in sorted(CREDENTIAL_TABLES):
+        if re.search(table, sql, re.IGNORECASE):
+            raise DevGuardError(f"{table} holds credentials and cannot be read")
 
 
 def check_select(sql: str, dialect: str) -> None:

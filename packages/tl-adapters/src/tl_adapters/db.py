@@ -103,6 +103,26 @@ def display_target(target: DbTarget) -> str:
     return parsed.difference_update_query(hidden).render_as_string(hide_password=True)
 
 
+def target_key(target: DbTarget) -> str:
+    """A stable name for the ledger ``target`` that is safe to store and to print: no password.
+
+    ``db:<absolute path>`` for SQLite; ``pg:user@host:port/database`` for Postgres, plus the schema
+    scope (``?options=...``) when the URL has one. ``sslmode`` and every password parameter are
+    left out, so the same ledger reached with another TLS mode keeps one name. The CLI keys its
+    stored sign-in by this (ADR-0009 section 4).
+    """
+    if not is_postgres(target):
+        return f"db:{Path(target).expanduser().resolve()}"
+    parsed = make_url(str(target))
+    key = f"pg:{parsed.username or ''}@{parsed.host or 'localhost'}:{parsed.port or 5432}"
+    key += f"/{parsed.database or ''}"
+    options = parsed.query.get("options")
+    if options:
+        joined = options if isinstance(options, str) else " ".join(options)
+        key += f"?options={joined}"
+    return key
+
+
 def dialect_of(target: DbTarget) -> str:
     """``"postgres"`` or ``"sqlite"``."""
     return "postgres" if is_postgres(target) else "sqlite"

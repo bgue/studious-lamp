@@ -171,6 +171,13 @@ def make_engine(url: str, *, pooled: bool = False) -> Engine:
         # timeout, a deadlock and a serialization failure become the named errors the services
         # and callers handle; nothing was written in any of those cases.
         original = context.original_exception
+        if isinstance(original, UnicodeEncodeError):
+            # A parameter the driver cannot encode (a lone surrogate) fails half way through
+            # sending the message; the connection is out of step with the server and would answer
+            # every later query wrongly. Drop this one connection, keep the rest of the pool.
+            context.is_disconnect = True
+            context.invalidate_pool_on_disconnect = False
+            return None
         code = _sqlstate(original)
         if code == "55P03":
             return LockTimeoutError("the ledger write lock was busy; retry")

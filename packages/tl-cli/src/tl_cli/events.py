@@ -7,6 +7,7 @@ from typing import Annotated
 
 import typer
 from tl_adapters.db import DbTarget, open_uow
+from tl_core.changefeed.filters import INTERNAL_STREAM_TYPES
 from tl_core.ledger import Event
 
 app = typer.Typer(help="Read the ledger.", no_args_is_help=True)
@@ -36,7 +37,7 @@ def tail(
             page = uow.ledger.read_after(seq, scope=scope, limit=_PAGE)
             if not page:
                 break
-            newest.extend(page)
+            newest.extend(e for e in page if e.stream_type not in INTERNAL_STREAM_TYPES)
             seq = page[-1].seq
     for event in newest:
         typer.echo(

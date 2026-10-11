@@ -22,3 +22,4 @@ Operational procedures, one file per alert or recovery path (§24.6). Template: 
 - `run-on-postgres.md` — run the API, the TUI and the `tl` commands on a Postgres ledger: `TL_DB` as a URL, `sslmode`, what differs from SQLite (P1-I0).
 - `postgres-local-setup.md` — start Postgres, run the parity suite, clean up after a killed run (P0-I5).
 - `performance-benches.md` — seed 100k records, run the §15 benches on SQLite and Postgres, read the numbers (P0-I8).
+- `accounts-and-access.md` — accounts, roles, sign-in, agent tokens, the demo account, recovery from a locked-out or restored system, and the release gates for authentication (P1-I0).

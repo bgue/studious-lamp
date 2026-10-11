@@ -353,9 +353,18 @@ def test_the_http_connector_refuses_an_assistant_without_a_ledger_file(tmp_path:
     with pytest.raises(RunError, match="TL_DB"):
         HttpConnector("http://x", tmp_path / "t.json", run_id="r1").check(with_agent)
     (tmp_path / "yes.db").write_text("")
-    HttpConnector("http://x", tmp_path / "t.json", run_id="r1", db_path=tmp_path / "yes.db").check(
-        with_agent
+    no_token = HttpConnector(
+        "http://x", tmp_path / "t.json", run_id="r1", db_path=tmp_path / "yes.db"
     )
+    with pytest.raises(RunError, match="no agent token: set TL_SIM_AGENT_TOKEN"):
+        no_token.check(with_agent)  # the agent's MCP server cannot start without a token
+    HttpConnector(
+        "http://x",
+        tmp_path / "t.json",
+        run_id="r1",
+        db_path=tmp_path / "yes.db",
+        agent_token=lambda: "tla_x",
+    ).check(with_agent)
 
 
 def test_an_enabled_assistant_that_cannot_propose_makes_assert_red(

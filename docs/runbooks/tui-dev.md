@@ -12,7 +12,7 @@ Purpose: start the Textual TUI in embedded mode against the SQLite dev ledger, l
 ## Steps
 1. Create a few records (the TUI has `n` for new records too, but a CLI seed is quicker):
    ```
-   uv run tl init
+   uv run tl init --dev
    uv run tl record create --project P123 --key V-0001 --title "Valve 1"
    uv run tl record create --project P123 --title "Valve 2"
    ```
@@ -21,7 +21,7 @@ Purpose: start the Textual TUI in embedded mode against the SQLite dev ledger, l
    ```
    just tui
    ```
-   Expected: the grid lists V-0001 and P123-REC-0001. `Enter` opens a record, `e` edits it (Ctrl+S saves), `n` creates one, `F1` shows the key map, `Ctrl+Q` quits. In a record: `l` links it to another, `w` shows workflow actions, `t` traces its links, `R` adds it to the reference tray (`F4` opens the tray), `Alt+Left` goes back. `Ctrl+P` opens the command palette.
+   Expected: first the sign-in screen (`demo` / `demo`, created by `tl init --dev` in a dev setup; or sign in beforehand with `uv run tl login <username>` and the TUI skips the screen), then the grid lists V-0001 and P123-REC-0001. `F10` opens the accounts screen for an admin (`docs/runbooks/accounts-and-access.md`). `Enter` opens a record, `e` edits it (Ctrl+S saves), `n` creates one, `F1` shows the key map, `Ctrl+Q` quits. In a record: `l` links it to another, `w` shows workflow actions, `t` traces its links, `R` adds it to the reference tray (`F4` opens the tray), `Alt+Left` goes back. `Ctrl+P` opens the command palette.
 3. Use another ledger or project with environment variables:
    ```
    TL_DB=/tmp/other.db TL_PROJECT=P124 just tui
@@ -30,10 +30,10 @@ Purpose: start the Textual TUI in embedded mode against the SQLite dev ledger, l
 4b. Open about:config with `F9` (or `about:config` in the command palette): every setting with its value, type, origin and lock; `/` filters, `m` shows only what is set here, `e` edits (the form asks for a reason, and for a dangerous key the box "I accept the risk"), `r` resets, `h` shows the history (`u` undoes the latest change at a layer), `k` locks for projects, `L` sends changes to the company instead of the project. See `settings.md`.
 5. Run against a server instead of the file (remote mode). In one terminal start the API, in another the TUI:
    ```
-   export TL_TOKEN="$(uv run tl dev token add user:alice)"
    uv run tl serve                                   # 127.0.0.1:8765
-   uv run tl tui --remote http://127.0.0.1:8765      # token from TL_TOKEN
+   uv run tl tui --remote http://127.0.0.1:8765      # the sign-in screen asks for a username and password
    ```
+   A dev token still works where the server allows dev tokens (`TL_ENV` dev, test or ci): `export TL_TOKEN="$(uv run tl dev token add user:alice)"` skips the sign-in screen.
    Expected: the same screens, header `● remote`. A record written by someone else (another TUI, `tl record create`, an MCP agent) shows a `•` on its row for a few seconds; an open record shows `! Updated by user:x (now vN)`; an open edit form shows `✗ Conflict` and refuses to save until you cancel and open it again.
 
 ## Verify
@@ -48,7 +48,7 @@ Purpose: start the Textual TUI in embedded mode against the SQLite dev ledger, l
 - Wrong or missing property list: `TL_SCHEMA_DIR` points at another package directory (default `schema/fixtures`); `uv run tl schema validate` names the problem.
 - Terminal too narrow: at 80 columns or fewer the side panels become overlays on `F2` and `F3`.
 - Red line under the header, "Server unreachable" (remote): the TUI cannot reach the API. Check `tl serve` is running and the URL and token are right; the TUI retries (0.25 s growing to 5 s) and resumes from the last event it saw, so nothing is missed or repeated. "server ledger changed; reloaded" means the server's ledger was replaced or restored; the TUI read everything again.
-- A 401 in remote mode: the token is not in the server's token file (`uv run tl dev token add user:<id>`; the file must be mode 0600).
+- A 401 in remote mode with a token from `TL_TOKEN`: the token is not in the server's token file (`uv run tl dev token add user:<id>`; the file must be mode 0600).
 - No live marks in embedded mode when another process writes: both must use the same `TL_DB` file; the TUI polls the file every 0.25 s.
 
 ## Related

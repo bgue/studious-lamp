@@ -95,3 +95,11 @@ The lake is an analytics copy, never a source of truth, and never a backup. It c
 - `docs/runbooks/rebuild-projections.md` rebuilds the ledger's current-state tables (`cur_*`). It is a different rebuild and does not rebuild the lake.
 - `docs/runbooks/README.md` indexes the restore runbooks, which cover restoring the ledger.
 - `docs/runbooks/run-on-postgres.md` (the same commands on a Postgres ledger).
+
+## After the accounts upgrade (P1-I0)
+Account events (usernames and roles) are redacted in the lake from P1-I0 on: one row per event with a constant stream and version, a placeholder id and hash, and the day instead of the moment (ADR-0009 section 1). A lake that was synced **before** that upgrade still holds the richer rows from when accounts did not exist or were synced unredacted, and lake time travel (an older snapshot) shows them until the lake is rebuilt. There is no migration. If the lake ever held account events, rebuild it once, out of hours (see the safety note above):
+```
+uv run tl lake rebuild --yes
+```
+Expected: the old catalog and Parquet files are deleted and everything is loaded again, with the account rows redacted. A lake that never saw an `Account.*` event needs nothing.
+
