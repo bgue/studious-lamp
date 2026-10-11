@@ -143,7 +143,7 @@ agent token has no secret, so none can sign in. This is the same rule as webhook
 for the first admin, then `tl admin user reset-password` for the rest and `tl admin token issue` for agents. Sessions are gone, which is also correct.
 
 ### 11. Authorization is closed for agents
-`RoleAuthorizer` allows an `agent:*` principal only the actions in an explicit list (`tl_core.auth.provider.AGENT_ACTIONS`: reads, `auth.me`, `auth.sign_out`, the four feed commands, and `mcp.*`).
+`RoleAuthorizer` allows an `agent:*` principal only the actions in an explicit list (`tl_core.auth.provider.AGENT_ACTIONS`: reads, `auth.me`, `auth.sign_out`, the four feed commands, `proposal.accept` and `proposal.reject` so the service answers with its documented `proposal_decider`, and `mcp.*`).
 Everything else, including a route added later, is denied until someone adds it. The propose-only check (`agent_must_propose`) still runs first on the routes that change records, so an agent gets the specific code.
 A test lists the action of every route and fails when one is undecided.
 

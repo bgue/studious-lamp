@@ -344,13 +344,7 @@ def test_every_route_action_is_decided_for_agents_and_new_ones_are_closed(
     reads = {a for a in actions if a.endswith(".read") or a in ("events.stream", "auth.me")}
     assert reads <= allowed | {"openapi.read"} | set()
     denied = actions - allowed
-    for action in (
-        "record.write",
-        "file.upload",
-        "setting.write",
-        "proposal.accept",
-        "proposal.reject",
-    ):
+    for action in ("record.write", "file.upload", "setting.write"):
         assert action in denied
     assert not {
         a

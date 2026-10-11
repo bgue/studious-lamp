@@ -47,6 +47,10 @@ AGENT_ACTIONS = frozenset(
         "link.read",
         "openapi.read",
         "proposal.read",
+        # An agent may call these two so the service can answer ProposalDeciderError (403
+        # `proposal_decider`, a documented code): only a person decides a proposal.
+        "proposal.accept",
+        "proposal.reject",
         "record.read",
         "reference.read",
         "setting.read",
