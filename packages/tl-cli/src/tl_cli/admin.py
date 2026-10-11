@@ -7,6 +7,7 @@ of them. The ``user`` and ``token`` sub-groups (admin session required) are adde
 
 from __future__ import annotations
 
+import getpass
 import json
 from dataclasses import asdict
 from pathlib import Path
@@ -28,6 +29,16 @@ app = typer.Typer(
 
 LOCAL_ACTOR = "svc:cli"
 _Stdin = Annotated[bool, typer.Option("--password-stdin", help="Read the password from stdin.")]
+
+
+def operator() -> str:
+    """The OS user running the command, short and printable, for the audit row."""
+    try:
+        name = getpass.getuser()
+    except (KeyError, OSError, ImportError):
+        return "unknown"
+    clean = "".join(ch for ch in name if ch.isprintable() and not ch.isspace())[:32]
+    return clean or "unknown"
 
 
 def backend_of(ctx: typer.Context) -> UowFactory:
@@ -79,7 +90,11 @@ def bootstrap(
     password = read_password(from_stdin=password_stdin, confirm=not password_stdin)
     with service_errors():
         view = bootstrap_admin(
-            backend, username=username, password=password, display_name=display_name
+            backend,
+            username=username,
+            password=password,
+            display_name=display_name,
+            operator=operator(),
         )
     typer.echo(f"admin {view.username} is ready; sign in with `tl login {view.username}`")
 
@@ -92,7 +107,7 @@ def unlock_user(
     """Clear the sign-in lock of USERNAME (local only; there is no API route)."""
     backend = backend_of(ctx)
     with service_errors(), backend() as uow:
-        cleared = unlock(uow, username=username, by=LOCAL_ACTOR)
+        cleared = unlock(uow, username=username, by=f"{LOCAL_ACTOR}:{operator()}")
     typer.echo(f"unlocked {username}" if cleared else f"{username} had no lock or failure count")
 
 

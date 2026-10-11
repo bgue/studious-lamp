@@ -47,7 +47,7 @@ from tl_cli import (
     webhook,
     wf,
 )
-from tl_cli.session import open_backend
+from tl_cli.session import is_local_target, open_backend
 
 app = typer.Typer(
     name="tl",
@@ -104,7 +104,7 @@ def root(
     # a missing SQLite file would create it, and `tl archive`/`tl backup` report a missing ledger
     attach(lambda readonly=False: open_uow(path, readonly=readonly), prime=path.is_file())
     # the default --actor of every command is the signed-in user (ADR-0009 section 4)
-    actor_hook.install(ctx.command, path)
+    actor_hook.install(ctx.command, path, local=is_local_target(db))
 
 
 @app.command("init")

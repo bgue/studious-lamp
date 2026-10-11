@@ -11,12 +11,13 @@ from tl_adapters.db import make_uow_factory
 from tl_adapters.sqlite.uow import create_schema
 from tl_api.client import ApiClient
 from tl_api.client.base import ApiUnavailableError
+from tl_api.errors import ApiError
 from tl_core.auth import accounts, seed
 from tl_core.auth.errors import AccountLockedError, InvalidCredentialsError
 from tl_core.auth.password import prepare_password
 from tl_tui import main as tui_main
 from tl_tui.embedded import EmbeddedAuthenticator, sqlite_uow_factory
-from tl_tui.remote import RemoteAuthenticator
+from tl_tui.remote import RemoteAuthenticator, sign_out
 from tl_tui.sign_in import SignedIn
 
 GOOD = "correct horse battery"
@@ -205,3 +206,118 @@ def test_run_skips_the_sign_in_when_the_caller_already_knows_the_person(
     )
     tui_main.run(db=tmp_path / "tl.db", signed_in=ROOT)
     assert built == [ROOT]
+
+
+# --- ending the server session, and the plain-http warning ---------------------------------------
+
+REMOTE = SignedIn("user:root", "root", ("admin",), token="tls_remote")
+
+
+class _App:
+    client = None
+
+    def __init__(self, fail: bool = False) -> None:
+        self.fail = fail
+
+    def run(self) -> None:
+        if self.fail:
+            raise RuntimeError("the app crashed")
+
+
+def _remote_run(
+    monkeypatch: pytest.MonkeyPatch, app: Any, *, signed: SignedIn | None = REMOTE, **options: Any
+) -> list[tuple[str, str]]:
+    ended: list[tuple[str, str]] = []
+    monkeypatch.setattr(tui_main, "sign_in_first", lambda **_: signed)
+    monkeypatch.setattr(tui_main, "make_app", lambda **_: app)
+    monkeypatch.setattr(tui_main, "sign_out", lambda url, token: ended.append((url, token)))
+    tui_main.run(remote="https://tl.example", **options)
+    return ended
+
+
+def test_the_server_session_is_ended_when_the_tui_exits(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert _remote_run(monkeypatch, _App()) == [("https://tl.example", "tls_remote")]
+
+
+def test_the_server_session_is_ended_when_the_app_crashes(monkeypatch: pytest.MonkeyPatch) -> None:
+    ended: list[tuple[str, str]] = []
+    monkeypatch.setattr(tui_main, "sign_in_first", lambda **_: REMOTE)
+    monkeypatch.setattr(tui_main, "make_app", lambda **_: _App(fail=True))
+    monkeypatch.setattr(tui_main, "sign_out", lambda url, token: ended.append((url, token)))
+    with pytest.raises(RuntimeError, match="crashed"):
+        tui_main.run(remote="https://tl.example")
+    assert ended == [("https://tl.example", "tls_remote")]
+
+
+def test_the_server_session_is_ended_when_the_app_cannot_be_built(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ended: list[tuple[str, str]] = []
+    monkeypatch.setattr(tui_main, "sign_in_first", lambda **_: REMOTE)
+    monkeypatch.setattr(tui_main, "sign_out", lambda url, token: ended.append((url, token)))
+
+    def broken(**_: Any) -> Any:
+        raise ValueError("bad option")
+
+    monkeypatch.setattr(tui_main, "make_app", broken)
+    with pytest.raises(ValueError):
+        tui_main.run(remote="https://tl.example")
+    assert ended == [("https://tl.example", "tls_remote")]
+
+
+def test_a_session_or_token_the_caller_brought_is_not_ours_to_end(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert _remote_run(monkeypatch, _App(), signed=None, token="dev-token") == []
+    assert _remote_run(monkeypatch, _App(), signed=None, signed_in=REMOTE) == []
+
+
+def test_an_embedded_run_ends_no_server_session(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ended: list[tuple[str, str]] = []
+    monkeypatch.setattr(tui_main, "sign_in_first", lambda **_: ROOT)
+    monkeypatch.setattr(tui_main, "make_app", lambda **_: _App())
+    monkeypatch.setattr(tui_main, "sign_out", lambda url, token: ended.append((url, token)))
+    tui_main.run(db=tmp_path / "tl.db")
+    assert ended == []
+
+
+def test_sign_out_ends_the_session_on_the_server_and_never_raises(harness: Harness) -> None:
+    with harness.backend() as uow:
+        accounts.create_account(
+            uow, username="root", display_name="Root", kind="person", roles=["admin"],
+            password=prepare_password(GOOD), by="svc:test",
+        )  # fmt: skip
+    http = harness.client_for(None)
+    signed = RemoteAuthenticator("http://testserver", http=http)("root", GOOD)
+    assert signed.token is not None
+    assert ApiClient("http://testserver", signed.token, http=http).whoami().actor == "user:root"
+    sign_out("http://testserver", signed.token, http=http)
+    with pytest.raises(ApiError) as refused:
+        ApiClient("http://testserver", signed.token, http=http).whoami()
+    assert refused.value.status == 401
+    sign_out("http://testserver", signed.token, http=http)  # already ended: ignored
+    sign_out("http://127.0.0.1:9", "tls_whatever")  # unreachable: ignored
+
+
+@pytest.mark.parametrize(
+    ("url", "warned"),
+    [
+        ("http://tl.example", True),
+        ("http://10.0.0.5:8765", True),
+        ("http://[2001:db8::1]:80", True),
+        ("https://tl.example", False),
+        ("http://localhost:8765", False),
+        ("http://127.0.0.1:8765", False),
+        ("http://127.1.2.3", False),
+        ("http://[::1]:8765", False),
+    ],
+)
+def test_plain_http_to_another_host_is_warned_about_on_the_sign_in_screen(
+    url: str, warned: bool
+) -> None:
+    message = tui_main.plain_http_warning(url)
+    assert (message is not None) is warned
+    if message is not None:
+        assert "plain http" in message and "unencrypted" in message

@@ -23,6 +23,7 @@ CONTEXTS: tuple[str, ...] = (
     "Composer",
     "Forms",
     "About:config",
+    "Accounts",
 )
 
 
