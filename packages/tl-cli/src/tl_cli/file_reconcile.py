@@ -7,12 +7,11 @@ exits 1 when anything is missing or corrupt. It never repairs: see the runbook
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Annotated
 
 import typer
+from tl_adapters.db import DbTarget, open_uow
 from tl_adapters.objectstore import make_object_store
-from tl_adapters.sqlite.uow import open_uow
 from tl_core.files.reconcile import reconcile_objects
 
 
@@ -23,7 +22,7 @@ def reconcile(
     ] = False,
 ) -> None:
     """Report referenced hashes that are missing from the store, and orphaned objects."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     try:
         store = make_object_store()
     except ValueError as exc:
