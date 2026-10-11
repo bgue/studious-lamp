@@ -6,14 +6,8 @@ inside `ctx.backend()`; the token's actor is `by`. Errors are the account rows o
 `tl_api.errors` (404 `account_not_found`, 409 `username_taken`, `last_admin`, `account_state`,
 422 `invalid_account`, `weak_password`). A password or a token appears only in the request that
 sets it and, for a new agent token, once in the answer; no route logs or echoes either.
-
-STUB (P1-I0-T04): the function bodies raise NotImplementedError; their decorators, parameters,
-annotations and docstrings are final (they make the committed OpenAPI document). Each body has a
-STEPS comment. Implement them, then delete this paragraph, the STEPS comments and the `ruff: noqa`
-line.
 """
 
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 from __future__ import annotations
 
 from datetime import timedelta
@@ -113,9 +107,8 @@ class IssuedToken(BaseModel):
 @router.get("/admin/accounts", operation_id="admin_list_accounts", response_model=list[AccountView])
 def list_accounts(ctx: Ctx, actor: Lister) -> list[AccountView]:
     """Every account with its roles, status and any lock in force. No secrets."""
-    # STEPS:
-    # 1. `with ctx.backend(True) as uow:` return `queries.list_accounts(uow.conn())`.
-    raise NotImplementedError
+    with ctx.backend(True) as uow:
+        return queries.list_accounts(uow.conn())
 
 
 @router.get(
@@ -123,10 +116,8 @@ def list_accounts(ctx: Ctx, actor: Lister) -> list[AccountView]:
 )
 def get_account(account_id: str, ctx: Ctx, actor: Lister) -> AccountView:
     """One account by id (404 `account_not_found`)."""
-    # STEPS:
-    # 1. `with ctx.backend(True) as uow:` return `queries.get_account(uow.conn(),
-    #    account_id)`.
-    raise NotImplementedError
+    with ctx.backend(True) as uow:
+        return queries.get_account(uow.conn(), account_id)
 
 
 @router.post(
@@ -137,15 +128,21 @@ def get_account(account_id: str, ctx: Ctx, actor: Lister) -> AccountView:
 )
 def create_account(body: CreateAccountBody, ctx: Ctx, actor: Creator) -> AccountView:
     """Create an account. A password must meet the policy (422 `weak_password`); agents get none."""
-    # STEPS:
-    # 1. `prepared` is None when `body.password` is None, else
-    #    `prepare_password(body.password, username=body.username)`. Do this BEFORE the
-    #    `with` block: it applies the policy and the slow hash, and no hash may run while
-    #    a write transaction is open.
-    # 2. `with ctx.backend() as uow:` return `accounts.create_account(uow,
-    #    username=body.username, display_name=body.display_name, kind=body.kind,
-    #    roles=list(body.roles), password=prepared, by=actor)`.
-    raise NotImplementedError
+    # The policy and the slow hash run before the write transaction opens: no hash may run
+    # while a write transaction is open.
+    prepared = (
+        None if body.password is None else prepare_password(body.password, username=body.username)
+    )
+    with ctx.backend() as uow:
+        return accounts.create_account(
+            uow,
+            username=body.username,
+            display_name=body.display_name,
+            kind=body.kind,
+            roles=list(body.roles),
+            password=prepared,
+            by=actor,
+        )
 
 
 @router.put(
@@ -155,10 +152,14 @@ def create_account(body: CreateAccountBody, ctx: Ctx, actor: Creator) -> Account
 )
 def set_roles(account_id: str, body: RolesBody, ctx: Ctx, actor: RoleSetter) -> AccountView:
     """Replace the roles. The last active admin cannot be demoted (409 `last_admin`)."""
-    # STEPS:
-    # 1. `with ctx.backend() as uow:` return `accounts.set_roles(uow,
-    #    account_id=account_id, roles=list(body.roles), by=actor, reason=body.reason)`.
-    raise NotImplementedError
+    with ctx.backend() as uow:
+        return accounts.set_roles(
+            uow,
+            account_id=account_id,
+            roles=list(body.roles),
+            by=actor,
+            reason=body.reason,
+        )
 
 
 @router.post(
@@ -168,10 +169,8 @@ def set_roles(account_id: str, body: RolesBody, ctx: Ctx, actor: RoleSetter) -> 
 )
 def disable_account(account_id: str, body: ReasonBody, ctx: Ctx, actor: StateSetter) -> AccountView:
     """Disable an account: its sessions and agent tokens stop working. Not the last admin."""
-    # STEPS:
-    # 1. `with ctx.backend() as uow:` return `accounts.disable(uow, account_id=account_id,
-    #    by=actor, reason=body.reason)`.
-    raise NotImplementedError
+    with ctx.backend() as uow:
+        return accounts.disable(uow, account_id=account_id, by=actor, reason=body.reason)
 
 
 @router.post(
@@ -181,10 +180,8 @@ def disable_account(account_id: str, body: ReasonBody, ctx: Ctx, actor: StateSet
 )
 def enable_account(account_id: str, body: ReasonBody, ctx: Ctx, actor: StateSetter) -> AccountView:
     """Enable a disabled account again."""
-    # STEPS:
-    # 1. `with ctx.backend() as uow:` return `accounts.enable(uow, account_id=account_id,
-    #    by=actor, reason=body.reason)`.
-    raise NotImplementedError
+    with ctx.backend() as uow:
+        return accounts.enable(uow, account_id=account_id, by=actor, reason=body.reason)
 
 
 @router.post(
@@ -196,17 +193,13 @@ def reset_password(
     account_id: str, body: ResetPasswordBody, ctx: Ctx, actor: Resetter
 ) -> AccountView:
     """Set a new password without the old one. Ends the account's sessions and clears its lock."""
-    # STEPS:
-    # 1. `with ctx.backend(True) as uow:` read `account = queries.get_account(uow.conn(),
-    #    account_id)` (404 `account_not_found` for an unknown id).
-    # 2. After that block (no transaction open) `prepared =
-    #    prepare_password(body.new_password, username=account.username)`: the policy and
-    #    the slow hash.
-    # 3. `with ctx.backend() as uow:` call `accounts.change_password(uow,
-    #    account_id=account_id, new_password=prepared, by=actor)`, then in the same block
-    #    return `queries.get_account(uow.conn(), account_id)` (it sees the write; the lock
-    #    is gone).
-    raise NotImplementedError
+    with ctx.backend(True) as uow:
+        account = queries.get_account(uow.conn(), account_id)
+    # No transaction is open here: the policy and the slow hash run outside the writer lock.
+    prepared = prepare_password(body.new_password, username=account.username)
+    with ctx.backend() as uow:
+        accounts.change_password(uow, account_id=account_id, new_password=prepared, by=actor)
+        return queries.get_account(uow.conn(), account_id)
 
 
 @router.get("/admin/tokens", operation_id="admin_list_tokens", response_model=list[AgentTokenView])
@@ -217,10 +210,10 @@ def list_tokens(
     include_revoked: Annotated[bool, Query()] = True,
 ) -> list[AgentTokenView]:
     """Agent token metadata. The tokens themselves cannot be read back."""
-    # STEPS:
-    # 1. `with ctx.backend(True) as uow:` return `queries.list_agent_tokens(uow.conn(),
-    #    account_id=account_id, include_revoked=include_revoked)`.
-    raise NotImplementedError
+    with ctx.backend(True) as uow:
+        return queries.list_agent_tokens(
+            uow.conn(), account_id=account_id, include_revoked=include_revoked
+        )
 
 
 @router.post(
@@ -228,14 +221,19 @@ def list_tokens(
 )
 def issue_token(body: IssueTokenBody, ctx: Ctx, actor: TokenIssuer) -> IssuedToken:
     """Issue an agent token (default 90 days; `expires_in_days: null` for none). Shown once."""
-    # STEPS:
-    # 1. `expires` is None when `body.expires_in_days` is None, else `utcnow() +
-    #    timedelta(days=body.expires_in_days)`.
-    # 2. `with ctx.backend() as uow:` call `view, token = accounts.issue_agent_token(uow,
-    #    account_id=body.account_id, label=body.label, expires_at=expires, by=actor)`.
-    # 3. Return `IssuedToken(token=token, view=view)` after the block (the commit has
-    #    happened).
-    raise NotImplementedError
+    expires = (
+        None if body.expires_in_days is None else utcnow() + timedelta(days=body.expires_in_days)
+    )
+    with ctx.backend() as uow:
+        view, token = accounts.issue_agent_token(
+            uow,
+            account_id=body.account_id,
+            label=body.label,
+            expires_at=expires,
+            by=actor,
+        )
+    # The commit has happened: the token leaves the server only in this answer.
+    return IssuedToken(token=token, view=view)
 
 
 @router.post(
@@ -245,7 +243,5 @@ def issue_token(body: IssueTokenBody, ctx: Ctx, actor: TokenIssuer) -> IssuedTok
 )
 def revoke_token(token_id: str, body: ReasonBody, ctx: Ctx, actor: TokenRevoker) -> AgentTokenView:
     """Revoke an agent token at once (404 `agent_token_not_found`, 409 `account_state`)."""
-    # STEPS:
-    # 1. `with ctx.backend() as uow:` return `accounts.revoke_agent_token(uow,
-    #    token_id=token_id, by=actor, reason=body.reason)`.
-    raise NotImplementedError
+    with ctx.backend() as uow:
+        return accounts.revoke_agent_token(uow, token_id=token_id, by=actor, reason=body.reason)
