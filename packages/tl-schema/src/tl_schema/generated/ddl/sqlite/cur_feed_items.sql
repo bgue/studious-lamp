@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS cur_feed_items (
   version INTEGER
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_cur_feed_items_open_scope ON cur_feed_items (open_scope);
-
 CREATE INDEX IF NOT EXISTS ix_cur_feed_items_scope ON cur_feed_items (scope);
 
 CREATE INDEX IF NOT EXISTS ix_cur_feed_items_seq ON cur_feed_items (seq);
+
+CREATE INDEX IF NOT EXISTS ix_cur_feed_items_scope_first_seq ON cur_feed_items (scope, first_seq);

@@ -571,8 +571,21 @@ class Record(RecordEnvelope):
     """
     The generic Phase 0 record type, `core.Record`.
     """
-    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state',
-                                              'value': True}},
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:ix_scope_voided_created': {'tag': 'tl:ix_scope_voided_created',
+                                                        'value': 'scope, voided, '
+                                                                 'created_at, id'},
+                         'tl:ix_scope_voided_key_asc': {'tag': 'tl:ix_scope_voided_key_asc',
+                                                        'value': 'scope, voided, '
+                                                                 'empty_last(key), '
+                                                                 'key, id'},
+                         'tl:ix_scope_voided_key_desc': {'tag': 'tl:ix_scope_voided_key_desc',
+                                                         'value': 'scope, voided, '
+                                                                  'empty_last(key), '
+                                                                  'key desc, id'},
+                         'tl:ix_scope_voided_updated': {'tag': 'tl:ix_scope_voided_updated',
+                                                        'value': 'scope, voided, '
+                                                                 'updated_at, id'}},
          'from_schema': 'https://example.org/throughline/core/record',
          'unique_keys': {'scope_key': {'description': 'A key is unique within its '
                                                       'scope.',
@@ -747,6 +760,10 @@ class PsetValue(ConfiguredBaseModel):
     One current pset value of one record, addressed by its layer-aware path.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:ix_path_num': {'tag': 'tl:ix_path_num',
+                                            'value': 'path, value_num, record_id'},
+                         'tl:ix_path_text': {'tag': 'tl:ix_path_text',
+                                             'value': 'path, value_text, record_id'},
                          'tl:table': {'tag': 'tl:table', 'value': 'cur_pset_values'}},
          'from_schema': 'https://example.org/throughline/core/psets',
          'unique_keys': {'record_path': {'description': 'A record has one current '
@@ -827,6 +844,12 @@ class Link(ConfiguredBaseModel):
     One link between two records, in its current lifecycle state.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:ix_relation_status_from': {'tag': 'tl:ix_relation_status_from',
+                                                        'value': 'relation, status, '
+                                                                 'from_id, to_id'},
+                         'tl:ix_relation_status_to': {'tag': 'tl:ix_relation_status_to',
+                                                      'value': 'relation, status, '
+                                                               'to_id, from_id'},
                          'tl:table': {'tag': 'tl:table', 'value': 'cur_links'}},
          'from_schema': 'https://example.org/throughline/core/links'})
 
@@ -2249,16 +2272,13 @@ class FeedReactedPayload(EventPayload):
 
 class FeedItemRow(ConfiguredBaseModel):
     """
-    One row of the feed: a post (with a tombstone once retracted) or an event card. Newest first by `occurred_at`, then `seq`. A card is extended while it is the scope's open card (`open_scope`); the unique key on `open_scope` states that a scope has at most one open card.
+    One row of the feed: a post (with a tombstone once retracted) or an event card. Newest first by `occurred_at`, then `seq`. A card is extended while it is the scope's open card (`open_scope` is set); a scope has at most one open card, and it is the scope's newest card (the projector closes a card before it opens the next). This is not a unique key: a unique index on `open_scope` made every lookup and insert slower with each closed card within one transaction on Postgres, so a rebuild grew quadratically (P0-I8 D13). The newest card is found through the index on `(scope, first_seq)`.
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:ix_scope_first_seq': {'tag': 'tl:ix_scope_first_seq',
+                                                   'value': 'scope, first_seq'},
                          'tl:table': {'tag': 'tl:table', 'value': 'cur_feed_items'}},
-         'from_schema': 'https://example.org/throughline/core/feed',
-         'unique_keys': {'open_scope': {'description': 'A scope has at most one open '
-                                                       'card (NULL for closed cards '
-                                                       'and posts).',
-                                        'unique_key_name': 'open_scope',
-                                        'unique_key_slots': ['open_scope']}}})
+         'from_schema': 'https://example.org/throughline/core/feed'})
 
     item_id: str = Field(default=..., description="""The post id, or `card:<event id of the first aggregated event>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'Hashtag']} })
     item_type: FeedItemType = Field(default=..., description="""Whether the row is a post or an event card.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow']} })

@@ -694,7 +694,7 @@
         },
         "FeedItemRow": {
             "additionalProperties": false,
-            "description": "One row of the feed: a post (with a tombstone once retracted) or an event card. Newest first by `occurred_at`, then `seq`. A card is extended while it is the scope's open card (`open_scope`); the unique key on `open_scope` states that a scope has at most one open card.",
+            "description": "One row of the feed: a post (with a tombstone once retracted) or an event card. Newest first by `occurred_at`, then `seq`. A card is extended while it is the scope's open card (`open_scope` is set); a scope has at most one open card, and it is the scope's newest card (the projector closes a card before it opens the next). This is not a unique key: a unique index on `open_scope` made every lookup and insert slower with each closed card within one transaction on Postgres, so a rebuild grew quadratically (P0-I8 D13). The newest card is found through the index on `(scope, first_seq)`.",
             "properties": {
                 "actor": {
                     "description": "Author of a post, or the actor of a card's events.",

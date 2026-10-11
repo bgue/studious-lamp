@@ -19,6 +19,12 @@ Rules (brief 5.4, build spec 03 section 9):
   A required JSON slot without ``ifabsent`` defaults to ``'{}'``.
 * Each entry of the class's ``unique_keys`` becomes ``CREATE UNIQUE INDEX ux_<table>_<key name>``;
   each slot annotated ``tl:indexed: true`` becomes ``CREATE INDEX ix_<table>_<column>``.
+* Each class annotation ``tl:ix_<name>: "<terms>"`` becomes ``CREATE INDEX ix_<table>_<name>`` over
+  the comma-separated terms: a slot name (its column), a slot name followed by ``desc``, or
+  ``empty_last(<slot>)``, the expression ``(col IS NULL OR col = '')`` that the record queries
+  order by first so empty values sort last (``tl_core.query.compiler``); an index on that exact
+  expression lets the planner read a sorted page instead of sorting the table. Both dialects
+  accept the same text.
 * Every statement is ``IF NOT EXISTS`` so applying the DDL twice is harmless. Statements end with
   ``;`` and are separated by one blank line. Output is deterministic.
 """
@@ -125,6 +131,46 @@ def _column(view: SchemaView, slot: Any, dialect: Dialect) -> tuple[str, str]:
     return str(name), " ".join(parts)
 
 
+INDEX_TAG = "tl:ix_"
+MAX_IDENTIFIER = 63  # Postgres cuts longer identifiers silently
+_INDEX_NAME = re.compile(r"[a-z][a-z0-9_]*")
+_INDEX_TERM = re.compile(r"(?:empty_last\((?P<fn>\w+)\))|(?:(?P<col>\w+)(?: (?P<dir>asc|desc))?)")
+
+
+def _class_indexes(view: SchemaView, class_name: str) -> dict[str, str]:
+    """``{index name: terms}`` from the ``tl:ix_<name>`` annotations of the class and parents."""
+    found: dict[str, str] = {}
+    for ancestor in reversed(view.class_ancestors(class_name)):
+        definition = cast(Any, view.get_class(ancestor))
+        annotations = cast(dict[str, Any], definition.annotations or {})
+        for tag, annotation in annotations.items():
+            if str(tag).startswith(INDEX_TAG):
+                found[str(tag)[len(INDEX_TAG) :]] = str(annotation.value)
+    return found
+
+
+def _index_terms(
+    spec: str, slots: dict[str, Any], columns: dict[str, tuple[str, str]], view: SchemaView
+) -> str:
+    terms: list[str] = []
+    for raw in spec.split(","):
+        match = _INDEX_TERM.fullmatch(raw.strip())
+        if match is None:
+            raise DdlError(f"index term {raw.strip()!r} is not a slot, 'slot desc' or empty_last()")
+        slot_name = match.group("fn") or match.group("col")
+        if slot_name not in columns:
+            raise DdlError(f"index term {raw.strip()!r}: no slot {slot_name!r} in the class")
+        column = columns[slot_name][0]
+        if match.group("fn"):
+            slot = slots[slot_name]
+            if _annotation(slot, "tl:json") or _root_type(view, slot) != "string":
+                raise DdlError(f"empty_last({slot_name}): only a plain text column has '' values")
+            terms.append(f"({column} IS NULL OR {column} = '')")
+        else:
+            terms.append(column + (f" {match.group('dir').upper()}" if match.group("dir") else ""))
+    return ", ".join(terms)
+
+
 def table_ddl(view: SchemaView, class_name: str, dialect: Dialect) -> str:
     """The full DDL (table, unique indexes, plain indexes) for one class and dialect."""
     table = table_name(view, class_name)
@@ -145,6 +191,24 @@ def table_ddl(view: SchemaView, class_name: str, dialect: Dialect) -> str:
         if _annotation(slot, "tl:indexed"):
             col = columns[slot.name][0]
             statements.append(f"CREATE INDEX IF NOT EXISTS ix_{table}_{col} ON {table} ({col});")
+    taken = {
+        f"ix_{table}_{columns[slot.name][0]}" for slot in slots if _annotation(slot, "tl:indexed")
+    }
+    by_name = {slot.name: slot for slot in slots}
+    for index_name, spec in sorted(_class_indexes(view, class_name).items()):
+        if _INDEX_NAME.fullmatch(index_name) is None:
+            raise DdlError(f"index name {index_name!r}: use lower-case letters, digits, _")
+        full = f"ix_{table}_{index_name}"
+        if len(full) > MAX_IDENTIFIER:
+            raise DdlError(
+                f"index {full!r} is {len(full)} characters; Postgres keeps {MAX_IDENTIFIER}, "
+                "and a longer name is cut and may collide"
+            )
+        if full in taken:
+            raise DdlError(f"index {full!r} is also the name of a single-column index")
+        taken.add(full)
+        terms = _index_terms(spec, by_name, columns, view)
+        statements.append(f"CREATE INDEX IF NOT EXISTS {full} ON {table} ({terms});")
     return "\n\n".join(statements) + "\n"
 
 

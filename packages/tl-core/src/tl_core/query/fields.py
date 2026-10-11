@@ -41,6 +41,10 @@ ENVELOPE_FIELDS: dict[str, Field] = {
     )
 }
 
+#: Envelope columns that are ``NOT NULL`` in ``cur_core_record`` and not text: ordering by one needs
+#: no "empty sorts last" term, which also lets an index on the column serve the ORDER BY.
+NEVER_NULL_FIELDS: frozenset[str] = frozenset({"version", "last_seq", "created_at", "updated_at"})
+
 #: Envelope columns a result may be ordered by (everything but the boolean).
 SORTABLE_FIELDS: frozenset[str] = frozenset(
     name for name, f in ENVELOPE_FIELDS.items() if f.kind != "bool"

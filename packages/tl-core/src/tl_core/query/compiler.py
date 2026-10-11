@@ -9,8 +9,17 @@ dict of bound parameters. The security rules, which tests pin:
   parameter.
 * Every predicate is two-valued (never SQL ``NULL``), so ``NOT`` and ``!=`` behave: ``status!=open``
   also matches records with no status, exactly like ``-status:open``.
-* Pset paths compile to ``EXISTS`` over ``cur_pset_values``; links to ``EXISTS`` or ``COUNT``
-  over ``cur_links`` joined to the record at the other end, in both directions.
+* Pset paths compile to ``id IN (SELECT record_id FROM cur_pset_values ...)`` when the test must
+  hold and, for ``!=`` and for ``= null`` on a pset, to a correlated ``NOT EXISTS``; links to
+  ``id IN`` over the link ends (both directions), ``missing(...)`` to a correlated ``NOT EXISTS``,
+  and a count that may be zero to a correlated ``COUNT``. An explicit ``-x``, ``NOT`` or
+  ``-linked(x)`` negates whatever ``x`` compiled to, so it is ``NOT (id IN (set))``: correct
+  because the ids are never NULL, and a hashed SubPlan on Postgres that degrades only when the set
+  outgrows ``work_mem``.
+* The ``IN`` form is a set built once from ``cur_pset_values`` or ``cur_links`` (indexed by path
+  and value, by relation and status), so a filter that matches few rows no longer probes the
+  table once per record (P0-I8 D13: 150 ms to a few ms for a selective pset filter on SQLite at
+  100k records).
 * Only portable SQL: ``LIKE ... ESCAPE``, ``LOWER``, ``COALESCE``, ``EXISTS``, ``LIMIT/OFFSET``.
 
 Text search is ``LIKE`` over key, title and description (case-insensitive; SQLite's ``LOWER``
@@ -22,6 +31,8 @@ An AST built by hand is validated here the same way parsed text is; a bad one ra
 
 from __future__ import annotations
 
+import operator
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Literal
@@ -45,6 +56,7 @@ from tl_core.query.fields import (
     ENVELOPE_FIELDS,
     LIVE_LINK_STATUSES,
     MAX_INT,
+    NEVER_NULL_FIELDS,
     OPS_BY_KIND,
     PSET_OPS,
     PSET_PATH_RE,
@@ -86,6 +98,15 @@ _ENVELOPE_COLUMNS = (
 _SELECT_LIST = ", ".join(f"r.{column}" for column in _ENVELOPE_COLUMNS)
 _LIVE = "(" + ", ".join(f"'{status}'" for status in LIVE_LINK_STATUSES) + ")"
 _ESCAPE = "ESCAPE '\\'"
+#: What ``count(...) <op> n`` says about a record with no links at all (a count of 0).
+_COUNT_TESTS: dict[str, Callable[[int, int], bool]] = {
+    "=": operator.eq,
+    "!=": operator.ne,
+    "<": operator.lt,
+    "<=": operator.le,
+    ">": operator.gt,
+    ">=": operator.ge,
+}
 _SEARCH_COLUMNS = ("key", "title", "description")
 
 
@@ -176,8 +197,7 @@ class _Builder:
         if isinstance(node, Linked):
             return self.linked_exists(node, rec, depth)
         if isinstance(node, MissingLink):
-            linked = Linked(node.relation, node.target_type, None)
-            return f"(NOT {self.linked_exists(linked, rec, depth)})"
+            return self.linked_missing(Linked(node.relation, node.target_type, None), rec, depth)
         return self.count_linked(node, rec, depth)
 
     def join(self, word: str, items: tuple[Expr, ...], rec: str, depth: int) -> str:
@@ -287,18 +307,32 @@ class _Builder:
             raise self.fail(f"unknown operator {node.op!r}")
         pv = self.alias("pv")
         path = self.bind(node.path)
-        base = f"{pv}.record_id = {rec}.id AND {pv}.path = {path}"
         value, op = node.value, node.op
         negate = op == "!="
         if value is None:
             if op not in ("=", "!="):
                 raise self.fail("null can only be compared with '=' or '!='")
-            row = f"EXISTS (SELECT 1 FROM cur_pset_values {pv} WHERE {base})"
-            return f"(NOT {row})" if op == "=" else row
+            # "has no value" is the negation of "has a row"; "!= null" is "has a row"
+            return self.pset_rows(pv, path, None, rec, negated=op == "=")
         eq_op = "=" if negate else op
         cond = self.pset_condition(pv, eq_op, value)
-        row = f"EXISTS (SELECT 1 FROM cur_pset_values {pv} WHERE {base} AND {cond})"
-        return f"(NOT {row})" if negate else row
+        return self.pset_rows(pv, path, cond, rec, negated=negate)
+
+    @staticmethod
+    def pset_rows(pv: str, path: str, cond: str | None, rec: str, *, negated: bool) -> str:
+        """Whether ``rec`` has a ``cur_pset_values`` row at ``path`` that satisfies ``cond``."""
+        extra = f" AND {cond}" if cond is not None else ""
+        if not negated:
+            # An uncorrelated set: the planner builds it from the (path, value) index and then
+            # either probes it per record or drives the record lookup from it, whichever is cheaper.
+            return (
+                f"{rec}.id IN (SELECT {pv}.record_id FROM cur_pset_values {pv} "
+                f"WHERE {pv}.path = {path}{extra})"
+            )
+        return (
+            f"(NOT EXISTS (SELECT 1 FROM cur_pset_values {pv} "
+            f"WHERE {pv}.record_id = {rec}.id AND {pv}.path = {path}{extra}))"
+        )
 
     def pset_condition(self, pv: str, op: str, value: Value) -> str:
         """The row-level test for one typed pset value (``op`` is never ``!=`` here)."""
@@ -362,20 +396,36 @@ class _Builder:
             parts.append(self.expr(node.where, other, depth + 1))
         return " AND ".join(parts)
 
-    def link_source(self, node: Linked, rec: str, outbound: bool, depth: int, select: str) -> str:
+    def link_end(self, node: Linked, outbound: bool, depth: int) -> tuple[str, str]:
+        """``(link alias, FROM and WHERE tail)`` of the live links that satisfy ``node``.
+
+        ``outbound`` links leave the record, so the record is the ``from`` end. A link counts only
+        when the record at its other end exists, as it always did, so that record is joined (by
+        primary key) even when neither the type nor a nested condition looks at it.
+        """
         link, other = self.alias("l"), self.alias("o")
-        mine, theirs = ("from_id", "to_id") if outbound else ("to_id", "from_id")
+        theirs = "to_id" if outbound else "from_id"
         tail = self.link_filter(node, link, other, depth)
-        return (
-            f"SELECT {select} FROM cur_links {link} "
-            f"JOIN cur_core_record {other} ON {other}.id = {link}.{theirs} "
-            f"WHERE {link}.{mine} = {rec}.id AND {tail}"
-        )
+        source = f"cur_links {link} JOIN cur_core_record {other} ON {other}.id = {link}.{theirs}"
+        return link, f"FROM {source} WHERE {tail}"
 
     def linked_exists(self, node: Linked, rec: str, depth: int) -> str:
-        out = self.link_source(node, rec, True, depth, "1")
-        inbound = self.link_source(node, rec, False, depth, "1")
-        return f"(EXISTS ({out}) OR EXISTS ({inbound}))"
+        """``rec`` has a live link that satisfies ``node``: a set of ids per direction."""
+        out_link, out_tail = self.link_end(node, True, depth)
+        in_link, in_tail = self.link_end(node, False, depth)
+        return (
+            f"({rec}.id IN (SELECT {out_link}.from_id {out_tail}) "
+            f"OR {rec}.id IN (SELECT {in_link}.to_id {in_tail}))"
+        )
+
+    def linked_missing(self, node: Linked, rec: str, depth: int) -> str:
+        """``rec`` has no such link; correlated, since ``NOT IN (big set)`` plans badly."""
+        out_link, out_tail = self.link_end(node, True, depth)
+        in_link, in_tail = self.link_end(node, False, depth)
+        return (
+            f"(NOT EXISTS (SELECT 1 {out_tail} AND {out_link}.from_id = {rec}.id) "
+            f"AND NOT EXISTS (SELECT 1 {in_tail} AND {in_link}.to_id = {rec}.id))"
+        )
 
     def count_linked(self, node: CountLinked, rec: str, depth: int) -> str:
         if node.op not in SQL_OPS:
@@ -383,8 +433,23 @@ class _Builder:
         value = node.value
         if isinstance(value, bool) or abs(value) > MAX_INT:
             raise self.fail("count(...) is compared with a whole number")
-        out = self.link_source(node.linked, rec, True, depth, "COUNT(*)")
-        inbound = self.link_source(node.linked, rec, False, depth, "COUNT(*)")
+        zero_matches = _COUNT_TESTS[node.op](0, value)
+        out_link, out_tail = self.link_end(node.linked, True, depth)
+        in_link, in_tail = self.link_end(node.linked, False, depth)
+        if not zero_matches:
+            # A record with no link cannot match, so group the link ends once instead of
+            # counting per record: the ids whose number of links passes the test.
+            grouped = self.alias("g")
+            ends = (
+                f"SELECT {out_link}.from_id AS rid {out_tail} "
+                f"UNION ALL SELECT {in_link}.to_id AS rid {in_tail}"
+            )
+            return (
+                f"{rec}.id IN (SELECT {grouped}.rid FROM ({ends}) {grouped} "
+                f"GROUP BY {grouped}.rid HAVING COUNT(*) {SQL_OPS[node.op]} {self.bind(value)})"
+            )
+        out = f"SELECT COUNT(*) {out_tail} AND {out_link}.from_id = {rec}.id"
+        inbound = f"SELECT COUNT(*) {in_tail} AND {in_link}.to_id = {rec}.id"
         return f"(((({out})) + (({inbound}))) {SQL_OPS[node.op]} {self.bind(value)})"
 
     # --- ordering -----------------------------------------------------------------------------
@@ -400,6 +465,9 @@ class _Builder:
             if column in SORTABLE_FIELDS:
                 field = ENVELOPE_FIELDS[column]
                 col = f"r.{column}"
+                if column in NEVER_NULL_FIELDS:
+                    terms.append(f"{col} {way}")
+                    continue
                 empty = f"{col} IS NULL OR {col} = ''" if field.kind == "text" else f"{col} IS NULL"
                 terms.append(f"({empty}), {col} {way}")
             elif PSET_PATH_RE.match(column):
