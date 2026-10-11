@@ -44,7 +44,7 @@ Purpose: add, check, change and retire a company record type (a package of files
 1. `tl types quarantine ls` repeats the report; `tl types show <type_ref>` shows one version.
 2. Fix the files, run `tl types lock`, then `tl types sync <root>`: the version registers.
 
-A `settings` issue `key '<key>' must start with <prefix>` means a key is outside the type's own prefix; `key '<key>' is already defined by <owner>` means a type whose name snake-cases alike owns it. Fix the key, then `tl types lock` and sync (the changed hash makes sync look again).
+A `settings` issue `key '<key>' must start with '<prefix>'` (or `must be '<prefix>' and one more segment without a dot`) means a key is outside the type's own prefix; `key '<key>' is already defined by <owner>` means a type whose name snake-cases alike owns it. Fix the key, then `tl types lock` and sync (the changed hash makes sync look again).
 
 ### `conflict <type_ref> (kept <hash>)`
 The files of a registered version were edited. The registration stays and the edit is refused; a version is immutable.
@@ -75,7 +75,7 @@ tl types deprecate <type_ref> --reason "replaced by 2.0.0"
 Expected: `deprecated <type_ref>`. Existing records stay readable and editable; creating one answers 409 `type_not_active`.
 
 ### Settings of a type
-A package's `settings.yaml` defines keys that start with `<namespace>.<snake_case(Name)>.`: `co.acme.lift_plan.max_load_tonnes` for `co.acme.LiftPlan`. The first segments `ai`, `feed`, `lake`, `project`, `schema`, `ui`, `webhooks` (and `core`, `tl`, `throughline`) are reserved and cannot be a type namespace; secret settings are refused. The newest usable version of each type registers its keys, under the type name as owner, in every process that attaches to the ledger (the CLI, the API, MCP, the TUI), so `tl config ls|get|set`, the API and the TUI list and validate them like platform keys.
+A package's `settings.yaml` defines keys of the form `<namespace>.<snake_case(Name)>.<segment>`: `co.acme.lift_plan.max_load_tonnes` for `co.acme.LiftPlan` (one segment after the prefix, no dot). The first segments `ai`, `feed`, `lake`, `project`, `schema`, `ui`, `webhooks` (and `core`, `tl`, `throughline`) are reserved and cannot be a type namespace; secret settings are refused. The newest usable version of each type registers its keys, under the type name as owner, in every process that attaches to the ledger (the CLI, the API, MCP, the TUI), so `tl config ls|get|set`, the API and the TUI list and validate them like platform keys.
 - A refresh happens when the registry changes (a `tl types sync` or `deprecate`, noticed within about a second) and at `sync`. Editing a package file alone triggers nothing: the new content counts after the next registry change or a restart. Each refresh hashes every registered package, which is cheap because refreshes are rare.
 - A key leaves the registry when its type's files no longer match the registration (or the type is quarantined) and returns with them; values already stored stay in the ledger and are skipped while the key is gone.
 - If a newer version changes a definition (its type, bounds or choices), a value stored for the old definition is returned as it is stored until it is set again.

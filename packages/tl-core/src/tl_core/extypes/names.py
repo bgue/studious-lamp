@@ -62,9 +62,23 @@ class Coordinates:
         return f"{self.namespace}.{self.name}@{self.version}"
 
 
-def settings_key_prefix(coords: Coordinates) -> str:
-    """``co.acme.lift_plan.``: how every setting key of ``co.acme.LiftPlan`` starts."""
-    return f"{coords.namespace}.{snake_case(coords.name)}."
+def settings_key_problem(type_name: str, key: str) -> str | None:
+    """Why ``key`` is not a setting key of the type ``type_name``, or ``None`` when it is (D15).
+
+    A key is ``<namespace>.<snake_case(Name)>.<segment>``: the prefix (``co.acme.lift_plan.`` for
+    ``co.acme.LiftPlan``) and then exactly one segment without a dot. The last rule keeps a type
+    out of other namespaces: ``co.Acme`` would otherwise reach ``co.acme.x.y``, and
+    ``co.acme.Foo`` the namespace ``co.acme.foo``. The one place both the package validator and the
+    settings registry ask.
+    """
+    namespace, _, name = type_name.rpartition(".")
+    prefix = f"{namespace}.{snake_case(name)}."
+    if not key.startswith(prefix):
+        return f"must start with {prefix!r}"
+    rest = key[len(prefix) :]
+    if not rest or "." in rest:
+        return f"must be {prefix!r} and one more segment without a dot"
+    return None
 
 
 def snake_case(name: str) -> str:

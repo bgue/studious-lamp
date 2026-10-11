@@ -24,7 +24,7 @@ from typing import Any, cast
 import yaml
 from pydantic import ValidationError
 
-from tl_core.extypes.names import snake_case
+from tl_core.extypes.names import settings_key_problem
 from tl_core.services.errors import UnknownSettingError
 from tl_core.settings.types import SettingDefinition
 from tl_core.settings.values import check_definition
@@ -147,20 +147,12 @@ def namespace_of(owner: str) -> str:
     return head
 
 
-def key_prefix(owner: str) -> str:
-    """``co.acme.lift_plan.`` for ``co.acme.LiftPlan``: how its keys start (decision D15).
-
-    The type's own name is part of the prefix, so two types of one namespace cannot take each
-    other's keys, and a one-segment namespace (``co``) cannot reach ``co.acme.`` keys.
-    """
-    return f"{namespace_of(owner)}.{snake_case(owner.rpartition('.')[2])}."
-
-
 def register_definitions(defs: Iterable[SettingDefinition], *, owner: str) -> None:
     """Register an extension type's keys (brief 31.1). ``owner`` is ``<namespace>.<TypeName>``.
 
-    Every key must start with the type's namespace and snake-cased name (``co.acme.lift_plan.``
-    for ``co.acme.LiftPlan``, decision D15), and the first segment of a namespace is never a
+    Every key is the type's namespace, its snake-cased name and one more segment
+    (``co.acme.lift_plan.max_load`` for ``co.acme.LiftPlan``, decision D15; see
+    ``extypes.names.settings_key_problem``), and the first segment of a namespace is never a
     platform one (``feed``, ``ui``, ... are reserved type namespaces), so a type's keys can neither
     shadow a platform key nor another type's. A secret definition is refused (a vault is a human
     gate). A key that another owner or the platform already defines raises
@@ -170,7 +162,7 @@ def register_definitions(defs: Iterable[SettingDefinition], *, owner: str) -> No
     """
     if owner == PLATFORM_OWNER:
         raise SettingDefinitionError("platform keys come from schema/settings/platform.yaml")
-    prefix = key_prefix(owner)
+    namespace_of(owner)  # raises for an owner that is not '<namespace>.<TypeName>'
     accepted: dict[str, SettingDefinition] = {}
     for defn in defs:
         claimed = defn.model_copy(update={"owner": owner}) if defn.owner == PLATFORM_OWNER else defn
@@ -178,8 +170,9 @@ def register_definitions(defs: Iterable[SettingDefinition], *, owner: str) -> No
             raise SettingDefinitionError(f"{defn.key}: owner {claimed.owner!r} is not {owner!r}")
         if defn.sensitivity == "secret":
             raise SettingDefinitionError(f"{defn.key}: secret settings are not available")
-        if not defn.key.startswith(prefix):
-            raise SettingDefinitionError(f"{defn.key}: keys of {owner} must start with {prefix!r}")
+        problem = settings_key_problem(owner, defn.key)
+        if problem is not None:
+            raise SettingDefinitionError(f"{defn.key}: a key of {owner} {problem}")
         try:
             check_definition(claimed)
         except ValueError as exc:

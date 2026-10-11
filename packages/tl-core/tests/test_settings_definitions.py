@@ -203,6 +203,21 @@ def test_a_type_of_a_short_namespace_cannot_take_the_keys_of_another_namespace(
         register_definitions(platform, owner="co.Foo")
 
 
+def test_a_type_name_cannot_reproduce_another_namespace(clean: None) -> None:
+    """`co.Acme` has the prefix `co.acme.`; `co.acme.Foo` the namespace `co.acme.foo`."""
+    for owner, key in (
+        ("co.Acme", "co.acme.x.y"),
+        ("co.Acme", "co.acme.lift_plan.max_load"),
+        ("co.acme.Foo", "co.acme.foo.x.k"),
+    ):
+        bad = parse_definitions(doc(entry(key)), owner=owner)
+        with pytest.raises(SettingDefinitionError, match="one more segment without a dot"):
+            register_definitions(bad, owner=owner)
+    fine = parse_definitions(doc(entry("co.acme.x")), owner="co.Acme")
+    register_definitions(fine, owner="co.Acme")  # its own single-segment key is fine
+    unregister_definitions("co.Acme")
+
+
 def test_an_extension_cannot_shadow_a_platform_key_or_another_type(clean: None) -> None:
     shadow = parse_definitions(doc(entry("feed.reactions.enabled")), owner="feed.reactions.Type")
     with pytest.raises(SettingDefinitionError, match="must start with 'feed.reactions.type.'"):

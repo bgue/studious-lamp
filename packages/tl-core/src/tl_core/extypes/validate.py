@@ -38,7 +38,7 @@ from tl_core.extypes.names import (
     coordinates,
     invalid_ref,
     package_coordinates,
-    settings_key_prefix,
+    settings_key_problem,
 )
 from tl_core.extypes.types import TypeIssue, TypeRegistration
 from tl_core.schema_provider import SchemaProvider
@@ -90,7 +90,7 @@ def read_settings(
 ) -> tuple[list[SettingDefinition], list[TypeIssue]]:
     """``settings.yaml`` as setting definitions (none when absent), with the namespace rule.
 
-    Every key starts with ``<namespace>.<snake_case(Name)>.`` (``co.acme.lift_plan.`` for
+    Every key is ``<namespace>.<snake_case(Name)>.<segment>`` (``co.acme.lift_plan.max_load`` for
     ``co.acme.LiftPlan``, decision D15); ``owner`` defaults to the type name and must equal it;
     a secret setting is refused (FANOUT D4). Registering the definitions with the settings
     registry is a separate step (``tl_core.settings.register_definitions``).
@@ -110,7 +110,6 @@ def read_settings(
     definitions: list[SettingDefinition] = []
     issues: list[TypeIssue] = []
     seen: set[str] = set()
-    prefix = settings_key_prefix(coords)
     for index, row in enumerate(rows):
         where = f"settings[{index}]"
         if not isinstance(row, dict):
@@ -125,8 +124,9 @@ def read_settings(
             )
             issues.append(issue(f"{where}: {detail}"))
             continue
-        if not definition.key.startswith(prefix):
-            issues.append(issue(f"{where}: key {definition.key!r} must start with {prefix}"))
+        key_problem = settings_key_problem(coords.type_name, definition.key)
+        if key_problem is not None:
+            issues.append(issue(f"{where}: key {definition.key!r} {key_problem}"))
         elif definition.owner != coords.type_name:
             issues.append(issue(f"{where}: owner must be {coords.type_name}"))
         elif (

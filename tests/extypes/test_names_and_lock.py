@@ -16,6 +16,7 @@ from tl_core.extypes.names import (
     package_coordinates,
     parse_type_ref,
     pset_name,
+    settings_key_problem,
     snake_case,
     split_type_name,
     stream_id,
@@ -205,3 +206,23 @@ def test_write_lock_returns_the_content_hash_and_is_idempotent(tmp_path: Path) -
     first = lock.write_lock(package)
     second = lock.write_lock(package)
     assert first == second == lock.content_hash(lock.compute_lock(package)[0])
+
+
+@pytest.mark.parametrize(
+    ("type_name", "key", "problem"),
+    [
+        ("co.acme.LiftPlan", "co.acme.lift_plan.max_load_tonnes", None),
+        ("co.acme.HTTPServer", "co.acme.http_server.port", None),
+        ("co.Acme", "co.acme.x", None),
+        ("co.acme.LiftPlan", "co.acme.max_load", "must start with 'co.acme.lift_plan.'"),
+        ("co.acme.LiftPlan", "feed.reactions.enabled", "must start with 'co.acme.lift_plan.'"),
+        ("co.Acme", "co.acme.x.y", "one more segment without a dot"),
+        ("co.acme.Foo", "co.acme.foo.x.k", "one more segment without a dot"),
+        ("co.acme.LiftPlan", "co.acme.lift_plan.", "one more segment without a dot"),
+    ],
+)
+def test_a_setting_key_is_the_types_prefix_and_one_segment(
+    type_name: str, key: str, problem: str | None
+) -> None:
+    found = settings_key_problem(type_name, key)
+    assert found == problem if problem is None else problem in (found or "")
