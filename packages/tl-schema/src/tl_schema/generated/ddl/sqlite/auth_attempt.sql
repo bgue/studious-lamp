@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS auth_attempt (
   failed_count INTEGER NOT NULL DEFAULT 0,
   window_started_at TEXT NOT NULL,
   last_failed_at TEXT NOT NULL,
-  lock_level INTEGER NOT NULL DEFAULT 0,
   locked_until TEXT
 );
+
+CREATE INDEX IF NOT EXISTS ix_auth_attempt_last_failed_at ON auth_attempt (last_failed_at);

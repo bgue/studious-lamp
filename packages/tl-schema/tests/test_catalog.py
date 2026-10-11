@@ -39,6 +39,7 @@ def test_every_event_class_is_in_the_catalog_with_a_stable_name(events: list[Any
 #: String literals shaped like an event type that are not catalog events, each with its reason.
 NOT_EVENTS = {
     "Test.Bumped": "event type of the test-only counter projector (projection/testing.py)",
+    "Internal.Redacted": "placeholder event type of a redacted account event in the lake (tl_lake.sync)",
 }
 EVENT_LITERAL = re.compile(r"[A-Z]\w*\.[A-Z]\w*")
 

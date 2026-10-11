@@ -53,6 +53,7 @@ def outputs() -> dict[str, str]:
 def test_only_current_state_classes_get_tables(outputs: dict[str, str]) -> None:
     assert sorted(outputs) == [
         "ddl/postgres/auth_attempt.sql",
+        "ddl/postgres/auth_audit.sql",
         "ddl/postgres/auth_credential.sql",
         "ddl/postgres/auth_session.sql",
         "ddl/postgres/auth_token_secret.sql",
@@ -82,6 +83,7 @@ def test_only_current_state_classes_get_tables(outputs: dict[str, str]) -> None:
         "ddl/postgres/wh_health.sql",
         "ddl/postgres/wh_secret.sql",
         "ddl/sqlite/auth_attempt.sql",
+        "ddl/sqlite/auth_audit.sql",
         "ddl/sqlite/auth_credential.sql",
         "ddl/sqlite/auth_session.sql",
         "ddl/sqlite/auth_token_secret.sql",

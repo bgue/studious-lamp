@@ -801,7 +801,8 @@ class Event(ConfiguredBaseModel):
                        'FeedItemRow',
                        'SettingChangeRow',
                        'SettingLockRow',
-                       'OutboxEvent']} })
+                       'OutboxEvent',
+                       'AuthAudit']} })
     recorded_at: datetime  = Field(default=..., description="""System (transaction) time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'SettingChangeRow', 'SettingLockRow', 'OutboxEvent']} })
     effective_at: datetime  = Field(default=..., description="""Business (valid) time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event']} })
     correlation_id: str = Field(default=..., description="""Ties a command chain, import, or automated process together.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent']} })
@@ -2111,7 +2112,9 @@ class WebhookSubscriptionDisabledPayload(WebhookEventPayload):
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload']} })
-    detail: Optional[str] = Field(default=None, description="""Free-text detail, for example the failure counts.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionDisabledPayload', 'CloudEventData']} })
+    detail: Optional[str] = Field(default=None, description="""Free-text detail, for example the failure counts.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionDisabledPayload',
+                       'CloudEventData',
+                       'AuthAudit']} })
 
 
 class WebhookSubscriptionEnabledPayload(WebhookEventPayload):
@@ -2250,7 +2253,8 @@ class EventCard(ConfiguredBaseModel):
                        'FeedItemRow',
                        'SettingChangeRow',
                        'SettingLockRow',
-                       'OutboxEvent']} })
+                       'OutboxEvent',
+                       'AuthAudit']} })
     summary: str = Field(default=..., description="""Rendered one-line summary, for example `jsmith created 14 records`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
                        'FeedItemRow',
                        'ProposalCreatedPayload',
@@ -2439,7 +2443,8 @@ class FeedItemRow(ConfiguredBaseModel):
                        'FeedItemRow',
                        'SettingChangeRow',
                        'SettingLockRow',
-                       'OutboxEvent']} })
+                       'OutboxEvent',
+                       'AuthAudit']} })
     occurred_at: datetime  = Field(default=..., description="""`recorded_at` of the post, or of the latest event of a card.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow']} })
     seq: int = Field(default=..., description="""`seq` of the posted event, or of the latest event of a card.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Event',
@@ -3065,7 +3070,8 @@ class SettingChangeRow(ConfiguredBaseModel):
                        'FeedItemRow',
                        'SettingChangeRow',
                        'SettingLockRow',
-                       'OutboxEvent']} })
+                       'OutboxEvent',
+                       'AuthAudit']} })
     source: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'Link',
                        'LinkAddedPayload',
@@ -3153,7 +3159,8 @@ class SettingLockRow(ConfiguredBaseModel):
                        'FeedItemRow',
                        'SettingChangeRow',
                        'SettingLockRow',
-                       'OutboxEvent']} })
+                       'OutboxEvent',
+                       'AuthAudit']} })
     seq: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
@@ -3560,7 +3567,9 @@ class CloudEventData(ConfiguredBaseModel):
                        'CloudEventData']} })
     links: Optional[list[EventLinkRef]] = Field(default=None, description="""Delta and full modes. Immediate links.""", json_schema_extra = { "linkml_meta": {'domain_of': ['CloudEventData']} })
     detail: Optional[Any] = Field(default=None, description="""Delta and full modes. The ledger event payload, described per event type in the catalog.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
-         'domain_of': ['WebhookSubscriptionDisabledPayload', 'CloudEventData']} })
+         'domain_of': ['WebhookSubscriptionDisabledPayload',
+                       'CloudEventData',
+                       'AuthAudit']} })
     record: Optional[Any] = Field(default=None, description="""Full mode only. The record projection as of delivery preparation, with its `version`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['CloudEventData']} })
 
@@ -3661,7 +3670,8 @@ class OutboxEvent(ConfiguredBaseModel):
                        'FeedItemRow',
                        'SettingChangeRow',
                        'SettingLockRow',
-                       'OutboxEvent']} })
+                       'OutboxEvent',
+                       'AuthAudit']} })
     source: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'Link',
                        'LinkAddedPayload',
@@ -4471,6 +4481,7 @@ class Account(ConfiguredBaseModel):
                        'AgentToken',
                        'AuthCredential',
                        'AuthSession',
+                       'AuthAudit',
                        'AccountCreatedPayload',
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
@@ -4567,6 +4578,7 @@ class AgentToken(ConfiguredBaseModel):
                        'AgentToken',
                        'AuthCredential',
                        'AuthSession',
+                       'AuthAudit',
                        'AccountCreatedPayload',
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
@@ -4613,6 +4625,7 @@ class AuthCredential(ConfiguredBaseModel):
                        'AgentToken',
                        'AuthCredential',
                        'AuthSession',
+                       'AuthAudit',
                        'AccountCreatedPayload',
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
@@ -4647,6 +4660,7 @@ class AuthSession(ConfiguredBaseModel):
                        'AgentToken',
                        'AuthCredential',
                        'AuthSession',
+                       'AuthAudit',
                        'AccountCreatedPayload',
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
@@ -4698,18 +4712,56 @@ class AuthTokenSecret(ConfiguredBaseModel):
 
 class AuthAttempt(ConfiguredBaseModel):
     """
-    Failed-sign-in counters, keyed by normalised username whether or not an account exists.
+    Failed-sign-in counters, keyed by normalised username whether or not an account exists. A lock lasts 15 minutes, for every name (a longer lock for some names would tell which exist).
     """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
                          'tl:table': {'tag': 'tl:table', 'value': 'auth_attempt'}},
          'from_schema': 'https://example.org/throughline/core/auth'})
 
-    username_key: str = Field(default=..., description="""The normalised username, cut to 64 characters.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt']} })
+    username_key: str = Field(default=..., description="""The normalised username, cut to 64 characters.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt', 'AuthAudit']} })
     failed_count: int = Field(default=0, json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt'], 'ifabsent': 'int(0)'} })
     window_started_at: str = Field(default=..., description="""ISO-8601 UTC of the first failure in the current window.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt']} })
-    last_failed_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt']} })
-    lock_level: int = Field(default=0, description="""How many locks in a row; the duration doubles with it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt'], 'ifabsent': 'int(0)'} })
+    last_failed_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['AuthAttempt']} })
     locked_until: Optional[str] = Field(default=None, description="""ISO-8601 UTC while locked.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt']} })
+
+
+class AuthAudit(ConfiguredBaseModel):
+    """
+    The operational audit of authentication: sign-in success and failure, locks, unlocks, sign-out, agent token issue and revoke, password resets. It holds no secret (never a password, hash or token) and is kept 90 days. It is not a projection and not in the ledger, the archive or the lake; `tl admin audit` lists it.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table', 'value': 'auth_audit'}},
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    audit_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAudit']} })
+    at: str = Field(default=..., description="""ISO-8601 UTC.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['AuthAudit']} })
+    event: str = Field(default=..., description="""`sign_in_ok`, `sign_in_failed`, `locked`, `unlocked`, `sign_out`, `token_issued`, `token_revoked`, `password_reset` or `bootstrap`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['AuthAudit']} })
+    username_key: Optional[str] = Field(default=None, description="""The normalised username the attempt named, whether or not an account exists.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt', 'AuthAudit']} })
+    account_id: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
+                       'AgentToken',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AuthAudit',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    actor: Optional[str] = Field(default=None, description="""The actor that did it, when there is one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'EventCard',
+                       'FeedItemRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent',
+                       'AuthAudit']} })
+    detail: Optional[str] = Field(default=None, description="""A short reason code or id (`bad_credentials`, `disabled`, a token id, the end of a lock). Never a secret.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionDisabledPayload',
+                       'CloudEventData',
+                       'AuthAudit']} })
 
 
 class AccountEventPayload(EventPayload):
@@ -4737,6 +4789,7 @@ class AccountCreatedPayload(AccountEventPayload):
                        'AgentToken',
                        'AuthCredential',
                        'AuthSession',
+                       'AuthAudit',
                        'AccountCreatedPayload',
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
@@ -4767,6 +4820,7 @@ class AccountRolesSetPayload(AccountEventPayload):
                        'AgentToken',
                        'AuthCredential',
                        'AuthSession',
+                       'AuthAudit',
                        'AccountCreatedPayload',
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
@@ -4817,6 +4871,7 @@ class AccountDisabledPayload(AccountEventPayload):
                        'AgentToken',
                        'AuthCredential',
                        'AuthSession',
+                       'AuthAudit',
                        'AccountCreatedPayload',
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
@@ -4865,6 +4920,7 @@ class AccountEnabledPayload(AccountEventPayload):
                        'AgentToken',
                        'AuthCredential',
                        'AuthSession',
+                       'AuthAudit',
                        'AccountCreatedPayload',
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
@@ -4913,6 +4969,7 @@ class AccountPasswordChangedPayload(AccountEventPayload):
                        'AgentToken',
                        'AuthCredential',
                        'AuthSession',
+                       'AuthAudit',
                        'AccountCreatedPayload',
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
@@ -4948,6 +5005,7 @@ class AgentTokenIssuedPayload(AccountEventPayload):
                        'AgentToken',
                        'AuthCredential',
                        'AuthSession',
+                       'AuthAudit',
                        'AccountCreatedPayload',
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
@@ -4984,6 +5042,7 @@ class AgentTokenRevokedPayload(AccountEventPayload):
                        'AgentToken',
                        'AuthCredential',
                        'AuthSession',
+                       'AuthAudit',
                        'AccountCreatedPayload',
                        'AccountRolesSetPayload',
                        'AccountDisabledPayload',
@@ -5103,6 +5162,7 @@ AuthCredential.model_rebuild()
 AuthSession.model_rebuild()
 AuthTokenSecret.model_rebuild()
 AuthAttempt.model_rebuild()
+AuthAudit.model_rebuild()
 AccountEventPayload.model_rebuild()
 AccountCreatedPayload.model_rebuild()
 AccountRolesSetPayload.model_rebuild()

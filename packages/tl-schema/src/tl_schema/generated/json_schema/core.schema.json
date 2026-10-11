@@ -444,17 +444,13 @@
         },
         "AuthAttempt": {
             "additionalProperties": false,
-            "description": "Failed-sign-in counters, keyed by normalised username whether or not an account exists.",
+            "description": "Failed-sign-in counters, keyed by normalised username whether or not an account exists. A lock lasts 15 minutes, for every name (a longer lock for some names would tell which exist).",
             "properties": {
                 "failed_count": {
                     "type": "integer"
                 },
                 "last_failed_at": {
                     "type": "string"
-                },
-                "lock_level": {
-                    "description": "How many locks in a row; the duration doubles with it.",
-                    "type": "integer"
                 },
                 "locked_until": {
                     "description": "ISO-8601 UTC while locked.",
@@ -476,10 +472,62 @@
                 "username_key",
                 "failed_count",
                 "window_started_at",
-                "last_failed_at",
-                "lock_level"
+                "last_failed_at"
             ],
             "title": "AuthAttempt",
+            "type": "object"
+        },
+        "AuthAudit": {
+            "additionalProperties": false,
+            "description": "The operational audit of authentication: sign-in success and failure, locks, unlocks, sign-out, agent token issue and revoke, password resets. It holds no secret (never a password, hash or token) and is kept 90 days. It is not a projection and not in the ledger, the archive or the lake; `tl admin audit` lists it.",
+            "properties": {
+                "account_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "actor": {
+                    "description": "The actor that did it, when there is one.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "at": {
+                    "description": "ISO-8601 UTC.",
+                    "type": "string"
+                },
+                "audit_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "detail": {
+                    "description": "A short reason code or id (`bad_credentials`, `disabled`, a token id, the end of a lock). Never a secret.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "event": {
+                    "description": "`sign_in_ok`, `sign_in_failed`, `locked`, `unlocked`, `sign_out`, `token_issued`, `token_revoked`, `password_reset` or `bootstrap`.",
+                    "type": "string"
+                },
+                "username_key": {
+                    "description": "The normalised username the attempt named, whether or not an account exists.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "audit_id",
+                "at",
+                "event"
+            ],
+            "title": "AuthAudit",
             "type": "object"
         },
         "AuthCredential": {

@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 STATIC_KEYS = {
     "__init__.py",
     "ddl/postgres/auth_attempt.sql",
+    "ddl/postgres/auth_audit.sql",
     "ddl/postgres/auth_credential.sql",
     "ddl/postgres/auth_session.sql",
     "ddl/postgres/auth_token_secret.sql",
@@ -42,6 +43,7 @@ STATIC_KEYS = {
     "ddl/postgres/wh_health.sql",
     "ddl/postgres/wh_secret.sql",
     "ddl/sqlite/auth_attempt.sql",
+    "ddl/sqlite/auth_audit.sql",
     "ddl/sqlite/auth_credential.sql",
     "ddl/sqlite/auth_session.sql",
     "ddl/sqlite/auth_token_secret.sql",
