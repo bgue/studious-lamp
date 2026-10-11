@@ -12,7 +12,7 @@ Demonstrate each clause of the §16 Phase 0 exit on a simulated project, and rec
 ```
 just demo P0-I8
 ```
-Takes about 90 seconds. It starts `tl serve` over a temporary ledger, seeds a simulated project (`tl sim seed --scale xs`), then prints one `PASS` line for each of: `exit-1 TUI`, `exit-1 API`, `exit-1 MCP`, `exit-2 live`, `settings live`, `exit-3 webhook`, `exit-4 restore` (and `exit-4 restore (postgres)` when a Postgres server answers at `TL_PG_URL`). It exits non-zero and prints `DEMO FAILED: ...` when any clause is missing. The driver is `dev/demos/p0_i8_demo.py`; the leg for an extension-type record is added after workstream B merges.
+Takes about 90 seconds. It starts `tl serve` over a temporary ledger, seeds a simulated project (`tl sim seed --scale xs`), then prints one `PASS` line for each of: `exit-1 TUI`, `exit-1 API`, `exit-1 MCP`, `exit-2 live`, `extension types`, `settings live`, `exit-3 webhook`, `exit-4 restore` (and `exit-4 restore (postgres)` when a Postgres server answers at `TL_PG_URL`). It exits non-zero and prints `DEMO FAILED: ...` when any clause is missing. The driver is `dev/demos/p0_i8_demo.py`. The `extension types` step (added after workstream B merged) registers the example packages while the server runs, creates an object-backed and a managed instance, links, filters, reads the body over MCP and checks the second TUI.
 
 ## Supervisor-built pieces (in order)
 | # | Piece | Why supervisor-tier | Reviewer | Status |
@@ -20,7 +20,9 @@ Takes about 90 seconds. It starts `tl serve` over a temporary ledger, seeds a si
 | S80 | Exit demo script and driver | It composes six surfaces and needs judgment about what counts as evidence (an independent receiver, equal `cur_*` tables across dialects) | none yet (a reviewer pass is requested in the relay) | built |
 | S81 | `PHASE-0-AUDIT.md`, `RISKS.md` | Needs the code read, not only the reports | none (documents) | built |
 | S82 | `PHASE-0.md` draft | Consolidates every report | none (document) | built, final numbers pending |
-| S83 | Gate check, extension-type demo leg, increment report, learnings | Needs B and D merged | | pending |
+| S85 | Extension-type demo step | Needs B | | built |
+| S86 | B rows of audit, risks, phase report | Needs B | | built |
+| S87 | Gate check on the merged branch, D rows, increment report | Needs D merged | | pending |
 
 ## Tickets
 None dispatched. The Haiku-ability checklist (`01-tiers.md` §6) was run on the candidate "a demo step helper": it fails items 2 and 7 (the helper's interface is the demo's, which is not yet stable, and a reviewer cannot verify an evidence claim from a diff). The documents fail item 5's spirit (judgment about status and risk). Fewer agents were also safer: usage limits cut earlier sessions three times.
