@@ -5,14 +5,8 @@ token (`tl_api.auth.OPEN_PATHS`); every failure is a mapped error (401 `invalid_
 `account_locked`, 403 `account_disabled`, 422 `weak_password`) and no route catches anything. No
 body, header, log line or error text may hold a password or a token except the one token that
 `sign_in` returns to its caller.
-
-STUB (P1-I0-T03): the function bodies raise NotImplementedError; their decorators, parameters,
-annotations and docstrings are final (they make the committed OpenAPI document). Each body has a
-STEPS comment. Implement them, then delete this paragraph, the STEPS comments and the `ruff: noqa`
-line.
 """
 
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 from __future__ import annotations
 
 from typing import Annotated
@@ -73,13 +67,12 @@ def sign_in(body: SignInBody, ctx: Ctx) -> SignInOut:
     failures the name is locked: 423 `account_locked` with `locked_until`, even for the right
     password. A disabled account answers 403 `account_disabled` only to the right password.
     """
-    # STEPS:
-    # 1. Call `sessions.sign_in(ctx.backend, username=body.username,
-    #    password=body.password)`.
-    # 2. Return `SignInOut(token=token,
-    #    expires_in=int(sessions.SESSION_TTL.total_seconds()), principal=principal)`.
-    # 3. Do not catch anything: the errors are mapped rows.
-    raise NotImplementedError
+    principal, token = sessions.sign_in(ctx.backend, username=body.username, password=body.password)
+    return SignInOut(
+        token=token,
+        expires_in=int(sessions.SESSION_TTL.total_seconds()),
+        principal=principal,
+    )
 
 
 @router.post("/auth/sign-out", operation_id="sign_out", status_code=204)
@@ -89,12 +82,10 @@ def sign_out(
     actor: Annotated[str, Depends(guard("auth.sign_out"))],
 ) -> Response:
     """End the session of the token in `Authorization`. Other tokens (agent, dev) are unaffected."""
-    # STEPS:
-    # 1. Read the token with `bearer_token(request.scope["headers"])`.
-    # 2. When it is not None call `sessions.sign_out(ctx.backend, token=token)` (it
-    #    ignores tokens that are not sessions).
-    # 3. Return `Response(status_code=204)`.
-    raise NotImplementedError
+    token = bearer_token(request.scope["headers"])
+    if token is not None:
+        sessions.sign_out(ctx.backend, token=token)
+    return Response(status_code=204)
 
 
 @router.get("/auth/me", operation_id="whoami", response_model=Principal)
@@ -103,9 +94,7 @@ def whoami(
     actor: Annotated[str, Depends(guard("auth.me"))],
 ) -> Principal:
     """Who the token belongs to: actor, account id, kind, roles and how it authenticated."""
-    # STEPS:
-    # 1. Return `me`: the dependency already resolved the principal.
-    raise NotImplementedError
+    return me
 
 
 @router.post("/auth/password", operation_id="change_own_password", status_code=204)
@@ -120,10 +109,12 @@ def change_own_password(
     A wrong current password is 401 `invalid_credentials` and counts towards the lockout. Agents
     and dev tokens have no password: 403 `forbidden`.
     """
-    # STEPS:
-    # 1. If `me.kind == "agent"` or `me.via == "dev_token"` raise `ForbiddenError("this
-    #    token has no password to change")`.
-    # 2. Call `sessions.change_own_password(ctx.backend, account_id=me.account_id,
-    #    current_password=body.current_password, new_password=body.new_password)`.
-    # 3. Return `Response(status_code=204)`.
-    raise NotImplementedError
+    if me.kind == "agent" or me.via == "dev_token":
+        raise ForbiddenError("this token has no password to change")
+    sessions.change_own_password(
+        ctx.backend,
+        account_id=me.account_id,
+        current_password=body.current_password,
+        new_password=body.new_password,
+    )
+    return Response(status_code=204)
