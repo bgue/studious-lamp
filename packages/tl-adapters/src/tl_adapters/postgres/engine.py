@@ -77,9 +77,9 @@ _OPTION = re.compile(r"-c\s*([a-z_.]+)=(\S+)")
 
 
 def sqlalchemy_url(url: str) -> str:
-    """``postgresql://...`` as a SQLAlchemy URL for the pg8000 driver."""
-    for prefix in ("postgresql://", "postgres://"):
-        if url.startswith(prefix):
+    """``postgresql://...`` as a SQLAlchemy URL for the pg8000 driver (any letter case)."""
+    for prefix in ("postgresql://", "postgres://", "postgresql+pg8000://"):
+        if url[: len(prefix)].lower() == prefix:
             return "postgresql+pg8000://" + url[len(prefix) :]
     return url
 

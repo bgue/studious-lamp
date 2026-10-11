@@ -7,6 +7,7 @@ what these functions return; the dialect work stays in ``tl_adapters.sqlite`` an
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
 from datetime import datetime
@@ -15,6 +16,7 @@ from typing import Any
 
 from sqlalchemy import Connection, Engine
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 from tl_core.bus import Bus
 from tl_core.projection.types import ProjectorRegistry
 from tl_core.util import new_ulid, utcnow
@@ -32,27 +34,69 @@ class LedgerWithSchema(AppendInLedger):
     def create_schema(self) -> None: ...
 
 
-def as_target(value: str | Path) -> DbTarget:
-    """A command-line or environment value as a database target.
+_POSTGRES_SCHEMES = ("postgresql", "postgres", "postgresql+pg8000")
+_SCHEME = re.compile(r"^([A-Za-z][A-Za-z0-9+.\-]*)://")
+_HIDDEN_QUERY = ("password", "sslpassword")
 
-    ``postgresql://`` and ``postgres://`` text stays text (``Path`` would collapse the ``//`` and
-    mangle the password); anything else is a SQLite file path.
-    """
-    if isinstance(value, str) and is_postgres(value):
-        return value
-    return Path(value)
+
+def _scheme(text: str) -> str | None:
+    """The lower-case scheme of ``text`` when it looks like ``scheme://...``, else ``None``."""
+    found = _SCHEME.match(text)
+    return found.group(1).lower() if found else None
 
 
 def is_postgres(target: DbTarget) -> bool:
-    """True when ``target`` names a Postgres database."""
-    return isinstance(target, str) and target.startswith(("postgresql://", "postgres://"))
+    """True when ``target`` names a Postgres database (``postgresql://``, ``postgres://`` or
+    ``postgresql+pg8000://``, in any letter case)."""
+    return isinstance(target, str) and _scheme(target) in _POSTGRES_SCHEMES
+
+
+def as_target(value: str | Path) -> DbTarget:
+    """A command-line or environment value as a database target.
+
+    A Postgres URL stays text (``Path`` would collapse the ``//`` and mangle the password) after a
+    sanity check; anything that is not a URL is a SQLite file path. Any other ``scheme://`` value is
+    refused, because it would otherwise become a directory named after the URL, password included.
+    ``ValueError`` messages never repeat the value: it can hold a password.
+    """
+    if isinstance(value, Path):
+        return value
+    scheme = _scheme(value)
+    if scheme is None:
+        return Path(value)
+    if scheme not in _POSTGRES_SCHEMES:
+        raise ValueError(
+            "unsupported database URL scheme; use a SQLite file path or a postgresql:// URL"
+        )
+    try:
+        parsed = make_url(value)
+    except ArgumentError:
+        raise ValueError("the database URL is not valid") from None
+    if parsed.host is not None and "@" in parsed.host:
+        raise ValueError(
+            "the database URL has an unescaped '@' in the password; percent-encode it (%40)"
+        )
+    if not parsed.username:
+        raise ValueError("the database URL needs a user name (postgresql://user:password@host/db)")
+    return value
 
 
 def display_target(target: DbTarget) -> str:
-    """``target`` as text that is safe to print: a Postgres URL without its password."""
-    if is_postgres(target):
-        return make_url(str(target)).render_as_string(hide_password=True)
-    return str(target)
+    """``target`` as text that is safe to print: a Postgres URL without its password.
+
+    A ``password`` or ``sslpassword`` query parameter is dropped too. A URL that cannot be parsed
+    safely is shown as ``<invalid database URL>``, never as written.
+    """
+    if not is_postgres(target):
+        return str(target)
+    try:
+        parsed = make_url(str(target))
+    except ArgumentError:
+        return "<invalid database URL>"
+    if parsed.host is not None and "@" in parsed.host:
+        return "<invalid database URL>"
+    hidden = [key for key in parsed.query if key.lower() in _HIDDEN_QUERY]
+    return parsed.difference_update_query(hidden).render_as_string(hide_password=True)
 
 
 def dialect_of(target: DbTarget) -> str:

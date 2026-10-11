@@ -42,7 +42,13 @@ from tl_adapters.db import DbTarget
 from tl_adapters.postgres.factory import PostgresUowFactory
 from tl_adapters.sqlite.factory import SqliteUowFactory
 
-__all__ = ["BackendUnavailableError", "DatabaseBackend", "ledger_exists", "open_backend"]
+__all__ = [
+    "BackendUnavailableError",
+    "DatabaseBackend",
+    "connection_failure",
+    "ledger_exists",
+    "open_backend",
+]
 
 
 class BackendUnavailableError(RuntimeError):
@@ -70,6 +76,36 @@ def _reason(exc: SQLAlchemyError) -> str:
     if isinstance(exc, InterfaceError):
         return str(original).split(" (timeout")[0]
     return type(exc).__name__
+
+
+# SQLSTATE classes of a failure to get a usable connection: invalid authorization (28), the
+# database does not exist (3D), connection exceptions (08), server shutdown (57P).
+_CONNECTION_STATES = ("28", "3D", "08", "57P")
+
+
+def connection_failure(target: DbTarget, exc: BaseException) -> BackendUnavailableError | None:
+    """``exc`` as a :class:`BackendUnavailableError` when it means "cannot connect", else ``None``.
+
+    An entry point that opens a Postgres ledger lazily (a ``tl`` command) catches
+    ``sqlalchemy.exc.DBAPIError``, asks this, and prints the
+    clean message instead of a traceback. A SQLite target never fails to connect, so it answers
+    ``None``. The message names the target without its password.
+    """
+    if isinstance(exc, BackendUnavailableError):
+        return exc
+    if not db.is_postgres(target):
+        return None
+    where = db.display_target(target)
+    if not isinstance(exc, SQLAlchemyError):
+        return None
+    original: object = getattr(exc, "orig", None)
+    args: tuple[object, ...] = getattr(original, "args", ())
+    info = args[0] if args else None
+    code = cast(dict[str, object], info).get("C") if isinstance(info, dict) else None
+    refused = isinstance(exc, InterfaceError)
+    if refused or (isinstance(code, str) and code.startswith(_CONNECTION_STATES)):
+        return BackendUnavailableError(f"cannot reach the database {where}: {_reason(exc)}")
+    return None
 
 
 class DatabaseBackend:
