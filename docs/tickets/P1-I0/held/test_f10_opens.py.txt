@@ -1,0 +1,15 @@
+def test_f10_opens_the_accounts_screen_for_an_admin() -> None:
+    app = app_for(is_admin=True)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.press("f10")
+        await pilot.pause()
+        assert isinstance(app.screen, AdminScreen)
+        assert "boss" in screen_text(app)
+        await pilot.press("escape")
+        await pilot.pause()
+        assert not isinstance(app.screen, AdminScreen)
+
+    run_pilot(app, scenario)
+
+

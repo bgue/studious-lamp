@@ -18,9 +18,11 @@ from typing import Any, Literal
 from tl_api.auth import AGENT_MUST_PROPOSE
 from tl_core.auth import accounts as account_services
 from tl_core.auth import queries as account_queries
+from tl_core.auth.env import current_env, demo_allowed
 from tl_core.auth.errors import ForbiddenError
 from tl_core.auth.password import prepare_password
-from tl_core.auth.types import AccountKind, AccountView, AgentTokenView
+from tl_core.auth.provider import PasswordIdentityProvider
+from tl_core.auth.types import DEMO_USERNAME, AccountKind, AccountView, AgentTokenView
 from tl_core.extypes import body as extype_bodies
 from tl_core.extypes import registry as extype_registry
 from tl_core.extypes.errors import BodyNotFoundError, BodyStoreUnavailableError
@@ -93,6 +95,7 @@ from tl_schema.forms import ConformanceReport, FormMetadata
 
 from tl_tui.client import RelationInfo
 from tl_tui.live import ChangeFeed, EmbeddedFeed, OwnWrites
+from tl_tui.sign_in import SignedIn
 
 #: The actor of settings changes when none is given (the dev person; the header shows the same).
 DEFAULT_ACTOR = "user:dev"
@@ -113,6 +116,39 @@ def sqlite_uow_factory(path: str | Path) -> UowFactory:
         return open_uow(db, readonly=readonly)
 
     return factory
+
+
+class EmbeddedAuthenticator:
+    """Sign-in on the ledger file: checks a username and password against its accounts.
+
+    The `Authenticator` of the embedded TUI. A failure raises the `tl_core.auth.errors` class
+    (`InvalidCredentialsError`, `AccountLockedError`, `AccountDisabledError`...); lockout and the
+    audit trail work as for the API. No session is created: the TUI process is the session.
+    """
+
+    def __init__(self, uow_factory: UowFactory) -> None:
+        self._uow = uow_factory
+
+    @classmethod
+    def for_sqlite(cls, path: str | Path) -> EmbeddedAuthenticator:
+        return cls(sqlite_uow_factory(path))
+
+    def __call__(self, username: str, password: str) -> SignedIn:
+        provider = PasswordIdentityProvider(lambda readonly=False: self._uow(readonly))
+        principal = provider.authenticate_password(username, password)
+        return SignedIn(
+            actor=principal.actor,
+            username=principal.actor.partition(":")[2],
+            roles=tuple(principal.roles),
+        )
+
+    def demo_hint(self) -> str | None:
+        """A line for the sign-in screen while the demo account can be used, else None."""
+        if not demo_allowed(current_env()):
+            return None
+        with self._uow(True) as uow:
+            usable = account_queries.demo_account_enabled(uow.conn())
+        return f"dev setup: sign in as {DEMO_USERNAME} / {DEMO_USERNAME}" if usable else None
 
 
 class EmbeddedClient:

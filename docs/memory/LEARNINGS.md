@@ -244,3 +244,15 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P1-I0A-14** · 2026-10-11 · tags: security, postgres
   A lone surrogate in a bound parameter makes pg8000 raise `UnicodeEncodeError` half way through a message; a pooled connection that saw it is out of step with the server and fails every later statement (`ResourceClosedError`). Validating input at the services is not enough for a future path, so the engine's `handle_error` hook drops that one connection (`is_disconnect`, pool kept). A header that arrives in several lines must be read as its last line when a proxy adds its own; IPv6 sources must be keyed by /64 or the limit is free to rotate.
   Evidence: `packages/tl-adapters/tests/test_postgres_poisoned_connection.py`; `tests/auth/test_review_round3.py`; `packages/tl-api/tests/test_ratelimit.py`. Status: active
+- **L-P1-I0A-15** · 2026-10-11 · tags: tooling, cli
+  Typer 0.27 carries its own copy of click (`typer._click`). `isinstance(param, click.Option)` is False for its commands, so a hook that walks the command tree with click's classes silently does nothing, and tests run with the dev default pass anyway. Walk commands by attribute (`params`, `commands`, `opts`) and test the hook where the default differs (a non-dev `TL_ENV`, a session).
+  Evidence: `tl_cli/actor_hook.py`; `test_cli_session.py::test_a_signed_in_session_is_the_default_actor_everywhere` fails with the hook removed. Status: active
+- **L-P1-I0A-16** · 2026-10-11 · tags: process, tickets
+  A script that pastes repo files into a ticket's *Interfaces* must run against the stubs, not the reference implementation. While mutation checks had the reference copied in, the generator wrote T08 and T09 with the full solution; it was caught by counting `NotImplementedError` in the generated tickets. Generate tickets from a clean tree, restore the stubs before generating, and `git grep` a line that only the reference has.
+  Evidence: commit P1-I0-S5b (amended); `grep -c NotImplementedError docs/tickets/P1-I0/T0*.md`. Status: active
+- **L-P1-I0A-17** · 2026-10-11 · tags: process, tickets
+  L-P1-I0A-11 applies to the supervisor's own tests: a test of the wiring that needs a stub's body (F10 opens the screen) fails until the ticket merges. Hold it in `docs/tickets/<inc>/held/` and add it with the merge. Provided tests must not run another ticket's command either: the T07 tests first used `tl login` (T06) and `tl whoami`; they now sign in through `auth_support.sign_in`, which calls the core and writes the session file as the command does.
+  Evidence: `packages/tl-cli/tests/auth_support.py`; `docs/tickets/P1-I0/held/`. Status: active
+- **L-P1-I0A-18** · 2026-10-11 · tags: tooling
+  `Monitor` loops that wait with `pgrep -f NAME` match their own command line and never end. Wait on a pid, a marker file or a `grep` of the output file instead.
+  Evidence: three monitors on `mut2.sh` expired without an event. Status: active

@@ -48,9 +48,10 @@ seed scale="xs" *args:
 serve *args:
     uv run python -m tl_api {{args}}
 
-# TUI in embedded mode against the dev ledger (TL_DB, default ./dev/data/tl.db; TL_PROJECT, default P123)
+# TUI in embedded mode against the dev ledger (TL_DB, default ./dev/data/tl.db; TL_PROJECT, default P123).
+# Signs in first; `tl init --dev` creates the dev account demo / demo (admin) when it is missing.
 tui:
-    uv run tl init
+    uv run tl init --dev
     uv run python -m tl_tui
 
 # Rebuild projections from the ledger: all of them, or one by projector name (e.g. core_record)

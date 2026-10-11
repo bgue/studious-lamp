@@ -66,6 +66,7 @@ KEYMAP: tuple[KeyEntry, ...] = (
     KeyEntry("App", "F", "Activity feed of the open record, or of the project", "TlApp", "F"),
     KeyEntry("App", "p", "Post to the feed (composer)", "TlApp", "p"),
     KeyEntry("App", "F9", "about:config: the settings of this project", "TlApp", "f9"),
+    KeyEntry("App", "F10", "Accounts and agent tokens (admins only)", "TlApp", "f10"),
     KeyEntry("App", "Ctrl+Q", "Quit"),
     KeyEntry(
         "Grid",
@@ -196,6 +197,14 @@ KEYMAP: tuple[KeyEntry, ...] = (
     KeyEntry("About:config", "F5", "Read the list again", "SettingsScreen", "f5"),
     KeyEntry("About:config", "Ctrl+S  Esc", "Apply or cancel a change", "SettingForm", "ctrl+s"),
     KeyEntry("About:config", "Esc", "Close", "SettingsScreen", "escape"),
+    KeyEntry("Accounts", "Up  Down  PgUp  PgDn", "Choose an account"),
+    KeyEntry(
+        "Accounts", "d", "Disable or enable the account (asks for a reason)", "AdminScreen", "d"
+    ),
+    KeyEntry("Accounts", "r", "Give or take away the admin role (a person)", "AdminScreen", "r"),
+    KeyEntry("Accounts", "t", "Switch between accounts and agent tokens", "AdminScreen", "t"),
+    KeyEntry("Accounts", "F5", "Read the lists again", "AdminScreen", "f5"),
+    KeyEntry("Accounts", "Esc", "Close", "AdminScreen", "escape"),
 )
 
 
