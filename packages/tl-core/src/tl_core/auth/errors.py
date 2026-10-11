@@ -57,3 +57,7 @@ class InvalidAccountError(ServiceError): ...  # a username, name, kind, role or 
 
 
 class AccountStateError(ServiceError): ...  # already disabled, already revoked, bootstrap refused
+
+
+class AuthBusyError(ServiceError):
+    """Too many password hashes are running at once; nothing was written, try again shortly."""

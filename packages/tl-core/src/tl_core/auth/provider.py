@@ -32,11 +32,45 @@ class PasswordIdentityProvider:
         return sessions.principal_for_bearer(self._backend, token, clock=self._clock)
 
 
-class RoleAuthorizer:
-    """``admin.*`` needs a human admin; every other action needs any role.
+#: What an ``agent:*`` principal may do over REST: reads, the feed commands (posting is a message,
+#: not a record change, brief 21.3) and its own sign-out. Everything else is denied by default, so a
+#: new route is closed to agents until someone adds it here; the propose-only rule
+#: (``agent_must_propose``) is a second layer on the routes that change records.
+AGENT_ACTIONS = frozenset(
+    {
+        "auth.me",
+        "auth.sign_out",
+        "events.read",
+        "events.stream",
+        "feed.read",
+        "file.read",
+        "link.read",
+        "openapi.read",
+        "proposal.read",
+        "record.read",
+        "reference.read",
+        "setting.read",
+        "type.read",
+        "command.PostToFeed",
+        "command.EditPost",
+        "command.RetractPost",
+        "command.ReactToPost",
+    }
+)
+#: MCP tools run their own propose-only checks and call the authorizer as ``mcp.<tool>``.
+AGENT_ACTION_PREFIXES = ("mcp.",)
 
-    An ``agent:*`` principal never runs an ``admin.*`` action, whatever its roles. The propose-only
-    rule (B15) is not decided here: the API and MCP apply it to the commands that change records.
+
+def agent_may(action: str) -> bool:
+    return action in AGENT_ACTIONS or action.startswith(AGENT_ACTION_PREFIXES)
+
+
+class RoleAuthorizer:
+    """``admin.*`` needs a human admin; a person with any role may do the rest; an agent is closed.
+
+    An ``agent:*`` principal never runs an ``admin.*`` action, whatever its roles, and may run only
+    the actions in :data:`AGENT_ACTIONS` (fail closed). The propose-only rule (B15) for the
+    commands that change records is applied by the API and MCP as well.
     """
 
     def authorize(self, principal: Principal, action: str, resource: str) -> None:
@@ -46,3 +80,5 @@ class RoleAuthorizer:
             principal.kind == "agent" or not principal.is_admin
         ):
             raise ForbiddenError(f"{action} needs the admin role")
+        if principal.kind == "agent" and not agent_may(action):
+            raise ForbiddenError(f"{action} is not open to agents")

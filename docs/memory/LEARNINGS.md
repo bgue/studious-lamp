@@ -220,3 +220,15 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P1-I0A-6** · 2026-10-11 · tags: process, budget
   With workstream B running at the same time the full `just test` took 22 minutes (5,480 tests). Run the packages a change touches first (`tests/auth`, `packages/tl-api`, `tests/archive`), the full suite once per round, and wait for it with `timeout N bash -c 'until grep -q "^EXIT" log; do sleep 10; done'` after starting it in the background.
   Evidence: `/tmp/p1i0a-test.log` of 2026-10-11. Status: active
+- **L-P1-I0A-7** · 2026-10-11 · tags: security, api
+  A security review found three classes of mistake worth checking in any credential code: (1) a slow hash (or any slow step) inside a write transaction holds the global writer lock, so a flood of sign-ins stalled all writes for 17 s: hash first (`prepare_password`), write after; (2) a lock or message that differs by account kind or history is an oracle for which names exist, so every lock is the same 15 minutes; (3) a token, session or stream that is checked once stays valid after revocation, so long-lived streams re-check on a timer.
+  Evidence: D6 review of P1-I0 S2b and S2c; `tests/auth/test_review_fixes.py`, `packages/tl-api/tests/test_auth_review.py`. Status: active
+- **L-P1-I0A-8** · 2026-10-11 · tags: api, tooling
+  FastAPI turns any exception raised while it reads a request body into a 400, so a body-size guard that raises its own error never reaches its handler. Raise Starlette's `HTTPException(413)` from the wrapped `receive` instead and map status 413 in the app's HTTP error handler. Also: a stub app that has no route for a path never reads the body, so test the guard through a route that does.
+  Evidence: `BodyLimitMiddleware` in `tl_api/auth.py`; first run of `test_a_chunked_body_over_the_limit_is_413_too`. Status: active
+- **L-P1-I0A-9** · 2026-10-11 · tags: tests, api
+  In this FastAPI version `app.routes` holds `_IncludedRouter` objects for included routers; the real routes are in `.original_router.routes`. To list every route's guard action walk those; `guard()` puts the action on its dependency as `.action`.
+  Evidence: `route_actions` in `packages/tl-api/tests/test_auth_review.py`. Status: active
+- **L-P1-I0A-10** · 2026-10-11 · tags: security, tooling
+  `hashlib.scrypt` raises `ValueError` for parameters its own rules refuse (N must be below 2^(16 r)), so a stored hash whose parameters pass a bounds check can still crash a sign-in; treat that `ValueError` as a wrong password after a stand-in hash. Postgres also rejects a NUL in any text parameter and a lone surrogate does not encode to UTF-8: validate sign-in input before it reaches a query, or the pooled connection breaks.
+  Evidence: `password.verify_password`, `sessions.authenticate`; `tests/auth/test_review_fixes.py::test_unstorable_input_is_invalid_credentials_and_the_connection_still_works`. Status: active

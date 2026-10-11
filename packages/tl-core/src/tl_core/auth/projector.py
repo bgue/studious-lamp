@@ -44,6 +44,7 @@ OPERATIONAL_TABLES = (
     "auth_session",
     "auth_token_secret",
     "auth_attempt",
+    "auth_audit",
 )
 
 

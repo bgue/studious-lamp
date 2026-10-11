@@ -47,6 +47,9 @@ class SubscriptionFilter:
     scope: str | None = None
     event_types: tuple[str, ...] | None = None
     record_ids: frozenset[str] | None = None
+    #: Streams whose events this subscriber must never see (``core.Account`` for non-admins,
+    #: ADR-0009). Applied before every other part.
+    hide_stream_types: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
         if self.event_types is not None and not self.event_types:
@@ -60,16 +63,20 @@ class SubscriptionFilter:
         scope: str | None = None,
         event_types: Iterable[str] | None = None,
         record_ids: Iterable[str] | None = None,
+        hide_stream_types: Iterable[str] = (),
     ) -> SubscriptionFilter:
         """Build a filter from any iterables (a list of types, a set of ids)."""
         return SubscriptionFilter(
             scope,
             None if event_types is None else tuple(event_types),
             None if record_ids is None else frozenset(record_ids),
+            frozenset(hide_stream_types),
         )
 
     def matches(self, event: Event) -> bool:
         """Whether ``event`` passes every part of the filter that is set."""
+        if event.stream_type in self.hide_stream_types:
+            return False
         if self.scope is not None and event.scope != self.scope:
             return False
         if self.event_types is not None and not any(

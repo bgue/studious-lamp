@@ -13,6 +13,7 @@ from typing import Any
 
 from sqlalchemy import text
 from tl_core.auth import accounts, sessions
+from tl_core.auth.password import prepare_password
 from tl_core.auth.types import AccountKind, AccountView
 
 GOOD = "correct horse battery"
@@ -50,6 +51,8 @@ class World:
     ) -> AccountView:
         if kind == "agent":
             password = None
+        # policy and hash happen before the write transaction, as in production
+        prepared = None if password is None else prepare_password(password, username=username)
         with self.factory() as uow:
             return accounts.create_account(
                 uow,
@@ -57,7 +60,7 @@ class World:
                 display_name=username.title(),
                 kind=kind,
                 roles=list(roles),
-                password=password,
+                password=prepared,
                 by=by,
                 clock=self.clock,
             )

@@ -16,6 +16,7 @@ from tl_core.auth.errors import (
     AccountLockedError,
     InvalidCredentialsError,
 )
+from tl_core.auth.password import prepare_password
 from tl_core.auth.provider import PasswordIdentityProvider
 
 WRONG = "this is not the password"
@@ -185,22 +186,22 @@ def test_the_lock_lasts_15_minutes_then_the_right_password_works(world: World) -
     assert world.rows("SELECT COUNT(*) FROM auth_attempt") == [(0,)]
 
 
-def test_each_further_lock_doubles_the_duration_up_to_a_day(world: World) -> None:
-    assert [sessions.lock_duration(n) for n in range(3)] == [
-        timedelta(minutes=15),
-        timedelta(minutes=30),
-        timedelta(hours=1),
-    ]
-    assert sessions.lock_duration(30) == timedelta(hours=24)
-    world.create("alice")
-    fail(world, "alice", 5)
-    world.clock.advance(minutes=16)
-    fail(world, "alice", 5)  # the second lock is 30 minutes
-    world.clock.advance(minutes=20)
-    with pytest.raises(AccountLockedError):
-        world.sign_in("alice", GOOD)
-    world.clock.advance(minutes=11)
-    world.sign_in("alice", GOOD)
+def test_every_lock_lasts_15_minutes_for_every_name_so_nothing_tells_which_names_exist(
+    world: World,
+) -> None:
+    """Review item 1: no doubling. A longer lock for admins or repeat offenders is an oracle."""
+    assert sessions.LOCK_DURATION == timedelta(minutes=15)
+    world.admin("boss")
+    world.create("bob")
+    for name in ("boss", "bob", "ghost"):
+        for _ in range(3):  # three locks in a row, each the same length
+            fail(world, name, 5)
+            [(until,)] = world.rows(
+                "SELECT locked_until FROM auth_attempt WHERE username_key = :k", k=name
+            )
+            lock_start = datetime.fromisoformat(until) - sessions.LOCK_DURATION
+            assert abs((datetime.now(UTC) + world.clock.offset - lock_start).total_seconds()) < 30
+            world.clock.advance(minutes=16)
 
 
 def test_failures_older_than_the_window_do_not_add_up(world: World) -> None:
@@ -260,7 +261,9 @@ def test_changing_the_password_ends_every_session(world: World) -> None:
     _, first = world.sign_in("bob")
     _, second = world.sign_in("bob")
     with world.factory() as uow:
-        accounts.change_password(uow, account_id=bob.account_id, new_password=OTHER, by="user:root")
+        accounts.change_password(
+            uow, account_id=bob.account_id, new_password=prepare_password(OTHER), by="user:root"
+        )
     for token in (first, second):
         with pytest.raises(InvalidCredentialsError):
             sessions.principal_for_bearer(world.factory, token)
@@ -285,7 +288,9 @@ def test_a_password_reset_clears_the_lock(world: World) -> None:
     with pytest.raises(AccountLockedError):
         world.sign_in("bob", GOOD)
     with world.factory() as uow:
-        accounts.change_password(uow, account_id=bob.account_id, new_password=OTHER, by="user:root")
+        accounts.change_password(
+            uow, account_id=bob.account_id, new_password=prepare_password(OTHER), by="user:root"
+        )
     world.sign_in("bob", OTHER)
 
 

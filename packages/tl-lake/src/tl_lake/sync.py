@@ -99,6 +99,30 @@ def _event_rows(conn: Connection, after: int, upto: int, size: int) -> Iterator[
             yield row._mapping
 
 
+#: Streams whose events never reach the lake (usernames and roles of accounts, ADR-0009). The lake
+#: is queryable by every user, so the row stays, for the gap-free `seq` and the hash tip check, but
+#: says nothing: no stream, type, actor or payload.
+INTERNAL_STREAM_TYPES = frozenset({"core.Account"})
+
+
+def _redacted(rows: Iterator[Mapping[str, Any]]) -> Iterator[Mapping[str, Any]]:
+    for row in rows:
+        if row["stream_type"] in INTERNAL_STREAM_TYPES:
+            yield {
+                **row,
+                "stream_id": row["event_id"],
+                "stream_type": "internal",
+                "event_type": "Internal.Redacted",
+                "payload": "{}",
+                "actor": "internal",
+                "correlation_id": row["event_id"],
+                "causation_id": None,
+                "source": "internal",
+            }
+        else:
+            yield row
+
+
 def _contiguous(
     rows: Iterator[Mapping[str, Any]], first: int, last: int
 ) -> Iterator[Mapping[str, Any]]:
@@ -314,7 +338,7 @@ def _sync(
             con,
             EVENTS_TABLE,
             EVENTS_COLUMNS,
-            _contiguous(_event_rows(ledger, watermark, head, chunk), first, head),
+            _contiguous(_redacted(_event_rows(ledger, watermark, head, chunk)), first, head),
             tmp,
             chunk=chunk,
         )

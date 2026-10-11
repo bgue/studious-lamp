@@ -302,3 +302,41 @@ def test_two_scopes_land_in_every_table(ledger: LedgerBuilder, lake: LakeConfig)
     for table in ("events", "cur_core_record", "links", "pset_values"):
         scopes = {r[0] for r in lake_rows(lake, f"SELECT DISTINCT scope FROM {table}")}
         assert scopes == ({SCOPE, OTHER_SCOPE} if table != "pset_values" else {OTHER_SCOPE}), table
+
+
+def test_account_events_reach_the_lake_as_empty_rows(
+    ledger: LedgerBuilder, lake: LakeConfig
+) -> None:
+    """Usernames and roles are not for lake_query (ADR-0009); the row stays so seq has no gap."""
+    from tl_adapters.db import make_uow_factory
+    from tl_core.auth import accounts
+    from tl_core.auth.password import prepare_password
+
+    ledger.record("A-1")
+    prepared = prepare_password("correct horse battery")
+    factory = make_uow_factory(ledger.db)
+    try:
+        with factory() as uow:
+            accounts.create_account(
+                uow, username="alice", display_name="Alice Admin", kind="person",
+                roles=["admin"], password=prepared, by="user:root",
+            )  # fmt: skip
+    finally:
+        factory.dispose()
+    ledger.record("A-2")
+    sync(ledger, lake)
+    head = ledger.head()
+    assert lake_rows(lake, "SELECT count(*), min(seq), max(seq) FROM events") == [(head, 1, head)]
+    redacted = lake_rows(
+        lake,
+        "SELECT event_type, stream_type, actor, payload, source FROM events "
+        "WHERE event_type = 'Internal.Redacted'",
+    )
+    assert len(redacted) == 1 and redacted[0][1:3] == ("internal", "internal")
+    assert redacted[0][3] in ("{}", {}) or str(redacted[0][3]).strip() == "{}"
+    everything = " ".join(str(r) for r in lake_rows(lake, "SELECT * FROM events"))
+    for secret in ("alice", "Alice Admin", "Account.Created", "core.Account", "user:root"):
+        assert secret not in everything
+    # a second sync stays consistent with the first (the hash tip check passes)
+    ledger.record("A-3")
+    sync(ledger, lake)

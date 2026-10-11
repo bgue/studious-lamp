@@ -22,7 +22,7 @@ from tl_lake.guard import MAX_SQL_CHARS
 from tl_mcp.dev.errors import DevGuardError
 
 CREDENTIAL_TABLES = frozenset(
-    {"auth_credential", "auth_session", "auth_token_secret", "auth_attempt"}
+    {"auth_credential", "auth_session", "auth_token_secret", "auth_attempt", "auth_audit"}
 )
 """Operational tables of authentication (ADR-0009): password hashes, session and agent token
 hashes and the failed-sign-in counters."""

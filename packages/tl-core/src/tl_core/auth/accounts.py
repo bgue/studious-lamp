@@ -19,14 +19,15 @@ from typing import Any
 
 from sqlalchemy import Connection, text
 
+from tl_core.auth import audit
 from tl_core.auth import password as pw
 from tl_core.auth._time import Clock, iso_z
+from tl_core.auth.env import current_env, demo_allowed
 from tl_core.auth.errors import (
     AccountNotFoundError,
     AccountStateError,
     AgentTokenNotFoundError,
     InvalidAccountError,
-    InvalidCredentialsError,
     LastAdminError,
     UsernameTakenError,
 )
@@ -49,6 +50,7 @@ from tl_core.auth.types import (
     ACCOUNT_ROLES_SET,
     AGENT_TOKEN_ISSUED,
     AGENT_TOKEN_REVOKED,
+    DEMO_USERNAME,
     AccountKind,
     AccountView,
     AgentTokenView,
@@ -123,14 +125,15 @@ def clear_lockout(conn: Connection, username: str) -> None:
     )
 
 
-def _store_credential(conn: Connection, account_id: str, password: str, now: datetime) -> None:
-    stored = pw.hash_password(password)
+def _store_credential(
+    conn: Connection, account_id: str, prepared: pw.PreparedPassword, now: datetime
+) -> None:
     stamp = iso_z(now)
     changed = conn.execute(
         text(
             "UPDATE auth_credential SET password_hash = :h, updated_at = :t WHERE account_id = :a"
         ),
-        {"h": stored, "t": stamp, "a": account_id},
+        {"h": prepared.hash, "t": stamp, "a": account_id},
     )
     if changed.rowcount == 0:
         conn.execute(
@@ -138,7 +141,7 @@ def _store_credential(conn: Connection, account_id: str, password: str, now: dat
                 "INSERT INTO auth_credential (account_id, password_hash, updated_at) "
                 "VALUES (:a, :h, :t)"
             ),
-            {"a": account_id, "h": stored, "t": stamp},
+            {"a": account_id, "h": prepared.hash, "t": stamp},
         )
 
 
@@ -158,29 +161,33 @@ def _last_admin_guard(conn: Connection, account: dict[str, Any], *, still_admin:
         raise LastAdminError("the last active admin cannot be disabled or demoted")
 
 
-def create_account_unchecked(
+def create_account(
     uow: UnitOfWork,
     *,
     username: str,
     display_name: str,
     kind: AccountKind,
     roles: Sequence[str],
-    password: str | None,
+    password: pw.PreparedPassword | None,
     by: str,
-    enforce_policy: bool,
     clock: Clock = utcnow,
+    allow_demo: bool = False,
 ) -> AccountView:
-    """``create_account`` with the password policy optional. Only the seeds use ``False``."""
+    """Create an account. ``password`` is prepared (policy, hash) before the transaction opens.
+
+    ``prepare_password(...)`` raises ``WeakPasswordError``; an agent account takes no password. The
+    username ``demo`` is reserved outside the environments that may seed it; only ``seed_demo``
+    passes ``allow_demo``.
+    """
     name = check_username(username)
+    if name == DEMO_USERNAME and not (allow_demo or demo_allowed(current_env())):
+        raise InvalidAccountError("the username demo is reserved")
     shown = check_text(display_name, what="display name", limit=MAX_DISPLAY_NAME)
     if kind not in ("person", "agent", "sim"):
         raise InvalidAccountError("kind must be person, agent or sim")
     role_list = _normalise_roles(kind, roles)
-    if password is not None:
-        if kind == "agent":
-            raise InvalidAccountError("an agent account has no password; issue it a token")
-        if enforce_policy:
-            pw.check_policy(password, username=name)
+    if password is not None and kind == "agent":
+        raise InvalidAccountError("an agent account has no password; issue it a token")
     conn = uow.conn()
     taken = conn.execute(text("SELECT 1 FROM cur_account WHERE username = :u"), {"u": name}).first()
     if taken is not None:
@@ -203,31 +210,6 @@ def create_account_unchecked(
         by,
     )
     return get_account(conn, account_id)
-
-
-def create_account(
-    uow: UnitOfWork,
-    *,
-    username: str,
-    display_name: str,
-    kind: AccountKind,
-    roles: Sequence[str],
-    password: str | None,
-    by: str,
-    clock: Clock = utcnow,
-) -> AccountView:
-    """Create an account. A password (never for an agent) must meet the policy."""
-    return create_account_unchecked(
-        uow,
-        username=username,
-        display_name=display_name,
-        kind=kind,
-        roles=roles,
-        password=password,
-        by=by,
-        enforce_policy=True,
-        clock=clock,
-    )
 
 
 def set_roles(
@@ -289,36 +271,31 @@ def change_password(
     uow: UnitOfWork,
     *,
     account_id: str,
-    new_password: str,
+    new_password: pw.PreparedPassword,
     by: str,
-    current_password: str | None = None,
     clock: Clock = utcnow,
     forced: bool | None = None,
 ) -> None:
-    """Set a password. A person changing their own gives the current one; an admin reset does not.
+    """Set a password that was prepared (policy, hash) before the transaction opened.
 
-    Every session of the account ends and its lockout clears. A wrong ``current_password`` is not
-    counted towards lockout here (the exception rolls the unit of work back, counter included):
-    callers acting for a signed-in person use :func:`tl_core.auth.sessions.change_own_password`.
+    This is the admin reset and the second half of a self-change: it does not ask for the current
+    password. A person changing their own password goes through
+    :func:`tl_core.auth.sessions.change_own_password`, which checks the current one first and counts
+    a wrong one towards lockout. Every session of the account ends and its lockout clears.
     """
     conn = uow.conn()
     account = _row(conn, account_id)
     if account["kind"] == "agent":
         raise InvalidAccountError("an agent account has no password; issue it a token")
     own = by == actor_for(account["kind"], account["username"])
-    if own:
-        if current_password is None:
-            raise InvalidCredentialsError("the current password is required")
-        stored = conn.execute(
-            text("SELECT password_hash FROM auth_credential WHERE account_id = :a"),
-            {"a": account_id},
-        ).scalar()
-        if not pw.verify_password(None if stored is None else str(stored), current_password):
-            raise InvalidCredentialsError("the current password is incorrect")
-    pw.check_policy(new_password, username=account["username"])
-    _store_credential(conn, account_id, new_password, clock())
+    now = clock()
+    _store_credential(conn, account_id, new_password, now)
     revoke_sessions(conn, account_id)
     clear_lockout(conn, account["username"])
+    audit.record(
+        conn, "password_reset", now=now, account_id=account_id, actor=by,
+        username_key=username_key(account["username"]),
+    )  # fmt: skip
     _append(
         uow,
         account_id,
@@ -327,6 +304,25 @@ def change_password(
         {"account_id": account_id, "by": by, "forced": (not own) if forced is None else forced},
         by,
     )
+
+
+def unlock(uow: UnitOfWork, *, username: str, by: str, clock: Clock = utcnow) -> bool:
+    """Clear the lockout of a name; True when there was a counter to clear.
+
+    Local only: the CLI calls it on a database it can open (``tl admin unlock``). There is no API
+    route, so an attacker who locks every admin over HTTP cannot be helped by HTTP either.
+    """
+    key = username_key(username)
+    conn = uow.conn()
+    found = conn.execute(
+        text("SELECT 1 FROM auth_attempt WHERE username_key = :k"), {"k": key}
+    ).first()
+    clear_lockout(conn, key)
+    audit.record(
+        conn, "unlocked", now=clock(), username_key=key, actor=by,
+        detail="cleared" if found is not None else "nothing_to_clear",
+    )  # fmt: skip
+    return found is not None
 
 
 def issue_agent_token(
@@ -368,6 +364,7 @@ def issue_agent_token(
         ),
         {"h": token_hash(token), "i": token_id, "t": iso_z(now)},
     )
+    audit.record(conn, "token_issued", now=now, account_id=account_id, actor=by, detail=token_id)
     _append(
         uow,
         account_id,
@@ -388,7 +385,7 @@ def issue_agent_token(
 
 
 def revoke_agent_token(
-    uow: UnitOfWork, *, token_id: str, by: str, reason: str | None
+    uow: UnitOfWork, *, token_id: str, by: str, reason: str | None, clock: Clock = utcnow
 ) -> AgentTokenView:
     conn = uow.conn()
     found = (
@@ -408,6 +405,10 @@ def revoke_agent_token(
         raise AccountStateError("the token is already revoked")
     account = _row(conn, str(found["account_id"]))
     conn.execute(text("DELETE FROM auth_token_secret WHERE token_id = :t"), {"t": token_id})
+    audit.record(
+        conn, "token_revoked", now=clock(), account_id=str(found["account_id"]), actor=by,
+        detail=token_id,
+    )  # fmt: skip
     _append(
         uow,
         str(found["account_id"]),

@@ -16,6 +16,7 @@ from tl_adapters.restore import restore_from_archive
 from tl_core.archive import generate_signer, seal_segment
 from tl_core.auth import accounts, queries, seed, sessions
 from tl_core.auth.errors import InvalidCredentialsError
+from tl_core.auth.password import prepare_password
 
 GOOD = "correct horse battery"
 NEW = "a brand new passphrase"
@@ -27,11 +28,11 @@ def populate(db: DbTarget) -> dict[str, str]:
         with factory() as uow:
             boss = accounts.create_account(
                 uow, username="boss", display_name="Boss", kind="person", roles=["admin"],
-                password=GOOD, by="user:boss",
+                password=prepare_password(GOOD), by="user:boss",
             )  # fmt: skip
             bob = accounts.create_account(
                 uow, username="bob", display_name="Bob", kind="person", roles=["user"],
-                password=GOOD, by="user:boss",
+                password=prepare_password(GOOD), by="user:boss",
             )  # fmt: skip
             bot = accounts.create_account(
                 uow, username="triage", display_name="Triage", kind="agent", roles=["user"],
@@ -42,7 +43,7 @@ def populate(db: DbTarget) -> dict[str, str]:
             )
             gone = accounts.create_account(
                 uow, username="gone", display_name="Gone", kind="person", roles=["user"],
-                password=GOOD, by="user:boss",
+                password=prepare_password(GOOD), by="user:boss",
             )  # fmt: skip
             accounts.disable(uow, account_id=gone.account_id, by="user:boss", reason="left")
         return {"boss": boss.account_id, "bob": bob.account_id}
@@ -113,7 +114,7 @@ def test_bootstrap_gets_the_admin_back_and_the_admin_resets_the_rest(
         assert principal.is_admin
         with factory() as uow:
             accounts.change_password(
-                uow, account_id=ids["bob"], new_password=NEW, by=principal.actor
+                uow, account_id=ids["bob"], new_password=prepare_password(NEW), by=principal.actor
             )
         sessions.sign_in(factory, username="bob", password=NEW)
     finally:

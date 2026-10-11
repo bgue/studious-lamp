@@ -7,12 +7,14 @@ from authworld import GOOD, OTHER, World
 from sqlalchemy import text
 from tl_core.auth import accounts, queries, seed, sessions
 from tl_core.auth.errors import (
+    AccountLockedError,
     AccountStateError,
     ForbiddenError,
     InvalidAccountError,
     InvalidCredentialsError,
     WeakPasswordError,
 )
+from tl_core.auth.password import prepare_password
 from tl_core.auth.provider import RoleAuthorizer
 from tl_core.auth.types import DEMO_PASSWORD, DEMO_USERNAME, AccountKind, Principal, Role
 
@@ -90,7 +92,7 @@ def test_seeding_twice_changes_nothing_and_keeps_a_changed_password(world: World
     assert first is not None
     with world.factory() as uow:
         accounts.change_password(
-            uow, account_id=first.account_id, new_password=OTHER, by="user:root"
+            uow, account_id=first.account_id, new_password=prepare_password(OTHER), by="user:root"
         )
     again = seed.seed_demo(world.factory, env="dev")
     assert again is not None and again.account_id == first.account_id
@@ -103,11 +105,8 @@ def test_seeding_twice_changes_nothing_and_keeps_a_changed_password(world: World
 def test_the_demo_password_is_the_only_exception_to_the_policy(world: World) -> None:
     with pytest.raises(WeakPasswordError):
         world.create("alice", password=DEMO_PASSWORD)
-    with world.factory() as uow, pytest.raises(WeakPasswordError):
-        accounts.create_account(
-            uow, username="demo2", display_name="D", kind="person", roles=["user"],
-            password="demo", by="user:root",
-        )  # fmt: skip
+    with pytest.raises(WeakPasswordError):
+        prepare_password("demo")
 
 
 def test_the_server_can_tell_whether_the_demo_account_is_enabled(world: World) -> None:
@@ -127,7 +126,7 @@ def test_the_server_can_tell_whether_the_demo_account_is_enabled(world: World) -
 # --- bootstrap and recovery -----------------------------------------------------------------
 
 
-def test_bootstrap_creates_the_first_admin_once(world: World) -> None:
+def test_bootstrap_creates_the_first_admin_and_no_second_one(world: World) -> None:
     view = seed.bootstrap_admin(
         world.factory, username="Boss", password=GOOD, display_name="The Boss"
     )
@@ -136,8 +135,7 @@ def test_bootstrap_creates_the_first_admin_once(world: World) -> None:
     assert principal_.is_admin
     with pytest.raises(AccountStateError):
         seed.bootstrap_admin(world.factory, username="other", password=GOOD)
-    with pytest.raises(AccountStateError):  # not even for the same name: sign in and reset instead
-        seed.bootstrap_admin(world.factory, username="boss", password=OTHER)
+    # the same name is a reset (below); a different new name needs `tl admin user add`
 
 
 def test_bootstrap_applies_the_password_policy(world: World) -> None:
@@ -176,15 +174,47 @@ def test_bootstrap_will_not_promote_or_revive_other_accounts(world: World) -> No
         seed.bootstrap_admin(world.factory, username="boss", password=OTHER)
 
 
-def test_bootstrap_clears_a_lock_on_the_admin(world: World) -> None:
+def test_bootstrap_resets_and_unlocks_the_sole_admin_even_though_it_has_a_password(
+    world: World,
+) -> None:
+    """Review item 1: an attacker who keeps the only admin locked must not hold the system out."""
     world.admin("boss")
     for _ in range(5):
         with pytest.raises(InvalidCredentialsError):
             world.sign_in("boss", "this is wrong")
-    with world.factory() as uow:
-        uow.conn().execute(text("DELETE FROM auth_credential"))
+    with pytest.raises(AccountLockedError):
+        world.sign_in("boss", GOOD)
     seed.bootstrap_admin(world.factory, username="boss", password=OTHER)
     world.sign_in("boss", OTHER)
+    with pytest.raises(InvalidCredentialsError):
+        world.sign_in("boss", GOOD)
+    details = [
+        row[0] for row in world.rows("SELECT detail FROM auth_audit WHERE event = 'bootstrap'")
+    ]
+    assert details == ["reset"]
+
+
+def test_bootstrap_still_refuses_a_new_admin_while_one_has_a_password(world: World) -> None:
+    world.admin("boss")
+    with pytest.raises(AccountStateError):
+        seed.bootstrap_admin(world.factory, username="second", password=OTHER)
+
+
+def test_unlock_clears_a_lock_and_is_audited(world: World) -> None:
+    world.admin("boss")
+    world.create("bob")
+    for _ in range(5):
+        with pytest.raises(InvalidCredentialsError):
+            world.sign_in("bob", "this is wrong")
+    with pytest.raises(AccountLockedError):
+        world.sign_in("bob", GOOD)
+    with world.factory() as uow:
+        assert accounts.unlock(uow, username="BOB", by="svc:cli") is True
+    world.sign_in("bob", GOOD)
+    with world.factory() as uow:
+        assert accounts.unlock(uow, username="bob", by="svc:cli") is False
+    events = [row[0] for row in world.rows("SELECT event FROM auth_audit WHERE event = 'unlocked'")]
+    assert events == ["unlocked", "unlocked"]
 
 
 def test_sign_out_all_ends_every_session_of_one_account(world: World) -> None:

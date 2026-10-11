@@ -12,6 +12,7 @@ USERNAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9_.@-]{0,63}")
 USERNAME_KEY_LENGTH = 64
 MAX_DISPLAY_NAME = 120
 MAX_LABEL = 80
+MAX_USERNAME_INPUT = 256
 
 
 def normalize_username(raw: str) -> str:
@@ -26,6 +27,8 @@ def username_key(raw: str) -> str:
 
 def check_username(raw: str) -> str:
     """The normalised username, or ``InvalidAccountError``."""
+    if len(raw) > MAX_USERNAME_INPUT:
+        raise InvalidAccountError("a username is at most 64 characters")
     name = normalize_username(raw)
     if USERNAME_PATTERN.fullmatch(name) is None:
         raise InvalidAccountError(

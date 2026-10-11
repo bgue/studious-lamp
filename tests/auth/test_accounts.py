@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from authworld import GOOD, OTHER, World
 from tl_adapters.db import rebuild_projections
-from tl_core.auth import accounts, queries
+from tl_core.auth import accounts, queries, sessions
 from tl_core.auth.errors import (
     AccountNotFoundError,
     AccountStateError,
@@ -19,6 +19,7 @@ from tl_core.auth.errors import (
     UsernameTakenError,
     WeakPasswordError,
 )
+from tl_core.auth.password import prepare_password
 from tl_core.ledger import ConcurrencyError
 
 
@@ -62,7 +63,7 @@ def test_invalid_accounts_are_refused(world: World) -> None:
     with world.factory() as uow, pytest.raises(InvalidAccountError):
         accounts.create_account(
             uow, username="bot", display_name="Bot", kind="agent", roles=["user"],
-            password=GOOD, by="user:root",
+            password=prepare_password(GOOD), by="user:root",
         )  # fmt: skip
     assert world.events() == []
 
@@ -120,7 +121,7 @@ def test_the_last_active_admin_cannot_be_demoted_or_disabled(world: World) -> No
     with world.factory() as uow:  # a non-admin can always be disabled
         user = accounts.create_account(
             uow, username="bob", display_name="Bob", kind="person", roles=["user"],
-            password=GOOD, by="user:root",
+            password=prepare_password(GOOD), by="user:root",
         )  # fmt: skip
         accounts.disable(uow, account_id=user.account_id, by="user:root", reason=None)
 
@@ -186,7 +187,7 @@ def test_an_unknown_account_is_not_found(world: World) -> None:
             uow, account_id="nope", roles=["user"], by="user:root", reason=None
         ),
         lambda uow: accounts.change_password(
-            uow, account_id="nope", new_password=GOOD, by="user:root"
+            uow, account_id="nope", new_password=prepare_password(GOOD), by="user:root"
         ),
     ):
         with world.factory() as uow, pytest.raises(AccountNotFoundError):
@@ -197,7 +198,9 @@ def test_an_admin_reset_needs_no_current_password_and_is_forced(world: World) ->
     admin = world.admin()
     bob = world.create("bob")
     with world.factory() as uow:
-        accounts.change_password(uow, account_id=bob.account_id, new_password=OTHER, by="user:root")
+        accounts.change_password(
+            uow, account_id=bob.account_id, new_password=prepare_password(OTHER), by="user:root"
+        )
     world.sign_in("bob", OTHER)
     last = world.events()[-1]
     assert last[0] == "Account.PasswordChanged" and '"forced":true' in last[3].replace(" ", "")
@@ -205,19 +208,20 @@ def test_an_admin_reset_needs_no_current_password_and_is_forced(world: World) ->
     assert last[2] == "user:root" and admin.username == "root"
 
 
-def test_changing_your_own_password_needs_the_current_one(world: World) -> None:
+def test_a_self_service_change_needs_the_current_password_and_is_not_forced(
+    world: World,
+) -> None:
     bob = world.create("bob")
-    with world.factory() as uow, pytest.raises(InvalidCredentialsError):
-        accounts.change_password(uow, account_id=bob.account_id, new_password=OTHER, by="user:bob")
-    with world.factory() as uow, pytest.raises(InvalidCredentialsError):
-        accounts.change_password(
-            uow, account_id=bob.account_id, new_password=OTHER, by="user:bob",
-            current_password="not the password",
-        )  # fmt: skip
-    with world.factory() as uow:
-        accounts.change_password(
-            uow, account_id=bob.account_id, new_password=OTHER, by="user:bob", current_password=GOOD
-        )
+    for current in ("not the password", ""):
+        with pytest.raises(InvalidCredentialsError):
+            sessions.change_own_password(
+                world.factory, account_id=bob.account_id, current_password=current,
+                new_password=OTHER, clock=world.clock,
+            )  # fmt: skip
+    sessions.change_own_password(
+        world.factory, account_id=bob.account_id, current_password=GOOD, new_password=OTHER,
+        clock=world.clock,
+    )  # fmt: skip
     world.sign_in("bob", OTHER)
     with pytest.raises(InvalidCredentialsError):
         world.sign_in("bob", GOOD)
@@ -226,15 +230,22 @@ def test_changing_your_own_password_needs_the_current_one(world: World) -> None:
 
 def test_a_new_password_must_meet_the_policy(world: World) -> None:
     bob = world.create("bob")
-    with world.factory() as uow, pytest.raises(WeakPasswordError):
-        accounts.change_password(uow, account_id=bob.account_id, new_password="bob", by="user:root")
+    with pytest.raises(WeakPasswordError):
+        prepare_password("bob", username="bob")
+    with pytest.raises(WeakPasswordError):
+        sessions.change_own_password(
+            world.factory, account_id=bob.account_id, current_password=GOOD, new_password="short",
+            clock=world.clock,
+        )  # fmt: skip
     world.sign_in("bob", GOOD)  # the old password still works
 
 
 def test_an_agent_account_has_no_password(world: World) -> None:
     bot = world.create("bot", kind="agent")
     with world.factory() as uow, pytest.raises(InvalidAccountError):
-        accounts.change_password(uow, account_id=bot.account_id, new_password=GOOD, by="user:root")
+        accounts.change_password(
+            uow, account_id=bot.account_id, new_password=prepare_password(GOOD), by="user:root"
+        )
 
 
 def test_agent_tokens_are_issued_once_stored_hashed_and_revocable(world: World) -> None:

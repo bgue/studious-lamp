@@ -6,6 +6,7 @@ from typing import Any
 
 from authworld import World
 from tl_core.auth import accounts
+from tl_core.auth.password import prepare_password
 from tl_core.auth.projector import ACCOUNT_EVENT_TYPES
 from tl_core.services.commands import CreateRecord
 from tl_core.services.records import handle_create_record
@@ -41,7 +42,7 @@ def test_account_events_make_no_feed_card_and_do_not_split_a_burst(world: World)
         accounts.change_password(
             uow,
             account_id=admin.account_id,
-            new_password="another long passphrase",
+            new_password=prepare_password("another long passphrase"),
             by="user:other",
         )
     make_record(world, "C-2")
@@ -102,7 +103,10 @@ def test_real_account_payloads_match_the_catalog_schemas(world: World) -> None:
             uow, account_id=bob.account_id, roles=["admin", "user"], by="user:root", reason="r"
         )
         accounts.change_password(
-            uow, account_id=bob.account_id, new_password="another long passphrase", by="user:root"
+            uow,
+            account_id=bob.account_id,
+            new_password=prepare_password("another long passphrase"),
+            by="user:root",
         )
         accounts.disable(uow, account_id=bob.account_id, by="user:root", reason="x")
         accounts.enable(uow, account_id=bob.account_id, by="user:root", reason="y")
