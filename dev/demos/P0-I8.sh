@@ -11,7 +11,8 @@
 #   4  a full restore from backup: the ledger archive is sealed, verified and replayed into a new
 #      database (and into a scratch Postgres database when one is reachable); the restored state
 #      equals the original and both ledgers verify.
-# Extras: a settings change that applies live without a restart, and an extension-type record.
+# Extras: a settings change that applies live without a restart, and extension-type records
+# (a company type package registered while the server runs, instances over REST, a body over MCP).
 #
 # Starts `tl serve` on a free loopback port over a temporary ledger; nothing is left behind.
 # Exits non-zero (and prints DEMO FAILED) when any clause is not met. Takes about 2 minutes.
@@ -37,8 +38,8 @@ export TL_ENV="${TL_ENV:-dev}"
 export TL_DB="$workdir/tl.db"
 export TL_TOKENS="$workdir/tokens.json"
 export TL_SIM_DIR="$workdir/sim"
-export TL_OBJECT_STORE="$workdir/objects"
-unset TL_SCHEMA_DIR TL_REMOTE TL_TOKEN TL_PROJECT TL_WEBHOOK_ALLOWLIST
+export TL_OBJECT_ROOT="$workdir/objects"
+unset TL_SCHEMA_DIR TL_OBJECT_STORE TL_REMOTE TL_TOKEN TL_PROJECT TL_WEBHOOK_ALLOWLIST
 
 # `uv` prints a harmless UV_NATIVE_TLS deprecation warning on every call in the build container.
 quiet() { "$@" 2> >(grep -v 'UV_NATIVE_TLS' >&2); }

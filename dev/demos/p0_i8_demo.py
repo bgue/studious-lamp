@@ -47,6 +47,7 @@ from sqlalchemy import text
 from textual.pilot import Pilot
 from textual.widgets import Input
 from tl_adapters.db import make_engine, read_tx
+from tl_adapters.objectstore import make_object_store
 from tl_adapters.postgres import admin
 from tl_adapters.sqlite.factory import SqliteUowFactory
 from tl_api.client import ApiClient
@@ -77,6 +78,8 @@ BOB = os.environ["TL_DEMO_TOKEN_BOB"]
 AGENT = os.environ["TL_DEMO_TOKEN_TRIAGE"]
 LIVE_BUDGET_S = 2.0  # brief 15: a change is visible to other clients in under 2 s
 KEY_TUI, KEY_API, KEY_MCP = "EXIT-TUI-1", "EXIT-API-1", "EXIT-MCP-1"
+KEY_LIFT, KEY_OBS = "EXIT-LP-1", "EXIT-SO-1"
+LIFT, OBSERVATION = "co.acme.LiftPlan", "co.acme.SafetyObservation"
 REQUIRED = (
     "exit-1 TUI",
     "exit-1 API",
@@ -85,6 +88,7 @@ REQUIRED = (
     "exit-3 webhook",
     "exit-4 restore",
     "settings live",
+    "extension types",
 )
 
 passes: list[str] = []
@@ -477,6 +481,95 @@ async def clause_mcp(
     await until(lambda: grid_row(grid_b, KEY_MCP) is not None, LIVE_BUDGET_S + 1, "bob", pilot_b)
 
 
+async def clause_extension(
+    alice: ApiClient, grid_b: RecordGrid, pilot_b: Pilot[Any], target: dict[str, Any]
+) -> None:
+    step("extra: a company record type (a package of files) registered while the server runs")
+    root = WORK / "types"
+    shutil.copytree(Path("schema/fixtures/types"), root)
+    synced = await asyncio.to_thread(run_tl, "types", "sync", str(root))
+    expect("registered co.acme.LiftPlan@1.0.0" in synced, "LiftPlan was not registered")
+    expect("registered co.acme.SafetyObservation@1.0.0" in synced, "SafetyObservation missing")
+    again = await asyncio.to_thread(run_tl, "types", "sync", str(root))
+    expect("registered" not in again, "a second sync registered again")
+    key = "co.acme.lift_plan.max_load_tonnes"
+    value = await asyncio.to_thread(run_tl, "config", "get", key, "--long")
+    expect("250" in value, f"the package's setting {key} is not registered")
+    await until(
+        lambda: {t.type_name for t in alice.list_types(status="active")} >= {LIFT, OBSERVATION},
+        10,
+        "the running server to list the new types",
+    )
+    say("GET /types on the running server lists both types; no restart")
+
+    lift = alice.create_instance(
+        LIFT,
+        scope=SCOPE,
+        title="Exit demo skid lift",
+        key=KEY_LIFT,
+        body={
+            "lift_date": "2026-11-03",
+            "crane": "CR-12",
+            "load_tonnes": 42.5,
+            "risk_class": "medium",
+            "crew": ["A. Okafor"],
+        },
+    )
+    seen = alice.create_instance(
+        OBSERVATION,
+        scope=SCOPE,
+        title="Exit demo shackle pin",
+        key=KEY_OBS,
+        psets={
+            "co_acme_safety_observation": {
+                "observed_on": "2026-10-02",
+                "category": "near_miss",
+                "severity": "high",
+                "location": "Unit 3 pipe rack",
+            }
+        },
+    )
+    alice.add_link(
+        AddLink(
+            actor="user:alice",
+            source="api",
+            scope=SCOPE,
+            from_id=seen.stream_id,
+            to_id=lift.stream_id,
+            relation="references",
+        )
+    )
+    expect(len(alice.links_of(seen.stream_id)) == 1, "the extension records are not linked")
+    found = alice.query_records(
+        SCOPE, f"type:{OBSERVATION} psets.co_acme_safety_observation.severity:high"
+    )
+    expect([r["key"] for r in found] == [KEY_OBS], f"the index-field filter found {found}")
+    say("the managed type is filterable on its fields; the two instances are linked")
+
+    factory = SqliteUowFactory(Path(DB))
+    server = build_server(factory, actor="agent:triage", object_store=make_object_store())
+    try:
+        result = await server.call_tool("get_record_body", {"record": KEY_LIFT, "scope": SCOPE})
+        assert isinstance(result, CallToolResult) and result.structured_content is not None
+        view = result.structured_content
+    finally:
+        factory.close()
+    expect(view["body"]["crane"] == "CR-12", "the agent could not read the verified body")
+    say(f"an agent read the hash-verified body over MCP (object {view['pointer']['hash'][:12]})")
+    await until(
+        lambda: grid_row(grid_b, KEY_LIFT) is not None and grid_row(grid_b, KEY_OBS) is not None,
+        LIVE_BUDGET_S + 1,
+        "bob's TUI to list the extension records",
+        pilot_b,
+    )
+    say("bob's TUI lists both extension records")
+    passed(
+        "extension types",
+        f"{LIFT} (object-backed) and {OBSERVATION} (managed) registered live with their "
+        f"settings key; {KEY_LIFT} and {KEY_OBS} created, linked, filtered, read over MCP",
+    )
+
+
 async def clause_settings(
     alice: ApiClient, bob: ApiClient, app_b: TlApp, pilot_b: Pilot[Any]
 ) -> None:
@@ -710,7 +803,7 @@ async def phases() -> None:
         feed=tui_a.change_feed(SCOPE),
     )  # fmt: skip
     app_b = TlApp(
-        tui_b.as_client(), scope=SCOPE, mode="remote", actor="user:bob",
+        tui_b.as_client(), scope=SCOPE, mode="remote", actor="user:bob", record_type=None,
         feed=tui_b.change_feed(SCOPE),
     )  # fmt: skip
     async with app_a.run_test(size=(120, 40)) as pilot_a, app_b.run_test(size=(120, 40)) as pilot_b:
@@ -722,6 +815,7 @@ async def phases() -> None:
         record = await clause_live(grid_b, pilot_b, alice)
         await clause_api(alice, grid_b, pilot_b, record)
         await clause_mcp(alice, bob, grid_b, pilot_b, record)
+        await clause_extension(alice, grid_b, pilot_b, record)
         await clause_settings(alice, bob, app_b, pilot_b)
         await pilot_b.pause(0.3)
     tui_a.close()
