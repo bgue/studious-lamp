@@ -25,20 +25,20 @@ The supervisor of workstream E ran each gate once on `p0/i8e` (results in `docs/
 
 | Gate | Command | Last number seen on a branch | Final trunk |
 |---|---|---|---|
-| Lint, format, types | `just check` | green on `p0/i8e` (final run) | `<fill>` |
-| Codegen drift | inside `just check` (`tl_schema.generate --check`, `tl_api.openapi --check`) | green | `<fill>` |
-| Licences | inside `just check` (`dev/tools/check_licences.py`) | `licences ok` | `<fill>` |
-| Unit and integration tests (SQLite) | `just test` | 5302 passed, 1 skipped, 16 deselected (p0/i8e, 19 m 22 s) | `<fill>` |
-| Parity (SQLite and Postgres) | `just test-parity` | 2166 passed on SQLite and Postgres, no skips (p0/i8e, 31 m 43 s) | `<fill>` |
-| Projection determinism | `uv run pytest tests/property -k projection` | 3 passed, 1 deselected | `<fill>` |
-| TUI snapshots | `just test-tui` | 608 passed, 26 snapshots (p0/i8e) | `<fill>` |
-| Contract tests | `uv run pytest tests/contract` | 6 passed | `<fill>` |
+| Lint, format, types | `just check` | green on `p0/i8e` (final run) | green (trunk 843809c) |
+| Codegen drift | inside `just check` (`tl_schema.generate --check`, `tl_api.openapi --check`) | green | green (130 generated files up to date) |
+| Licences | inside `just check` (`dev/tools/check_licences.py`) | `licences ok` | `licences ok` |
+| Unit and integration tests (SQLite) | `just test` | 5302 passed, 1 skipped, 16 deselected (p0/i8e, 19 m 22 s) | 5302 passed, 1 skipped, 16 deselected (19 m 49 s) |
+| Parity (SQLite and Postgres) | `just test-parity` | 2166 passed on SQLite and Postgres, no skips (p0/i8e, 31 m 43 s) | 2166 passed on SQLite and Postgres (32 m 39 s) |
+| Projection determinism | `uv run pytest tests/property -k projection` | 3 passed, 1 deselected | 3 passed, 1 deselected |
+| TUI snapshots | `just test-tui` | 608 passed, 26 snapshots (p0/i8e) | 608 passed, 26 snapshots (3 m 56 s) |
+| Contract tests | `uv run pytest tests/contract` | 6 passed | 6 passed |
 | Schema classification | `tl schema classify --base origin/main` | not built (no command) | not applicable until Phase 1 |
-| Secret scan | `just scan-secrets` | 0 findings | `<fill>` |
-| Dependency audit | `just audit-deps` | no known vulnerabilities | `<fill>` |
-| CI workflow | GitHub Actions | never run on a runner | `<fill>` |
-| Exit demo | `just demo P0-I8` | nine PASS lines, exit 0 in 1 m 57 s (p0/i8e) | `<fill>` |
-| Performance benches | `just bench` (not in `just test`; `just bench-rebuild` for the 100k rebuild) | 14 passed, 2 skipped (13 m 18 s), repeated 12 m 14 s; rebuild 100k: SQLite 332 s, Postgres 2,299 s (P0-I8-D) | `<fill>` |
+| Secret scan | `just scan-secrets` | 0 findings | 0 findings |
+| Dependency audit | `just audit-deps` | no known vulnerabilities | no known vulnerabilities |
+| CI workflow | GitHub Actions | never run on a runner | not run: no workflow run exists for the repository (human follow-up H-list) |
+| Exit demo | `just demo P0-I8` | nine PASS lines, exit 0 in 1 m 57 s (p0/i8e) | nine PASS lines, exit 0 in 84 s |
+| Performance benches | `just bench` (not in `just test`; `just bench-rebuild` for the 100k rebuild) | 14 passed, 2 skipped (13 m 18 s), repeated 12 m 14 s; rebuild 100k: SQLite 332 s, Postgres 2,299 s (P0-I8-D) | not re-run on the trunk; the trunk carries the p0/i8d code unchanged (numbers in the third column) |
 
 The detailed gate-by-gate check on `p0/i8e` is `docs/reports/P0-I8.md` §Gates.
 
