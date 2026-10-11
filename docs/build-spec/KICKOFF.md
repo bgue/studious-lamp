@@ -79,8 +79,8 @@ Everything else in 04-gates.md §2 (migrations of existing data, copyleft licenc
 extraction is metadata-only stubs per ADR-0008 decision 8) stays a stop condition.
 
 USAGE LIMITS AND CONCURRENCY
-Keep about 3 agents or ticket workflows active at once (L-P0-I8-O1). A usage limit is not a stop condition: wait for
-the reset, then recover (journal, remove implementer worktrees with no result, resume workflows by run id, resume
+Keep about 3 agents or ticket workflows active at once (L-P0-I8-O1). A usage limit is not a stop condition: wait 30 minutes
+(schedule a self check-in), retry, and repeat every 30 minutes until work resumes; then recover (journal, remove implementer worktrees with no result, resume workflows by run id, resume
 supervisors by message) and continue.
 
 STOP CONDITIONS (stop the run, push what is green, write docs/reports/STOPPED.md with the reason and the exact state)
