@@ -1,9 +1,9 @@
 """The CLI's signed-in session: where it is kept, who it names, what needs one (ADR-0009 sec. 4).
 
 ``tl login`` stores the opaque session token in a file readable by its owner only
-(``TL_SESSION_FILE``, default ``~/.config/throughline/session.json``). The file holds one entry per
-target, so one person can be signed in to a ledger file (``db:<path>``) and to a server
-(``api:<url>``) at once. The token is never printed, logged or put in an exception text.
+(``TL_SESSION_FILE``, default ``~/.config/throughline/session.json``). The file holds one entry
+per ledger file (target ``db:<absolute path>``), so one person can be signed in to several
+ledgers. The token is never printed, logged or put in an exception text.
 
 An embedded command takes its default ``--actor`` from the session of the ledger it opens
 (``actor_hook``). Where there is no session the default is ``user:dev`` in ``TL_ENV`` dev, test
@@ -18,7 +18,7 @@ import os
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import NoReturn
 
@@ -64,9 +64,9 @@ def db_target(db: Path) -> str:
     return f"db:{db.expanduser().resolve()}"
 
 
-def api_target(url: str) -> str:
-    """The target name of a server: ``api:`` and its base URL without a trailing slash."""
-    return f"api:{url.strip().rstrip('/')}"
+def expires_at_from(lifetime: timedelta) -> str:
+    """The ISO-8601 UTC time ``lifetime`` from now, as stored in ``StoredSession.expires_at``."""
+    return (utcnow() + lifetime).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def session_file() -> Path:

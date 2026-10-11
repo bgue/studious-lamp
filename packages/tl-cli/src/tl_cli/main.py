@@ -21,6 +21,8 @@ from tl_sim import cli as sim_cli
 from tl_cli import (
     actor_hook,
     admin,
+    admin_token,
+    admin_user,
     archive,
     backup,
     config,
@@ -33,6 +35,7 @@ from tl_cli import (
     lake,
     ledger,
     link,
+    login,
     new,
     proposal,
     pset,
@@ -69,12 +72,17 @@ app.add_typer(new.app, name="new")
 app.add_typer(webhook.app, name="webhook")
 app.add_typer(sim_cli.app, name="sim")
 app.add_typer(admin.app, name="admin")
+admin.app.add_typer(admin_user.app, name="user")
+admin.app.add_typer(admin_token.app, name="token")
 app.command("serve")(serve.serve)
 app.command("tui")(tui.tui)
 app.add_typer(backup.app, name="backup")
 app.add_typer(archive.app, name="archive")
 app.add_typer(ledger.app, name="ledger")
 app.command("restore")(restore.restore)
+app.command("login")(login.login)
+app.command("logout")(login.logout)
+app.command("whoami")(login.whoami)
 
 projections = typer.Typer(help="Maintain projections from the ledger.", no_args_is_help=True)
 app.add_typer(projections, name="projections")

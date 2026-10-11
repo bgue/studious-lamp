@@ -13,10 +13,11 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from tl_core.auth import audit
+from tl_core.auth import audit, queries
 from tl_core.auth.accounts import unlock
 from tl_core.auth.seed import bootstrap_admin
 from tl_core.auth.sessions import UowFactory
+from tl_core.auth.types import AccountView
 
 from tl_cli.prompts import read_password
 from tl_cli.session import fail, open_backend, service_errors
@@ -29,11 +30,41 @@ LOCAL_ACTOR = "svc:cli"
 _Stdin = Annotated[bool, typer.Option("--password-stdin", help="Read the password from stdin.")]
 
 
-def _backend(ctx: typer.Context) -> UowFactory:
+def backend_of(ctx: typer.Context) -> UowFactory:
+    """The unit-of-work factory of the ledger ``--db`` names; exits 1 if there is no such ledger."""
     db: Path = ctx.obj
     if not db.is_file():
         fail(f"no ledger at {db}: run `tl init` first")
     return open_backend(db)
+
+
+def find_account(backend: UowFactory, username: str) -> AccountView:
+    """The account called ``username``, or `error: no account named ...` and exit 1."""
+    with backend(readonly=True) as uow:
+        found = queries.find_account(uow.conn(), username=username)
+    if found is None:
+        fail(f"no account named {username!r}")
+    return found
+
+
+def account_line(view: AccountView) -> str:
+    """``root  person  admin  active`` (two spaces), plus ``  locked until <time>`` while locked."""
+    line = f"{view.username}  {view.kind}  {','.join(view.roles)}  {view.status}"
+    return line + (f"  locked until {view.locked_until}" if view.locked_until else "")
+
+
+def account_fields(view: AccountView) -> list[str]:
+    """One ``name value`` line per field of an account (``tl admin user show``)."""
+    return [
+        f"username {view.username}",
+        f"id {view.account_id}",
+        f"display_name {view.display_name}",
+        f"kind {view.kind}",
+        f"roles {','.join(view.roles)}",
+        f"status {view.status}",
+        f"locked_until {view.locked_until or '-'}",
+        f"created_at {view.created_at}",
+    ]
 
 
 @app.command("bootstrap")
@@ -44,7 +75,7 @@ def bootstrap(
     password_stdin: _Stdin = False,
 ) -> None:
     """Create the first admin, or reset an existing admin's password and unlock it (local only)."""
-    backend = _backend(ctx)
+    backend = backend_of(ctx)
     password = read_password(from_stdin=password_stdin, confirm=not password_stdin)
     with service_errors():
         view = bootstrap_admin(
@@ -59,7 +90,7 @@ def unlock_user(
     username: Annotated[str, typer.Argument(help="Name whose sign-in lock to clear.")],
 ) -> None:
     """Clear the sign-in lock of USERNAME (local only; there is no API route)."""
-    backend = _backend(ctx)
+    backend = backend_of(ctx)
     with service_errors(), backend() as uow:
         cleared = unlock(uow, username=username, by=LOCAL_ACTOR)
     typer.echo(f"unlocked {username}" if cleared else f"{username} had no lock or failure count")
@@ -74,7 +105,7 @@ def audit_log(
     as_json: Annotated[bool, typer.Option("--json", help="Print a JSON list.")] = False,
 ) -> None:
     """Show the authentication audit log, newest first (local only)."""
-    backend = _backend(ctx)
+    backend = backend_of(ctx)
     with service_errors():
         if not 1 <= limit <= 1000:
             fail("--limit must be between 1 and 1000")

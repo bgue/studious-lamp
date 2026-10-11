@@ -81,15 +81,22 @@ def sign_in_to_file(env: dict[str, str], name: str = "root") -> str:
 
 def test_a_session_round_trips_and_the_file_is_private(tmp_path: Path) -> None:
     session.save(stored("db:/a", "tls_one"))
-    session.save(stored("api:http://x", "tls_two", username="amy", actor="user:amy"))
+    session.save(stored("db:/b", "tls_two", username="amy", actor="user:amy"))
     path = session.session_file()
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
     assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
-    first, second = session.load("db:/a"), session.load("api:http://x")
+    first, second = session.load("db:/a"), session.load("db:/b")
     assert first is not None and first.token == "tls_one" and first.actor == "user:root"
     assert second is not None and second.token == "tls_two" and second.username == "amy"
     assert session.load("db:/elsewhere") is None
     assert not list(path.parent.glob("*.tmp"))
+
+
+def test_expires_at_from_is_a_future_utc_stamp_the_loader_understands() -> None:
+    soon = session.expires_at_from(timedelta(hours=12))
+    assert soon.endswith("Z") and len(soon) == 20
+    assert not stored("db:/a", expires_at=soon).expired()
+    assert stored("db:/a", expires_at=session.expires_at_from(timedelta(seconds=-1))).expired()
 
 
 def test_the_token_never_shows_in_a_repr_or_a_listing() -> None:
