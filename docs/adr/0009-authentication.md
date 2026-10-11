@@ -29,33 +29,48 @@ enumeration rules, the Entra seam, how a restore treats accounts, and the threat
   | Table | Holds |
   |---|---|
   | `auth_credential` | the password hash, one row per account that has a password |
-  | `auth_session` | the SHA-256 of each session token, its account, creation, expiry and revocation time |
+  | `auth_session` | the SHA-256 of each session token, its account, creation and expiry |
   | `auth_token_secret` | the SHA-256 of each agent token and its `token_id` |
   | `auth_attempt` | failed-sign-in counters and `locked_until`, keyed by normalised username |
-- Account events are internal: the webhook dispatcher never delivers a `core.Account` stream event, the feed shows no card
-  for them, and the events API hides them from non-admins. They contain no secret, but they list usernames and roles.
+  | `auth_audit` | the operational audit (section 12): who signed in, failed, locked, unlocked, signed out, and agent token issue and revoke; no secret; kept 90 days |
+- Account events are internal. They contain no secret, but they list usernames and roles, so:
+  - the webhook dispatcher never delivers a `core.Account` stream event;
+  - the feed shows no card for them;
+  - `GET /events`, `GET /stream` and the change feed filter them out for everyone but a human admin (`SubscriptionFilter.hide_stream_types`);
+  - the product MCP server has no tool or resource that reads events, so no principal sees them there;
+  - the lake keeps a row for each, so `seq` stays gap-free and the hash tip still verifies, but it is redacted to `Internal.Redacted` with no stream, actor or payload;
+  - admins read accounts through `/admin/*`.
 
 ### 2. Password hashing
 - The KDF is **scrypt from the standard library** (`hashlib.scrypt`). No dependency is added (ADR-0008 D5, ADR-0006).
   Parameters: N = 2^16, r = 8, p = 2 (64 MiB, the second OWASP-listed scrypt profile), 16-byte random salt from `secrets`,
   32-byte output, `maxmem` set explicitly to 2 x the need.
 - The stored string is self-describing: `scrypt$<log2 N>$<r>$<p>$<salt b64>$<hash b64>` (URL-safe base64, no padding). Verification reads
-  the parameters from the string and refuses any with N above 2^20, r above 16 or p above 16, so a tampered row cannot make the server allocate gigabytes.
+  the parameters from the string and refuses any above **twice** what this process makes (one more bit of N, double r and p, of the larger of the configured and the production cost), so a tampered row cannot make the server allocate gigabytes.
+  Parameters inside that bound that scrypt itself refuses (N too large for r) also count as a wrong password.
 - A successful sign-in re-hashes the password when the stored parameters are weaker than the current ones (`needs_rehash`).
-- At most 4 password hashes run at once in one process (a semaphore), so a burst of sign-ins cannot exhaust memory (4 x 64 MiB).
+- At most 4 password hashes run at once in one process (a semaphore), so a burst of sign-ins cannot exhaust memory (4 x 64 MiB). A hash waits at most 2 seconds
+  for a slot, then `AuthBusyError` becomes HTTP 503 `auth_busy` with `Retry-After: 2`.
+- **A hash never runs inside a write transaction**, because the writer lock is global and a held lock stalls every writer (review item 3). Sign-in verifies between two short transactions
+  and computes a rehash before the write one. Services that store a password take a `PreparedPassword` (`prepare_password`: policy, then hash), which callers make before they open the unit of work.
+- A stored hash made with weaker parameters than the current ones is verified at its own (cheaper) cost, so the time of a sign-in for such an account differs a little from one for an unknown name
+  until the account's next successful sign-in rehashes it. This is accepted (review item 8f): it only exists during a cost upgrade.
 - The password is NFKC-normalised, then UTF-8 encoded, before hashing. Tests pass cheap parameters (N = 2^4) through
   `ScryptParams`; the production default is the only value read at start-up.
 - There is no pepper: a pepper that is lost or changed silently locks every account, and the database file is already
   the whole trust boundary (section 7). An Entra deployment removes passwords altogether.
 
 ### 3. Password policy
-Applied by `create_account`, `change_password` and a reset; the seeded demo password is the one documented exception.
-- 12 to 128 characters (after normalisation); no NUL or other control characters.
-- Not equal to the username, not made of one repeated character, and not in a built-in list of the most common passwords.
+Applied by `prepare_password`, which every service that stores a password goes through; the seeded demo password is the one documented exception.
+- 12 to 128 characters (after normalisation); no NUL, lone surrogate or other control character.
+- Not equal to the username; not only spaces or invisible characters (Zs, Zl, Zp, Cf); at least 5 different characters.
+- Not on the list of common passwords: `tl_core/auth/common_passwords.txt`, the 30,000 most common passwords of the zxcvbn-python package 4.5.0 (**MIT licence**, copyright 2016 Daniel Wolf, data only,
+  the licence text is in the file header), plus product names. A value fails if it is on the list, or if it is a listed word of four or more letters with only digits and symbols around it (`Password1234!`).
+  A larger breach list (10 million entries, for example an offline copy of a Have I Been Pwned range file) would catch more; that is a follow-up, as it needs a dependency or a large data file the owner has to approve.
 - No composition rules and no forced rotation (NIST SP 800-63B). A violation is `WeakPasswordError` (422 `weak_password`)
   and says what is wrong without echoing the password.
-- A person changes their own password by giving the current one; an admin reset does not need it and is recorded as `forced: true`.
-  A password change or reset revokes every session of that account.
+- A person changes their own password through `sessions.change_own_password`, which checks the current password first and counts a wrong one towards lockout; an admin reset
+  (`accounts.change_password`) does not need it and is recorded as `forced: true`. A password change or reset revokes every session of that account and clears its lock.
 
 ### 4. Sessions
 - A session token is `tls_` followed by 32 random bytes from `secrets.token_urlsafe` (256 bits of entropy, 43 characters).
@@ -78,22 +93,29 @@ Applied by `create_account`, `change_password` and a reset; the seeded demo pass
 ### 6. Lockout
 - Counters are keyed by the **normalised username string, whether or not an account exists**, so an unknown name locks exactly like a real one
   and the response never tells them apart. The key is the first 64 characters.
-- 5 consecutive failures within a 15-minute window lock the name for 15 minutes. Each further lock doubles the duration (30 min, 1 h, ... capped at 24 h).
-  A successful sign-in clears the counters; a name with no failure for 24 hours also starts again at the shortest lock.
+- 5 consecutive failures within a 15-minute window lock the name for 15 minutes. **Every lock is 15 minutes, for every name, with no doubling** (review item 1): the requested cap for admins
+  alone would have made the lock duration an oracle for which names are admins, and doubling for others for which names exist. At 5 guesses per name per 15 minutes a 12-character minimum is out of reach.
+  A successful sign-in clears the counters.
 - A locked name gets `AccountLockedError` (423 `account_locked`, with `locked_until`) before any password is checked, even with the right password.
 - The check order is: locked? -> verify the password (always a full KDF run, see section 7) -> only then is a **disabled** account reported
   (`AccountDisabledError`, 403), so the status of an account is revealed only to someone who has its password.
-- Counter rows older than the window with no active lock are deleted whenever a failure is recorded, which bounds the table by the attack rate.
-- An admin password reset clears the lock. `tl admin bootstrap --username <name>` (local access, allowed while no admin has a password) also clears it, so an attacker who locks the only admin account
-  cannot hold the system out for longer than the lock and a local operator is never stuck.
+- Counter rows with no failure for an hour and no lock in force are deleted whenever a failure is recorded, which bounds the table by the attack rate. It is indexed on `last_failed_at`.
+- **Recovery from a held lock** (review item 1). An attacker can keep every named admin locked, so three local-only commands work on a database the operator can open and have no API route:
+  `tl admin unlock <username>` clears a lock; `tl admin bootstrap --username <admin>` resets the password and the lock of an existing active admin even though admins with passwords exist;
+  `tl admin audit` shows who is hammering which name. An admin password reset through the API also clears the lock.
 - Source-address throttling is not a service concern (the service sees no address). A deployment puts a rate limiter in front of `POST /auth/sign-in`; the runbook says so.
 
 ### 7. Constant time and enumeration
-- Every sign-in attempt for an unknown name, an account without a password, or a wrong password runs one full scrypt against the stored hash or a fixed
-  dummy hash with the current parameters, so the time does not show whether the account exists.
+- Every sign-in attempt for an unknown name, an agent account, an account without a password, a disabled-looking wrong password or a wrong password runs one full scrypt against the stored hash or a
+  random-salt stand-in of the current cost, so the time does not show whether the account exists.
+- Input that cannot be hashed or stored (a NUL, a lone surrogate, more than 256 characters of username or 512 of password) is invalid credentials after the same one scrypt, with the same error, and writes nothing
+  (Postgres rejects NUL in a parameter and would break the pooled connection). Usernames are never stripped: `" bob"` is not `bob`.
 - The error for an unknown name and a wrong password is the same exception with the same text: `InvalidCredentialsError("invalid username or password")`.
 - Comparisons of secrets use `hmac.compare_digest` on bytes (L-P0-I4-B6). Token lookup is by SHA-256 index equality; the token itself is never compared with a stored value.
-- `principal_for_bearer` raises one `InvalidCredentialsError` for every bad token (unknown, expired, revoked, disabled account); the API answers 401 `unauthorized`.
+- `principal_for_bearer` raises one `InvalidCredentialsError` for every bad token (unknown, expired, revoked, disabled account); the API answers 401 `unauthorized`. Sessions resolve only for
+  non-agent accounts and agent tokens only for agent accounts, in the SQL.
+- An open `GET /stream` re-resolves its token every 15 seconds and ends with a `closed` event when the token is signed out, revoked, expired or its account disabled, and no stream outlives 12 hours (review item 4).
+- Request bodies on `/auth/*` are limited to 16 KiB and on `/admin/*` to 64 KiB (413 `payload_too_large`, counted while reading, before authentication). The authenticated principal is kept under a private ASGI scope key.
 - No secret is logged, put in an error message, a `repr`, an event or a trace. `Principal`, `AccountView` and `AgentTokenView` carry none; a token appears only in the return value of
   `sign_in` and `issue_agent_token`, which callers hand to the user once and never store or log.
 - Trust boundary of the embedded modes (decision D3): the embedded TUI and CLI open the database file directly and sign in against the local account store.
@@ -104,20 +126,33 @@ Applied by `create_account`, `change_password` and a reset; the seeded demo pass
 - `LastAdminError` (409) stops anyone disabling or demoting the last active `admin` person account (D4). Roster changes (create, roles, disable) count the active admins
   in `cur_account` (`is_admin`, `status`) inside their unit of work. Both adapters take the ledger's single writer lock when a write transaction begins, so two roster changes
   never interleave and two admins cannot disable each other at the same time. A test pins that, so a future finer-grained lock has to add its own guard.
-- Bootstrap: `tl admin bootstrap --username <name>` works on the local database only (never over HTTP). When no active admin has a password it creates the first admin,
-  or, if `<name>` is an existing admin, sets its password and clears its lock. When an admin with a password exists it refuses.
+- Bootstrap: `tl admin bootstrap --username <name>` works on the local database only (never over HTTP). For an existing active admin it sets the password, ends its sessions and clears its lock,
+  whatever other admins have. For a new name it creates an admin, but only while no active admin has a password (a new database, or a restore). Anything else is refused.
 
 ### 9. Environments
 - Dev tokens (`dev/data/tokens.json`, ADR-0005) are honoured only when `TL_ENV` is `dev`, `test` or `ci`. Unset or any other value refuses them, so a missing variable fails closed.
 - `seed_demo` runs only for `dev`, `demo` or `test`. It creates `demo` with the role `admin` and the password `demo`, bypassing the password policy. It never changes an
-  existing account. A server whose bind address is not loopback refuses to start while `demo` exists and is enabled; every start with it present logs a warning.
+  existing account. The username `demo` is reserved: `create_account` refuses it unless `TL_ENV` allows it.
+- **The `demo` account does not authenticate, and its sessions stop working, unless `TL_ENV` is `dev`, `demo` or `test`** (review item 2): `authenticate` treats it as a wrong password after the usual hash,
+  and `principal_for_bearer` rejects it. A server also refuses to start while an enabled `demo` account exists and `TL_ENV` is anything else, even on loopback behind a proxy, and refuses a
+  non-loopback bind while it exists in any environment. Every start with it present in dev logs a warning.
 
 ### 10. Restore (D1)
 A restore from the ledger archive rebuilds `cur_account` and `cur_agent_token` from events and finds no `auth_*` rows. Every restored account therefore has no password and every restored
 agent token has no secret, so none can sign in. This is the same rule as webhook secrets. `restore_from_archive` returns a warning that names `tl admin bootstrap --username <name>`
 for the first admin, then `tl admin user reset-password` for the rest and `tl admin token issue` for agents. Sessions are gone, which is also correct.
 
-### 11. The Entra seam
+### 11. Authorization is closed for agents
+`RoleAuthorizer` allows an `agent:*` principal only the actions in an explicit list (`tl_core.auth.provider.AGENT_ACTIONS`: reads, `auth.me`, `auth.sign_out`, the four feed commands, and `mcp.*`).
+Everything else, including a route added later, is denied until someone adds it. The propose-only check (`agent_must_propose`) still runs first on the routes that change records, so an agent gets the specific code.
+A test lists the action of every route and fails when one is undecided.
+
+### 12. The operational audit
+`auth_audit` records `sign_in_ok`, `sign_in_failed`, `locked`, `unlocked`, `sign_out`, `token_issued`, `token_revoked`, `password_reset` and `bootstrap`, with the time, the name used (whether or not an account
+exists), the account and actor when there are any, and a short code or id. It never holds a password, a hash or a token. Rows older than 90 days are deleted whenever a row is written. It is an operational table: not
+in the ledger, the archive or the lake, and denied to the dev MCP `query_db`. `tl admin audit` lists it. A flood of failed sign-ins grows it at the attack rate, which is another reason for the rate limiter in front of the API.
+
+### 13. The Entra seam
 `IdentityProvider` is the only place credentials are judged, and `Principal` the only thing callers see. Entra ID (OIDC) replaces the password provider, not its callers:
 - an `OidcIdentityProvider.principal_for_bearer(token)` validates an Entra access token (issuer, audience, expiry, signature from the tenant's JWKS), maps its `oid` claim to an
   account through a new event `Account.Linked {account_id, issuer, subject}`, and returns a `Principal` with `via="oidc"`; roles come from the account or from a group-to-role map;
@@ -125,30 +160,33 @@ for the first admin, then `tl admin user reset-password` for the rest and `tl ad
 - `authenticate_password` and `/auth/sign-in` are switched off in that configuration; agent tokens stay as they are because agents are not Entra users;
 - Phase 1 builds none of that. It only guarantees that nothing outside `tl_core.auth` and the API's resolver reads the credential tables.
 
-### 12. Threat model
+### 14. Threat model
 
 | Threat | Mitigation | Residual risk |
 |---|---|---|
 | Offline guessing of stolen hashes | scrypt 64 MiB, 12-character minimum, common-password list | A weak but listed-safe password still falls to a long attack on a stolen file |
-| Online guessing | 5-failure lockout with growing duration; constant-cost verification; one error text | Lockout can be used to deny a name (bounded by section 6; the admin can reset it) |
+| Online guessing | 5-failure lockout of 15 minutes; constant-cost verification; one error text | Lockout can be used to deny a name; the local `tl admin unlock` and `bootstrap` get an admin back in |
 | Password spraying (one password against many names) | Per-name lockout does not see it; the 12-character minimum and the common-password list make the first guesses fail, and every attempt costs a full scrypt | Needs a rate limiter or alert on failures per source in front of `POST /auth/sign-in` (runbook) |
 | User enumeration by error, status code or time | one exception and text, full KDF always, unknown names locked like real ones, disabled status shown only after a correct password | A sign-in for a name that exists writes one row; the response is identical |
 | Stolen session or agent token | 256-bit tokens stored only as SHA-256, shown once, 12 h session, expiry and instant revocation for agent tokens, revoke on disable and password change | A token in a captured request works until it ends; TLS in front of the API is a deployment duty |
 | A database or backup leak | no plaintext secret anywhere; hashes in operational tables that archive, lake, outbox and webhooks never read | The hashes themselves leak with the file (see the guessing row) |
 | Secrets in the ledger, logs or errors | events carry metadata only; tests scan the events, logs and error bodies for the password and token text | New code paths must keep the rule; reviewers check it |
-| Privilege escalation | every route goes through the `Authorizer`; `admin.*` only for human admins; agents never admin and always propose-only; last-admin check under the single writer lock | Two roles only; no per-record rules in Phase 1 |
+| Privilege escalation | every route goes through the `Authorizer`; `admin.*` only for human admins; agents closed by default to an explicit list and always propose-only; last-admin check under the single writer lock | Two roles only; no per-record rules in Phase 1 |
+| A session that outlives its token | open streams re-check every 15 s and end at 12 h | up to 15 s after sign-out or revocation |
+| Account metadata read by users or agents | account events filtered from `/events`, `/stream`, the lake, MCP, webhooks and the feed | an admin sees them, by design |
 | Race on the roster (create, demote, disable) | the ledger's single writer lock serialises write transactions on both adapters; a test fails if that changes | none known |
-| Resource exhaustion by sign-in | at most 4 concurrent hashes; parameter bounds on stored hashes; password length cap; counter table pruning | A flood of sign-ins still costs CPU; a rate limiter in front is required |
-| The demo account in a real deployment | seeded only for dev, demo or test; a non-loopback bind refuses to start while it is enabled; warning on every start | An operator who sets `TL_ENV=dev` on a public host defeats it; the runbook says not to |
+| Resource exhaustion by sign-in | at most 4 concurrent hashes with a 2 s wait then 503; hashing never inside a write transaction; 2x parameter bounds; length caps and body limits; counter and audit pruning | A flood of sign-ins still costs CPU and audit rows; a rate limiter in front is required |
+| The demo account in a real deployment | seeded only for dev, demo or test; it does not authenticate and its sessions stop unless `TL_ENV` allows it; the server refuses to start with it enabled outside dev, demo and test, or on a non-loopback bind | An operator who sets `TL_ENV=dev` on a public host defeats it; the runbook says not to |
 | A restore leaves accounts open | restored accounts have no password and no token secret | none: they are closed until an admin acts |
 | Dev token file in production | honoured only for `TL_ENV` of `dev`, `test`, `ci` | same as the demo row |
 
 ## Consequences
-- Contracts changed: `tl_core/auth/types.py` is implemented as frozen. Added beside it: `AccountNotFoundError` (404 `account_not_found`), `AgentTokenNotFoundError` (404 `agent_token_not_found`),
+- Contracts changed: `tl_core/auth/types.py` is implemented as frozen, except that the service signatures that store a password take a `PreparedPassword` (made before the unit of work opens) instead of a
+  `str`, and `change_password` has no `current_password` (a self-change is `sessions.change_own_password`). Added beside it: `AuthBusyError` (503 `auth_busy`), `accounts.unlock`, `tl_core.auth.audit`, and `AccountNotFoundError` (404 `account_not_found`), `AgentTokenNotFoundError` (404 `agent_token_not_found`),
   `InvalidAccountError` (422 `invalid_account`) and `AccountStateError` (409 `account_state`) in `tl_core.auth.errors`, with rows in `tl_api/errors.py`. The `ForbiddenError` code `forbidden`
   moves from `HTTP_ERRORS` to the error table (same status and body). `ADMIN_ACTION_PREFIX` is the only admin rule the `Authorizer` knows.
 - The `guard()` dependency resolves a `Principal` (dev token in dev or test, else `principal_for_bearer`) and calls the `Authorizer`; route signatures do not change. ADR-0005 stays in force for the dev-token path only.
-- New schema: `schema/core/auth.yaml` (two projections, four operational tables, seven event classes). Tables in existing dev databases appear when `tl init` runs again.
+- New schema: `schema/core/auth.yaml` (two projections, five operational tables, seven event classes). Tables in existing dev databases appear when `tl init` runs again.
 - Gates affected: this ADR is the auth design approval ADR-0008 decision 6 delegates to the orchestrator.
 - No new dependency.
 

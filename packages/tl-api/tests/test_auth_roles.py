@@ -15,6 +15,7 @@ from tl_api.errors import ERROR_TABLE, HTTP_ERRORS, body_for, exception_for
 from tl_api.tokens import TokenStore
 from tl_core.auth import accounts, sessions
 from tl_core.auth.errors import AccountLockedError, ForbiddenError, WeakPasswordError
+from tl_core.auth.password import prepare_password
 from tl_core.auth.queries import list_accounts
 from tl_core.auth.types import Principal
 
@@ -29,11 +30,11 @@ class Accounts:
         with harness.backend() as uow:
             accounts.create_account(
                 uow, username="boss", display_name="Boss", kind="person", roles=["admin"],
-                password=PASSWORD, by="svc:test",
+                password=prepare_password(PASSWORD), by="svc:test",
             )  # fmt: skip
             accounts.create_account(
                 uow, username="bob", display_name="Bob", kind="person", roles=["user"],
-                password=PASSWORD, by="svc:test",
+                password=prepare_password(PASSWORD), by="svc:test",
             )  # fmt: skip
             bot = accounts.create_account(
                 uow, username="triage", display_name="Triage", kind="agent", roles=["user"],

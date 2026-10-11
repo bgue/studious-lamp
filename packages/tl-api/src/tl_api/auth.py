@@ -17,8 +17,9 @@ from typing import Annotated
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.concurrency import run_in_threadpool
+from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
-from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from tl_core.auth.errors import InvalidCredentialsError
 from tl_core.auth.types import IdentityProvider, Principal
 
@@ -114,12 +115,13 @@ def guard(action: str, *, changes_records: bool = False) -> Callable[..., str]:
         credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)] = None,
     ) -> str:
         principal = _principal(request, ctx, credentials)
+        if changes_records:  # first, so an agent gets the specific code, not a bare 403
+            refuse_agent_writes(principal.actor)
         ctx.authorizer.authorize(principal, action, request.url.path)
         ctx.authorize(principal.actor, action, request.url.path)
-        if changes_records:
-            refuse_agent_writes(principal.actor)
         return principal.actor
 
+    dependency.action = action  # type: ignore[attr-defined]  # read by the route-coverage test
     return dependency
 
 
@@ -127,7 +129,7 @@ def _principal(
     request: Request, ctx: ApiContext, credentials: HTTPAuthorizationCredentials | None
 ) -> Principal:
     """The principal the middleware resolved, else resolve the credentials here."""
-    found: Principal | None = getattr(request.state, "principal", None)
+    found: Principal | None = request.scope.get(PRINCIPAL_KEY)
     if found is not None:
         return found
     if credentials is None or not credentials.credentials:
@@ -146,6 +148,10 @@ def current_principal(
     """A dependency for routes that need the whole principal (roles, kind), not just the actor."""
     return _principal(request, ctx, credentials)
 
+
+#: Where the middleware keeps the principal: a private key, not ``scope["state"]``, which
+#: lifespan state and other middleware can write.
+PRINCIPAL_KEY = "tl_api.principal"
 
 #: Paths that need no token. Everything else, including paths that do not exist, needs one.
 OPEN_PATHS = frozenset({"/health", "/auth/sign-in"})
@@ -191,5 +197,56 @@ class AuthenticationMiddleware:
             )
             await response(scope, receive, send)
             return
-        scope.setdefault("state", {})["principal"] = principal
+        scope[PRINCIPAL_KEY] = principal
         await self.app(scope, receive, send)
+
+
+#: Largest request body by path prefix; credentials and account forms are tiny.
+BODY_LIMITS: tuple[tuple[str, int], ...] = (("/auth/", 16 * 1024), ("/admin/", 64 * 1024))
+
+
+class BodyLimitMiddleware:
+    """Answers 413 `payload_too_large` to an oversized body on the auth and admin routes.
+
+    It checks ``Content-Length`` and also counts the bytes of a chunked body, so a sign-in cannot be
+    used to make the server read or parse megabytes before it says no. It runs before the
+    authentication middleware, so an unauthenticated caller gets the same limit.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        limit = None
+        if scope["type"] == "http":
+            path = scope["path"]
+            limit = next((size for prefix, size in BODY_LIMITS if path.startswith(prefix)), None)
+        if limit is None:
+            await self.app(scope, receive, send)
+            return
+        for name, value in scope["headers"]:
+            if name.lower() == b"content-length" and value.isdigit() and int(value) > limit:
+                await self._refuse(scope, receive, send, limit)
+                return
+        received = 0
+
+        async def limited_receive() -> Message:
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > limit:
+                    # an HTTPException is the one error FastAPI's body reading lets through; the
+                    # app's handler answers it as 413 `payload_too_large`
+                    raise HTTPException(413, f"the request body is over {limit} bytes")
+            return message
+
+        await self.app(scope, limited_receive, send)
+
+    @staticmethod
+    async def _refuse(scope: Scope, receive: Receive, send: Send, limit: int) -> None:
+        response = JSONResponse(
+            {"error": "payload_too_large", "message": f"the request body is over {limit} bytes"},
+            status_code=413,
+        )
+        await response(scope, receive, send)

@@ -29,6 +29,8 @@ class ApiSettings:
     poll_interval_s: float = 0.25  # how often the feed looks for events written by other processes
     sse_keepalive_s: float = 15.0  # idle seconds before an SSE comment line is sent
     sse_wait_s: float = 1.0  # how long a stream blocks on its queue before it looks again
+    sse_recheck_s: float = 15.0  # how often an open stream re-checks that its token is still good
+    sse_max_age_s: float = 12 * 3600.0  # no stream outlives a session (ADR-0009 section 4)
     max_streams: int = 32  # open SSE streams; more get 503 (each holds a worker thread)
     max_upload_bytes: int = DEFAULT_MAX_UPLOAD_BYTES
 

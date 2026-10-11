@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from tl_core.auth.env import dev_tokens_allowed
+from tl_core.auth.errors import AuthBusyError
 from tl_core.auth.provider import PasswordIdentityProvider, RoleAuthorizer
 from tl_core.auth.types import Authorizer as CoreAuthorizer
 from tl_core.auth.types import IdentityProvider
@@ -29,6 +30,7 @@ from tl_api import commands
 from tl_api.auth import (
     AuthenticationMiddleware,
     Authorizer,
+    BodyLimitMiddleware,
     Forbidden,
     Resolver,
     Unauthorized,
@@ -99,7 +101,7 @@ def install_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(StarletteHTTPException)
     async def _http_error(_: Request, exc: StarletteHTTPException) -> JSONResponse:
-        names = {404: "not_found", 405: "method_not_allowed"}
+        names = {404: "not_found", 405: "method_not_allowed", 413: "payload_too_large"}
         code = names.get(exc.status_code, "http_error")
         return _json(exc.status_code, ErrorBody(error=code, message=str(exc.detail)))
 
@@ -107,7 +109,8 @@ def install_error_handlers(app: FastAPI) -> None:
         mapped = body_for(exc)
         assert mapped is not None  # registered only for classes the table knows
         status, body = mapped
-        return _json(status, body)
+        retry = {"Retry-After": "2"} if isinstance(exc, AuthBusyError) else None
+        return _json(status, body, retry)
 
     # One handler per mapped class, so expected errors are answered by ExceptionMiddleware. A
     # catch-all ``Exception`` handler would send the same response from ServerErrorMiddleware, which
@@ -155,6 +158,8 @@ def create_app(
         poll_interval_s=cfg.poll_interval_s,
         keepalive_s=cfg.sse_keepalive_s,
         wait_s=cfg.sse_wait_s,
+        recheck_s=cfg.sse_recheck_s,
+        max_age_s=cfg.sse_max_age_s,
         max_streams=cfg.max_streams,
     )
 
@@ -195,6 +200,7 @@ def create_app(
     )
     install_error_handlers(app)
     app.add_middleware(AuthenticationMiddleware, resolver=resolver)
+    app.add_middleware(BodyLimitMiddleware)  # outermost: the limit applies before anything reads
 
     @app.get("/openapi.json", include_in_schema=False)
     def openapi_document(
