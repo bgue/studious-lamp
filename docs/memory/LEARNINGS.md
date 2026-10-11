@@ -1048,6 +1048,11 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P0-I8A-9** · 2026-10-10 · tags: tooling, security
   Hostile numbers and nesting raise errors other than the ones a parser documents: `yaml.safe_load` raises `RecursionError` (50,000 nested levels) and `ValueError` (integers over 4300 digits); `float(huge_int)` raises `OverflowError`; `json.dumps` of such an integer raises `ValueError`. Wrap the parse, the float conversion and the message formatting, and turn each into the domain error.
   Evidence: `tests/settings/test_exchange.py::test_a_file_that_breaks_the_yaml_reader_is_a_document_error`, `packages/tl-core/tests/test_settings_values.py::test_a_number_too_large_for_a_float_is_out_of_range_not_an_error`. Status: active
+- **L-P0-I8B-14** · 2026-10-11 · tags: ledger, cli, process
+  Reading the ledger "once at attach" is not free for SQLite: opening a missing file creates it, so the CLI root callback (it runs before `tl archive` and `tl backup` decide the ledger is missing) made
+  two commands report a different error. A hook that touches the database belongs behind an explicit flag (`attach(prime=True)`), set only where the ledger is known to exist, and the full suite of every
+  package a change reaches is the check that finds it (L-P0-I8B-9).
+  Evidence: `test_seal_without_a_key_or_a_ledger_exits_1`, `test_a_missing_ledger_exits_1_without_creating_it`; `tests/extypes/test_extension_settings.py::test_attach_reads_the_ledger_only_when_asked_to_prime`. Status: active
 - **L-P0-I6C-12** · 2026-10-10 · tags: tests, process
   A check that fails only on an empty log still passes a run in which the interesting actor did nothing: swallowing every refusal (a budget, a bad argument) in the actor and asserting only what
   was logged made "the assistant proposed nothing" green. Tell the assertion which actors are enabled and bound to act (`Expected`), narrow what an actor may shrug off to the one benign refusal, and
