@@ -61,12 +61,10 @@ AGENT_ACTIONS = frozenset(
         "command.ReactToPost",
     }
 )
-#: MCP tools run their own propose-only checks and call the authorizer as ``mcp.<tool>``.
-AGENT_ACTION_PREFIXES = ("mcp.",)
 
 
-def agent_may(action: str) -> bool:
-    return action in AGENT_ACTIONS or action.startswith(AGENT_ACTION_PREFIXES)
+def agent_may(action: str, allowed: frozenset[str] = AGENT_ACTIONS) -> bool:
+    return action in allowed
 
 
 class RoleAuthorizer:
@@ -74,8 +72,14 @@ class RoleAuthorizer:
 
     An ``agent:*`` principal never runs an ``admin.*`` action, whatever its roles, and may run only
     the actions in :data:`AGENT_ACTIONS` (fail closed). The propose-only rule (B15) for the
-    commands that change records is applied by the API and MCP as well.
+    commands that change records is applied by the API and MCP as well. The MCP server passes its
+    own list of tool and resource actions as ``agent_actions`` (``tl_mcp.identity.MCP_ACTIONS``
+    on top of :data:`AGENT_ACTIONS`): there is no prefix rule, so a new tool is closed to agents
+    until someone adds it to that list.
     """
+
+    def __init__(self, *, agent_actions: frozenset[str] = AGENT_ACTIONS) -> None:
+        self._agent_actions = agent_actions
 
     def authorize(self, principal: Principal, action: str, resource: str) -> None:
         if not principal.roles:
@@ -84,5 +88,5 @@ class RoleAuthorizer:
             principal.kind == "agent" or not principal.is_admin
         ):
             raise ForbiddenError(f"{action} needs the admin role")
-        if principal.kind == "agent" and not agent_may(action):
+        if principal.kind == "agent" and not agent_may(action, self._agent_actions):
             raise ForbiddenError(f"{action} is not open to agents")

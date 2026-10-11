@@ -10,6 +10,7 @@ from helpers import run_pilot, screen_text
 from textual.pilot import Pilot
 from textual.widgets import Input, Static
 from tl_api.client.base import ApiUnavailableError
+from tl_api.errors import ApiError
 from tl_core.auth.errors import AccountLockedError, InvalidCredentialsError
 from tl_tui.sign_in import SignedIn, SignInApp, SignInScreen
 
@@ -123,6 +124,10 @@ def test_a_refused_sign_in_shows_the_message_clears_the_password_and_allows_anot
     [
         (AccountLockedError("too many failed sign-ins", "2026-10-11T12:15:00Z"), "too many failed"),
         (ApiUnavailableError(httpx2.ConnectError("down")), "server unreachable"),
+        (
+            ApiError(429, "rate_limited", "too many failed sign-ins from this address"),
+            "too many failed sign-ins from this address",
+        ),
     ],
 )
 def test_other_refusals_are_shown_too(failure: Exception, shown: str) -> None:

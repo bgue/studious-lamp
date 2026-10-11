@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -12,8 +13,11 @@ from tl_api.auth import Forbidden
 from tl_core.auth import accounts, sessions
 from tl_core.auth.errors import ForbiddenError, InvalidCredentialsError
 from tl_core.auth.password import prepare_password
+from tl_core.auth.provider import RoleAuthorizer
 from tl_core.auth.tokens import token_kind
+from tl_core.auth.types import Principal
 from tl_mcp.identity import (
+    MCP_ACTIONS,
     AgentTokenError,
     resolve_agent,
     token_authorizer,
@@ -152,6 +156,56 @@ def test_a_hook_for_another_actor_is_refused(world: Setup) -> None:
     hook = token_authorizer(world.factory, world.token)
     with pytest.raises(Forbidden, match="no longer belongs"):
         hook("agent:someone-else", "mcp.search_records", "x")
+
+
+# --- the allow-list: no prefix rule ---------------------------------------------------------------
+
+RESOURCE_URIS = (
+    "tl://record/project:P123/K-1",
+    "tl://schema/project:P123/core.Record",
+    "tl://relations",
+    "tl://lake/schema",
+    "tl://types",
+    "tl://types/co.acme.LiftPlan",
+)
+
+
+def test_every_registered_tool_and_resource_is_decided_and_nothing_stale_is_listed(
+    tmp_path: Path,
+) -> None:
+    seen: list[str] = []
+
+    def record(actor: str, action: str, resource: str) -> None:
+        seen.append(action)
+        raise Forbidden("recording")
+
+    harness = McpHarness.build(tmp_path, authorize_hook=record)
+    try:
+        tools = {f"mcp.{t.name}" for t in asyncio.run(harness.server.list_tools())}
+        for uri in RESOURCE_URIS:
+            with pytest.raises(Exception, match="not allowed"):
+                harness.read(uri)
+    finally:
+        harness.close()
+    resources = set(seen)
+    assert resources and all(a.startswith("mcp.resource.") for a in resources)
+    assert tools | resources == MCP_ACTIONS, sorted((tools | resources) ^ MCP_ACTIONS)
+
+
+def test_a_new_tool_is_closed_to_agents_until_it_is_listed(world: Setup) -> None:
+    hook = token_authorizer(world.factory, world.token)
+    for action in ("mcp.brand_new", "mcp.resource.brand_new", "mcp."):
+        with pytest.raises(ForbiddenError, match="not open to agents"):
+            hook("agent:triage", action, "x")
+    hook("agent:triage", "mcp.search_records", "x")
+
+
+def test_the_api_side_authorizer_never_opens_mcp_actions_to_an_agent() -> None:
+    agent = Principal(
+        actor="agent:x", account_id="a", kind="agent", roles=["user"], via="agent_token"
+    )
+    with pytest.raises(ForbiddenError):
+        RoleAuthorizer().authorize(agent, "mcp.search_records", "x")
 
 
 # --- the server end to end -----------------------------------------------------------------------

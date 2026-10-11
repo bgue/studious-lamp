@@ -5,7 +5,8 @@ from the environment, never from the command line, and is not printed, logged or
 The server's actor is the agent the token belongs to. Because a stdio server lives as long as its
 client, the token is looked up **on every tool and resource call**: a token that is revoked,
 expired or whose agent is disabled stops working at the next call, not at the next start. Each call
-is then authorised by the role ``Authorizer``, which allows an agent only ``mcp.*`` actions.
+is then authorised by the role ``Authorizer``, which allows an agent only the actions in
+``MCP_ACTIONS`` (an explicit list, no prefix rule: a new tool is closed until it is added).
 """
 
 from __future__ import annotations
@@ -14,12 +15,41 @@ import os
 from collections.abc import Mapping
 
 from tl_api.auth import Forbidden
-from tl_core.auth.provider import PasswordIdentityProvider, RoleAuthorizer
+from tl_core.auth.provider import AGENT_ACTIONS, PasswordIdentityProvider, RoleAuthorizer
 from tl_core.auth.sessions import UowFactory
 from tl_core.auth.tokens import token_kind
 from tl_core.auth.types import Authorizer, Principal
 
 from tl_mcp.context import Authorizer as McpAuthorizer
+
+#: Every action an MCP tool or resource asks the authorizer about (``mcp.<tool>`` and
+#: ``mcp.resource.<name>``). A test registers the real server and fails on a tool or resource that
+#: is missing here or listed here without existing.
+MCP_ACTIONS = frozenset(
+    {
+        "mcp.search_records",
+        "mcp.get_record",
+        "mcp.get_links",
+        "mcp.trace",
+        "mcp.get_settings",
+        "mcp.lake_query",
+        "mcp.list_record_types",
+        "mcp.get_record_type",
+        "mcp.get_record_body",
+        "mcp.create_record",
+        "mcp.update_psets",
+        "mcp.link_records",
+        "mcp.transition_workflow",
+        "mcp.propose_setting_change",
+        "mcp.post_feed",
+        "mcp.resource.record",
+        "mcp.resource.schema",
+        "mcp.resource.relations",
+        "mcp.resource.lake_schema",
+        "mcp.resource.types",
+        "mcp.resource.type",
+    }
+)
 
 TOKEN_ENV = "TL_AGENT_TOKEN"  # noqa: S105 - the name of the variable, not a secret
 HOW_TO_GET_ONE = "an admin issues one with `tl admin token issue <agent> --label <what for>`"
@@ -68,7 +98,9 @@ def token_authorizer(
     that now belongs to another actor than the server started with is refused too.
     """
     provider = PasswordIdentityProvider(factory)
-    authorizer: Authorizer = roles if roles is not None else RoleAuthorizer()
+    authorizer: Authorizer = (
+        roles if roles is not None else RoleAuthorizer(agent_actions=AGENT_ACTIONS | MCP_ACTIONS)
+    )
 
     def hook(actor: str, action: str, resource: str) -> None:
         principal = provider.principal_for_bearer(token)
