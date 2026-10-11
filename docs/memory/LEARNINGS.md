@@ -201,3 +201,13 @@ test or a generated artefact already enforces, or narrative history (that belong
   decision). Rules: gate any "no bytes needed" shortcut on the state that grants read access, compare secrets as bytes, fail
   closed on missing secrets, and serve client-typed files as attachments with `nosniff`.
   Evidence: `docs/tickets/P0-I4/README-B.md` D8, D9, D12, D13; `tests/services/test_file_service.py`. Status: active
+
+- **L-P1-I0B-1** · 2026-10-11 · tags: tests, process
+  To put a service on a second database, convert the existing suites to the parity fixtures first (the `env` fixture takes `new_db` instead of `tmp_path / "tl.db"`) and write no parallel tests. Of 14 CLI test files (about 400 tests) only 8 failed on Postgres once the source took a `DbTarget`, all in hand-written SQL: an integer for a boolean column (`0` for `deduplicated`), a bare year for a timestamp (`'2026'`), and raw `sqlite3`. The failing list is then the exact ticket list.
+  Evidence: `docs/tickets/P1-I0/README-B.md` B9; `packages/tl-cli/tests/test_cli_wf.py`, `test_cli_file_reconcile.py`. Status: active
+- **L-P1-I0B-2** · 2026-10-11 · tags: process, cli
+  `Path(os.environ["TL_DB"])` turns `postgresql://u:pw@h/db` into `postgresql:/u:pw@h/db` and the SQLite adapter then creates a file of that name, with the password in it. Any entry point that takes a database from a flag or the environment goes through `tl_adapters.db.as_target`, and prints `display_target`. A command group that still imports `tl_adapters.sqlite` does this silently, so a half-converted CLI is worse than an unconverted one: convert the root callback and every group in one increment.
+  Evidence: `tl_adapters/db.py` (`as_target`), `packages/tl-adapters/tests/test_backend.py::test_as_target_keeps_a_url_whole_and_makes_a_path_of_anything_else`. Status: active
+- **L-P1-I0B-3** · 2026-10-11 · tags: process, tooling
+  The shell trap of L-P0-I6C-8 hit a supervisor too: a `cat > file <<'EOF'` of 60 lines inside a `&&` chain hung until the 120 s timeout and left a shell running; the file was never written. Write test and doc files with the Write tool, and kill only the PID of the shell you started.
+  Evidence: S32 round, `packages/tl-cli/tests/test_cli_target.py`. Status: active
