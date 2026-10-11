@@ -16,8 +16,8 @@ from typing import Annotated, NoReturn
 
 import typer
 from pydantic import ValidationError
+from tl_adapters.db import DbTarget, open_uow
 from tl_adapters.objectstore import make_object_store, object_secret
-from tl_adapters.sqlite.uow import open_uow
 from tl_core.files.queries import list_files
 from tl_core.files.service import CompleteUpload, FileService, RegisterUpload
 from tl_core.ledger import ConcurrencyError
@@ -77,7 +77,7 @@ def put(
     ),
 ) -> None:
     """Attach a file to a record: hash it, upload it (or dedupe) and print the result."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     scope = f"project:{project}"
     media = content_type or mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     digest = hashlib.sha256()
@@ -135,7 +135,7 @@ def get(
     ),
 ) -> None:
     """Write a file's bytes to a path, checking them against the recorded SHA-256."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     scope = f"project:{project}"
     if out.exists() and not force:
         _fail(f"{out} already exists; use --force to overwrite it")
@@ -178,7 +178,7 @@ def ls(
     ] = False,
 ) -> None:
     """List a record's files: the current file per slot, or every file with --all."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     scope = f"project:{project}"
     with _service_errors(), open_uow(db, readonly=True) as uow:
         found = get_record(uow, scope, record)
