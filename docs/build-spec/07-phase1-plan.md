@@ -17,7 +17,8 @@ API/MCP → TUI → reports → simulator actors → legacy mapping template (§
 ## Increment 0 — Authentication, admin module, Phase 0 carry-overs (ADR-0008)
 
 **Goal:** real sign-in and a two-role admin module replace the ADR-0005 dev stub, and the Phase 0 carry-overs that block
-use are closed: the API server, TUI and operator commands run on Postgres as well as SQLite, and the CI workflow runs.
+use are closed: the API server, TUI and operator commands run on Postgres as well as SQLite. GitHub Actions is deferred
+by the owner: push commits only, do not enable or depend on workflow runs (the local gates stay the evidence).
 **Decisions (ADR-0008):**
 - username and password now behind an identity seam that Entra ID (OIDC) can replace;
 - roles `admin` and `user`;
@@ -32,7 +33,7 @@ use are closed: the API server, TUI and operator commands run on Postgres as wel
 - the same demo passes against Postgres (`TL_DB` as a `postgresql://` URL).
 **Fanout (orchestrator):**
 - WS-A identity and admin;
-- WS-B Postgres for the server, TUI and CLI, plus the CI first run;
+- WS-B Postgres for the server, TUI and CLI;
 - contract: an `Identity` and `Authorizer` interface in `tl_core/auth/types.py`, written before the fanout.
 
 | ID | Title | Tier | Depends |
@@ -43,7 +44,6 @@ use are closed: the API server, TUI and operator commands run on Postgres as wel
 | T04 | TUI and CLI sign-in; admin screens and `tl admin` commands | H | T03 |
 | T05 | MCP and simulator on service tokens and seeded accounts | H | T03 |
 | T06 | Postgres for `tl serve`, `tl tui`, `tl webhook`, `tl lake`, `tl file`, `EmbeddedFeed` | S | — |
-| T07 | CI: push, run, and fix the workflow until all jobs are green on a runner | H | — |
 
 ---
 

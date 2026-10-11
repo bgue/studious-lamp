@@ -32,6 +32,8 @@ Phase 0 stopped at the end of its scope (`docs/reports/STOPPED.md`) and left hum
    - (b) Record-level merges use a git-like model: imports, conflicting edits and later offline sync are three-way merges against a common base, conflicts are explicit, and the resolution is recorded.
 8. **Extraction uses stubs only.** The derivation pipeline (P1-I3) and the AI enricher (P1-I7) extract real file metadata (type, size, hash, page count, title and author properties where the format exposes them) and leave content fields blank. No LLM call and no spend. Extractors stay behind the plugin interface so a real provider can be added later.
 
+9. **GitHub Actions is deferred.** The run pushes commits only. It does not enable Actions or depend on workflow runs; the local gates in `04-gates.md` §1 stay the evidence, and H6 (first CI run) stays open for later.
+
 ## Consequences
 - **Contracts changed:**
   - Identity and authorization replace the ADR-0005 stub in P1-I0.
