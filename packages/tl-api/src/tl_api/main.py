@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from tl_core.files.service import FileService
+from tl_core.files.types import ObjectStore
 
 from tl_api.backend import Backend
 from tl_api.settings import ApiSettings, check_bind
@@ -54,6 +55,17 @@ def file_service_from_env() -> FileService | None:
         return FileService(make_object_store(), secret=object_secret())
     except ValueError as exc:
         log.warning("file routes disabled: %s", exc)
+        return None
+
+
+def object_store_from_env() -> ObjectStore | None:
+    """The configured object store (bodies of object-backed extension records), or ``None``."""
+    from tl_adapters.objectstore import make_object_store
+
+    try:
+        return make_object_store()
+    except ValueError as exc:
+        log.warning("extension record bodies disabled: %s", exc)
         return None
 
 
@@ -117,7 +129,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         log.warning("--insecure-dev: bound to %s with no real authentication", settings.host)
     backend = open_sqlite_backend(settings.db_path)
     try:
-        app = create_app(backend, settings=settings, files_service=file_service_from_env())
+        app = create_app(
+            backend,
+            settings=settings,
+            files_service=file_service_from_env(),
+            object_store=object_store_from_env(),
+        )
         server = started_server(app, settings, lambda: mark_server_started(backend))
         server.run()
         if not server.started:

@@ -19,6 +19,8 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from tl_core.files.types import ObjectStore
+
 DEFAULT_DB = "./dev/data/tl.db"
 
 
@@ -35,6 +37,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--lake-dir", type=Path, default=None, help="DuckLake directory")
     return parser.parse_args(argv)
+
+
+def object_store_from_env() -> ObjectStore | None:
+    """The object store the environment names, or ``None`` (extension record bodies unavailable)."""
+    from tl_adapters.objectstore import make_object_store
+
+    try:
+        return make_object_store()
+    except ValueError:
+        return None
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -64,9 +76,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     factory = SqliteUowFactory(args.db)
     try:
-        build_server(factory, actor=args.actor, tool_modes=requested, lake_dir=args.lake_dir).run(
-            "stdio"
-        )
+        build_server(
+            factory,
+            actor=args.actor,
+            tool_modes=requested,
+            lake_dir=args.lake_dir,
+            object_store=object_store_from_env(),
+        ).run("stdio")
     finally:
         factory.close()
     return 0

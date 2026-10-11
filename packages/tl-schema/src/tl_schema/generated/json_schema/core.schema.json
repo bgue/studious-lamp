@@ -70,6 +70,56 @@
                 "string"
             ]
         },
+        "BodyQuarantine": {
+            "additionalProperties": false,
+            "description": "Operational state, not a projection: a record whose stored body failed verification on read (brief 31.4). Reads of the record's body are refused until the body is stored again or `tl types quarantine recheck` verifies it. A rebuild of projections never clears it.",
+            "properties": {
+                "actual_hash": {
+                    "description": "Hash of the bytes found; null when the object is missing.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "detected_at": {
+                    "description": "When the mismatch was found.",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "expected_hash": {
+                    "description": "The hash the ledger recorded for the body.",
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "record_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "type_name": {
+                    "type": "string"
+                },
+                "uri": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "record_id",
+                "scope",
+                "type_name",
+                "uri",
+                "expected_hash",
+                "reason",
+                "detected_at"
+            ],
+            "title": "BodyQuarantine",
+            "type": "object"
+        },
         "CaptureHint": {
             "description": "How a client should capture a file for a slot (brief 20.1).",
             "enum": [
@@ -502,6 +552,103 @@
             "additionalProperties": false,
             "description": "Common parent of the event payload classes. Payloads are open: new optional fields are additive.",
             "title": "EventPayload",
+            "type": "object"
+        },
+        "ExtensionRecord": {
+            "additionalProperties": false,
+            "description": "Base class of every extension record type. A package's `type.yaml` declares a class that is_a `ExtensionRecord`; its own slots are the body of an instance. A slot annotated `tl:index: true` is an index field (brief 31.4): it is copied into the pset named for the type, so the query language filters on it. The class annotation `tl:storage_mode` (`managed` or `object-backed`) says where the body lives.",
+            "properties": {
+                "conformance": {
+                    "$ref": "#/$defs/ConformanceStatus",
+                    "description": "Conformance of the current values to the effective schema."
+                },
+                "created_at": {
+                    "description": "Timestamp of the creating event (system time).",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Longer free-text description.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "effective_schema_hash": {
+                    "description": "Hash of the effective schema in force at the last write; null before Increment 2.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "id": {
+                    "description": "Immutable global identifier; equals the ledger `stream_id`.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "key": {
+                    "description": "Human-readable number, unique within a scope. Null until numbering assigns one.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "last_seq": {
+                    "description": "Ledger `seq` of the last event applied.",
+                    "type": "integer"
+                },
+                "psets": {
+                    "$ref": "#/$defs/Any",
+                    "description": "Property-set values keyed by pset name, stored as a JSON object."
+                },
+                "scope": {
+                    "description": "`company` or `project:<id>`.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Workflow state; null when the record type has no workflow.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "title": {
+                    "description": "Short human-readable title.",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "Fully qualified record type, for example `core.Record`.",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "Timestamp of the last applied event (system time).",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Ledger `stream_version` of the last event applied.",
+                    "type": "integer"
+                },
+                "voided": {
+                    "description": "Set by `Record.Voided`. Voided rows are never deleted.",
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "id",
+                "type",
+                "scope",
+                "title",
+                "psets",
+                "voided",
+                "version",
+                "last_seq",
+                "conformance",
+                "created_at",
+                "updated_at"
+            ],
+            "title": "ExtensionRecord",
             "type": "object"
         },
         "FeedEditedPayload": {
@@ -2440,6 +2587,94 @@
             "title": "Record",
             "type": "object"
         },
+        "RecordBody": {
+            "additionalProperties": false,
+            "description": "The pointer to the current body of an object-backed record: one row per record, from `Record.BodyStored`.",
+            "properties": {
+                "body_size": {
+                    "description": "Size of the stored bytes.",
+                    "type": "integer"
+                },
+                "body_versions": {
+                    "description": "How many bodies the record has had.",
+                    "type": "integer"
+                },
+                "hash": {
+                    "description": "sha256 of the stored bytes.",
+                    "type": "string"
+                },
+                "last_seq": {
+                    "type": "integer"
+                },
+                "record_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "schema_hash": {
+                    "type": "string"
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "type_name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "uri": {
+                    "description": "Object key `records/<type>/<id>/<sha256>.json`.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "record_id",
+                "scope",
+                "type_name",
+                "uri",
+                "hash",
+                "body_size",
+                "schema_hash",
+                "body_versions",
+                "last_seq",
+                "updated_at"
+            ],
+            "title": "RecordBody",
+            "type": "object"
+        },
+        "RecordBodyStoredPayload": {
+            "additionalProperties": false,
+            "description": "The body of an object-backed record was stored as a content-addressed object. The body itself is never in the ledger. A new body is a new object (a new hash); the old one stays, and `previous_hash` chains the versions.",
+            "examples": [
+                "{\"pointer\": {\"hash\": \"9c1f0e3a5b7d2c4f6a8b0d1e3f5a7c9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c\", \"schema_hash\": \"7a3b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b\", \"size\": 412, \"uri\": \"records/co.acme.LiftPlan/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5/9c1f0e3a5b7d2c4f6a8b0d1e3f5a7c9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c.json\"}, \"previous_hash\": null, \"stream_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\"}"
+            ],
+            "properties": {
+                "pointer": {
+                    "$ref": "#/$defs/Any",
+                    "description": "`{uri, hash, size, schema_hash}`: object key, sha256 of the stored bytes, size, schema the body validated against."
+                },
+                "previous_hash": {
+                    "description": "Hash of the body this one replaces; null for the first body.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "stream_id": {
+                    "description": "The record (this stream).",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "stream_id",
+                "pointer"
+            ],
+            "title": "RecordBodyStoredPayload",
+            "type": "object"
+        },
         "RecordCorrectedPayload": {
             "additionalProperties": false,
             "description": "A recorded value was corrected after the fact; history keeps the original.",
@@ -3222,6 +3457,16 @@
             "title": "SettingValidation",
             "type": "object"
         },
+        "StorageMode": {
+            "description": "Where the body of an extension type instance lives (brief 31.2).",
+            "enum": [
+                "managed",
+                "object-backed",
+                "directory-backed"
+            ],
+            "title": "StorageMode",
+            "type": "string"
+        },
         "SubscriptionFilter": {
             "additionalProperties": false,
             "description": "Which events a subscription (or rule, or stream) wants (brief 18.2). Every part that is set must match; a part that is absent matches everything. Globs use `*` and `?` and are case-sensitive.",
@@ -3333,6 +3578,276 @@
                 "mention"
             ],
             "title": "TagKind",
+            "type": "string"
+        },
+        "TypeRegistrationDeprecatedPayload": {
+            "additionalProperties": false,
+            "description": "The owner retired a version. Existing instances stay readable and editable; no new instance can be created.",
+            "examples": [
+                "{\"reason\": \"superseded by 2.0.0\", \"type_ref\": \"co.acme.LiftPlan@1.0.0\"}"
+            ],
+            "properties": {
+                "reason": {
+                    "description": "Why.",
+                    "type": "string"
+                },
+                "type_ref": {
+                    "description": "The deprecated version.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "type_ref",
+                "reason"
+            ],
+            "title": "TypeRegistrationDeprecatedPayload",
+            "type": "object"
+        },
+        "TypeRegistrationQuarantinedPayload": {
+            "additionalProperties": false,
+            "description": "A type package failed validation, or its files changed under a version that is already registered. The report lists every problem (`kind`, `path`, `detail`). A conflict never removes a registration that is already active.",
+            "examples": [
+                "{\"content_hash\": \"4d1c0a0f9f43b3a0a0f3a6a6b9d3f0a5c8e5d9b2f1a7c3e6d4b8a2f9c1e7d0b3\", \"location_uri\": \"file:///srv/types/co.acme/LiftPlan/1.0.1\", \"report\": [{\"detail\": \"examples/bad.json: 'risk_class' is not one of ['low', 'medium', 'high']\", \"kind\": \"example\", \"path\": \"examples/bad.json\"}], \"type_ref\": \"co.acme.LiftPlan@1.0.1\"}"
+            ],
+            "properties": {
+                "content_hash": {
+                    "description": "sha256 over the canonical `type.lock` form of the files as found.",
+                    "type": "string"
+                },
+                "location_uri": {
+                    "description": "Where the package files are.",
+                    "type": "string"
+                },
+                "report": {
+                    "$ref": "#/$defs/Any",
+                    "description": "List of `{kind, path, detail}`."
+                },
+                "type_ref": {
+                    "description": "`<namespace>.<name>@<version>`, or `invalid:<relative path>` when the path is not a package path.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "type_ref",
+                "location_uri",
+                "content_hash",
+                "report"
+            ],
+            "title": "TypeRegistrationQuarantinedPayload",
+            "type": "object"
+        },
+        "TypeRegistrationRegisteredPayload": {
+            "additionalProperties": false,
+            "description": "A type package validated and was registered. The package files stay where they are; this event holds metadata only. `content_hash` is the sha256 of the canonical bytes of the package's `type.lock`.",
+            "examples": [
+                "{\"content_hash\": \"4d1c0a0f9f43b3a0a0f3a6a6b9d3f0a5c8e5d9b2f1a7c3e6d4b8a2f9c1e7d0b3\", \"index_fields\": [\"crane\", \"lift_date\", \"risk_class\"], \"location_uri\": \"file:///srv/types/co.acme/LiftPlan/1.0.0\", \"name\": \"LiftPlan\", \"namespace\": \"co.acme\", \"owner\": \"user:alice\", \"schema_hash\": \"7a3b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b\", \"status\": \"active\", \"storage_mode\": \"object-backed\", \"type_ref\": \"co.acme.LiftPlan@1.0.0\", \"version\": \"1.0.0\"}"
+            ],
+            "properties": {
+                "content_hash": {
+                    "description": "sha256 over the canonical bytes of `type.lock`.",
+                    "type": "string"
+                },
+                "index_fields": {
+                    "description": "Slots annotated `tl:index`: the query contract.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "location_uri": {
+                    "description": "Where the package files are, for example `file:///srv/types/co.acme/LiftPlan/1.0.0`.",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Type name, UpperCamelCase, for example `LiftPlan`.",
+                    "type": "string"
+                },
+                "namespace": {
+                    "description": "Namespace, dotted lower-case segments, for example `co.acme`.",
+                    "type": "string"
+                },
+                "owner": {
+                    "description": "Actor that registered the package.",
+                    "type": "string"
+                },
+                "schema_hash": {
+                    "description": "Hash of the compiled class: the schema a stored body validated against.",
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/$defs/TypeStatus",
+                    "description": "`active` for this event."
+                },
+                "storage_mode": {
+                    "$ref": "#/$defs/StorageMode",
+                    "description": "`managed` or `object-backed` in v0."
+                },
+                "type_ref": {
+                    "description": "`<namespace>.<name>@<version>`.",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Semantic version `MAJOR.MINOR.PATCH`.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "namespace",
+                "name",
+                "version",
+                "type_ref",
+                "location_uri",
+                "content_hash",
+                "owner",
+                "status",
+                "storage_mode",
+                "schema_hash"
+            ],
+            "title": "TypeRegistrationRegisteredPayload",
+            "type": "object"
+        },
+        "TypeRegistrationRow": {
+            "additionalProperties": false,
+            "description": "One registered type version: the current state of the stream `type:<namespace>.<Name>@<version>`. `type_name` (`co.acme.LiftPlan`) is what a record's `type` holds. An `active` or `deprecated` row whose files later changed keeps its status and shows the changed hash in `conflict_hash`, with the conflict in `report_json`.",
+            "properties": {
+                "conflict_hash": {
+                    "description": "Content hash of changed files refused under this registered version.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "content_hash": {
+                    "type": "string"
+                },
+                "first_seq": {
+                    "description": "`seq` of the first event of the stream.",
+                    "type": "integer"
+                },
+                "index_fields": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "JSON list of index field names."
+                },
+                "last_seq": {
+                    "description": "`seq` of the last event of the stream.",
+                    "type": "integer"
+                },
+                "location_uri": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "owner": {
+                    "description": "Actor that registered it; null for a quarantined row.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "pset": {
+                    "description": "Name of the pset that holds the index fields of instances.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "reason": {
+                    "description": "Deprecation reason.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "report": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "JSON list of `{kind, path, detail}`: why it was quarantined, or the conflict that was refused."
+                },
+                "schema_hash": {
+                    "description": "Null for a quarantined row.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "status": {
+                    "$ref": "#/$defs/TypeStatus"
+                },
+                "storage_mode": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/StorageMode"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Null for a quarantined row."
+                },
+                "type_name": {
+                    "description": "`<namespace>.<name>`.",
+                    "type": "string"
+                },
+                "type_ref": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "version_n": {
+                    "description": "Stream version after the last event applied.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "type_ref",
+                "type_name",
+                "namespace",
+                "name",
+                "version",
+                "location_uri",
+                "content_hash",
+                "status",
+                "first_seq",
+                "last_seq",
+                "version_n",
+                "updated_at"
+            ],
+            "title": "TypeRegistrationRow",
+            "type": "object"
+        },
+        "TypeStatus": {
+            "description": "Where a registered extension type version is in its life.",
+            "enum": [
+                "active",
+                "quarantined",
+                "deprecated"
+            ],
+            "title": "TypeStatus",
             "type": "string"
         },
         "WebhookAttempt": {

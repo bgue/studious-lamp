@@ -1,0 +1,15 @@
+groups:
+  - name: observation
+    label: Observation
+    fields: [observed_on, category, severity, location]
+  - name: detail
+    label: Detail
+    fields: [narrative, immediate_action]
+fields:
+  narrative:
+    widget: textarea
+  immediate_action:
+    label: Immediate action taken
+    widget: textarea
+grid:
+  columns: [observed_on, category, severity, location]

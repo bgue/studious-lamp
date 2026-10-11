@@ -23,5 +23,6 @@ imports:
   - files
   - integration
   - outbox
+  - extension
   - events
 default_range: string

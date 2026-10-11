@@ -85,7 +85,12 @@ def create(
         str | None, typer.Option("--description", help="Optional description.")
     ] = None,
     record_type: Annotated[
-        str, typer.Option("--type", help="Record type; only core.Record exists.")
+        str,
+        typer.Option(
+            "--type",
+            help="Record type: core.Record, or a registered extension type that keeps its "
+            "values in the ledger (see tl types ls).",
+        ),
     ] = "core.Record",
     segment: Annotated[
         list[str] | None,

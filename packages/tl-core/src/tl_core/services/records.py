@@ -1,4 +1,9 @@
-"""Record command handlers: the only business rules for core.Record (brief 5.1, 5.2).
+"""Record command handlers: the only business rules for records (brief 5.1, 5.2, 31).
+
+``CreateRecord.record_type`` is ``core.Record`` or the name of an active extension type
+(``<namespace>.<Name>``, brief 31, P0-I8): see ``tl_core.extypes``. A managed extension type takes
+its initial values as psets; an object-backed one is created with its body by
+``tl_core.extypes.body.create_extension_record``.
 
 Each handler runs inside an already-entered unit of work and never commits. A failed check raises
 a ServiceError (or the ledger's ConcurrencyError) before anything is appended, so nothing is
@@ -13,6 +18,7 @@ from typing import Any
 
 from sqlalchemy import text
 
+from tl_core.extypes.service import prepare_create, refuse_index_write
 from tl_core.ledger import NewEvent
 from tl_core.numbering.allocator import allocate_key, segment_values
 from tl_core.numbering.config import get_numbering
@@ -25,7 +31,6 @@ from tl_core.services.errors import (
     RecordNotFoundError,
     RecordVoidedError,
     UnsupportedFieldError,
-    UnsupportedRecordTypeError,
 )
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
@@ -35,13 +40,15 @@ _UPDATABLE_FIELDS = frozenset({"title", "description", "psets"})
 
 _DUPLICATE_KEY_SQL = text("SELECT 1 FROM cur_core_record WHERE scope = :scope AND key = :key")
 _LOAD_SQL = text(
-    "SELECT scope, key, title, description, psets_json, voided FROM cur_core_record WHERE id = :id"
+    "SELECT scope, key, type, title, description, psets_json, voided "
+    "FROM cur_core_record WHERE id = :id"
 )
 
 
 @dataclass(frozen=True)
 class _StoredRecord:
     key: str | None
+    type: str
     title: str
     description: str | None
     psets: dict[str, Any]
@@ -54,6 +61,7 @@ def _load_record(uow: UnitOfWork, scope: str, stream_id: str) -> _StoredRecord:
         raise RecordNotFoundError(f"no record {stream_id!r} in scope {scope!r}")
     return _StoredRecord(
         key=row.key,
+        type=row.type,
         title=row.title,
         description=row.description,
         psets=json.loads(row.psets_json),
@@ -67,9 +75,25 @@ def _key_taken(uow: UnitOfWork, scope: str, key: str) -> bool:
 
 
 def handle_create_record(uow: UnitOfWork, cmd: CreateRecord) -> CommandResult:
+    return create_record_internal(uow, cmd, allow_object_backed=False)
+
+
+def create_record_internal(
+    uow: UnitOfWork, cmd: CreateRecord, *, allow_object_backed: bool
+) -> CommandResult:
+    """``handle_create_record``, with the one switch ``create_extension_record`` needs.
+
+    An object-backed type is refused (``BodyRequiredError``) unless ``allow_object_backed``: a
+    record of such a type without a body would be a state the registry never wants to see.
+    """
+    extension = None
     if cmd.record_type != RECORD_TYPE:
-        raise UnsupportedRecordTypeError(
-            f"record type {cmd.record_type!r} is not supported; only {RECORD_TYPE!r} is"
+        extension = prepare_create(
+            uow,
+            record_type=cmd.record_type,
+            scope=cmd.scope,
+            psets=cmd.psets,
+            allow_object_backed=allow_object_backed,
         )
     stream_id = new_ulid()
     correlation_id = cmd.correlation_id or new_ulid()
@@ -111,7 +135,9 @@ def handle_create_record(uow: UnitOfWork, cmd: CreateRecord) -> CommandResult:
                     "key": key,
                     "title": cmd.title,
                     "description": cmd.description,
-                    "psets": cmd.psets,
+                    # An extension type's initial values go in as Pset.ValuesSet events below, so
+                    # they carry the conformance and schema hash like any later write.
+                    "psets": cmd.psets if extension is None else {},
                 },
             )
         ],
@@ -120,11 +146,33 @@ def handle_create_record(uow: UnitOfWork, cmd: CreateRecord) -> CommandResult:
         correlation_id=correlation_id,
         causation_id=cmd.causation_id,
     )
+    events = list(result.events)
+    version = result.new_version
+    if extension is not None:
+        from tl_core.services.psets import SetPsetValues, handle_set_pset_values
+
+        for pset, values in cmd.psets.items():
+            written = handle_set_pset_values(
+                uow,
+                SetPsetValues(
+                    actor=cmd.actor,
+                    source=cmd.source,
+                    scope=cmd.scope,
+                    correlation_id=correlation_id,
+                    stream_id=stream_id,
+                    expected_version=version,
+                    pset=pset,
+                    layer="standard",
+                    values=values,
+                ),
+            )
+            events.extend(written.events)
+            version = written.version
     return CommandResult(
         stream_id=stream_id,
         key=key,
-        version=result.new_version,
-        events=result.events,
+        version=version,
+        events=events,
     )
 
 
@@ -132,6 +180,8 @@ def handle_update_record(uow: UnitOfWork, cmd: UpdateRecord) -> CommandResult:
     stored = _load_record(uow, cmd.scope, cmd.stream_id)
     if stored.voided:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot be updated")
+    if "psets" in cmd.changes:
+        refuse_index_write(uow, stored.type)
     unsupported = sorted(set(cmd.changes) - _UPDATABLE_FIELDS)
     if unsupported:
         raise UnsupportedFieldError(

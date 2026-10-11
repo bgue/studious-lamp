@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from pydantic import BaseModel, ValidationError
+from tl_core.extypes import errors as ext
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
 from tl_core.services import errors as svc
@@ -100,6 +101,16 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.InvalidProposalError, "invalid_proposal", 422),
         s(svc.BudgetExceededError, "budget_exceeded", 429),
         s(svc.ProposalDeciderError, "proposal_decider", 403),
+        # --- extension types (P0-I8 workstream B) ---------------------------------------------
+        s(ext.UnknownTypeError, "type_not_found", 404),
+        s(ext.TypeNotActiveError, "type_not_active", 409),
+        s(ext.BodyRequiredError, "body_required", 422),
+        s(ext.BodyNotAllowedError, "body_not_allowed", 422),
+        s(ext.BodyValidationError, "body_invalid", 422),
+        s(ext.BodyNotFoundError, "body_not_found", 404),
+        s(ext.BodyQuarantinedError, "body_quarantined", 403),
+        s(ext.BodyHashMismatchError, "body_hash_mismatch", 502),
+        s(ext.BodyStoreUnavailableError, "body_store_unavailable", 503),
         # --- settings (P0-I8 workstream A) ---------------------------------------------------
         s(svc.SettingError, "setting_error", 422),
         s(svc.UnknownSettingError, "unknown_setting", 404),
@@ -196,7 +207,7 @@ def body_for(exc: BaseException) -> tuple[int, ErrorBody] | None:
         body.results = [
             r.model_dump(mode="json") if isinstance(r, BaseModel) else dict(r) for r in exc.results
         ]
-    elif isinstance(exc, svc.PsetValidationError):
+    elif isinstance(exc, (svc.PsetValidationError, ext.BodyValidationError)):
         body.issues = list(exc.issues)
     return spec.status, body
 
@@ -219,6 +230,8 @@ def exception_for(status: int, body: dict[str, Any]) -> Exception:
             )
         if spec.exc is svc.PsetValidationError:
             return svc.PsetValidationError(message, [str(i) for i in body.get("issues") or []])
+        if spec.exc is ext.BodyValidationError:
+            return ext.BodyValidationError(message, [str(i) for i in body.get("issues") or []])
         return spec.exc(message)
     cls = ApiValidationError if code == "validation_error" else ApiError
     return cls(status, code or "unknown", message, body)

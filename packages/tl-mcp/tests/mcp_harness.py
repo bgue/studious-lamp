@@ -18,6 +18,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp_types import CallToolResult
 from tl_adapters.sqlite.factory import SqliteUowFactory
 from tl_adapters.sqlite.uow import create_schema
+from tl_core.files.types import ObjectStore
 from tl_core.services.commands import CommandResult, CreateRecord
 from tl_core.services.links import AddLink, handle_add_link
 from tl_core.services.records import handle_create_record
@@ -39,16 +40,21 @@ class McpHarness:
         *,
         authorize_hook: Callable[[str, str, str], None] | None = None,
         lake_dir: Path | None = None,
+        object_store: ObjectStore | None = None,
     ) -> McpHarness:
         db = root / "tl.db"
         create_schema(db)
         factory = SqliteUowFactory(db)
         lake = lake_dir if lake_dir is not None else root / "lake"
         if authorize_hook is None:
-            server = build_server(factory, actor=ACTOR, lake_dir=lake)
+            server = build_server(factory, actor=ACTOR, lake_dir=lake, object_store=object_store)
         else:
             server = build_server(
-                factory, actor=ACTOR, authorize_hook=authorize_hook, lake_dir=lake
+                factory,
+                actor=ACTOR,
+                authorize_hook=authorize_hook,
+                lake_dir=lake,
+                object_store=object_store,
             )
         return McpHarness(db, factory, server)
 

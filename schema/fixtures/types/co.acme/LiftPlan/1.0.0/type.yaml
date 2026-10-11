@@ -1,0 +1,77 @@
+id: https://example.org/types/co.acme/LiftPlan
+name: co_acme_lift_plan
+title: Lift plan (co.acme.LiftPlan 1.0.0)
+description: >-
+  A planned crane lift: where, when, with which crane, how heavy and how risky. An object-backed extension type
+  (brief 31): the ledger holds the envelope and the index fields, and the full document is a content-addressed JSON
+  object. The index fields are the query contract; the method statement, crew and exclusion zone are visible in the
+  record view but not filterable.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+  acme: https://example.org/types/co.acme/
+default_prefix: acme
+imports:
+  - linkml:types
+  - throughline/core/extension
+default_range: string
+
+enums:
+  RiskClass:
+    description: Lift risk class under the company lifting procedure.
+    permissible_values:
+      low:
+        description: Routine lift, standard rigging, no people below.
+      medium:
+        description: Heavy or awkward lift, or work near live plant.
+      high:
+        description: "Critical lift: above 75 percent of crane capacity, tandem lift, or personnel below."
+
+classes:
+  LiftPlan:
+    is_a: ExtensionRecord
+    description: A planned crane lift with its risk class, crane and load.
+    annotations:
+      tl:storage_mode: object-backed
+    attributes:
+      lift_date:
+        range: date
+        required: true
+        description: Day of the lift.
+        annotations:
+          tl:index: true
+      crane:
+        required: true
+        description: Crane tag, for example CR-12.
+        pattern: "^[A-Z]{2}-[0-9]{1,4}$"
+        annotations:
+          tl:index: true
+      load_tonnes:
+        range: float
+        required: true
+        description: Load to be lifted, including rigging.
+        minimum_value: 0
+        maximum_value: 1000
+        unit:
+          ucum_code: t
+        annotations:
+          tl:index: true
+      risk_class:
+        range: RiskClass
+        required: true
+        description: Risk class of the lift.
+        annotations:
+          tl:index: true
+      method_statement:
+        description: How the lift is done, step by step.
+        annotations:
+          tl:kind: text
+      crew:
+        description: Names of the crew on the lift.
+        multivalued: true
+      exclusion_zone_m:
+        range: float
+        description: Radius of the exclusion zone around the load.
+        minimum_value: 0
+        unit:
+          ucum_code: m

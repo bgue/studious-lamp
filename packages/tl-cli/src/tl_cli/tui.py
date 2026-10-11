@@ -34,12 +34,25 @@ def tui(
     actor: Annotated[
         str | None, typer.Option("--actor", help="Remote: the name the header shows.")
     ] = None,
+    record_type: Annotated[
+        str | None,
+        typer.Option(
+            "--type", envvar="TL_TYPE", help="Record type of the grid (default core.Record)."
+        ),
+    ] = None,
 ) -> None:
     """Open the TUI. Embedded unless --remote is given."""
     from tl_tui import main as tui_main
 
     try:
-        tui_main.run(remote=remote, token=token, db=ctx.obj, project=project, actor=actor)
+        tui_main.run(
+            remote=remote,
+            token=token,
+            db=ctx.obj,
+            project=project,
+            actor=actor,
+            record_type=record_type,
+        )
     except ValueError as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=2) from exc

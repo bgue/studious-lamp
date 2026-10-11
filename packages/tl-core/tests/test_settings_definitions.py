@@ -181,47 +181,98 @@ def test_an_unknown_key_is_refused(clean: None) -> None:
         get_definition("no.such")
 
 
-def test_extension_keys_carry_the_namespace_of_their_type(clean: None) -> None:
-    mine = parse_definitions(doc(entry("co.acme.lift.max_load")), owner="co.acme.LiftPlan")
+def test_extension_keys_carry_the_namespace_and_name_of_their_type(clean: None) -> None:
+    mine = parse_definitions(doc(entry("co.acme.lift_plan.max_load")), owner="co.acme.LiftPlan")
     register_definitions(mine, owner="co.acme.LiftPlan")
-    assert get_definition("co.acme.lift.max_load").owner == "co.acme.LiftPlan"
-    assert "co.acme.lift.max_load" in defs.definitions()
-    stray = parse_definitions(doc(entry("other.key")), owner="co.acme.LiftPlan")
-    with pytest.raises(SettingDefinitionError, match="must start with 'co.acme.'"):
-        register_definitions(stray, owner="co.acme.LiftPlan")
+    assert get_definition("co.acme.lift_plan.max_load").owner == "co.acme.LiftPlan"
+    assert "co.acme.lift_plan.max_load" in defs.definitions()
+    for stray in ("other.key", "co.acme.max_load", "co.acme.lift.max_load", "co.acme.lift_plans.x"):
+        bad = parse_definitions(doc(entry(stray)), owner="co.acme.LiftPlan")
+        with pytest.raises(SettingDefinitionError, match="must start with 'co.acme.lift_plan.'"):
+            register_definitions(bad, owner="co.acme.LiftPlan")
+
+
+def test_a_type_of_a_short_namespace_cannot_take_the_keys_of_another_namespace(
+    clean: None,
+) -> None:
+    squat = parse_definitions(doc(entry("co.acme.lift_plan.max_load")), owner="co.Foo")
+    with pytest.raises(SettingDefinitionError, match="must start with 'co.foo.'"):
+        register_definitions(squat, owner="co.Foo")
+    platform = parse_definitions(doc(entry("feed.reactions.enabled")), owner="co.Foo")
+    with pytest.raises(SettingDefinitionError, match="must start with 'co.foo.'"):
+        register_definitions(platform, owner="co.Foo")
+
+
+def test_a_type_name_cannot_reproduce_another_namespace(clean: None) -> None:
+    """`co.Acme` has the prefix `co.acme.`; `co.acme.Foo` the namespace `co.acme.foo`."""
+    for owner, key in (
+        ("co.Acme", "co.acme.x.y"),
+        ("co.Acme", "co.acme.lift_plan.max_load"),
+        ("co.acme.Foo", "co.acme.foo.x.k"),
+    ):
+        bad = parse_definitions(doc(entry(key)), owner=owner)
+        with pytest.raises(SettingDefinitionError, match="one more segment without a dot"):
+            register_definitions(bad, owner=owner)
+    fine = parse_definitions(doc(entry("co.acme.x")), owner="co.Acme")
+    register_definitions(fine, owner="co.Acme")  # its own single-segment key is fine
+    unregister_definitions("co.Acme")
 
 
 def test_an_extension_cannot_shadow_a_platform_key_or_another_type(clean: None) -> None:
     shadow = parse_definitions(doc(entry("feed.reactions.enabled")), owner="feed.reactions.Type")
-    with pytest.raises(SettingDefinitionError, match="already defined"):
+    with pytest.raises(SettingDefinitionError, match="must start with 'feed.reactions.type.'"):
         register_definitions(shadow, owner="feed.reactions.Type")
-    first = parse_definitions(doc(entry("co.acme.a")), owner="co.acme.One")
-    register_definitions(first, owner="co.acme.One")
-    second = parse_definitions(doc(entry("co.acme.a")), owner="co.acme.Two")
+    # two names that snake-case alike share a prefix, so the second cannot take the first's key
+    first = parse_definitions(doc(entry("co.acme.http_server.a")), owner="co.acme.HTTPServer")
+    register_definitions(first, owner="co.acme.HTTPServer")
+    second = parse_definitions(doc(entry("co.acme.http_server.a")), owner="co.acme.HttpServer")
     with pytest.raises(SettingDefinitionError, match="already defined"):
-        register_definitions(second, owner="co.acme.Two")
+        register_definitions(second, owner="co.acme.HttpServer")
     with pytest.raises(SettingDefinitionError, match="platform"):
         register_definitions(first, owner="platform")
     with pytest.raises(SettingDefinitionError, match="namespace"):
         register_definitions(first, owner="NoDot")
 
 
+def test_a_secret_definition_is_refused(clean: None) -> None:
+    secret = parse_definitions(
+        doc(entry("co.acme.vault.token", sensitivity="secret")), owner="co.acme.Vault"
+    )
+    with pytest.raises(SettingDefinitionError, match="secret"):
+        register_definitions(secret, owner="co.acme.Vault")
+    assert "co.acme.vault.token" not in defs.definitions()
+
+
+def test_a_platform_key_wins_over_an_extension_key_in_the_listing_too(clean: None) -> None:
+    platform = defs.definitions()["feed.reactions.enabled"]
+    squatter = platform.model_copy(update={"owner": "co.acme.Squatter", "default": False})
+    with defs._registry.lock:  # pyright: ignore[reportPrivateUsage]
+        defs._registry.extensions["co.acme.Squatter"] = {  # pyright: ignore[reportPrivateUsage]
+            platform.key: squatter
+        }
+    try:
+        assert defs.definitions()[platform.key].owner == "platform"
+        assert defs.definitions()[platform.key] == get_definition(platform.key)
+    finally:
+        unregister_definitions("co.acme.Squatter")
+
+
 def test_registering_an_owner_again_replaces_its_keys_and_nothing_is_kept_on_failure(
     clean: None,
 ) -> None:
-    v1 = parse_definitions(doc(entry("co.acme.a"), entry("co.acme.b")), owner="co.acme.One")
+    v1 = parse_definitions(doc(entry("co.acme.one.a"), entry("co.acme.one.b")), owner="co.acme.One")
     register_definitions(v1, owner="co.acme.One")
-    v2 = parse_definitions(doc(entry("co.acme.a")), owner="co.acme.One")
+    v2 = parse_definitions(doc(entry("co.acme.one.a")), owner="co.acme.One")
     register_definitions(v2, owner="co.acme.One")
-    assert "co.acme.b" not in defs.definitions() and "co.acme.a" in defs.definitions()
+    assert "co.acme.one.b" not in defs.definitions() and "co.acme.one.a" in defs.definitions()
     clash = parse_definitions(
-        doc(entry("co.acme.c"), entry("feed.signal_tags")), owner="co.acme.One"
+        doc(entry("co.acme.one.c"), entry("feed.signal_tags")), owner="co.acme.One"
     )
     with pytest.raises(SettingDefinitionError):
         register_definitions(clash, owner="co.acme.One")
-    assert "co.acme.a" in defs.definitions() and "co.acme.c" not in defs.definitions()
+    assert "co.acme.one.a" in defs.definitions() and "co.acme.one.c" not in defs.definitions()
     unregister_definitions("co.acme.One")
-    assert "co.acme.a" not in defs.definitions()
+    assert "co.acme.one.a" not in defs.definitions()
 
 
 def test_definitions_come_back_sorted_by_key(clean: None) -> None:

@@ -52,7 +52,7 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 ## Settings (`tl_core.settings`, P0-I8 workstream A; brief 30)
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `tl_core.settings.definitions()`, `get_definition`, `register_definitions`, `use_definitions` | functions | The setting definitions: the platform file `schema/settings/platform.yaml` plus keys extension packages register under their namespace |
+| `tl_core.settings.definitions()`, `get_definition`, `register_definitions`, `use_definitions` | functions | The setting definitions: the platform file `schema/settings/platform.yaml` plus keys extension packages register as `<namespace>.<snake_case(TypeName)>.<segment>` (D15; secret keys refused; a platform key wins a listing clash) |
 | `tl_core.settings.resolve`, `resolve_all`, `value_of(conn, key, project=, user=)`, `history`, `diff` | functions | The effective value (default, company, project, user), its origin, `modified_here`, lock, bounds, scheduled changes and `pending_effect`; time-based, from the `cur_setting*` tables. Use `value_of` inside a transaction |
 | `tl_core.settings.set_setting`, `reset_setting`, `lock_setting`, `revert_setting`, `service.change_setting` | functions | Change a layer. Locks and bounds are enforced here and again when resolving; a reason is required for `advanced` and `dangerous` keys and `accept_risk` for `dangerous` ones; secrets are refused; only the latest change at a layer is reverted |
 | `tl_core.settings.export_yaml`, `import_yaml` | functions | One layer as a YAML template; import is all or nothing and refuses aliases, non-JSON values and oversized files |
@@ -91,6 +91,21 @@ The ledger is sealed into signed, hash-chained segments that do not depend on th
 | `ArchiveError`, `ArchiveExistsError`, `RestoreError` | exceptions | `RestoreError.issue` carries the first divergence when verification caused the refusal |
 
 Restore is not here: it inserts events verbatim through `tl_adapters.<dialect>.admin.restore_events` (`tl_adapters.restore.restore_from_archive`). `events.parquet` uses the ledger `events` column names, so the lake can load a segment directly.
+
+## Extension record types (`tl_core.extypes`, P0-I8 workstream B)
+A company adds a record type with a package of files (brief 31, 27.3). Runbook: `docs/runbooks/extension-types.md`. Plan and decisions B1 to B15: `docs/tickets/P0-I8/README-B.md`. `extypes/types.py` is the frozen contract.
+
+| Name | Kind | Purpose |
+|---|---|---|
+| `validate.validate_package`, `describe_package`, `read_settings` | functions | Check a package (layout, `type.lock`, LinkML lint, compile, examples, settings); never raises, every problem is a `TypeIssue` |
+| `compile.compile_type`, `to_package_doc`, `body_schema`, `body_issues` | functions | A package into a `CompiledType` and its pset `PackageDoc`; a body against the compiled class |
+| `lock.compute_lock`, `write_lock`, `content_hash`, `names.parse_type_ref`, `pset_name` | functions | `type.lock` (sha256 per file), type refs and the pset name `co_acme_lift_plan` |
+| `registry.sync`, `scan`, `list_types`, `get_type`, `current_type`, `list_quarantined`, `deprecate`, `deprecate_type` | functions | Idempotent registration with `TypeRegistration.*` events; an edit to a registered version is a reported conflict |
+| `loader.TypeLoader`, `provider.attach`, `LedgerExtensionSource` | classes, function | Verify files against the registered hashes; add registered types to the effective schema (`DirectorySchemaProvider.attach_extensions`); call `attach(factory)` where a process opens its ledger |
+| `service.type_detail`, `summarise`, `prepare_create`, `forms.type_form`, `watch.watch` | functions | What the API, MCP and TUI return for a type; the generated form (`form.yaml` groups); a polling directory watcher |
+| `body.store_body`, `store_record_body`, `create_extension_record`, `read_body`, `load_body`, `recheck_body`, `list_body_quarantine` | functions | Object-backed bodies (`records/<type>/<id>/<sha256>.json`): validated, written once per hash, hash-verified on every read, damaged ones quarantined in `tl_body_quarantine` |
+| `settings_link.refresh`, `refresh_from_ledger`, `clash_issues` | functions | The `settings.yaml` keys of the newest verified version of each usable type, registered in `tl_core.settings.registry` under the type name; a key another owner defines quarantines the package at sync |
+| `errors` | exceptions | `UnknownTypeError`, `TypeNotActiveError`, `Body*Error` (all `ServiceError`) |
 
 ## Depends on / used by
 - Depends on: `tl_schema` (generated DDL, effective schema, conformance), `sqlalchemy` (Core only), `pydantic`, `python-ulid`, `duckdb==1.5.5` (MIT; writes the archive Parquet, imported lazily), `cryptography` (Apache-2.0/BSD; Ed25519).
