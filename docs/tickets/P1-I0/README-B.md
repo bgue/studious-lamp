@@ -51,6 +51,7 @@ The runbook `docs/runbooks/run-on-postgres.md` has the full procedure and what d
 | S35 | After A merges: `tl_mcp/main.py` and `tl_sim` on `open_backend`; the guard test that no command imports `tl_adapters.sqlite` (except `backup`) | Touches A's files | same | planned |
 | S35a | Fixes of the review of S30 to S34 (B12) | Security-relevant handling of credentials in URLs | short re-review | done |
 | S35b | `as_target` validates `sslmode` (re-review residual) | same | same | done |
+| S35c | `tests/tools/test_no_sqlite_imports.py`: no module of `tl-api`, `tl-cli` or `tl-tui` imports `tl_adapters.sqlite` except `backup.py` (`tl-mcp` joins in S35) | Pins decision B1 | same | done |
 | S36 | Runbook `docs/runbooks/run-on-postgres.md` (written; MCP and simulator sections after S35); package READMEs and AGENTS.md; learnings; the report | Docs of the new operating mode | n/a | runbook written |
 
 ## Tickets
@@ -65,9 +66,9 @@ T31 to T38 swap one command group each from the SQLite-only `open_uow` and a `Pa
 | T34 | `tl config` | haiku | S34 | merged | pass on the first review, 89d7e2a, merge 9186ea3; 89 tests on both adapters; report miscounts one annotation (cosmetic) |
 | T35 | `tl types`, `tl types quarantine` | haiku | S34, T34 (its settings test calls `tl config`) | merged | pass on the first review, 238c64b, merge 3069327; 66 tests on both adapters; only deviation: ruff I001 import order |
 | T36 | `tl file` (put, get, ls, reconcile) | haiku | S34 | merged | pass on the first review, ac5151d, merge ccd9d49; 32 tests on both adapters |
-| T37 | `tl webhook` | haiku | S34 | ready | |
-| T38 | `tl lake`; `tl backup sqlite` refuses Postgres | haiku | S34 | ready | |
-| T39 | Runbooks that say the ledger is a SQLite file | haiku | T31 to T38 | draft | |
+| T37 | `tl webhook` | haiku | S34 | merged | pass on the first review, e974aa2, merge 178756a; 36 tests on both adapters; tl-cli 411 |
+| T38 | `tl lake`; `tl backup sqlite` refuses Postgres | haiku | S34 | merged | pass on the first review, b4683b7, merge f00ac86; 48 tests on both adapters; tl-cli 412. The test's `pgbackrest` assertion matched only the runbook path; it now asserts `use pgBackRest (` |
+| T39 | Runbooks that say the ledger is a SQLite file | haiku | T31 to T38 | ready | |
 
 **Haiku-ability checklist (`01-tiers.md` §6), all tickets.** (1) Files to read: the one or two source files, the root callback and the provided tests: more than six for T34 and T35 but each test file is only a fixture and call pattern the ticket does not ask to understand. (2) Every interface exists in the repo (`tl_adapters.db`, `make_uow_factory`). (3) The provided tests are the spec, with the pass count of the reference run. (4) The diff is 10 to 30 lines per ticket (the reference diff: 287 insertions and 212 deletions over all 45 files, tests included). (5) None of the Sonnet-authored rows (no engine, migration or auth). (6) No `schema/**`, migration, dependency or public-interface change. (7) A reviewer verifies it from the diff and the commands. The file counts are above five because the provided tests are read-only context, not part of the diff.
 

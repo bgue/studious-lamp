@@ -80,5 +80,5 @@ def test_a_postgres_target_is_refused_and_points_to_the_postgres_tools() -> None
     assert result.exit_code == 1
     assert isinstance(result.exception, SystemExit)  # a clean exit, not a crash
     assert "error: tl backup sqlite takes a SQLite ledger" in result.stderr
-    assert "pgbackrest" in result.stderr
+    assert "use pgBackRest (" in result.stderr
     assert "hunter2" not in result.output

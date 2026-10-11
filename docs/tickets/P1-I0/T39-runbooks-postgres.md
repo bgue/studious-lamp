@@ -1,6 +1,6 @@
 # P1-I0-T39 — Runbooks that say the ledger is a SQLite file
 
-Status: draft
+Status: ready
 Tier: haiku
 Labels: docs
 Depends on: P1-I0-T31 to T38 merged on `p1/i0b` (the commands now take either database)
