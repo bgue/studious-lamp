@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Generator, Iterator
 from contextlib import contextmanager
-from pathlib import Path
 from typing import NoReturn
 
 import typer
 from pydantic import ValidationError
-from tl_adapters.sqlite.factory import SqliteUowFactory
+from tl_adapters.db import DbTarget, make_uow_factory
 from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import ServiceError
+from tl_core.webhooks.base import UowFactory
 
 ACTOR = "user:dev"
 SOURCE = "cli"
@@ -23,10 +23,10 @@ def fail(message: str) -> NoReturn:
 
 
 @contextmanager
-def factory(ctx: typer.Context) -> Generator[SqliteUowFactory]:
-    """A unit-of-work factory on the ledger file from ``--db`` / ``TL_DB``, disposed afterwards."""
-    db: Path = ctx.obj
-    opened = SqliteUowFactory(db)
+def factory(ctx: typer.Context) -> Generator[UowFactory]:
+    """A unit-of-work factory on the ledger from ``--db`` / ``TL_DB``, disposed afterwards."""
+    db: DbTarget = ctx.obj
+    opened = make_uow_factory(db)
     try:
         yield opened
     finally:
