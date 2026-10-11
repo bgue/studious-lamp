@@ -1207,6 +1207,17 @@
             ],
             "title": "Issues"
           },
+          "locked_until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locked Until"
+          },
           "message": {
             "title": "Message",
             "type": "string"
@@ -5204,14 +5215,14 @@
     },
     "securitySchemes": {
       "HTTPBearer": {
-        "description": "Static dev token (ADR-0005)",
+        "description": "Session token, agent token or dev token",
         "scheme": "bearer",
         "type": "http"
       }
     }
   },
   "info": {
-    "description": "Records, links, workflow, files and the change feed over HTTP. Phase 0 is a development server: identity is a static bearer token and every authenticated actor may do everything (ADR-0005). Errors are `{error, message, ...}` bodies; the `error` codes are stable.",
+    "description": "Records, links, workflow, files and the change feed over HTTP. Callers sign in with a username and password and send the session token as a bearer token; agents send an admin-issued token (ADR-0009). The `admin` role may do everything, `user` everything but `admin.*`. Errors are `{error, message, ...}` bodies; the `error` codes are stable.",
     "title": "Throughline API",
     "version": "0.1.0"
   },
@@ -5280,7 +5291,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -5387,7 +5398,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -5494,7 +5505,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -5601,7 +5612,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -5708,7 +5719,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -5815,7 +5826,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -5922,7 +5933,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6029,7 +6040,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6136,7 +6147,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6243,7 +6254,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6350,7 +6361,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6457,7 +6468,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6564,7 +6575,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6671,7 +6682,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6778,7 +6789,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6885,7 +6896,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6992,7 +7003,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7099,7 +7110,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7263,7 +7274,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7456,7 +7467,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7592,7 +7603,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7693,7 +7704,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7780,7 +7791,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7879,7 +7890,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7979,7 +7990,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8056,7 +8067,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8142,7 +8153,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8239,7 +8250,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8387,7 +8398,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8544,7 +8555,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8645,7 +8656,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8768,7 +8779,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8884,7 +8895,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9081,7 +9092,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9231,7 +9242,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9332,7 +9343,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9420,7 +9431,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9508,7 +9519,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9604,7 +9615,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9692,7 +9703,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9784,7 +9795,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9915,7 +9926,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10007,7 +10018,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10109,7 +10120,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10224,7 +10235,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10333,7 +10344,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10414,7 +10425,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10511,7 +10522,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10608,7 +10619,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10760,7 +10771,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10869,7 +10880,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10960,7 +10971,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11047,7 +11058,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11169,7 +11180,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11265,7 +11276,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11374,7 +11385,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11472,7 +11483,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11570,7 +11581,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11668,7 +11679,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11844,7 +11855,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11953,7 +11964,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -12051,7 +12062,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -12139,7 +12150,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -12226,7 +12237,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -12325,7 +12336,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -12424,7 +12435,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {

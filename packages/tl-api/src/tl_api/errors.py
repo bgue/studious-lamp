@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from pydantic import BaseModel, ValidationError
+from tl_core.auth import errors as auth
 from tl_core.extypes import errors as ext
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
@@ -125,6 +126,18 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.SettingChangeNotFoundError, "setting_change_not_found", 404),
         s(svc.SettingsDocumentError, "settings_document", 422),
         s(svc.SettingRevertNotLatestError, "setting_revert_not_latest", 409),
+        # --- accounts and sign-in (P1-I0, ADR-0009) -----------------------------------------
+        s(auth.InvalidCredentialsError, "invalid_credentials", 401),
+        s(auth.AccountLockedError, "account_locked", 423),
+        s(auth.AccountDisabledError, "account_disabled", 403),
+        s(auth.ForbiddenError, "forbidden", 403),
+        s(auth.LastAdminError, "last_admin", 409),
+        s(auth.WeakPasswordError, "weak_password", 422),
+        s(auth.UsernameTakenError, "username_taken", 409),
+        s(auth.AccountNotFoundError, "account_not_found", 404),
+        s(auth.AgentTokenNotFoundError, "agent_token_not_found", 404),
+        s(auth.InvalidAccountError, "invalid_account", 422),
+        s(auth.AccountStateError, "account_state", 409),
     )
 
 
@@ -139,7 +152,6 @@ HTTP_ERRORS: dict[str, int] = {
     "effective_time_forbidden": 400,
     "invalid_effective_time": 400,
     "unauthorized": 401,
-    "forbidden": 403,
     "agent_must_propose": 403,  # an agent token ran a record-changing command (tl_api.auth)
     "not_found": 404,
     "method_not_allowed": 405,
@@ -159,6 +171,7 @@ class ErrorBody(BaseModel):
     position: int | None = None  # query_syntax: 0-based character offset
     issues: list[dict[str, Any]] | list[str] | None = None  # validation: one entry per problem
     results: list[dict[str, Any]] | None = None  # guard_failed: every guard, passed or not
+    locked_until: str | None = None  # account_locked: ISO-8601 UTC end of the lock
 
 
 class ApiError(Exception):
@@ -207,8 +220,12 @@ def body_for(exc: BaseException) -> tuple[int, ErrorBody] | None:
         body.results = [
             r.model_dump(mode="json") if isinstance(r, BaseModel) else dict(r) for r in exc.results
         ]
-    elif isinstance(exc, (svc.PsetValidationError, ext.BodyValidationError)):
+    elif isinstance(
+        exc, (svc.PsetValidationError, ext.BodyValidationError, auth.WeakPasswordError)
+    ):
         body.issues = list(exc.issues)
+    elif isinstance(exc, auth.AccountLockedError):
+        body.locked_until = exc.locked_until
     return spec.status, body
 
 
@@ -232,6 +249,11 @@ def exception_for(status: int, body: dict[str, Any]) -> Exception:
             return svc.PsetValidationError(message, [str(i) for i in body.get("issues") or []])
         if spec.exc is ext.BodyValidationError:
             return ext.BodyValidationError(message, [str(i) for i in body.get("issues") or []])
+        if spec.exc is auth.WeakPasswordError:
+            return auth.WeakPasswordError(message, [str(i) for i in body.get("issues") or []])
+        if spec.exc is auth.AccountLockedError:
+            until = body.get("locked_until")
+            return auth.AccountLockedError(message, None if until is None else str(until))
         return spec.exc(message)
     cls = ApiValidationError if code == "validation_error" else ApiError
     return cls(status, code or "unknown", message, body)

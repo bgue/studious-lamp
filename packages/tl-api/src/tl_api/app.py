@@ -17,6 +17,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from tl_core.auth.env import dev_tokens_allowed
+from tl_core.auth.provider import PasswordIdentityProvider, RoleAuthorizer
+from tl_core.auth.types import Authorizer as CoreAuthorizer
+from tl_core.auth.types import IdentityProvider
 from tl_core.extypes.provider import attach as attach_extension_types
 from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
@@ -26,6 +30,7 @@ from tl_api.auth import (
     AuthenticationMiddleware,
     Authorizer,
     Forbidden,
+    Resolver,
     Unauthorized,
     authorize,
     guard,
@@ -45,16 +50,17 @@ log = logging.getLogger("tl_api")
 API_TITLE = "Throughline API"
 API_VERSION = "0.1.0"
 API_DESCRIPTION = (
-    "Records, links, workflow, files and the change feed over HTTP. Phase 0 is a development "
-    "server: identity is a static bearer token and every authenticated actor may do everything "
-    "(ADR-0005). Errors are `{error, message, ...}` bodies; the `error` codes are stable."
+    "Records, links, workflow, files and the change feed over HTTP. Callers sign in with a "
+    "username and password and send the session token as a bearer token; agents send an "
+    "admin-issued token (ADR-0009). The `admin` role may do everything, `user` everything but "
+    "`admin.*`. Errors are `{error, message, ...}` bodies; the `error` codes are stable."
 )
 
 _ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     code: {"model": ErrorBody, "description": text}
     for code, text in {
         401: "Missing or unknown bearer token.",
-        403: "Refused by the authorisation hook or by a quarantine rule.",
+        403: "Refused by the authorizer, the agent propose-only rule or a quarantine rule.",
         404: "No such resource.",
         409: "Version conflict, state conflict or failed workflow guard.",
         422: "The request is well formed but cannot be applied.",
@@ -124,6 +130,9 @@ def create_app(
     files_service: FileService | None = None,
     authorize_hook: Authorizer = authorize,
     object_store: ObjectStore | None = None,
+    identity: IdentityProvider | None = None,
+    authorizer: CoreAuthorizer | None = None,
+    dev_tokens: bool | None = None,
 ) -> FastAPI:
     """Build the application over ``backend``.
 
@@ -133,6 +142,11 @@ def create_app(
     writes still reach the stream through the bus). ``object_store`` holds the bodies of
     object-backed extension records; ``None`` makes the body routes answer 503. The registered
     extension types of ``backend``'s ledger join the effective schema (``extypes.provider.attach``).
+
+    ``identity`` and ``authorizer`` default to the password provider and the role authorizer over
+    ``backend``. The dev token file is honoured only when ``dev_tokens`` is true; by default that is
+    when ``TL_ENV`` is ``dev``, ``test`` or ``ci`` (ADR-0009 section 9). ``authorize_hook`` is the
+    legacy 3-argument hook and runs after the authorizer.
     """
     cfg = settings if settings is not None else ApiSettings()
     attach_extension_types(backend, prime=True)
@@ -163,18 +177,24 @@ def create_app(
         responses=_ERROR_RESPONSES,
         generate_unique_id_function=lambda route: route.name,
     )
+    token_store = tokens if tokens is not None else TokenStore(cfg.tokens_path)
+    provider = identity if identity is not None else PasswordIdentityProvider(backend)
+    use_dev_tokens = dev_tokens_allowed() if dev_tokens is None else dev_tokens
+    resolver = Resolver(provider, token_store, dev_tokens=use_dev_tokens)
     app.state.ctx = ApiContext(
         backend=backend,
-        tokens=tokens if tokens is not None else TokenStore(cfg.tokens_path),
+        tokens=token_store,
         authorize=authorize_hook,
         feed=feed,
         settings=cfg,
+        identity=provider,
+        authorizer=authorizer if authorizer is not None else RoleAuthorizer(),
+        resolver=resolver,
         files=files_service,
         objects=object_store,
     )
     install_error_handlers(app)
-    token_store = app.state.ctx.tokens
-    app.add_middleware(AuthenticationMiddleware, tokens=token_store)
+    app.add_middleware(AuthenticationMiddleware, resolver=resolver)
 
     @app.get("/openapi.json", include_in_schema=False)
     def openapi_document(
@@ -189,7 +209,7 @@ def create_app(
             request: Request, call_next: Callable[[Request], Awaitable[Response]]
         ) -> Response:
             log.warning(
-                "INSECURE DEV SERVER: %s %s (no real authentication; ADR-0005)",
+                "INSECURE DEV SERVER: %s %s (bound beyond loopback; --insecure-dev)",
                 request.method,
                 request.url.path,
             )
