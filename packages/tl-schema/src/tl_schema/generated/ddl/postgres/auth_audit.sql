@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS auth_audit (
   username_key TEXT COLLATE "C",
   account_id TEXT COLLATE "C",
   actor TEXT COLLATE "C",
-  detail TEXT COLLATE "C"
+  detail TEXT COLLATE "C",
+  count BIGINT NOT NULL DEFAULT 1
 );
 
 CREATE INDEX IF NOT EXISTS ix_auth_audit_at ON auth_audit (at);

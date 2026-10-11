@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.responses import StreamingResponse
 from starlette.types import Receive, Send
 from starlette.types import Scope as AsgiScope
-from tl_core.auth.projector import ACCOUNT_STREAM_TYPE
 from tl_core.auth.types import Principal
 from tl_core.changefeed import SubscriptionFilter, fetch_changes
 
@@ -61,9 +60,7 @@ def build_filter(
         scope=scope or None,
         event_types=types or None,
         record_ids=record_ids or None,
-        hide_stream_types=()
-        if principal.is_admin and principal.kind != "agent"
-        else (ACCOUNT_STREAM_TYPE,),
+        hide_stream_types=() if principal.is_admin and principal.kind != "agent" else None,
     )
 
 

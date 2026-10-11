@@ -4739,7 +4739,7 @@ class AuthAudit(ConfiguredBaseModel):
          'domain_of': ['AuthAudit']} })
     event: str = Field(default=..., description="""`sign_in_ok`, `sign_in_failed`, `locked`, `unlocked`, `sign_out`, `token_issued`, `token_revoked`, `password_reset` or `bootstrap`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['AuthAudit']} })
-    username_key: Optional[str] = Field(default=None, description="""The normalised username the attempt named, whether or not an account exists.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt', 'AuthAudit']} })
+    username_key: Optional[str] = Field(default=None, description="""The normalised username the attempt named, whether or not an account exists, or `<invalid>` when what was typed cannot be a username (it may have been a password, so it is never kept).""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt', 'AuthAudit']} })
     account_id: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
                        'AgentToken',
                        'AuthCredential',
@@ -4762,6 +4762,7 @@ class AuthAudit(ConfiguredBaseModel):
     detail: Optional[str] = Field(default=None, description="""A short reason code or id (`bad_credentials`, `disabled`, a token id, the end of a lock). Never a secret.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionDisabledPayload',
                        'CloudEventData',
                        'AuthAudit']} })
+    count: int = Field(default=1, description="""How many times this happened in a row; repeated failures of one name in a lock window share one row, and `at` is the last of them.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAudit'], 'ifabsent': 'int(1)'} })
 
 
 class AccountEventPayload(EventPayload):

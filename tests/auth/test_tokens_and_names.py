@@ -51,9 +51,35 @@ def test_usernames_are_normalised_and_checked() -> None:
             names.check_username(bad)
 
 
-def test_the_username_key_is_the_normalised_name_cut_to_64() -> None:
+def test_the_username_key_is_the_normalised_name_or_the_invalid_marker() -> None:
     assert names.username_key("ALICE") == "alice"
-    assert len(names.username_key("A" * 200)) == 64
+    assert names.username_key("ａｌｉｃｅ") == "alice"
+    assert names.username_key("a" * 64) == "a" * 64
+    # anything that cannot be a username shares one key and is never kept: it may be a password
+    for typed in (
+        "a" * 65,
+        "A" * 200,
+        "hunter2 is my password",
+        " bob",
+        "",
+        "a\x00b",
+        "\ud800",
+        "x" * 100_000,
+        "p@ss w0rd!",
+    ):
+        assert names.username_key(typed) == names.INVALID_KEY
+    assert names.username_key("a.b-c_d@e") == "a.b-c_d@e"
+
+
+def test_ids_and_reasons_are_checked_before_a_query_sees_them() -> None:
+    assert names.is_id("01J9Z6Q4W3X2Y1V0T9S8R7Q6PA")
+    for bad in ("", "a\x00b", "\ud800", "x" * 65):
+        assert not names.is_id(bad)
+    assert names.check_reason(None) is None and names.check_reason("  ") is None
+    assert names.check_reason(" left the project ") == "left the project"
+    for bad in ("a\x00b", "\ud800", "x" * 501, "line\nbreak"):
+        with pytest.raises(InvalidAccountError):
+            names.check_reason(bad)
 
 
 def test_actors_follow_the_kind() -> None:

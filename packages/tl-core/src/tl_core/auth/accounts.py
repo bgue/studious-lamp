@@ -32,11 +32,14 @@ from tl_core.auth.errors import (
     UsernameTakenError,
 )
 from tl_core.auth.names import (
+    INVALID_KEY,
     MAX_DISPLAY_NAME,
     MAX_LABEL,
     actor_for,
+    check_reason,
     check_text,
     check_username,
+    is_id,
     username_key,
 )
 from tl_core.auth.projector import ACCOUNT_STREAM_TYPE, account_stream_id
@@ -78,6 +81,8 @@ def _normalise_roles(kind: AccountKind, roles: Sequence[str]) -> list[Role]:
 
 
 def _row(conn: Connection, account_id: str) -> dict[str, Any]:
+    if not is_id(account_id):
+        raise AccountNotFoundError("no such account")
     found = (
         conn.execute(
             text(
@@ -215,6 +220,7 @@ def create_account(
 def set_roles(
     uow: UnitOfWork, *, account_id: str, roles: Sequence[str], by: str, reason: str | None
 ) -> AccountView:
+    reason = check_reason(reason)
     conn = uow.conn()
     account = _row(conn, account_id)
     new_roles = _normalise_roles(account["kind"], roles)
@@ -234,6 +240,7 @@ def set_roles(
 
 def disable(uow: UnitOfWork, *, account_id: str, by: str, reason: str | None) -> AccountView:
     """Disable an account: it cannot sign in, and its sessions and agent tokens stop working."""
+    reason = check_reason(reason)
     conn = uow.conn()
     account = _row(conn, account_id)
     if account["status"] == "disabled":
@@ -252,6 +259,7 @@ def disable(uow: UnitOfWork, *, account_id: str, by: str, reason: str | None) ->
 
 
 def enable(uow: UnitOfWork, *, account_id: str, by: str, reason: str | None) -> AccountView:
+    reason = check_reason(reason)
     conn = uow.conn()
     account = _row(conn, account_id)
     if account["status"] == "active":
@@ -313,6 +321,8 @@ def unlock(uow: UnitOfWork, *, username: str, by: str, clock: Clock = utcnow) ->
     route, so an attacker who locks every admin over HTTP cannot be helped by HTTP either.
     """
     key = username_key(username)
+    if key == INVALID_KEY:
+        raise InvalidAccountError("that is not a possible username")
     conn = uow.conn()
     found = conn.execute(
         text("SELECT 1 FROM auth_attempt WHERE username_key = :k"), {"k": key}
@@ -387,6 +397,9 @@ def issue_agent_token(
 def revoke_agent_token(
     uow: UnitOfWork, *, token_id: str, by: str, reason: str | None, clock: Clock = utcnow
 ) -> AgentTokenView:
+    reason = check_reason(reason)
+    if not is_id(token_id):
+        raise AgentTokenNotFoundError("no such agent token")
     conn = uow.conn()
     found = (
         conn.execute(

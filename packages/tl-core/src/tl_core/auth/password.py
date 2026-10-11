@@ -17,6 +17,7 @@ import logging
 import secrets
 import threading
 import unicodedata
+from contextvars import ContextVar
 from dataclasses import dataclass
 from functools import lru_cache
 from importlib.resources import files
@@ -29,6 +30,8 @@ SCHEME = "scrypt"
 MIN_LENGTH = 12
 MAX_LENGTH = 128
 MAX_CONCURRENT_HASHES = 4
+#: Slots a sign-in (public) hash may hold at once; the rest are kept for admin and local operations.
+PUBLIC_HASH_SLOTS = 3
 #: Seconds a hash waits for a free slot before ``AuthBusyError`` (503, retry shortly).
 GATE_TIMEOUT_S = 2.0
 MIN_DISTINCT_CHARACTERS = 5
@@ -54,7 +57,44 @@ class ScryptParams:
 
 PRODUCTION_PARAMS = ScryptParams()
 _current = PRODUCTION_PARAMS
-_gate = threading.BoundedSemaphore(MAX_CONCURRENT_HASHES)
+
+
+class HashGate:
+    """At most ``MAX_CONCURRENT_HASHES`` hashes at once, of which ``PUBLIC_HASH_SLOTS`` public ones.
+
+    The slot beyond that is kept for admin and local operations (create, reset, bootstrap), so a
+    flood of sign-ins cannot stop an admin from working. ``acquire`` and ``release`` without
+    ``public=True`` take any free slot.
+    """
+
+    def __init__(self, total: int, public: int) -> None:
+        self._total, self._public = total, public
+        self._used = 0
+        self._used_public = 0
+        self._cond = threading.Condition()
+
+    def acquire(self, timeout: float | None = None, *, public: bool = False) -> bool:
+        with self._cond:
+            ok = self._cond.wait_for(
+                lambda: (
+                    self._used < self._total and (not public or self._used_public < self._public)
+                ),
+                timeout,
+            )
+            if not ok:
+                return False
+            self._used += 1
+            self._used_public += 1 if public else 0
+            return True
+
+    def release(self, *, public: bool = False) -> None:
+        with self._cond:
+            self._used -= 1
+            self._used_public -= 1 if public else 0
+            self._cond.notify_all()
+
+
+_gate = HashGate(MAX_CONCURRENT_HASHES, PUBLIC_HASH_SLOTS)
 
 
 def current_params() -> ScryptParams:
@@ -85,10 +125,16 @@ def _unb64(text: str) -> bytes:
     return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
 
 
+#: Which lane the hash in this context uses; ``_scrypt`` keeps the plain three-argument call that
+#: tests wrap, so the lane travels in a context variable.
+_PUBLIC_LANE: ContextVar[bool] = ContextVar("tl_hash_public_lane", default=True)
+
+
 def _scrypt(password: str, salt: bytes, params: ScryptParams) -> bytes:
+    public = _PUBLIC_LANE.get()
     n = 1 << params.log2_n
     need = 128 * n * params.r + 128 * params.r * params.p
-    if not _gate.acquire(timeout=GATE_TIMEOUT_S):
+    if not _gate.acquire(timeout=GATE_TIMEOUT_S, public=public):
         raise AuthBusyError("too many sign-ins are being checked; try again in a moment")
     try:
         return hashlib.scrypt(
@@ -101,7 +147,7 @@ def _scrypt(password: str, salt: bytes, params: ScryptParams) -> bytes:
             dklen=HASH_BYTES,
         )
     finally:
-        _gate.release()
+        _gate.release(public=public)
 
 
 def is_clean(text: str, limit: int) -> bool:
@@ -119,11 +165,19 @@ def is_clean(text: str, limit: int) -> bool:
     return True
 
 
-def hash_password(password: str, params: ScryptParams | None = None) -> str:
-    """The stored form of ``password``. The caller has already applied the policy."""
+def hash_password(password: str, params: ScryptParams | None = None, *, public: bool = True) -> str:
+    """The stored form of ``password``. The caller has already applied the policy.
+
+    ``public=False`` is for admin and local operations: they may use the slot kept back from
+    sign-ins (see :class:`HashGate`).
+    """
     use = params if params is not None else _current
     salt = secrets.token_bytes(SALT_BYTES)
-    digest = _scrypt(password, salt, use)
+    token = _PUBLIC_LANE.set(public)
+    try:
+        digest = _scrypt(password, salt, use)
+    finally:
+        _PUBLIC_LANE.reset(token)
     return f"{SCHEME}${use.log2_n}${use.r}${use.p}${_b64(salt)}${_b64(digest)}"
 
 
@@ -267,9 +321,16 @@ class PreparedPassword:
 
 
 def prepare_password(
-    password: str, *, username: str | None = None, enforce_policy: bool = True
+    password: str,
+    *,
+    username: str | None = None,
+    enforce_policy: bool = True,
+    public: bool = False,
 ) -> PreparedPassword:
     """Apply the policy (``WeakPasswordError``) and hash. Call it before opening a transaction.
+
+    By default it counts as an admin or local operation and may use the reserved hash slot;
+    ``sessions.change_own_password`` passes ``public=True``: any signed-in person can call it.
 
     Only the documented demo seed passes ``enforce_policy=False``; the password must still be
     storable.
@@ -278,4 +339,4 @@ def prepare_password(
         check_policy(password, username=username)
     elif not is_clean(password, 4 * MAX_LENGTH):
         raise WeakPasswordError("password contains characters that cannot be stored")
-    return PreparedPassword(hash_password(password))
+    return PreparedPassword(hash_password(password, public=public))

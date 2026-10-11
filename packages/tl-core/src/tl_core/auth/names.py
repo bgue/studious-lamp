@@ -6,10 +6,10 @@ import re
 import unicodedata
 
 from tl_core.auth.errors import InvalidAccountError
+from tl_core.auth.password import is_clean
 from tl_core.auth.types import AccountKind
 
 USERNAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9_.@-]{0,63}")
-USERNAME_KEY_LENGTH = 64
 MAX_DISPLAY_NAME = 120
 MAX_LABEL = 80
 MAX_USERNAME_INPUT = 256
@@ -20,9 +20,35 @@ def normalize_username(raw: str) -> str:
     return unicodedata.normalize("NFKC", raw).lower()
 
 
+#: The one key every input that is not a possible username shares (lockout counters, audit rows).
+#: Whatever was typed there may be a password or garbage; it is never stored or compared.
+INVALID_KEY = "<invalid>"
+MAX_ID = 64
+MAX_REASON = 500
+
+
 def username_key(raw: str) -> str:
-    """The key lockout counters and lookups use: the normalised name cut to 64 characters."""
-    return normalize_username(raw)[:USERNAME_KEY_LENGTH]
+    """The key lockout counters, audit rows and lookups use for ``raw``.
+
+    The normalised name when it could be a username, else :data:`INVALID_KEY`. It never holds
+    anything that does not match the username pattern, so it is safe to store, and never raises.
+    """
+    if not is_clean(raw, MAX_USERNAME_INPUT):
+        return INVALID_KEY
+    name = normalize_username(raw)
+    return name if USERNAME_PATTERN.fullmatch(name) is not None else INVALID_KEY
+
+
+def is_id(value: str) -> bool:
+    """Whether ``value`` could be an account or token id (short, storable)."""
+    return bool(value) and is_clean(value, MAX_ID)
+
+
+def check_reason(reason: str | None) -> str | None:
+    """A reason: None or blank is None; else short, storable text, or ``InvalidAccountError``."""
+    if reason is None or not reason.strip():
+        return None
+    return check_text(reason, what="reason", limit=MAX_REASON)
 
 
 def check_username(raw: str) -> str:

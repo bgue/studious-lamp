@@ -32,7 +32,7 @@ from tl_core.auth.errors import (
     AccountLockedError,
     InvalidCredentialsError,
 )
-from tl_core.auth.names import actor_for, normalize_username, username_key
+from tl_core.auth.names import actor_for, username_key
 from tl_core.auth.queries import load_roles
 from tl_core.auth.tokens import new_session_token, token_hash, token_kind
 from tl_core.auth.types import DEMO_USERNAME, AccountKind, Principal
@@ -193,13 +193,12 @@ def authenticate(
     if not (pw.is_clean(username, MAX_USERNAME_INPUT) and pw.is_clean(password, 4 * pw.MAX_LENGTH)):
         pw.verify_password(None, "")  # the same cost as any other failure; nothing is written
         raise InvalidCredentialsError()
-    key = username_key(username)
-    name = normalize_username(username)
+    key = username_key(username)  # INVALID_KEY for anything that cannot be a username
     now = clock()
     with backend(readonly=True) as uow:
         conn = uow.conn()
         until = locked_until(conn, key, now)
-        account = None if until is not None else _load_account(conn, name)
+        account = None if until is not None else _load_account(conn, key)
     if until is not None:
         raise _locked(until)
     usable = account is not None and account.kind != "agent" and demo_usable(account.username)
@@ -421,7 +420,7 @@ def change_own_password(
             if lock is not None:
                 audit.record(uow.conn(), "locked", now=now, username_key=key, detail=lock)
         raise InvalidCredentialsError("the current password is incorrect")
-    prepared = pw.prepare_password(new_password, username=username)
+    prepared = pw.prepare_password(new_password, username=username, public=True)
     with backend() as uow:
         change_password(
             uow,

@@ -237,7 +237,7 @@ def test_the_audit_records_sign_ins_failures_locks_sign_outs_and_tokens(world: W
     assert names == [
         "sign_in_ok",
         "sign_out",
-        *["sign_in_failed"] * 5,
+        "sign_in_failed",  # five failures of one name in one window share a row
         "locked",
         "token_issued",
         "token_revoked",
