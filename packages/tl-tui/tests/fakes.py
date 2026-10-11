@@ -15,6 +15,7 @@ from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
+from fakes_admin import FakeAdminSupport
 from fakes_feed import FakeFeedSupport
 from fakes_links import FakeLinkSupport
 from fakes_query import FakeQuerySupport
@@ -205,7 +206,12 @@ def set_path(data: dict[str, Any], dotted: str, value: Any) -> None:
 
 
 class FakeClient(
-    FakeQuerySupport, FakeLinkSupport, FakeFeedSupport, FakeSettingsSupport, FakeTypeSupport
+    FakeQuerySupport,
+    FakeLinkSupport,
+    FakeFeedSupport,
+    FakeSettingsSupport,
+    FakeTypeSupport,
+    FakeAdminSupport,
 ):
     """Implements `tl_tui.client.ClientInterface` in memory."""
 
@@ -223,6 +229,7 @@ class FakeClient(
         self._init_links()
         self._init_feed()
         self._init_settings()
+        self._init_admin()
         self._init_types()
 
     # --- seeding -----------------------------------------------------------------------------

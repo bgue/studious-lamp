@@ -11,11 +11,16 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
 from tl_api.auth import AGENT_MUST_PROPOSE
+from tl_core.auth import accounts as account_services
+from tl_core.auth import queries as account_queries
+from tl_core.auth.errors import ForbiddenError
+from tl_core.auth.password import prepare_password
+from tl_core.auth.types import AccountKind, AccountView, AgentTokenView
 from tl_core.extypes import body as extype_bodies
 from tl_core.extypes import registry as extype_registry
 from tl_core.extypes.errors import BodyNotFoundError, BodyStoreUnavailableError
@@ -83,6 +88,7 @@ from tl_core.settings import set_setting as set_in_force
 from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView, get_view, list_views, view_at
 from tl_core.uow import UnitOfWork
+from tl_core.util import utcnow
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 from tl_tui.client import RelationInfo
@@ -616,3 +622,106 @@ class EmbeddedClient:
                 accept_risk=accept_risk,
             )
             return view_at(uow.conn(), key, layer)
+
+    # --- accounts and agent tokens (P1-I0; ADR-0009) ------------------------------------------
+
+    def _admin_gate(self, uow: UnitOfWork) -> None:
+        """Only an active account with the admin role may use the calls below (as the API says)."""
+        name = self.actor.partition(":")[2]
+        found = account_queries.find_account(uow.conn(), username=name)
+        if found is None or found.status != "active" or "admin" not in found.roles:
+            raise ForbiddenError("this action needs the admin role")
+
+    def list_accounts(self) -> list[AccountView]:
+        with self._uow(True) as uow:
+            self._admin_gate(uow)
+            return account_queries.list_accounts(uow.conn())
+
+    def get_account(self, account_id: str) -> AccountView:
+        with self._uow(True) as uow:
+            self._admin_gate(uow)
+            return account_queries.get_account(uow.conn(), account_id)
+
+    def create_account(
+        self,
+        username: str,
+        display_name: str,
+        *,
+        kind: AccountKind = "person",
+        roles: Sequence[str] = ("user",),
+        password: str | None = None,
+    ) -> AccountView:
+        with self._uow(True) as uow:
+            self._admin_gate(uow)
+        # the policy and the slow hash run before the write transaction opens (one global writer)
+        prepared = None if password is None else prepare_password(password, username=username)
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            return account_services.create_account(
+                uow,
+                username=username,
+                display_name=display_name,
+                kind=kind,
+                roles=list(roles),
+                password=prepared,
+                by=self.actor,
+            )
+
+    def set_roles(
+        self, account_id: str, roles: Sequence[str], *, reason: str | None = None
+    ) -> AccountView:
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            return account_services.set_roles(
+                uow, account_id=account_id, roles=list(roles), by=self.actor, reason=reason
+            )
+
+    def disable_account(self, account_id: str, *, reason: str | None = None) -> AccountView:
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            return account_services.disable(
+                uow, account_id=account_id, by=self.actor, reason=reason
+            )
+
+    def enable_account(self, account_id: str, *, reason: str | None = None) -> AccountView:
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            return account_services.enable(uow, account_id=account_id, by=self.actor, reason=reason)
+
+    def reset_password(self, account_id: str, new_password: str) -> AccountView:
+        with self._uow(True) as uow:
+            self._admin_gate(uow)
+            account = account_queries.get_account(uow.conn(), account_id)
+        prepared = prepare_password(new_password, username=account.username)
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            account_services.change_password(
+                uow, account_id=account_id, new_password=prepared, by=self.actor
+            )
+            return account_queries.get_account(uow.conn(), account_id)
+
+    def list_agent_tokens(
+        self, account_id: str | None = None, *, include_revoked: bool = True
+    ) -> list[AgentTokenView]:
+        with self._uow(True) as uow:
+            self._admin_gate(uow)
+            return account_queries.list_agent_tokens(
+                uow.conn(), account_id=account_id, include_revoked=include_revoked
+            )
+
+    def issue_agent_token(
+        self, account_id: str, label: str, *, expires_in_days: int | None = 90
+    ) -> tuple[AgentTokenView, str]:
+        expires = None if expires_in_days is None else utcnow() + timedelta(days=expires_in_days)
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            return account_services.issue_agent_token(
+                uow, account_id=account_id, label=label, expires_at=expires, by=self.actor
+            )
+
+    def revoke_agent_token(self, token_id: str, *, reason: str | None = None) -> AgentTokenView:
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            return account_services.revoke_agent_token(
+                uow, token_id=token_id, by=self.actor, reason=reason
+            )
