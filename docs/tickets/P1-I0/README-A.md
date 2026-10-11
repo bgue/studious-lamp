@@ -43,11 +43,11 @@ account refusing a non-loopback bind.
 | P1-I0-T05 | (absorbed into F3: server start rules for the demo account, hidden account events) | — | — | abandoned | done by the supervisor in F3 |
 | P1-I0-T06 | CLI `tl login`, `tl logout`, `tl whoami`; the default actor of every command follows the session (the hook is S3's) | haiku | S3 | merged | passed review first time | first run BLOCKED by a red base (L-P1-I0A-19), not by the ticket |
 | P1-I0-T07 | CLI `tl admin user ls\|show\|add\|roles\|disable\|enable\|reset-password` and `tl admin token ls\|issue\|revoke` (the recovery commands `bootstrap`, `unlock`, `audit` and `tl init --dev` were built by the supervisor in S3: they must work with no admin signed in) | haiku | S3 | merged | passed review; supervisor change: `--days` default none, refused with `--no-expiry` | first run BLOCKED by the red base; supervisor change: `--days` default none, refused with `--no-expiry` |
-| P1-I0-T08 | TUI sign-in screen (`SignInScreen`, `SignInApp`); the authenticators and `main.py` flow are S4 | haiku | T03, S4 | ready | |
-| P1-I0-T09 | TUI accounts screen on `F10`: list, detail, disable and enable, admin role, agent token list; snapshots | haiku | T04, S4 | ready | |
+| P1-I0-T08 | TUI sign-in screen (`SignInScreen`, `SignInApp`); the authenticators and `main.py` flow are S4 | haiku | T03, S4 | in review (branch merged with p1/i0a; 14 cases, 2 snapshots) | first run BLOCKED: pyright rejected my provided test (`ApiUnavailableError(OSError)`); fixed to `httpx2.ConnectError` (L-P1-I0A-21) |
+| P1-I0-T09 | TUI accounts screen on `F10`: list, detail, disable and enable, admin role, agent token list; snapshots | haiku | T04, S4 | merged (0ed4d44) | passed review first time. `_stamp` writes whole seconds on purpose: it is only compared as text with stored expiry stamps, so a token that expires within the current second counts as live for at most one second |
 | P1-I0-T09b | TUI forms on the accounts screen: add an account, reset a password, issue a token (shown once), revoke a token | haiku | T09 | planned (written after T09 merges) | split from T09 (Haiku-ability: more than five files and 400 lines) |
-| P1-I0-T10 | MCP authenticates by `TL_AGENT_TOKEN`; `--actor` removed | haiku | S2 | planned | |
-| P1-I0-T11 | Simulator: seeded `user:sim-*` accounts and the assistant's agent token; `just seed` seeds `demo` | haiku | T10 | planned | |
+| P1-I0-T10 | MCP authenticates by `TL_AGENT_TOKEN` (checked on every call); `--actor` removed | supervisor (auth code) | S2 | done (a8cdaee), awaiting security review | built by the supervisor: it is auth code, not Haiku work |
+| P1-I0-T11 | Simulator: the assistant proposes over MCP with an agent token made on the dev ledger (`tl_cli.sim_agent`); `just seed` also seeds `demo` | supervisor | T10 | done (ba02425; `just seed xs` ran end to end: 530 checks) | role actors keep dev tokens |
 | P1-I0-T12 | Parity tests for the account projections on both adapters | supervisor | S2 | planned | |
 
 ## Haiku-ability check (01-tiers section 6) for T06 to T09
@@ -62,8 +62,7 @@ deliberate faults per ticket, each caught by a provided test). T09 was split: fo
 issuing or revoking tokens are T09b, because the whole would have changed more than five files and 400 lines.
 
 ## Held until a dependency merges
-- `test_f10_opens_the_accounts_screen_for_an_admin` (F10 pushes `AdminScreen`) is added to `packages/tl-tui/tests/test_app_admin.py`
-  after T09 merges (the text is in `docs/tickets/P1-I0/held/test_f10_opens.py.txt`): with the stub in place it would fail (L-P1-I0A-11 applied to supervisor tests too).
+Nothing. The F10 test (`test_f10_opens_the_accounts_screen_for_an_admin`) was added to `packages/tl-tui/tests/test_app_admin.py` when T09 merged.
 
 ## Order of work
 1. S1, S2 now; request the security review of both (D6) before any ticket is built on them.

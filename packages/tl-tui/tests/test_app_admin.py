@@ -1,4 +1,4 @@
-"""F10 is for admins only (P1-I0-S4). The test that it opens the screen is added with T09."""
+"""F10 opens the accounts screen for an admin and only for an admin (P1-I0-S4, T09)."""
 
 from __future__ import annotations
 
@@ -17,6 +17,21 @@ def app_for(*, is_admin: bool) -> TlApp:
     client = FakeClient()
     client.seed_account("boss", roles=["admin", "user"])
     return TlApp(client, scope=SCOPE, actor="user:boss", is_admin=is_admin)
+
+
+def test_f10_opens_the_accounts_screen_for_an_admin() -> None:
+    app = app_for(is_admin=True)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.press("f10")
+        await pilot.pause()
+        assert isinstance(app.screen, AdminScreen)
+        assert "boss" in screen_text(app)
+        await pilot.press("escape")
+        await pilot.pause()
+        assert not isinstance(app.screen, AdminScreen)
+
+    run_pilot(app, scenario)
 
 
 def test_f10_tells_anyone_else_why_nothing_opened() -> None:

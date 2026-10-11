@@ -262,3 +262,9 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P1-I0A-20** · 2026-10-11 · tags: security, cli
   An option default that is only used when the flag is left out does not protect anything: `--actor user:root` bypassed the session check that the default went through. Put the check on the value (a click callback runs on defaults and explicit values alike), and let the target decide how much a stated identity is worth: a file you own, versus a shared database.
   Evidence: `tl_cli/actor_hook.py`, `session.check_actor`; `test_cli_session.py::test_outside_dev_no_actor_can_be_used_without_a_sign_in_not_even_a_named_one`. Status: active
+- **L-P1-I0A-21** · 2026-10-11 · tags: process, tickets
+  A provided test that passes `ruff` and runs can still fail `pyright` in the package it lands in, and the implementer cannot fix a copy that must stay byte-identical (fourth time: L-P0-I8B-7, L-P1-I0A-11). T08's `ApiUnavailableError(OSError("down"))` was rejected by pyright (it takes an `httpx2.TransportError`). Before a batch, copy each provided test into its target package and run `uv run pyright` and `just check` on the scratch tree, then remove the copies; never trust a run done while stubs and references were swapped in and out.
+  Evidence: T08 BLOCKED at d05901f; fixed in b9c3f3f. Status: active
+- **L-P1-I0A-22** · 2026-10-11 · tags: security, mcp
+  A long-lived stdio server must not trust its start-up check. The MCP server now looks the agent token up on every tool and resource call (`principal_for_bearer`), so a revoked token, an expired one or a disabled agent stops at the next call; a cached principal would have kept working until the process ended. A test revokes mid-session and the mutation that caches the principal fails it.
+  Evidence: `tl_mcp/identity.py`; `test_mcp_identity.py::test_a_revoked_token_stops_working_at_the_next_call_not_the_next_start`. Status: active
