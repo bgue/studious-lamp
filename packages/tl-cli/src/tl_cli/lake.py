@@ -16,7 +16,7 @@ from typing import Annotated, NoReturn
 import typer
 from sqlalchemy import Connection
 from sqlalchemy.exc import SQLAlchemyError
-from tl_adapters.sqlite.engine import make_engine
+from tl_adapters.db import DbTarget, display_target, is_postgres, make_engine
 from tl_core.services.errors import ServiceError
 from tl_core.settings.resolver import value_of
 from tl_core.settings.values import duration_seconds
@@ -71,9 +71,9 @@ def _config(ctx: typer.Context) -> LakeConfig:
 @contextmanager
 def _ledger_snapshot(ctx: typer.Context) -> Iterator[Connection]:
     """The ledger as one read snapshot. The only place the CLI opens the database for the lake."""
-    db: Path = ctx.obj
-    if not db.exists():
-        _fail(f"no ledger at {db}: run `tl init`")
+    db: DbTarget = ctx.obj
+    if not is_postgres(db) and not Path(db).exists():
+        _fail(f"no ledger at {display_target(db)}: run `tl init`")
     engine = make_engine(db)
     try:
         with read_snapshot(engine) as conn:
