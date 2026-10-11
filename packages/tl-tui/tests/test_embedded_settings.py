@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import pytest
 from fakes import FakeClient
-from tl_adapters.sqlite.uow import create_schema
+from tl_adapters.db import DbTarget, create_schema
 from tl_core.services.errors import (
     InvalidSettingValueError,
     ReasonRequiredError,
@@ -30,10 +30,12 @@ TAGS = "feed.signal_tags"
 
 
 @pytest.fixture
-def client(tmp_path: Path) -> EmbeddedClient:
-    db = tmp_path / "tl.db"
+def client(new_db: Callable[[], DbTarget]) -> Iterator[EmbeddedClient]:
+    db = new_db()
     create_schema(db)
-    return EmbeddedClient.for_sqlite(db)
+    found = EmbeddedClient.for_target(db)
+    yield found
+    found.close()
 
 
 def test_it_satisfies_the_client_interface_for_settings(client: EmbeddedClient) -> None:

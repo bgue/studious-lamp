@@ -28,9 +28,10 @@ from __future__ import annotations
 from contextlib import AbstractContextManager
 from pathlib import Path
 from types import TracebackType
+from typing import cast
 
 from sqlalchemy import Connection, Engine, text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import InterfaceError, SQLAlchemyError
 from tl_core.bus import Bus, InProcessBus
 from tl_core.ledger import Ledger
 from tl_core.projection.types import ProjectorRegistry
@@ -50,6 +51,25 @@ class BackendUnavailableError(RuntimeError):
     The message names the target without its password and the kind of failure, never the driver's
     text, which can echo connection parameters.
     """
+
+
+def _reason(exc: SQLAlchemyError) -> str:
+    """Why a connection failed, in words that cannot hold a password.
+
+    The server's own message when it sent one (``password authentication failed for user "x"``,
+    ``database "y" does not exist``), the driver's text for "no connection" (it names the host and
+    port only), else the exception class.
+    """
+    original: object = getattr(exc, "orig", None)
+    args: tuple[object, ...] = getattr(original, "args", ())
+    info = args[0] if args else None
+    if isinstance(info, dict):
+        message = cast(dict[str, object], info).get("M")
+        if isinstance(message, str):
+            return message
+    if isinstance(exc, InterfaceError):
+        return str(original).split(" (timeout")[0]
+    return type(exc).__name__
 
 
 class DatabaseBackend:
@@ -113,7 +133,7 @@ class DatabaseBackend:
                 conn.execute(text("SELECT 1"))
         except SQLAlchemyError as exc:
             raise BackendUnavailableError(
-                f"cannot reach the database {self.display} ({type(exc).__name__})"
+                f"cannot reach the database {self.display}: {_reason(exc)}"
             ) from None
 
     def close(self) -> None:
@@ -173,7 +193,7 @@ def ledger_exists(target: DbTarget) -> bool:
         return bool(found)
     except SQLAlchemyError as exc:
         raise BackendUnavailableError(
-            f"cannot reach the database {db.display_target(target)} ({type(exc).__name__})"
+            f"cannot reach the database {db.display_target(target)}: {_reason(exc)}"
         ) from None
     finally:
         engine.dispose()

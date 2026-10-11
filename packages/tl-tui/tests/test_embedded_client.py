@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from collections.abc import Callable, Iterator
 
 import pytest
-from tl_adapters.sqlite.uow import create_schema
+from tl_adapters.db import DbTarget, create_schema
 from tl_core.ledger import ConcurrencyError
 from tl_core.services import psets
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
@@ -20,10 +20,12 @@ SCOPE = "project:P123"
 
 
 @pytest.fixture
-def client(tmp_path: Path) -> EmbeddedClient:
-    db = tmp_path / "tl.db"
+def client(new_db: Callable[[], DbTarget]) -> Iterator[EmbeddedClient]:
+    db = new_db()
     create_schema(db)
-    return EmbeddedClient.for_sqlite(db)
+    found = EmbeddedClient.for_target(db)
+    yield found
+    found.close()
 
 
 def _create(client: ClientInterface, key: str, title: str = "t") -> str:

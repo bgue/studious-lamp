@@ -2,7 +2,8 @@
 
 Each call opens one unit of work (read-only for queries), runs one service function, and closes
 it. There is no logic here beyond that; the remote client (`tl_tui.remote`) is the same interface
-over HTTP. `for_sqlite` keeps one engine and one in-process bus for the life of the client, so
+over HTTP. `for_target` opens the ledger as a `tl_adapters.backend` backend (a SQLite file or a
+`postgresql://` URL) and keeps its one engine and one in-process bus for the life of the client, so
 `change_feed()` can hand the app this process's own writes at once and other processes' by polling.
 """
 
@@ -97,18 +98,6 @@ SOURCE = "tui"
 UowFactory = Callable[[bool], AbstractContextManager[UnitOfWork]]
 
 
-def sqlite_uow_factory(path: str | Path) -> UowFactory:
-    """A factory over the SQLite dev ledger at ``path`` (one engine per unit of work)."""
-    from tl_adapters.sqlite.uow import open_uow
-
-    db = Path(path)
-
-    def factory(readonly: bool) -> AbstractContextManager[UnitOfWork]:
-        return open_uow(db, readonly=readonly)
-
-    return factory
-
-
 class EmbeddedClient:
     """`ClientInterface` over in-process services. Errors from the services propagate unchanged.
 
@@ -137,6 +126,40 @@ class EmbeddedClient:
         attach_extension_types(lambda readonly=False: uow_factory(readonly), prime=prime_types)
 
     @classmethod
+    def for_target(
+        cls,
+        target: str | Path,
+        *,
+        object_store: ObjectStore | None = None,
+        actor: str = DEFAULT_ACTOR,
+    ) -> EmbeddedClient:
+        """A client on the ledger ``target`` (a SQLite file or a ``postgresql://`` URL).
+
+        It keeps one engine and one in-process bus for its life (``tl_adapters.backend``). Record
+        bodies of extension types need an object store: the one given, else the one the
+        environment names (``TL_OBJECT_STORE``...), else none (body calls then say so).
+        ``BackendUnavailableError`` says a Postgres server cannot be reached.
+        """
+        from tl_adapters.backend import ledger_exists, open_backend
+        from tl_adapters.db import as_target
+        from tl_adapters.objectstore import make_object_store
+
+        where = as_target(target)
+        store = object_store
+        if store is None:
+            try:
+                store = make_object_store()
+            except ValueError:
+                store = None
+        exists = ledger_exists(where)
+        backend = open_backend(where)
+        try:
+            return cls(backend, object_store=store, actor=actor, prime_types=exists)
+        except BaseException:
+            backend.close()
+            raise
+
+    @classmethod
     def for_sqlite(
         cls,
         path: str | Path,
@@ -144,26 +167,8 @@ class EmbeddedClient:
         object_store: ObjectStore | None = None,
         actor: str = DEFAULT_ACTOR,
     ) -> EmbeddedClient:
-        """A client on the SQLite ledger at ``path`` with a long-lived engine and a bus.
-
-        Record bodies of extension types need an object store: the one given, else the one the
-        environment names (``TL_OBJECT_STORE``...), else none (body calls then say so).
-        """
-        from tl_adapters.objectstore import make_object_store
-        from tl_adapters.sqlite.factory import SqliteUowFactory
-
-        store = object_store
-        if store is None:
-            try:
-                store = make_object_store()
-            except ValueError:
-                store = None
-        return cls(
-            SqliteUowFactory(path),
-            object_store=store,
-            actor=actor,
-            prime_types=Path(path).is_file(),
-        )
+        """The same as :meth:`for_target` (the name from before Postgres support)."""
+        return cls.for_target(path, object_store=object_store, actor=actor)
 
     def change_feed(self, scope: str | None = None) -> ChangeFeed | None:
         """The live feed for this ledger, or ``None`` when the factory has no ledger and bus."""
@@ -174,7 +179,7 @@ class EmbeddedClient:
         return EmbeddedFeed(ledger, bus, scope=scope)
 
     def close(self) -> None:
-        """Release the engine when the factory owns one (``for_sqlite``)."""
+        """Release the engine when the factory owns one (``for_target``)."""
         close = getattr(self._uow, "close", None)
         if callable(close):
             close()

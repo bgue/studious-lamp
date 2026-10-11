@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from collections.abc import Callable, Iterator
 from typing import Any
 
 import pytest
 from helpers import run_pilot, screen_text
 from textual.pilot import Pilot
-from tl_adapters.sqlite.uow import create_schema
+from tl_adapters.db import DbTarget, create_schema
 from tl_core.services.commands import CreateRecord
 from tl_core.services.feed import PostToFeed
 from tl_core.services.feed_actions import ReactToPost, RetractPost
@@ -20,10 +20,10 @@ KEY = "P123-REC-0001"
 
 
 @pytest.fixture
-def client(tmp_path: Path) -> EmbeddedClient:
-    db = tmp_path / "tl.db"
+def client(new_db: Callable[[], DbTarget]) -> Iterator[EmbeddedClient]:
+    db = new_db()
     create_schema(db)
-    found = EmbeddedClient.for_sqlite(db)
+    found = EmbeddedClient.for_target(db)
     found.create_record(
         CreateRecord(
             actor="user:jo",
@@ -34,7 +34,8 @@ def client(tmp_path: Path) -> EmbeddedClient:
             key=KEY,
         )
     )
-    return found
+    yield found
+    found.close()
 
 
 def post(client: EmbeddedClient, body: str, actor: str = "user:mlee") -> str:

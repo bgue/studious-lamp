@@ -1,6 +1,7 @@
 """`tl tui`: the terminal UI, embedded on the dev ledger or remote against an API (P0-I4).
 
-A thin wrapper over ``tl_tui.main.run``. Embedded is the default. ``--remote URL`` with a dev token
+A thin wrapper over ``tl_tui.main.run``. Embedded is the default, on a SQLite file or a
+``postgresql://`` URL (the root ``--db`` / ``TL_DB``). ``--remote URL`` with a dev token
 (``--token``, or ``TL_TOKEN`` so the token stays out of the process list) runs the same screens
 over HTTP and SSE.
 """
@@ -42,6 +43,7 @@ def tui(
     ] = None,
 ) -> None:
     """Open the TUI. Embedded unless --remote is given."""
+    from tl_adapters.backend import BackendUnavailableError
     from tl_tui import main as tui_main
 
     try:
@@ -53,6 +55,6 @@ def tui(
             actor=actor,
             record_type=record_type,
         )
-    except ValueError as exc:
+    except (ValueError, BackendUnavailableError) as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=2) from exc

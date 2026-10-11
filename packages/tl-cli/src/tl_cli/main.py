@@ -11,7 +11,16 @@ from typing import Annotated
 
 import typer
 from sqlalchemy import Connection
-from tl_adapters.sqlite.uow import create_schema, open_uow, rebuild_projections
+from tl_adapters.backend import BackendUnavailableError, ledger_exists, open_backend
+from tl_adapters.db import (
+    DbTarget,
+    as_target,
+    create_schema,
+    display_target,
+    is_postgres,
+    open_uow,
+    rebuild_projections,
+)
 from tl_core.extypes.provider import attach
 from tl_core.settings.effects import mark_applied
 from tl_sim import cli as sim_cli
@@ -79,25 +88,46 @@ def root(
     ctx: typer.Context,
     db: Annotated[
         str,
-        typer.Option("--db", envvar="TL_DB", show_default=True, help="SQLite ledger file."),
+        typer.Option(
+            "--db",
+            envvar="TL_DB",
+            show_default=True,
+            help="SQLite ledger file or postgresql:// URL. Prefer TL_DB for a URL: it carries "
+            "the password and a command line is visible in the process list.",
+        ),
     ] = "./dev/data/tl.db",
 ) -> None:
     """Throughline dev ledger commands."""
-    ctx.obj = Path(db)
-    path = ctx.obj
+    target = as_target(db)
+    ctx.obj = target
     # registered extension types join the effective schema of every command (brief 31)
     # prime (read the settings keys of the registered types) only for a ledger that exists: opening
-    # a missing SQLite file would create it, and `tl archive`/`tl backup` report a missing ledger
-    attach(lambda readonly=False: open_uow(path, readonly=readonly), prime=path.is_file())
+    # a missing SQLite file would create it, and `tl archive`/`tl backup` report a missing ledger.
+    # A Postgres server that cannot be reached is left to the command that needs it.
+    attach(lambda readonly=False: open_uow(target, readonly=readonly), prime=_has_ledger(target))
+
+
+def _has_ledger(target: DbTarget) -> bool:
+    try:
+        return ledger_exists(target)
+    except (BackendUnavailableError, ValueError):
+        return False
 
 
 @app.command("init")
 def init(ctx: typer.Context) -> None:
     """Create the ledger file and its schema. Running it again is harmless."""
-    db: Path = ctx.obj
-    db.parent.mkdir(parents=True, exist_ok=True)
+    db: DbTarget = ctx.obj
+    if is_postgres(db):
+        try:
+            open_backend(db).close()  # a wrong host, password or database name fails here, named
+        except (BackendUnavailableError, ValueError) as exc:
+            typer.echo(f"error: {exc}", err=True)
+            raise typer.Exit(code=1) from exc
+    else:
+        Path(db).parent.mkdir(parents=True, exist_ok=True)
     create_schema(db)
-    typer.echo(f"initialised {db}")
+    typer.echo(f"initialised {display_target(db)}")
 
 
 @projections.command("rebuild")
@@ -109,7 +139,7 @@ def rebuild(
     ] = None,
 ) -> None:
     """Reset projectors and replay the whole ledger into them."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
 
     def carried_out(conn: Connection, last_seq: int) -> None:
         # A full replay carries out the `rebuild` and `reindex` effects of settings (P0-I8 D6),

@@ -1,8 +1,10 @@
 """Entry point: ``tl-tui`` / ``python -m tl_tui`` / ``tl tui`` (brief 4).
 
-Embedded mode (the default) opens the SQLite ledger in this process. Remote mode talks to a running
-API server: ``--remote URL`` with a dev token (``--token`` or the ``TL_TOKEN`` environment variable,
-which keeps the token out of the process list). Both modes show live updates.
+Embedded mode (the default) opens the ledger in this process: a SQLite file or a
+``postgresql://`` URL (`--db` or `TL_DB`; prefer the variable, a URL carries the password). Remote
+mode talks to a running API server: ``--remote URL`` with a dev token (``--token`` or the
+``TL_TOKEN`` environment variable, which keeps the token out of the process list). Both modes show
+live updates.
 """
 
 from __future__ import annotations
@@ -30,13 +32,13 @@ def build_app(
     actor: str = DEFAULT_ACTOR,
     record_type: str = DEFAULT_TYPE,
 ) -> TlApp:
-    """The app over the SQLite dev ledger at ``db``, showing project ``project`` (embedded).
+    """The app over the ledger ``db`` (SQLite file or Postgres URL), showing ``project`` (embedded).
 
     ``actor`` is shown in the header and recorded on the settings the screens change.
     ``record_type`` is the record type the grid lists: ``core.Record`` or an extension type.
     """
     scope = f"project:{project}"
-    client = EmbeddedClient.for_sqlite(db, actor=actor)
+    client = EmbeddedClient.for_target(db, actor=actor)
     return TlApp(
         client,
         scope=scope,
@@ -131,7 +133,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--token",
         help="dev token for --remote; prefer TL_TOKEN (command-line arguments are visible in ps)",
     )
-    parser.add_argument("--db", help=f"embedded: SQLite ledger (TL_DB, default {DEFAULT_DB})")
+    parser.add_argument(
+        "--db", help=f"embedded: SQLite file or postgresql:// URL (TL_DB, default {DEFAULT_DB})"
+    )
     parser.add_argument("--project", help=f"project id (TL_PROJECT, default {DEFAULT_PROJECT})")
     parser.add_argument("--actor", help="remote: the name the header shows")
     parser.add_argument(
