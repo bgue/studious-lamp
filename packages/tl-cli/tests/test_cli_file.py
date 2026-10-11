@@ -181,5 +181,13 @@ def test_an_unconfigured_secret_is_an_error_not_a_crash(
 ) -> None:
     monkeypatch.delenv("TL_ENV", raising=False)
     monkeypatch.delenv("TL_OBJECT_SECRET", raising=False)
-    result = put(env | {"TL_ENV": ""}, make(tmp_path, "r.pdf", PDF), "--slot", "report")
+    # TL_ENV is empty, so the default actor would ask for a sign-in: name the actor
+    result = put(
+        env | {"TL_ENV": ""},
+        make(tmp_path, "r.pdf", PDF),
+        "--slot",
+        "report",
+        "--actor",
+        "user:dev",
+    )
     assert result.exit_code == 1 and "TL_OBJECT_SECRET" in result.stderr

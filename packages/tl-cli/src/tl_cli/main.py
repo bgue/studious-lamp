@@ -12,11 +12,15 @@ from typing import Annotated
 import typer
 from sqlalchemy import Connection
 from tl_adapters.sqlite.uow import create_schema, open_uow, rebuild_projections
+from tl_core.auth.env import current_env, demo_allowed
+from tl_core.auth.seed import DEMO_WARNING, seed_demo
 from tl_core.extypes.provider import attach
 from tl_core.settings.effects import mark_applied
 from tl_sim import cli as sim_cli
 
 from tl_cli import (
+    actor_hook,
+    admin,
     archive,
     backup,
     config,
@@ -40,6 +44,7 @@ from tl_cli import (
     webhook,
     wf,
 )
+from tl_cli.session import open_backend
 
 app = typer.Typer(
     name="tl",
@@ -63,6 +68,7 @@ app.add_typer(dev.app, name="dev")
 app.add_typer(new.app, name="new")
 app.add_typer(webhook.app, name="webhook")
 app.add_typer(sim_cli.app, name="sim")
+app.add_typer(admin.app, name="admin")
 app.command("serve")(serve.serve)
 app.command("tui")(tui.tui)
 app.add_typer(backup.app, name="backup")
@@ -89,15 +95,34 @@ def root(
     # prime (read the settings keys of the registered types) only for a ledger that exists: opening
     # a missing SQLite file would create it, and `tl archive`/`tl backup` report a missing ledger
     attach(lambda readonly=False: open_uow(path, readonly=readonly), prime=path.is_file())
+    # the default --actor of every command is the signed-in user (ADR-0009 section 4)
+    actor_hook.install(ctx.command, path)
 
 
 @app.command("init")
-def init(ctx: typer.Context) -> None:
+def init(
+    ctx: typer.Context,
+    dev_setup: Annotated[
+        bool,
+        typer.Option(
+            "--dev", help="Also create the demo account (demo / demo, admin). Dev and demo only."
+        ),
+    ] = False,
+) -> None:
     """Create the ledger file and its schema. Running it again is harmless."""
     db: Path = ctx.obj
+    env = current_env()
+    if dev_setup and not demo_allowed(env):
+        typer.echo(
+            f"error: --dev needs TL_ENV=dev, demo or test (TL_ENV is {env or 'unset'!r})", err=True
+        )
+        raise typer.Exit(code=1)
     db.parent.mkdir(parents=True, exist_ok=True)
     create_schema(db)
     typer.echo(f"initialised {db}")
+    if dev_setup:
+        seed_demo(open_backend(db), env=env)
+        typer.echo(DEMO_WARNING, err=True)
 
 
 @projections.command("rebuild")

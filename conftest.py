@@ -252,6 +252,12 @@ def _cheap_password_hashing() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _private_cli_session_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test reads or writes the developer's real `tl login` session file (ADR-0009 section 4)."""
+    monkeypatch.setenv("TL_SESSION_FILE", str(tmp_path / "cli-session" / "session.json"))
+
+
+@pytest.fixture(autouse=True)
 def _forget_extension_type_settings() -> Iterator[None]:
     """Setting keys that extension types registered (a process-wide registry) end with the test."""
     yield
