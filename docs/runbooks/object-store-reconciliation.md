@@ -8,7 +8,7 @@ Purpose: find files whose bytes are missing or damaged in the object store, and 
 - Trigger: before deleting anything under the object root or bucket, to see what is unreferenced.
 
 ## Before you start
-- Access needed: read access to the ledger (`TL_DB`) and the object store (`TL_OBJECT_ROOT` for the `fs` backend; the bucket and AWS credentials for `s3`). The command is read-only and never repairs.
+- Access needed: read access to the ledger (`TL_DB`: a SQLite file or a `postgresql://` URL) and the object store (`TL_OBJECT_ROOT` for the `fs` backend; the bucket and AWS credentials for `s3`). The command is read-only and never repairs.
 - Configuration: the same environment the service runs with. `TL_OBJECT_SECRET` must be set, or `TL_ENV=dev` in a development shell (the store factory fails closed without one; `just` exports `TL_ENV=dev`). `TL_OBJECT_STORE=s3` also needs `TL_S3_BUCKET` and, for MinIO, `TL_S3_ENDPOINT`.
 - Safe to run during business hours: yes without `--verify`. `--verify` reads every object, so on a large store run it off-peak.
 

@@ -14,7 +14,7 @@ The lake is an analytics copy, never a source of truth, and never a backup. It c
 - Trigger: a crash during a sync, or a ledger restore has finished.
 
 ## Before you start
-- Access needed: read access to the ledger file (`TL_DB`, default `./dev/data/tl.db`), and read and write access to the lake directory (`TL_LAKE_DIR`, default `./dev/data/lake`, git-ignored).
+- Access needed: read access to the ledger (`TL_DB`: the SQLite file, default `./dev/data/tl.db`, or a `postgresql://` URL; a sync reads one consistent snapshot of either), and read and write access to the lake directory (`TL_LAKE_DIR`, default `./dev/data/lake`, git-ignored).
 - The lake directory holds `catalog.ducklake` (DuckDB catalog), `data/` (Parquet), `lake_query.log.jsonl` (one JSON line per `lake_query` call), `.lake.lock` and `tmp/`.
 - Safe to run during business hours: `tl lake sync` yes (it is incremental and holds the lake lock only for the sync transaction; queries wait for the lock and then see the new snapshot). `tl lake rebuild --yes` no (it wipes and reloads, queries are blocked or return nothing until it finishes, and on a large ledger it runs for minutes): run it out of hours, or after telling users.
 

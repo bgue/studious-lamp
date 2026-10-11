@@ -9,7 +9,7 @@ Purpose: operate outbound webhooks: find and redrive dead letters, replay events
 - Trigger: a new receiver needs the events of the last days (replay).
 
 ## Before you start
-- Access needed: the ledger (`TL_DB`) and permission to reach the receiver's host from the worker. Commands run as `user:dev` until auth exists (P0-I8).
+- Access needed: the ledger (`TL_DB`: a SQLite file or a `postgresql://` URL; see `docs/runbooks/run-on-postgres.md`) and permission to reach the receiver's host from the worker. Commands run as `user:dev` until auth exists (P0-I8).
 - The worker must be running for anything to be sent: `uv run tl webhook run` (loop) or `uv run tl webhook run --once` (one drain). Without an allow-listed target, private and loopback addresses are refused. The allow-list is the company setting `webhooks.egress.allowlist` (a dangerous key: `uv run tl config set webhooks.egress.allowlist hub.example.com --company --reason "partner hub" --accept-risk`, see `settings.md`; the worker reads it again every few seconds) plus, for one process, `--allow-host HOST` and `TL_WEBHOOK_ALLOWLIST` (comma separated). Add only hosts you trust. Public hosts need nothing. Link-local and cloud-metadata addresses are refused even when listed. The retry window is the setting `webhooks.retry.max_hours` (default 24).
 - Safe to run during business hours: yes. Replay and redrive resend events the receiver may already have; receivers dedupe on the event id (`webhook-id` header, CloudEvents `id`).
 - Delivery log and counts: `uv run tl webhook ls` prints `subscription_id, status, mode, name, url, delivered, pending, dead` per subscription.
