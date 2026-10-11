@@ -122,6 +122,7 @@ class EmbeddedClient:
         *,
         object_store: ObjectStore | None = None,
         actor: str = DEFAULT_ACTOR,
+        prime_types: bool = True,
     ) -> None:
         if actor.startswith("agent:"):
             raise ValueError(
@@ -132,7 +133,8 @@ class EmbeddedClient:
         self.actor = actor  # recorded on the writes that take no command (settings, bodies)
         self.own_writes = OwnWrites()
         # the registered extension types of this ledger join the effective schema (brief 31)
-        attach_extension_types(lambda readonly=False: uow_factory(readonly))
+        # prime_types: read the settings keys of the registered types now (the ledger must exist)
+        attach_extension_types(lambda readonly=False: uow_factory(readonly), prime=prime_types)
 
     @classmethod
     def for_sqlite(
@@ -156,7 +158,12 @@ class EmbeddedClient:
                 store = make_object_store()
             except ValueError:
                 store = None
-        return cls(SqliteUowFactory(path), object_store=store, actor=actor)
+        return cls(
+            SqliteUowFactory(path),
+            object_store=store,
+            actor=actor,
+            prime_types=Path(path).is_file(),
+        )
 
     def change_feed(self, scope: str | None = None) -> ChangeFeed | None:
         """The live feed for this ledger, or ``None`` when the factory has no ledger and bus."""

@@ -86,7 +86,9 @@ def root(
     ctx.obj = Path(db)
     path = ctx.obj
     # registered extension types join the effective schema of every command (brief 31)
-    attach(lambda readonly=False: open_uow(path, readonly=readonly))
+    # prime (read the settings keys of the registered types) only for a ledger that exists: opening
+    # a missing SQLite file would create it, and `tl archive`/`tl backup` report a missing ledger
+    attach(lambda readonly=False: open_uow(path, readonly=readonly), prime=path.is_file())
 
 
 @app.command("init")

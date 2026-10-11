@@ -138,7 +138,7 @@ class LedgerExtensionSource:
 
 
 def attach(
-    factory: registry.UowFactory, *, ttl: float = DEFAULT_TTL_SECONDS
+    factory: registry.UowFactory, *, ttl: float = DEFAULT_TTL_SECONDS, prime: bool = False
 ) -> LedgerExtensionSource | None:
     """Make the process schema provider include the registered types of ``factory``'s ledger.
 
@@ -150,5 +150,8 @@ def attach(
         return None
     source = LedgerExtensionSource(factory, ttl=ttl)
     provider.attach_extensions(source)
-    source.refresh_settings()  # the settings keys of the registered types, before the first read
+    if prime:
+        # The settings keys of the registered types, before the first read. It opens the ledger,
+        # which a SQLite adapter creates when the file is missing: only for a ledger that exists.
+        source.refresh_settings()
     return source

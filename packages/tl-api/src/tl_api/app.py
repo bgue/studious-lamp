@@ -135,7 +135,7 @@ def create_app(
     extension types of ``backend``'s ledger join the effective schema (``extypes.provider.attach``).
     """
     cfg = settings if settings is not None else ApiSettings()
-    attach_extension_types(backend)
+    attach_extension_types(backend, prime=True)
     feed = FeedHub(
         backend,
         poll_interval_s=cfg.poll_interval_s,

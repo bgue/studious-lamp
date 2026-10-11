@@ -13,6 +13,7 @@ import pytest
 from extworld import LIFT, OBSERVATION, World
 from tl_core.extypes import registry, settings_link
 from tl_core.extypes.lock import write_lock
+from tl_core.extypes.provider import attach
 from tl_core.services.errors import UnknownSettingError
 from tl_core.settings.registry import (
     definitions,
@@ -156,3 +157,18 @@ def test_an_unreadable_ledger_changes_nothing(world: World) -> None:
 
     settings_link.refresh_from_ledger(broken, world.source._loader.verify)  # pyright: ignore[reportPrivateUsage]
     assert keys() == {KEY}
+
+
+def test_attach_reads_the_ledger_only_when_asked_to_prime(world: World) -> None:
+    world.sync()
+    settings_link.forget_all()
+    calls: list[bool] = []
+
+    def counting(readonly: bool = False) -> AbstractContextManager[UnitOfWork]:
+        calls.append(readonly)
+        return world.factory(readonly)
+
+    attach(counting)  # not primed: a ledger that may not exist is not opened
+    assert calls == [] and keys() == set()
+    attach(counting, prime=True)
+    assert calls and keys() == {KEY}

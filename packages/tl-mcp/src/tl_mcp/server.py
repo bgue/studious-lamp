@@ -107,7 +107,7 @@ def build_server(
     The registered extension types of ``factory``'s ledger join the effective schema.
     """
     check_actor(actor)
-    attach_extension_types(factory)
+    attach_extension_types(factory, prime=True)
     modes = resolve_tool_modes(tool_modes)
     lake = LakeQueryService(
         LakeConfig.at(lake_dir),
