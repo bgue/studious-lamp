@@ -118,12 +118,11 @@ def test_argument_validation_comes_from_the_schema(env: McpHarness) -> None:
 
 
 def test_the_entry_point_checks_its_arguments(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    assert parse_args(["--actor", "agent:a", "--db", "/x/y.db"]).db == Path("/x/y.db")
-    assert main(["--actor", "nobody", "--db", str(tmp_path / "x.db")]) == 2
-    assert "agent:<id>" in capsys.readouterr().err
-    assert main(["--actor", "agent:a", "--db", str(tmp_path / "missing.db")]) == 2
+    monkeypatch.setenv("TL_AGENT_TOKEN", "tla_" + "a" * 43)
+    assert parse_args(["--db", "/x/y.db"]).db == Path("/x/y.db")
+    assert main(["--db", str(tmp_path / "missing.db")]) == 2
     assert "tl init" in capsys.readouterr().err
 
 

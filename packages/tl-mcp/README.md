@@ -25,7 +25,8 @@ The MCP server for AI agents: read tools and resources over the same query langu
 | resource `tl://relations` | resource | JSON: the relation vocabulary |
 | tool `list_record_types(status=None)`, `get_record_type(type_ref)`, `get_record_body(record, scope=None)` | tools | Extension record types (`tl_mcp.type_tools`, brief 31): the registered versions, one version with its generated form, and the verified body of an object-backed record. Read-only. `create_record` with a type name proposes a managed instance; an object-backed type is refused (a proposal carries no body) |
 | resources `tl://types`, `tl://types/{type_ref}` | resources | JSON: the registered versions; one version with its form |
-| `python -m tl_mcp --actor agent:<id> [--db PATH] [--lake-dir DIR]` | command | Serve on stdio |
+| `TL_AGENT_TOKEN=... python -m tl_mcp [--db PATH] [--lake-dir DIR]` | command | Serve on stdio as the agent the token belongs to |
+| `tl_mcp.identity` (`token_from_env`, `resolve_agent`, `token_authorizer`) | module | Reads the agent token, finds its agent, and builds the hook that checks the token and the agent's allowance on every call (P1-I0, ADR-0009) |
 | `tl_mcp.context.McpContext` | class | What every tool and resource needs: a unit-of-work factory, the actor and the authorise hook |
 | `tl_mcp.errors.guarded` | function | Authorises, then turns the failures a tool or resource can meet into `ToolError` or `ResourceError` |
 | `tl_mcp.models` | module | The structured results of the tools (the schema agents see) |
@@ -54,7 +55,8 @@ Every tool call writes one audit line to `dev/data/dev-mcp.log.jsonl`. Postgres 
 
 ## Commands
 ```
-uv run python -m tl_mcp --actor agent:triage       # stdio server on TL_DB
+TL_AGENT_TOKEN="$(uv run tl admin token issue triage --label mcp)" \
+  uv run python -m tl_mcp                          # stdio server on TL_DB, as agent:triage
 uv run python -m tl_mcp.dev                        # the dev server on TL_DB (dev data only)
 just test packages/tl-mcp
 ```
@@ -66,7 +68,7 @@ Runbook: `docs/runbooks/api-and-mcp-dev.md`.
 | `TL_DB` / `--db` | `./dev/data/tl.db` | Each call opens its own short transaction, so the server can run beside the API or the TUI |
 | `TL_AGENT_DAILY_PROPOSALS` | `500` | Proposals one agent may file per UTC day; `0` refuses every proposal |
 | `TL_LAKE_DIR` / `--lake-dir` | `./dev/data/lake` | The lake `lake_query` reads; it is opened per call and may not exist yet (the tool then says to run `tl lake sync`) |
-| `--actor` | required | `agent:<id>` or `user:<id>`; fixed for the life of the server (ADR-0005) |
+| `TL_AGENT_TOKEN` | required | An agent token from `tl admin token issue <agent> --label <what for>`. It names the actor for the life of the server and is checked again on every call: a revoked or expired token, or a disabled agent, stops at the next call. A person's session token is refused. Never pass it as an argument. `--actor` was removed |
 
 ## Rules specific to this package
 See `AGENTS.md` in this directory.

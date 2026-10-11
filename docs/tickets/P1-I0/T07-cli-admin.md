@@ -7,7 +7,7 @@ Depends on: P1-I0-S3 (CLI session module and `tl admin` helpers, on `p1/i0a`); n
 Branch: `p1/i0a-t07-cli-admin`
 
 ## Goal
-An admin manages accounts and agent tokens from the shell. `tl admin user ls | show | add | roles | disable | enable | reset-password` and `tl admin token ls | issue | revoke` each make one call into `tl_core.auth` for the signed-in admin. `src/tl_cli/admin_user.py` and `src/tl_cli/admin_token.py` have every command with its options and docstring final; the bodies raise `NotImplementedError`. Both groups are already mounted under `tl admin` in `tl_cli/main.py`, next to the supervisor's `bootstrap`, `unlock` and `audit`. Two provided test files (22 + 13 test functions) must pass.
+An admin manages accounts and agent tokens from the shell. `tl admin user ls | show | add | roles | disable | enable | reset-password` and `tl admin token ls | issue | revoke` each make one call into `tl_core.auth` for the signed-in admin. `src/tl_cli/admin_user.py` and `src/tl_cli/admin_token.py` have every command with its options and docstring final; the bodies raise `NotImplementedError`. Both groups are already mounted under `tl admin` in `tl_cli/main.py`, next to the supervisor's `bootstrap`, `unlock` and `audit`. Two provided test files (22 + 14 test functions) must pass.
 
 ## Brief references (pasted)
 > **ADR-0008 (owner).** The admin module manages accounts, roles and agent service tokens and is reachable from the CLI, API and TUI; service tokens for MCP agents are issued per agent by an admin (`agent:<name>`).
@@ -19,7 +19,7 @@ Every command starts with `admin = require_admin(ctx.obj)` and `backend = backen
 
 **Passwords.** `add` (for a person or sim account) and `reset-password` read the password with `read_password(from_stdin=password_stdin, confirm=not password_stdin)` and run `prepare_password(password, username=...)` (policy and slow hash) **before** `with backend() as uow:` opens the write transaction. A weak password then fails before anything is written, and `service_errors()` lists the broken rules under the error line. An agent account takes no password, so `add --kind agent` reads none (standard input may be empty). The password is never printed.
 
-**Tokens.** `token issue` prints the token alone on stdout (one line, so `TL_AGENT_TOKEN=$(tl admin token issue triage --label mcp)` works) and the facts on stderr. `--days` and `--no-expiry` together are refused. `ls` hides revoked tokens unless `--all`; the state is `revoked`, `expired` or `active`.
+**Tokens.** `token issue` prints the token alone on stdout (one line, so `TL_AGENT_TOKEN=$(tl admin token issue triage --label mcp)` works) and the facts on stderr. `--days` and `--no-expiry` together are refused, whatever the number (`--days` defaults to none, which means 90). `ls` hides revoked tokens unless `--all`; the state is `revoked`, `expired` or `active`.
 
 Learnings that apply:
 - pyright is `standard` for `packages/tl-cli`; ruff limits lines to 100 columns (docstrings and comments too). Run `uv run ruff format` before committing. `uv` prints "UV_NATIVE_TLS is deprecated"; ignore it. Do not pipe `just check` into `tail`.
@@ -250,8 +250,9 @@ def issue(
     username: Annotated[str, typer.Argument(help="The agent account's username.")],
     label: Annotated[str, typer.Option("--label", help="What the token is for.")],
     days: Annotated[
-        int, typer.Option("--days", min=1, max=3650, help="Days until it expires.")
-    ] = DEFAULT_DAYS,
+        int | None,
+        typer.Option("--days", min=1, max=3650, help=f"Days until it expires (default {DEFAULT_DAYS})."),
+    ] = None,
     no_expiry: Annotated[
         bool, typer.Option("--no-expiry", help="A token that never expires.")
     ] = False,
@@ -259,8 +260,8 @@ def issue(
     """Issue a token for an agent account. It is printed once and cannot be read back."""
     # STEPS
     # 1. admin = require_admin(ctx.obj); backend = backend_of(ctx).
-    # 2. If no_expiry and days != DEFAULT_DAYS: fail("use --days or --no-expiry, not both").
-    # 3. expires = None if no_expiry else utcnow() + timedelta(days=days).
+    # 2. If no_expiry and days is not None: fail("use --days or --no-expiry, not both").
+    # 3. expires = None if no_expiry else utcnow() + timedelta(days=days or DEFAULT_DAYS).
     # 4. Inside `with service_errors():` target = find_account(backend, username); then
     #    `with backend() as uow:` view, token = accounts.issue_agent_token(uow,
     #    account_id=target.account_id, label=label, expires_at=expires, by=admin.actor).
@@ -420,11 +421,11 @@ uv run pytest packages/tl-cli/tests/test_cli_admin_user.py packages/tl-cli/tests
 uv run pytest packages/tl-cli -q
 just check
 ```
-Expected: the first pytest command reports 47 passed (30 + 17 cases, from 22 + 13 functions); the whole `packages/tl-cli` suite passes; `just check` is clean.
+Expected: the first pytest command reports 48 passed (30 + 18 cases, from 22 + 14 functions); the whole `packages/tl-cli` suite passes; `just check` is clean.
 
 ## Tests to add
 - `packages/tl-cli/tests/test_cli_admin_user.py` (22 test functions, provided): list, JSON list, show with a lock; add (person, hidden prompt twice, roles and kinds, agent, refusals, weak passwords listed, taken names); roles with the actor and reason in the event; the last-admin rule; disable and enable ending sessions; reset-password ending sessions and clearing a lock; every command refused without an admin session; no `--password` option.
-- `packages/tl-cli/tests/test_cli_admin_token.py` (13 test functions, provided): the token alone on stdout; it authenticates as the agent and is stored nowhere; default 90 days, `--days`, `--no-expiry` and their limits; only for enabled agent accounts; listing, `--all`, `--user`; revoke stops the token at once; revoking twice or an unknown id; every command refused without an admin session.
+- `packages/tl-cli/tests/test_cli_admin_token.py` (14 test functions, provided): the token alone on stdout; it authenticates as the agent and is stored nowhere; default 90 days, `--days`, `--no-expiry` and their limits; only for enabled agent accounts; listing, `--all`, `--user`; revoke stops the token at once; revoking twice or an unknown id; every command refused without an admin session.
 
 ## Report requirements
 Standard report (`docs/templates/haiku-report.md`): deviations first, then the commands above with their decisive output lines, then open questions. State that no `try`/`except` was added, that every service call runs after `require_admin`, that passwords are prepared before any write transaction, and that nothing printed or logged includes a password or a token other than the one deliberate `token issue` line.
@@ -432,6 +433,9 @@ Standard report (`docs/templates/haiku-report.md`): deviations first, then the c
 ## Escalation triggers
 - Stop and report *Blocked* if a provided test fails and the fix needs a change outside the two modules (`admin.py`, `session.py`, a service).
 - Stop if a step seems to ask you to decide who may do what, or what a message says: the services and `require_admin` already decide.
+
+## Change log
+- 2026-10-11 (supervisor, after the first run): `--days` now defaults to `None` (meaning 90) and is refused together with `--no-expiry` even when it is 90 (the implementer's open question: the default could not be told from an explicit 90). Changed on this branch: `admin_token.py`, the provided test and its copy (one new test, `test_an_explicit_default_number_of_days_does_not_slip_past_no_expiry`).
 
 ## Blocked
 (implementer writes here)

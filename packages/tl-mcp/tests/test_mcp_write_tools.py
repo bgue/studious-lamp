@@ -395,6 +395,6 @@ def test_the_entry_point_refuses_write_mode(
 ) -> None:
     db = tmp_path / "tl.db"
     McpHarness.build(tmp_path).close()
-    code = main(["--actor", ACTOR, "--db", str(db), "--tool-mode", "create_record=write"])
+    code = main(["--db", str(db), "--tool-mode", "create_record=write"])
     assert code == 2
     assert "human gate" in capsys.readouterr().err
