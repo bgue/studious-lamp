@@ -21,7 +21,7 @@ Each paragraph links the increment report; its workstream reports and ticket rep
 
 ## 3. Gates on the final trunk
 
-The orchestrator fills the right-hand column after the last merge (commands from `docs/build-spec/04-gates.md` §1). Numbers recorded on the branches during the build are in the third column as a reference point, not as the result.
+The supervisor of workstream E ran each gate once on `p0/i8e` (results in `docs/reports/P0-I8.md` §Gates); the orchestrator fills the right-hand column after the last merge (commands from `docs/build-spec/04-gates.md` §1). Numbers recorded on the branches during the build are in the third column as a reference point, not as the result.
 
 | Gate | Command | Last number seen on a branch | Final trunk |
 |---|---|---|---|
@@ -38,7 +38,7 @@ The orchestrator fills the right-hand column after the last merge (commands from
 | Dependency audit | `just audit-deps` | no known vulnerabilities | `<fill>` |
 | CI workflow | GitHub Actions | never run on a runner | `<fill>` |
 | Exit demo | `just demo P0-I8` | all clauses PASS, exit 0 | `<fill>` |
-| Performance benches | `just bench` (not in `just test`) | `<pending D>` | `<fill>` |
+| Performance benches | `just bench` (not in `just test`; `just bench-rebuild` for the 100k rebuild) | 14 passed, 2 skipped (13 m 18 s), repeated 12 m 14 s; rebuild 100k: SQLite 332 s, Postgres 2,299 s (P0-I8-D) | `<fill>` |
 
 The detailed gate-by-gate check on `p0/i8e` is `docs/reports/P0-I8.md` §Gates.
 
@@ -58,7 +58,7 @@ The detailed gate-by-gate check on `p0/i8e` is `docs/reports/P0-I8.md` §Gates.
 | **No `Webhook.Delivered/Failed` events** (delivery state is `wh_*` rows, so a `*` subscription cannot feed on itself); the delivery engine lives in `tl_core.webhooks` | `docs/reports/P0-I5.md` | Delivery history is operational, not ledgered |
 | **Postgres:** `events.seq` is `MAX(seq)+1` under the advisory lock, `events.payload` is TEXT; parity selected by marker and `--adapters` (build spec 03 §3 amended) | `docs/reports/P0-I5-A.md` | Writers queue on one lock (X8) |
 | **CI schema classification gate is missing** (`tl schema classify` has no command) | `docs/reports/P0-I8-C.md` CI review | Gate row 04-gates §1 not enforced |
-| **Performance:** `<pending D>` (targets of §15 at 100k records, results and any miss with its cause in `docs/reports/P0-I8-perf.md`) | workstream D | `<fill>` |
+| **Performance, brief §15 at 100,000 records (two runs, SQLite and Postgres):** grid scroll, TUI grid render, realtime and rebuild meet their targets on both dialects (scroll p95 2.6 and 14 ms; render 108 and 72 ms; realtime 9 and 41 ms through the API, 254 ms from another process; rebuild 332 s and 2,299 s). **Misses, recorded as D1 to D6 in `docs/reports/P0-I8-perf.md`:** D1 `linked`, `count(linked)` and `missing(link)` filters 365 to 1017 ms (both dialects; the fix changes which table answers and needs a contract decision); D2 one pset-property sort on SQLite 163 ms then 129 ms; D3 text search on SQLite 194 ms (FTS5 later); D4 cold-cache outliers (no fix needed); D5 a live update reloads up to 5,000 rows (200 and 340 ms); D6 the 100k rebuild is one measurement per dialect | `docs/reports/P0-I8-D.md`, `P0-I8-perf.md` | Filters over link counts and text are not interactive at 100k rows; the feed projector lost its unique key (D-S65) and existing databases keep the old one (H2). Build spec 03 §9 was amended for the extra indexes |
 | **Extension types v0 (workstream B):** directory-backed storage and the external `incoming/` write path are refused (`unsupported`, D11); `type.lock` is not signed (D9); discovery is a polling watcher, not bucket events (D8); a package's setting keys must be the type's prefix (`<namespace>.<snake_type>`) and exactly one more segment (D15); `store_body` gained an optional `expected_version` and a new 503 `body_store_unavailable` | `docs/reports/P0-I8-B.md`, `docs/tickets/P0-I8/README-B.md` | No permission design for who registers a type |
 | **Several Sonnet-tier pieces were built by the supervisor rather than ticketed** (as the tiers rule says) and reviewed in a fresh context; the supervisor-authored engines were not merged by their authors | per-increment reports | Orchestrator or human review of engines is recorded in the increment reports |
 
@@ -75,7 +75,7 @@ None of these may be done by an agent under the KICKOFF delegation.
 | # | Item | Why it is a gate | Where it came from |
 |---|---|---|---|
 | H1 | **T99, `tl migrate --from sqlite --to postgres`** (and a named approver and an ADR for it). Interim path that exists and is verified: `tl restore --from-archive` into a Postgres URL gives equal events and `cur_*` tables (exit demo, `tests/archive/test_restore.py`), but it is not a migration tool and does not copy objects | data-migration job (04-gates §2) | `docs/tickets/P0-I5/T99-migrate-sqlite-to-postgres.md` |
-| H2 | **Drop `ux_cur_feed_items_open_scope` on existing databases** (`DROP INDEX`). New databases do not create it (P0-I8-D); old ones keep the hot unique key that makes a Postgres rebuild quadratic | migration | L-P0-I8D-7 (*pending D*) |
+| H2 | **Drop `ux_cur_feed_items_open_scope` on existing databases** (`DROP INDEX`, or rebuild into a fresh database). New databases do not create it (D-S65, accepted by the orchestrator); old ones stay correct but keep the hot unique key that makes a Postgres rebuild slow | migration (data-migration gate) | L-P0-I8D-7, `P0-I8-D.md` |
 | H3 | **Secrets at rest:** envelope-encrypt `wh_secret` under a per-company KMS key; a vault, then lift the `secret_setting_unavailable` refusal for `sensitivity: secret` settings; token storage beyond plaintext in a 0600 file | security (04-gates §2) | P0-I5 D15, P0-I8 D4, ADR-0005 |
 | H4 | **The real authentication and permission model** (replaces ADR-0005): OIDC/SAML, RBAC and ABAC, confidentiality filters. It decides who may change or lock which setting (and approve dangerous ones), who may accept which proposal, who may register or retire an extension type, whether an MCP direct-write mode exists at all, per-agent identity and budgets, and the roles guard in workflows | auth (04-gates §2) | ADR-0005, P0-I6, P0-I8 A and B reports, D3 |
 | H5 | **Production key custody, retention classes and object lock** for the ledger archive, and object versioning and lock for files; the PostgreSQL catalog for the production lake | security, retention (Q8) | `docs/reports/P0-I7.md` Needs human |
@@ -95,7 +95,7 @@ Deduplicated from every increment report and from LEARNINGS. Items already liste
 - Class binding for `class_filter` and pset engagement by class (P1-I1); waiver records and a waived list in the conformance report (P1-I8); re-evaluate stored `conformance` when the effective schema changes; keep records validating against the schema they were opened with (`effective_by_hash`).
 - `tl schema classify --base origin/main` and its CI job; event upcasting and a compatibility matrix (§24.2); change classification between versions of one extension type (§27.5).
 - Envelope fields `discipline`, `area`, `due` so the brief's example filter parses; `path(...)` and full-text search in the query language; `~` on numeric pset values; project time zone from about:config into the query clock; saved-query subscription filters; an index on `cur_links(status)` if a bench shows the need.
-- Make the feed projector, the pset projector (`PsetProjector` rebuilds a record's rows on every pset event and introspects columns each time) and other projectors batch-friendly for rebuild (see the performance report).
+- Performance (from `P0-I8-perf.md`): decide how `count(linked)`, `linked` and `missing(link)` are answered at scale (D1: `cur_link_counts` or a counts column with the existence rule, with a parity proof); sort a pset property by its typed column using the form metadata (D2); full-text search, FTS5 on SQLite and a trigram or full-text index on Postgres (D3); a live update should re-read the changed rows, not the whole loaded page (D5); the Postgres rebuild is bound by statements (feed about 2.5 ms, links 2.7 ms, outbox 1.2 ms per event): cache the open card and the tag existence checks inside a replay, or batch the replay's inserts; run `ANALYZE` (or `PRAGMA optimize`) after a bulk load or a rebuild on SQLite (0.2 ms with statistics, 12 ms without); the API's feed hub does not use the Postgres `LISTEN/NOTIFY` wake-up; measure concurrent-writer throughput (X8); re-run the benches on dedicated hardware before committing to the figures.
 
 **Postgres and adapters**
 - Switch `tl serve`, `tl tui`, the webhook worker, `tl file`, `tl lake` and the root `--db` to `tl_adapters.db` so they run on a `postgresql://` URL; an `EmbeddedFeed` for Postgres; `render_screen` for a Postgres ledger.
