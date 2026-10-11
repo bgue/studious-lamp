@@ -1,6 +1,6 @@
 # P0-I8-T60 — Bench report renderer: results files to markdown tables
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: tests, tooling
 Depends on: P0-I8-S60 (merged into the base of this branch)

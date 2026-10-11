@@ -1153,3 +1153,9 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P0-I8A-11** · 2026-10-10 · tags: cli, process
   Typer prints a command function's whole docstring as its `--help`. A stub docstring that carries implementation steps ("call `list_views(...)` and print `view_line`") stays in the file when the implementer only deletes the STUB paragraph, and then reaches the user. For a CLI ticket, tell the implementer to rewrite each command docstring as user help, and look at `tl <group> <command> --help` before merging.
   Evidence: `tl config set --help` after the T01 and T02 merges showed unit-of-work instructions; fixed in P0-I8-S20. Status: active
+- **L-P0-I8D-8** · 2026-10-11 · tags: tests, tooling
+  `PsetProjector._update_promoted` reads the column list of `cur_core_record` (`SELECT * ... WHERE 1 = 0`) on every apply, even when no promoted columns exist, so a new record costs two
+  statements, not one (about 0.5 ms on Postgres). A statement budget of one needs that list cached per transaction or skipped; budgets in `test_*_projector_statements.py` allow for it.
+  The same ticket batch showed that a bound-parameter naming scheme must be written in the ticket (a sketch and a parenthetical disagreed) and that scratch scripts against Postgres must use `tl_adapters.db.make_engine`,
+  not `sqlalchemy.create_engine("postgresql://...")` (no psycopg here).
+  Evidence: `docs/reports/P0-I8/P0-I8-T61.md` Learnings. Status: active

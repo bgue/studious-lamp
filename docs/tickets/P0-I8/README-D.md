@@ -1,6 +1,6 @@
 # Increment plan — P0-I8 workstream D: performance pass
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-10
 Brief sections: §15 (non-functional targets), §17 risks R1 (rebuild time) and R2 (pset query performance), §5.4 (current-state tables), §10.2 (query language)
 Branch: `p0/i8d` (base `p0/i8`); ticket ids `P0-I8-T60` to `T79`, supervisor pieces `P0-I8-S60` onwards
@@ -30,14 +30,14 @@ Measure the §15 targets on a seeded 100k-record project on SQLite and Postgres,
 | S60 | Bench harness, 100k generator, measurement method, `just bench*` recipes | The method and the dataset decide what every number means | self | done |
 | S61 | `tl:ix_` annotations in the DDL generator and the index definitions in `schema/core` | Generator logic and `schema/**` | orchestrator | done |
 | S62 | Query compiler: sets instead of per-record probes; ordering an index can serve | Query compiler (Sonnet-authored list) | orchestrator | done |
-| S63 | Per-target measurements, before and after, both dialects | The report depends on them | self | in progress |
+| S63 | Per-target measurements, before and after, both dialects | The report depends on them | self | done |
 | S65 | Feed projector: open card without a hot unique index (`schema/core/feed.yaml`, `projection/feed.py`) | Projector and `schema/**` | orchestrator | done |
-| S64 | Runbook, package README notes, demo script, perf report, workstream report | Closes the workstream | self | planned |
+| S64 | Runbook, package README notes, demo script, perf report, workstream report | Closes the workstream | self | done |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| T60 | Bench report renderer (results files to markdown tables) | haiku | S60 | in-review | |
+| T60 | Bench report renderer (results files to markdown tables) | haiku | S60 | merged | 1 review round; 10 tests |
 | T61 | PsetProjector: one insert per record, no reads for a new record | haiku | S62 | merged | 1 review round; 2 statements per new record |
 | T62 | LinkProjector: refresh link counts with one upsert | haiku | S62 | merged | 1 review round; 3 statements per Link.Added |
 

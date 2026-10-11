@@ -1,6 +1,6 @@
 # P0-I8-T62 — LinkProjector: refresh the link counts of a record with one upsert
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: P0-I8-S62 (base of this branch)
