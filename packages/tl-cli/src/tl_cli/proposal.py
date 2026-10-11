@@ -10,12 +10,11 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
-from pathlib import Path
 from typing import Annotated, NoReturn, cast
 
 import typer
 from pydantic import ValidationError
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_core.ledger import ConcurrencyError
 from tl_core.proposals.types import ProposalStatus, ProposalView
 from tl_core.services import proposals
@@ -50,7 +49,7 @@ def _service_errors() -> Iterator[None]:
         _fail("; ".join(f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors()))
 
 
-def _factory(db: Path) -> proposals.Factory:
+def _factory(db: DbTarget) -> proposals.Factory:
     """``factory(readonly)`` for the service functions that open their own units of work."""
 
     def open_one(readonly: bool = False) -> AbstractContextManager[UnitOfWork]:
@@ -145,7 +144,7 @@ def ls(
     ``_service_errors``) call ``proposals.list_proposals(uow.conn(), scope, status=..., agent=agent,
     limit=n)`` (``status=None`` for ``all``). Print ``queue_line(view)`` for each.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     scope = _scope(project, company)
     if status != "all" and status not in _STATUSES:
         _fail(f"--status must be pending, accepted, rejected, failed or all, not {status!r}")
@@ -166,7 +165,7 @@ def show(
     Read-only unit of work, ``proposals.get_proposal(uow.conn(), proposal_id)`` inside
     ``_service_errors``; print each of ``show_lines(view)``.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     with _service_errors(), open_uow(db, readonly=True) as uow:
         view = proposals.get_proposal(uow.conn(), proposal_id)
     for line in show_lines(view):
@@ -196,7 +195,7 @@ def accept(
     (``error: ...`` on stderr, exit code 1). Otherwise print ``accepted <id>`` and then
     ``result <view.result_stream_id>``.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     with _service_errors():
         view = proposals.accept_or_fail(
             _factory(db),
@@ -226,7 +225,7 @@ def reject(
     ``proposals.reject_proposal(uow, proposal_id=..., by=actor, reason=reason, source="cli")``.
     Print ``rejected <id>``.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     with _service_errors(), open_uow(db) as uow:
         proposals.reject_proposal(
             uow, proposal_id=proposal_id, by=actor, reason=reason, source="cli"
