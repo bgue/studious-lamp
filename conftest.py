@@ -54,10 +54,21 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     metafunc.parametrize("adapter_name", params, scope="function")
 
 
-def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     for item in items:
         if "adapter_name" in getattr(item, "fixturenames", ()):
             item.add_marker(pytest.mark.parity)
+        if item.path.parent.name == "bench" and item.path.parent.parent.name == "tests":
+            item.add_marker(pytest.mark.bench)
+    # Benches seed and time 100k-record databases (P0-I8 D13): they run only when `-m` names the
+    # `bench` marker (`just bench`), never in `just test` and never in `just test-parity`.
+    if "bench" in str(config.getoption("markexpr") or ""):
+        return
+    kept = [item for item in items if item.get_closest_marker("bench") is None]
+    dropped = [item for item in items if item.get_closest_marker("bench") is not None]
+    if dropped:
+        config.hook.pytest_deselected(items=dropped)
+        items[:] = kept
 
 
 @pytest.fixture(scope="session")
@@ -225,3 +236,12 @@ def pg_db(pg_base_url: str | None) -> Iterator[str]:
         yield admin.schema_url(pg_base_url, schema)
     finally:
         admin.drop_schema_namespace(pg_base_url, schema)
+
+
+@pytest.fixture(autouse=True)
+def _forget_extension_type_settings() -> Iterator[None]:
+    """Setting keys that extension types registered (a process-wide registry) end with the test."""
+    yield
+    from tl_core.extypes import settings_link
+
+    settings_link.forget_all()

@@ -22,6 +22,7 @@ CONTEXTS: tuple[str, ...] = (
     "Feed pane",
     "Composer",
     "Forms",
+    "About:config",
 )
 
 
@@ -64,6 +65,7 @@ KEYMAP: tuple[KeyEntry, ...] = (
     ),
     KeyEntry("App", "F", "Activity feed of the open record, or of the project", "TlApp", "F"),
     KeyEntry("App", "p", "Post to the feed (composer)", "TlApp", "p"),
+    KeyEntry("App", "F9", "about:config: the settings of this project", "TlApp", "f9"),
     KeyEntry("App", "Ctrl+Q", "Quit"),
     KeyEntry(
         "Grid",
@@ -179,6 +181,21 @@ KEYMAP: tuple[KeyEntry, ...] = (
         "ctrl+s",
     ),
     KeyEntry("Forms", "Esc", "Cancel", "EditForm", "escape"),
+    KeyEntry("About:config", "Up  Down  PgUp  PgDn", "Choose a setting"),
+    KeyEntry(
+        "About:config", "e  Enter", "Change the value at the layer shown", "SettingsScreen", "e"
+    ),
+    KeyEntry("About:config", "r", "Reset: take this layer's value away", "SettingsScreen", "r"),
+    KeyEntry("About:config", "h", "History of the setting, with undo (u)", "SettingsScreen", "h"),
+    KeyEntry("About:config", "k", "Lock or unlock for projects (company)", "SettingsScreen", "k"),
+    KeyEntry(
+        "About:config", "L", "Send changes to the project or the company", "SettingsScreen", "L"
+    ),
+    KeyEntry("About:config", "m", "Only the settings set at this layer (●)", "SettingsScreen", "m"),
+    KeyEntry("About:config", "/", "Filter by name or description", "SettingsScreen", "slash"),
+    KeyEntry("About:config", "F5", "Read the list again", "SettingsScreen", "f5"),
+    KeyEntry("About:config", "Ctrl+S  Esc", "Apply or cancel a change", "SettingForm", "ctrl+s"),
+    KeyEntry("About:config", "Esc", "Close", "SettingsScreen", "escape"),
 )
 
 

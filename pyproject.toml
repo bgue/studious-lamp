@@ -21,7 +21,10 @@ package = false
 override-dependencies = ["jsonschema[format-nongpl]>=4.26"]
 
 [tool.uv.workspace]
-members = ["packages/*"]
+# `packages/tl-modules/<name>` holds the modules `tl new module` scaffolds (build spec 03 section 1);
+# the directory itself is not a package, hence the exclude.
+members = ["packages/*", "packages/tl-modules/*"]
+exclude = ["packages/tl-modules"]
 
 [tool.uv.sources]
 tl-schema = { workspace = true }
@@ -49,6 +52,7 @@ addopts = "--import-mode=importlib"
 markers = [
   "parity: runs once per adapter named by --adapters (see conftest.py)",
   "requires_postgres: needs the Postgres server at TL_PG_URL",
+  "bench: performance benches over a seeded 100k-record database; run only by `just bench`",
 ]
 
 [tool.pyright]
@@ -56,7 +60,14 @@ include = ["packages", "tests"]
 exclude = ["**/generated", "**/.venv"]
 pythonVersion = "3.12"
 # tests/contract reuses the helper module in tests/webhooks (world.py)
-extraPaths = ["tests/webhooks", "packages/tl-api/tests"]
+extraPaths = [
+  "tests/webhooks",
+  "tests/settings",
+  "packages/tl-api/tests",
+  "tests/extypes",
+  "packages/tl-tui/tests",
+  "tests/bench",
+]
 typeCheckingMode = "standard"
 strict = [
   "packages/tl-core/src",

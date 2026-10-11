@@ -110,7 +110,7 @@ def _hash_completions(conn: Connection, scope: str, prefix: str, limit: int) -> 
     lowered = prefix.lower()
     found.extend(
         Completion(word, "signal", "signal tag")
-        for word in signal_tags()
+        for word in signal_tags(conn, scope)
         if word.lower().startswith(lowered)
     )
     found.extend(_used_tags(conn, _CODES_AND_TOPICS_SQL, scope, pattern, limit))
@@ -152,8 +152,8 @@ def complete_tags(
 
     1. Records of the scope and the company, never voided, whose key starts with the prefix, by
        key (kind ``record``, detail the title).
-    2. Signal tags that start with the prefix, in the order of ``signal_tags()`` (kind ``signal``,
-       detail ``signal tag``).
+    2. Signal tags that start with the prefix, in the order of the ``feed.signal_tags`` setting
+       for the scope (kind ``signal``, detail ``signal tag``).
     3. Codes and topics already used in posts of the scope whose lower-cased text starts with the
        prefix, most used first then by text (kind ``code`` or ``topic``, text lower-case, detail
        ``used 3 times`` or ``used 1 time``).

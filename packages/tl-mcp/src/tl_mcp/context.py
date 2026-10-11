@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from tl_core.files.types import ObjectStore
 from tl_core.services.proposals import Factory
 from tl_lake import LakeQueryService
 
@@ -20,3 +21,4 @@ class McpContext:
     actor: str  # ``agent:<id>`` or ``user:<id>``, fixed for the life of the server (ADR-0005)
     authorize: Authorizer
     lake: LakeQueryService  # the guarded, read-only lake_query service (brief 11.3, 28.4)
+    objects: ObjectStore | None = None  # bodies of object-backed extension records (brief 31)

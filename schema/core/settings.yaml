@@ -1,0 +1,353 @@
+id: https://example.org/throughline/core/settings
+name: tl_core_settings
+title: Throughline settings (about:config)
+description: >-
+  Every tunable behaviour is a named, typed, documented setting, layered from the platform default to the
+  company, the project and (for UI keys) the user (brief 30). `SettingDefinition` is the class that platform and
+  extension-type definition files (`schema/settings/platform.yaml`, a type package's `settings.yaml`) are
+  validated against; `tl_core.settings.types.SettingDefinition` is its runtime twin and a test keeps the two in
+  agreement. Values are ledger events on stream type `core.Setting` (stream id `setting:<layer>:<key>`, scope
+  `project:<id>` for a project layer, else `company`): `Setting.Changed` sets or resets one key at one layer (its
+  `applies_at` may lie in the future), `Setting.Locked` locks a key for the projects or bounds the values
+  projects may use. `cur_setting` has one row per `Setting.Changed` event, so it is the per-key history and the
+  input of the resolver; `cur_setting_lock` has one row per locked-or-bounded key. `setting_effect_applied` is an
+  operational table (like the `wh_*` tables it uses `tl:current_state` only to get one DDL for both dialects):
+  no event produces it and a rebuild never clears it.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+  - events
+default_range: string
+annotations:
+  tl:module: core
+
+enums:
+  SettingType:
+    description: The value type of a setting (brief 30.1).
+    permissible_values:
+      bool:
+      int:
+      decimal:
+      string:
+      enum:
+      list:
+      duration:
+        description: Whole number plus unit, `ms`, `s`, `m`, `h`, `d` or `w` (`5m`, `24h`).
+      size:
+        description: Whole number plus unit, `B`, `KB`, `MB`, `GB` or `TB` (`50MB`).
+      date:
+        description: ISO date, `YYYY-MM-DD`.
+      json:
+
+  SettingScope:
+    description: >-
+      Which layers may set a key. `platform` is the shipped default only; nobody sets it at run time.
+    permissible_values:
+      platform:
+      company:
+      project:
+      user:
+
+  SettingEffect:
+    description: What a change needs before it is fully in force (brief 30.3).
+    permissible_values:
+      live:
+      reindex:
+      rebuild:
+      restart:
+
+  SettingSensitivity:
+    description: A `secret` setting would live in the vault; Phase 0 has none and refuses to set one.
+    permissible_values:
+      normal:
+      secret:
+
+  SettingRisk:
+    description: >-
+      `advanced` needs a reason with every change; `dangerous` also needs the explicit "I accept the risk".
+    permissible_values:
+      normal:
+      advanced:
+      dangerous:
+
+classes:
+  SettingValidation:
+    description: >-
+      Range, choices or pattern of a value. For `list` values `choices` and `pattern` apply to each item;
+      for `duration` and `size` the range is in seconds and bytes.
+    attributes:
+      minimum:
+        range: float
+        description: Smallest allowed value.
+      maximum:
+        range: float
+        description: Largest allowed value.
+      choices:
+        range: Any
+        description: The allowed values (a JSON list), for an enum or the items of a list.
+        annotations:
+          tl:json: true
+      pattern:
+        description: Regular expression a string value (or each list item) must match in full.
+
+  SettingDefinition:
+    description: >-
+      One setting (brief 30.1). Definitions are data: `schema/settings/platform.yaml` and the `settings.yaml`
+      of an extension type package list them under a top-level `settings:` key.
+    attributes:
+      key:
+        required: true
+        description: Dotted and namespaced, lower-case words, for example `feed.reactions.enabled`.
+        pattern: "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+      type:
+        range: SettingType
+        required: true
+      default:
+        range: Any
+        required: true
+        description: The platform default (a JSON value that satisfies `type` and `validation`).
+        annotations:
+          tl:json: true
+      description:
+        required: true
+        description: One sentence shown beside the key.
+      docs:
+        description: Longer explanation shown in the detail pane.
+      scopes:
+        range: SettingScope
+        multivalued: true
+        required: true
+        description: Which layers may set the key.
+      lockable:
+        range: boolean
+        ifabsent: "false"
+        description: Whether the company can lock the key, or bound its values, for its projects.
+      validation:
+        range: SettingValidation
+        inlined: true
+      effect:
+        range: SettingEffect
+        ifabsent: string(live)
+      sensitivity:
+        range: SettingSensitivity
+        ifabsent: string(normal)
+      risk:
+        range: SettingRisk
+        ifabsent: string(normal)
+      since:
+        required: true
+        description: The platform or package version that introduced the key.
+      deprecated:
+        description: Set when the key is going away; says what replaces it.
+      owner:
+        ifabsent: string(platform)
+        description: "`platform`, or `<namespace>.<TypeName>` for the extension type that defines the key."
+
+  SettingChangedPayload:
+    is_a: EventPayload
+    annotations:
+      tl:event_type: Setting.Changed
+      tl:event_version: "1"
+    description: >-
+      One key was set, or reset to what the layer above gives, at one layer. The stream is
+      `setting:<layer>:<key>`. A change with `applies_at` in the future takes effect then (and not before):
+      resolution is time-based, so no job applies it.
+    attributes:
+      key:
+        required: true
+        description: The setting key.
+      layer:
+        required: true
+        description: "`company`, `project:<id>` or `user:<id>`."
+      old_value:
+        range: Any
+        description: The value the layer held when the change was recorded (null when it held none).
+        annotations:
+          tl:json: true
+      old_set:
+        range: boolean
+        description: "Whether the layer held a value of its own before (false: it was inheriting)."
+      new_value:
+        range: Any
+        description: The new value; null with `reset` true.
+        annotations:
+          tl:json: true
+      reset:
+        range: boolean
+        description: True when the layer goes back to inheriting.
+      reason:
+        description: Why. Required for `advanced` and `dangerous` keys.
+      applies_at:
+        range: datetime
+        description: When the change takes effect, if later than the time it was recorded.
+      accept_risk:
+        range: boolean
+        description: The person confirmed "I accept the risk" (a `dangerous` key).
+    examples:
+      - value: "{\"accept_risk\": false, \"applies_at\": null, \"key\": \"feed.reactions.enabled\", \"layer\": \"project:P123\", \"new_value\": false, \"old_set\": false, \"old_value\": null, \"reason\": null, \"reset\": false}"
+
+  SettingLockedPayload:
+    is_a: EventPayload
+    annotations:
+      tl:event_type: Setting.Locked
+      tl:event_version: "1"
+    description: >-
+      The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to.
+      The stream is `setting:company:<key>`.
+    attributes:
+      key:
+        required: true
+      layer:
+        required: true
+        description: Always `company`; only the company layer locks or bounds a key.
+      locked:
+        range: boolean
+        required: true
+        description: True when projects may not override the key.
+      bounds:
+        range: Any
+        description: "Limits for project values: `minimum`, `maximum` and/or `choices`; null for none."
+        annotations:
+          tl:json: true
+      reason:
+        required: true
+    examples:
+      - value: "{\"bounds\": null, \"key\": \"ai.agents.default_mode\", \"layer\": \"company\", \"locked\": true, \"reason\": \"Company policy: agents propose, people decide\"}"
+
+  SettingChangeRow:
+    description: >-
+      One `Setting.Changed` event: the history of a key at a layer, and the entries the resolver reads. The row
+      in force at time t is the one with the greatest `effective_us` (then `seq`) not after t.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_setting
+    attributes:
+      change_id:
+        identifier: true
+        required: true
+        range: Ulid
+        description: Event id of the `Setting.Changed` event.
+      key:
+        required: true
+        annotations:
+          tl:indexed: true
+      layer:
+        required: true
+        description: "`company`, `project:<id>` or `user:<id>`."
+        annotations:
+          tl:indexed: true
+      scope:
+        range: ScopeId
+        required: true
+      value:
+        range: Any
+        required: true
+        description: The new value as JSON; `null` for a reset.
+        annotations:
+          tl:json: true
+      reset:
+        range: boolean
+        required: true
+        ifabsent: "false"
+      old_value:
+        range: Any
+        required: true
+        description: The value the layer held before, as JSON.
+        annotations:
+          tl:json: true
+      old_set:
+        range: boolean
+        required: true
+        ifabsent: "false"
+      reason:
+        description: Why the change was made.
+      actor:
+        required: true
+      source:
+        required: true
+      accept_risk:
+        range: boolean
+        required: true
+        ifabsent: "false"
+      applies_at:
+        range: datetime
+        description: Set only for a change that was scheduled for later.
+      effective_us:
+        range: integer
+        required: true
+        description: Microseconds since the epoch at which the change takes effect (`applies_at`, else the time it was recorded).
+      recorded_at:
+        range: datetime
+        required: true
+      seq:
+        range: integer
+        required: true
+        annotations:
+          tl:indexed: true
+      version:
+        range: integer
+        required: true
+        description: Ledger `stream_version` of the setting stream after this event.
+
+  SettingLockRow:
+    description: The lock and bounds of one key, as the latest `Setting.Locked` event left them.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_setting_lock
+    attributes:
+      key:
+        identifier: true
+        required: true
+      locked:
+        range: boolean
+        required: true
+        ifabsent: "false"
+      bounds:
+        range: Any
+        description: The bounds as JSON, or null for none.
+        annotations:
+          tl:json: true
+      reason:
+        required: true
+      actor:
+        required: true
+      seq:
+        range: integer
+        required: true
+      version:
+        range: integer
+        required: true
+      recorded_at:
+        range: datetime
+        required: true
+
+  SettingEffectApplied:
+    description: >-
+      Operational, not a projection (no event produces it and a rebuild never clears it): the last point at
+      which each follow-up effect (`reindex`, `rebuild`, `restart`) was carried out. A key whose effect is not
+      `live` owes that effect while it has a change newer than this point. `tl projections rebuild` and the
+      server start write it.
+    annotations:
+      tl:current_state: true
+      tl:table: setting_effect_applied
+    attributes:
+      effect:
+        identifier: true
+        required: true
+        description: "`reindex`, `rebuild` or `restart`."
+      applied_seq:
+        range: integer
+        required: true
+        description: The ledger head when the effect was carried out.
+      applied_us:
+        range: integer
+        required: true
+        description: Microseconds since the epoch when it was carried out.
+      applied_by:
+        required: true
+        description: What did it (`rebuild`, `reindex`, `server`).

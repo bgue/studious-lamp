@@ -105,6 +105,13 @@ classes:
     description: The generic Phase 0 record type, `core.Record`.
     annotations:
       tl:current_state: true
+      # Performance indexes (P0-I8 D13). The grid and the query compiler read one scope, hide voided
+      # rows, and order by created_at (the default), updated_at or key; `empty_last(key)` is the
+      # expression the compiler orders by first so that empty keys sort last.
+      tl:ix_scope_voided_created: "scope, voided, created_at, id"
+      tl:ix_scope_voided_updated: "scope, voided, updated_at, id"
+      tl:ix_scope_voided_key_asc: "scope, voided, empty_last(key), key, id"
+      tl:ix_scope_voided_key_desc: "scope, voided, empty_last(key), key desc, id"
     unique_keys:
       scope_key:
         description: A key is unique within its scope.

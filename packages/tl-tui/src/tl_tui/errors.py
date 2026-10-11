@@ -6,6 +6,8 @@ Every `ClientInterface` call may raise one of `CLIENT_ERRORS`. Screens catch tha
 
 from __future__ import annotations
 
+from typing import cast
+
 from pydantic import ValidationError
 from tl_api.client.base import ApiUnavailableError
 from tl_api.errors import ApiError
@@ -32,4 +34,8 @@ def describe_error(exc: BaseException) -> str:
         return "server unreachable; check the connection and try again"
     if isinstance(exc, ConcurrencyError):
         return "this record changed since you opened it; reload and try again"
-    return str(exc) or exc.__class__.__name__
+    message = str(exc) or exc.__class__.__name__
+    issues: object = getattr(exc, "issues", None)  # a body that failed validation lists its issues
+    if isinstance(issues, list) and issues:
+        message += ": " + "; ".join(str(issue) for issue in cast("list[object]", issues))
+    return message

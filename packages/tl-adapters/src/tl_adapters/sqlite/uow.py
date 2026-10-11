@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import cast
 
-from sqlalchemy import Engine
+from sqlalchemy import Connection, Engine
 from tl_core.bus import Bus
 from tl_core.projection.defaults import default_registry
 from tl_core.projection.registry import InMemoryRegistry
@@ -102,11 +102,13 @@ def rebuild_projections(
     types: Sequence[str] | None = None,
     registry: ProjectorRegistry | None = None,
     on_progress: Callable[[int], None] | None = None,
+    after_replay: Callable[[Connection, int], None] | None = None,
 ) -> int:
     """Reset projectors and replay the whole ledger into them, in one transaction.
 
     ``types`` names projectors (default: all). Returns the number of events replayed. If the replay
-    fails nothing changes: the transaction rolls back and the old rows remain.
+    fails nothing changes: the transaction rolls back and the old rows remain. ``after_replay``
+    (see ``_unit.replay``) runs in that transaction with the seq of the last event replayed.
     """
     reg = registry if registry is not None else _default_registry()
     if types is None:
@@ -118,6 +120,6 @@ def rebuild_projections(
     engine = make_engine(path)
     try:
         with write_tx(engine) as conn:
-            return replay(conn, SqliteLedger(engine), reg, selected, on_progress)
+            return replay(conn, SqliteLedger(engine), reg, selected, on_progress, after_replay)
     finally:
         engine.dispose()

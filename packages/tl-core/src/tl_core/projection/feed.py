@@ -10,6 +10,13 @@ rows this projector already wrote; no clock, no outside reads):
   ``tl_core.feed.cards``. They decide, per scope, whether the event extends the open card, starts
   a new one, closes it, or is ignored. A card's subject records are rows of ``cur_feed_tags``.
 
+A scope has at most one open card, and it is the scope's newest card: the projector closes a card
+before it opens the next, and runs under the ledger's single-writer lock. The table has no unique
+key on ``open_scope`` (decision D-S65 of P0-I8 workstream D): on Postgres it made a rebuild, which
+is one transaction, quadratic in the number of cards. The property test in
+``tests/property/test_feed_projection.py`` pins the rule. Databases created before D-S65 keep the
+old unique index until it is dropped (a migration).
+
 It must see every event, in ``seq`` order, for its cards to equal those of a rebuild; ``rebuild``
 replays the whole ledger, so they do. It reads only its own tables, so rebuilding it alone is safe.
 """
@@ -55,9 +62,18 @@ _INSERT_TAG_SQL = text(
     ":tag_text, :tag_key, :namespace, :record_id, :start_pos, :end_pos, :seq)"
 )
 _TAG_EXISTS_SQL = text("SELECT 1 FROM cur_feed_tags WHERE tag_row_id = :tag_row_id")
+# The open card of a scope is its newest card (a card opens only after the previous one closed), so
+# the lookup reads the newest card by (scope, first_seq) and looks at its ``open_scope``. It does
+# not search for ``open_scope = :scope``: on Postgres every closed card leaves a dead entry under
+# that one key until its transaction ends, and a rebuild is one transaction, so a lookup and a
+# unique check there grow with the number of cards (P0-I8 D13: 418 s of a 570 s rebuild).
+# ``first_seq < :seq`` is always true for the cards that exist when the event is applied; it lets
+# the index scan start at the event instead of walking the rows a rebuild's reset deleted in the
+# same transaction (they stay in the index until it ends).
 _OPEN_CARD_SQL = text(
-    "SELECT item_id, actor, event_type, first_us, event_count FROM cur_feed_items "
-    "WHERE open_scope = :scope"
+    "SELECT item_id, actor, event_type, first_us, event_count, open_scope FROM cur_feed_items "
+    "WHERE scope = :scope AND first_seq IS NOT NULL AND first_seq < :seq "
+    "ORDER BY first_seq DESC LIMIT 1"
 )
 _CLOSE_CARD_SQL = text("UPDATE cur_feed_items SET open_scope = NULL WHERE item_id = :item_id")
 _EXTEND_CARD_SQL = text(
@@ -254,12 +270,12 @@ class FeedProjector:
     # --- cards ------------------------------------------------------------------------------
 
     def _cards(self, conn: Connection, event: Event) -> None:
-        found = conn.execute(_OPEN_CARD_SQL, {"scope": event.scope}).first()
+        found = conn.execute(_OPEN_CARD_SQL, {"scope": event.scope, "seq": event.seq}).first()
         open_card = (
             OpenCard(
                 found.item_id, found.actor, found.event_type, found.first_us, found.event_count
             )
-            if found is not None
+            if found is not None and found.open_scope is not None
             else None
         )
         action = disposition(open_card, event)

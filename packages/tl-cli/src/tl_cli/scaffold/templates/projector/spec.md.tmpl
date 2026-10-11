@@ -1,0 +1,21 @@
+# Projector: ${module}_${name}
+
+Status: draft. Written by: TODO.
+
+## Purpose
+TODO: what `${table}` is for and who reads it.
+
+## Handles
+| Event type |
+|---|
+${event_rows}
+
+## Table `${table}`
+| Column | Type | Meaning |
+|---|---|---|
+| stream_id | TEXT | the stream (record) the events belong to |
+| n | INTEGER | how many handled events the stream has |
+| last_seq | INTEGER | ledger seq of the last handled event |
+
+## Registering it
+Add `${cls}()` to the registry your application builds (`tl_core.projection.defaults.default_registry` for the built-in ones). A projector must be deterministic: `tests/test_projector_${name}.py` checks that a rebuild gives the same rows. The current-state table of a record type is generated from its schema, not written here.

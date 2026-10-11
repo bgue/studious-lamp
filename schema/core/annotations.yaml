@@ -10,6 +10,10 @@ description: >-
   Class-level tags
   - `tl:current_state` (boolean): generate a `cur_<module>_<class>` current-state table for this class (brief 5.4).
   - `tl:table` (string): override the generated table name (for example `cur_pset_values`).
+  - `tl:ix_<name>` (string, one per index): a composite index `ix_<table>_<name>` on the current-state table. The value is a
+    comma-separated list of terms: a slot name, `<slot> desc`, or `empty_last(<slot>)`, the expression
+    `(col IS NULL OR col = '')` that the record queries order by first so empty text sorts last (an index on that exact
+    expression lets the planner read a sorted page). Both dialects get the same text. Added for the P0-I8 performance pass.
   Operational tables: a few classes (the `wh_*` webhook delivery state in outbox.yaml) are not projections of events. They use
   `tl:current_state` and `tl:table` only to get one DDL for both dialects; the schema file's description says so.
   - `tl:history` (boolean): also generate a `hist_<module>_<class>` table (not used before Phase 3).
@@ -42,6 +46,12 @@ description: >-
   - `tl:package` (`name@version`) and `tl:extension` (`name@version`): the package that defined the element and
     the project extension that changed it.
   - `tl:effective_schema_hash` and `tl:scope`: set on the effective schema itself.
+
+  Extension type tags (read by `tl_core.extypes` when it compiles a package's `type.yaml`, brief 31; no generator reads them)
+  - `tl:storage_mode` (`managed` | `object-backed`, class level): where an instance body lives. Default `managed`.
+  - `tl:index` (boolean, slot level): the slot is an index field, copied into the pset named for the type so the query
+    language filters on it (brief 31.4). Other slots are visible in the record view but not filterable.
+  - `tl:kind` (`text` | `ref` | `quantity`, slot level): the pset property kind when the LinkML range alone is not enough.
 
   Schema-level tags
   - `tl:module` (string): the module segment of generated object names; `core` for everything under `schema/core`.

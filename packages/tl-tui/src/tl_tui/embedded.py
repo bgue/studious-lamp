@@ -9,11 +9,27 @@ over HTTP. `for_sqlite` keeps one engine and one in-process bus for the life of 
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Callable, Sequence
-from contextlib import AbstractContextManager
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import AbstractContextManager, contextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
+from tl_api.auth import AGENT_MUST_PROPOSE
+from tl_core.extypes import body as extype_bodies
+from tl_core.extypes import registry as extype_registry
+from tl_core.extypes.errors import BodyNotFoundError, BodyStoreUnavailableError
+from tl_core.extypes.provider import attach as attach_extension_types
+from tl_core.extypes.service import (
+    BodyStoredOut,
+    BodyView,
+    TypeDetail,
+    TypeSummary,
+    summarise,
+    type_detail,
+)
+from tl_core.extypes.types import TypeStatus
+from tl_core.files.types import ObjectStore
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink, missing_expected_links
 from tl_core.links.provider import get_vocabulary
@@ -59,11 +75,23 @@ from tl_core.services.workflow import (
     handle_transition_workflow,
     workflow_status,
 )
+from tl_core.settings import history as settings_history
+from tl_core.settings import lock_setting as lock_in_force
+from tl_core.settings import reset_setting as reset_in_force
+from tl_core.settings import revert_setting as revert_in_force
+from tl_core.settings import set_setting as set_in_force
+from tl_core.settings.types import SettingChange
+from tl_core.settings.views import SettingView, get_view, list_views, view_at
 from tl_core.uow import UnitOfWork
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 from tl_tui.client import RelationInfo
 from tl_tui.live import ChangeFeed, EmbeddedFeed, OwnWrites
+
+#: The actor of settings changes when none is given (the dev person; the header shows the same).
+DEFAULT_ACTOR = "user:dev"
+#: The ``source`` recorded on settings this client changes.
+SOURCE = "tui"
 
 # A callable that opens a unit of work: `factory(readonly)` returns a context manager yielding it.
 UowFactory = Callable[[bool], AbstractContextManager[UnitOfWork]]
@@ -88,16 +116,54 @@ class EmbeddedClient:
     user's own saves from other writers' changes in the live feed.
     """
 
-    def __init__(self, uow_factory: UowFactory) -> None:
+    def __init__(
+        self,
+        uow_factory: UowFactory,
+        *,
+        object_store: ObjectStore | None = None,
+        actor: str = DEFAULT_ACTOR,
+        prime_types: bool = True,
+    ) -> None:
+        if actor.startswith("agent:"):
+            raise ValueError(
+                f"{AGENT_MUST_PROPOSE}: an agent cannot use the embedded client to change records"
+            )
         self._uow = uow_factory
+        self._objects = object_store
+        self.actor = actor  # recorded on the writes that take no command (settings, bodies)
         self.own_writes = OwnWrites()
+        # the registered extension types of this ledger join the effective schema (brief 31)
+        # prime_types: read the settings keys of the registered types now (the ledger must exist)
+        attach_extension_types(lambda readonly=False: uow_factory(readonly), prime=prime_types)
 
     @classmethod
-    def for_sqlite(cls, path: str | Path) -> EmbeddedClient:
-        """A client on the SQLite ledger at ``path`` with a long-lived engine and a bus."""
+    def for_sqlite(
+        cls,
+        path: str | Path,
+        *,
+        object_store: ObjectStore | None = None,
+        actor: str = DEFAULT_ACTOR,
+    ) -> EmbeddedClient:
+        """A client on the SQLite ledger at ``path`` with a long-lived engine and a bus.
+
+        Record bodies of extension types need an object store: the one given, else the one the
+        environment names (``TL_OBJECT_STORE``...), else none (body calls then say so).
+        """
+        from tl_adapters.objectstore import make_object_store
         from tl_adapters.sqlite.factory import SqliteUowFactory
 
-        return cls(SqliteUowFactory(path))
+        store = object_store
+        if store is None:
+            try:
+                store = make_object_store()
+            except ValueError:
+                store = None
+        return cls(
+            SqliteUowFactory(path),
+            object_store=store,
+            actor=actor,
+            prime_types=Path(path).is_file(),
+        )
 
     def change_feed(self, scope: str | None = None) -> ChangeFeed | None:
         """The live feed for this ledger, or ``None`` when the factory has no ledger and bus."""
@@ -195,6 +261,99 @@ class EmbeddedClient:
     def conformance(self, record_id: str) -> ConformanceReport:
         with self._uow(True) as uow:
             return psets.conformance(uow, record_id)
+
+    # --- extension record types ---------------------------------------------------------------
+
+    def _store(self) -> ObjectStore:
+        if self._objects is None:
+            raise BodyStoreUnavailableError("no object store is configured for record bodies")
+        return self._objects
+
+    @contextmanager
+    def _store_errors(self) -> Iterator[None]:
+        """An operating-system failure of the store (no space, no permission, a missing root).
+
+        Shown as ``BodyStoreUnavailableError``: the message names no path, which the OS error
+        would, and the TUI shows ``ServiceError`` instead of stopping.
+        """
+        try:
+            yield
+        except OSError as exc:
+            raise BodyStoreUnavailableError("the object store is unavailable") from exc
+
+    def _factory(self, readonly: bool = False) -> AbstractContextManager[UnitOfWork]:
+        return self._uow(readonly)
+
+    def list_types(self, status: TypeStatus | None = None) -> list[TypeSummary]:
+        with self._uow(True) as uow:
+            return [summarise(v) for v in extype_registry.list_types(uow.conn(), status=status)]
+
+    def get_type(self, type_ref: str) -> TypeDetail:
+        with self._uow(True) as uow:
+            return type_detail(uow, type_ref)
+
+    def create_instance(
+        self,
+        type_name: str,
+        *,
+        scope: str,
+        title: str,
+        key: str | None = None,
+        description: str | None = None,
+        psets: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+        numbering: dict[str, str] | None = None,
+    ) -> CommandResult:
+        cmd = CreateRecord(
+            actor=self.actor,
+            source="tui",
+            scope=scope,
+            record_type=type_name,
+            title=title,
+            key=key,
+            description=description,
+            psets=psets or {},
+            numbering=numbering or {},
+        )
+        if body is None:
+            with self._uow(False) as uow:
+                return self.own_writes.note(handle_create_record(uow, cmd))
+        store = self._store()
+        with self._store_errors(), self._uow(False) as uow:
+            return self.own_writes.note(
+                extype_bodies.create_extension_record(uow, store, cmd, body)
+            )
+
+    def get_record_body(self, record_id: str) -> BodyView:
+        store = self._store()
+        with self._uow(True) as uow:
+            pointer = extype_bodies.body_pointer(uow.conn(), record_id)
+        if pointer is None:
+            raise BodyNotFoundError(f"record {record_id!r} has no stored body")
+        with self._store_errors():
+            stored = extype_bodies.read_body(self._factory, store, stream_id=record_id)
+        return BodyView(record_id=record_id, pointer=pointer, body=stored)
+
+    def put_record_body(
+        self,
+        record_id: str,
+        *,
+        scope: str,
+        body: dict[str, Any],
+        expected_version: int | None = None,
+    ) -> BodyStoredOut:
+        store = self._store()
+        with self._store_errors(), self._uow(False) as uow:
+            return extype_bodies.store_record_body(
+                uow,
+                store,
+                record_id=record_id,
+                scope=scope,
+                body=body,
+                actor=self.actor,
+                source="tui",
+                expected_version=expected_version,
+            )
 
     # --- links ----------------------------------------------------------------------------------
 
@@ -340,3 +499,120 @@ class EmbeddedClient:
     ) -> list[Completion]:
         with self._uow(True) as uow:
             return feed_completion.complete_tags(uow, scope, sigil, prefix, limit=limit)
+
+    # --- settings (P0-I8) ---------------------------------------------------------------------
+
+    def list_settings(
+        self,
+        *,
+        project: str | None = None,
+        user: str | None = None,
+        prefix: str | None = None,
+        modified_only: bool = False,
+    ) -> list[SettingView]:
+        with self._uow(True) as uow:
+            return list_views(
+                uow.conn(), project=project, user=user, prefix=prefix, modified_only=modified_only
+            )
+
+    def get_setting(
+        self, key: str, *, project: str | None = None, user: str | None = None
+    ) -> SettingView:
+        with self._uow(True) as uow:
+            return get_view(uow.conn(), key, project=project, user=user)
+
+    def setting_history(self, key: str, *, layer: str | None = None) -> list[SettingChange]:
+        with self._uow(True) as uow:
+            return settings_history(uow.conn(), key, layer=layer)
+
+    def set_setting(
+        self,
+        key: str,
+        *,
+        layer: str,
+        value: Any,
+        reason: str | None = None,
+        accept_risk: bool = False,
+        applies_at: datetime | None = None,
+    ) -> SettingView:
+        """Set a key at a layer; the answer is the key as seen there."""
+        with self._uow(False) as uow:
+            set_in_force(
+                uow,
+                key=key,
+                layer=layer,
+                value=value,
+                actor=self.actor,
+                source=SOURCE,
+                reason=reason,
+                accept_risk=accept_risk,
+                applies_at=applies_at,
+            )
+            return view_at(uow.conn(), key, layer)
+
+    def reset_setting(
+        self,
+        key: str,
+        *,
+        layer: str,
+        reason: str | None = None,
+        accept_risk: bool = False,
+        applies_at: datetime | None = None,
+    ) -> SettingView:
+        """Take the layer's own value away; the answer is the key as seen there."""
+        with self._uow(False) as uow:
+            reset_in_force(
+                uow,
+                key=key,
+                layer=layer,
+                actor=self.actor,
+                source=SOURCE,
+                reason=reason,
+                accept_risk=accept_risk,
+                applies_at=applies_at,
+            )
+            return view_at(uow.conn(), key, layer)
+
+    def lock_setting(
+        self,
+        key: str,
+        *,
+        locked: bool,
+        reason: str,
+        bounds: dict[str, Any] | None = None,
+    ) -> SettingView:
+        """Lock a key for projects (or unlock it) and bound their values; company layer."""
+        with self._uow(False) as uow:
+            lock_in_force(
+                uow,
+                key=key,
+                locked=locked,
+                bounds=bounds,
+                actor=self.actor,
+                source=SOURCE,
+                reason=reason,
+            )
+            return view_at(uow.conn(), key, "company")
+
+    def revert_setting(
+        self,
+        key: str,
+        *,
+        layer: str,
+        seq: int,
+        reason: str | None = None,
+        accept_risk: bool = False,
+    ) -> SettingView:
+        """Undo the latest change at a layer (a change of its own in the history)."""
+        with self._uow(False) as uow:
+            revert_in_force(
+                uow,
+                key=key,
+                layer=layer,
+                seq=seq,
+                actor=self.actor,
+                source=SOURCE,
+                reason=reason,
+                accept_risk=accept_risk,
+            )
+            return view_at(uow.conn(), key, layer)

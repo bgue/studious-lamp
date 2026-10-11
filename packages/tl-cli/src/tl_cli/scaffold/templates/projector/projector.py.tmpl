@@ -1,0 +1,39 @@
+"""A projector for a derived table: events counted per stream.
+
+Table: `${table}`.
+
+TODO: replace the example columns with what this projector derives. A projector is deterministic:
+no clock, no generated ids, no outside calls; the same events in the same order leave the same
+rows. A record type's own `cur_*` table is generated, not written here (root rule 4).
+"""
+
+from __future__ import annotations
+
+from sqlalchemy import Connection, text
+from tl_core.ledger import Event
+
+TABLE = "${table}"
+
+_UPSERT = text(
+    f"INSERT INTO {TABLE} (stream_id, n, last_seq) VALUES (:stream_id, 1, :seq) "
+    f"ON CONFLICT (stream_id) DO UPDATE SET n = {TABLE}.n + 1, last_seq = :seq"
+)
+
+
+class ${cls}:
+    name = "${module}_${name}"
+    handles = frozenset({${events_literal}})
+
+    def ddl(self, dialect: str) -> list[str]:
+        if dialect not in ("sqlite", "postgres"):
+            raise ValueError(f"unsupported dialect: {dialect}")
+        return [
+            f"CREATE TABLE IF NOT EXISTS {TABLE} ("
+            "stream_id TEXT PRIMARY KEY, n INTEGER NOT NULL, last_seq INTEGER NOT NULL)"
+        ]
+
+    def apply(self, conn: Connection, event: Event) -> None:
+        conn.execute(_UPSERT, {"stream_id": event.stream_id, "seq": event.seq})
+
+    def reset(self, conn: Connection) -> None:
+        conn.execute(text(f"DELETE FROM {TABLE}"))

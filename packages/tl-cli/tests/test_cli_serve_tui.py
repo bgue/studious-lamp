@@ -118,7 +118,32 @@ def test_tui_is_embedded_by_default_on_the_root_db(
     db = tmp_path / "x.db"
     result = invoke("--db", str(db), "tui")
     assert result.exit_code == 0, result.output
-    assert tui_calls == [{"remote": None, "token": None, "db": db, "project": None, "actor": None}]
+    assert tui_calls == [
+        {
+            "remote": None,
+            "token": None,
+            "db": db,
+            "project": None,
+            "actor": None,
+            "record_type": None,
+        }
+    ]
+
+
+def test_tui_type_option_reaches_run(tui_calls: list[dict[str, Any]], tmp_path: Path) -> None:
+    result = invoke("--db", str(tmp_path / "x.db"), "tui", "--type", "co.acme.LiftPlan")
+    assert result.exit_code == 0, result.output
+    assert tui_calls[0]["record_type"] == "co.acme.LiftPlan"
+
+
+def test_tui_type_comes_from_the_environment(
+    tui_calls: list[dict[str, Any]], tmp_path: Path
+) -> None:
+    result = invoke(
+        "--db", str(tmp_path / "x.db"), "tui", env={"TL_TYPE": "co.acme.SafetyObservation"}
+    )
+    assert result.exit_code == 0, result.output
+    assert tui_calls[0]["record_type"] == "co.acme.SafetyObservation"
 
 
 def test_tui_remote_options_reach_run(tui_calls: list[dict[str, Any]], tmp_path: Path) -> None:

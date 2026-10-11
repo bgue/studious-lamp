@@ -22,6 +22,8 @@ from tl_tui.widgets.new_record_form import NewRecordForm
 from tl_tui.widgets.palette import CommandPalette
 from tl_tui.widgets.record_view import RecordView
 from tl_tui.widgets.ref_tray import ReferenceTrayScreen
+from tl_tui.widgets.setting_form import SettingForm
+from tl_tui.widgets.settings_screen import SettingsScreen
 from tl_tui.widgets.trace_tab import TraceTab
 from tl_tui.widgets.workflow_menu import WorkflowMenu
 
@@ -39,6 +41,8 @@ OWNERS: dict[str, Any] = {
     "WorkflowMenu": WorkflowMenu,
     "FeedPane": FeedPane,
     "ComposerScreen": ComposerScreen,
+    "SettingsScreen": SettingsScreen,
+    "SettingForm": SettingForm,
 }
 
 
@@ -75,6 +79,7 @@ def test_every_context_has_entries_and_every_entry_has_a_known_context() -> None
         "Feed pane",
         "Composer",
         "Forms",
+        "About:config",
     )
     assert {e.context for e in KEYMAP} == set(CONTEXTS)
     assert all(isinstance(e, KeyEntry) and e.keys and e.description for e in KEYMAP)

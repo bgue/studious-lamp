@@ -20,3 +20,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_cur_pset_values_record_path ON cur_pset_val
 CREATE INDEX IF NOT EXISTS ix_cur_pset_values_record_id ON cur_pset_values (record_id);
 
 CREATE INDEX IF NOT EXISTS ix_cur_pset_values_path ON cur_pset_values (path);
+
+CREATE INDEX IF NOT EXISTS ix_cur_pset_values_path_num ON cur_pset_values (path, value_num, record_id);
+
+CREATE INDEX IF NOT EXISTS ix_cur_pset_values_path_text ON cur_pset_values (path, value_text, record_id);
