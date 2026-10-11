@@ -21,23 +21,23 @@ Each paragraph links the increment report; its workstream reports and ticket rep
 
 ## 3. Gates on the final trunk
 
-The supervisor of workstream E ran each gate once on `p0/i8e` (results in `docs/reports/P0-I8.md` §Gates); the orchestrator fills the right-hand column after the last merge (commands from `docs/build-spec/04-gates.md` §1). Numbers recorded on the branches during the build are in the third column as a reference point, not as the result.
+The supervisor of workstream E ran each gate once on `p0/i8e` (results in `docs/reports/P0-I8.md` §Gates); the orchestrator fills the right-hand column after the last merge (commands from `docs/build-spec/04-gates.md` §1). The third column holds the numbers from `p0/i8e` (the tip after workstreams A to E), which are the reference point for the trunk run.
 
 | Gate | Command | Last number seen on a branch | Final trunk |
 |---|---|---|---|
-| Lint, format, types | `just check` | green on `p0/i8e` at 8b49190 | `<fill>` |
+| Lint, format, types | `just check` | green on `p0/i8e` (final run) | `<fill>` |
 | Codegen drift | inside `just check` (`tl_schema.generate --check`, `tl_api.openapi --check`) | green | `<fill>` |
 | Licences | inside `just check` (`dev/tools/check_licences.py`) | `licences ok` | `<fill>` |
-| Unit and integration tests (SQLite) | `just test` | 4807 passed, 1 skipped (P0-I8-A) | `<fill>` |
-| Parity (SQLite and Postgres) | `just test-parity` | 1884 passed (P0-I8-A) | `<fill>` |
+| Unit and integration tests (SQLite) | `just test` | 5302 passed, 1 skipped, 16 deselected (p0/i8e, 19 m 22 s) | `<fill>` |
+| Parity (SQLite and Postgres) | `just test-parity` | 2166 passed on SQLite and Postgres, no skips (p0/i8e, 31 m 43 s) | `<fill>` |
 | Projection determinism | `uv run pytest tests/property -k projection` | 3 passed, 1 deselected | `<fill>` |
-| TUI snapshots | `just test-tui` | 529 passed, 26 snapshots | `<fill>` |
+| TUI snapshots | `just test-tui` | 608 passed, 26 snapshots (p0/i8e) | `<fill>` |
 | Contract tests | `uv run pytest tests/contract` | 6 passed | `<fill>` |
 | Schema classification | `tl schema classify --base origin/main` | not built (no command) | not applicable until Phase 1 |
 | Secret scan | `just scan-secrets` | 0 findings | `<fill>` |
 | Dependency audit | `just audit-deps` | no known vulnerabilities | `<fill>` |
 | CI workflow | GitHub Actions | never run on a runner | `<fill>` |
-| Exit demo | `just demo P0-I8` | all clauses PASS, exit 0 | `<fill>` |
+| Exit demo | `just demo P0-I8` | nine PASS lines, exit 0 in 1 m 57 s (p0/i8e) | `<fill>` |
 | Performance benches | `just bench` (not in `just test`; `just bench-rebuild` for the 100k rebuild) | 14 passed, 2 skipped (13 m 18 s), repeated 12 m 14 s; rebuild 100k: SQLite 332 s, Postgres 2,299 s (P0-I8-D) | `<fill>` |
 
 The detailed gate-by-gate check on `p0/i8e` is `docs/reports/P0-I8.md` §Gates.
