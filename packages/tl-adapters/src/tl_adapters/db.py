@@ -32,6 +32,17 @@ class LedgerWithSchema(AppendInLedger):
     def create_schema(self) -> None: ...
 
 
+def as_target(value: str | Path) -> DbTarget:
+    """A command-line or environment value as a database target.
+
+    ``postgresql://`` and ``postgres://`` text stays text (``Path`` would collapse the ``//`` and
+    mangle the password); anything else is a SQLite file path.
+    """
+    if isinstance(value, str) and is_postgres(value):
+        return value
+    return Path(value)
+
+
 def is_postgres(target: DbTarget) -> bool:
     """True when ``target`` names a Postgres database."""
     return isinstance(target, str) and target.startswith(("postgresql://", "postgres://"))
