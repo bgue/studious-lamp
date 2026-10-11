@@ -151,9 +151,9 @@ agent token has no secret, so none can sign in. This is the same rule as webhook
 for the first admin, then `tl admin user reset-password` for the rest and `tl admin token issue` for agents. Sessions are gone, which is also correct.
 
 ### 11. Authorization is closed for agents
-`RoleAuthorizer` allows an `agent:*` principal only the actions in an explicit list (`tl_core.auth.provider.AGENT_ACTIONS`: reads, `auth.me`, `auth.sign_out`, the four feed commands, `proposal.accept` and `proposal.reject` so the service answers with its documented `proposal_decider`, and `mcp.*`).
+`RoleAuthorizer` allows an `agent:*` principal only the actions in an explicit list (`tl_core.auth.provider.AGENT_ACTIONS`: reads, `auth.me`, `auth.sign_out`, the four feed commands, `proposal.accept` and `proposal.reject` so the service answers with its documented `proposal_decider`). The MCP server passes its own explicit list of tool and resource actions (`tl_mcp.identity.MCP_ACTIONS`); there is no `mcp.` prefix rule.
 Everything else, including a route added later, is denied until someone adds it. The propose-only check (`agent_must_propose`) still runs first on the routes that change records, so an agent gets the specific code.
-A test lists the action of every route and fails when one is undecided.
+A test lists the action of every route and fails when one is undecided; another registers the real MCP server and fails on a tool or resource that is missing from, or stale in, its list.
 
 ### 12. The operational audit
 `auth_audit` records `sign_in_ok`, `sign_in_failed`, `locked`, `unlocked`, `sign_out`, `token_issued`, `token_revoked`, `password_reset` and `bootstrap`, with the time, the name used (whether or not an account

@@ -45,6 +45,7 @@ tickets in `docs/tickets/`, reports in `docs/reports/`, decisions in `docs/adr/`
 - Never merge your own work. Implementer PRs are merged by the supervisor after a reviewer verdict; supervisor-authored core engines are merged after orchestrator or human review.
 - Never touch `schema/**` from a ticket that is not labelled `schema` and does not name a human approver.
 - Never write auth, permission, migration, numbering-allocation, or sync/merge code from a Haiku ticket. Those are Sonnet-tier with a human gate (§25.5).
+- Never log, print, echo, store in an event or put in an error text a password, a password hash or a session or agent token, and never accept a password as a command-line argument (ADR-0009). Hash before a write transaction. Authorization is closed for agents: a new route or MCP tool is denied until someone allows it.
 - Never put business logic in the TUI. Screens call the same command and query contracts the API uses (§16, "Web readiness").
 
 ## Commands
@@ -74,4 +75,5 @@ Details: `docs/build-spec/03-repo-and-toolchain.md`.
 | Event catalog (generated: schemas, samples, AsyncAPI, page) | `packages/tl-schema/src/tl_schema/generated/catalog/`, `generated/docs/event-catalog.md` |
 | Dev MCP server for coding agents (`python -m tl_mcp.dev`, dev data only; runbook `docs/runbooks/dev-mcp.md`) | `packages/tl-mcp/src/tl_mcp/dev/` |
 | Scaffolded modules (`tl new module`, `record-type`, `projector`) | `packages/tl-modules/<m>/`, `schema/modules/<m>/`, `docs/modules/<m>/` |
+| Accounts, sessions, agent tokens, roles (`tl_core.auth`; ADR-0009; runbook `docs/runbooks/accounts-and-access.md`) | `packages/tl-core/src/tl_core/auth/`, `schema/core/auth.yaml`; CLI `packages/tl-cli/src/tl_cli/{session,login,admin*}.py`; API `routes/auth.py`, `routes/admin.py`; TUI `sign_in.py`, `widgets/admin_screen.py` |
 | Docs and memory rules | `.claude/skills/throughline-docs/SKILL.md` |
