@@ -32,7 +32,7 @@ No ticket was taken over after two failed reviews. Every Haiku ticket passed its
 | `just check` | clean |
 | `just test` (run in shards: tl-cli, tl-sim, tl-mcp / tl-tui / tl-api / tl-core, tl-adapters, tl-lake, tl-schema and `tests/`) | 1223 + 704 (34 snapshots) + 532 + 3482 passed, 0 failed |
 | `just test-tui` | 704 passed, 34 snapshots |
-| `just test-parity` | see the relay NOTE (run on the final tree) |
+| `just test-parity` | 2566 passed on SQLite and Postgres (run on dd114f1; later commits are documents only) |
 | Security reviews (fresh context) | D6 (S2b, S2c) three rounds; S3, S4 and the sign-in wiring (changes requested, fixed, re-review); T10 to T12 (pass) |
 
 ## Deviations from plan
