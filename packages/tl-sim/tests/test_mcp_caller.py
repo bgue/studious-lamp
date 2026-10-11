@@ -86,8 +86,17 @@ def test_the_token_goes_to_the_child_in_its_environment_never_on_its_command_lin
     caller = stdio_caller(Path("/x/tl.db"), BAD_TOKEN)
     params = caller._target  # pyright: ignore[reportPrivateUsage]
     assert isinstance(params, StdioServerParameters)
-    assert params.env == {"TL_AGENT_TOKEN": BAD_TOKEN}
+    assert params.env == {"TL_AGENT_TOKEN": BAD_TOKEN, "TL_DB": "/x/tl.db"}
     assert BAD_TOKEN not in " ".join(params.args) and "--actor" not in params.args
+    assert "--db" not in params.args  # the ledger travels in the environment too
+
+
+def test_a_postgres_url_and_its_password_never_reach_the_command_line() -> None:
+    url = "postgresql://tl:s3cret@db.example/ledger"
+    params = stdio_caller(url, BAD_TOKEN)._target  # pyright: ignore[reportPrivateUsage]
+    assert isinstance(params, StdioServerParameters)
+    assert params.env == {"TL_AGENT_TOKEN": BAD_TOKEN, "TL_DB": url}
+    assert "s3cret" not in " ".join(params.args) and "db.example" not in " ".join(params.args)
 
 
 def test_a_server_that_never_answers_times_out_instead_of_blocking_forever() -> None:

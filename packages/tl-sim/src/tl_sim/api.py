@@ -14,12 +14,11 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from tl_adapters.db import DbTarget, as_target
-
 from tl_sim.connector import HttpConnector
 from tl_sim.orchestrator import Simulation, default_run_id
 from tl_sim.scenario_loader import load_bundled_scenario, load_scenario, load_template
 from tl_sim.state import RunStore
+from tl_sim.target import LedgerTarget, ledger_target
 
 DEFAULT_SIM_DIR = "./dev/data/sim"
 DEFAULT_API_URL = "http://127.0.0.1:8765"
@@ -46,7 +45,7 @@ class SimEnv:
     sim_dir: Path = Path(DEFAULT_SIM_DIR)
     api_url: str = DEFAULT_API_URL
     tokens_path: Path = Path(DEFAULT_TOKENS)
-    db_path: DbTarget = Path(DEFAULT_DB)  # the ledger the MCP server (the agent) opens
+    db_path: LedgerTarget = Path(DEFAULT_DB)  # the ledger the MCP server (the agent) opens
     #: Gives the agent's MCP token when the assistant first proposes; not part of equality.
     agent_token: Callable[[], str] | None = field(default=None, compare=False, repr=False)
 
@@ -56,7 +55,7 @@ class SimEnv:
             sim_dir=Path(os.environ.get("TL_SIM_DIR", DEFAULT_SIM_DIR)),
             api_url=os.environ.get("TL_API_URL", DEFAULT_API_URL),
             tokens_path=Path(os.environ.get("TL_TOKENS", DEFAULT_TOKENS)),
-            db_path=as_target(os.environ.get("TL_DB", DEFAULT_DB)),
+            db_path=ledger_target(os.environ.get("TL_DB", DEFAULT_DB)),
             agent_token=agent_token_from_env(),
         )
 

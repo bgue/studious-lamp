@@ -30,9 +30,9 @@ from typing import Any
 
 from mcp import Client, StdioServerParameters
 from mcp.server.mcpserver import MCPServer
-from tl_adapters.db import DbTarget
 
 from tl_sim.state import RunError
+from tl_sim.target import LedgerTarget
 
 DEFAULT_TIMEOUT_S = 30.0
 DUPLICATE_LINK = "link already exists between these records"
@@ -109,7 +109,7 @@ class McpClientCaller:
 
 
 def stdio_caller(
-    db: DbTarget, token: str, *, timeout_s: float = DEFAULT_TIMEOUT_S
+    db: LedgerTarget, token: str, *, timeout_s: float = DEFAULT_TIMEOUT_S
 ) -> McpClientCaller:
     """A caller that starts ``python -m tl_mcp`` on the ledger ``db`` as the agent of ``token``.
 

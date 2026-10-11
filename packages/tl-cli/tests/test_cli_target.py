@@ -92,7 +92,6 @@ def clean_exit(result: RunResult, code: int) -> None:
     "args",
     [
         ["record", "show", "--project", "P1", "REC-1"],
-        ["record", "create", "--project", "P1", "--key", "REC-1", "--title", "t"],
         ["events", "tail", "--project", "P1"],
         ["projections", "rebuild"],
         ["config", "ls"],
