@@ -44,12 +44,17 @@ Make exactly these edits. Use the Edit tool. Keep every other line as it is.
    - In *Related*, add as the last bullet: `- `docs/runbooks/run-on-postgres.md` (the same commands on a Postgres ledger).`
 2. `webhook-operations.md`: in *Before you start*, in the line starting `- Access needed: the ledger (`TL_DB`)`, replace `the ledger (`TL_DB`)` with `the ledger (`TL_DB`: a SQLite file or a `postgresql://` URL; see `docs/runbooks/run-on-postgres.md`)`.
 3. `lake-sync.md`: in *Before you start*, in the line starting `- Access needed: read access to the ledger file`, replace `read access to the ledger file (`TL_DB`, default `./dev/data/tl.db`)` with `read access to the ledger (`TL_DB`: the SQLite file, default `./dev/data/tl.db`, or a `postgresql://` URL; a sync reads one consistent snapshot of either)`.
+   - In *Related*, add as the last bullet the same link line as for `rebuild-projections.md`.
 4. `object-store-reconciliation.md`: in *Before you start*, in the line starting `- Access needed: read access to the ledger (`TL_DB`)`, replace `(`TL_DB`)` with `(`TL_DB`: a SQLite file or a `postgresql://` URL)`.
+   - In *Related*, add as the last bullet the same link line as for `rebuild-projections.md`.
 5. `postgres-local-setup.md`
    - In *Steps*, after step 7 (the one that begins `7. Change-feed wake-ups (optional).`) add a new step:
      `8. Run the services on it. Export the URL as `TL_DB` and every `tl` command, `tl serve` and `tl tui` use the Postgres ledger: `docs/runbooks/run-on-postgres.md`.`
    - In *Related*, change `(rebuilding current-state tables, SQLite ledger).` to `(rebuilding current-state tables).` and add as the last bullet: `- `docs/runbooks/run-on-postgres.md` (the API, the TUI and the `tl` commands on a Postgres ledger).`
 6. Write your report.
+
+## Change log
+- Supervisor ruling after the first run (BLOCKED at 5fc5f82): the Acceptance `grep` expects `run-on-postgres` in all five files, but steps 3 and 4 added no link. Both now also add the *Related* bullet. The lake-sync sentence "a sync reads one consistent snapshot of either" was checked on SQLite: `tl_lake.source.read_snapshot` uses the adapter's deferred read transaction, which in WAL mode fixes its snapshot at the first read, and `packages/tl-adapters/tests/test_backend.py::test_the_read_connection_is_one_snapshot` shows a commit made during the transaction stays invisible on SQLite as on Postgres. The sentence is true and stays.
 
 ## Acceptance
 ```

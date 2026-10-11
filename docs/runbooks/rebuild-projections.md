@@ -8,8 +8,8 @@ Purpose: rebuild the current-state tables (`cur_*`) from the append-only ledger 
 - Trigger: a restore brought back the ledger but not the projections.
 
 ## Before you start
-- Access needed: read and write access to the SQLite ledger file (`TL_DB`, default `./dev/data/tl.db`).
-- Safe to run during business hours: yes for the dev ledger. The rebuild holds the database write lock for its duration, so writers wait (up to the 5 s busy timeout) and may fail on a large ledger; stop writers first on a busy ledger.
+- Access needed: read and write access to the ledger: the SQLite file or the `postgresql://` URL in `TL_DB` (default `./dev/data/tl.db`; for Postgres see `docs/runbooks/run-on-postgres.md`).
+- Safe to run during business hours: yes for the dev ledger. The rebuild holds the database write lock for its duration, so writers wait (up to the 5 s busy timeout) and may fail on a large ledger; stop writers first on a busy ledger. On Postgres the rebuild takes the ledger advisory lock in the same way: a writer waits up to 10 s and then gets `LockTimeoutError`, and the rebuild itself is statement-bound (about 160 events a second), so give a large ledger hours, not minutes.
 
 ## Steps
 0. In a new environment with no ledger file yet, create it first:
@@ -41,3 +41,4 @@ Purpose: rebuild the current-state tables (`cur_*`) from the append-only ledger 
 ## Related
 - `docs/adr/0002-build-environment-constraints.md` (SQLite is the Phase 0 store).
 - `packages/tl-adapters/README.md` (`rebuild_projections`), `packages/tl-core/README.md` (projector contract).
+- `docs/runbooks/run-on-postgres.md` (the same commands on a Postgres ledger).
