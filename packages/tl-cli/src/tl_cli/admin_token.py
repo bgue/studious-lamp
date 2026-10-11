@@ -62,8 +62,11 @@ def issue(
     username: Annotated[str, typer.Argument(help="The agent account's username.")],
     label: Annotated[str, typer.Option("--label", help="What the token is for.")],
     days: Annotated[
-        int, typer.Option("--days", min=1, max=3650, help="Days until it expires.")
-    ] = DEFAULT_DAYS,
+        int | None,
+        typer.Option(
+            "--days", min=1, max=3650, help=f"Days until it expires (default {DEFAULT_DAYS})."
+        ),
+    ] = None,
     no_expiry: Annotated[
         bool, typer.Option("--no-expiry", help="A token that never expires.")
     ] = False,
@@ -71,9 +74,9 @@ def issue(
     """Issue a token for an agent account. It is printed once and cannot be read back."""
     admin = require_admin(ctx.obj)
     backend = backend_of(ctx)
-    if no_expiry and days != DEFAULT_DAYS:
+    if no_expiry and days is not None:
         fail("use --days or --no-expiry, not both")
-    expires = None if no_expiry else utcnow() + timedelta(days=days)
+    expires = None if no_expiry else utcnow() + timedelta(days=days or DEFAULT_DAYS)
     with service_errors():
         target = find_account(backend, username)
         with backend() as uow:

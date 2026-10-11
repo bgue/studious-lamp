@@ -100,6 +100,17 @@ def test_days_and_no_expiry_together_are_refused(env: dict[str, str]) -> None:
     assert result.stderr == "error: use --days or --no-expiry, not both\n"
 
 
+def test_an_explicit_default_number_of_days_does_not_slip_past_no_expiry(
+    env: dict[str, str],
+) -> None:
+    result = tl(
+        env, "admin", "token", "issue", "triage", "--label", "x", "--days", "90", "--no-expiry"
+    )
+    assert result.exit_code == 1 and result.stdout == ""
+    assert result.stderr == "error: use --days or --no-expiry, not both\n"
+    assert tl(env, "admin", "token", "ls").stdout == ""  # nothing was issued
+
+
 def test_a_token_is_only_for_an_agent_account_that_exists_and_is_enabled(
     env: dict[str, str],
 ) -> None:
