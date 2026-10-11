@@ -9,12 +9,11 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Annotated, Literal, NoReturn, cast
 
 import typer
 from pydantic import ValidationError
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_core.ledger import ConcurrencyError
 from tl_core.links.expected import ExpectedLinkError, missing_expected_links
 from tl_core.services.commands import CommandResult
@@ -91,7 +90,7 @@ def _create(
     actor: str,
     confidence: float | None,
 ) -> None:
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         source = _record(uow, scope, project, from_key)
@@ -172,7 +171,7 @@ def list_links(
     ] = False,
 ) -> None:
     """Show a record's links in both directions and the expected links it still lacks."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     scope = f"project:{project}"
     with _service_errors(), open_uow(db, readonly=True) as uow:
         row = _record(uow, scope, project, key)
@@ -208,7 +207,7 @@ def _act(
     link_id: str,
     run: Callable[[UnitOfWork, str], CommandResult],
 ) -> None:
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     with _service_errors(), open_uow(db) as uow:
         result = run(uow, f"project:{project}")
     typer.echo(f"{verb} {link_id}")
@@ -370,7 +369,7 @@ def trace_command(
     direction: Annotated[str, typer.Option("--direction", help="out, in or both.")] = "both",
 ) -> None:
     """Show the records reachable from KEY through links, as an indented tree."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     scope = f"project:{project}"
     if direction not in ("out", "in", "both"):
         _fail(f"--direction must be out, in or both, not {direction!r}")

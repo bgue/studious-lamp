@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Annotated, NoReturn
 
 import typer
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_core.schema_provider import DirectorySchemaProvider
 from tl_core.services.schema_events import reload_and_record
 from tl_schema.compile import SchemaCompileError
@@ -127,7 +127,7 @@ def validate(
 @app.command("reload")
 def reload(ctx: typer.Context, directory: DirOption = None) -> None:
     """Record `Schema.EffectiveChanged` for every scope whose effective schema changed."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     provider = DirectorySchemaProvider(directory)
     with _schema_errors(), open_uow(db) as uow:
         events = reload_and_record(uow, provider)
