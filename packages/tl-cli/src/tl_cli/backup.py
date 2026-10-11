@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Annotated, NoReturn
 
 import typer
+from tl_adapters.db import DbTarget, is_postgres
 from tl_adapters.sqlite.backup import BackupError, backup_database
 
 app = typer.Typer(help="Back up the database.", no_args_is_help=True)
@@ -28,7 +29,13 @@ def sqlite_backup(
     ],
 ) -> None:
     """Take an online snapshot of the SQLite ledger (`--db`) into a new file."""
-    source: Path = ctx.obj
+    target: DbTarget = ctx.obj
+    if is_postgres(target):
+        _fail(
+            "tl backup sqlite takes a SQLite ledger; for Postgres use pgBackRest "
+            "(docs/runbooks/pgbackrest-restore.md) or `tl archive seal`"
+        )
+    source = Path(target)
     try:
         result = backup_database(source, to)
     except BackupError as error:
