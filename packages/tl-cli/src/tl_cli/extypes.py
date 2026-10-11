@@ -16,7 +16,7 @@ from typing import Annotated, NoReturn, cast
 
 import typer
 from pydantic import ValidationError
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_core.extypes import registry
 from tl_core.extypes.lock import write_lock
 from tl_core.extypes.service import TypeDetail, type_detail
@@ -54,7 +54,7 @@ def _service_errors() -> Iterator[None]:
         _fail("; ".join(f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors()))
 
 
-def _factory(db: Path) -> registry.UowFactory:
+def _factory(db: DbTarget) -> registry.UowFactory:
     """``factory(readonly)`` for the registry functions that open their own units of work."""
 
     def open_one(readonly: bool = False) -> AbstractContextManager[UnitOfWork]:
@@ -130,7 +130,7 @@ def detail_lines(detail: TypeDetail) -> list[str]:
     return lines
 
 
-def sync_lines(db: Path, root: Path, actor: str) -> list[str]:
+def sync_lines(db: DbTarget, root: Path, actor: str) -> list[str]:
     """Run ``registry.sync`` over ``root`` and return the lines to print.
 
     ``root`` must be a directory (``_fail`` with ``no such directory: <root>`` otherwise). Call
@@ -177,7 +177,7 @@ def sync(
     ] = False,
 ) -> None:
     """Register new or changed packages, quarantine invalid ones. Running it again is harmless."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     for line in sync_lines(db, root, actor):
         typer.echo(line)
     if strict:
@@ -196,7 +196,7 @@ def ls(
     ] = "all",
 ) -> None:
     """List registered types, by type ref. Nothing is printed when there are none."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     if status != "all" and status not in _STATUSES:
         _fail(f"--status must be active, quarantined, deprecated or all, not {status!r}")
     chosen = None if status == "all" else cast(TypeStatus, status)
@@ -212,7 +212,7 @@ def show(
     type_ref: Annotated[str, typer.Argument(help="For example co.acme.LiftPlan@1.0.0.")],
 ) -> None:
     """Show one registered version: its state, its fields, and why it was refused if it was."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     with _service_errors(), open_uow(db, readonly=True) as uow:
         detail = type_detail(uow, type_ref)
     for line in detail_lines(detail):
@@ -264,7 +264,7 @@ def deprecate(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Retire a version: existing records stay, no new ones. Prints `deprecated <type_ref>`."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     with _service_errors():
         # registry.deprecate tells the schema provider after the commit (deprecate_type cannot)
         registry.deprecate(
@@ -286,7 +286,7 @@ def watch_command(
     ] = None,
 ) -> None:
     """Poll the root and sync whenever a package is added, edited or removed (Ctrl+C stops)."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     if not root.is_dir():
         _fail(f"no such directory: {root}")
 
