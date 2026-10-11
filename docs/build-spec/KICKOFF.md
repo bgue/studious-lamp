@@ -17,9 +17,10 @@ before planning it, and read it fully before your first fanout. Load the `throug
 any plan, ADR, report, STATUS/APPROVALS entry, or learning, and follow its formats.
 
 MISSION
-Build Throughline by running the increments in docs/build-spec/05 … 11 in order, starting at [Phase 0, Increment 1].
-Keep going until [the end of Phase 0] or until a stop condition below is hit. The repository owner is away for
-[18 hours]; nobody will answer questions, so every decision you cannot make yourself is recorded, not asked.
+Build Throughline by running the increments in docs/build-spec/05 … 11 in order, starting at [Phase 1, Increment 0]
+(added by ADR-0008). Keep going until [the end of Phase 1] or until a stop condition below is hit. There is no time
+cap; nobody will answer questions, so every decision you cannot make yourself is recorded, not asked. The owner's
+Phase 1 decisions are ADR-0008: read it before planning.
 
 TRUNK AND GIT
 - The trunk for this run is the currently checked-out branch. Never push to any other branch.
@@ -71,8 +72,16 @@ approval is logged in docs/reports/APPROVALS.md with the ticket id, what was app
 justify it, for human review afterwards:
 - `schema/**` merges that stay within the record types, slots, psets, and events the brief and the phase plans name.
 - Dependency additions from PyPI that a ticket names and the toolchain table in 03 already lists or implies.
-Everything else in 04-gates.md §2 (migrations of existing data, auth and permission models, contractual workflow or
-clock definitions, copyleft licences, spend beyond budget) stays a stop condition.
+- Phase 1 (ADR-0008 decision 6): `schema/modules/**` merges, Commercial clock and workflow definitions,
+  confidentiality filters and inbound signing, and the details of the auth and permission design (username and
+  password now, Entra later; roles `admin` and `user`). Record each like a git merge entry (ADR-0008 decision 7).
+Everything else in 04-gates.md §2 (migrations of existing data, copyleft licences, any spend: there is no budget, and
+extraction is metadata-only stubs per ADR-0008 decision 8) stays a stop condition.
+
+USAGE LIMITS AND CONCURRENCY
+Keep about 3 agents or ticket workflows active at once (L-P0-I8-O1). A usage limit is not a stop condition: wait for
+the reset, then recover (journal, remove implementer worktrees with no result, resume workflows by run id, resume
+supervisors by message) and continue.
 
 STOP CONDITIONS (stop the run, push what is green, write docs/reports/STOPPED.md with the reason and the exact state)
 - A human gate outside the delegated list is reached.
@@ -87,5 +96,5 @@ risk register in an ADR if anything in brief §17 changed; curate docs/memory/LE
 non-active entries (skill §3). Append a learning yourself whenever a stop, escalation, or red gate taught one. The last thing you do before stopping, for any reason, is
 push the trunk and make sure STATUS.md says where things stand.
 
-Begin with Phase 0 Increment 1: spawn its supervisor now.
+Begin with Phase 1 Increment 0 (07-phase1-plan.md): spawn its supervisor now.
 ```

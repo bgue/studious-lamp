@@ -14,6 +14,39 @@ API/MCP → TUI → reports → simulator actors → legacy mapping template (§
 
 ---
 
+## Increment 0 — Authentication, admin module, Phase 0 carry-overs (ADR-0008)
+
+**Goal:** real sign-in and a two-role admin module replace the ADR-0005 dev stub, and the Phase 0 carry-overs that block
+use are closed: the API server, TUI and operator commands run on Postgres as well as SQLite, and the CI workflow runs.
+**Decisions (ADR-0008):**
+- username and password now behind an identity seam that Entra ID (OIDC) can replace;
+- roles `admin` and `user`;
+- seeded `demo`/`demo` in dev and demo setups only;
+- admin-issued service tokens for MCP agents (`agent:<name>`, propose-only rule B15 unchanged);
+- simulator actors as seeded users.
+**Demo:**
+- `demo` signs in to the TUI and the API and creates a record;
+- a `user` is refused an admin action;
+- an admin creates a user and issues an agent token, and the agent proposes over MCP;
+- a locked-out account is refused;
+- the same demo passes against Postgres (`TL_DB` as a `postgresql://` URL).
+**Fanout (orchestrator):**
+- WS-A identity and admin;
+- WS-B Postgres for the server, TUI and CLI, plus the CI first run;
+- contract: an `Identity` and `Authorizer` interface in `tl_core/auth/types.py`, written before the fanout.
+
+| ID | Title | Tier | Depends |
+|---|---|---|---|
+| T01 | Auth ADR: password hashing, session/token format, lockout, password policy, Entra seam | S | — |
+| T02 | Account store and admin module services (users, roles, agent tokens) with ledgered events | S | T01 |
+| T03 | API sign-in, token issue/revoke, role checks on every route; replace the ADR-0005 stub | H | T02 |
+| T04 | TUI and CLI sign-in; admin screens and `tl admin` commands | H | T03 |
+| T05 | MCP and simulator on service tokens and seeded accounts | H | T03 |
+| T06 | Postgres for `tl serve`, `tl tui`, `tl webhook`, `tl lake`, `tl file`, `EmbeddedFeed` | S | — |
+| T07 | CI: push, run, and fix the workflow until all jobs are green on a runner | H | — |
+
+---
+
 ## Increment 1 — M2 Standards registry, numbering patterns, Tag/TagClass
 
 **Goal:** the company "holding zone" (§6.4): mnemonics, code lists with `value_list_policy` and crosswalks, numbering
