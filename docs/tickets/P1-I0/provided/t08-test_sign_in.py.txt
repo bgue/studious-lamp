@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx2
 import pytest
 from helpers import run_pilot, screen_text
 from textual.pilot import Pilot
@@ -121,7 +122,7 @@ def test_a_refused_sign_in_shows_the_message_clears_the_password_and_allows_anot
     ("failure", "shown"),
     [
         (AccountLockedError("too many failed sign-ins", "2026-10-11T12:15:00Z"), "too many failed"),
-        (ApiUnavailableError(OSError("down")), "server unreachable"),
+        (ApiUnavailableError(httpx2.ConnectError("down")), "server unreachable"),
     ],
 )
 def test_other_refusals_are_shown_too(failure: Exception, shown: str) -> None:
