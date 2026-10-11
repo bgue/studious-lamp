@@ -187,3 +187,56 @@ def test_started_server_marks_only_after_the_sockets_are_bound(
         server.should_exit = True
         thread.join(timeout=10)
         backend.close()
+
+
+GOOD_PASSWORD = "correct horse battery"
+
+
+def seed_accounts(target: DbTarget) -> None:
+    """The demo admin and an ordinary user ``amy`` (A's account services, any database)."""
+    from tl_core.auth import accounts
+    from tl_core.auth.password import prepare_password
+    from tl_core.auth.seed import seed_demo
+
+    with open_backend(target) as backend:
+        assert seed_demo(backend, env="dev") is not None
+        with backend() as uow:
+            accounts.create_account(
+                uow,
+                username="amy",
+                display_name="Amy",
+                kind="person",
+                roles=["user"],
+                password=prepare_password(GOOD_PASSWORD, username="amy"),
+                by="user:demo",
+            )
+
+
+def test_sign_in_roles_and_lockout_work_on_either_database(
+    target: DbTarget, tmp_path: Path
+) -> None:
+    seed_accounts(target)
+    with live_server(target, tmp_path) as (base, _token, _backend):
+        with httpx2.Client(base_url=base, timeout=TIMEOUT) as client:
+
+            def sign_in(name: str, password: str) -> httpx2.Response:
+                return client.post("/auth/sign-in", json={"username": name, "password": password})
+
+            admin = sign_in("demo", "demo")
+            assert admin.status_code == 200, admin.text
+            admin_headers = {"Authorization": f"Bearer {admin.json()['token']}"}
+            me = client.get("/auth/me", headers=admin_headers)
+            assert me.status_code == 200 and me.json()["actor"] == "user:demo"
+            assert client.get("/admin/accounts", headers=admin_headers).status_code == 200
+
+            amy = sign_in("amy", GOOD_PASSWORD)
+            assert amy.status_code == 200, amy.text
+            amy_headers = {"Authorization": f"Bearer {amy.json()['token']}"}
+            refused = client.get("/admin/accounts", headers=amy_headers)
+            assert refused.status_code == 403 and refused.json()["error"] == "forbidden"
+
+            statuses = [sign_in("amy", "not the password").status_code for _ in range(12)]
+            assert 423 in statuses  # repeated bad passwords lock the account
+            assert sign_in("amy", GOOD_PASSWORD).status_code == 423  # even the right one now
+            assert client.post("/auth/sign-out", headers=admin_headers).status_code == 204
+            assert client.get("/auth/me", headers=admin_headers).status_code == 401
