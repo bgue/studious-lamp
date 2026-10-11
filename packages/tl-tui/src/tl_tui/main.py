@@ -15,6 +15,8 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from tl_adapters.backend import BackendUnavailableError
+
 from tl_tui.app import TlApp
 from tl_tui.embedded import DEFAULT_ACTOR, EmbeddedClient
 from tl_tui.remote import RemoteClient
@@ -151,7 +153,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             actor=ns.actor,
             record_type=ns.record_type,
         )
-    except ValueError as exc:
+    except (ValueError, BackendUnavailableError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     return 0

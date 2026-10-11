@@ -67,3 +67,16 @@ def test_a_postgres_schema_without_a_ledger_says_to_run_init(
     err = capsys.readouterr().err
     assert "tl init" in err
     assert "postgres:postgres@" not in err
+
+
+def test_a_bad_target_is_refused_without_repeating_the_value(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("TL_DB", "mysql://u:SeCrEt@h/d")
+    assert server.main([]) == 2
+    assert "SeCrEt" not in capsys.readouterr().err
+    monkeypatch.delenv("TL_DB")
+    with pytest.raises(SystemExit) as raised:
+        server.parse_args(["--db", "mysql://u:SeCrEt@h/d"])
+    assert raised.value.code == 2
+    assert "SeCrEt" not in capsys.readouterr().err

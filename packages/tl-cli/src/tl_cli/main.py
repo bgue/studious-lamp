@@ -7,11 +7,17 @@ live here.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from sqlalchemy import Connection
-from tl_adapters.backend import BackendUnavailableError, ledger_exists, open_backend
+from sqlalchemy.exc import DBAPIError
+from tl_adapters.backend import (
+    BackendUnavailableError,
+    connection_failure,
+    ledger_exists,
+    open_backend,
+)
 from tl_adapters.db import (
     DbTarget,
     as_target,
@@ -24,6 +30,7 @@ from tl_adapters.db import (
 from tl_core.extypes.provider import attach
 from tl_core.settings.effects import mark_applied
 from tl_sim import cli as sim_cli
+from typer.core import TyperGroup
 
 from tl_cli import (
     archive,
@@ -50,7 +57,29 @@ from tl_cli import (
     wf,
 )
 
+
+class TlGroup(TyperGroup):
+    """The root group: a Postgres server that cannot be reached is one `error:` line, not a trace.
+
+    A command opens its unit of work when it runs, so the connection error surfaces inside the
+    command. ``connection_failure`` recognises the driver errors that mean "cannot connect" (a
+    refused connection, a wrong password, a database that does not exist); anything else is raised
+    unchanged.
+    """
+
+    def invoke(self, ctx: Any) -> Any:
+        try:
+            return super().invoke(ctx)
+        except (BackendUnavailableError, DBAPIError) as exc:
+            failure = connection_failure(ctx.obj, exc) if ctx.obj is not None else None
+            if failure is None:
+                raise
+            typer.echo(f"error: {failure}", err=True)
+            raise typer.Exit(code=1) from None
+
+
 app = typer.Typer(
+    cls=TlGroup,
     name="tl",
     help="Throughline command line: the dev ledger, records, events, and projections.",
     no_args_is_help=True,
@@ -98,7 +127,11 @@ def root(
     ] = "./dev/data/tl.db",
 ) -> None:
     """Throughline dev ledger commands."""
-    target = as_target(db)
+    try:
+        target = as_target(db)
+    except ValueError as exc:  # the message never repeats the value: it can hold a password
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=2) from None
     ctx.obj = target
     # registered extension types join the effective schema of every command (brief 31)
     # prime (read the settings keys of the registered types) only for a ledger that exists: opening

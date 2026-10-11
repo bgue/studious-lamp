@@ -211,3 +211,6 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P1-I0B-3** · 2026-10-11 · tags: process, tooling
   The shell trap of L-P0-I6C-8 hit a supervisor too: a `cat > file <<'EOF'` of 60 lines inside a `&&` chain hung until the 120 s timeout and left a shell running; the file was never written. Write test and doc files with the Write tool, and kill only the PID of the shell you started.
   Evidence: S32 round, `packages/tl-cli/tests/test_cli_target.py`. Status: active
+- **L-P1-I0B-4** · 2026-10-11 · tags: security, tests
+  Tests of "the password is never printed" must try the spellings a URL can take, not one: a capital `POSTGRESQL://`, `postgresql+pg8000://`, an unescaped `@` in the password (`u:Se@Cr@host`), a `?password=` query parameter, a URL with no user, and a foreign scheme such as `mysql://u:secret@h/d`. The first review of the backend found each of them leaking or creating a directory named after the URL. A "read-only" snapshot is a claim to test with raw `CREATE TABLE`/`DELETE` on both adapters: SQLite's `read_tx` accepted writes until it set `PRAGMA query_only`.
+  Evidence: `packages/tl-adapters/tests/test_backend.py` (`test_a_url_that_is_not_a_usable_postgres_url_is_refused_without_echoing_it`, `test_the_read_connection_refuses_raw_sql_writes`). Status: active

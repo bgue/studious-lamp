@@ -76,3 +76,75 @@ def test_init_names_an_unreachable_server_and_hides_the_password() -> None:
     assert result.exit_code == 1
     assert "cannot reach the database" in result.output
     assert "hunter2" not in result.output
+
+
+UNREACHABLE = "postgresql://someone:hunter2@127.0.0.1:1/tl?sslmode=disable"
+
+
+def clean_exit(result: RunResult, code: int) -> None:
+    assert result.exit_code == code, result.output
+    assert isinstance(result.exception, SystemExit)  # a clean exit, not a traceback
+    assert "Traceback" not in result.output
+    assert "hunter2" not in result.output
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["record", "show", "--project", "P1", "REC-1"],
+        ["record", "create", "--project", "P1", "--key", "REC-1", "--title", "t"],
+        ["events", "tail", "--project", "P1"],
+        ["projections", "rebuild"],
+        ["config", "ls"],
+        ["ledger", "verify"],
+    ],
+)
+def test_an_unreachable_server_is_one_error_line_in_every_command(args: list[str]) -> None:
+    result = run(UNREACHABLE, *args)
+    clean_exit(result, 1)
+    assert "cannot reach the database" in result.output
+    assert "127.0.0.1" in result.output
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "mysql://u:SeCrEt@h/d",
+        "postgresql:///x",
+        "postgresql://u:SeCr@Et@localhost/db",
+    ],
+)
+def test_a_value_that_is_not_a_database_target_is_refused_and_creates_nothing(
+    value: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    result = run(value, "init")
+    assert result.exit_code == 2, result.output
+    assert "error:" in result.output
+    assert "SeCr" not in result.output and "Et@" not in result.output
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.requires_postgres
+def test_a_wrong_password_and_a_missing_database_are_named_without_the_secret(
+    pg_db: str,
+) -> None:
+    from sqlalchemy.engine import make_url
+
+    parsed = make_url(pg_db.replace("postgresql://", "postgresql+pg8000://", 1))
+    wrong = parsed.set(password="wr0ng-s3cret").render_as_string(hide_password=False)
+    result = run(
+        wrong.replace("postgresql+pg8000://", "postgresql://", 1),
+        "record",
+        "show",
+        "--project",
+        "P1",
+        "K",
+    )
+    assert result.exit_code == 1, result.output
+    assert "password authentication failed" in result.output
+    assert "wr0ng-s3cret" not in result.output
+    missing = parsed.set(database="tl_p1i0b_no_such_database").render_as_string(hide_password=False)
+    result = run(missing.replace("postgresql+pg8000://", "postgresql://", 1), "ledger", "verify")
+    assert result.exit_code == 1, result.output
+    assert "does not exist" in result.output

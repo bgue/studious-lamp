@@ -77,3 +77,18 @@ def test_the_environment_names_the_ledger_when_no_option_does(
 def test_an_unreachable_server_is_a_named_error() -> None:
     with pytest.raises(BackendUnavailableError, match="cannot reach the database"):
         make_app(db="postgresql://u:hunter2@127.0.0.1:1/tl?sslmode=disable")
+
+
+def test_the_entry_point_reports_a_bad_target_without_a_traceback(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from tl_tui.main import main
+
+    for value in (
+        "postgresql://u:SeCrEt@127.0.0.1:1/tl?sslmode=disable",
+        "mysql://u:SeCrEt@h/d",
+    ):
+        assert main(["--db", value]) == 2
+        err = capsys.readouterr().err
+        assert err.startswith("error:")
+        assert "SeCrEt" not in err

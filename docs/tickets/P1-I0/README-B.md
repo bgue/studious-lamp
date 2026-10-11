@@ -38,6 +38,7 @@ The runbook `docs/runbooks/run-on-postgres.md` has the full procedure and what d
 | B9 | **Tests: the existing suites become the parity suites.** The env fixtures of the CLI test files, the TUI embedded-client tests and the API round-trip suite take their ledger from `new_db`, so each runs on SQLite by default and on both with `--adapters sqlite,postgres` (`just test-parity`). New tests cover the entry points: `packages/tl-adapters/tests/test_backend.py`, `tests/api/test_server_on_backend.py`, `packages/tl-cli/tests/test_cli_target.py`, `packages/tl-tui/tests/test_main_target.py`. Raw `sqlite3` helpers in CLI tests were rewritten with the adapter's unit of work, bound booleans and full ISO timestamps (the rules in `packages/tl-adapters/AGENTS.md`). |
 | B10 | **`ApiSettings.db_path` keeps its name** and is typed `DbTarget`. A rename would touch every test and conflict with workstream A's edits to the same file; the field has a comment. |
 | B11 | **Not in this increment:** the MCP server's `--db` and the simulator's ledger path (`tl_mcp/main.py`, `tl_sim`) are edited by workstream A for agent tokens and seeded accounts; B takes them after A merges (see *Order of work*). The dev MCP server's `query_db` and `render_screen` stay SQLite-only (decision C4). `just seed` and the demo scripts are A's. |
+| B12 | **Review fixes (fresh-context review of S30 to S34).** `as_target` and `is_postgres` match the scheme in any letter case and accept `postgresql+pg8000://`; any other `scheme://` value, a URL without a user, and an unescaped `@` in the password raise `ValueError` without repeating the value. `display_target` drops `password` and `sslpassword` query parameters and shows `<invalid database URL>` for a URL it cannot parse safely. SQLite `read_tx` sets `PRAGMA query_only=ON` for the transaction (and OFF after), so `DatabaseBackend.read_connection` and the readonly unit of work refuse raw writes as Postgres does (25006). The root `tl` group (`TlGroup`) turns any connection failure (`connection_failure`: refused, wrong password, missing database) into one `error:` line with exit 1; `tl_tui.main.main` and `tl_api.main.main` do the same for a bad or unreachable target. |
 
 ## Supervisor-built pieces (in order)
 | # | Piece | Why supervisor-tier | Reviewer | Status |
@@ -48,6 +49,7 @@ The runbook `docs/runbooks/run-on-postgres.md` has the full procedure and what d
 | S33 | The provided tests of T30 to T38 (CLI env fixtures on `new_db`, adapter-based helpers) | Test specification for the tickets | n/a | done |
 | S34 | `tl record` and `tl events` on `DbTarget` (`record.py`, `events.py`) | Every other group's provided tests call `tl record create`, so on Postgres nothing else could pass first (T30 folded in) | same | done |
 | S35 | After A merges: `tl_mcp/main.py` and `tl_sim` on `open_backend`; the guard test that no command imports `tl_adapters.sqlite` (except `backup`) | Touches A's files | same | planned |
+| S35a | Fixes of the review of S30 to S34 (B12) | Security-relevant handling of credentials in URLs | short re-review | done |
 | S36 | Runbook `docs/runbooks/run-on-postgres.md` (written; MCP and simulator sections after S35); package READMEs and AGENTS.md; learnings; the report | Docs of the new operating mode | n/a | runbook written |
 
 ## Tickets
@@ -57,9 +59,9 @@ T31 to T38 swap one command group each from the SQLite-only `open_uow` and a `Pa
 |---|---|---|---|---|---|
 | T30 | `tl record`, `tl events` on either database | haiku | S30, S32, S33 | abandoned | Folded into the base as S34: every other group's tests call `tl record create` (L-P0-I6A-5) |
 | T31 | `tl pset`, `tl wf` | haiku | S34 | ready | |
-| T32 | `tl link`, `tl schema reload` | haiku | S34 | ready | |
+| T32 | `tl link`, `tl schema reload` | haiku | S34 | merged | pass on the first review, 616f452, merge af0f841; 40 tests on both adapters |
 | T33 | `tl feed`, `tl proposal` | haiku | S34, T32 (its tests call `tl link`) | ready | |
-| T34 | `tl config` | haiku | S34 | ready | |
+| T34 | `tl config` | haiku | S34 | merged | pass on the first review, 89d7e2a, merge 9186ea3; 89 tests on both adapters; report miscounts one annotation (cosmetic) |
 | T35 | `tl types`, `tl types quarantine` | haiku | S34, T34 (its settings test calls `tl config`) | ready | |
 | T36 | `tl file` (put, get, ls, reconcile) | haiku | S34 | ready | |
 | T37 | `tl webhook` | haiku | S34 | ready | |

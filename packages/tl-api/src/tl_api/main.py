@@ -21,7 +21,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from tl_adapters.db import as_target, display_target
+from tl_adapters.db import DbTarget, as_target, display_target
 from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
 
@@ -31,10 +31,18 @@ from tl_api.settings import ApiSettings, check_bind
 log = logging.getLogger("tl_api")
 
 
+def _database(text: str) -> DbTarget:
+    """``--db`` as a target; a bad value is reported without repeating it (a URL has a password)."""
+    try:
+        return as_target(text)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from None
+
+
 def parse_args(argv: Sequence[str] | None = None) -> ApiSettings:
     base = ApiSettings.from_env()
     parser = argparse.ArgumentParser(prog="tl-api", description="Throughline dev API server.")
-    parser.add_argument("--db", type=as_target, default=base.db_path)
+    parser.add_argument("--db", type=_database, default=base.db_path)
     parser.add_argument("--tokens", type=Path, default=base.tokens_path)
     parser.add_argument("--host", default=base.host)
     parser.add_argument("--port", type=int, default=base.port)
@@ -104,7 +112,11 @@ def started_server(app: Any, settings: ApiSettings, on_started: Callable[[], Non
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    settings = parse_args(argv)
+    try:
+        settings = parse_args(argv)
+    except ValueError as exc:  # TL_DB holds a value that is not a database target
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     try:
         check_bind(settings.host, insecure_dev=settings.insecure_dev)
     except ValueError as exc:
