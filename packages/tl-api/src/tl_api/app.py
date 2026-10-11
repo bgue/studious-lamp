@@ -41,7 +41,18 @@ from tl_api.backend import Backend
 from tl_api.context import ApiContext
 from tl_api.errors import ERROR_TABLE, ApiError, ErrorBody, body_for
 from tl_api.feed import FeedHub
-from tl_api.routes import events, extypes, files, health, links, proposals, records, reference
+from tl_api.routes import (
+    admin,
+    auth,
+    events,
+    extypes,
+    files,
+    health,
+    links,
+    proposals,
+    records,
+    reference,
+)
 from tl_api.routes import feed as feed_routes
 from tl_api.routes import settings as settings_routes
 from tl_api.settings import ApiSettings
@@ -223,6 +234,8 @@ def create_app(
 
     for module in (
         health,
+        auth,
+        admin,
         records,
         links,
         reference,
