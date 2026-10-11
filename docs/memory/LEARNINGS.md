@@ -232,3 +232,12 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P1-I0A-10** · 2026-10-11 · tags: security, tooling
   `hashlib.scrypt` raises `ValueError` for parameters its own rules refuse (N must be below 2^(16 r)), so a stored hash whose parameters pass a bounds check can still crash a sign-in; treat that `ValueError` as a wrong password after a stand-in hash. Postgres also rejects a NUL in any text parameter and a lone surrogate does not encode to UTF-8: validate sign-in input before it reaches a query, or the pooled connection breaks.
   Evidence: `password.verify_password`, `sessions.authenticate`; `tests/auth/test_review_fixes.py::test_unstorable_input_is_invalid_credentials_and_the_connection_still_works`. Status: active
+- **L-P1-I0A-11** · 2026-10-11 · tags: process, tickets
+  L-P0-I6A-5 again: T04's provided tests sign in through `/auth/sign-in` and the client's `sign_in` (T03's code), but its `Depends on` named only the supervisor pieces, so both went out in one batch and T04 came back BLOCKED on tests it could not run. For each ticket list the routes, functions and client calls its provided tests use, name the ticket that owns each in `Depends on`, and dispatch dependent tickets in a later batch (or merge the provider into the base first).
+  Evidence: T04 blocked at 36f03d2; resolved by merging T03 into the base and the base into the ticket branch. Status: active
+- **L-P1-I0A-12** · 2026-10-11 · tags: process, tickets
+  Stub STEPS for a client method must not be looked up by the bare function name: the route and the client method share names (`sign_out`, `whoami`), and the server's steps (`request`, `ctx`, `me`) were pasted into three client stubs where they could not run. The implementer noticed and disclosed it. Key steps by module (`name@client`, `name@routes`) and read the pasted Interfaces of a ticket once before dispatch.
+  Evidence: `docs/reports/P1-I0/P1-I0-T03.md` deviations; `docs/tickets/P1-I0/T03-api-auth.md`. Status: active
+- **L-P1-I0A-13** · 2026-10-11 · tags: security, tests
+  A pytest monkeypatch of a private function (`pw._scrypt`) used by provided tests fixes its call shape for as long as a ticket is in flight: to add a parameter (a hash lane) without breaking those tests, carry it in a `ContextVar` and keep the positional signature. Likewise keep `pw._gate.acquire()` and `release()` callable with no arguments.
+  Evidence: `password.HashGate`, `_PUBLIC_LANE`; provided tests `t03-test_api_auth.py.txt`, `t04-test_api_admin.py.txt`. Status: active

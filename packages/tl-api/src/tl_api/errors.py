@@ -156,6 +156,7 @@ HTTP_ERRORS: dict[str, int] = {
     "agent_must_propose": 403,  # an agent token ran a record-changing command (tl_api.auth)
     "not_found": 404,
     "method_not_allowed": 405,
+    "rate_limited": 429,  # too many failed sign-ins from one address (tl_api.ratelimit)
     "payload_too_large": 413,  # a body over the limit of /auth/* or /admin/* (tl_api.auth)
     "unavailable": 503,
     "internal_error": 500,

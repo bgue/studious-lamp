@@ -374,9 +374,7 @@ def test_every_route_action_is_decided_for_agents(harness: Harness) -> None:
     commands = {a for a in actions if a.startswith("command.")}
     others = actions - commands
     undecided = others - AGENT_MAY - AGENT_MAY_NOT
-    assert not undecided, (
-        f"decide for agents (these sets and AGENT_ACTIONS): {sorted(undecided)}"
-    )
+    assert not undecided, f"decide for agents (these sets and AGENT_ACTIONS): {sorted(undecided)}"
     assert len(commands) >= 15 and len(others) >= 15  # the walk really found the routes
     for action in others:
         assert _agent_may(action) == (action in AGENT_MAY), action
