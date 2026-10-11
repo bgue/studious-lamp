@@ -13,12 +13,11 @@ import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
-from pathlib import Path
 from typing import Annotated, Any, NoReturn
 
 import typer
 from pydantic import ValidationError
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_core import settings
 from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import ServiceError
@@ -185,7 +184,7 @@ def ls(
     value is set at the layer being viewed) and `locked` when the company
     locked the key.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     with _service_errors(), open_uow(db, readonly=True) as uow:
         views = list_views(
             uow.conn(), project=project, user=user, prefix=prefix, modified_only=modified
@@ -208,7 +207,7 @@ def get(
     --long adds the definition and state (origin, default, risk, lock,
     schedule, pending effect); --json prints the value as JSON.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     with _service_errors(), open_uow(db, readonly=True) as uow:
         view = get_view(uow.conn(), key, project=project, user=user)
     if long:
@@ -233,7 +232,7 @@ def history(
     One line per change: number, layer, time, actor, old and new value,
     reason. --layer narrows it to one layer.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     with _service_errors(), open_uow(db, readonly=True) as uow:
         changes = settings.history(uow.conn(), key, layer=layer)
     for change in changes:
@@ -260,7 +259,7 @@ def set_(
     --at schedules the change for later. Prints `set`, `scheduled` or
     `unchanged` with the key, the layer and the value.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     layer = _layer(project, user, company)
     applies_at = _when(at)
     with _service_errors(), open_uow(db) as uow:
@@ -303,7 +302,7 @@ def reset(
 
     The layer, reason, risk and --at options are those of `set`.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     layer = _layer(project, user, company)
     applies_at = _when(at)
     with _service_errors(), open_uow(db) as uow:
@@ -349,7 +348,7 @@ def lock(
     --unlock removes the lock; --min, --max and --choices bound project
     values. A reason is always required.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     bounds: dict[str, Any] = {}
     with _service_errors(), open_uow(db) as uow:
         defn = settings.get_definition(key)
@@ -389,7 +388,7 @@ def revert(
     --seq is the change number from `history`. Only the latest change at
     that layer can be undone; to go further back, set the value again.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     with _service_errors(), open_uow(db) as uow:
         done = revert_setting(
             uow,
