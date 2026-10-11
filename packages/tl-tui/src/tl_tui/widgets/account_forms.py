@@ -5,13 +5,7 @@ The service decides what is allowed (a weak password, a taken name, a disabled a
 refusal is shown under the fields and the form stays open. A password is read from a masked
 input, passed to that one call and cleared from the input after every attempt, success or not; it
 is never stored, shown or put in a message. An issued token is shown once, by :class:`TokenShown`.
-
-STUB (P1-I0-T09b): the bodies marked STEPS raise NotImplementedError; the layout (`compose`,
-`DEFAULT_CSS`, `BINDINGS`), `TokenShown` and every signature are final (the provided snapshots pin
-the layout). Implement the bodies, then delete this paragraph and the STEPS comments.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -115,25 +109,41 @@ class AccountForm(_Form):
         self.query_one("#form-username", Input).focus()
 
     def _kind(self) -> AccountKind:
-        # STEPS: the kind the "#form-kind" RadioSet shows pressed: KINDS[index] for
-        # `pressed_index` in range, else "person".
-        raise NotImplementedError
+        index = self.query_one("#form-kind", RadioSet).pressed_index
+        if 0 <= index < len(KINDS):
+            return KINDS[index]
+        return "person"
 
     def action_apply(self) -> None:
-        # STEPS
-        # 1. username = "#form-username" value stripped; display = "#form-display" stripped;
-        #    kind = self._kind(); password and repeat = the "#form-password" and "#form-repeat"
-        #    values as typed (do not strip them).
-        # 2. No username: self._error("Enter a username") and return.
-        # 3. kind is not "agent" and password != repeat: self._error("The two passwords differ"),
-        #    self._clear_passwords(), return. (An agent has no password: its fields are ignored.)
-        # 4. roles = ["admin", "user"] when the "#form-admin" Checkbox is on, else ["user"].
-        # 5. try: view = self.client.create_account(username, display or username, kind=kind,
-        #    roles=roles, password=None if kind == "agent" else password)
-        #    except CLIENT_ERRORS as exc: self._error(describe_error(exc)); self._clear_passwords();
-        #    return (the form stays open; check no rule yourself: the service decides).
-        # 6. self._clear_passwords(); self.dismiss(view).
-        raise NotImplementedError
+        username = self.query_one("#form-username", Input).value.strip()
+        display = self.query_one("#form-display", Input).value.strip()
+        kind = self._kind()
+        password = self.query_one("#form-password", Input).value
+        repeat = self.query_one("#form-repeat", Input).value
+        if not username:
+            self._error("Enter a username")
+            self._clear_passwords()
+            return
+        if kind != "agent" and password != repeat:
+            self._error("The two passwords differ")
+            self._clear_passwords()
+            return
+        admin = self.query_one("#form-admin", Checkbox).value
+        roles = ["admin", "user"] if admin else ["user"]
+        try:
+            view = self.client.create_account(
+                username,
+                display or username,
+                kind=kind,
+                roles=roles,
+                password=None if kind == "agent" else password,
+            )
+        except CLIENT_ERRORS as exc:
+            self._error(describe_error(exc))
+            self._clear_passwords()
+            return
+        self._clear_passwords()
+        self.dismiss(view)
 
 
 class PasswordForm(_Form):
@@ -165,16 +175,24 @@ class PasswordForm(_Form):
         self.query_one("#form-password", Input).focus()
 
     def action_apply(self) -> None:
-        # STEPS
-        # 1. password and repeat = the "#form-password" and "#form-repeat" values as typed.
-        # 2. Empty password: self._error("Enter the new password") and return.
-        #    password != repeat: self._error("The two passwords differ"), self._clear_passwords(),
-        #    return.
-        # 3. try: view = self.client.reset_password(self.account.account_id, password)
-        #    except CLIENT_ERRORS as exc: self._error(describe_error(exc)); self._clear_passwords();
-        #    return.
-        # 4. self._clear_passwords(); self.dismiss(view).
-        raise NotImplementedError
+        password = self.query_one("#form-password", Input).value
+        repeat = self.query_one("#form-repeat", Input).value
+        if not password:
+            self._error("Enter the new password")
+            self._clear_passwords()
+            return
+        if password != repeat:
+            self._error("The two passwords differ")
+            self._clear_passwords()
+            return
+        try:
+            view = self.client.reset_password(self.account.account_id, password)
+        except CLIENT_ERRORS as exc:
+            self._error(describe_error(exc))
+            self._clear_passwords()
+            return
+        self._clear_passwords()
+        self.dismiss(view)
 
 
 class TokenForm(_Form):
@@ -206,17 +224,25 @@ class TokenForm(_Form):
         self.query_one("#form-label", Input).focus()
 
     def action_apply(self) -> None:
-        # STEPS
-        # 1. label = the "#form-label" value stripped; no label: self._error("Enter a label"),
-        #    return.
-        # 2. days = None. Unless the "#form-never" Checkbox is on, days = int(the "#form-days" value
-        #    stripped); a ValueError is self._error("Days must be a whole number") and return.
-        # 3. try: _, token = self.client.issue_agent_token(self.account.account_id, label,
-        #    expires_in_days=days)  except CLIENT_ERRORS as exc: self._error(describe_error(exc));
-        #    return (the form stays open).
-        # 4. self.dismiss((label, token)). The token goes nowhere else: not a message, not an
-        #    attribute, not a log line.
-        raise NotImplementedError
+        label = self.query_one("#form-label", Input).value.strip()
+        if not label:
+            self._error("Enter a label")
+            return
+        days: int | None = None
+        if not self.query_one("#form-never", Checkbox).value:
+            try:
+                days = int(self.query_one("#form-days", Input).value.strip())
+            except ValueError:
+                self._error("Days must be a whole number")
+                return
+        try:
+            _, token = self.client.issue_agent_token(
+                self.account.account_id, label, expires_in_days=days
+            )
+        except CLIENT_ERRORS as exc:
+            self._error(describe_error(exc))
+            return
+        self.dismiss((label, token))
 
 
 class TokenShown(ModalScreen[None]):
