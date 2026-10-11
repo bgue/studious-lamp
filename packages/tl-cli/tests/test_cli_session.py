@@ -99,6 +99,24 @@ def test_expires_at_from_is_a_future_utc_stamp_the_loader_understands() -> None:
     assert stored("db:/a", expires_at=session.expires_at_from(timedelta(seconds=-1))).expired()
 
 
+@pytest.mark.skipif(os.name != "posix", reason="file modes")
+def test_a_planted_temp_file_is_not_followed_and_a_foreign_owner_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session.save(stored("db:/a"))
+    path = session.session_file()
+    victim = tmp_path / "victim.txt"
+    victim.write_text("keep me", encoding="utf-8")
+    for n in range(3):  # names a predictable scheme would use
+        (path.parent / f".{path.name}.{os.getpid() + n}.tmp").symlink_to(victim)
+    session.save(stored("db:/b"))
+    assert victim.read_text(encoding="utf-8") == "keep me"
+    assert session.load("db:/a") is not None and session.load("db:/b") is not None
+    monkeypatch.setattr(os, "getuid", lambda: os.stat(path).st_uid + 1)
+    with pytest.raises(session.SessionFileError, match="belongs to another user"):
+        session.load("db:/a")
+
+
 def test_the_token_never_shows_in_a_repr_or_a_listing() -> None:
     item = stored("db:/a", "tls_very_secret")
     assert "tls_very_secret" not in repr(item) and "tls_very_secret" not in str(item)

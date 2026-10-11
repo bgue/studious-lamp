@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
@@ -85,6 +86,10 @@ def _read_all(path: Path) -> dict[str, dict[str, str]]:
         return {}
     except OSError as exc:
         raise SessionFileError(f"cannot read the session file {path}: {exc.strerror}") from exc
+    if os.name == "posix" and info.st_uid != os.getuid():
+        raise SessionFileError(
+            f"the session file {path} belongs to another user; delete it and sign in again"
+        )
     if os.name == "posix" and info.st_mode & 0o077:
         raise SessionFileError(
             f"the session file {path} can be read by other users; run `chmod 600 {path}` "
@@ -104,9 +109,10 @@ def _read_all(path: Path) -> dict[str, dict[str, str]]:
 
 def _write_all(path: Path, entries: dict[str, dict[str, str]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    temp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-    fd = os.open(temp, flags, 0o600)
+    # mkstemp creates the file exclusively with mode 0600, so a planted file or link of the same
+    # name cannot be followed and the token is never readable by others, not even briefly
+    fd, name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    temp = Path(name)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             json.dump({"version": _VERSION, "sessions": entries}, handle, indent=2)
