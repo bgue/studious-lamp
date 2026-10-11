@@ -10,7 +10,7 @@ Purpose: operate outbound webhooks: find and redrive dead letters, replay events
 
 ## Before you start
 - Access needed: the ledger (`TL_DB`) and permission to reach the receiver's host from the worker. Commands run as `user:dev` until auth exists (P0-I8).
-- The worker must be running for anything to be sent: `uv run tl webhook run` (loop) or `uv run tl webhook run --once` (one drain). Without an allow-listed target, private and loopback addresses are refused; add `--allow-host HOST` or set `TL_WEBHOOK_ALLOWLIST` (comma separated) only for hosts you trust. Public hosts need nothing.
+- The worker must be running for anything to be sent: `uv run tl webhook run` (loop) or `uv run tl webhook run --once` (one drain). Without an allow-listed target, private and loopback addresses are refused. The allow-list is the company setting `webhooks.egress.allowlist` (a dangerous key: `uv run tl config set webhooks.egress.allowlist hub.example.com --company --reason "partner hub" --accept-risk`, see `settings.md`; the worker reads it again every few seconds) plus, for one process, `--allow-host HOST` and `TL_WEBHOOK_ALLOWLIST` (comma separated). Add only hosts you trust. Public hosts need nothing. Link-local and cloud-metadata addresses are refused even when listed. The retry window is the setting `webhooks.retry.max_hours` (default 24).
 - Safe to run during business hours: yes. Replay and redrive resend events the receiver may already have; receivers dedupe on the event id (`webhook-id` header, CloudEvents `id`).
 - Delivery log and counts: `uv run tl webhook ls` prints `subscription_id, status, mode, name, url, delivered, pending, dead` per subscription.
 
@@ -21,7 +21,7 @@ Purpose: operate outbound webhooks: find and redrive dead letters, replay events
    uv run tl webhook dlq ls --subscription <subscription id>
    ```
    Columns: `delivery_id, subscription_id, seq, event_id, attempts, last_status, dead_reason, dead_at`. Reasons: `retries_exhausted`, `gone`, `egress_denied`.
-2. **Fix the cause first.** `egress_denied`: the target is private or loopback; allow-list it (`TL_WEBHOOK_ALLOWLIST`) if it is yours, or change the URL. `gone`: the receiver says the endpoint is permanently gone; confirm with its owner. `retries_exhausted`: check the receiver is up. Test it:
+2. **Fix the cause first.** `egress_denied`: the target is private or loopback; allow-list it (the setting `webhooks.egress.allowlist`, or `TL_WEBHOOK_ALLOWLIST` for one process) if it is yours, or change the URL. `gone`: the receiver says the endpoint is permanently gone; confirm with its owner. `retries_exhausted`: check the receiver is up. Test it:
    ```
    uv run tl webhook test <subscription id>
    ```

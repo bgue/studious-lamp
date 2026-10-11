@@ -22,6 +22,7 @@ Purpose: list, inspect, accept or reject the changes AI agents proposed through 
    uv run tl proposal reject <id> --reason "Duplicate of NCR-0040" --actor user:alice
    ```
    Expected: `accepted <id>` and `result <stream id>` (the new record, or the record that changed), or `rejected <id>`. The record's first event has `actor user:alice`, `source mcp:triage`, and the proposal's `Proposal.Created` event as its cause.
+   A **setting change** (`propose_setting_change`) shows the key, the layer, the old and the new value and the key's risk and effect (`ls` tags the line `[dangerous]` or `[advanced]`; `show` prints `setting <key> at <layer>`, `current`, `proposed`, `risk` and `effect` lines). For a `dangerous` key accept with `--accept-risk`; without it the accept is refused with `risk_not_accepted` and the proposal stays pending. Over HTTP put `"accept_risk": true` in the accept body. See `settings.md`.
 3. The same over HTTP:
    ```
    curl -s -H "Authorization: Bearer $TOKEN" 'localhost:8765/proposals?scope=project:P123'

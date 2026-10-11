@@ -1,7 +1,8 @@
-"""The write tools: four that propose a change and one that posts to the feed (brief 11.3, 21.3).
+"""The write tools: five that propose a change and one that posts to the feed (brief 11.3, 21.3).
 
 ``create_record``, ``update_psets``, ``link_records`` and ``transition_workflow`` never change a
-record. Each builds the same command the API would run, has it checked by the handler's own rules
+record, and ``propose_setting_change`` never changes a setting (P0-I8 D3). Each builds the same
+command the API would run, has it checked by the handler's own rules
 (``tl_core.services.proposals.submit``) and returns the pending proposal; a person accepts it
 (``tl proposal accept``, ``POST /proposals/{id}/accept``). Everything done on the agent's behalf
 carries ``source`` ``mcp:<id>``. ``post_feed`` writes directly: a post is a message, not a record,
@@ -14,6 +15,7 @@ every string and container input is bounded. ``server.py`` calls :func:`register
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from mcp.server.mcpserver import MCPServer
@@ -26,7 +28,10 @@ from tl_core.services.commands import CreateRecord
 from tl_core.services.feed import MAX_BODY_LENGTH, PostToFeed, handle_post
 from tl_core.services.links import AddLink
 from tl_core.services.psets import SetPsetValues
+from tl_core.services.settings import ChangeSetting
 from tl_core.services.workflow import TransitionWorkflow
+from tl_core.settings.layers import parse_layer
+from tl_core.settings.values import format_value
 
 from tl_mcp.context import McpContext
 from tl_mcp.errors import MAX_PART, guarded, resource_name
@@ -250,6 +255,48 @@ def transition_workflow_impl(
     return _result(view)
 
 
+def propose_setting_change_impl(
+    ctx: McpContext,
+    *,
+    key: str,
+    layer: str,
+    value: Any,
+    reset: bool,
+    reason: str | None,
+    applies_at: str | None,
+    summary: str | None,
+) -> ProposalResult:
+    check_json("value", value)
+    ref = parse_layer(layer)
+    when: datetime | None = None
+    if applies_at is not None:
+        try:
+            when = datetime.fromisoformat(applies_at)
+        except ValueError as exc:
+            raise ValueError("applies_at must be an ISO 8601 time with a Z or an offset") from exc
+    command = ChangeSetting(
+        actor=ctx.actor,
+        source=proposals.source_for(ctx.actor),
+        scope=ref.scope,
+        key=key,
+        layer=ref.name,
+        value=None if reset else value,
+        reset=reset,
+        reason=reason,
+        applies_at=when,
+    )
+    shown = "reset" if reset else f"set to {_short(format_value(value, max_items=5))}"
+    line = summary or f"Change setting {key} at {ref.name}: {shown}"
+    view = proposals.submit(
+        ctx.factory,
+        tool="propose_setting_change",
+        agent=ctx.actor,
+        command=command,
+        summary=line,
+    )
+    return _result(view)
+
+
 def post_feed_impl(ctx: McpContext, *, scope: str, body: str, importance: Importance) -> PostResult:
     command = PostToFeed(
         actor=ctx.actor,
@@ -269,7 +316,7 @@ def post_feed_impl(ctx: McpContext, *, scope: str, body: str, importance: Import
 
 
 def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, ToolMode]) -> None:
-    """Add the five write tools to ``server``. ``modes`` is ``resolve_tool_modes()``'s answer."""
+    """Add the six write tools to ``server``. ``modes`` is ``resolve_tool_modes()``'s answer."""
     assert set(modes) == set(PROPOSABLE_TOOLS) and set(modes.values()) == {"propose"}
 
     @server.tool(annotations=PROPOSES)
@@ -406,6 +453,58 @@ def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, To
                 transition=transition,
                 expected_version=expected_version,
                 reason=reason,
+                summary=summary,
+            )
+
+    @server.tool(annotations=PROPOSES)
+    def propose_setting_change(
+        key: Annotated[
+            str,
+            Field(min_length=1, max_length=MAX_PART, description="e.g. `feed.reactions.enabled`."),
+        ],
+        layer: Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=MAX_PART,
+                description="`company`, `project:<id>` or `user:<id>` (user is for `ui.*` keys).",
+            ),
+        ],
+        value: Annotated[
+            Any,
+            Field(description="The new value, as JSON of the setting's type. Ignored on reset."),
+        ] = None,
+        reset: Annotated[
+            bool, Field(description="True: take the layer's own value away so it inherits.")
+        ] = False,
+        reason: Annotated[
+            str | None,
+            Field(max_length=MAX_NOTE, description="Required for `advanced` and `dangerous` keys."),
+        ] = None,
+        applies_at: Annotated[
+            str | None,
+            Field(
+                max_length=64,
+                description="ISO 8601 time (Z or offset) in the future: schedules the change.",
+            ),
+        ] = None,
+        summary: Summary = None,
+    ) -> ProposalResult:
+        """Propose a settings change. A person must accept before the setting changes.
+
+        The proposal is checked now with the rules that apply when it is accepted (the key exists,
+        the layer allows it, the value fits, the company has not locked it, a reason for an
+        advanced or dangerous key). For a dangerous key the person who accepts confirms the risk.
+        """
+        with guarded(ctx, "propose_setting_change", resource_name("setting", key)):
+            return propose_setting_change_impl(
+                ctx,
+                key=key,
+                layer=layer,
+                value=value,
+                reset=reset,
+                reason=reason,
+                applies_at=applies_at,
                 summary=summary,
             )
 

@@ -10,14 +10,20 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from tl_adapters.sqlite.uow import create_schema, rebuild_projections
+from sqlalchemy import Connection
+from tl_adapters.sqlite.uow import create_schema, open_uow, rebuild_projections
+from tl_core.extypes.provider import attach
+from tl_core.settings.effects import mark_applied
 from tl_sim import cli as sim_cli
 
 from tl_cli import (
     archive,
     backup,
+    config,
     dev,
     events,
+    extypes,
+    extypes_quarantine,
     feed,
     file,
     lake,
@@ -49,6 +55,9 @@ app.add_typer(file.app, name="file")
 app.add_typer(link.app, name="link")
 app.add_typer(feed.app, name="feed")
 app.add_typer(proposal.app, name="proposal")
+app.add_typer(config.app, name="config")
+app.add_typer(extypes.app, name="types")
+extypes.app.add_typer(extypes_quarantine.app, name="quarantine")
 app.add_typer(lake.app, name="lake")
 app.add_typer(dev.app, name="dev")
 app.add_typer(new.app, name="new")
@@ -75,6 +84,11 @@ def root(
 ) -> None:
     """Throughline dev ledger commands."""
     ctx.obj = Path(db)
+    path = ctx.obj
+    # registered extension types join the effective schema of every command (brief 31)
+    # prime (read the settings keys of the registered types) only for a ledger that exists: opening
+    # a missing SQLite file would create it, and `tl archive`/`tl backup` report a missing ledger
+    attach(lambda readonly=False: open_uow(path, readonly=readonly), prime=path.is_file())
 
 
 @app.command("init")
@@ -96,5 +110,13 @@ def rebuild(
 ) -> None:
     """Reset projectors and replay the whole ledger into them."""
     db: Path = ctx.obj
-    replayed = rebuild_projections(db, types=only or None)
+
+    def carried_out(conn: Connection, last_seq: int) -> None:
+        # A full replay carries out the `rebuild` and `reindex` effects of settings (P0-I8 D6),
+        # up to the last event it replayed; the mark commits or rolls back with the rebuild.
+        mark_applied(conn, ["rebuild", "reindex"], applied_by="rebuild", head=last_seq)
+
+    replayed = rebuild_projections(
+        db, types=only or None, after_replay=None if only else carried_out
+    )
     typer.echo(f"replayed {replayed} events")

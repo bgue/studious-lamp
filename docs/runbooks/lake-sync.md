@@ -32,6 +32,12 @@ The lake is an analytics copy, never a source of truth, and never a backup. It c
    Expected: `synced seq A..B (N events) in snapshot S`, or `lake is up to date as of seq N` when nothing is new.
    If a sync fails or the process crashes, nothing is committed. Run the same command again; it starts from the same place and needs no cleanup.
 
+2b. Keep it current without cron. The watcher syncs, waits `lake.sync.interval` (default 5m; change it with `uv run tl config set lake.sync.interval 10m --company`, see `settings.md`) and syncs again until you press Ctrl+C. The interval is read again before every wait, so a change applies to a running watcher:
+   ```
+   uv run tl lake sync --watch
+   ```
+   Expected: the lines of step 2 once per round. A sync that fails (`error: ...` on standard error) does not stop the watcher; it tries again after the wait.
+
 3. List the lake tables and their columns:
    ```
    uv run tl lake tables

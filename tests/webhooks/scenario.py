@@ -87,11 +87,27 @@ def run_scenario(world: World) -> dict[str, list[dict[str, Any]]]:
                 stream_id=proposal_id,
                 stream_type="core.Proposal",
             )
+    for kind, stream in (
+        ("Setting.Changed", "setting:project:P1:feed.reactions.enabled"),
+        ("Setting.Locked", "setting:company:feed.reactions.enabled"),
+    ):
+        world.append(kind, payload_of(kind), stream_id=stream, stream_type="core.Setting")
     world.append(
         "Schema.EffectiveChanged",
         payload_of("Schema.EffectiveChanged"),
         stream_id="schema:project:P1",
         stream_type="schema",
+    )
+    for kind, stream in (
+        ("TypeRegistration.Registered", "type:co.acme.LiftPlan@1.0.0"),
+        ("TypeRegistration.Deprecated", "type:co.acme.LiftPlan@1.0.0"),
+        ("TypeRegistration.Quarantined", "type:co.acme.LiftPlan@1.0.1"),
+    ):
+        world.append(kind, payload_of(kind), stream_id=stream, stream_type="core.TypeRegistration")
+    world.append(
+        "Record.BodyStored",
+        payload_of("Record.BodyStored", stream_id=a),
+        stream_id=a,
     )
     world.append(
         "SchemaPackage.Published",

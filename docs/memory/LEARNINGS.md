@@ -950,6 +950,109 @@ test or a generated artefact already enforces, or narrative history (that belong
   file, no permission) are not LakeError, and the MCP SDK masks them as a bare "Error executing tool". That safety
   depends on the SDK. P0-I8 hardening: catch Exception in `guarded`, log the error server-side, and return a fixed sentence.
   Evidence: re-review at 07ad1b0. Status: active
+- **L-P0-I8B-1** · 2026-10-10 · tags: schema, tooling
+  A LinkML package that imports a repository base class (`throughline/core/extension`) is linted and read on a private temporary copy of `schema/core` placed beside a copy of the
+  package's `type.yaml` (`tl_core/extypes/compile.py`): `Linter.lint(path)` resolves imports relative to the file and takes no import map. Annotations on a metamodel element are a
+  `JsonObj` (test `tag in element.annotations`, there is no `.get`), and pyright reports the metamodel's optional unions as errors, so type the objects as `Any`.
+  Evidence: `tests/extypes/test_validate_package.py`; `compile.py` `_workspace`. Status: active
+- **L-P0-I8B-2** · 2026-10-10 · tags: tests, env
+  `extypes.provider.attach(factory)` changes the process-wide default `DirectorySchemaProvider`, and `create_app`, `build_server`, `EmbeddedClient` and the CLI root all call it. A test that
+  registers types installs its own provider with `use_provider(DirectorySchemaProvider())` before it builds the app or ledger. The source treats any failure to read the registry (no table in an old
+  ledger, a deleted file, a closed engine) as "no types", so a stale source can never take another test's schema down.
+  Evidence: `tests/extypes/conftest.py`; `packages/tl-api/tests/test_api_extypes.py` fixture. Status: active
+- **L-P0-I8B-3** · 2026-10-10 · tags: ledger, schema
+  A registration whose files may change on disk but whose version is immutable keeps its row and records the refused change on it (`conflict_hash`, the report); flipping the status would let a stray
+  edit remove a type from the schema. Reverting the files must re-register to clear the note. The idempotence rule is one function (`registry._already_known`) used before and after validation.
+  Evidence: `tests/extypes/test_registry_sync.py::test_reverting_the_files_clears_the_conflict`. Status: active
+- **L-P0-I8B-4** · 2026-10-10 · tags: ledger, security
+  A quarantine that must survive the failing read's rollback is written by a wrapper that holds the unit-of-work *factory* (`body.read_body`), never by the function that raises (`load_body`); it is
+  operational state (`tl_body_quarantine`, like `wh_*`) so a rebuild cannot clear it. A key outside `sha256/` is overwritten by `FsObjectStore.put`, which is what heals a damaged body: re-storing
+  the same body appends no event but puts the object again and lifts the quarantine.
+  Evidence: `tests/extypes/test_body_store.py` (`test_storing_the_body_again_heals...`, `test_a_rebuild_keeps_the_quarantine...`). Status: active
+- **L-P0-I8B-5** · 2026-10-10 · tags: schema
+  A non-project pset path has exactly one segment after `psets.` (`is_property_path`), so the pset of an extension type cannot contain dots: it is `<namespace with underscores>_<snake Name>`
+  (`co_acme_lift_plan`). Namespace segments therefore forbid underscores (no double underscore, which `PackageDoc` refuses) and two types can still collide on the name (`co.acme.lift.Plan` and
+  `co.acme.LiftPlan`), which sync reports as a `conflict`.
+  Evidence: `tl_core/extypes/names.py`; `test_two_types_whose_names_give_the_same_pset_conflict`. Status: active
+- **L-P0-I8B-6** · 2026-10-10 · tags: process, tests
+  With several workstreams sharing four CPUs the whole `just test` took 13.5 minutes (4081 tests). Start it with `run_in_background` and wait with a foreground `timeout N bash -c 'while kill -0 PID ...'`
+  rather than a polling `sleep`; `pkill -f <pattern>` killed the shell again (see L-P0-I7-B5). A stub ticket's implementation notes go in comments, not the docstring, when the docstring reaches
+  the committed OpenAPI document.
+  Evidence: this round's full run; `docs/tickets/P0-I8/T21-api-types.md`. Status: active
+- **L-P0-I8B-7** · 2026-10-10 · tags: process, tickets, tests
+  Run `pyright` over a provided test before dispatching it: copy the `.py.txt` into its test directory, run `uv run pyright <package>`, delete the copy. Two provided tests (a
+  `tuple(row)` on `Row | None`, a subscript of `get_record_by_id(...)`) passed pytest against the reference but failed `just check` on the ticket branch, and the ticket forbids editing the
+  provided file, so the implementers correctly stopped as Blocked and the supervisor had to fix the test on the branch and in the provided source.
+  Evidence: T22 at 197b81c, T23 at 938c8ce. Status: active
+- **L-P0-I8B-8** · 2026-10-10 · tags: ledger, tests
+  A function that appends inside the caller's unit of work cannot tell a cache it has changed anything (the transaction may still roll back, and a reader in between would cache the old state).
+  Give the service a wrapper that owns the factory and notifies after the commit (`registry.deprecate`), and make every entry point call the wrapper; `tl types deprecate` called the inner
+  function until the re-review.
+  Evidence: `tests/extypes/test_registry_sync.py::test_deprecate_tells_the_provider_after_the_commit`, `packages/tl-cli/tests/test_cli_extypes_conflict.py`. Status: active
+- **L-P0-I8B-9** · 2026-10-10 · tags: process, tests, cli
+  Run the whole test suite of every package a supervisor commit touches, not only the new tests, before relaying the base: S33 added `--type` to `tl tui` and a `record_type` key to the call
+  that `tl_cli.tui` makes, and `packages/tl-cli/tests/test_cli_serve_tui.py` compared that call dict exactly. Only the `tl-tui` suite had run, so an implementer found the red test on the base.
+  Evidence: `test_tui_is_embedded_by_default_on_the_root_db` (fixed with two new `--type` tests). Status: active
+- **L-P0-I8B-10** · 2026-10-10 · tags: tui, forms
+  `FieldEditor.validate()` only sets an error for typed text; for a Select or a Switch it returns the old error, so a "Required" mark on a choice stayed until the next save. A Switch also always
+  reads `False`, so a form that collects `editor.value` for every field stores an untouched optional bool as `false`. `_raw_changed` now clears the mark of a choice, and the extension form
+  sends a slot only when the user changed it or it is required.
+  Evidence: `packages/tl-tui/tests/test_extension_form_rules.py`. Status: active
+- **L-P0-I8B-11** · 2026-10-10 · tags: tui, auth, errors
+  A second client path that bypasses the API also bypasses its rules: the embedded client took any actor (an `agent:*` could write bodies, which the API refuses) and let an `OSError` of the object
+  store escape the `CLIENT_ERRORS` tuple (the TUI would stop with a path in the traceback). When a surface is added to a service, copy the API's refusals (agent writes) and map operating-system
+  failures to a `ServiceError` with a message that names no path. Two parallel implementations of one write (`store_body` plus a scope check in the route, and `store_record_body`) were merged into one.
+  Evidence: `packages/tl-tui/tests/test_embedded_types.py` (agent guard, failing store). Status: active
+- **L-P0-I8B-12** · 2026-10-10 · tags: tickets, cli, process
+  Implementation notes written into a stub's docstring survive the implementation, and a docstring is user-facing text wherever a framework publishes it: Typer prints it as `--help`, FastAPI as
+  OpenAPI, MCP as the tool description. Three `tl types` commands shipped `registry.list_quarantined(...)` and `_fail` in their help. L-P0-I8B-6 covered OpenAPI; the rule is "notes in comments,
+  everywhere", and a test that renders every command's help and greps for internal names (`test_cli_extypes_help.py`) keeps it so.
+  Evidence: `packages/tl-cli/tests/test_cli_extypes_help.py`. Status: active
+- **L-P0-I8B-13** · 2026-10-10 · tags: demos, shell
+  A demo under `set -o pipefail` that pipes a command into `head` fails on some runs: `head` closes the pipe, the writer gets SIGPIPE and the pipeline's status is non-zero. Print the whole
+  output, or capture it in a variable first.
+  Evidence: `dev/demos/P0-I8-B.sh` failed one run in two before the pipes were removed. Status: active
+
+- **L-P0-I8A-1** · 2026-10-10 · tags: tooling
+  A package `__init__` that exports a function with the name of one of its submodules hides the module: `from tl_core.settings import definitions as defs` returned the function `definitions()`, not the module. The contract names the function, so the module is `tl_core.settings.registry`. Check `__all__` against the submodule names before naming a module.
+  Evidence: first run of `test_settings_definitions.py` (13 errors, `'function' object has no attribute 'PLATFORM_FILE_ENV'`). Status: active
+
+- **L-P0-I8A-2** · 2026-10-10 · tags: schema, tests
+  The generated `json_schema/core.schema.json` renders the LinkML `Any` class without arrays, so a list default (`feed.signal_tags`) fails validation against `SettingDefinition`. The event catalog generator widens `Any` for its own schemas; a test that validates data against the core schema must replace `$defs.Any` with `{}`. A `required` slot of range `Any` is how a nullable JSON value is made mandatory (`default` of a definition).
+  Evidence: `packages/tl-core/tests/test_settings_definitions.py::test_the_generated_json_schema_accepts_every_platform_entry`. Status: active
+
+- **L-P0-I8A-3** · 2026-10-10 · tags: ledger
+  Scheduled settings need the resolver to order by effective time, not by `seq`: the entry in force is the greatest `(max(recorded_at, applies_at), seq)` not after "now", so a change recorded later but applying earlier wins until the earlier-recorded one applies, and nothing is applied by a job. Cancelling a pending change is recording the old state for the same instant (the later `seq` wins the tie). `cur_setting` therefore keeps one row per event, not one per key.
+  Evidence: `packages/tl-core/tests/test_settings_resolver.py` (oracle property), `tests/settings/test_service.py::test_reverting_a_scheduled_change_cancels_it`. Status: active
+
+- **L-P0-I8A-4** · 2026-10-10 · tags: tests
+  Extends L-P0-I5-B6. A fake clock handed to code that compares it with event times must be the real clock plus an offset: a fixed fake "now" taken at set-up was already behind the `recorded_at` of every event the test wrote, so every entry looked "not yet in force" (8 of 12 reader tests failed with the default value). Move time in such a test by changing the offset.
+  Evidence: `tests/settings/test_reader.py` `Clock`. Status: active
+
+- **L-P0-I8A-5** · 2026-10-10 · tags: cli, process
+  Typer's `app.add_typer(other)` without a `name` flattens the other app's commands into the parent group, so two tickets can own two files of one command group (`tl config` in `config.py`, `diff|export|import` in `config_exchange.py`) with disjoint Allowed paths. A ticket's provided test must seed state with the service, not with the other ticket's commands (extends L-P0-I6A-5).
+  Evidence: scratch probe; `docs/tickets/P0-I8/provided/t02-test_cli_config_exchange.py.txt`. Status: active
+
+- **L-P0-I8A-6** · 2026-10-10 · tags: mcp, security
+  An MCP tool ignores arguments it does not declare (pydantic does not forbid extras), so `accept_risk=True` sent to `propose_setting_change` neither fails nor takes effect. The test that proves an agent cannot accept a risk asserts the stored command (`accept_risk` false) and that the person's accept still fails without the flag, not an error.
+  Evidence: `packages/tl-mcp/tests/test_mcp_setting_proposals.py::test_the_tool_cannot_carry_a_risk_acceptance`. Status: active
+
+- **L-P0-I8A-7** · 2026-10-10 · tags: tests, process
+  Adding a command to the API table, a tool to `PROPOSABLE_TOOLS` or an event type to the catalog breaks tests that assert literal counts or lists elsewhere: `len(COMMANDS) == 17` and the agent-refusal count of 13 in `tl-api`, `PROPOSE_TOOLS` and `PROPOSING` in `tl-mcp`, `register_write_tools`' assertion on the tool modes, the table lists of `test_generate.py` and `test_ddl.py`, and the webhook scenario. Run `just test` once after the contract amendment and fix all of them in the same commit.
+  Evidence: the first full `just test` of P0-I8-A (3 failures, then 1 more in `tl-api`). Status: active
+
+- **L-P0-I8A-8** · 2026-10-10 · tags: process
+  A ticket's test count must be counted from the provided file (`grep -c "^def test_"`), not remembered: two of the first six tickets named the wrong number and the implementers had to stop and ask.
+  Evidence: reports `docs/reports/P0-I8/P0-I8-T04.md` (8 named, 7 in the file) and `P0-I8-T05.md`. Status: active
+
+- **L-P0-I8A-9** · 2026-10-10 · tags: tooling, security
+  Hostile numbers and nesting raise errors other than the ones a parser documents: `yaml.safe_load` raises `RecursionError` (50,000 nested levels) and `ValueError` (integers over 4300 digits); `float(huge_int)` raises `OverflowError`; `json.dumps` of such an integer raises `ValueError`. Wrap the parse, the float conversion and the message formatting, and turn each into the domain error.
+  Evidence: `tests/settings/test_exchange.py::test_a_file_that_breaks_the_yaml_reader_is_a_document_error`, `packages/tl-core/tests/test_settings_values.py::test_a_number_too_large_for_a_float_is_out_of_range_not_an_error`. Status: active
+- **L-P0-I8B-14** · 2026-10-11 · tags: ledger, cli, process
+  Reading the ledger "once at attach" is not free for SQLite: opening a missing file creates it, so the CLI root callback (it runs before `tl archive` and `tl backup` decide the ledger is missing) made
+  two commands report a different error. A hook that touches the database belongs behind an explicit flag (`attach(prime=True)`), set only where the ledger is known to exist, and the full suite of every
+  package a change reaches is the check that finds it (L-P0-I8B-9).
+  Evidence: `test_seal_without_a_key_or_a_ledger_exits_1`, `test_a_missing_ledger_exits_1_without_creating_it`; `tests/extypes/test_extension_settings.py::test_attach_reads_the_ledger_only_when_asked_to_prime`. Status: active
 - **L-P0-I6C-12** · 2026-10-10 · tags: tests, process
   A check that fails only on an empty log still passes a run in which the interesting actor did nothing: swallowing every refusal (a budget, a bad argument) in the actor and asserting only what
   was logged made "the assistant proposed nothing" green. Tell the assertion which actors are enabled and bound to act (`Expected`), narrow what an actor may shrug off to the one benign refusal, and
@@ -1042,3 +1145,11 @@ test or a generated artefact already enforces, or narrative history (that belong
   until a migration drops it (`DROP INDEX ux_cur_feed_items_open_scope`; a migration is a human gate). To find such a spot, time each statement of one projector over a rebuild (`stmtprof`) and
   look for a statement whose average cost is many times its cost on a small ledger.
   Evidence: `docs/reports/P0-I8-perf.md` rebuild section; `tl_core/projection/feed.py` `_OPEN_CARD_SQL`. Status: active
+
+- **L-P0-I8A-10** · 2026-10-10 · tags: tui, tests
+  `pytest --snapshot-update` rewrites the tracked `snapshot_report.html` at the repository root as well as the `.raw` files: restore it with `git checkout snapshot_report.html` before committing. A new palette command or key map entry changes the palette snapshot (`test_snapshots_links.py::test_command_palette`) and the key map context list in `test_keymap.py`.
+  Evidence: P0-I8-S19 (`git status` after the update). Status: active
+
+- **L-P0-I8A-11** · 2026-10-10 · tags: cli, process
+  Typer prints a command function's whole docstring as its `--help`. A stub docstring that carries implementation steps ("call `list_views(...)` and print `view_line`") stays in the file when the implementer only deletes the STUB paragraph, and then reaches the user. For a CLI ticket, tell the implementer to rewrite each command docstring as user help, and look at `tl <group> <command> --help` before merging.
+  Evidence: `tl config set --help` after the T01 and T02 merges showed unit-of-work instructions; fixed in P0-I8-S20. Status: active

@@ -1,0 +1,77 @@
+id: https://example.org/types/co.acme/SafetyObservation
+name: co_acme_safety_observation
+title: Safety observation (co.acme.SafetyObservation 1.0.0)
+version: 1.0.0
+description: >-
+  A site safety observation: what was seen, where, and how serious it is. A managed extension type (brief 31): the
+  whole body is stored in the ledger as pset values, so every field is filterable.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+  acme: https://example.org/types/co.acme/
+default_prefix: acme
+imports:
+  - linkml:types
+  - throughline/core/extension
+default_range: string
+
+enums:
+  ObservationCategory:
+    description: What kind of observation it is.
+    permissible_values:
+      unsafe_act:
+        description: Something a person did.
+      unsafe_condition:
+        description: Something about the place or the equipment.
+      near_miss:
+        description: Nobody was hurt, but could have been.
+      good_practice:
+        description: Something worth repeating.
+  Severity:
+    description: How serious the observation is.
+    permissible_values:
+      low:
+        description: No action beyond a conversation.
+      medium:
+        description: Needs a corrective action.
+      high:
+        description: Stop work until it is dealt with.
+
+classes:
+  SafetyObservation:
+    is_a: ExtensionRecord
+    description: A safety observation made on site.
+    annotations:
+      tl:storage_mode: managed
+    attributes:
+      observed_on:
+        range: date
+        required: true
+        description: Day it was seen.
+        annotations:
+          tl:index: true
+      category:
+        range: ObservationCategory
+        required: true
+        description: Kind of observation.
+        annotations:
+          tl:index: true
+      severity:
+        range: Severity
+        required: true
+        description: How serious it is.
+        annotations:
+          tl:index: true
+      location:
+        required: true
+        description: Where on site, for example Unit 3 pipe rack.
+        annotations:
+          tl:index: true
+      narrative:
+        description: What was seen, in the observer's words.
+        annotations:
+          tl:kind: text
+      immediate_action:
+        description: What was done on the spot.
+        annotations:
+          tl:kind: text

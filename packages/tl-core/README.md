@@ -49,6 +49,18 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.util`: `utcnow`, `new_ulid` | functions | Clock and id helpers |
 | `tl_core.util.effective_time(dt)`, `current_effective_time()` | context manager, function | Simulated time (FANOUT D5): the ledger adapters stamp `dt` as `effective_at` on events that do not set their own; `recorded_at` and the hash chain are unchanged |
 
+## Settings (`tl_core.settings`, P0-I8 workstream A; brief 30)
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `tl_core.settings.definitions()`, `get_definition`, `register_definitions`, `use_definitions` | functions | The setting definitions: the platform file `schema/settings/platform.yaml` plus keys extension packages register as `<namespace>.<snake_case(TypeName)>.<segment>` (D15; secret keys refused; a platform key wins a listing clash) |
+| `tl_core.settings.resolve`, `resolve_all`, `value_of(conn, key, project=, user=)`, `history`, `diff` | functions | The effective value (default, company, project, user), its origin, `modified_here`, lock, bounds, scheduled changes and `pending_effect`; time-based, from the `cur_setting*` tables. Use `value_of` inside a transaction |
+| `tl_core.settings.set_setting`, `reset_setting`, `lock_setting`, `revert_setting`, `service.change_setting` | functions | Change a layer. Locks and bounds are enforced here and again when resolving; a reason is required for `advanced` and `dangerous` keys and `accept_risk` for `dangerous` ones; secrets are refused; only the latest change at a layer is reverted |
+| `tl_core.settings.export_yaml`, `import_yaml` | functions | One layer as a YAML template; import is all or nothing and refuses aliases, non-JSON values and oversized files |
+| `tl_core.settings.SettingsReader`, `conn_factory_from` | class, function | A cached snapshot with per-key answers that expire at the next scheduled change; invalidated by the bus, with a `max_age_s` for other processes. No global instance: pass it in |
+| `tl_core.settings.views`: `SettingView`, `get_view`, `list_views`, `view_at` | models, functions | A definition next to its effective state, as the CLI, API, MCP and TUI show it |
+| `tl_core.settings.checks.check_egress_entry`, `tl_core.settings.effects.mark_applied` | functions | The allow-list entry rules (nothing too wide, no metadata or link-local, no 6to4, Teredo or NAT64 range); the record that a `restart`, `rebuild` or `reindex` effect was carried out (`setting_effect_applied`, never cleared by a rebuild) |
+| `tl_core.services.settings.ChangeSetting` | command | A setting change as a command, so an agent can propose it (`PROPOSABLE_TOOLS["propose_setting_change"]`); a proposal never carries `accept_risk` |
+
 ## Webhooks (`tl_core.webhooks`, P0-I5 workstream B)
 Outbox, signed delivery and the event catalog. Plan and decisions: `docs/tickets/P0-I5/README-B.md`.
 
@@ -80,6 +92,21 @@ The ledger is sealed into signed, hash-chained segments that do not depend on th
 
 Restore is not here: it inserts events verbatim through `tl_adapters.<dialect>.admin.restore_events` (`tl_adapters.restore.restore_from_archive`). `events.parquet` uses the ledger `events` column names, so the lake can load a segment directly.
 
+## Extension record types (`tl_core.extypes`, P0-I8 workstream B)
+A company adds a record type with a package of files (brief 31, 27.3). Runbook: `docs/runbooks/extension-types.md`. Plan and decisions B1 to B15: `docs/tickets/P0-I8/README-B.md`. `extypes/types.py` is the frozen contract.
+
+| Name | Kind | Purpose |
+|---|---|---|
+| `validate.validate_package`, `describe_package`, `read_settings` | functions | Check a package (layout, `type.lock`, LinkML lint, compile, examples, settings); never raises, every problem is a `TypeIssue` |
+| `compile.compile_type`, `to_package_doc`, `body_schema`, `body_issues` | functions | A package into a `CompiledType` and its pset `PackageDoc`; a body against the compiled class |
+| `lock.compute_lock`, `write_lock`, `content_hash`, `names.parse_type_ref`, `pset_name` | functions | `type.lock` (sha256 per file), type refs and the pset name `co_acme_lift_plan` |
+| `registry.sync`, `scan`, `list_types`, `get_type`, `current_type`, `list_quarantined`, `deprecate`, `deprecate_type` | functions | Idempotent registration with `TypeRegistration.*` events; an edit to a registered version is a reported conflict |
+| `loader.TypeLoader`, `provider.attach`, `LedgerExtensionSource` | classes, function | Verify files against the registered hashes; add registered types to the effective schema (`DirectorySchemaProvider.attach_extensions`); call `attach(factory)` where a process opens its ledger |
+| `service.type_detail`, `summarise`, `prepare_create`, `forms.type_form`, `watch.watch` | functions | What the API, MCP and TUI return for a type; the generated form (`form.yaml` groups); a polling directory watcher |
+| `body.store_body`, `store_record_body`, `create_extension_record`, `read_body`, `load_body`, `recheck_body`, `list_body_quarantine` | functions | Object-backed bodies (`records/<type>/<id>/<sha256>.json`): validated, written once per hash, hash-verified on every read, damaged ones quarantined in `tl_body_quarantine` |
+| `settings_link.refresh`, `refresh_from_ledger`, `clash_issues` | functions | The `settings.yaml` keys of the newest verified version of each usable type, registered in `tl_core.settings.registry` under the type name; a key another owner defines quarantines the package at sync |
+| `errors` | exceptions | `UnknownTypeError`, `TypeNotActiveError`, `Body*Error` (all `ServiceError`) |
+
 ## Depends on / used by
 - Depends on: `tl_schema` (generated DDL, effective schema, conformance), `sqlalchemy` (Core only), `pydantic`, `python-ulid`, `duckdb==1.5.5` (MIT; writes the archive Parquet, imported lazily), `cryptography` (Apache-2.0/BSD; Ed25519).
 - Used by: `tl_adapters`, `tl_cli`, `tl_tui` (embedded client), later `tl_api`, `tl_mcp`.
@@ -103,4 +130,4 @@ Adapters supply connections.
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1. Last interface changes: P0-I6 workstream B (proposals service, `cur_proposals`; `proposals/types.py` is a frozen contract; `docs/tickets/P0-I6/README-B.md`), P0-I4 workstream A (query language and change feed; `docs/tickets/P0-I4/README-A.md`) and workstream B (`tl_core.files`; `files/types.py` is a frozen contract; `docs/tickets/P0-I4/README-B.md`). Before that: P0-I3 (links, numbering, workflow, atomic edit; decisions D1 to D28 in `docs/tickets/P0-I3/README.md`) and P0-I2 workstream A (pset services; `docs/tickets/P0-I2/README-A.md`). Rebuild all projections together (`docs/runbooks/rebuild-projections.md`). Known limits: Postgres guard reads need row locks (P0-I5); the roles guard trusts the caller's role list until auth exists; voiding a record does not flag its links stale; `reserve_range` is a stub; the idempotency key is ignored. Archive, verifier and signer (`tl_core.archive`) added in P0-I7 workstream A (`docs/tickets/P0-I7/A-PLAN.md`).
+Introduced in P0-I1. Last interface changes: P0-I8 workstream A (settings: the `tl_core.settings` package, `Setting.Changed` and `Setting.Locked`, the `ChangeSetting` command, delivery-engine policy providers and the feed's two settings; `docs/tickets/P0-I8/README-A.md`), P0-I6 workstream B (proposals service, `cur_proposals`; `proposals/types.py` is a frozen contract; `docs/tickets/P0-I6/README-B.md`), P0-I4 workstream A (query language and change feed; `docs/tickets/P0-I4/README-A.md`) and workstream B (`tl_core.files`; `files/types.py` is a frozen contract; `docs/tickets/P0-I4/README-B.md`). Before that: P0-I3 (links, numbering, workflow, atomic edit; decisions D1 to D28 in `docs/tickets/P0-I3/README.md`) and P0-I2 workstream A (pset services; `docs/tickets/P0-I2/README-A.md`). Rebuild all projections together (`docs/runbooks/rebuild-projections.md`). Known limits: Postgres guard reads need row locks (P0-I5); the roles guard trusts the caller's role list until auth exists; voiding a record does not flag its links stale; `reserve_range` is a stub; the idempotency key is ignored. Archive, verifier and signer (`tl_core.archive`) added in P0-I7 workstream A (`docs/tickets/P0-I7/A-PLAN.md`).

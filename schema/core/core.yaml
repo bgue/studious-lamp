@@ -19,8 +19,10 @@ imports:
   - workflow
   - feed
   - proposals
+  - settings
   - files
   - integration
   - outbox
+  - extension
   - events
 default_range: string

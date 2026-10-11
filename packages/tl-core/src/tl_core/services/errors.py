@@ -204,3 +204,47 @@ class BudgetExceededError(ServiceError): ...  # the agent's proposals for the UT
 
 
 class ProposalDeciderError(ServiceError): ...  # only a person (user:<id>) accepts or rejects
+
+
+# --- settings (P0-I8 workstream A) -------------------------------------------------------------
+
+
+class SettingError(ServiceError): ...  # base class for about:config failures
+
+
+class UnknownSettingError(SettingError): ...  # no definition has this key
+
+
+class InvalidSettingValueError(SettingError): ...  # the value is not of the key's type or range
+
+
+class SettingScopeError(
+    SettingError
+): ...  # layer malformed, not allowed for the key, or a user key
+
+
+class SettingLockedError(SettingError): ...  # the company locked the key for projects
+
+
+class SettingOutOfBoundsError(SettingError): ...  # outside the bounds the company set for projects
+
+
+class ReasonRequiredError(SettingError): ...  # an advanced or dangerous key needs a reason
+
+
+class RiskNotAcceptedError(SettingError): ...  # a dangerous key needs "I accept the risk"
+
+
+class SecretSettingUnavailableError(SettingError): ...  # secrets need a vault (a human gate)
+
+
+class SettingNotLockableError(SettingError): ...  # the definition does not allow a lock or bounds
+
+
+class SettingChangeNotFoundError(SettingError): ...  # no such change in the key's history
+
+
+class SettingsDocumentError(SettingError): ...  # an import file that is not a settings document
+
+
+class SettingRevertNotLatestError(SettingError): ...  # only the newest change of a layer is undone

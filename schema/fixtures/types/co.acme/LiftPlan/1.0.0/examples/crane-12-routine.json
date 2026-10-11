@@ -1,0 +1,9 @@
+{
+  "crane": "CR-12",
+  "crew": ["A. Okafor", "B. Lindqvist"],
+  "exclusion_zone_m": 8.5,
+  "lift_date": "2026-11-03",
+  "load_tonnes": 42.5,
+  "method_statement": "Lift the pump skid from the laydown area to the pad, two tag lines, banksman at the pad.",
+  "risk_class": "medium"
+}

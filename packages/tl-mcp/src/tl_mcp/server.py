@@ -1,8 +1,9 @@
 """``build_server``: the MCP server, its tool schemas and its resources (§11.3, ADR-0005).
 
-Five read tools (``search_records``, ``get_record``, ``get_links``, ``trace``, ``lake_query``),
-four tools that only *propose* a change (``create_record``, ``update_psets``, ``link_records``,
-``transition_workflow``) and ``post_feed``, which posts directly, labelled with the agent
+Six read tools (``search_records``, ``get_record``, ``get_links``, ``trace``, ``get_settings``,
+``lake_query``), five tools that only *propose* a change (``create_record``, ``update_psets``,
+``link_records``, ``transition_workflow``, ``propose_setting_change``) and ``post_feed``, which
+posts directly, labelled with the agent
 (``write_tools.py``). The actor is fixed per server (``--actor`` on the command line); every tool
 and resource calls the shared ``authorize`` hook first (allow-all today). The read bodies live in
 ``tools.py`` and ``resources.py``; this module owns the read tools' names, parameter schemas, the
@@ -21,9 +22,12 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 from tl_api.auth import authorize
 from tl_api.tokens import check_actor
+from tl_core.extypes.provider import attach as attach_extension_types
+from tl_core.files.types import ObjectStore
 from tl_core.query.parser import MAX_QUERY_LENGTH
 from tl_core.services.link_queries import LinkView
 from tl_core.services.link_trace import TraceDirection, TraceNode
+from tl_core.settings.views import SettingView
 from tl_lake import LakeConfig, LakeQueryService
 from tl_lake.guard import MAX_SQL_CHARS
 
@@ -32,6 +36,7 @@ from tl_mcp.context import Authorizer, McpContext, UowFactory
 from tl_mcp.errors import MAX_PART, guarded, resource_name
 from tl_mcp.models import LakeQueryOutput, SearchResult
 from tl_mcp.modes import resolve_tool_modes
+from tl_mcp.type_tools import register_type_tools
 from tl_mcp.write_tools import register_write_tools
 
 INSTRUCTIONS = (
@@ -40,11 +45,14 @@ INSTRUCTIONS = (
     "`status:Review linked:NCR`), then `get_record`, `get_links` and `trace` with a record id or a "
     "key plus its scope. For analytics over everything (counts, trends, joins) use `lake_query`, "
     "read-only SQL over the lake copy; read `tl://lake/schema` for its tables first. You cannot "
-    "change a record: `create_record`, `update_psets`, `link_records` and `transition_workflow` "
-    "each file a proposal that a person reviews and accepts, and they return the pending "
-    "proposal. Each agent has a daily proposal budget. `post_feed` posts to a project feed "
-    "directly, labelled as you. Resources: tl://record/{scope}/{key}, "
-    "tl://schema/{scope}/{record_type}, tl://relations, tl://lake/schema."
+    "change a record or a setting: `create_record`, `update_psets`, `link_records`, "
+    "`transition_workflow` and `propose_setting_change` each file a proposal that a person "
+    "reviews and accepts, and they return the pending proposal; read settings with "
+    "`get_settings`. Each agent has a daily proposal budget. `post_feed` posts to a project feed "
+    "directly, labelled as you. A company can add record types: `list_record_types` and "
+    "`get_record_type` describe them, `get_record_body` reads the stored body of an "
+    "object-backed record. Resources: tl://record/{scope}/{key}, "
+    "tl://schema/{scope}/{record_type}, tl://types, tl://relations, tl://lake/schema."
 )
 
 LAKE_DEFAULT_LIMIT = 100
@@ -87,15 +95,19 @@ def build_server(
     authorize_hook: Authorizer = authorize,
     tool_modes: Mapping[str, str] | None = None,
     lake_dir: str | Path | None = None,
+    object_store: ObjectStore | None = None,
 ) -> MCPServer:
     """An MCP server over ``factory`` acting as ``actor`` (``agent:<id>`` or ``user:<id>``).
 
     ``tool_modes`` maps a record-changing tool to its mode. The only mode is ``propose``; asking for
     ``write`` raises ``ToolModeError`` with the human-gate message (see ``tl_mcp.modes``).
     ``lake_dir`` is the DuckLake directory ``lake_query`` reads (default ``TL_LAKE_DIR``, else
-    ``./dev/data/lake``). The lake is opened per call, so it may not exist yet.
+    ``./dev/data/lake``). The lake is opened per call, so it may not exist yet. ``object_store``
+    holds the bodies of object-backed extension records (default: none, so body reads say so).
+    The registered extension types of ``factory``'s ledger join the effective schema.
     """
     check_actor(actor)
+    attach_extension_types(factory, prime=True)
     modes = resolve_tool_modes(tool_modes)
     lake = LakeQueryService(
         LakeConfig.at(lake_dir),
@@ -103,9 +115,12 @@ def build_server(
         max_limit=LAKE_MAX_LIMIT,
         max_bytes=LAKE_MAX_BYTES,
     )
-    ctx = McpContext(factory=factory, actor=actor, authorize=authorize_hook, lake=lake)
+    ctx = McpContext(
+        factory=factory, actor=actor, authorize=authorize_hook, lake=lake, objects=object_store
+    )
     server = MCPServer("throughline", instructions=INSTRUCTIONS)
     register_write_tools(server, ctx, modes)
+    register_type_tools(server, ctx)
 
     @server.tool(annotations=READ_ONLY)
     def search_records(
@@ -170,6 +185,36 @@ def build_server(
         with guarded(ctx, "trace", resource_name("record", record)):
             return tools.trace_impl(
                 ctx, record=record, scope=scope, depth=depth, direction=direction
+            )
+
+    @server.tool(annotations=READ_ONLY)
+    def get_settings(
+        key: Annotated[
+            str | None,
+            Field(max_length=MAX_PART, description="One setting, e.g. `feed.reactions.enabled`."),
+        ] = None,
+        prefix: Annotated[
+            str | None,
+            Field(max_length=MAX_PART, description="Only settings whose key starts with this."),
+        ] = None,
+        project: Annotated[
+            str | None,
+            Field(max_length=MAX_PART, description="View as this project (an id such as `P123`)."),
+        ] = None,
+        modified_only: Annotated[
+            bool, Field(description="Only settings set at the project (company when none).")
+        ] = False,
+    ) -> list[SettingView]:
+        """Read settings: each with its definition (type, description, risk, effect, scopes) and its
+        effective value, the layer it comes from, whether it is set at the viewed layer, whether the
+        company locked or bounded it, and changes scheduled for later.
+
+        You cannot change a setting: `propose_setting_change` files a proposal that a person
+        accepts. A `dangerous` or `advanced` key needs a reason in the proposal.
+        """
+        with guarded(ctx, "get_settings", resource_name("setting", key or prefix or "*")):
+            return tools.get_settings_impl(
+                ctx, key=key, prefix=prefix, project=project, modified_only=modified_only
             )
 
     @server.tool(annotations=READ_ONLY)

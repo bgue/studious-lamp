@@ -236,3 +236,12 @@ def pg_db(pg_base_url: str | None) -> Iterator[str]:
         yield admin.schema_url(pg_base_url, schema)
     finally:
         admin.drop_schema_namespace(pg_base_url, schema)
+
+
+@pytest.fixture(autouse=True)
+def _forget_extension_type_settings() -> Iterator[None]:
+    """Setting keys that extension types registered (a process-wide registry) end with the test."""
+    yield
+    from tl_core.extypes import settings_link
+
+    settings_link.forget_all()

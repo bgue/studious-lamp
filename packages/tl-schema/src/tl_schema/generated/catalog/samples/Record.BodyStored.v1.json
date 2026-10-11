@@ -1,0 +1,48 @@
+{
+  "envelope": {
+    "data": {
+      "changes": {},
+      "detail": {
+        "pointer": {
+          "hash": "9c1f0e3a5b7d2c4f6a8b0d1e3f5a7c9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c",
+          "schema_hash": "7a3b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b",
+          "size": 412,
+          "uri": "records/co.acme.LiftPlan/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5/9c1f0e3a5b7d2c4f6a8b0d1e3f5a7c9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c.json"
+        },
+        "previous_hash": null,
+        "stream_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"
+      },
+      "links": [],
+      "origin": {
+        "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "key": "47-1234-W012",
+        "type": "core.Record",
+        "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+        "version": 7
+      }
+    },
+    "datacontenttype": "application/json",
+    "dataschema": "https://tl.example.com/schema/events/Record.BodyStored/1",
+    "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+    "source": "https://tl.example.com/c/acme/p/P123",
+    "specversion": "1.0",
+    "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+    "time": "2026-10-09T03:14:07.000000Z",
+    "tlactor": "user:jsmith",
+    "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+    "tlseq": 48211933,
+    "tlstreamversion": 7,
+    "type": "tl.core.Record.BodyStored.v1"
+  },
+  "payload": {
+    "pointer": {
+      "hash": "9c1f0e3a5b7d2c4f6a8b0d1e3f5a7c9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c",
+      "schema_hash": "7a3b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b",
+      "size": 412,
+      "uri": "records/co.acme.LiftPlan/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5/9c1f0e3a5b7d2c4f6a8b0d1e3f5a7c9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c.json"
+    },
+    "previous_hash": null,
+    "stream_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"
+  }
+}

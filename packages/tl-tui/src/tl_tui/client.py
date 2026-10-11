@@ -7,9 +7,12 @@ process; the remote implementation (P0-I4) calls the API. Same methods, same ret
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
+from tl_core.extypes.service import BodyStoredOut, BodyView, TypeDetail, TypeSummary
+from tl_core.extypes.types import TypeStatus
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink
 from tl_core.numbering.detect import KeyChip
@@ -32,6 +35,8 @@ from tl_core.services.links import (
 )
 from tl_core.services.psets import SetPsetValues
 from tl_core.services.workflow import TransitionWorkflow, WorkflowStatus
+from tl_core.settings.types import SettingChange
+from tl_core.settings.views import SettingView
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 
@@ -97,6 +102,46 @@ class ClientInterface(Protocol):
     def form_metadata(self, scope: str, record_type: str) -> FormMetadata: ...
 
     def conformance(self, record_id: str) -> ConformanceReport: ...
+
+    # --- extension record types (P0-I8; brief 31) ---------------------------------------------
+
+    def list_types(self, status: TypeStatus | None = None) -> list[TypeSummary]:
+        """Registered extension type versions by type ref, optionally of one status."""
+        ...
+
+    def get_type(self, type_ref: str) -> TypeDetail:
+        """One version with its generated form (``TypeDetail.form``); ``UnknownTypeError``."""
+        ...
+
+    def create_instance(
+        self,
+        type_name: str,
+        *,
+        scope: str,
+        title: str,
+        key: str | None = None,
+        description: str | None = None,
+        psets: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+        numbering: dict[str, str] | None = None,
+    ) -> CommandResult:
+        """Create an instance: ``psets`` for a managed type, ``body`` for an object-backed one."""
+        ...
+
+    def get_record_body(self, record_id: str) -> BodyView:
+        """The verified body of an object-backed record; a damaged one is quarantined and raises."""
+        ...
+
+    def put_record_body(
+        self,
+        record_id: str,
+        *,
+        scope: str,
+        body: dict[str, Any],
+        expected_version: int | None = None,
+    ) -> BodyStoredOut:
+        """Store a new body; the index fields follow. ``ConcurrencyError`` for a stale version."""
+        ...
 
     # --- links (P0-I3; brief 7) ---------------------------------------------------------------
 
@@ -204,4 +249,81 @@ class ClientInterface(Protocol):
         self, scope: str, sigil: Literal["#", "@"], prefix: str, *, limit: int = 8
     ) -> list[Completion]:
         """Composer candidates after ``#`` (keys, signal tags, codes, topics) or ``@`` (people)."""
+        ...
+
+    # --- settings (P0-I8; brief 30) -----------------------------------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient`` (the remote client passes them
+    # through). A write answers with the key as seen at the layer it changed. Failures raise the
+    # ``tl_core.services.errors`` classes (``UnknownSettingError``, ``SettingLockedError``,
+    # ``InvalidSettingValueError``, ``ReasonRequiredError``, ``RiskNotAcceptedError`` ...); the
+    # actor is the signed-in person.
+
+    def list_settings(
+        self,
+        *,
+        project: str | None = None,
+        user: str | None = None,
+        prefix: str | None = None,
+        modified_only: bool = False,
+    ) -> list[SettingView]:
+        """Every setting with its definition and state, sorted by key."""
+        ...
+
+    def get_setting(
+        self, key: str, *, project: str | None = None, user: str | None = None
+    ) -> SettingView:
+        """One setting with its definition and state."""
+        ...
+
+    def setting_history(self, key: str, *, layer: str | None = None) -> list[SettingChange]:
+        """Every change of the key (at ``layer`` when given), oldest first."""
+        ...
+
+    def set_setting(
+        self,
+        key: str,
+        *,
+        layer: str,
+        value: Any,
+        reason: str | None = None,
+        accept_risk: bool = False,
+        applies_at: datetime | None = None,
+    ) -> SettingView:
+        """Set a key at ``company``, ``project:<id>`` or ``user:<id>``."""
+        ...
+
+    def reset_setting(
+        self,
+        key: str,
+        *,
+        layer: str,
+        reason: str | None = None,
+        accept_risk: bool = False,
+        applies_at: datetime | None = None,
+    ) -> SettingView:
+        """Take the layer's own value away so it inherits again."""
+        ...
+
+    def lock_setting(
+        self,
+        key: str,
+        *,
+        locked: bool,
+        reason: str,
+        bounds: dict[str, Any] | None = None,
+    ) -> SettingView:
+        """Lock a key for projects (or unlock it) and/or bound their values; company layer."""
+        ...
+
+    def revert_setting(
+        self,
+        key: str,
+        *,
+        layer: str,
+        seq: int,
+        reason: str | None = None,
+        accept_risk: bool = False,
+    ) -> SettingView:
+        """Undo the latest change of the key at ``layer`` (``seq`` is that change's number)."""
         ...

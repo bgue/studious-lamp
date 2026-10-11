@@ -20,6 +20,7 @@ from tl_core.ledger import ConcurrencyError
 from tl_core.proposals.types import ProposalStatus, ProposalView
 from tl_core.services import proposals
 from tl_core.services.errors import ServiceError
+from tl_core.settings.values import format_value
 from tl_core.uow import UnitOfWork
 
 app = typer.Typer(
@@ -70,7 +71,9 @@ def queue_line(view: ProposalView) -> str:
     The columns are ``view.proposal_id``, ``view.status``, ``view.agent``, ``view.tool`` and
     ``view.summary``, joined by two spaces.
     """
-    columns = (view.proposal_id, view.status, view.agent, view.tool, view.summary)
+    columns = [view.proposal_id, view.status, view.agent, view.tool, view.summary]
+    if view.setting is not None and view.setting.risk != "normal":
+        columns.append(f"[{view.setting.risk}]")  # a person must see the risk before accepting
     return "  ".join(columns)
 
 
@@ -83,7 +86,10 @@ def show_lines(view: ProposalView) -> list[str]:
     names in ``_HIDDEN_FIELDS`` and the fields whose value is ``None`` (the json is
     ``json.dumps(value, sort_keys=True, ensure_ascii=False)``, so a string keeps its quotes);
     then, only when set, ``decided by <view.decided_by>``, ``reason <view.reason>`` and
-    ``result <view.result_stream_id>``.
+    ``result <view.result_stream_id>``. For a setting change (``view.setting``) the lines
+    ``setting <key> at <layer>``, ``owner <user>`` (a ``user:`` layer only), ``current <value>``,
+    ``proposed <value>`` (``(reset)`` for a reset), ``risk <risk>`` and ``effect <effect>`` come
+    after the ``command`` line and its fields; they are read from the setting's definition.
     """
     lines = [
         f"proposal {view.proposal_id}",
@@ -99,6 +105,18 @@ def show_lines(view: ProposalView) -> list[str]:
         if name in _HIDDEN_FIELDS or value is None:
             continue
         lines.append(f"  {name} {json.dumps(value, sort_keys=True, ensure_ascii=False)}")
+    if view.setting is not None:
+        info = view.setting
+        lines.append(f"setting {info.key} at {info.layer}")
+        if info.owner is not None:
+            lines.append(f"owner {info.owner}")
+        proposed = "(reset)" if info.reset else format_value(info.proposed_value)
+        lines += [
+            f"current {format_value(info.current_value)}",
+            f"proposed {proposed}",
+            f"risk {info.risk}",
+            f"effect {info.effect}",
+        ]
     if view.decided_by is not None:
         lines.append(f"decided by {view.decided_by}")
     if view.reason is not None:
@@ -163,6 +181,10 @@ def accept(
         list[str] | None,
         typer.Option("--role", help="A workflow role you hold (for a transition); repeatable."),
     ] = None,
+    accept_risk: Annotated[
+        bool,
+        typer.Option("--accept-risk", help="I accept the risk (a change to a dangerous setting)."),
+    ] = False,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Run the proposal's command as you. Prints `accepted <id>` and `result <stream id>`.
@@ -177,7 +199,12 @@ def accept(
     db: Path = ctx.obj
     with _service_errors():
         view = proposals.accept_or_fail(
-            _factory(db), proposal_id=proposal_id, by=actor, roles=role or [], source="cli"
+            _factory(db),
+            proposal_id=proposal_id,
+            by=actor,
+            roles=role or [],
+            accept_risk=accept_risk,
+            source="cli",
         )
     if view.status == "failed":
         typer.echo(f"failed {view.proposal_id}")
