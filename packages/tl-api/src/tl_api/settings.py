@@ -8,6 +8,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from tl_adapters.db import DbTarget, as_target
+
 DEFAULT_DB = "./dev/data/tl.db"
 DEFAULT_TOKENS = "./dev/data/tokens.json"
 DEFAULT_HOST = "127.0.0.1"
@@ -20,7 +22,8 @@ DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024**3
 class ApiSettings:
     """What ``create_app`` and the server entry point need to know."""
 
-    db_path: Path = Path(DEFAULT_DB)
+    #: A SQLite ledger file, or a ``postgresql://`` URL (the name predates Postgres support).
+    db_path: DbTarget = Path(DEFAULT_DB)
     tokens_path: Path = Path(DEFAULT_TOKENS)
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
@@ -37,7 +40,7 @@ class ApiSettings:
         """``TL_DB``, ``TL_TOKENS``, ``TL_API_HOST`` and ``TL_API_PORT`` override the defaults."""
         source = os.environ if env is None else env
         return ApiSettings(
-            db_path=Path(source.get("TL_DB", DEFAULT_DB)),
+            db_path=as_target(source.get("TL_DB", DEFAULT_DB)),
             tokens_path=Path(source.get("TL_TOKENS", DEFAULT_TOKENS)),
             host=source.get("TL_API_HOST", DEFAULT_HOST),
             port=int(source.get("TL_API_PORT", str(DEFAULT_PORT))),

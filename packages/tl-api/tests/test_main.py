@@ -40,3 +40,30 @@ def test_a_missing_ledger_is_a_clear_error(
 ) -> None:
     assert server.main(["--db", str(tmp_path / "missing.db")]) == 2
     assert "tl init" in capsys.readouterr().err
+
+
+def test_a_postgres_url_in_the_environment_stays_a_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    url = "postgresql://u:pw@db.example:5432/tl?sslmode=disable"
+    monkeypatch.setenv("TL_DB", url)
+    assert server.parse_args([]).db_path == url
+    assert server.parse_args(["--db", "postgres://x@h/d"]).db_path == "postgres://x@h/d"
+
+
+def test_an_unreachable_postgres_server_is_a_clear_error_without_the_password(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = server.main(["--db", "postgresql://u:hunter2@127.0.0.1:1/tl?sslmode=disable"])
+    err = capsys.readouterr().err
+    assert code == 2
+    assert "cannot reach the database" in err
+    assert "hunter2" not in err
+
+
+@pytest.mark.requires_postgres
+def test_a_postgres_schema_without_a_ledger_says_to_run_init(
+    pg_db: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert server.main(["--db", pg_db]) == 2
+    err = capsys.readouterr().err
+    assert "tl init" in err
+    assert "postgres:postgres@" not in err

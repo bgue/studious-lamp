@@ -1,6 +1,8 @@
 """The server entry point: ``uv run python -m tl_api`` (or ``just serve``).
 
-    --db PATH         SQLite ledger (default TL_DB or ./dev/data/tl.db; create it with `tl init`)
+    --db TARGET       SQLite ledger file or postgresql:// URL (default TL_DB or ./dev/data/tl.db;
+                      create it with `tl init`). Prefer TL_DB for a URL: a command line is visible
+                      in the process list and the URL carries the password.
     --tokens PATH     dev token file (default TL_TOKENS or ./dev/data/tokens.json)
     --host / --port   bind address (default 127.0.0.1:8765)
     --insecure-dev    allow a non-loopback bind; every request logs a warning (ADR-0005)
@@ -19,6 +21,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from tl_adapters.db import as_target, display_target
 from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
 
@@ -31,7 +34,7 @@ log = logging.getLogger("tl_api")
 def parse_args(argv: Sequence[str] | None = None) -> ApiSettings:
     base = ApiSettings.from_env()
     parser = argparse.ArgumentParser(prog="tl-api", description="Throughline dev API server.")
-    parser.add_argument("--db", type=Path, default=base.db_path)
+    parser.add_argument("--db", type=as_target, default=base.db_path)
     parser.add_argument("--tokens", type=Path, default=base.tokens_path)
     parser.add_argument("--host", default=base.host)
     parser.add_argument("--port", type=int, default=base.port)
@@ -107,9 +110,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    if not settings.db_path.exists():
+    from tl_adapters.backend import BackendUnavailableError, ledger_exists
+
+    try:
+        found = ledger_exists(settings.db_path)
+    except (BackendUnavailableError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if not found:
         print(
-            f"error: no ledger at {settings.db_path}; run `uv run tl init` first", file=sys.stderr
+            f"error: no ledger at {display_target(settings.db_path)}; run `uv run tl init` first",
+            file=sys.stderr,
         )
         return 2
 
@@ -122,12 +133,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     from tl_api.app import create_app
-    from tl_api.backend import open_sqlite_backend
+    from tl_api.backend import open_backend
 
     logging.basicConfig(level=logging.INFO)
     if settings.insecure_dev:
         log.warning("--insecure-dev: bound to %s with no real authentication", settings.host)
-    backend = open_sqlite_backend(settings.db_path)
+    try:
+        backend = open_backend(settings.db_path)
+    except (BackendUnavailableError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     try:
         app = create_app(
             backend,
