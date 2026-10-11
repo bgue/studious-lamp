@@ -73,7 +73,7 @@ uv run pytest packages/tl-cli/tests/test_cli_pset.py packages/tl-cli/tests/test_
 uv run pytest packages/tl-cli -q
 ```
 Expected: `just check` clean; 63 passed in the second command (each parity test runs once per
-adapter); the third command passes (SQLite only; it ran 397 passed before this ticket, plus
+adapter); the third command passes (SQLite only; it ran 407 passed before this ticket, plus
 whatever this ticket adds).
 
 ## Tests to add

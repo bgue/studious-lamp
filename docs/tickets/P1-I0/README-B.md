@@ -60,9 +60,9 @@ T31 to T38 swap one command group each from the SQLite-only `open_uow` and a `Pa
 | T30 | `tl record`, `tl events` on either database | haiku | S30, S32, S33 | abandoned | Folded into the base as S34: every other group's tests call `tl record create` (L-P0-I6A-5) |
 | T31 | `tl pset`, `tl wf` | haiku | S34 | ready | |
 | T32 | `tl link`, `tl schema reload` | haiku | S34 | merged | pass on the first review, 616f452, merge af0f841; 40 tests on both adapters |
-| T33 | `tl feed`, `tl proposal` | haiku | S34, T32 (its tests call `tl link`) | ready | |
+| T33 | `tl feed`, `tl proposal` | haiku | S34, T32 (its tests call `tl link`) | merged | pass on the first review, 82ee184, merge 9c3ded0; 56 tests on both adapters; tl-cli 407 |
 | T34 | `tl config` | haiku | S34 | merged | pass on the first review, 89d7e2a, merge 9186ea3; 89 tests on both adapters; report miscounts one annotation (cosmetic) |
-| T35 | `tl types`, `tl types quarantine` | haiku | S34, T34 (its settings test calls `tl config`) | ready | |
+| T35 | `tl types`, `tl types quarantine` | haiku | S34, T34 (its settings test calls `tl config`) | merged | pass on the first review, 238c64b, merge 3069327; 66 tests on both adapters; only deviation: ruff I001 import order |
 | T36 | `tl file` (put, get, ls, reconcile) | haiku | S34 | ready | |
 | T37 | `tl webhook` | haiku | S34 | ready | |
 | T38 | `tl lake`; `tl backup sqlite` refuses Postgres | haiku | S34 | ready | |
