@@ -44,3 +44,4 @@ Purpose: find files whose bytes are missing or damaged in the object store, and 
 - `docs/memory/LEARNINGS.md` L-P0-I4-B4 (the object store has no delete or list in its Protocol), `docs/tickets/P0-I4/README-B.md` D7, D11.
 - `docs/runbooks/rebuild-projections.md` (`cur_files` is a projection; rebuilding it does not touch the store).
 - ADR-0002 (`fs` and `s3` backends).
+- `docs/runbooks/run-on-postgres.md` (the same commands on a Postgres ledger).
