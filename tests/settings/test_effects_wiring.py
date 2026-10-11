@@ -175,3 +175,49 @@ def test_a_failing_hook_rolls_the_whole_rebuild_back(ledger: Path) -> None:
     with open_uow(ledger, readonly=True) as uow:
         view = get_view(uow.conn(), "t.rebuild")
     assert view.effective.value == 3  # the setting rows are still there
+
+
+def test_a_failing_app_startup_exits_non_zero_and_leaves_restart_pending(
+    ledger: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from collections.abc import AsyncIterator
+    from contextlib import asynccontextmanager
+
+    import tl_api.app
+    from fastapi import FastAPI
+
+    @asynccontextmanager
+    async def failing(_: FastAPI) -> AsyncIterator[None]:
+        raise RuntimeError("startup failed")
+        yield
+
+    monkeypatch.setattr(tl_api.app, "create_app", lambda *_a, **_k: FastAPI(lifespan=failing))
+    try:
+        code: object = server.main(serve_args(ledger, tmp_path, free_port()))
+    except SystemExit as exc:  # this uvicorn exits 3 itself when the lifespan fails
+        code = exc.code
+    assert code not in (0, None)
+    assert owed(ledger, "t.restart") == "restart"
+
+
+def test_main_fails_when_run_returns_without_having_started(
+    ledger: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """If uvicorn returns from ``run`` with ``started`` false, ``main`` must not exit 0."""
+
+    class NeverStarted:
+        started = False
+
+        def run(self) -> None:
+            return None
+
+    monkeypatch.setattr(server, "started_server", lambda *_a, **_k: NeverStarted())
+    assert server.main(serve_args(ledger, tmp_path, free_port())) == 3
+    assert "did not start" in capsys.readouterr().err
+    assert owed(ledger, "t.restart") == "restart"
