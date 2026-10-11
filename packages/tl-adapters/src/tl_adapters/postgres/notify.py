@@ -89,6 +89,7 @@ class NotifyListener:
             password=parsed.password,
             startup_params=connect_args.get("startup_params"),
             application_name=APPLICATION_NAME,
+            ssl_context=connect_args.get("ssl_context"),
         )
 
     def _listen(self) -> None:

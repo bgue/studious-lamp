@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import re
+import ssl
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime
@@ -83,14 +84,48 @@ def sqlalchemy_url(url: str) -> str:
     return url
 
 
+SSL_MODES = ("disable", "require", "verify-ca", "verify-full")
+
+
+def ssl_context_for(mode: str) -> ssl.SSLContext | bool:
+    """The pg8000 ``ssl_context`` for a libpq ``sslmode``; ``ValueError`` for any other mode.
+
+    ``disable`` is ``False`` (no TLS). ``require`` encrypts without checking the certificate.
+    ``verify-ca`` checks the certificate chain but not the host name. ``verify-full`` checks both.
+    ``allow`` and ``prefer`` can silently fall back to plain text, so they are refused.
+    """
+    if mode == "disable":
+        return False
+    if mode == "require":
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        return context
+    if mode == "verify-ca":
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        return context
+    if mode == "verify-full":
+        return ssl.create_default_context()
+    raise ValueError(f"unsupported sslmode {mode!r}; use one of {', '.join(SSL_MODES)}")
+
+
 def split_url(url: str) -> tuple[URL, dict[str, Any]]:
     """The SQLAlchemy URL for ``url`` and the driver arguments it implies.
 
     A libpq-style ``?options=-csearch_path=<schema>`` (what ``admin.schema_url`` writes) becomes the
-    startup parameter ``search_path``, because pg8000 does not read ``options``.
+    startup parameter ``search_path``, because pg8000 does not read ``options``. ``?sslmode=`` is
+    mapped by :func:`ssl_context_for` (``disable`` is worth about a quarter of the statement cost
+    on a loopback link, where TLS protects nothing); an unsupported mode raises ``ValueError``.
+    Without ``sslmode`` the driver default is unchanged.
     """
     parsed = make_url(sqlalchemy_url(url))
     connect_args: dict[str, Any] = {}
+    sslmode = parsed.query.get("sslmode")
+    if sslmode is not None:
+        mode = sslmode if isinstance(sslmode, str) else ",".join(sslmode)
+        connect_args["ssl_context"] = ssl_context_for(mode)
+        parsed = parsed.difference_update_query(["sslmode"])
     options = parsed.query.get("options")
     if options is not None:
         joined = options if isinstance(options, str) else " ".join(options)

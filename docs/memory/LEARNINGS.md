@@ -1105,6 +1105,46 @@ test or a generated artefact already enforces, or narrative history (that belong
   printed counts. `just check` stops at its first failing step, so one lint error hides the pyright, codegen, openapi and licence steps; run the
   steps one by one when diagnosing.
   Evidence: T50, T47 and T48 reports. Status: active
+- **L-P0-I8D-1** · 2026-10-10 · tags: env, tooling
+  pg8000 talks TLS to a loopback Postgres by default, and every statement pays for it: a seed of 1,067 events took 13.6 s with TLS and 9.7 s without. The adapter
+  URL now accepts `?sslmode=disable` (the bench datasets use it on loopback). Projection work on Postgres is statement-bound at about 0.5 ms per statement
+  (the projectors run 17 statements for a new record and about 15 for a link event, before the ledger's three), so a bulk load or rebuild of 100k records takes about an hour there against 8 minutes on SQLite: count statements
+  before optimising anything else.
+  Evidence: `docs/reports/P0-I8-D.md`; `tests/bench/bench_data.py`; `packages/tl-adapters/tests/test_postgres_url.py`. Status: active
+- **L-P0-I8D-2** · 2026-10-10 · tags: schema, tests
+  An `ORDER BY (col IS NULL), col, id` cannot use an index on `col`, and a top-N sort over 100k rows costs 40 ms or 280 ms on SQLite depending on the order the rows
+  arrive (a descending sort of keys inserted ascending is the worst case, and it is the common one: newest first). Fixes that held on both engines: drop the NULL term for NOT NULL
+  columns, and index the exact expression `(col IS NULL OR col = '')` for text (`tl:ix_<name>: "scope, voided, empty_last(key), key desc, id"`). Check a plan with
+  `EXPLAIN QUERY PLAN` (`tests/query/test_query_plans.py`) and never trust a timing of the dataset's lucky order.
+  Evidence: `docs/reports/P0-I8-perf.md` sort table; S61 and S62 commits. Status: active
+- **L-P0-I8D-3** · 2026-10-10 · tags: schema, tests
+  Do not turn a negated pset or link predicate into `NOT IN (SELECT ...)`: Postgres plans it as a hashed SubPlan only while the set fits `work_mem`, otherwise it rescans per row.
+  Positive predicates compile to `id IN (set)` built from a covering index (150 ms to 0.2 ms for a one-record pset filter at 100k rows on SQLite); negations stay correlated `NOT EXISTS`.
+  `cur_link_counts` looks like the cheap answer to `count(linked)` but the query tests seed `cur_links` alone and the contract says `cur_links`: it was tried and reverted.
+  Evidence: `tl_core/query/compiler.py`; `tests/query/test_run_query.py` (four failures with the shortcut). Status: active
+- **L-P0-I8D-4** · 2026-10-10 · tags: tests, process
+  A bench finds real defects: `list_records(order_by=[("created_at", ...)])` raised `invalid input syntax for type timestamp with time zone: ""` on Postgres because the
+  "empty text sorts last" rule (`col IS NULL OR col = ''`) was applied to a TIMESTAMPTZ column; the fix first limited it to text columns, and S62 then dropped the NULL term
+  altogether for the NOT NULL non-text columns. No parity test ordered by a timestamp. When a rule is written for "text columns", derive the set from the DDL, not from a list.
+  Evidence: `tests/services/test_record_queries_ui.py::test_order_by_timestamp_columns_works_on_both_adapters`. Status: active
+- **L-P0-I8D-5** · 2026-10-10 · tags: process, tests
+  A shared container makes timings 1.5 to 3 times worse and noisy (load average 3 to 10 on 4 CPUs while other agents run). Store the load average before every round with the result,
+  keep the p95 of each round next to the pooled p95, and compare a fix against a baseline taken at a similar load; one-call `min of 3` timings (`explore.py` style) are the right tool for deciding whether a change helps, the harness for the report.
+  Evidence: `tests/bench/bench_stats.py`; baseline file `dev/data/bench/results/*baseline-sqlite*`. Status: active
+- **L-P0-I8D-6** · 2026-10-10 · tags: tests, process
+  A performance change must not change query results, including for data the tests never build. S62 joined the record at the other end of a link only when the type or a nested
+  condition looked at it, so a link to a missing record began to count; the review found it with a differential run of about 16k queries, old compiler against new. Before a
+  rewrite of a compiler or projector, keep the old version in the scratchpad, diff results over generated queries and edge data (dangling links, empty and NULL values), and pin each edge in a test
+  (`tests/query/test_dangling_links.py`).
+  Evidence: review of S61/S62; `tests/query/test_dangling_links.py` fails on 9f96286 and passes now. Status: active
+- **L-P0-I8D-7** · 2026-10-10 · tags: ledger, schema
+  On Postgres, state that one transaction updates over and over under one index key gets slower with every update: dead row versions stay in the index until the transaction ends, and a
+  unique check or a lookup on that key reads all of them. The feed projector kept "the open card of a scope" as a unique `open_scope` (one hot key), a rebuild is one transaction, so
+  the feed took 418 s of a 570 s rebuild of 10k records and would take hours at 100k. Fix: find the open card as the newest card of the scope through `(scope, first_seq)`, with
+  `first_seq < :seq` so the scan starts at the event and skips rows the rebuild's own reset deleted; no unique index (229 s for the same rebuild). Existing databases keep the old unique index
+  until a migration drops it (`DROP INDEX ux_cur_feed_items_open_scope`; a migration is a human gate). To find such a spot, time each statement of one projector over a rebuild (`stmtprof`) and
+  look for a statement whose average cost is many times its cost on a small ledger.
+  Evidence: `docs/reports/P0-I8-perf.md` rebuild section; `tl_core/projection/feed.py` `_OPEN_CARD_SQL`. Status: active
 
 - **L-P0-I8A-10** · 2026-10-10 · tags: tui, tests
   `pytest --snapshot-update` rewrites the tracked `snapshot_report.html` at the repository root as well as the `.raw` files: restore it with `git checkout snapshot_report.html` before committing. A new palette command or key map entry changes the palette snapshot (`test_snapshots_links.py::test_command_palette`) and the key map context list in `test_keymap.py`.
@@ -1113,3 +1153,9 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P0-I8A-11** · 2026-10-10 · tags: cli, process
   Typer prints a command function's whole docstring as its `--help`. A stub docstring that carries implementation steps ("call `list_views(...)` and print `view_line`") stays in the file when the implementer only deletes the STUB paragraph, and then reaches the user. For a CLI ticket, tell the implementer to rewrite each command docstring as user help, and look at `tl <group> <command> --help` before merging.
   Evidence: `tl config set --help` after the T01 and T02 merges showed unit-of-work instructions; fixed in P0-I8-S20. Status: active
+- **L-P0-I8D-8** · 2026-10-11 · tags: tests, tooling
+  `PsetProjector._update_promoted` reads the column list of `cur_core_record` (`SELECT * ... WHERE 1 = 0`) on every apply, even when no promoted columns exist, so a new record costs two
+  statements, not one (about 0.5 ms on Postgres). A statement budget of one needs that list cached per transaction or skipped; budgets in `test_*_projector_statements.py` allow for it.
+  The same ticket batch showed that a bound-parameter naming scheme must be written in the ticket (a sketch and a parenthetical disagreed) and that scratch scripts against Postgres must use `tl_adapters.db.make_engine`,
+  not `sqlalchemy.create_engine("postgresql://...")` (no psycopg here).
+  Evidence: `docs/reports/P0-I8/P0-I8-T61.md` Learnings. Status: active

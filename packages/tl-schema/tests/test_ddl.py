@@ -117,7 +117,12 @@ def test_golden_files(outputs: dict[str, str], dialect: str) -> None:
 
 
 def test_sqlite_reproduces_spec_section_9(outputs: dict[str, str]) -> None:
-    generated = _normalise(outputs["ddl/sqlite/cur_core_record.sql"])
+    # Section 9 shows the table and its unique index; the performance indexes (P0-I8 D13) are
+    # extra CREATE INDEX statements after them.
+    statements = outputs["ddl/sqlite/cur_core_record.sql"].strip().split("\n\n")
+    kept = [s for s in statements if not s.startswith("CREATE INDEX")]
+    assert len(kept) == 2 and len(statements) > 2
+    generated = _normalise("\n\n".join(kept))
     assert generated == _normalise(SPEC_SECTION_9_SQLITE)
 
 
@@ -261,3 +266,87 @@ def test_missing_module_annotation_raises(tmp_path: Path) -> None:
     view = SchemaView(str(path))
     with pytest.raises(ddl.DdlError, match="tl:module"):
         ddl.table_name(view, "W")
+
+
+def test_class_index_annotations_become_composite_and_expression_indexes(tmp_path: Path) -> None:
+    body = """
+classes:
+  Widget:
+    annotations:
+      tl:current_state: true
+      tl:ix_scope_created:
+        value: "scope, voided, created_at, id"
+      tl:ix_name_last:
+        value: "scope, empty_last(name), name desc, id"
+    attributes:
+      id:
+        identifier: true
+      scope:
+        required: true
+      name:
+      voided:
+        range: boolean
+        required: true
+      created_at:
+        range: datetime
+        required: true
+"""
+    for dialect in ("sqlite", "postgres"):
+        sql = ddl.generate_from(_schema(tmp_path, body))[f"ddl/{dialect}/cur_demo_widget.sql"]
+        assert (
+            "CREATE INDEX IF NOT EXISTS ix_cur_demo_widget_scope_created "
+            "ON cur_demo_widget (scope, voided, created_at, id);"
+        ) in sql
+        assert (
+            "CREATE INDEX IF NOT EXISTS ix_cur_demo_widget_name_last ON cur_demo_widget "
+            "(scope, (name IS NULL OR name = ''), name DESC, id);"
+        ) in sql
+        # names sort, so the output does not depend on the order of the annotations
+        assert sql.index("ix_cur_demo_widget_name_last") < sql.index("ix_cur_demo_widget_scope")
+
+
+@pytest.mark.parametrize(
+    "spec",
+    ["scope, nosuch", "empty_last(created_at)", "scope sideways", "scope; DROP TABLE x", "id,,"],
+)
+def test_a_bad_index_term_raises(tmp_path: Path, spec: str) -> None:
+    body = f"""
+classes:
+  Widget:
+    annotations:
+      tl:current_state: true
+      tl:ix_bad:
+        value: "{spec}"
+    attributes:
+      id:
+        identifier: true
+      scope:
+      created_at:
+        range: datetime
+"""
+    with pytest.raises(ddl.DdlError):
+        ddl.generate_from(_schema(tmp_path, body))
+
+
+def test_an_index_name_over_63_characters_or_equal_to_a_column_index_raises(
+    tmp_path: Path,
+) -> None:
+    long_name = "a" * 60
+    for index_lines, message in (
+        (f"      tl:ix_{long_name}:\n        value: scope\n", "63"),
+        ("      tl:ix_scope:\n        value: scope\n", "single-column"),
+    ):
+        body = f"""
+classes:
+  Widget:
+    annotations:
+      tl:current_state: true
+{index_lines}    attributes:
+      id:
+        identifier: true
+      scope:
+        annotations:
+          tl:indexed: true
+"""
+        with pytest.raises(ddl.DdlError, match=message):
+            ddl.generate_from(_schema(tmp_path, body))

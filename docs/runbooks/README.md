@@ -20,4 +20,4 @@ Operational procedures, one file per alert or recovery path (§24.6). Template: 
 - `extension-types.md` — register, change and retire a company record type; repair a record whose stored body failed verification (P0-I8).
 - `object-store-reconciliation.md` — compare the ledger's file hashes with the object store (P0-I4).
 - `postgres-local-setup.md` — start Postgres, run the parity suite, clean up after a killed run (P0-I5).
-
+- `performance-benches.md` — seed 100k records, run the §15 benches on SQLite and Postgres, read the numbers (P0-I8).

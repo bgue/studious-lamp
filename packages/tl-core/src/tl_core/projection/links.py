@@ -27,27 +27,26 @@ _INSERT_LINK_SQL = text(
     ":verified_at, :created_by, :created_at, :updated_at, :version, :last_seq)"
 )
 _LOAD_LINK_SQL = text("SELECT status, from_id, to_id FROM cur_links WHERE link_id = :link_id")
-_RECORD_SCOPE_SQL = text("SELECT scope FROM cur_core_record WHERE id = :id")
-_COUNTS_SQL = text(
-    "SELECT "
-    "COALESCE(SUM(CASE WHEN status = 'active' AND from_id = :id THEN 1 ELSE 0 END), 0) "
-    "AS active_out, "
-    "COALESCE(SUM(CASE WHEN status = 'active' AND to_id = :id THEN 1 ELSE 0 END), 0) "
-    "AS active_in, "
-    "COALESCE(SUM(CASE WHEN status = 'stale' THEN 1 ELSE 0 END), 0) AS stale, "
-    "COALESCE(SUM(CASE WHEN status = 'broken' THEN 1 ELSE 0 END), 0) AS broken, "
-    "COALESCE(SUM(CASE WHEN status = 'suggested' THEN 1 ELSE 0 END), 0) AS suggested "
-    "FROM cur_links WHERE from_id = :id OR to_id = :id"
-)
-_UPDATE_COUNTS_SQL = text(
-    "UPDATE cur_link_counts SET scope = :scope, active_out = :active_out, "
-    "active_in = :active_in, stale = :stale, broken = :broken, suggested = :suggested, "
-    "last_seq = :last_seq WHERE record_id = :record_id"
-)
-_INSERT_COUNTS_SQL = text(
+# One statement refreshes the counts row of one record end. The aggregate has no GROUP BY, so it
+# returns exactly one row even when no link matches: the first event for a record inserts, later
+# ones hit ON CONFLICT and update. The WHERE clause is required (SQLite parses INSERT ... SELECT ...
+# ON CONFLICT ambiguously without it). Every value is a bound parameter.
+_UPSERT_COUNTS_SQL = text(
     "INSERT INTO cur_link_counts (record_id, scope, active_out, active_in, stale, broken, "
-    "suggested, last_seq) VALUES (:record_id, :scope, :active_out, :active_in, :stale, "
-    ":broken, :suggested, :last_seq)"
+    "suggested, last_seq) "
+    "SELECT :record_id, "
+    "COALESCE((SELECT scope FROM cur_core_record WHERE id = :record_id), :scope), "
+    "COALESCE(SUM(CASE WHEN status = 'active' AND from_id = :record_id THEN 1 ELSE 0 END), 0), "
+    "COALESCE(SUM(CASE WHEN status = 'active' AND to_id = :record_id THEN 1 ELSE 0 END), 0), "
+    "COALESCE(SUM(CASE WHEN status = 'stale' THEN 1 ELSE 0 END), 0), "
+    "COALESCE(SUM(CASE WHEN status = 'broken' THEN 1 ELSE 0 END), 0), "
+    "COALESCE(SUM(CASE WHEN status = 'suggested' THEN 1 ELSE 0 END), 0), "
+    ":last_seq "
+    "FROM cur_links WHERE from_id = :record_id OR to_id = :record_id "
+    "ON CONFLICT (record_id) DO UPDATE SET scope = excluded.scope, "
+    "active_out = excluded.active_out, active_in = excluded.active_in, "
+    "stale = excluded.stale, broken = excluded.broken, suggested = excluded.suggested, "
+    "last_seq = excluded.last_seq"
 )
 
 
@@ -140,18 +139,7 @@ class LinkProjector:
 
     @staticmethod
     def _refresh_counts(conn: Connection, record_id: str, event: Event) -> None:
-        counts = conn.execute(_COUNTS_SQL, {"id": record_id}).one()
-        scope_row = conn.execute(_RECORD_SCOPE_SQL, {"id": record_id}).first()
-        params: dict[str, Any] = {
-            "record_id": record_id,
-            "scope": scope_row.scope if scope_row is not None else event.scope,
-            "active_out": counts.active_out,
-            "active_in": counts.active_in,
-            "stale": counts.stale,
-            "broken": counts.broken,
-            "suggested": counts.suggested,
-            "last_seq": event.seq,
-        }
-        updated = conn.execute(_UPDATE_COUNTS_SQL, params).rowcount
-        if updated == 0:
-            conn.execute(_INSERT_COUNTS_SQL, params)
+        conn.execute(
+            _UPSERT_COUNTS_SQL,
+            {"record_id": record_id, "scope": event.scope, "last_seq": event.seq},
+        )

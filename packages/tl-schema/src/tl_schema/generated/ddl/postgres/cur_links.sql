@@ -25,3 +25,7 @@ CREATE INDEX IF NOT EXISTS ix_cur_links_scope ON cur_links (scope);
 CREATE INDEX IF NOT EXISTS ix_cur_links_from_id ON cur_links (from_id);
 
 CREATE INDEX IF NOT EXISTS ix_cur_links_to_id ON cur_links (to_id);
+
+CREATE INDEX IF NOT EXISTS ix_cur_links_relation_status_from ON cur_links (relation, status, from_id, to_id);
+
+CREATE INDEX IF NOT EXISTS ix_cur_links_relation_status_to ON cur_links (relation, status, to_id, from_id);

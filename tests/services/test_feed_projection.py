@@ -9,7 +9,6 @@ from typing import Any
 
 import pytest
 from sqlalchemy import Engine, text
-from sqlalchemy.exc import IntegrityError
 from tl_adapters._unit import BaseUnitOfWork
 from tl_adapters.db import (
     DbTarget,
@@ -213,16 +212,18 @@ def test_card_subjects_are_recorded_once_per_record(world: World) -> None:
     assert [(r["kind"], r["record_id"]) for r in rows] == [("record", rec)]
 
 
-def test_a_scope_cannot_have_two_open_cards(world: World) -> None:
-    world.create()
-    with pytest.raises(IntegrityError), world.uow() as uow:
-        uow.conn().execute(
-            text(
-                "INSERT INTO cur_feed_items (item_id, item_type, scope, actor, occurred_at, seq, "
-                "summary, open_scope) VALUES ('x', 'card', :s, 'a', :at, 1, 's', :s)"
-            ),
-            {"s": P1, "at": T0.isoformat()},
-        )
+def test_the_open_card_is_always_the_newest_card_of_the_scope(world: World) -> None:
+    """Not a unique key any more (it made a rebuild quadratic on Postgres): the projector keeps
+    the rule, and the lookup of the open card relies on it."""
+    rec = world.create(actor="user:jo")
+    world.create(actor="user:al")
+    world.update(rec, 1, actor="user:al")
+    world.post("a post closes the open card #hold", actor="user:jo")
+    world.create(actor="user:jo")
+    cards = world.cards()
+    opened = [c for c in cards if c["open_scope"] is not None]
+    assert len(opened) == 1
+    assert opened[0]["first_seq"] == max(c["first_seq"] for c in cards)
 
 
 def test_a_post_row_and_its_tag_rows(world: World) -> None:
