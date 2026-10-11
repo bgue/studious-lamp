@@ -1030,3 +1030,10 @@ Entries appear in their original order of appending.
   The same ticket batch showed that a bound-parameter naming scheme must be written in the ticket (a sketch and a parenthetical disagreed) and that scratch scripts against Postgres must use `tl_adapters.db.make_engine`,
   not `sqlalchemy.create_engine("postgresql://...")` (no psycopg here).
   Evidence: `docs/reports/P0-I8/P0-I8-T61.md` Learnings. Status: archived (phase 0, still true)
+
+- **L-P0-I5-O4** · 2026-10-10 · tags: process, budget
+  At about 6 h into the run, with 7 supervisors and reviewers plus 3 workflows in flight, the account hit its usage
+  limit. Every running subagent died with HTTP 429 ("session limit, resets <time>"). After the reset, workflows resume
+  as after a restart (L-P0-I5-O3): finished calls replay from the journal. Lesson: cap concurrency at about 3 or 4
+  active supervisors or workflows, and finish increments on the critical path before starting later ones.
+  Evidence: P0-I4, P0-I5 and P0-I7 batches failed together at 00:10 UTC reset notice. Status: superseded by L-P0-I8-O1

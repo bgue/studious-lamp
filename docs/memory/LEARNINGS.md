@@ -20,7 +20,7 @@ Load the `throughline-docs` skill for the full rules.
   Evidence: <ticket, report, command output, or file:line>. Status: active
 ```
 
-**Status values:** `active`; `superseded by L-…`; `promoted to <ADR-nnnn | AGENTS.md | skill | build-spec file>`.
+**Status values:** `active`; `superseded by L-…`; `promoted to <ADR-nnnn | AGENTS.md | skill | build-spec file>`; `archived (phase <n>, still true)` for a fact that holds but only mattered to finished work.
 Entries are never deleted. At each phase exit the orchestrator marks superseded and promoted entries and moves
 them to `docs/memory/archive/<phase>.md`, keeping the *Active* list under about 150 lines.
 
@@ -140,12 +140,6 @@ test or a generated artefact already enforces, or narrative history (that belong
   re-creates its own detached worktree. Resume reviewers and supervisors with SendMessage, and tell them their
   background test runs are gone.
   Evidence: second restart during P0-I4/I5; resumed three workflows and four agents. Status: active
-- **L-P0-I5-O4** · 2026-10-10 · tags: process, budget
-  At about 6 h into the run, with 7 supervisors and reviewers plus 3 workflows in flight, the account hit its usage
-  limit. Every running subagent died with HTTP 429 ("session limit, resets <time>"). After the reset, workflows resume
-  as after a restart (L-P0-I5-O3): finished calls replay from the journal. Lesson: cap concurrency at about 3 or 4
-  active supervisors or workflows, and finish increments on the critical path before starting later ones.
-  Evidence: P0-I4, P0-I5 and P0-I7 batches failed together at 00:10 UTC reset notice. Status: active
 - **L-P0-I5-O5** · 2026-10-10 · tags: process, worktrees
   Never bulk-remove `/home/user/wt/review-*` or ticket worktrees while any ticket-batch workflow is running. Reviewers
   work in those directories, and removing one mid-review breaks that review. Clean up only the worktrees of workflows
@@ -185,6 +179,18 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P0-I8E-3** · 2026-10-11 · tags: process
   A brief bullet that no increment plan names gets built by nobody: "upgrade tooling" (§16 ops baseline) and "comments" appear in no ticket of `05-phase0-plan.md`, and the audit at the end found them missing or replaced. At the start of a phase map every bullet and exit clause to an increment ticket, and check the map at each increment report. Likewise a CI workflow that is never pushed is never tested: the repository had no workflow run after eight increments.
   Evidence: `docs/reports/PHASE-0-AUDIT.md` bullets 3f and 8; GitHub Actions run list for the repository (empty, 2026-10-11). Status: active
+
+- **L-P0-I8-O1** · 2026-10-11 · tags: process, budget
+  The run hit the account usage limit four times. Each hit followed a stretch with about 8 or more agents active at once
+  (3+ supervisors, 2+ ticket workflows of 3, 2 reviewers). After capping at about 3 active agents or workflows the run
+  finished without another hit. Recovery each time: read the journal, remove implementer worktrees with no result,
+  resume workflows by run id, resume supervisors with a message.
+  Evidence: `docs/reports/STATUS.md` timeline; supersedes the 3–4 cap of L-P0-I5-O4. Status: active
+
+- **L-P0-I8-O2** · 2026-10-11 · tags: process
+  Read the run's scope and stop conditions from `docs/build-spec/KICKOFF.md` at every phase boundary, not from a summary
+  or memory: a compacted summary recorded "to the end of Phase 5" while the file said "until the end of Phase 0".
+  Evidence: `docs/build-spec/KICKOFF.md` MISSION. Status: active
 
 ### security: Domain: security rules for services that take client input.
 
