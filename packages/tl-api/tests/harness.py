@@ -13,11 +13,12 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from tl_adapters.db import DbTarget, make_uow_factory
 from tl_adapters.objectstore.fs import FsObjectStore
 from tl_adapters.sqlite.factory import SqliteUowFactory
 from tl_adapters.sqlite.uow import create_schema
@@ -45,7 +46,7 @@ class LiveServer:
 class Harness:
     root: Path
     db: Path
-    backend: SqliteUowFactory
+    backend: SqliteUowFactory  # on Postgres: the same call shape, typed as this (see build)
     app: FastAPI
     service: FileService
     store: FsObjectStore
@@ -55,11 +56,26 @@ class Harness:
 
     @staticmethod
     def build(
-        root: Path, *, scan_inline: bool = True, files: bool = True, scanner: Scanner | None = None
+        root: Path,
+        *,
+        scan_inline: bool = True,
+        files: bool = True,
+        scanner: Scanner | None = None,
+        target: DbTarget | None = None,
     ) -> Harness:
+        """A harness over a new SQLite file, or over ``target`` (a database the caller created).
+
+        ``target`` is what the parity fixture ``db`` returns: a SQLite file or a Postgres schema,
+        with the default schema in place. ``Harness.db`` is then only the settings' path.
+        """
         db = root / "tl.db"
-        create_schema(db)
-        backend = SqliteUowFactory(db)
+        if target is None:
+            create_schema(db)
+            backend = SqliteUowFactory(db)
+        else:
+            # PostgresUowFactory has the same call shape; only the app's `Backend` protocol (which
+            # asks for `close`) tells them apart, and the API does not serve Postgres yet.
+            backend = cast(SqliteUowFactory, make_uow_factory(target))
         tokens_path = root / "tokens.json"
         tokens = {ALICE: add_token(tokens_path, ALICE), BOB: add_token(tokens_path, BOB)}
         store = FsObjectStore(root / "objects", secret=b"k")
@@ -83,7 +99,7 @@ class Harness:
     def close(self) -> None:
         for client in self._clients:
             client.close()
-        self.backend.close()
+        self.backend.dispose()
 
     # --- calling the app -----------------------------------------------------------------
 

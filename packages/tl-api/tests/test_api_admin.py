@@ -65,6 +65,12 @@ class Cast:
 
 
 @pytest.fixture
+def harness(parity_harness: Harness) -> Harness:
+    """These tests run on every adapter (`just test-parity`): the ledger is the parity `db`."""
+    return parity_harness
+
+
+@pytest.fixture
 def cast(harness: Harness) -> Cast:
     return Cast(harness)
 

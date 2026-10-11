@@ -26,6 +26,12 @@ BASE = "http://testserver"
 
 
 @pytest.fixture
+def harness(parity_harness: Harness) -> Harness:
+    """These tests run on every adapter (`just test-parity`): the ledger is the parity `db`."""
+    return parity_harness
+
+
+@pytest.fixture
 def admin(harness: Harness) -> ApiClient:
     with harness.backend() as uow:
         for name, roles in (("boss", ["admin"]), ("bob", ["user"])):
