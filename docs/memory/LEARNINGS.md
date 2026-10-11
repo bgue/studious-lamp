@@ -1046,3 +1046,19 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P0-I8A-11** · 2026-10-10 · tags: cli, process
   Typer prints a command function's whole docstring as its `--help`. A stub docstring that carries implementation steps ("call `list_views(...)` and print `view_line`") stays in the file when the implementer only deletes the STUB paragraph, and then reaches the user. For a CLI ticket, tell the implementer to rewrite each command docstring as user help, and look at `tl <group> <command> --help` before merging.
   Evidence: `tl config set --help` after the T01 and T02 merges showed unit-of-work instructions; fixed in P0-I8-S20. Status: active
+
+- **L-P0-I8E-1** · 2026-10-11 · tags: tui, tests
+  Two Textual apps run side by side in one asyncio loop: `async with app_a.run_test() as a, app_b.run_test() as b:` gives two TUIs against one server, which is how the exit demo shows live updates between two clients. If the body raises, the pending live-refresh handlers hit a closed screen stack and `run_test` re-raises their `ScreenStackError`, which hides the real error; wrap the body, print its traceback, then exit non-zero.
+  Evidence: `dev/demos/p0_i8_demo.py` (`main` and `phases`); first demo runs failed with `NoMatches: #grid` / `No screens on stack` that came from a wrong keyword in a settings call. Status: active
+
+- **L-P0-I8E-2** · 2026-10-11 · tags: ledger, tests
+  `tl restore --from-archive A --db postgresql://...` restores a SQLite ledger's archive into Postgres, so a dialect-equality check needs no new tool: create a scratch database with `tl_adapters.postgres.admin.create_database` (never `tl_test`), restore, compare events and every `cur_*` table through `make_engine` and `read_tx`, and drop the database in a `finally`. `tl archive seal` prints `archive is at seq N` and a `manifest_sha256` line; pass both to `tl archive verify --expect-last-seq --expect-manifest` so truncation is caught too.
+  Evidence: `dev/demos/p0_i8_demo.py::restore_into_postgres`, `clause_restore`. Status: active
+
+- **L-P0-I8E-3** · 2026-10-11 · tags: process
+  A brief bullet that no increment plan names gets built by nobody: "upgrade tooling" (§16 ops baseline) and "comments" appear in no ticket of `05-phase0-plan.md`, and the audit at the end found them missing or replaced. At the start of a phase map every bullet and exit clause to an increment ticket, and check the map at each increment report. Likewise a CI workflow that is never pushed is never tested: the repository had no workflow run after eight increments.
+  Evidence: `docs/reports/PHASE-0-AUDIT.md` bullets 3f and 8; GitHub Actions run list for the repository (empty, 2026-10-11). Status: active
+
+- **L-P0-I8E-4** · 2026-10-11 · tags: tests, api
+  A link is its own stream, so `AddLink` does not change the record's version; a `SetPsetValues` that follows a `CreateRecord` takes the version the create returned. `ReactToPost` takes `post_id` (not `stream_id`) and the reactions are `ack`, `+1` and `resolved`. A receiver that must prove a signature independently of our code needs only HMAC-SHA256 over `<id>.<timestamp>.<body>` with the base64 key after `whsec_`.
+  Evidence: the exit demo's `clause_api`, `clause_settings` and `ExternalReceiver`. Status: active
