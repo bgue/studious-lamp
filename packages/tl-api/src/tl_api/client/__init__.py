@@ -14,9 +14,12 @@ from tl_api.client.links import LinksApi
 from tl_api.client.proposals import ProposalsApi
 from tl_api.client.records import RecordsApi
 from tl_api.client.settings import SettingsApi
+from tl_api.client.types_api import TypesApi
 
 
-class ApiClient(RecordsApi, LinksApi, FilesApi, EventsApi, FeedApi, ProposalsApi, SettingsApi):
+class ApiClient(
+    RecordsApi, LinksApi, FilesApi, EventsApi, FeedApi, ProposalsApi, SettingsApi, TypesApi
+):
     """One connection, every group of methods."""
 
 

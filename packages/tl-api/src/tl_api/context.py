@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import Request
 from tl_core.files.service import FileService
+from tl_core.files.types import ObjectStore
 
 from tl_api.backend import Backend
 from tl_api.settings import ApiSettings
@@ -25,6 +26,7 @@ class ApiContext:
     feed: FeedHub
     settings: ApiSettings
     files: FileService | None = None  # None: file routes answer 503 ``unavailable``
+    objects: ObjectStore | None = None  # None: extension type body routes answer 503
 
 
 def get_ctx(request: Request) -> ApiContext:

@@ -23,6 +23,8 @@ The MCP server for AI agents: read tools and resources over the same query langu
 | resource `tl://record/{scope}/{key}` | resource | JSON: the record and its links |
 | resource `tl://schema/{scope}/{record_type}` | resource | JSON: the form metadata (fields and psets) of a type |
 | resource `tl://relations` | resource | JSON: the relation vocabulary |
+| tool `list_record_types(status=None)`, `get_record_type(type_ref)`, `get_record_body(record, scope=None)` | tools | Extension record types (`tl_mcp.type_tools`, brief 31): the registered versions, one version with its generated form, and the verified body of an object-backed record. Read-only. `create_record` with a type name proposes a managed instance; an object-backed type is refused (a proposal carries no body) |
+| resources `tl://types`, `tl://types/{type_ref}` | resources | JSON: the registered versions; one version with its form |
 | `python -m tl_mcp --actor agent:<id> [--db PATH] [--lake-dir DIR]` | command | Serve on stdio |
 | `tl_mcp.context.McpContext` | class | What every tool and resource needs: a unit-of-work factory, the actor and the authorise hook |
 | `tl_mcp.errors.guarded` | function | Authorises, then turns the failures a tool or resource can meet into `ToolError` or `ResourceError` |
@@ -70,4 +72,4 @@ Runbook: `docs/runbooks/api-and-mcp-dev.md`.
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I4 (workstream C); `get_settings` and `propose_setting_change` added in P0-I8 workstream A; the dev server (`tl_mcp.dev`) was added in P0-I8 workstream C; write tools added in P0-I6 workstream B (decisions B1 to B14: `docs/tickets/P0-I6/README-B.md`). Per-role tool permissions and a direct-write mode are the permission model, a human gate, and are not built. Resource-change notifications through the change feed (brief 11.3) are a follow-up.
+Introduced in P0-I4 (workstream C); `get_settings` and `propose_setting_change` added in P0-I8 workstream A; the dev server (`tl_mcp.dev`) was added in P0-I8 workstream C; write tools added in P0-I6 workstream B (decisions B1 to B14: `docs/tickets/P0-I6/README-B.md`). Per-role tool permissions and a direct-write mode are the permission model, a human gate, and are not built. Resource-change notifications through the change feed (brief 11.3) are a follow-up. Type tools added in P0-I8 workstream B (`docs/tickets/P0-I8/README-B.md`).

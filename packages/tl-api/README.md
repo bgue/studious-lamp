@@ -17,6 +17,8 @@ The REST API, the SSE change stream and the HTTP client over the `tl_core` servi
 | `tl_api.client.settings.SettingsApi` | mixin of `ApiClient` | `list_settings`, `get_setting`, `setting_history`, `set_setting`, `reset_setting`, `lock_setting`, `revert_setting`, `diff_settings`, `export_settings`, `import_settings`; the first seven are `ClientInterface` methods of the TUI |
 | `tl_api.main.mark_server_started` | function | Records that settings with `effect: restart` are now in force (`setting_effect_applied`); `python -m tl_api` calls it before serving |
 | `tl_api.client.feed.FeedApi`, `tl_api.client.proposals.ProposalsApi` | mixins of `ApiClient` | `feed_page`, `feed_post`, `feed_edit`, `feed_retract`, `feed_react`, `feed_complete` (same signatures as `ClientInterface`); `list_proposals`, `get_proposal(id, scope)`, `accept_proposal`, `reject_proposal` (extras, not on `ClientInterface`) |
+| `tl_api.routes.extypes` | module | Extension record types (brief 31): `GET /types?status=`, `GET /types/{type_ref}` (with its generated form), `POST /types/{type_name}/records` (`psets` for a managed type, `body` for an object-backed one), `GET /records/{id}/body` (hash-verified; 502 `body_hash_mismatch`, 403 `body_quarantined`), `PUT /records/{id}/body` (`expected_version`; 422 `body_invalid` lists the problems). The two writes refuse an `agent:` token. `create_app(object_store=)` is the store that holds bodies (503 `body_store_unavailable` without one) |
+| `tl_api.client.types_api.TypesApi` | mixin of `ApiClient` | `list_types`, `get_type`, `create_instance`, `get_record_body`, `put_record_body`: the same models and exception classes as the embedded services |
 | `tl_api.openapi` | module | `python -m tl_api.openapi [--check]`; the document is `docs/reference/openapi.json` |
 | `python -m tl_api` / `just serve` | command | Run the server (loopback only unless `--insecure-dev`) |
 | `tl_api.context.ApiContext` | class | The per-application context route handlers read from `request.app.state` |
@@ -59,4 +61,4 @@ Runbook: `docs/runbooks/api-and-mcp-dev.md`.
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I4 (workstream C). Last interface change: P0-I8 workstream A (the `/settings` routes, `SettingsApi`, `ChangeSetting` as a command; `docs/tickets/P0-I8/README-A.md`), earlier: P0-I6 workstream B (feed and review-queue routes, five proposal rows in the error table). The identity stub is replaced only by an owner-approved auth ADR.
+Introduced in P0-I4 (workstream C). Last interface change: P0-I8 workstream A (the `/settings` routes, `SettingsApi`, `ChangeSetting` as a command; `docs/tickets/P0-I8/README-A.md`), earlier: P0-I6 workstream B (feed and review-queue routes, five proposal rows in the error table). The identity stub is replaced only by an owner-approved auth ADR. Extension type routes and client methods added in P0-I8 workstream B (nine error rows; `docs/tickets/P0-I8/README-B.md`).

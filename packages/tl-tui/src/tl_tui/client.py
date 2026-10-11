@@ -11,6 +11,8 @@ from datetime import datetime
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
+from tl_core.extypes.service import BodyStoredOut, BodyView, TypeDetail, TypeSummary
+from tl_core.extypes.types import TypeStatus
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink
 from tl_core.numbering.detect import KeyChip
@@ -100,6 +102,46 @@ class ClientInterface(Protocol):
     def form_metadata(self, scope: str, record_type: str) -> FormMetadata: ...
 
     def conformance(self, record_id: str) -> ConformanceReport: ...
+
+    # --- extension record types (P0-I8; brief 31) ---------------------------------------------
+
+    def list_types(self, status: TypeStatus | None = None) -> list[TypeSummary]:
+        """Registered extension type versions by type ref, optionally of one status."""
+        ...
+
+    def get_type(self, type_ref: str) -> TypeDetail:
+        """One version with its generated form (``TypeDetail.form``); ``UnknownTypeError``."""
+        ...
+
+    def create_instance(
+        self,
+        type_name: str,
+        *,
+        scope: str,
+        title: str,
+        key: str | None = None,
+        description: str | None = None,
+        psets: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+        numbering: dict[str, str] | None = None,
+    ) -> CommandResult:
+        """Create an instance: ``psets`` for a managed type, ``body`` for an object-backed one."""
+        ...
+
+    def get_record_body(self, record_id: str) -> BodyView:
+        """The verified body of an object-backed record; a damaged one is quarantined and raises."""
+        ...
+
+    def put_record_body(
+        self,
+        record_id: str,
+        *,
+        scope: str,
+        body: dict[str, Any],
+        expected_version: int | None = None,
+    ) -> BodyStoredOut:
+        """Store a new body; the index fields follow. ``ConcurrencyError`` for a stale version."""
+        ...
 
     # --- links (P0-I3; brief 7) ---------------------------------------------------------------
 

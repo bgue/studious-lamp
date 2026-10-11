@@ -20,6 +20,7 @@ from tl_core.ledger import Event
 
 from tl_tui.client import ClientInterface
 from tl_tui.commands import command_by_id
+from tl_tui.extension_columns import columns_for_type, form_for_type, type_warning
 from tl_tui.live import (
     ChangeFeed,
     LiveUpdates,
@@ -138,7 +139,14 @@ class TlApp(App[None]):
         with Horizontal(id="body"):
             yield NavTree(company=self.company, scope=self.scope, id="nav")
             with MainArea(id="main"):
-                yield RecordGrid(self.client, self.scope, record_type=self.record_type, id="grid")
+                yield RecordGrid(
+                    self.client,
+                    self.scope,
+                    record_type=self.record_type,
+                    # an extension type lists the columns its form.yaml names
+                    columns=columns_for_type(self.client, self.record_type),
+                    id="grid",
+                )
             yield ContextPanel(id="context")
         yield TlFooter(id="footer")
 
@@ -150,6 +158,9 @@ class TlApp(App[None]):
             setattr(self.client, "connection_listener", self._connection_from_client)  # noqa: B010
         if self._live is not None:
             self._live.start()
+        warning = type_warning(self.client, self.record_type)
+        if warning is not None:  # `--type` named something that cannot take records
+            self.query_one("#footer", TlFooter).show_status(warning, "warning")
 
     def on_unmount(self) -> None:
         if hasattr(self.client, "connection_listener"):
@@ -262,6 +273,7 @@ class TlApp(App[None]):
         # The app-level `n` binding stays live under a modal; a form already open must keep it.
         if isinstance(self.screen, ModalScreen):
             return
+        from tl_tui.widgets.extension_form import ExtensionRecordForm
         from tl_tui.widgets.new_record_form import NewRecordForm
 
         async def created(key: str | None) -> None:
@@ -271,6 +283,12 @@ class TlApp(App[None]):
             self.query_one("#footer", TlFooter).show_status(f"Created {key}", "info")
             await self._show_record(self.scope, key)
 
+        type_form = form_for_type(self.client, self.record_type)
+        if type_form is not None:  # an extension type: the form its package generates
+            self.push_screen(
+                ExtensionRecordForm(self.client, self.scope, type_form, actor=self.actor), created
+            )
+            return
         self.push_screen(
             NewRecordForm(
                 self.client,

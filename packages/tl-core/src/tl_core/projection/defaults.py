@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from tl_core.projection.extypes import (
+    BodyQuarantineTable,
+    RecordBodyProjector,
+    TypeRegistrationProjector,
+)
 from tl_core.projection.feed import FeedProjector
 from tl_core.projection.files import FileProjector
 from tl_core.projection.links import LinkProjector
@@ -31,6 +36,11 @@ def default_registry() -> InMemoryRegistry:
     )  # independent: subscriptions are their own streams
     registry.register(WebhookStateTables())  # operational tables; never reset by a rebuild
     registry.register(ProposalProjector())  # independent: proposals are their own streams
+    registry.register(
+        TypeRegistrationProjector()
+    )  # independent: registrations are their own streams
+    registry.register(RecordBodyProjector())  # after RecordProjector: it reads the record's type
+    registry.register(BodyQuarantineTable())  # operational; never reset by a rebuild
     registry.register(SettingProjector())  # independent: settings are their own streams
     registry.register(FeedProjector())  # sees every event; reads only its own tables
     # Last, on purpose: it reads the rows the projectors above wrote for the same event.

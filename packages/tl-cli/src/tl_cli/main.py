@@ -11,7 +11,8 @@ from typing import Annotated
 
 import typer
 from sqlalchemy import Connection
-from tl_adapters.sqlite.uow import create_schema, rebuild_projections
+from tl_adapters.sqlite.uow import create_schema, open_uow, rebuild_projections
+from tl_core.extypes.provider import attach
 from tl_core.settings.effects import mark_applied
 from tl_sim import cli as sim_cli
 
@@ -21,6 +22,8 @@ from tl_cli import (
     config,
     dev,
     events,
+    extypes,
+    extypes_quarantine,
     feed,
     file,
     lake,
@@ -53,6 +56,8 @@ app.add_typer(link.app, name="link")
 app.add_typer(feed.app, name="feed")
 app.add_typer(proposal.app, name="proposal")
 app.add_typer(config.app, name="config")
+app.add_typer(extypes.app, name="types")
+extypes.app.add_typer(extypes_quarantine.app, name="quarantine")
 app.add_typer(lake.app, name="lake")
 app.add_typer(dev.app, name="dev")
 app.add_typer(new.app, name="new")
@@ -79,6 +84,11 @@ def root(
 ) -> None:
     """Throughline dev ledger commands."""
     ctx.obj = Path(db)
+    path = ctx.obj
+    # registered extension types join the effective schema of every command (brief 31)
+    # prime (read the settings keys of the registered types) only for a ledger that exists: opening
+    # a missing SQLite file would create it, and `tl archive`/`tl backup` report a missing ledger
+    attach(lambda readonly=False: open_uow(path, readonly=readonly), prime=path.is_file())
 
 
 @app.command("init")
