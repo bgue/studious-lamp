@@ -125,7 +125,7 @@ print(", ".join(row["status"] for row in rows))
 assert [row["status"] for row in rows] == ["accepted", "rejected", "accepted"]'
 
 step "a tool mode of write is refused: who may write directly is a human gate"
-if quiet uv run python -m tl_mcp --actor agent:triage --tool-mode create_record=write 2>"$workdir/mode.err"; then
+if quiet uv run python -m tl_mcp --tool-mode create_record=write 2>"$workdir/mode.err"; then
   echo "DEMO FAILED: write mode was accepted" >&2
   exit 1
 fi

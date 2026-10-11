@@ -238,6 +238,25 @@ def pg_db(pg_base_url: str | None) -> Iterator[str]:
         admin.drop_schema_namespace(pg_base_url, schema)
 
 
+@pytest.fixture(autouse=True, scope="session")
+def _cheap_password_hashing() -> Iterator[None]:
+    """New password hashes use a toy scrypt cost in tests (N=2^4); production keeps 2^16 (ADR-0009).
+
+    A test of the production cost, or of ``needs_rehash``, calls ``password.configure`` itself.
+    """
+    from tl_core.auth import password
+
+    previous = password.configure(password.ScryptParams(log2_n=4, r=1, p=1))
+    yield
+    password.configure(previous)
+
+
+@pytest.fixture(autouse=True)
+def _private_cli_session_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test reads or writes the developer's real `tl login` session file (ADR-0009 section 4)."""
+    monkeypatch.setenv("TL_SESSION_FILE", str(tmp_path / "cli-session" / "session.json"))
+
+
 @pytest.fixture(autouse=True)
 def _forget_extension_type_settings() -> Iterator[None]:
     """Setting keys that extension types registered (a process-wide registry) end with the test."""

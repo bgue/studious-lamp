@@ -1,6 +1,69 @@
 {
   "events": [
     {
+      "ce_type": "tl.core.Account.Created.v1",
+      "event_type": "Account.Created",
+      "payload_class": "AccountCreatedPayload",
+      "sample": "samples/Account.Created.v1.json",
+      "schema": "schemas/Account.Created.v1.json",
+      "title": "An account was created.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Account.Disabled.v1",
+      "event_type": "Account.Disabled",
+      "payload_class": "AccountDisabledPayload",
+      "sample": "samples/Account.Disabled.v1.json",
+      "schema": "schemas/Account.Disabled.v1.json",
+      "title": "An account was disabled: it cannot sign in and its sessions and agent tokens stop working.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Account.Enabled.v1",
+      "event_type": "Account.Enabled",
+      "payload_class": "AccountEnabledPayload",
+      "sample": "samples/Account.Enabled.v1.json",
+      "schema": "schemas/Account.Enabled.v1.json",
+      "title": "A disabled account was enabled again.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Account.PasswordChanged.v1",
+      "event_type": "Account.PasswordChanged",
+      "payload_class": "AccountPasswordChangedPayload",
+      "sample": "samples/Account.PasswordChanged.v1.json",
+      "schema": "schemas/Account.PasswordChanged.v1.json",
+      "title": "The password of an account was set or changed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Account.RolesSet.v1",
+      "event_type": "Account.RolesSet",
+      "payload_class": "AccountRolesSetPayload",
+      "sample": "samples/Account.RolesSet.v1.json",
+      "schema": "schemas/Account.RolesSet.v1.json",
+      "title": "The roles of an account were replaced.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.AgentToken.Issued.v1",
+      "event_type": "AgentToken.Issued",
+      "payload_class": "AgentTokenIssuedPayload",
+      "sample": "samples/AgentToken.Issued.v1.json",
+      "schema": "schemas/AgentToken.Issued.v1.json",
+      "title": "An agent token was issued.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.AgentToken.Revoked.v1",
+      "event_type": "AgentToken.Revoked",
+      "payload_class": "AgentTokenRevokedPayload",
+      "sample": "samples/AgentToken.Revoked.v1.json",
+      "schema": "schemas/AgentToken.Revoked.v1.json",
+      "title": "An agent token was revoked and no longer authenticates.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Feed.Edited.v1",
       "event_type": "Feed.Edited",
       "payload_class": "FeedEditedPayload",

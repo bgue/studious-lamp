@@ -29,6 +29,7 @@ from typing import Any
 
 from sqlalchemy import Connection, text
 
+from tl_core.auth.projector import ACCOUNT_STREAM_TYPE
 from tl_core.query.api import QuerySpec, count_query, parse
 from tl_core.query.ast import And, Compare
 from tl_core.services.queries import get_record_by_id
@@ -118,7 +119,12 @@ class SubscriptionRow:
         )
 
     def receives(self, row: OutboxRow) -> bool:
-        """Whether ``row`` falls inside this subscription's window, scope and expiry."""
+        """Whether ``row`` falls inside this subscription's window, scope and expiry.
+
+        Account events (ADR-0009) are internal and never delivered, whatever the filter says.
+        """
+        if row.stream_type == ACCOUNT_STREAM_TYPE:
+            return False
         if not any(
             start < row.seq and (end is None or row.seq <= end) for start, end in self.windows
         ):

@@ -201,3 +201,70 @@ test or a generated artefact already enforces, or narrative history (that belong
   decision). Rules: gate any "no bytes needed" shortcut on the state that grants read access, compare secrets as bytes, fail
   closed on missing secrets, and serve client-typed files as attachments with `nosniff`.
   Evidence: `docs/tickets/P0-I4/README-B.md` D8, D9, D12, D13; `tests/services/test_file_service.py`. Status: active
+
+- **L-P1-I0A-1** · 2026-10-11 · tags: tests, tooling
+  A test helper module shared through pyright `extraPaths` needs a name no other test directory uses: `tests/webhooks/world.py` already exists, so `from world import World` in a second directory resolved to the wrong module under pyright (175 errors) and would clash in `sys.modules` at run time. The auth tests use `authworld.py`.
+  Evidence: `tests/auth/authworld.py`; first `pyright` run after adding `tests/auth`. Status: active
+- **L-P1-I0A-2** · 2026-10-11 · tags: security, ledger
+  Anything that must survive a refusal (the failed-sign-in counter) cannot be written inside the unit of work that then raises: leaving the `with` block by exception rolls it back. `tl_core.auth.sessions` reads in a snapshot, hashes outside any transaction, writes the counter in a short transaction and raises after that block ends. Never hash inside a write transaction: it holds the single writer lock.
+  Evidence: `tl_core/auth/sessions.py` module docstring; `tests/auth/test_sessions.py::test_five_failures_lock_the_name_even_against_the_right_password`. Status: active
+- **L-P1-I0A-3** · 2026-10-11 · tags: tests, ledger
+  Both adapters take the ledger's single writer lock when a write transaction begins, so a barrier test of two concurrent roster changes passes with or without a guard row (a mutation that removed the guard survived three runs). Do not add serialisation rows or tables for roster races; keep a test that fails if the lock ever becomes finer.
+  Evidence: `postgres/engine.py` `write_tx`; `tests/auth/test_accounts.py::test_two_admins_cannot_disable_each_other_at_once`. Status: active
+- **L-P1-I0A-4** · 2026-10-11 · tags: tests, process
+  Adding catalog event types breaks more than `test_catalog.py`: the webhook contract tests assume every catalogued type is delivered (`tests/contract/test_webhook_catalog_contract.py`, `tests/parity/test_webhooks_parity.py`), so internal types must be subtracted there; the lists in `test_ddl.py` and `test_generate.py` need the new tables; a changed `ErrorBody` needs `uv run python -m tl_api.openapi` (about 100 s) before `just check` passes. `packages/tl-mcp/tests/test_dev_gen.py` fails at teardown while `packages/tl-schema` has uncommitted changes, so run the full suite after committing generated files.
+  Evidence: the first full `just test` of P1-I0A (3 failures and 1 teardown error). Status: active
+- **L-P1-I0A-5** · 2026-10-11 · tags: tests, api
+  The Starlette `TestClient` (httpx) refuses a header value with a non-ASCII character. To test a bearer token with one, pass the latin-1 encoded bytes (annotate as `Any` for pyright); the server reads headers as latin-1.
+  Evidence: `packages/tl-api/tests/test_auth_roles.py::test_garbage_and_look_alike_tokens_are_401_not_500`. Status: active
+- **L-P1-I0A-6** · 2026-10-11 · tags: process, budget
+  With workstream B running at the same time the full `just test` took 22 minutes (5,480 tests). Run the packages a change touches first (`tests/auth`, `packages/tl-api`, `tests/archive`), the full suite once per round, and wait for it with `timeout N bash -c 'until grep -q "^EXIT" log; do sleep 10; done'` after starting it in the background.
+  Evidence: `/tmp/p1i0a-test.log` of 2026-10-11. Status: active
+- **L-P1-I0A-7** · 2026-10-11 · tags: security, api
+  A security review found three classes of mistake worth checking in any credential code: (1) a slow hash (or any slow step) inside a write transaction holds the global writer lock, so a flood of sign-ins stalled all writes for 17 s: hash first (`prepare_password`), write after; (2) a lock or message that differs by account kind or history is an oracle for which names exist, so every lock is the same 15 minutes; (3) a token, session or stream that is checked once stays valid after revocation, so long-lived streams re-check on a timer.
+  Evidence: D6 review of P1-I0 S2b and S2c; `tests/auth/test_review_fixes.py`, `packages/tl-api/tests/test_auth_review.py`. Status: active
+- **L-P1-I0A-8** · 2026-10-11 · tags: api, tooling
+  FastAPI turns any exception raised while it reads a request body into a 400, so a body-size guard that raises its own error never reaches its handler. Raise Starlette's `HTTPException(413)` from the wrapped `receive` instead and map status 413 in the app's HTTP error handler. Also: a stub app that has no route for a path never reads the body, so test the guard through a route that does.
+  Evidence: `BodyLimitMiddleware` in `tl_api/auth.py`; first run of `test_a_chunked_body_over_the_limit_is_413_too`. Status: active
+- **L-P1-I0A-9** · 2026-10-11 · tags: tests, api
+  In this FastAPI version `app.routes` holds `_IncludedRouter` objects for included routers; the real routes are in `.original_router.routes`. To list every route's guard action walk those; `guard()` puts the action on its dependency as `.action`.
+  Evidence: `route_actions` in `packages/tl-api/tests/test_auth_review.py`. Status: active
+- **L-P1-I0A-10** · 2026-10-11 · tags: security, tooling
+  `hashlib.scrypt` raises `ValueError` for parameters its own rules refuse (N must be below 2^(16 r)), so a stored hash whose parameters pass a bounds check can still crash a sign-in; treat that `ValueError` as a wrong password after a stand-in hash. Postgres also rejects a NUL in any text parameter and a lone surrogate does not encode to UTF-8: validate sign-in input before it reaches a query, or the pooled connection breaks.
+  Evidence: `password.verify_password`, `sessions.authenticate`; `tests/auth/test_review_fixes.py::test_unstorable_input_is_invalid_credentials_and_the_connection_still_works`. Status: active
+- **L-P1-I0A-11** · 2026-10-11 · tags: process, tickets
+  L-P0-I6A-5 again: T04's provided tests sign in through `/auth/sign-in` and the client's `sign_in` (T03's code), but its `Depends on` named only the supervisor pieces, so both went out in one batch and T04 came back BLOCKED on tests it could not run. For each ticket list the routes, functions and client calls its provided tests use, name the ticket that owns each in `Depends on`, and dispatch dependent tickets in a later batch (or merge the provider into the base first).
+  Evidence: T04 blocked at 36f03d2; resolved by merging T03 into the base and the base into the ticket branch. Status: active
+- **L-P1-I0A-12** · 2026-10-11 · tags: process, tickets
+  Stub STEPS for a client method must not be looked up by the bare function name: the route and the client method share names (`sign_out`, `whoami`), and the server's steps (`request`, `ctx`, `me`) were pasted into three client stubs where they could not run. The implementer noticed and disclosed it. Key steps by module (`name@client`, `name@routes`) and read the pasted Interfaces of a ticket once before dispatch.
+  Evidence: `docs/reports/P1-I0/P1-I0-T03.md` deviations; `docs/tickets/P1-I0/T03-api-auth.md`. Status: active
+- **L-P1-I0A-13** · 2026-10-11 · tags: security, tests
+  A pytest monkeypatch of a private function (`pw._scrypt`) used by provided tests fixes its call shape for as long as a ticket is in flight: to add a parameter (a hash lane) without breaking those tests, carry it in a `ContextVar` and keep the positional signature. Likewise keep `pw._gate.acquire()` and `release()` callable with no arguments.
+  Evidence: `password.HashGate`, `_PUBLIC_LANE`; provided tests `t03-test_api_auth.py.txt`, `t04-test_api_admin.py.txt`. Status: active
+- **L-P1-I0A-14** · 2026-10-11 · tags: security, postgres
+  A lone surrogate in a bound parameter makes pg8000 raise `UnicodeEncodeError` half way through a message; a pooled connection that saw it is out of step with the server and fails every later statement (`ResourceClosedError`). Validating input at the services is not enough for a future path, so the engine's `handle_error` hook drops that one connection (`is_disconnect`, pool kept). A header that arrives in several lines must be read as its last line when a proxy adds its own; IPv6 sources must be keyed by /64 or the limit is free to rotate.
+  Evidence: `packages/tl-adapters/tests/test_postgres_poisoned_connection.py`; `tests/auth/test_review_round3.py`; `packages/tl-api/tests/test_ratelimit.py`. Status: active
+- **L-P1-I0A-15** · 2026-10-11 · tags: tooling, cli
+  Typer 0.27 carries its own copy of click (`typer._click`). `isinstance(param, click.Option)` is False for its commands, so a hook that walks the command tree with click's classes silently does nothing, and tests run with the dev default pass anyway. Walk commands by attribute (`params`, `commands`, `opts`) and test the hook where the default differs (a non-dev `TL_ENV`, a session).
+  Evidence: `tl_cli/actor_hook.py`; `test_cli_session.py::test_a_signed_in_session_is_the_default_actor_everywhere` fails with the hook removed. Status: active
+- **L-P1-I0A-16** · 2026-10-11 · tags: process, tickets
+  A script that pastes repo files into a ticket's *Interfaces* must run against the stubs, not the reference implementation. While mutation checks had the reference copied in, the generator wrote T08 and T09 with the full solution; it was caught by counting `NotImplementedError` in the generated tickets. Generate tickets from a clean tree, restore the stubs before generating, and `git grep` a line that only the reference has.
+  Evidence: commit P1-I0-S5b (amended); `grep -c NotImplementedError docs/tickets/P1-I0/T0*.md`. Status: active
+- **L-P1-I0A-17** · 2026-10-11 · tags: process, tickets
+  L-P1-I0A-11 applies to the supervisor's own tests: a test of the wiring that needs a stub's body (F10 opens the screen) fails until the ticket merges. Hold it in `docs/tickets/<inc>/held/` and add it with the merge. Provided tests must not run another ticket's command either: the T07 tests first used `tl login` (T06) and `tl whoami`; they now sign in through `auth_support.sign_in`, which calls the core and writes the session file as the command does.
+  Evidence: `packages/tl-cli/tests/auth_support.py`; `docs/tickets/P1-I0/held/`. Status: active
+- **L-P1-I0A-18** · 2026-10-11 · tags: tooling
+  `Monitor` loops that wait with `pgrep -f NAME` match their own command line and never end. Wait on a pid, a marker file or a `grep` of the output file instead.
+  Evidence: three monitors on `mut2.sh` expired without an event. Status: active
+- **L-P1-I0A-19** · 2026-10-11 · tags: process, tests
+  The third base-red relay of Phase 1 (L-P0-I8C-6): `just check` plus the new tests were green, but the packages touched by the wiring (tl-cli, tl-tui) had tests of their own that pin the old behaviour (`tl tui` call arguments, the key map's contexts, the palette snapshot). Before relaying a batch run the whole suite of every package the supervisor pieces touched, in parallel shards (`pytest -q packages/tl-cli packages/tl-tui packages/tl-api`, `tests`, the rest), and read the failure list, not the exit code.
+  Evidence: S5b relayed with 5 red tests; fixed in P1-I0-S11. Status: active
+- **L-P1-I0A-20** · 2026-10-11 · tags: security, cli
+  An option default that is only used when the flag is left out does not protect anything: `--actor user:root` bypassed the session check that the default went through. Put the check on the value (a click callback runs on defaults and explicit values alike), and let the target decide how much a stated identity is worth: a file you own, versus a shared database.
+  Evidence: `tl_cli/actor_hook.py`, `session.check_actor`; `test_cli_session.py::test_outside_dev_no_actor_can_be_used_without_a_sign_in_not_even_a_named_one`. Status: active
+- **L-P1-I0A-21** · 2026-10-11 · tags: process, tickets
+  A provided test that passes `ruff` and runs can still fail `pyright` in the package it lands in, and the implementer cannot fix a copy that must stay byte-identical (fourth time: L-P0-I8B-7, L-P1-I0A-11). T08's `ApiUnavailableError(OSError("down"))` was rejected by pyright (it takes an `httpx2.TransportError`). Before a batch, copy each provided test into its target package and run `uv run pyright` and `just check` on the scratch tree, then remove the copies; never trust a run done while stubs and references were swapped in and out.
+  Evidence: T08 BLOCKED at d05901f; fixed in b9c3f3f. Status: active
+- **L-P1-I0A-22** · 2026-10-11 · tags: security, mcp
+  A long-lived stdio server must not trust its start-up check. The MCP server now looks the agent token up on every tool and resource call (`principal_for_bearer`), so a revoked token, an expired one or a disabled agent stops at the next call; a cached principal would have kept working until the process ended. A test revokes mid-session and the mutation that caches the principal fails it.
+  Evidence: `tl_mcp/identity.py`; `test_mcp_identity.py::test_a_revoked_token_stops_working_at_the_next_call_not_the_next_start`. Status: active

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from tl_core.auth.projector import AccountProjector, AuthStateTables
 from tl_core.projection.extypes import (
     BodyQuarantineTable,
     RecordBodyProjector,
@@ -35,6 +36,8 @@ def default_registry() -> InMemoryRegistry:
         WebhookSubscriptionProjector()
     )  # independent: subscriptions are their own streams
     registry.register(WebhookStateTables())  # operational tables; never reset by a rebuild
+    registry.register(AccountProjector())  # independent: accounts are their own streams
+    registry.register(AuthStateTables())  # operational tables; never reset by a rebuild
     registry.register(ProposalProjector())  # independent: proposals are their own streams
     registry.register(
         TypeRegistrationProjector()

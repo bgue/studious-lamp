@@ -129,6 +129,30 @@ def test_webhook_secrets_cannot_be_read(ledger: DevHarness) -> None:
             query.run_sqlite(str(ledger.ctx.target.path), sql, 10)
 
 
+def test_password_and_token_hashes_cannot_be_read(ledger: DevHarness) -> None:
+    with sqlite3.connect(ledger.db) as con:
+        con.execute(
+            "INSERT INTO auth_credential (account_id, password_hash, updated_at) "
+            "VALUES ('a1', 'scrypt$4$1$1$AAAA$BBBB', '2026-10-11T00:00:00Z')"
+        )
+    for sql in (
+        "SELECT password_hash FROM auth_credential",
+        "SELECT * FROM auth_session",
+        'SELECT token_hash FROM "AUTH_TOKEN_SECRET"',
+        "SELECT * FROM auth_attempt",
+    ):
+        with pytest.raises(ToolError, match="refused"):
+            ledger.call("query_db", sql=sql)
+    assert ledger.ctx.target.path is not None
+    for sql in (  # past the text check: the authoriser alone
+        "SELECT password_hash FROM auth_credential",
+        "SELECT count(*) FROM auth_session",
+        "SELECT (SELECT token_hash FROM auth_token_secret)",
+    ):
+        with pytest.raises(DevGuardError, match="authoriser"):
+            query.run_sqlite(str(ledger.ctx.target.path), sql, 10)
+
+
 def test_a_statement_that_runs_too_long_is_stopped(
     ledger: DevHarness, monkeypatch: pytest.MonkeyPatch
 ) -> None:

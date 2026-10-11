@@ -129,6 +129,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         log.warning("--insecure-dev: bound to %s with no real authentication", settings.host)
     backend = open_sqlite_backend(settings.db_path)
     try:
+        from tl_api.startup import StartupRefused, check_demo_account
+
+        try:
+            check_demo_account(backend, host=settings.host)
+        except StartupRefused as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
         app = create_app(
             backend,
             settings=settings,

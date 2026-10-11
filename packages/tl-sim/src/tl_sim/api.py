@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +28,15 @@ Authorizer = Callable[[str, str, str], None]
 """``hook(actor, action, resource)``: raises to refuse (the shape of ``tl_api.auth.authorize``)."""
 
 
+AGENT_TOKEN_ENV = "TL_SIM_AGENT_TOKEN"  # noqa: S105 - the variable's name, not a secret
+
+
+def agent_token_from_env() -> Callable[[], str] | None:
+    """A function returning ``TL_SIM_AGENT_TOKEN`` when it is set and not blank, else ``None``."""
+    token = os.environ.get(AGENT_TOKEN_ENV, "").strip()
+    return (lambda: token) if token else None
+
+
 @dataclass(frozen=True)
 class SimEnv:
     """Where a run lives. ``from_env`` reads ``TL_SIM_DIR``, ``TL_API_URL``, ``TL_TOKENS``."""
@@ -36,6 +45,8 @@ class SimEnv:
     api_url: str = DEFAULT_API_URL
     tokens_path: Path = Path(DEFAULT_TOKENS)
     db_path: Path = Path(DEFAULT_DB)  # the ledger file the MCP server (the agent) opens
+    #: Gives the agent's MCP token when the assistant first proposes; not part of equality.
+    agent_token: Callable[[], str] | None = field(default=None, compare=False, repr=False)
 
     @staticmethod
     def from_env() -> SimEnv:
@@ -44,13 +55,16 @@ class SimEnv:
             api_url=os.environ.get("TL_API_URL", DEFAULT_API_URL),
             tokens_path=Path(os.environ.get("TL_TOKENS", DEFAULT_TOKENS)),
             db_path=Path(os.environ.get("TL_DB", DEFAULT_DB)),
+            agent_token=agent_token_from_env(),
         )
 
 
 def _open(env: SimEnv, run_id: str | None) -> Simulation:
     store = RunStore(env.sim_dir)
     rid = run_id or store.only_run()
-    connector = HttpConnector(env.api_url, env.tokens_path, run_id=rid, db_path=env.db_path)
+    connector = HttpConnector(
+        env.api_url, env.tokens_path, run_id=rid, db_path=env.db_path, agent_token=env.agent_token
+    )
     return Simulation.open(rid, store=store, connector=connector)
 
 
@@ -63,7 +77,9 @@ def sim_create(
     """
     loaded = load_bundled_scenario(str(scenario)) if bundled_only else load_scenario(scenario)
     rid = run_id or default_run_id(loaded)
-    connector = HttpConnector(env.api_url, env.tokens_path, run_id=rid, db_path=env.db_path)
+    connector = HttpConnector(
+        env.api_url, env.tokens_path, run_id=rid, db_path=env.db_path, agent_token=env.agent_token
+    )
     sim = Simulation.create(
         loaded,
         load_template(loaded.template),

@@ -27,11 +27,14 @@ from typing import Any, cast
 
 import httpx2
 from tl_api.client import ApiClient
+from tl_api.client.auth import sign_in
 from tl_core.services.commands import Command, CommandResult
 
 from tl_tui.client import ClientInterface, RelationInfo
+from tl_tui.errors import CLIENT_ERRORS
 from tl_tui.live import ChangeFeed, FeedSink, OwnWrites
 from tl_tui.messages import ConnectionState
+from tl_tui.sign_in import SignedIn
 
 #: ``ApiClient`` attributes that are not request/response calls (no connection state to report).
 UNTRACKED = frozenset({"stream_events", "close", "base_url"})
@@ -274,3 +277,42 @@ class RemoteClient:
             listener = self._listener
         if listener is not None:
             listener(state, detail)
+
+
+class RemoteAuthenticator:
+    """Sign-in to an API server: `POST /auth/sign-in`, and the session token that comes back.
+
+    The `Authenticator` of the remote TUI. A failure raises the embedded exception class
+    (`InvalidCredentialsError`, `AccountLockedError`...) or `ApiUnavailableError` when the server
+    cannot be reached; neither message holds the password.
+    """
+
+    def __init__(self, base_url: str, *, http: httpx2.Client | None = None) -> None:
+        self.base_url = base_url
+        self._http = http
+
+    def __call__(self, username: str, password: str) -> SignedIn:
+        out = sign_in(
+            self.base_url, username, password, http=self._http, timeout=INTERACTIVE_TIMEOUT_S
+        )
+        return SignedIn(
+            actor=out.principal.actor,
+            username=username,
+            roles=tuple(out.principal.roles),
+            token=out.token,
+        )
+
+
+def sign_out(base_url: str, token: str, *, http: httpx2.Client | None = None) -> None:
+    """End a server session made by :class:`RemoteAuthenticator` (``POST /auth/sign-out``).
+
+    Best effort: a server that cannot be reached, or that already ended the session, is ignored
+    (the token expires on its own after 12 hours). Never raises, never logs the token.
+    """
+    client = ApiClient(base_url, token, http=http, timeout=INTERACTIVE_TIMEOUT_S)
+    try:
+        client.sign_out()
+    except (*CLIENT_ERRORS, httpx2.HTTPError):
+        pass
+    finally:
+        client.close()

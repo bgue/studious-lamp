@@ -106,6 +106,82 @@
         "title": "AcceptLinkBody",
         "type": "object"
       },
+      "AccountView": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "person",
+              "agent",
+              "sim"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "locked_until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locked Until"
+          },
+          "roles": {
+            "items": {
+              "enum": [
+                "admin",
+                "user"
+              ],
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "disabled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "username",
+          "display_name",
+          "kind",
+          "roles",
+          "status",
+          "locked_until",
+          "created_at",
+          "seq"
+        ],
+        "title": "AccountView",
+        "type": "object"
+      },
       "AddLinkBody": {
         "additionalProperties": false,
         "properties": {
@@ -217,6 +293,51 @@
           "to_id"
         ],
         "title": "AddLinkBody",
+        "type": "object"
+      },
+      "AgentTokenView": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "issued_by": {
+            "title": "Issued By",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "revoked": {
+            "title": "Revoked",
+            "type": "boolean"
+          },
+          "token_id": {
+            "title": "Token Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token_id",
+          "account_id",
+          "label",
+          "expires_at",
+          "revoked",
+          "issued_by"
+        ],
+        "title": "AgentTokenView",
         "type": "object"
       },
       "AttachFileBody": {
@@ -624,6 +745,67 @@
           "count"
         ],
         "title": "CountOut",
+        "type": "object"
+      },
+      "CreateAccountBody": {
+        "additionalProperties": false,
+        "description": "Body of ``POST /admin/accounts``.",
+        "properties": {
+          "display_name": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "kind": {
+            "default": "person",
+            "enum": [
+              "person",
+              "agent",
+              "sim"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "maxLength": 1024,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Never for an `agent` account; it gets a token instead.",
+            "title": "Password"
+          },
+          "roles": {
+            "items": {
+              "enum": [
+                "admin",
+                "user"
+              ],
+              "type": "string"
+            },
+            "maxItems": 2,
+            "minItems": 1,
+            "title": "Roles",
+            "type": "array"
+          },
+          "username": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "display_name"
+        ],
+        "title": "CreateAccountBody",
         "type": "object"
       },
       "CreateInstanceIn": {
@@ -1206,6 +1388,17 @@
               }
             ],
             "title": "Issues"
+          },
+          "locked_until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locked Until"
           },
           "message": {
             "title": "Message",
@@ -2163,6 +2356,63 @@
         "title": "ImportResult",
         "type": "object"
       },
+      "IssueTokenBody": {
+        "additionalProperties": false,
+        "description": "Body of ``POST /admin/tokens``.",
+        "properties": {
+          "account_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Account Id",
+            "type": "string"
+          },
+          "expires_in_days": {
+            "anyOf": [
+              {
+                "maximum": 3650.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 90,
+            "description": "Days until the token expires; null: never.",
+            "title": "Expires In Days"
+          },
+          "label": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "label"
+        ],
+        "title": "IssueTokenBody",
+        "type": "object"
+      },
+      "IssuedToken": {
+        "description": "A new agent token. `token` is shown here once and cannot be read back.",
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          },
+          "view": {
+            "$ref": "#/components/schemas/AgentTokenView"
+          }
+        },
+        "required": [
+          "token",
+          "view"
+        ],
+        "title": "IssuedToken",
+        "type": "object"
+      },
       "KeyChip": {
         "description": "A detected key and what it refers to.",
         "properties": {
@@ -2640,6 +2890,30 @@
         "title": "ParsedTag",
         "type": "object"
       },
+      "PasswordBody": {
+        "additionalProperties": false,
+        "description": "Body of ``POST /auth/password``.",
+        "properties": {
+          "current_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordBody",
+        "type": "object"
+      },
       "PostToFeedBody": {
         "additionalProperties": false,
         "properties": {
@@ -2717,6 +2991,59 @@
           "body"
         ],
         "title": "PostToFeedBody",
+        "type": "object"
+      },
+      "Principal": {
+        "description": "Who is calling. The only identity callers see.",
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "person",
+              "agent",
+              "sim"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "enum": [
+                "admin",
+                "user"
+              ],
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "via": {
+            "enum": [
+              "password",
+              "session",
+              "agent_token",
+              "oidc",
+              "dev_token"
+            ],
+            "title": "Via",
+            "type": "string"
+          }
+        },
+        "required": [
+          "actor",
+          "account_id",
+          "kind",
+          "roles",
+          "via"
+        ],
+        "title": "Principal",
         "type": "object"
       },
       "ProposalView": {
@@ -3035,6 +3362,26 @@
           "reaction"
         ],
         "title": "ReactToPostBody",
+        "type": "object"
+      },
+      "ReasonBody": {
+        "additionalProperties": false,
+        "description": "Body of the disable, enable and token revoke calls.",
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "ReasonBody",
         "type": "object"
       },
       "RecordOut": {
@@ -3417,6 +3764,23 @@
         "title": "ResetBody",
         "type": "object"
       },
+      "ResetPasswordBody": {
+        "additionalProperties": false,
+        "description": "Body of ``POST /admin/accounts/{account_id}/password`` (an admin reset).",
+        "properties": {
+          "new_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_password"
+        ],
+        "title": "ResetPasswordBody",
+        "type": "object"
+      },
       "RetractLinkBody": {
         "additionalProperties": false,
         "properties": {
@@ -3607,6 +3971,42 @@
           "seq"
         ],
         "title": "RevertBody",
+        "type": "object"
+      },
+      "RolesBody": {
+        "additionalProperties": false,
+        "description": "Body of ``PUT /admin/accounts/{account_id}/roles``.",
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "roles": {
+            "items": {
+              "enum": [
+                "admin",
+                "user"
+              ],
+              "type": "string"
+            },
+            "maxItems": 2,
+            "minItems": 1,
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "roles"
+        ],
+        "title": "RolesBody",
         "type": "object"
       },
       "ScheduledChange": {
@@ -4114,6 +4514,59 @@
           "effective"
         ],
         "title": "SettingView",
+        "type": "object"
+      },
+      "SignInBody": {
+        "additionalProperties": false,
+        "description": "Body of ``POST /auth/sign-in``.",
+        "properties": {
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "SignInBody",
+        "type": "object"
+      },
+      "SignInOut": {
+        "description": "The session token (shown once), how long it lives, and who it belongs to.",
+        "properties": {
+          "expires_in": {
+            "description": "Seconds until the session ends.",
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "principal": {
+            "$ref": "#/components/schemas/Principal"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "expires_in",
+          "principal"
+        ],
+        "title": "SignInOut",
         "type": "object"
       },
       "SuggestLinkBody": {
@@ -5204,19 +5657,1268 @@
     },
     "securitySchemes": {
       "HTTPBearer": {
-        "description": "Static dev token (ADR-0005)",
+        "description": "Session token, agent token or dev token",
         "scheme": "bearer",
         "type": "http"
       }
     }
   },
   "info": {
-    "description": "Records, links, workflow, files and the change feed over HTTP. Phase 0 is a development server: identity is a static bearer token and every authenticated actor may do everything (ADR-0005). Errors are `{error, message, ...}` bodies; the `error` codes are stable.",
+    "description": "Records, links, workflow, files and the change feed over HTTP. Callers sign in with a username and password and send the session token as a bearer token; agents send an admin-issued token (ADR-0009). The `admin` role may do everything, `user` everything but `admin.*`. Errors are `{error, message, ...}` bodies; the `error` codes are stable.",
     "title": "Throughline API",
     "version": "0.1.0"
   },
   "openapi": "3.1.0",
   "paths": {
+    "/admin/accounts": {
+      "get": {
+        "description": "Every account with its roles, status and any lock in force. No secrets.",
+        "operationId": "admin_list_accounts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AccountView"
+                  },
+                  "title": "Response Admin List Accounts",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Accounts",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "description": "Create an account. A password must meet the policy (422 `weak_password`); agents get none.",
+        "operationId": "admin_create_account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccountBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Account",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/accounts/{account_id}": {
+      "get": {
+        "description": "One account by id (404 `account_not_found`).",
+        "operationId": "admin_get_account",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Account",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/accounts/{account_id}/disable": {
+      "post": {
+        "description": "Disable an account: its sessions and agent tokens stop working. Not the last admin.",
+        "operationId": "admin_disable_account",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Disable Account",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/accounts/{account_id}/enable": {
+      "post": {
+        "description": "Enable a disabled account again.",
+        "operationId": "admin_enable_account",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Enable Account",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/accounts/{account_id}/password": {
+      "post": {
+        "description": "Set a new password without the old one. Ends the account's sessions and clears its lock.",
+        "operationId": "admin_reset_password",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reset Password",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/accounts/{account_id}/roles": {
+      "put": {
+        "description": "Replace the roles. The last active admin cannot be demoted (409 `last_admin`).",
+        "operationId": "admin_set_roles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RolesBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Roles",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/tokens": {
+      "get": {
+        "description": "Agent token metadata. The tokens themselves cannot be read back.",
+        "operationId": "admin_list_tokens",
+        "parameters": [
+          {
+            "description": "Only this agent account.",
+            "in": "query",
+            "name": "account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this agent account.",
+              "title": "Account Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_revoked",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Include Revoked",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentTokenView"
+                  },
+                  "title": "Response Admin List Tokens",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Tokens",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "description": "Issue an agent token (default 90 days; `expires_in_days: null` for none). Shown once.",
+        "operationId": "admin_issue_token",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueTokenBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuedToken"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Issue Token",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/tokens/{token_id}/revoke": {
+      "post": {
+        "description": "Revoke an agent token at once (404 `agent_token_not_found`, 409 `account_state`).",
+        "operationId": "admin_revoke_token",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token_id",
+            "required": true,
+            "schema": {
+              "title": "Token Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTokenView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke Token",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "description": "Who the token belongs to: actor, account id, kind, roles and how it authenticated.",
+        "operationId": "whoami",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Principal"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Whoami",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/password": {
+      "post": {
+        "description": "Change your own password. Every session of the account ends, this one included.\n\nA wrong current password is 401 `invalid_credentials` and counts towards the lockout. Agents\nand dev tokens have no password: 403 `forbidden`.",
+        "operationId": "change_own_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change Own Password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/sign-in": {
+      "post": {
+        "description": "Sign in with a username and password; answers a session token for `Authorization: Bearer`.\n\nThe same 401 `invalid_credentials` answers an unknown user and a wrong password. After repeated\nfailures the name is locked: 423 `account_locked` with `locked_until`, even for the right\npassword. A disabled account answers 403 `account_disabled` only to the right password.",
+        "operationId": "sign_in",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "summary": "Sign In",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/sign-out": {
+      "post": {
+        "description": "End the session of the token in `Authorization`. Other tokens (agent, dev) are unaffected.",
+        "operationId": "sign_out",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sign Out",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/commands/AcceptLink": {
       "post": {
         "description": "Run the AcceptLink command.",
@@ -5280,7 +6982,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -5387,7 +7089,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -5494,7 +7196,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -5601,7 +7303,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -5708,7 +7410,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -5815,7 +7517,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -5922,7 +7624,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6029,7 +7731,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6136,7 +7838,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6243,7 +7945,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6350,7 +8052,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6457,7 +8159,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6564,7 +8266,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6671,7 +8373,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6778,7 +8480,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6885,7 +8587,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -6992,7 +8694,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7099,7 +8801,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7263,7 +8965,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7456,7 +9158,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7592,7 +9294,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7693,7 +9395,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7780,7 +9482,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7879,7 +9581,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -7979,7 +9681,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8056,7 +9758,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8142,7 +9844,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8239,7 +9941,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8387,7 +10089,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8544,7 +10246,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8645,7 +10347,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8768,7 +10470,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -8884,7 +10586,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9081,7 +10783,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9231,7 +10933,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9332,7 +11034,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9420,7 +11122,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9508,7 +11210,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9604,7 +11306,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9692,7 +11394,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9784,7 +11486,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -9915,7 +11617,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10007,7 +11709,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10109,7 +11811,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10224,7 +11926,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10333,7 +12035,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10414,7 +12116,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10511,7 +12213,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10608,7 +12310,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10760,7 +12462,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10869,7 +12571,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -10960,7 +12662,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11047,7 +12749,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11169,7 +12871,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11265,7 +12967,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11374,7 +13076,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11472,7 +13174,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11570,7 +13272,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11668,7 +13370,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11844,7 +13546,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -11953,7 +13655,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -12051,7 +13753,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -12139,7 +13841,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -12226,7 +13928,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -12325,7 +14027,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {
@@ -12424,7 +14126,7 @@
                 }
               }
             },
-            "description": "Refused by the authorisation hook or by a quarantine rule."
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
           },
           "404": {
             "content": {

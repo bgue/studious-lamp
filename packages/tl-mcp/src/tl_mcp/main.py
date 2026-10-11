@@ -1,7 +1,8 @@
-"""``uv run python -m tl_mcp --actor agent:triage``: the MCP server on stdio (ADR-0005).
+"""``TL_AGENT_TOKEN=... uv run python -m tl_mcp``: the MCP server on stdio (ADR-0005, ADR-0009).
 
+    TL_AGENT_TOKEN       the agent's token (`tl admin token issue <agent> --label <what for>`);
+                         it names who the server acts as and is checked again on every call
     --db PATH            SQLite ledger (default TL_DB or ./dev/data/tl.db)
-    --actor ID           who this server acts as: `agent:<id>` or `user:<id>` (required)
     --lake-dir D         DuckLake directory for `lake_query` (default TL_LAKE_DIR)
     --tool-mode T=MODE   set a record-changing tool's mode; the only mode is `propose`, and
                          `write` is refused (permission model, human gate)
@@ -21,13 +22,22 @@ from pathlib import Path
 
 from tl_core.files.types import ObjectStore
 
+from tl_mcp.identity import (
+    HOW_TO_GET_ONE,
+    TOKEN_ENV,
+    AgentTokenError,
+    resolve_agent,
+    token_authorizer,
+    token_from_env,
+)
+
 DEFAULT_DB = "./dev/data/tl.db"
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="tl-mcp", description="Throughline MCP read server.")
     parser.add_argument("--db", type=Path, default=Path(os.environ.get("TL_DB", DEFAULT_DB)))
-    parser.add_argument("--actor", required=True, help="agent:<id> or user:<id>")
+    parser.add_argument("--actor", default=None, help=argparse.SUPPRESS)  # removed: see main()
     parser.add_argument(
         "--tool-mode",
         action="append",
@@ -51,12 +61,12 @@ def object_store_from_env() -> ObjectStore | None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
-    from tl_api.tokens import check_actor
-
-    try:
-        check_actor(args.actor)
-    except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+    if args.actor is not None:
+        print(
+            f"error: --actor was removed: an agent is identified by its token. Set "
+            f"{TOKEN_ENV}; {HOW_TO_GET_ONE}",
+            file=sys.stderr,
+        )
         return 2
     from tl_mcp.modes import ToolModeError, resolve_tool_modes
 
@@ -64,6 +74,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         resolve_tool_modes(requested)
     except ToolModeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    try:
+        token = token_from_env()
+    except AgentTokenError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     if not args.db.exists():
@@ -76,9 +91,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     factory = SqliteUowFactory(args.db)
     try:
+        try:
+            principal = resolve_agent(factory, token)
+        except AgentTokenError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
         build_server(
             factory,
-            actor=args.actor,
+            actor=principal.actor,
+            authorize_hook=token_authorizer(factory, token),
             tool_modes=requested,
             lake_dir=args.lake_dir,
             object_store=object_store_from_env(),

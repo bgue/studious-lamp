@@ -67,6 +67,7 @@ extraPaths = [
   "tests/extypes",
   "packages/tl-tui/tests",
   "tests/bench",
+  "tests/auth",
 ]
 typeCheckingMode = "standard"
 strict = [
