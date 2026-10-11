@@ -148,3 +148,22 @@ def test_a_wrong_password_and_a_missing_database_are_named_without_the_secret(
     result = run(missing.replace("postgresql+pg8000://", "postgresql://", 1), "ledger", "verify")
     assert result.exit_code == 1, result.output
     assert "does not exist" in result.output
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["record", "show", "--project", "P1", "REC-1"],
+        ["events", "tail", "--project", "P1"],
+        ["projections", "rebuild"],
+        ["init"],
+    ],
+)
+def test_an_unsupported_sslmode_is_one_error_line_before_any_command_runs(
+    args: list[str],
+) -> None:
+    result = run("postgresql://someone:hunter2@127.0.0.1:1/tl?sslmode=bogus", *args)
+    assert result.exit_code == 2, result.output
+    assert "unsupported sslmode" in result.output
+    assert "Traceback" not in result.output
+    assert "hunter2" not in result.output

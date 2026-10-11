@@ -80,3 +80,13 @@ def test_a_bad_target_is_refused_without_repeating_the_value(
         server.parse_args(["--db", "mysql://u:SeCrEt@h/d"])
     assert raised.value.code == 2
     assert "SeCrEt" not in capsys.readouterr().err
+
+
+def test_an_unsupported_sslmode_is_refused_before_the_server_starts(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as raised:
+        server.parse_args(["--db", "postgresql://u:SeCrEt@127.0.0.1:1/tl?sslmode=bogus"])
+    assert raised.value.code == 2
+    err = capsys.readouterr().err
+    assert "sslmode" in err and "SeCrEt" not in err

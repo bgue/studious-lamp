@@ -78,6 +78,10 @@ def as_target(value: str | Path) -> DbTarget:
         )
     if not parsed.username:
         raise ValueError("the database URL needs a user name (postgresql://user:password@host/db)")
+    try:
+        postgres.engine.split_url(value)  # an unsupported sslmode fails here, not in a command
+    except ValueError as exc:
+        raise ValueError(str(exc)) from None
     return value
 
 

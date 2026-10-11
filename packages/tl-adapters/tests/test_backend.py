@@ -212,6 +212,15 @@ def test_a_url_that_is_not_a_usable_postgres_url_is_refused_without_echoing_it(u
     assert "Et@" not in str(raised.value)
 
 
+@pytest.mark.parametrize("mode", ["bogus", "prefer", "allow", "REQUIRE"])
+def test_an_unsupported_sslmode_is_refused_when_the_target_is_read(mode: str) -> None:
+    with pytest.raises(ValueError, match="sslmode") as raised:
+        as_target(f"postgresql://u:SeCrEt@h/d?sslmode={mode}")
+    assert "SeCrEt" not in str(raised.value)
+    for good in ("disable", "require", "verify-ca", "verify-full"):
+        assert as_target(f"postgresql://u:pw@h/d?sslmode={good}")
+
+
 def test_a_refused_url_never_becomes_a_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
