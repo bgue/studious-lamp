@@ -10,12 +10,11 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
-from pathlib import Path
 from typing import Annotated, NoReturn
 
 import typer
+from tl_adapters.db import DbTarget, open_uow
 from tl_adapters.objectstore import make_object_store
-from tl_adapters.sqlite.uow import open_uow
 from tl_core.extypes import body, registry
 from tl_core.extypes.body import BodyQuarantineEntry
 from tl_core.extypes.registry import QuarantineEntry
@@ -42,7 +41,7 @@ def _service_errors() -> Iterator[None]:
         _fail(str(exc))
 
 
-def _factory(db: Path) -> registry.UowFactory:
+def _factory(db: DbTarget) -> registry.UowFactory:
     def open_one(readonly: bool = False) -> AbstractContextManager[UnitOfWork]:
         return open_uow(db, readonly=readonly)
 
@@ -78,7 +77,7 @@ def body_line(entry: BodyQuarantineEntry) -> str:
 @app.command("ls")
 def ls(ctx: typer.Context) -> None:
     """Print the quarantine report; `nothing quarantined` when it is empty."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     with _service_errors(), open_uow(db, readonly=True) as uow:
         types = registry.list_quarantined(uow.conn())
         bodies = body.list_body_quarantine(uow.conn())
@@ -98,7 +97,7 @@ def recheck(
     record_id: Annotated[str, typer.Argument(help="Id of the record whose body to verify.")],
 ) -> None:
     """Verify a record's stored body again; lift its quarantine when the object is sound."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     try:
         store = make_object_store()
     except ValueError as exc:
