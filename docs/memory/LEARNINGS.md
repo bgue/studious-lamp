@@ -29,422 +29,26 @@ test or a generated artefact already enforces, or narrative history (that belong
 
 ## Active
 
+### env: Environment and dependencies: container limits, drivers, licences, worktree setup.
+
 - **L-P0-SETUP-1** · 2026-10-09 · tags: env
   The build container has the Docker CLI but no Docker daemon. Anything that needs MinIO, Postgres, or other
   services must run natively or be mocked; `docker compose` is documentation only.
   Evidence: `docker ps` fails on `/var/run/docker.sock`; ADR-0002. Status: active
-
-- **L-P0-SETUP-2** · 2026-10-09 · tags: env
-  The egress proxy refuses `dl.min.io` and similar binary hosts with a 403 on CONNECT. PyPI via `uv` and apt work.
-  Try a binary download once, then fall back to the PyPI or mock path; never loop on retries.
-  Evidence: curl exit 56 on dl.min.io; ADR-0002. Status: active
-
-- **L-P0-SETUP-3** · 2026-10-09 · tags: env, tooling
-  `just` is not preinstalled; install it with `uv tool install rust-just` and keep `$HOME/.local/bin` on PATH.
-  The SessionStart hook does both.
-  Evidence: `.claude/hooks/session-start.sh`. Status: active
-
-- **L-P0-SETUP-4** · 2026-10-09 · tags: env
-  Agents run as root. A `$SUDO` variable that is empty for root breaks `$SUDO -u postgres psql` silently, because the
-  shell then runs `-u` as a command. Use `sudo -u postgres` directly (sudo exists) and `cd /tmp` first to avoid
-  chdir warnings.
-  Evidence: SessionStart hook fix, `as_postgres` helper. Status: active
-
 - **L-P0-SETUP-5** · 2026-10-09 · tags: env, tests
   Native PostgreSQL 16 starts with `sudo pg_ctlcluster 16 main start`; parity tests use
   `TL_PG_URL=postgresql://postgres:postgres@localhost:5432/tl_test`, which the SessionStart hook exports.
   Evidence: hook validation run. Status: active
-
-- **L-P0-SETUP-6** · 2026-10-09 · tags: tooling
-  `uv` prints "UV_NATIVE_TLS is deprecated" on every call in this container. It is harmless noise from the
-  environment; do not try to fix it from the repo and do not count it as a failure in reports.
-  Evidence: `uv run` output. Status: active
-
-- **L-P0-SETUP-7** · 2026-10-09 · tags: tooling
-  `git push` may print "fatal: expected 'acknowledgments', received 'packfile'" and "push negotiation failed;
-  proceeding anyway" and still succeed. Check for the `->` ref-update line before retrying.
-  Evidence: pushes of the first two commits. Status: active
-
-- **L-P0-SETUP-8** · 2026-10-09 · tags: process
-  Subagents cannot spawn subagents in this harness (no `Agent` tool inside a supervisor). Only the top-level session
-  spawns; supervisors return DISPATCH/DONE/BLOCKED and the orchestrator runs `.claude/workflows/ticket-batch.js`.
-  Evidence: capability probe of a supervisor agent; ADR-0004. Status: active
-
-- **L-P0-SETUP-9** · 2026-10-09 · tags: process, env
-  Workflow agent concurrency is min(16, CPUs - 2); this container has 4 CPUs, so 2 agents run at once. Size DISPATCH
-  batches at 2–4 tickets.
-  Evidence: workflow-authoring reference; `nproc` = 4. Status: active
-
-- **L-P0-I1-1** · 2026-10-09 · tags: tests, tooling
-  A `conftest.py` only applies to tests beneath its directory, so shared fixtures live in a root `conftest.py`
-  (not `tests/conftest.py`), and pytest runs with `--import-mode=importlib` so identically named test files in
-  different packages (`test_import.py`) do not collide.
-  Evidence: root `pyproject.toml` `[tool.pytest.ini_options]`; `03` §10. Status: active
-
-- **L-P0-I1-2** · 2026-10-09 · tags: tooling
-  pyright strict rejects a pydantic subclass that narrows a base field type (`datetime | None` to `datetime`), so
-  `Event` is not a subclass of `NewEvent`. `linkml` ships no type stubs, so modules importing it start with
-  `# pyright: basic`. Strict applies to `src` directories only; tests use standard mode.
-  Evidence: `docs/tickets/P0-I1/T05-ledger-types-and-hashing.md`, `T03-codegen-wiring.md`. Status: active
-
-- **L-P0-I1-3** · 2026-10-09 · tags: tooling
-  Codegen drift is checked by comparing generator output with the committed files (`python -m tl_schema.generate
-  --check`), not by `git diff`, because a diff fails on any dirty tree and misses untracked files. LinkML generators
-  embed the schema path they were given, so they must run inside `schema/core/` with a relative file name.
-  Evidence: `justfile` `check` recipe; `docs/tickets/P0-I1/T03-codegen-wiring.md`. Status: active
-
-- **L-P0-I1-4** · 2026-10-09 · tags: schema
-  `gen-json-schema` renders a custom `dict`-based LinkML type as `string`. JSON-valued slots therefore use
-  `range: Any` (class `Any`, `class_uri: linkml:Any`) plus the annotation `tl:json: true`. `linkml-lint` also warns
-  when the prefix `tl` is mapped to a non-canonical namespace, so schemas declare the prefix `throughline` and use
-  `tl:` only as the annotation tag namespace.
-  Evidence: `schema/core/record.yaml`, `annotations.yaml`; `linkml-lint schema/core/core.yaml` clean. Status: active
-- **L-P0-SETUP-10** · 2026-10-09 · tags: process, tooling
-  Git cannot hold a branch `p0/i1` and a branch `p0/i1/t01-…` at the same time (ref namespace clash). Ticket branches are
-  siblings: `p0/i1-t01-<slug>`. The branch passed by the orchestrator overrides a ticket's Branch field.
-  Evidence: `fatal: cannot lock ref 'refs/heads/p0/i1/t01-monorepo-scaffold'` in the first ticket-batch run. Status: active
-
-- **L-P0-I1-5** · 2026-10-09 · tags: tooling, ledger
-  SQLite through SQLAlchemy: pysqlite's legacy transaction control breaks an explicit `BEGIN IMMEDIATE`. Set
-  `dbapi_connection.isolation_level = None` on connect and issue `BEGIN IMMEDIATE` (writes) or `BEGIN` (reads) from the
-  SQLAlchemy `begin` event, chosen by a connection execution option. `executescript` (via `engine.raw_connection()`)
-  is needed to run schema files whose trigger bodies contain semicolons.
-  Evidence: `docs/tickets/P0-I1/T06-sqlite-ledger-adapter.md` (`engine.py`); two-thread race test passes. Status: active
-
-- **L-P0-I1-6** · 2026-10-09 · tags: tooling
-  pyright strict flags `@contextmanager` functions annotated `Iterator[X]` (use `Generator[X]`), and ruff's
-  `E501` applies to docstrings and comments at 100 columns, so wrap prose when writing modules. Provided test files
-  must be ruff-clean before commit because implementers may not edit them.
-  Evidence: scratch builds of T04b and T07. Status: active
-
-- **L-P0-I1-7** · 2026-10-09 · tags: tooling
-  ruff 0.16 formats Markdown as well as Python, so `ruff format --check .` flags files under `docs/`. The root
-  `[tool.ruff]` therefore sets `include = ["*.py", "*.pyi", "**/pyproject.toml"]`. A scratch build without `docs/`
-  missed this; verify scaffold tickets in a checkout that contains the whole repo.
-  Evidence: T01 implementer report `docs/reports/P0-I1/P0-I1-T01.md`. Status: active
-
-- **L-P0-I1-8** · 2026-10-09 · tags: process, tests
-  A supervisor-provided failing test committed in the package test tree makes `just check` (pyright includes tests)
-  red on every other ticket branch cut from the same base. Store provided tests under
-  `docs/tickets/<inc>/provided/<name>.py.txt` and have the ticket `cp` them into place; the reviewer `diff`s the pair.
-  Evidence: attempted commit of `test_sqlite_ledger.py` failed pyright with unresolved imports. Status: active
-
-- **L-P0-I1-9** · 2026-10-09 · tags: ledger, tests
-  A bus with per-subscriber `seq` cursors drops any event published after a later one, so publish order must equal
-  commit order. Do not publish while holding a lock (a nested write from a subscriber deadlocks, and re-entrancy would
-  reorder); commit and enqueue under the lock, then drain from a single drainer (`OrderedPublisher`). A test that delays
-  every third publish proves the ordering; a nested-write test and a slow-subscriber test prove liveness. A plain concurrent-writer test did not catch the bug until the
-  delay was added. Projector test helpers use portable SQL (UPDATE then INSERT) and non-`cur_` table names.
-  Evidence: `packages/tl-adapters/tests/test_sqlite_uow.py` `SlowBus`; reviewer finding on `bus.py`. Status: active
-
-- **L-P0-I1-10** · 2026-10-09 · tags: tooling
-  A Protocol attribute (`ledger: Ledger`) is invariant, so an adapter that narrows it (`SqliteLedger`) fails pyright
-  strict; declare Protocol attributes that implementers may narrow as read-only `@property`.
-  Evidence: T11 blocked on 11 pyright errors; `tl_core/uow.py`. Status: active
-
-- **L-P0-I1-11** · 2026-10-09 · tags: tests
-  A concurrency invariant needs a deterministic seam, not repetition: the lost-wakeup test replaces the publisher's lock
-  with one that runs a second writer right after a given release, and a deliberately wrong `LeakyPublisher` proves the
-  test can fail. Three clean runs of a racy test prove nothing. Threads in such tests are `daemon=True` and joined
-  with a timeout so a regression fails instead of hanging the suite.
-  Evidence: `packages/tl-core/tests/test_bus.py`; mutation (flag cleared outside the lock) fails the test. Status: active
-
-- **L-P0-I2-O1** · 2026-10-09 · tags: process
-  The workflow tells implementers to commit a report at docs/reports/<inc>/<ticket>.md, which is outside the ticket's
-  Allowed paths. One reviewer flagged it and forced a retry that deleted the report. The review prompt now says that
-  path is always allowed. Supervisors may also add it to every ticket's Allowed paths.
-  Evidence: P0-I2-T12 attempt 1 review. Status: active
-- **L-P0-I2-B1** · 2026-10-09 · tags: tests, tui
-  pytest runs in importlib mode, so a test cannot `import` a sibling helper file. `packages/tl-tui/tests/conftest.py`
-  puts its own directory on `sys.path`, which lets tests write `from fakes import FakeClient`; pyright resolves the
-  same import from the file's directory. Do not add `__init__.py` to test directories.
-  Evidence: `packages/tl-tui/tests/conftest.py`, `test_grid.py`. Status: active
-
-- **L-P0-I2-B2** · 2026-10-09 · tags: tests, tui
-  No async pytest plugin is installed, and none may be added without a ticket. Drive a Textual app with
-  `tests/helpers.run_pilot(app, scenario, size=(120, 40))` (a plain `asyncio.run` around `app.run_test`) and assert on
-  `screen_text(app)`. Snapshot tests use `snap_compare(app_instance, terminal_size=(120, 40))`; the plugin writes
-  `__snapshots__/<module>/<test>.raw` beside the test file and passes across separate processes.
-  Evidence: `packages/tl-tui/tests/helpers.py`; a spike snapshot test ran twice with identical output. Status: active
-
-- **L-P0-I2-B3** · 2026-10-09 · tags: tooling, tui
-  `App[None]` is not assignable to `App[object]` (the type parameter is invariant), so test helpers take `App[Any]`
-  and `Pilot[Any]`. `ScrollView` widgets draw only in `render_line(y)`, with `y` relative to the viewport; add
-  `scroll_offset.y` yourself and keep a sticky header on line 0 by adding one to `virtual_size.height`.
-  Evidence: pyright errors in the first `test_grid.py`; `widgets/grid.py`. Status: active
-
-- **L-P0-I2-B4** · 2026-10-09 · tags: tui, tooling
-  Do not name a widget or screen attribute after a Textual DOM property: `self.visible = [...]` on a `ModalScreen`
-  raised `TypeError: unhashable type: 'list'` at runtime because `visible` is a DOM property (`shown` works). Textual
-  `Static` also parses `[...]` as markup, so any text that can hold user data needs `markup=False` or `rich.text.Text`.
-  Evidence: T13b scratch build; `widgets/column_chooser.py`. Status: active
-
-- **L-P0-I2-B5** · 2026-10-09 · tags: tui, process
-  A grid must never load every page on the UI thread: the first `RecordGrid` did, and froze for 2.7 s at 20k rows
-  (about 15 s at 50k). Sort goes to the server (`order_by`), and "go to end" pages in a `run_worker(thread=True)`
-  worker that reports through `post_message` and applies results with `call_from_thread`, guarded by a generation
-  counter. A moving cursor must not trigger paging inside that apply step or the cap is overshot.
-  Evidence: supervisor-pieces review of 73bb88c; `test_grid.py::test_end_pages_in_a_worker_reports_progress_and_caps`. Status: active
-
-- **L-P0-I2-B6** · 2026-10-09 · tags: tui, tooling
-  In Textual 8.2.8 an `Input` built with a non-empty value raises `NoActiveAppError` outside a running app, so a widget
-  that wraps one must create it in `compose()`, not `__init__`. An `Input` also posts `Changed` once at mount with its
-  initial value; compare against the last seen raw value so that echo is not treated as an edit.
-  Evidence: `widgets/form_fields.py`, T16a review. Status: active
-- **L-P0-I2-1** · 2026-10-09 · tags: tests, tooling
-  With `--import-mode=importlib` a test module cannot `from conftest import ...`; share helpers between test files as
-  pytest fixtures (`build_docs`, `effective`, `fixture_dir` in `packages/tl-schema/tests/conftest.py`). pyright strict
-  also rejects partly typed third-party calls: annotate `jsonschema` validators and errors as `Any`, and linkml
-  metamodel objects as `Any` (their dict/list unions make every attribute access an error).
-  Evidence: `docs/tickets/P0-I2/provided/test_registry.py.txt`; `tl_schema/linkml_render.py`. Status: active
-
-- **L-P0-I2-2** · 2026-10-09 · tags: schema, tooling
-  To render an effective schema as LinkML, load `core.yaml` with `SchemaView`, call `merge_imports()`, mutate the
-  `SchemaDefinition` (classes, enums, annotations), then wrap it in a fresh `SchemaView(definition)`; renaming the
-  root schema of the original view breaks its import resolution. Annotations assigned in memory must be `Annotation`
-  objects (`tag`, `value`) to match what a YAML load produces.
-  Evidence: `packages/tl-schema/src/tl_schema/linkml_render.py`, `tests/test_linkml_render.py`. Status: active
-
-- **L-P0-I2-3** · 2026-10-09 · tags: process, tests
-  A supervisor-written stub (names, signatures, docstrings) plus a provided test file under `docs/tickets/<inc>/provided/`
-  plus a spec verified against a scratch reference implementation gave first-attempt passes for 6 of 7 implementer tickets (the seventh, T04b, was flagged only for committing its report file). Keep
-  the reference implementation until the ticket merges; it is the takeover path. State in the ticket that the stub's
-  `STUB:` docstring paragraph must be removed (T01 left it).
-  Evidence: P0-I2 reports T01, T04, T04b, T06, T08, T08a, T10. Status: active
-
-- **L-P0-I2-4** · 2026-10-09 · tags: tooling
-  `ruff format` moves a trailing `# type: ignore[...]` off a call it re-wraps, so the ignore stops working. Type the helper
-  parameter instead (`layer: Literal[...]`). pyright strict also widens tuple elements to `str`, so build typed values
-  (`FieldKind`) through a helper with annotated parameters rather than a list of tuples.
-  Evidence: `docs/tickets/P0-I2/provided/test_pset_commands.py.txt`; T04b ticket text. Status: active
-
-- **L-P0-I2-5** · 2026-10-09 · tags: schema, ledger
-  Runtime schema changes that add columns (promoted pset properties) are dialect-neutral when the existing columns are found
-  with `sqlalchemy.inspect(conn).get_columns(...)` and the `ALTER TABLE ... ADD COLUMN` text is generated per dialect in
-  `tl_schema` (SQLite has no `ADD COLUMN IF NOT EXISTS`). Projectors stay deterministic by reading only the event payload
-  and existing rows: schema-derived facts (conformance, units) are computed by the command handler and carried in the event.
-  Evidence: `tl_core/projection/promoted.py`, `pset.py`; decisions A5, A9. Status: active
-
-- **L-P0-I2-B7** · 2026-10-09 · tags: process
-  The ticket workflow tells implementers to commit their report, so list `docs/reports/<inc>/<ticket-id>.md` in every
-  ticket's *Allowed paths* and say "commit your report". A ticket that says "return it in your final message" produced one
-  review round lost to a committed report (T12) and one report left uncommitted in a worktree (T15).
-  Evidence: T12 attempt 1; T15 worktree; tickets T16b onward. Status: active
-
-- **L-P0-I3-O1** · 2026-10-09 · tags: env, process
-  A container restart stops background workflows and agents, but the filesystem (repo, worktrees, branches, ~/.local/bin,
-  the Postgres data dir) survives. Recover a ticket batch with `Workflow({scriptPath, resumeFromRunId, args})` using
-  the same args: finished implementer and reviewer calls replay from the journal and only the interrupted ones rerun.
-  Read `<transcriptDir>/journal.jsonl` first to see which agents finished.
-  Evidence: P0-I3 batch 2 restart; resumed wf_3b2e992f-50a. Status: active
-
-- **L-P0-I3-O2** · 2026-10-09 · tags: ledger, sync
-  Workflow guards are safe on SQLite only because they read inside the BEGIN IMMEDIATE write transaction. On Postgres
-  (P0-I5) the guard reads need `SELECT ... FOR UPDATE` on the record row or SERIALIZABLE isolation, or a concurrent
-  link retraction can slip between the guard check and the append.
-  Evidence: P0-I3 workflow engine review. Status: active
-- **L-P0-I3-1** · 2026-10-09 · tags: tests, process
-  A provided `*.py.txt` is not covered by `ruff format`, so a hand-written one fails `just check` the moment an implementer
-  copies it. Format provided files before committing: copy to a temp `.py`, `ruff format --config pyproject.toml`, copy back. Verify
-  a ticket by dropping a scratch reference implementation over the stub in a clean tree, running the provided test, `ruff` and
-  `pyright`, then `git checkout . && git clean -fd`; formatting and E501 problems in the reference show up the same way.
-  Evidence: `docs/tickets/P0-I3/provided/`, T03 and T05 verification runs. Status: active
-
-- **L-P0-I3-2** · 2026-10-09 · tags: process, ledger
-  A stub projector that is registered in `default_registry()` must implement `ddl` and `reset` (only `apply` may raise
-  `NotImplementedError`), or every test that calls `create_schema` fails on every ticket branch cut from the base. Decouple
-  tickets that read a projection from the ticket that writes it by letting the provided test INSERT projection rows with SQL (T04
-  does this for `cur_links`).
-  Evidence: `projection/links.py` stub, `test_expected_links.py.txt`. Status: active
-
-- **L-P0-I3-3** · 2026-10-09 · tags: tests, schema
-  Adding a `tl:current_state` class to `schema/core` changes the generated file list, so two tests that enumerate it must be
-  edited in the same commit: `packages/tl-schema/tests/test_generate.py` (`EXPECTED_KEYS`) and `test_ddl.py`
-  (`test_only_current_state_classes_get_tables`).
-  Evidence: first `just test` after adding links.yaml failed 4 tests. Status: active
-
-- **L-P0-I3-4** · 2026-10-09 · tags: ledger, tests
-  Numbering is safe under SQLite because a write transaction is exclusive, so a thread test alone cannot show that the allocator
-  defends itself. The second line of defence (the counter stream's expected version) is tested by monkeypatching the counter read
-  to a stale value and expecting `ConcurrencyError`; mutating the allocator to ignore the version makes that test fail.
-  Evidence: `tests/services/test_numbering.py::test_a_stale_counter_read_is_stopped_by_the_ledger_version_check`. Status: active
-
-- **L-P0-I3-5** · 2026-10-09 · tags: tooling, tests
-  ruff's import sorting treats `tl_*` packages as first-party inside a package's `src` tree (a blank line separates them from
-  third-party imports) but as third-party in test files. A reference implementation written outside the repo gets the wrong
-  grouping; run `ruff check --fix` on it in place before using it to verify a ticket.
-  Evidence: T07 reference failed `I001` on first verification. Status: active
-
-- **L-P0-I3-6** · 2026-10-09 · tags: tui, tests, process
-  Growing `ClientInterface` forces every test double to follow, so the fake's new behaviour went into one mixin
-  (`packages/tl-tui/tests/fakes_links.py`, tested by `test_fakes_links.py`) before any TUI ticket was cut; tickets then use the
-  fake without editing `fakes.py`. The fake reuses the real vocabulary, `next_status` and error types, so a screen tested on it
-  meets the same refusals as on the embedded client.
-  Evidence: `tests/test_fakes_links.py` (10 tests). Status: active
-
-- **L-P0-I4-B1** · 2026-10-09 · tags: env, tooling
-  A fresh `git worktree` has no `.venv` of its own; `uv sync` (without `--all-packages`) installs only the root and leaves
-  the workspace packages out, so `just check` shows about 1500 pyright "import could not be resolved" errors and `just test`
-  fails at collection. Run `uv sync --all-packages` once per new worktree.
-  Evidence: first `just check` in `/home/user/wt/p0-i4b`; `.claude/hooks/session-start.sh` line 60. Status: active
-
-- **L-P0-I4-B2** · 2026-10-09 · tags: tests, tooling
-  moto's in-process `mock_aws()` is enough for the s3 backend: no server, no network, and a presigned URL can be used with
-  `requests` inside the mock. Bucket names must be at least 3 characters (`"b"` raises `InvalidBucketName`); set fake
-  `AWS_*` variables with `monkeypatch`. A same-content `put_object` keeps the same ETag, so "never replaced" cannot be proved
-  by comparing object metadata: spy on `client.put_object` (a first version of the test survived a mutation).
-  Evidence: `docs/tickets/P0-I4/provided/test_objectstore_s3.py.txt`. Status: active
-
-- **L-P0-I4-B3** · 2026-10-09 · tags: tests
-  Test doubles for `io.BufferedReader` must subclass `io.RawIOBase` and implement `readinto`, not `read`: the buffered wrapper
-  never calls `read` on the raw object. To prove a store does not read an endless stream to the end, count the bytes asked of
-  `readinto`.
-  Evidence: `test_objectstore_fs.py.txt` `CountingReader`. Status: active
-
-- **L-P0-I4-B4** · 2026-10-09 · tags: ledger, process
-  The `ObjectStore` Protocol has no delete, list or size call. Consequences already handled: presigned uploads go to a
-  `staging/` key and are streamed into the content key through `put` (which verifies), staging leftovers need a bucket
-  lifecycle rule, and reconciliation uses `iter_keys` on the concrete backends. An object is written before the database
-  commit, so a rolled-back upload leaves an unreferenced object; that is harmless because keys are content-addressed.
-  Evidence: `tl_core/files/service.py` module docstring, `docs/tickets/P0-I4/README-B.md` D7, D11. Status: active
-
-- **L-P0-I4-B5** · 2026-10-09 · tags: process, tests
-  Stub-plus-provided-test tickets again passed the supervisor's verification on the first try because the check dropped a
-  scratch reference over the stub and ran `ruff`, `pyright` and the provided test; three references needed a fix at that stage
-  (a RawIOBase double, an over-long docstring line, a test that could not fail). Keep the references outside the repo
-  (`/home/user/wt/p0-i4b-refs/`) until the tickets merge.
-  Evidence: this round's verification runs. Status: active
-
-- **L-P0-I4-B6** · 2026-10-09 · tags: process, api
-  Security review of the upload service found four fixable things a test-by-mutation pass had not: a dedupe gate that counted
-  quarantined rows (so a second user could read a file before its scan), `hmac.compare_digest` on a client-controlled `str`
-  (raises on non-ASCII), a silent public fallback secret, and a global rejected-hash check (kept on purpose, recorded as a
-  decision). Rules: gate any "no bytes needed" shortcut on the state that grants read access, compare secrets as bytes, fail
-  closed on missing secrets, and serve client-typed files as attachments with `nosniff`.
-  Evidence: `docs/tickets/P0-I4/README-B.md` D8, D9, D12, D13; `tests/services/test_file_service.py`. Status: active
-
-- **L-P0-I4-B7** · 2026-10-09 · tags: process, ledger
-  Writing a recovery runbook step by step exposed a real defect: an idempotent-retry shortcut ("already attached") returned
-  before checking that the object still existed, so re-uploading could not heal a lost object. Every recovery step in a runbook
-  needs a test or a demo line that performs it (`test_reuploading_to_the_same_slot_restores_a_lost_object`).
-  Also: when restoring stubs over scratch references, `git checkout <dir>` reverts uncommitted doc edits in that directory too;
-  commit docs first or restore file by file.
-  Evidence: `docs/runbooks/object-store-reconciliation.md` step 3; commit 34fe583. Status: active
-
-- **L-P0-I4-B8** · 2026-10-09 · tags: tests, cli
-  `typer.testing.CliRunner.invoke` catches exceptions and returns them on the result, so a CLI test that only asserts "nothing
-  changed" passes against a command that crashes (it passed against a `NotImplementedError` stub). Assert `exit_code` and
-  `result.exception is None` in every CLI test, including negative-space ones. Implementer-found, T25.
-  Evidence: `docs/reports/P0-I4/P0-I4-T25.md`; `packages/tl-cli/tests/test_cli_file_reconcile_exit.py`. Status: active
-
-- **L-P0-I4-B9** · 2026-10-09 · tags: ledger, process
-  A spec that says two different things about one case ("a content key is never replaced" for `put`, "always replacing" for
-  `put_via_url`) makes the implementer follow the literal text and flag it; the review then rules. Write the invariant once
-  at the top of a ticket and derive per-method wording from it. Also: `FsObjectStore` objects are mode 0600 (from
-  `mkstemp`), which is kept on purpose: a service running as another user must be given access explicitly.
-  Evidence: `docs/reports/P0-I4/P0-I4-T20.md`; orchestrator ruling D14 in README-B. Status: active
-- **L-P0-I4-A1** · 2026-10-09 · tags: ledger, tests
-  A SQL comparison against a NULL column is NULL, so `NOT (status = 'open')` silently drops records with no status. Compile every
-  query predicate two-valued (`col IS NOT NULL AND col = :v`, `NOT EXISTS (...)` for psets) so `-x` and `x!=v` agree and a record
-  matches exactly one of `x` and `-x`. `test_not_partitions_the_result` (hypothesis) fails when one comparison loses its NULL guard.
-  Evidence: `tl_core/query/compiler.py`, `tests/query/test_query_properties.py`. Status: active
-
-- **L-P0-I4-A2** · 2026-10-09 · tags: ledger, sync
-  The change-feed registry drops an event whose `seq` is at or below a subscriber's cursor, which is safe only because each source
-  (the bus, a poller) hands over a contiguous ascending run: a source never delivers 10 before 9. SQLite commits serially so this
-  holds. Postgres sequences can become visible out of order (a transaction holding seq 9 commits after one holding 10), so the
-  P0-I5 poller must lag behind in-flight transactions or re-read a short window before trusting its cursor.
-  Evidence: `tl_core/changefeed/registry.py` (`_deliver`), `test_two_sources_feeding_the_same_events_deliver_each_once_in_order`. Status: active
-
-- **L-P0-I4-A3** · 2026-10-09 · tags: process, tooling
-  Run `just check` on the branch tip after every supervisor commit, including a docstring-only edit: a 102-column line in
-  `api.py` (my A7 docstring change) turned `just check` red for every ticket branch cut from that tip, and the T03 implementer
-  correctly stopped as *Blocked*. A *Blocked* caused by the base is not a strike; fix the base, merge it into the ticket branch.
-  Evidence: `docs/reports/P0-I4/P0-I4-T03.md` (Blocked, then Decision), commits 56bb651 and 34e109f. Status: active
-
-
-- **L-P0-I5-B1** · 2026-10-09 · tags: tooling, process
-  Never name a module `types.py` (or `enum.py`, `json.py`) inside a package: a script or `python -` run from that directory puts
-  it first on `sys.path` and the standard library's own imports break (`cannot import name 'MethodType' from 'types'`). The webhook
-  package uses `base.py`.
-  Evidence: `packages/tl-core/src/tl_core/webhooks/base.py` (renamed from `types.py` after the first ad-hoc script failed). Status: active
-
-- **L-P0-I5-B2** · 2026-10-09 · tags: ledger, process
-  State that a lagging consumer reads later must keep its history. A subscription row holding only its latest enable and disable
-  seq made a dispatcher pass that ran after a disable and re-enable drop the events from before the disable; `active_windows`
-  (a list of seq intervals) fixed it, and `test_the_active_window_follows_disable_and_enable` runs the late pass on purpose.
-  Operational tables that no event produces (`wh_*`) are created by a projector with empty `handles` and a no-op `reset`, so
-  `create_schema` makes them and a rebuild never clears a secret or a retry state.
-  Evidence: `tests/webhooks/test_dispatcher.py`, `packages/tl-core/src/tl_core/webhooks/state.py`. Status: active
-
-- **L-P0-I5-B3** · 2026-10-09 · tags: process, tests
-  When a stub-plus-provided-test ticket sits under code that other tests already exercise, make the stub fail loudly only for the
-  part it lacks (`matches_row` raises `NotImplementedError` when one of the five unbuilt filter parts is set) instead of ignoring
-  it or raising everywhere: the rest of the suite stays green, and a silently ignored filter part could never leak events.
-  Reference implementations for T20 to T23 were checked with `/tmp`-style scripts that copy the reference over the stub, run
-  `ruff`, `pyright` and the provided test, then `git checkout -- packages` (commit supervisor edits first: the checkout also reverts them).
-  Evidence: `packages/tl-core/src/tl_core/webhooks/filters.py`; docs/tickets/P0-I5/T22-webhook-filter-match.md. Status: active
-
-- **L-P0-I5-B4** · 2026-10-09 · tags: api, tests
-  An address allow/deny check must unwrap every IPv6 form that carries an IPv4 address, not only `::ffff:x`: NAT64
-  `64:ff9b::/96` and 6to4 `2002::/16` are judged by the address inside, local-use NAT64 `64:ff9b:1::/48` and Teredo
-  `2001::/32` are refused. `verify` must also turn non-UTF-8 body bytes into `SignatureError`. Both were found by the
-  orchestrator's review of 7b6c704; the cases are rows in `test_webhook_egress.py` and `test_webhook_signing.py`.
-  Evidence: `egress.is_public`; orchestrator review at 7b6c704. Status: active
-
-- **L-P0-I5-B5** · 2026-10-09 · tags: ledger, tests
-  `uow.ledger.stream_version()` reads through another connection, so it misses events appended earlier in the same unit of
-  work and chained commands on one stream fail with `ConcurrencyError`. Read the version with `SELECT MAX(stream_version)`
-  on `uow.conn()` (`webhooks.subscriptions.current_version`). The contract scenario chains update, rotate, disable and enable
-  in one unit of work on purpose. Also: pyright does not see a sibling test helper in another directory; the root
-  `extraPaths = ["tests/webhooks"]` lets `tests/contract` import `world.py`.
-  Evidence: `tests/contract/test_webhook_catalog_contract.py`; first run raised `expected version 1, found 2`. Status: active
-- **L-P0-I5-A1** · 2026-10-09 · tags: ledger, sync
-  On Postgres every write transaction takes one advisory lock first (`engine.write_tx`), the analogue of `BEGIN IMMEDIATE`. That
-  resolves L-P0-I4-A2 (commit order equals seq order, so a poller needs no lag window) and L-P0-I3-O2 (guard reads inside a write
-  transaction cannot go stale; no `SELECT ... FOR UPDATE` is needed). `seq` is `MAX(seq)+1` under the lock, so it stays gap-free like
-  SQLite's; an identity column would burn values on rollback. Writers queue; one that waits more than 10 s fails with a lock timeout.
-  Evidence: `test_postgres_ledger.py` (dropping the lock fails five tests); `docs/tickets/P0-I5/README-A.md` D1 to D3. Status: active
-
-- **L-P0-I5-A2** · 2026-10-09 · tags: tooling, ledger
-  The Postgres adapter registers driver loaders so `tl_core` sees SQLite-shaped values: JSON as canonical compact text, `timestamptz` as
-  `iso_utc` strings, booleans as 0/1, integer sums as ints. Consequence: do not use `sqlalchemy.inspect(conn).get_columns` (SQLAlchemy's
-  reflection expects parsed JSON and crashes on a column with a non-default collation); read column names with
-  `promoted.table_columns(conn, table)`. `events.payload` stays TEXT because JSONB re-renders numbers and would break re-hashing.
-  Evidence: `postgres/engine.py`; the crash appeared in `test_postgres_collation.py`. Status: active
-
-- **L-P0-I5-A3** · 2026-10-09 · tags: schema, tests
-  Text sorts by the server locale on Postgres (`en_US.utf8` in the default image, `C.UTF-8` in this container, so a local run hides it)
-  and bytewise on SQLite. The generator pins Postgres `TEXT` columns to `COLLATE "C"`; `test_postgres_collation.py` creates an ICU-locale
-  database to prove it. Also: LinkML `float` maps to `DOUBLE PRECISION` (Postgres `REAL` is 4 bytes). A dialect property that depends on
-  the server's configuration needs a test that creates the unfriendly configuration.
-  Evidence: `ddl_types.collated`, `tests/schema/test_generated_ddl_parity.py` precision test fails on `REAL`. Status: active
-
-- **L-P0-I5-A4** · 2026-10-09 · tags: tests
-  Hand-written SQL in tests must run on both databases: a boolean column takes `TRUE`/`FALSE` or a bound Python bool (never `0`/`1`),
-  a timestamp column takes a full ISO string (never `'x'`), binds are `text(...)` with `:name` (`exec_driver_sql` with `?` fails on
-  Postgres), and there is no `sqlite_master`. Of about 80 Postgres failures in the first parity run, all but three were these.
-  Evidence: reference conversion in the P0-I5 WS-A refs worktree; tickets T01 to T09 recipe item 4. Status: active
-
-- **L-P0-I5-A5** · 2026-10-09 · tags: tests, tooling
-  Parity fixtures: `new_db` is a function-scoped factory; a module-scoped fixture cannot depend on the adapter parameter, so shared
-  databases become per-test, and a Hypothesis test calls `new_db()` once per example and adds `HealthCheck.function_scoped_fixture`.
-  A killed pytest run leaves its `tl_pytest_<hex>` database behind (the runbook has the cleanup); a `timeout`-killed run did exactly that.
-  Evidence: `conftest.py`; `docs/runbooks/postgres-local-setup.md`. Status: active
-
-- **L-P0-I5-A6** · 2026-10-09 · tags: process
-  Triage by reference conversion paid off: converting every test module with a script in a scratch worktree and running it on Postgres
-  showed in about an hour that production code needed three fixes and the tests needed only mechanical changes, which made the
-  tickets small and their acceptance counts exact. The same worktree is the takeover path; keep it until the tickets merge.
-  Evidence: `/home/user/wt/p0-i5a-refs`; README-A "Order of work". Status: active
-
-- **L-P0-I5-A7** · 2026-10-09 · tags: process, env
-  Check a dependency's licence before adding it. psycopg 3 is LGPL-3.0; a copyleft dependency is a human gate (`04-gates.md` §2) that
-  the orchestrator's delegation does not cover, and "pre-approved" in a fanout plan named a driver, not a licence. The Postgres driver is
-  `pg8000` (BSD-3-Clause; deps scramp MIT-0, asn1crypto MIT, python-dateutil Apache-2.0/BSD). A new dependency line in a ticket or plan
-  names the package and its licence.
-  Evidence: orchestrator ruling on P0-I5 WS-A; `packages/tl-adapters/pyproject.toml`. Status: active
-
+- **L-P0-I6A-1** · 2026-10-09 · tags: env, process
+  A new worktree has an empty `.venv`: run `uv sync --all-packages` once (plain `uv sync` installs no workspace package, and `just check`
+  then reports 1790 pyright errors about unresolved imports). After a trunk merge that adds a dependency (pg8000), run it again.
+  Evidence: first `just check` in `/home/user/wt/p0-i6a`; `ModuleNotFoundError: pg8000` after the P0-I5 merge. Status: active
+- **L-P0-I5-O1** · 2026-10-09 · tags: dependencies, gates
+  Check the licence of every new dependency and its transitive tree before adding it. psycopg 3 is LGPL-3.0, and
+  linkml's hard `jsonschema[format]` pulls rfc3987 (GPL-3.0+). Both are copyleft, which is a human gate. Use pg8000 for
+  Postgres, and keep the root `override-dependencies` that swaps in `jsonschema[format-nongpl]`. Name the licence in
+  the relay NOTE and in APPROVALS.md. Policy and allow-list: ADR-0006.
+  Evidence: orchestrator licence scan during P0-I5. Status: active
 - **L-P0-I5-A8** · 2026-10-09 · tags: tooling, ledger
   pg8000 differences that the adapter hides: it ignores libpq `options` (the schema goes in as the startup parameter `search_path`);
   it raises `IntegrityError` only for SQLSTATE 23505, so `engine.py` re-raises every class-23 error as `IntegrityError` (the append-only
@@ -452,6 +56,29 @@ test or a generated artefact already enforces, or narrative history (that belong
   `conn.notifications`; result coercions are `register_in_adapter(oid, fn)` with fn taking the text value. The loader behaviour that
   `tl_core` relies on (canonical JSON text, ISO UTC timestamps, 0/1 booleans, int sums) is the same under both drivers.
   Evidence: `postgres/engine.py`, `postgres/notify.py`; 150 adapter tests pass on both adapters. Status: active
+- **L-P0-I8D-1** · 2026-10-10 · tags: env, tooling
+  pg8000 talks TLS to a loopback Postgres by default, and every statement pays for it: a seed of 1,067 events took 13.6 s with TLS and 9.7 s without. The adapter
+  URL now accepts `?sslmode=disable` (the bench datasets use it on loopback). Projection work on Postgres is statement-bound at about 0.5 ms per statement
+  (the projectors run 17 statements for a new record and about 15 for a link event, before the ledger's three), so a bulk load or rebuild of 100k records takes about an hour there against 8 minutes on SQLite: count statements
+  before optimising anything else.
+  Evidence: `docs/reports/P0-I8-D.md`; `tests/bench/bench_data.py`; `packages/tl-adapters/tests/test_postgres_url.py`. Status: active
+
+### tooling: Tool gotchas: pyright strict, ruff, Textual, shell and Bash traps.
+
+- **L-P0-I1-6** · 2026-10-09 · tags: tooling
+  pyright strict flags `@contextmanager` functions annotated `Iterator[X]` (use `Generator[X]`), and ruff's
+  `E501` applies to docstrings and comments at 100 columns, so wrap prose when writing modules. Provided test files
+  must be ruff-clean before commit because implementers may not edit them.
+  Evidence: scratch builds of T04b and T07. Status: active
+- **L-P0-I1-10** · 2026-10-09 · tags: tooling
+  A Protocol attribute (`ledger: Ledger`) is invariant, so an adapter that narrows it (`SqliteLedger`) fails pyright
+  strict; declare Protocol attributes that implementers may narrow as read-only `@property`.
+  Evidence: T11 blocked on 11 pyright errors; `tl_core/uow.py`. Status: active
+- **L-P0-I5-B1** · 2026-10-09 · tags: tooling, process
+  Never name a module `types.py` (or `enum.py`, `json.py`) inside a package: a script or `python -` run from that directory puts
+  it first on `sys.path` and the standard library's own imports break (`cannot import name 'MethodType' from 'types'`). The webhook
+  package uses `base.py`.
+  Evidence: `packages/tl-core/src/tl_core/webhooks/base.py` (renamed from `types.py` after the first ad-hoc script failed). Status: active
 - **L-P0-I3-7** · 2026-10-09 · tags: tui, tooling
   Textual `OptionList` prompts and `DataTable` cells that are plain `str` are parsed as Rich markup, so `[x]` vanished from a
   row (`▶ [x] KEY` rendered as `▶  KEY`). Wrap row text in `rich.text.Text(...)`. `query_one("#id", Select[str])` raises
@@ -459,155 +86,53 @@ test or a generated artefact already enforces, or narrative history (that belong
   `action_toggle` overrides `DOMNode.action_toggle` and fails pyright; use `action_toggle_select`. Textual's own command palette
   owns Ctrl+P: set `ENABLE_COMMAND_PALETTE = False` on the app before binding it.
   Evidence: `widgets/link_picker.py`, `app.py`, first pilot runs of `test_link_picker`. Status: active
+- **L-P0-I6C-8** · 2026-10-10 · tags: env, tooling
+  Two implementer reports found shell traps in the Bash tool: `pkill -f <pattern>` matches the shell that runs it when the pattern is in the command line (exit 144), and a
+  multi-line `cat > file <<'EOF'` inside a `&&` chain once hung until the 120 s timeout while the Write tool created the file at once. Use `pgrep` and a PID, and write files with
+  the Write tool.
+  Evidence: `docs/reports/P0-I6/P0-I6-T41.md`. Status: active
+- **L-P0-I8A-10** · 2026-10-10 · tags: tui, tests
+  `pytest --snapshot-update` rewrites the tracked `snapshot_report.html` at the repository root as well as the `.raw` files: restore it with `git checkout snapshot_report.html` before committing. A new palette command or key map entry changes the palette snapshot (`test_snapshots_links.py::test_command_palette`) and the key map context list in `test_keymap.py`.
+  Evidence: P0-I8-S19 (`git status` after the update). Status: active
+- **L-P0-I8A-9** · 2026-10-10 · tags: tooling, security
+  Hostile numbers and nesting raise errors other than the ones a parser documents: `yaml.safe_load` raises `RecursionError` (50,000 nested levels) and `ValueError` (integers over 4300 digits); `float(huge_int)` raises `OverflowError`; `json.dumps` of such an integer raises `ValueError`. Wrap the parse, the float conversion and the message formatting, and turn each into the domain error.
+  Evidence: `tests/settings/test_exchange.py::test_a_file_that_breaks_the_yaml_reader_is_a_document_error`, `packages/tl-core/tests/test_settings_values.py::test_a_number_too_large_for_a_float_is_out_of_range_not_an_error`. Status: active
 
-- **L-P0-I3-8** · 2026-10-09 · tags: tui
-  App-level `Binding`s (`l`, `w`, `t`, `R`) do not fire while an `Input` has focus (it consumes printable keys), but they do fire
-  under a `ModalScreen` whose focus is elsewhere, so every new app action starts with `if self._modal_open(): return`.
-  `app.post_message(RecordChanged)` is delivered to the app only, never to a child `RecordView`: after a modal command call
-  `view.reload()` (`TlApp._changed`).
-  Evidence: `tests/test_palette.py::test_the_l_w_t_keys_are_typed_into_the_palette_not_run`, workflow-menu refresh test. Status: active
+### tests: Test conventions that no test enforces.
 
-- **L-P0-I3-9** · 2026-10-09 · tags: tui, process
-  Textual delivers `Select.Changed` asynchronously, after a programmatic `select.value = ...` has returned, so a reentrancy flag
-  (`_setting = True ... False`) never covers the event: the picker's own change was read as the user's and froze the relation. Remember
-  the value the code assigned and compare `event.value` with it. A review that probes with a second record type found it; the
-  provided test only used one type and could not see it.
-  Evidence: T12 escalation; `tests/test_link_picker.py::test_the_relation_follows_the_highlighted_record_until_the_user_changes_it`. Status: active
+- **L-P0-I1-11** · 2026-10-09 · tags: tests
+  A concurrency invariant needs a deterministic seam, not repetition: the lost-wakeup test replaces the publisher's lock
+  with one that runs a second writer right after a given release, and a deliberately wrong `LeakyPublisher` proves the
+  test can fail. Three clean runs of a racy test prove nothing. Threads in such tests are `daemon=True` and joined
+  with a timeout so a regression fails instead of hanging the suite.
+  Evidence: `packages/tl-core/tests/test_bus.py`; mutation (flag cleared outside the lock) fails the test. Status: active
+- **L-P0-I4-B8** · 2026-10-09 · tags: tests, cli
+  `typer.testing.CliRunner.invoke` catches exceptions and returns them on the result, so a CLI test that only asserts "nothing
+  changed" passes against a command that crashes (it passed against a `NotImplementedError` stub). Assert `exit_code` and
+  `result.exception is None` in every CLI test, including negative-space ones. Implementer-found, T25.
+  Evidence: `docs/reports/P0-I4/P0-I4-T25.md`; `packages/tl-cli/tests/test_cli_file_reconcile_exit.py`. Status: active
+- **L-P0-I8A-4** · 2026-10-10 · tags: tests
+  Extends L-P0-I5-B6. A fake clock handed to code that compares it with event times must be the real clock plus an offset: a fixed fake "now" taken at set-up was already behind the `recorded_at` of every event the test wrote, so every entry looked "not yet in force" (8 of 12 reader tests failed with the default value). Move time in such a test by changing the offset.
+  Evidence: `tests/settings/test_reader.py` `Clock`. Status: active
+- **L-P0-I8A-7** · 2026-10-10 · tags: tests, process
+  Adding a command to the API table, a tool to `PROPOSABLE_TOOLS` or an event type to the catalog breaks tests that assert literal counts or lists elsewhere: `len(COMMANDS) == 17` and the agent-refusal count of 13 in `tl-api`, `PROPOSE_TOOLS` and `PROPOSING` in `tl-mcp`, `register_write_tools`' assertion on the tool modes, the table lists of `test_generate.py` and `test_ddl.py`, and the webhook scenario. Run `just test` once after the contract amendment and fix all of them in the same commit.
+  Evidence: the first full `just test` of P0-I8-A (3 failures, then 1 more in `tl-api`). Status: active
+- **L-P0-I8B-7** · 2026-10-10 · tags: process, tickets, tests
+  Run `pyright` over a provided test before dispatching it: copy the `.py.txt` into its test directory, run `uv run pyright <package>`, delete the copy. Two provided tests (a
+  `tuple(row)` on `Row | None`, a subscript of `get_record_by_id(...)`) passed pytest against the reference but failed `just check` on the ticket branch, and the ticket forbids editing the
+  provided file, so the implementers correctly stopped as Blocked and the supervisor had to fix the test on the branch and in the provided source.
+  Evidence: T22 at 197b81c, T23 at 938c8ce. Status: active
 
-- **L-P0-I3-10** · 2026-10-09 · tags: core, services
-  Handlers never commit and read the projections of the caller's own transaction, so a new command that needs several writes to be
-  atomic is a composition: call the existing handlers in order inside the one unit of work, chain `expected_version` from each result,
-  share one `correlation_id`, and let the caller's rollback undo everything when a part raises. No new write path was needed for
-  `EditRecord`. A part that changes nothing raises `NoChangesError` before it appends, so it can be skipped safely.
-  Evidence: `services/edit.py`, `tests/services/test_edit_record.py` (rollback and stale-version cases). Status: active
+### process: Process rules: relays, workers, tickets, gates, concurrency and recovery.
 
-- **L-P0-I3-11** · 2026-10-09 · tags: process, tickets
-  A ticket that tells the implementer to implement a questionable behaviour "as written" and to raise it as an open question works: T13b's
-  spec ended the tray on the first successful link and hid the refusals of the rest; the implementer kept the spec, reported the
-  question, and the supervisor decided with the orchestrator. Two Haiku tickets that run in one batch cannot depend on each other's code
-  (T02b `trace` needed T14a): leave the dependent piece out of the ticket and add it after the merge.
-  Evidence: `docs/reports/P0-I3/P0-I3-T13b.md`, decisions D26 and D27. Status: active
-- **L-P0-I5-O1** · 2026-10-09 · tags: dependencies, gates
-  Check the licence of every new dependency and its transitive tree before adding it. psycopg 3 is LGPL-3.0, and
-  linkml's hard `jsonschema[format]` pulls rfc3987 (GPL-3.0+). Both are copyleft, which is a human gate. Use pg8000 for
-  Postgres, and keep the root `override-dependencies` that swaps in `jsonschema[format-nongpl]`. Name the licence in
-  the relay NOTE and in APPROVALS.md. Policy and allow-list: ADR-0006.
-  Evidence: orchestrator licence scan during P0-I5. Status: active
-
-- **L-P0-I4-C1** · 2026-10-09 · tags: api, tests
-  FastAPI 0.143 keeps included routers lazy: `app.routes` holds `_IncludedRouter` objects, not `APIRoute`s. To visit every
-  operation (for example to prove each route calls the authorise hook) iterate `app.openapi()["paths"]`. Dependencies with `yield`
-  exit after the response is built, so a command route opens its unit of work inside the handler, never in a `yield` dependency.
-  Evidence: `packages/tl-api/tests/test_auth.py::test_every_route_calls_the_hook`; `routes/files.py`. Status: active
-
-- **L-P0-I4-C2** · 2026-10-09 · tags: api, tests
-  Starlette's `TestClient` (an httpx2 client) and httpx's ASGI transport return only when the whole response is complete, so an SSE
-  stream never reaches the test. Run the app under uvicorn on `127.0.0.1:0` in a daemon thread (`Harness.live()`), read it with an
-  `httpx2.Client.stream(...)` and a short `Timeout`, and stop it with `server.should_exit`. Give the app a lifespan so the change-feed
-  poller runs there; a `TestClient` used without `with` runs no lifespan.
-  Evidence: `packages/tl-api/tests/harness.py`, `test_stream.py` (10 tests, stable over repeated runs). Status: active
-
-- **L-P0-I4-C3** · 2026-10-09 · tags: api, tooling
-  A module that builds FastAPI endpoints in a loop must not use `from __future__ import annotations`: FastAPI evaluates the string
-  annotations in the module's globals, so `Annotated[str, Depends(guard(action))]` fails with `NameError` when `action` is a closure
-  variable. `tl_api/commands.py` omits the import; body models are set through `endpoint.__annotations__["body"] = model`. A body
-  model built at run time also needs `# pyright: ignore[reportInvalidTypeForm]` where it is used as an annotation.
-  Evidence: `packages/tl-api/src/tl_api/commands.py`, `routes/files.py`. Status: active
-
-- **L-P0-I4-C4** · 2026-10-09 · tags: env, mcp, api
-  This environment resolves `mcp` 2.x and `httpx2`: `FastMCP` is now `mcp.server.mcpserver.MCPServer`, `mcp.Client(server)` talks to
-  a server in memory, and there is no `httpx` module (use `httpx2`; Starlette's `TestClient` already does). `fastapi.sse` exists but
-  the API hand-rolls its SSE framing (`tl_api/feed.py`) so the wire format is fixed by our tests, not a library default.
-  Evidence: `uv run python -c "import httpx"` fails; `.venv/.../mcp/server/fastmcp.py` raises ModuleNotFoundError. Status: active
-
-- **L-P0-I4-C5** · 2026-10-09 · tags: process, env
-  Licence check for a new dependency (ADR-0006): walk `Requires-Dist` from the new roots through `importlib.metadata` and print
-  `License-Expression` or the classifiers for every distribution in the closure, then list `uv.lock` entries that exist only behind
-  platform markers. fastapi, uvicorn, httpx2 and mcp pull MIT, BSD-3-Clause, Apache-2.0 and PSF-2.0 distributions only.
-  Evidence: scratch scan of 27 distributions, no GPL, LGPL, AGPL or MPL. Status: active
-
-- **L-P0-I4-C6** · 2026-10-09 · tags: process, api
-  A route stub ticket must keep every decorator, parameter, annotation and docstring that reaches the OpenAPI document, because the
-  document is committed and drift-checked. Dropping the scratch reference over the stub and running `python -m tl_api.openapi --check`
-  caught a description that differed between reference and stub (it would have turned `just check` red on every ticket branch).
-  Evidence: T42 `role` query description; `docs/tickets/P0-I4/T42-reference-routes.md`. Status: active
-
-- **L-P0-I4-C7** · 2026-10-09 · tags: api, security
-  FastAPI reads and decodes the request body before it runs dependencies, so a `guard` dependency alone answers an unauthenticated request
-  with a broken JSON body 422, not 401 (the security review found it on 14 routes). Authenticate in an ASGI middleware that runs before the
-  route, keep `guard` for the per-route `authorize` call, and serve `/openapi.json` ourselves (`openapi_url=None` plus a guarded route
-  with `include_in_schema=False`) so no default route sits outside the token. A streaming response releases its resources in the response
-  object (`SlotResponse.__call__`), not in the generator: a generator the server never starts never runs its `finally`.
-  Evidence: `test_authentication_comes_before_the_body_is_read`, `test_the_slot_is_released_even_when_the_response_never_starts`; each fails when its fix is removed. Status: active
-
-- **L-P0-I4-C8** · 2026-10-09 · tags: process, tests
-  Making a stub ticket from a finished reference is mechanical: copy the reference outside the repo, replace every function body with
-  `raise NotImplementedError("STUB (<ticket>)")` using `ast` line numbers (`/home/user/wt/p0-i4c-refs/stubify.py`), let `ruff check --fix`
-  drop the imports the stub no longer uses, then diff the import lines of stub and reference: that diff is the "imports to add" list the
-  ticket must carry (without it an implementer meets `F401`/`F821` and guesses). Run the OpenAPI check before committing the stubs: the
-  `EventPage` docstring I added while moving it changed the committed document and I had committed it red once.
-  Evidence: S9/S10 commits; ticket texts T43, T46-T48. Status: active
-
-- **L-P0-I4-C9** · 2026-10-09 · tags: api, tests
-  A catch-all `@app.exception_handler(Exception)` is run by Starlette's `ServerErrorMiddleware`, which sends the handler's response and
-  then re-raises: uvicorn logs a traceback and closes the keep-alive connection, so the next pooled client request fails with a raw
-  `ReadError` (4 of 10 calls in the review's repro). Register one handler per mapped class (`app.add_exception_handler(cls, ...)` for every
-  row of `ERROR_TABLE`, plus pydantic's `ValidationError`) and keep the `Exception` handler for real 500s only. A single request over
-  `TestClient` never shows it; the regression test sends 20 sequential errors over one pooled connection to a live server.
-  Evidence: `test_mapped_errors_leave_the_connection_usable` (fails before the fix). Status: active
-
-- **L-P0-I4-C10** · 2026-10-09 · tags: process
-  A stub script that replaces every function body also stubs the helpers a ticket calls "given" (T43's `dump`), and the ticket then
-  contradicts its own stub; the implementer rightly implemented it and reported a deviation. Keep given helpers out of the stubbing
-  (list them to the script) or say "implement" in the ticket. Also: a review fix that changes a base class the open tickets rely on (here
-  `ApiClientBase._send` raising `ApiUnavailableError`) must stay compatible with their provided tests, because a changed provided file
-  makes the reviewer's `diff` fail: the new error subclasses `httpx2.TransportError` for that reason.
-  Evidence: `docs/reports/P0-I4/P0-I4-T43.md` deviation; `ApiUnavailableError` in `client/base.py`. Status: active
-- **L-P0-I5-O2** · 2026-10-09 · tags: environment, lake
-  DuckDB cannot `INSTALL` extensions here because extensions.duckdb.org is refused. Install the PyPI packages
-  `duckdb-extensions` and `duckdb-extension-ducklake`, with `duckdb` pinned to the same version (1.5.5), and call
-  `duckdb_extensions.import_extension('ducklake')` before `LOAD ducklake`. Parquet and JSON are built in. pgBackRest is
-  installable with apt. GitHub release downloads work. Details: the ADR-0002 addendum.
-  Evidence: orchestrator probes before P0-I7. Status: active
-- **L-P0-I7-B1** · 2026-10-09 · tags: lake, tooling
-  Load rows into DuckDB/DuckLake through a scratch NDJSON file and `INSERT ... SELECT FROM read_json(file, columns={...})`, never
-  `executemany` or multi-row `VALUES`: 100 000 wide rows took 0.16 s that way, while 10 000 single-column rows took 7.6 s with
-  `executemany` and the multi-row insert had not finished after two minutes.
-  Evidence: scratch benchmark during P0-I7-S1; `tl_lake/ingest.py`. Status: active
-- **L-P0-I7-B2** · 2026-10-09 · tags: lake, tooling
-  DuckDB's Python client needs `pytz` to fetch any `TIMESTAMPTZ` (`lake.snapshots()`' `snapshot_time` and `now()` included), and pytz is not a
-  dependency. Store `TIMESTAMP` holding UTC, select explicit columns from `snapshots()`, and have `lake_query` cast zone-aware result columns to
-  text. In DuckLake 1.5.5 `lake.current_snapshot()` has one column, `id`.
-  Evidence: `ModuleNotFoundError: No module named 'pytz'`; `tl_lake/query.py::_tz_safe`. Status: active
-- **L-P0-I7-B3** · 2026-10-09 · tags: lake
-  DuckLake commits DDL and DML in one transaction as one snapshot, and the next snapshot id is `current_snapshot() + 1`, so a sync can write the
-  `_tl_sync` row naming its own snapshot inside the transaction and verify the id after COMMIT. Small inserts are inlined into the catalog unless
-  the attach sets `DATA_INLINING_ROW_LIMIT 0`; a moved lake directory needs `OVERRIDE_DATA_PATH true`. A DuckDB catalog file admits one writer or
-  many readers across processes, so every open goes through a lock file (`tl_lake.duck.open_lake`).
-  Evidence: `tests/test_sync.py`; scratch probes during P0-I7-S1. Status: active
-- **L-P0-I7-B4** · 2026-10-09 · tags: lake, mcp, security
-  Build a SQL read-only guard on DuckDB's own parser: `json_serialize_sql` refuses everything but SELECT and returns the tree; walk it and allow
-  tables only if they are lake tables or a CTE visible at that point. A flat set of CTE names is bypassable (a scalar subquery that defines a CTE
-  named `duckdb_settings` lets the outer FROM reach the system view), so scope them. Table functions are allow-listed, not deny-listed. Keep
-  READ_ONLY attach and `enable_external_access=false` + `lock_configuration=true` behind the guard.
-  Evidence: `tests/test_guard.py::test_a_cte_only_covers_the_query_that_defines_it`, `test_query.py::test_the_sandbox_blocks_what_the_guard_would_miss`. Status: active
-- **L-P0-I7-B5** · 2026-10-09 · tags: tests, process
-  A property test over a real storage engine is slow and shrinks slowly when it fails: with the machine shared by several workstreams (load
-  average 20 on 4 CPUs) the mutation check of the lake property test took six minutes. Keep `max_examples` near 10, run mutation checks in the
-  background and wait with a notification, and never `pkill -f` a test file name (it matches and kills the shell that runs it).
-  Evidence: `tests/test_rebuild_equals_incremental.py` mutation run. Status: active
-- **L-P0-I7-B6** · 2026-10-10 · tags: tests, process
-  A library logger with no handler prints WARNING records to stderr through Python's last-resort handler, which polluted `tl lake query` refusals
-  (`error: refused:` was preceded by a JSON log line). Give a library logger a `NullHandler`, and test the CLI stderr. A module-scoped test
-  fixture cannot use the function-scoped `ledger` fixture or the autouse schema provider, so lake tests build their ledger per test.
-  Evidence: first `just demo P0-I7-lake`; `tests/test_query.py::test_a_refusal_prints_nothing_unless_the_application_configures_logging`; T21 report. Status: active
-- **L-P0-I7-B7** · 2026-10-10 · tags: lake, mcp, security
-  A CTE is not visible inside its own body (only the recursive term of a recursive CTE sees its name), so a guard that treats every CTE name
-  of a query as in scope lets `WITH "/path/x.parquet" AS (SELECT * FROM "/path/x.parquet")` through, and DuckDB then replacement-scans the file.
-  Scope CTE names exactly as SQL does and also refuse any table or CTE name containing `/ \ . * ? [`. Audit with a catch-all: any exception
-  (lock timeout, bad surrogate, non-text SQL) must still write one line with the same keys, written ASCII-escaped because `str.splitlines()`
-  splits on U+2028 and U+0085. Cap the returned bytes as well as rows, and strip absolute paths from error text.
-  Evidence: lake_query review of 16d1828; `tests/test_guard.py`, `tests/test_query.py`. Status: active
+- **L-P0-SETUP-9** · 2026-10-09 · tags: process, env
+  Workflow agent concurrency is min(16, CPUs - 2); this container has 4 CPUs, so 2 agents run at once. Size DISPATCH
+  batches at 2–4 tickets.
+  Evidence: workflow-authoring reference; `nproc` = 4. Status: active
+- **L-P0-SETUP-10** · 2026-10-09 · tags: process, tooling
+  Git cannot hold a branch `p0/i1` and a branch `p0/i1/t01-…` at the same time (ref namespace clash). Ticket branches are
+  siblings: `p0/i1-t01-<slug>`. The branch passed by the orchestrator overrides a ticket's Branch field.
+  Evidence: `fatal: cannot lock ref 'refs/heads/p0/i1/t01-monorepo-scaffold'` in the first ticket-batch run. Status: active
 - **L-P0-I5-O3** · 2026-10-09 · tags: env, process
   Refines L-P0-I3-O1. Before resuming a ticket-batch workflow after a restart, read its journal. For every implementer
   with no `result` line, remove its worktree and delete its ticket branch (`git worktree remove --force`, `git branch -D`),
@@ -626,64 +151,19 @@ test or a generated artefact already enforces, or narrative history (that belong
   work in those directories, and removing one mid-review breaks that review. Clean up only the worktrees of workflows
   that have finished, by exact name, and check the running workflows' journals for `started review` lines first.
   Evidence: the orchestrator removed two in-flight P0-I4 review worktrees (T43, T46) during the P0-I5 cleanup. Status: active
-
-- **L-P0-I5-A9** · 2026-10-10 · tags: tests, process
-  Parity costs time: tests/query takes about 70 s on SQLite and about 7 minutes on both adapters under load, the Hypothesis property
-  tests are about ten times slower on Postgres (each example makes a schema), and the full `just test-parity` (1214 tests) took 11 minutes on a loaded container. Give a
-  CI job and any `timeout` a budget of 20 minutes, and do not wrap these runs in a 2-minute tool timeout. `just test-parity` also deselects the
-  tests that never use a database fixture, so its total is lower than a `--adapters sqlite,postgres` count by design; a ticket that quotes
-  both numbers says so.
-  Evidence: reports P0-I5-T04, T06, T07, T08, T09; `docs/reports/P0-I5-A.md`. Status: active
-
-- **L-P0-I5-A10** · 2026-10-10 · tags: tooling
-  A docstring copied from a spec into a Python file must escape backslashes (`\\s`), or the module compiles with a `SyntaxWarning` on every
-  run; a ticket that renames a test must say so in *Tests to add* when it also says "every test keeps its name"; a provided-test ticket's
-  `git diff --stat` only lists new files once they are committed.
-  Evidence: reports P0-I5-T13 and T09. Status: active
-
-- **L-P0-I5-B6** · 2026-10-09 · tags: tests
-  The ledger stamps `recorded_at` with the real clock, so a test that mixes a `FakeClock` (retry timers, lease expiry) with an
-  expiry compared against event times breaks the day the calendar passes the fake date: `test_expired_subscriptions_stop_receiving`
-  failed on 2026-10-10 because the fake "tomorrow" was already in the past of real events. Anything compared with event time uses
-  the real clock; anything compared with delivery state uses the fake one.
-  Evidence: `tests/webhooks/test_dispatcher.py`; failure on the first run after the date changed. Status: active
-
-- **L-P0-I5-B7** · 2026-10-10 · tags: process, tooling
-  When two increments create the same path (`tl_adapters/sqlite/factory.py` in P0-I4 workstream C and in P0-I5 workstream B), the
-  orchestrator names the canonical commit and the later branch copies the file verbatim and adapts its callers, rather than merging
-  two different files. After merging workstream A, `just check` failed on codegen drift because its `COLLATE "C"` change altered the
-  Postgres DDL of tables that workstream B had added: run `just gen` after every merge that touches a generator.
-  Evidence: `git show c073261:...factory.py`; `differs: ddl/postgres/wh_delivery.sql`. Status: active
-- **L-P0-I6A-1** · 2026-10-09 · tags: env, process
-  A new worktree has an empty `.venv`: run `uv sync --all-packages` once (plain `uv sync` installs no workspace package, and `just check`
-  then reports 1790 pyright errors about unresolved imports). After a trunk merge that adds a dependency (pg8000), run it again.
-  Evidence: first `just check` in `/home/user/wt/p0-i6a`; `ModuleNotFoundError: pg8000` after the P0-I5 merge. Status: active
-- **L-P0-I7-B8** · 2026-10-10 · tags: lake, tooling, ledger
-  The Postgres adapter returns JSON as canonical text, booleans as 0/1, timestamptz as ISO text and sums as ints, and under that
-  `sqlalchemy.inspect(conn).get_columns` and `Table(autoload_with=conn)` fail (`TypeError` on the collation JSON). Read column names with
-  `tl_core.projection.promoted.table_columns`, select with explicit quoted columns, and get the type of a promoted column from the effective
-  schema's `promoted_columns` + `column_type(..., "postgres")` (the mapping that created it). Make tests parity tests by building the ledger
-  from the `new_db` fixture and the dialect-neutral `tl_adapters.db` functions.
-  Evidence: `tl_lake/sync.py::_extra_types`, `tests/test_parity_sync.py`, first Postgres run of `tests/test_sync.py`. Status: active
-
-- **L-P0-I6A-2** · 2026-10-09 · tags: ledger, tests
-  An aggregate that must equal its rebuild (event cards) needs a property test with a pure oracle written from the rules, not from the
-  code under test, and a clock the test controls (`make_ledger(engine, clock=...)` plus `BaseUnitOfWork`). Bias the generated gaps towards
-  the window edges: with uniform gaps a mutation of `<=` to `<` survived 40 examples. Check a property test by mutating the code.
-  Evidence: `tests/property/test_feed_projection.py`; mutation of the window edge in `feed/cards.py` fails it. Status: active
-
-- **L-P0-I6A-3** · 2026-10-09 · tags: ledger, schema
-  Writing an event before every business event (`Numbering.Allocated` before `Record.Created`, `Link.Suggested` after `Feed.Posted`) splits
-  any "consecutive events" aggregation unless those plumbing events are declared transparent. A unique index on a nullable column
-  (`open_scope`: NULL when closed) states "at most one open X per scope" in the database, works on SQLite and Postgres, and gives the
-  open-card lookup an index. Store instants a projector compares as integer microseconds, not as timestamps.
-  Evidence: `feed/cards.py` (`TRANSPARENT_*`), `cur_feed_items.open_scope`, `first_us`. Status: active
-
-- **L-P0-I6A-4** · 2026-10-09 · tags: tickets, tests
-  Two tickets that fill in different functions of one stub module collide on *Allowed paths*; split the module first (feed_queries.py for
-  T02, feed_completion.py for T03). Generate stubs by hand from the reference implementation: a regex stubifier mangled docstrings. Keep
-  long docstrings under 100 columns (E501 applies), and keep the verified reference implementations in the scratchpad for takeover.
-  Evidence: `docs/tickets/P0-I6/T02-*.md`, `T03-*.md`. Status: active
+- **L-P0-I8B-6** · 2026-10-10 · tags: process, tests
+  With several workstreams sharing four CPUs the whole `just test` took 13.5 minutes (4081 tests). Start it with `run_in_background` and wait with a foreground `timeout N bash -c 'while kill -0 PID ...'`
+  rather than a polling `sleep`; `pkill -f <pattern>` killed the shell again (see L-P0-I7-B5). A stub ticket's implementation notes go in comments, not the docstring, when the docstring reaches
+  the committed OpenAPI document.
+  Evidence: this round's full run; `docs/tickets/P0-I8/T21-api-types.md`. Status: active
+- **L-P0-I8C-6** · 2026-10-10 · tags: process, gates
+  Run `just check` on the base before relaying it to implementers. A one-line E501 in a supervisor commit made every ticket's acceptance
+  command fail, so a whole batch came back BLOCKED for a reason outside the tickets and cost a round. `just check` also lints `dev/`,
+  which `pyright` does not cover.
+  Evidence: S44 commit f01ab70 (`dev/tools/scan_secrets.py:2`), fixed in the following commit. Status: active
+- **L-P0-I8A-8** · 2026-10-10 · tags: process
+  A ticket's test count must be counted from the provided file (`grep -c "^def test_"`), not remembered: two of the first six tickets named the wrong number and the implementers had to stop and ask.
+  Evidence: reports `docs/reports/P0-I8/P0-I8-T04.md` (8 named, 7 in the file) and `P0-I8-T05.md`. Status: active
 - **L-P0-I6A-5** · 2026-10-10 · tags: process, tickets
   A batch may hold only tickets whose dependencies are already merged on the base. T02 and T03 were verified against reference
   implementations that included T01, and their provided tests call T01's handlers (and T03's call T02's queries), so in one batch of
@@ -691,487 +171,27 @@ test or a generated artefact already enforces, or narrative history (that belong
   imports and calls; if another ticket owns it, the two are not independent. After the fact the fix was an integration merge of the
   base into the ticket branch and a re-run of its tests on both adapters.
   Evidence: relay outcomes of workflow wkzasjo4a; T03 passes 13 of 13 only with T02 merged. Status: active
-- **L-P0-I6C-1** · 2026-10-10 · tags: ledger, api
-  A scope `project:sim-<run>` cannot be auto-numbered: the numbering pattern's `{project}` takes letters and digits only (`FIELD_VALUE`) and the scope id has a
-  dash, so `CreateRecord` without a key answers 422 `numbering_value`. The simulator assigns keys itself (`SIM<RUN>-REC-0001`, which still fits the registered
-  pattern, so `#key` tags resolve). Do not loosen the numbering rules for it: numbering allocation is a human gate.
-  Evidence: `packages/tl-api/tests/test_effective_time.py::test_automatic_numbering_cannot_key_a_simulation_scope`; `numbering/allocator.py:segment_values`. Status: active
-
-- **L-P0-I6C-2** · 2026-10-10 · tags: ledger, api
-  `effective_at` is stored on every event but no projector, query or screen reads it; it shows only in the event pager (`GET /events`, `Event.effective_at`). That is
-  why D5 needed no change to `Command`, `Event` or `event_hash` (the hash covers `recorded_at`), and why `sim_assert` proves simulated time by reading the events
-  back. A feature that wants "business time" in a projection must read it explicitly.
-  Evidence: `grep -rn effective_at packages/*/src` (only the two ledger adapters and `ledger/types.py`); `tests/test_ledger_effective_time.py::test_the_hash_does_not_depend_on_the_override`. Status: active
-
-- **L-P0-I6C-3** · 2026-10-10 · tags: tooling
-  The contract names the module `tl_sim/types.py`. Python run with that directory as the working directory (`python -` from `src/tl_sim`) fails at start-up with
-  `cannot import name 'MappingProxyType' from 'types'` because the file shadows the standard library. Run every command from the repository root; tickets say so.
-  The file keeps the frozen text verbatim by switching the formatter and the E501 and I001 rules off for that file only.
-  Evidence: a failed `python3 - <<EOF` from `packages/tl-sim/src/tl_sim`; `tests/test_contract_and_boundary.py::test_types_py_is_the_contract_of_the_fanout_plan_verbatim`. Status: active
-
-- **L-P0-I6C-4** · 2026-10-10 · tags: tests, process
-  An in-memory fake drifts from the real suite in the places nobody looked: `FakeWorld` raised `InvalidStateError` for a workflow transition from the wrong state, and
-  the real engine raises `UnknownTransitionError` ("cannot start in state"). The first run of the client tests against the real API app found it. Write the fake's
-  refusals from a real run, and keep one test per refusal that runs against the real app (`tests/test_http_client.py`).
-  Evidence: `test_links_and_transitions_follow_the_sample_workflow`; `testing.py` FakeClient.transition. Status: active
-
-- **L-P0-I6C-5** · 2026-10-10 · tags: tests
-  A test that pins "the draws happen in this order" only works if the draws consume the generator: `draw(3, rng)` for an integer count uses no randomness, while
-  `CountRange(min=0, max=0)` still does. The provided actor tests use ranges for the counts that precede the pinned draws, and pin a result that three different
-  orders would not all give (a first attempt with two activities chose the same line twice and pinned nothing).
-  Evidence: `docs/tickets/P0-I6/provided/c-test_actor_planner.py.txt` `PINNED`. Status: active
-
-- **L-P0-I6B-1** · 2026-10-10 · tags: schema, tests
-  A new event type in the catalog breaks two tests the schema package does not run: `tests/contract/test_webhook_catalog_contract.py`
-  requires the webhook scenario (`tests/webhooks/scenario.py`) to produce every catalog type, and a type that is only a decision of
-  an existing stream (`Proposal.Accepted`) needs a stream opened first. After any `schema/core` event change run
-  `uv run pytest tests/contract tests/webhooks` as well as `packages/tl-schema`. A hand-created record key that matches a
-  numbering pattern (`P123-REC-0001`) also advances that counter, so a test that needs a collision uses a key the allocator will not hand out.
-  Evidence: S21 left the contract test red until S24 added the Proposal events to the scenario; `test_a_command_refused_on_accept_leaves_only_the_failed_event`. Status: active
-
-- **L-P0-I6B-2** · 2026-10-10 · tags: ledger, process
-  Handlers interleave reads and writes, so there is no "non-writing pre-check" to call. To learn whether a command would be refused,
-  run the handler in its own unit of work and end the block with a private exception: the unit rolls back, publishes nothing and gives an
-  allocated number back (`proposals.precheck`). A SAVEPOINT inside the caller's unit would not do: `BaseUnitOfWork._pending` would still
-  publish the rolled-back events. Under Postgres the rolled-back run burns sequence values, which consumers already tolerate.
-  Evidence: `tests/services/test_proposals.py::test_a_refused_proposal_leaves_no_event_and_no_number_behind`; the mutation that removes the sentinel fails 8 tests. Status: active
-
-- **L-P0-I6B-3** · 2026-10-10 · tags: ledger, process
-  "Roll back, then record the failure in a fresh unit of work" cannot be a function of an entered `uow`. Keep the uow-level function
-  raising the command's refusal and put the two-step rule in a wrapper that takes the unit-of-work factory (`accept_or_fail`). In the
-  wrapper, re-read the state before recording the failure (a lost race on the same stream is not this caller's failure) and let
-  transient errors (`RetryableTransactionError`) propagate instead of recording them as the business outcome.
-  Evidence: `services/proposals.py`; `test_a_transient_database_failure_is_not_recorded_as_a_failed_proposal` fails when the re-raise is removed. Status: active
-
-- **L-P0-I6B-4** · 2026-10-10 · tags: mcp, security, process
-  A stored command that another actor replays must carry no permission claim. `TransitionWorkflow.actor_roles` is trusted input
-  (ADR-0005), so a proposal with `["manager"]` would have run with that role under a person's click. `propose` refuses non-empty roles
-  and the accepting person supplies theirs. Likewise "only a person decides" is a rule about what accepting means, not a permission
-  model. Because `authorize` allows everything, propose-only also needs a fixed rule at the API: `guard(changes_records=True)` refuses
-  every record-changing command and file write to an `agent:` token (403 `agent_must_propose`, orchestrator ruling B15); real per-role
-  enforcement stays the human gate.
-  Evidence: `test_a_proposal_cannot_carry_roles_and_the_accepting_person_supplies_them`, `test_an_agent_cannot_decide`, `test_an_agent_token_cannot_run_any_record_changing_command`. Status: active
-
-- **L-P0-I6B-5** · 2026-10-10 · tags: mcp, tests
-  Free-form JSON arguments (`psets`, `values`) cannot carry `maxLength`. Bound them as serialized text in the tool body and keep a test
-  that walks every tool's input schema and fails on any `string` without `maxLength` (enums excepted), so a new tool cannot ship an
-  unbounded string by accident. `ruff --fix` also deletes an import you add in the same edit pass before its use exists; add imports
-  after the code that needs them.
-  Evidence: `test_every_string_the_tools_accept_has_a_length_limit`, `test_json_values_are_bounded_as_text`. Status: active
-
-- **L-P0-I6B-6** · 2026-10-10 · tags: process, env
-  The foreground command limit is 120 s and `just test` takes about 5.5 minutes (3087 tests). Start it with `run_in_background`, write docs
-  while it runs, and read the output file when the notification arrives; do not edit tracked code under test in the meantime (a stub/
-  reference swap for a demo rehearsal is safe only for modules no test imports). Running it once per round, after the supervisor pieces and
-  stubs are committed, kept the whole round to one full run.
-  Evidence: this round's `just test` (3087 passed). Status: active
-- **L-P0-I4-D1** · 2026-10-10 · tags: tui, tooling
-  `query` is a Textual DOM method, so `self.query = "..."` on a widget fails pyright and would break at run time (the L-P0-I2-B4 trap again, one more
-  name: `filter_text` is the grid's). Widget `DEFAULT_CSS` loses to the base widget's pseudo-class rule: `FilterBar Input { border: none }` was ignored
-  while the `Input` had focus; write `FilterBar Input, FilterBar Input:focus { ... }`.
-  Evidence: `widgets/grid.py` (`filter_text`), `widgets/filter_bar.py` CSS; the first pilot run drew a tall border over the caret line. Status: active
-
-- **L-P0-I4-D2** · 2026-10-10 · tags: process, tooling
-  Never undo a mutation check with `git checkout <file>` when the file holds uncommitted work: it reverted every uncommitted edit of `app.py`, which had to be
-  rewritten. Copy the file aside first (`cp f /tmp/f.bak`) or commit, then restore from the copy. Same root as L-P0-I4-B7.
-  Evidence: the `own_writes` mutation run in this workstream. Status: active
-
-- **L-P0-I4-D3** · 2026-10-10 · tags: tui, api
-  `ApiClient.stream_events(reconnect=True)` swallows outages, so a TUI that wants a "server unreachable" banner must use `reconnect=False` and run its own loop
-  (probe, state, backoff, resume from the last `seq`). The API has no head endpoint: `tl_tui.remote.find_head` bisects `GET /events?limit=1`
-  (about 2 log2 n requests) to start a feed at "now" with no gap. A listener attached after the first failed call (the grid loads before the app attaches)
-  must be told the current state at once, or the banner never shows.
-  Evidence: `tests/test_remote_feed.py` (restart, unreachable at start), `test_live_remote_app.py`; mutations of `after=` and of `find_head` fail them. Status: active
-
-- **L-P0-I4-D4** · 2026-10-10 · tags: tui, tests
-  Threaded refreshes need three tests that a happy-path run does not give: the UI answers a key while the worker sleeps (`test_the_ui_stays_responsive...`), a result
-  that arrives after the rows were replaced is dropped (generation guard; the mutation that removes it fails two tests), and a burst of N events costs a few reads,
-  not N. A mark timer can fire a hair before its deadline, so it re-arms for what is left. A "changed by someone else" mark must not depend on what an earlier
-  read showed: an outage refresh and a replayed event can both read the same version.
-  Evidence: `tests/test_live_app.py`, `grid.py` `_expire_marks`. Status: active
-
-- **L-P0-I4-D5** · 2026-10-10 · tags: tui, api, tests
-  Review of the live path found three ordering faults that every happy-path test passes: the feed took its cursor after the grid's first read (an event in the gap
-  was lost), a command's SSE event can beat its HTTP response (so the user's own save looked foreign), and a replaced ledger leaves a cursor ahead of the head.
-  Take the cursor before the first read, hold events on an in-flight stream until the response is noted (with a cap), and compare the head with the cursor after a
-  drop. Each has a test that forces the order (a hook after the first load, a gated fake, a scripted API) and fails when the fix is removed. Also: a refresh applied
-  during shutdown posts messages to a screen that is gone, so handlers that query the DOM must tolerate it.
-  Evidence: `tests/test_live_handoff.py`, `test_live_app.py`; `app.py` `on_record_highlighted` (a 1-in-6 flake in the full-file run). Status: active
-
-- **L-P0-I4-D6** · 2026-10-10 · tags: tests, tui
-  An intermittent test failure is two readers of one fact racing, not noise: the outage test asserted "row is marked" at the first moment the row existed, but the row
-  can arrive through the read after "connection restored" and the mark through the replayed event a few milliseconds later. Fix the assertion to wait for the end state
-  (the claim is that both orders end marked), prove it 20 of 20 and 30 of 30 in a loop, and write down which two events race. A failing test on the base also blocks every
-  ticket's whole-suite acceptance command (T60 was reported blocked by it).
-  Evidence: `test_live_remote_app.py::test_remote_the_banner_shows_during_an_outage_and_the_feed_resumes` failed 7 of 20 before, 0 of 50 after. Status: active
-- **L-P0-I4-O1** · 2026-10-10 · tags: tui, follow-up
-  P0-I8 hardening follow-ups from the P0-I4 WS-D re-review: there are no tests yet for RemoteFeed.head() against an
-  unreachable server, for a raising command clearing OwnWrites.in_flight, or for concurrent in-flight commands on real
-  threads. The code handles all three. Synchronous remote calls on the UI thread (3 s interactive timeout) should move
-  to workers.
-  Evidence: P0-I4 WS-D re-review at c033469. Status: active
-- **L-P0-I6C-6** · 2026-10-10 · tags: process, tickets
-  A spec that prints a count must say how the singular reads: the crew actor followed `Installed <n> valves` literally and posted "Installed 1 valves" while a provided test
-  only covered 2 and 3. Write a `plural(count, noun)` into the shared base and name it in the spec. Also: the stream of a seeded generator is keyed by the actor identity string, so
-  changing an identity (user: instead of agent:) changes every pinned draw; keep pins in one `PINNED` constant per test file so a re-pin is one edit.
-  Evidence: reviewer ruling on T42; S44 re-pinned three tests. Status: active
-
-- **L-P0-I6C-7** · 2026-10-10 · tags: tooling
-  pydantic's `ValidationError` is a subclass of `ValueError`, so an `except (…, ValueError)` placed before `except ValidationError` makes the second unreachable (pyright
-  `reportUnusedExcept`). Put `ValidationError` first, as the two `tl_sim` error wrappers do. The mcp SDK reports an exception a tool did not convert as a generic
-  `UnexpectedToolError("Error executing tool x")`: the message is not leaked, which a test can rely on.
-  Evidence: `tl_sim/cli.py`, `tl_sim/mcp_server.py`, `tests/test_mcp_server.py::test_a_bug_is_not_turned_into_a_known_failure_message`. Status: active
-
-- **L-P0-I6C-8** · 2026-10-10 · tags: env, tooling
-  Two implementer reports found shell traps in the Bash tool: `pkill -f <pattern>` matches the shell that runs it when the pattern is in the command line (exit 144), and a
-  multi-line `cat > file <<'EOF'` inside a `&&` chain once hung until the 120 s timeout while the Write tool created the file at once. Use `pgrep` and a PID, and write files with
-  the Write tool.
-  Evidence: `docs/reports/P0-I6/P0-I6-T41.md`. Status: active
-- **L-P0-I6C-9** · 2026-10-10 · tags: tests, security
-  An import-boundary test that only reads `ast.ImportFrom.module` misses `from tl_core import ledger` (the forbidden thing is `module.name`), `import x as y; y.ledger`, and a module
-  loaded by string. Test the dotted name of every `from` import, follow aliases through attribute chains, forbid `importlib`/`__import__`, and keep negative fixtures that prove each
-  spelling is caught. A timestamp parser also needs a range: `datetime.astimezone(UTC)` raises `OverflowError` at year 1 or 9999, which became a 500 until it was caught.
-  Evidence: review of S40 to S43; `tests/test_contract_and_boundary.py`, `packages/tl-api/tests/test_effective_time.py`. Status: active
-- **L-P0-I6C-10** · 2026-10-10 · tags: security, tooling
-  A tool that lets a caller name a file is a file-read door: `load_scenario("/etc/hostname")` worked through MCP because "contains a slash" meant "is a path". A remote door takes names
-  only (a pattern, then a real-path containment check that follows symlinks), and shows the caller a message that has no path, file text or parser snippet (`ScenarioError.public`).
-  In shell, `quiet cmd &` backgrounds the wrapper function's subshell, so `$!` is not the server and the EXIT trap leaves it running: start it with `setsid`, kill `-$pid` (the group), and
-  wait until its port stops answering.
-  Evidence: review of T44 and T45; `tests/test_mcp_server.py`, `dev/seed/seed.sh`. Status: active
-
-- **L-P0-I6B-7** · 2026-10-10 · tags: ledger, tests
-  The two server-side unit-of-work factories disagreed: `SqliteUowFactory.__call__(readonly)` took the flag by position while
-  `PostgresUowFactory.__call__(*, readonly)` was keyword-only, so a service calling `factory(True)` worked on SQLite only and no test
-  noticed because services were tested through `open_uow`. A function that takes a factory should declare a `Protocol` with the
-  parameter name, call it by keyword, and have one parity test that passes `make_uow_factory(target)` on each adapter.
-  Evidence: reviewer finding on `proposals.py`; `test_the_service_runs_on_each_adapters_own_factory[postgres]`. Status: active
-- **L-P0-I6C-11** · 2026-10-10 · tags: api, tests
-  A person can decide a proposal from the CLI (`source=cli`) or the API (`source=api`), and the decision event (`Proposal.Accepted|Rejected|Failed`) carries that source, while the effect
-  keeps `mcp:<agent>`; a check that every event in a scope has the simulator's source must exempt decision events (and still check their actor). Posting as `user:` identities works because
-  the API refuses record changes from `agent:` tokens only; an agent's feed post is a direct write with `source` forced to `mcp:<id>`. `mcp.Client` takes a `StdioServerParameters` or an
-  in-memory `MCPServer`, so one caller class covers the real process and the test.
-  Evidence: `tests/test_assertions.py::test_a_decision_event_made_over_the_api_or_the_cli_is_not_a_foreign_source`, `dev/demos/P0-I6.sh`. Status: active
-- **L-P0-I7-A1** · 2026-10-10 · tags: ledger, schema
-  Promoted pset columns of `cur_core_record` are created at command time by `ensure_promoted_columns`, not by events, so a fresh database
-  plus a replay silently lacks them (rows had 15 columns instead of 17). `restore_from_archive` adds them from the effective schema of every
-  scope in the archive before rebuilding, using the process-wide schema provider. The schema packages in force at restore time decide the
-  columns: restore with the same `TL_SCHEMA_DIR` the ledger used.
-  Evidence: `tests/archive/test_restore.py` (compares every column by name); `tl_adapters/restore.py::_ensure_promoted`. Status: active
-
-- **L-P0-I7-A2** · 2026-10-10 · tags: ledger, tests
-  An archive segment is three files in the order ndjson, parquet, manifest, and the manifest is the commit marker. A crash leaves a directory
-  whose name fixes the seq range, and the next `seal_segment` seals exactly that range (accepting a leftover file only if it matches the
-  ledger's events byte for byte, or for Parquet row for row), even when newer events arrived. The test injects a crash with a store that
-  raises after N puts; removing the orphan-resume line fails it.
-  Evidence: `tests/archive/test_seal_verify.py::test_a_crash_between_files_never_yields_a_different_segment`. Status: active
-
-- **L-P0-I7-A3** · 2026-10-10 · tags: tooling
-  The frozen contract file is `tl_core/archive/types.py`, which is a standard-library module name (L-P0-I5-B1). Running `python` with that
-  directory as the working directory breaks `import re` and `typing`. Run scripts from the repository root or a scratch directory, never
-  from `packages/tl-core/src/tl_core/archive/`.
-  Evidence: `ImportError: cannot import name 'WrapperDescriptorType' from 'types'` during a scripted edit. Status: active
-
-- **L-P0-I7-A4** · 2026-10-10 · tags: process, tests
-  Two tickets in one batch cannot use each other's CLI. The restore ticket's provided test builds its archive with library calls
-  (`write_keypair`, `seal_segment`, `FsArchiveStore`) instead of `tl archive seal`, and the plan orders the CLI that needs a store after
-  the store ticket merges. A ticket's Context should also list any error or type module whose constructor its tests rely on.
-  Evidence: `docs/tickets/P0-I7/provided/test_cli_restore.py.txt`; T01 report, proposed learning. Status: active
-
-- **L-P0-I7-A5** · 2026-10-10 · tags: env
-  `api.github.com` is refused (403) but release tarballs at `github.com/<owner>/<repo>/releases/download/<tag>/...` download. Litestream
-  v0.3.13 (Apache-2.0, `litestream-v0.3.13-linux-amd64.tar.gz`, sha256 eb75a3de5cab03875cdae9f5f539e6aedadd66607003d9b1e7a9077948818ba0) is unpacked into the git-ignored `dev/data/tools/`.
-  pgBackRest comes from `sudo apt-get install -y pgbackrest` (2.50).
-  Evidence: this round's fetch. Status: active
-
-- **L-P0-I7-A6** · 2026-10-10 · tags: ledger, process
-  Review of the sealer found three rules worth keeping. (1) A sealer must compare the database with what is already sealed for every scope, not only
-  the scopes in the new segment: an altered old event in an untouched scope is invisible to the per-event chain check. (2) A restore must be one
-  transaction (insert, promoted columns, replay through the same connection), because a committed insert followed by a failed rebuild leaves a
-  database that the next run refuses as "not empty". Check the schema provider before writing anything. (3) Nothing inside an archive shows that
-  trailing segments were removed; `tl archive seal` prints `last_seq` and the newest manifest sha, to be kept elsewhere and passed to
-  `tl archive verify --expect-last-seq N --expect-manifest SHA`.
-  Evidence: `test_the_sealer_notices_a_divergence_in_a_scope_the_new_segment_does_not_touch`,
-  `test_a_failure_during_the_replay_rolls_everything_back_and_a_rerun_works`, `test_dropping_trailing_segments_...`. Status: active
-
-- **L-P0-I7-A7** · 2026-10-10 · tags: ledger, tests
-  Comparing stored hash columns is not a hash-chain check: a payload-only edit in the database returned no issue from `verify_archive(conn=...)`.
-  A real check recomputes each hash from the stored fields. `verify_archive(conn=..., deep=True)` does that, compares every field with the archive
-  and chain-checks the events newer than the archive; `verify_ledger(conn)` and `tl ledger verify` do it for the database alone. A consistent
-  payload-plus-hash edit shows up one event later in the scope (`scope_chain`) or as `db_mismatch` against an archive. The edit of a scope's
-  newest event that keeps its own hash consistent needs an archive to contradict it.
-  Evidence: `tests/archive/test_ledger_verify.py` (payload-only, hash-only, consistent edits; tail edit; missing event). Status: active
-
-- **L-P0-I7-A8** · 2026-10-10 · tags: env, tests
-  The scratch-cluster drill works with `sudo pg_createcluster 16 drill --port 5440`, `pg_conftool` for `archive_mode`, `archive_timeout` and `archive_command`,
-  and a postgres-owned directory for the pgBackRest repository, log, lock and spool paths. Immediate stop, erase the data directory, `pgbackrest restore`,
-  start recovered 50 of 55 events (the unswitched WAL of the last batch is lost, which `archive_timeout` bounds). A Litestream drill must be killed with
-  `kill -9 $pid`, never `pkill -f litestream`, whose pattern matches the shell that runs it. A lost SQLite file with a `-wal` sidecar must be moved with
-  its `-wal` and `-shm`, or the events in the WAL are missing from the copy used to look up lost events.
-  Evidence: `dev/drills/pgbackrest.sh`, `dev/drills/restore.sh`, the drill report. Status: active
-
-- **L-P0-I7-A9** · 2026-10-10 · tags: ledger, sync
-  A restore brings webhook subscriptions back as `active` rows, but their signing secrets (never in the ledger) and delivery state are not restored. Restored
-  databases need `tl webhook rotate-secret` per subscription before the worker runs. Whether the worker fails safely on a subscription whose secret row is
-  missing is not tested here; the restore runbook says to rotate first.
-  Evidence: `tl restore` of an archive with a subscription, then `tl webhook ls` (active, 0 delivered). Status: active
-
-- **L-P0-I7-A10** · 2026-10-10 · tags: ledger, sync
-  Resolves L-P0-I7-A9. `DeliveryEngine.claim` now selects only deliveries whose subscription has an unexpired active secret (`HAS_SECRET_SQL`), so a restored subscription's
-  deliveries stay pending: nothing unsigned goes out and nothing reaches the DLQ or the retry counters. It logs per subscription per cycle, `tl webhook ls` prints
-  `needs_secret`, and `restore_from_archive` returns one warning per active subscription. Still open and flagged to the orchestrator: `wh_cursor` is operational
-  state that a restore does not carry, so the dispatcher restarts at seq 0 and queues every event since each subscription was created.
-  Evidence: `tests/archive/test_restore_webhooks.py` (fails with the filter removed); 427 + 223 webhook and CLI tests green on both adapters. Status: active
-
-
-- **L-P0-I7-A11** · 2026-10-10 · tags: env, process
-  Restoring a SQLite snapshot over a WAL-mode ledger must delete the old `tl.db-wal` and `tl.db-shm` first, or SQLite applies the old log to the restored file. Runbook
-  tickets worked well when the supervisor pasted commands with their real output, but each ticket needs to say which linked runbooks exist yet, and a checker for fenced
-  commands must match indented fences (`^ *```), because steps indent them. Business-hours safety, which command takes `--all`, and the success line of a flag variant are
-  facts the supervisor must include; three implementers asked for them.
-  Evidence: reports P0-I7-T05 to T08 (open questions); `docs/runbooks/sqlite-backup-and-litestream.md`. Status: active
-
-- **L-P0-I7-A12** · 2026-10-10 · tags: ledger, sync
-  Resolves the open part of L-P0-I7-A10. `restore_from_archive` writes the dispatcher cursor (`wh_cursor`, name `outbox`) at the restored head in its transaction, so a restored
-  subscription is not flooded with history once its secret is rotated; the warning and the runbook name `tl webhook replay ID --from-seq N --to-seq M` for a range a receiver
-  may have missed. `rotate-secret` itself appends an event (seq head+1), so the first delivery after a rotation is that new event, not history; a test that expects zero
-  deliveries after rotating must expect that one.
-  Evidence: `tests/archive/test_restore_webhooks.py` (both adapters). Status: active
-
-
-- **L-P0-I7-A13** · 2026-10-10 · tags: ledger, tests
-  Page a seq-ordered scan with a cursor (`WHERE seq > :last ORDER BY seq LIMIT n`) and stop only on an empty page. Paging by seq ranges and stopping on a short page
-  silently skipped a missing event at the end of a page window (`verify_ledger` returned no issue for a deleted seq 2000). A page-size parameter that tests lower to 3, 4 and 5
-  puts the gap at the end, across and at the start of a page; reverting to range paging fails 8 of those tests. `verify_ledger` cannot see a seq swap between scopes (seq is not
-  hashed) or deleted trailing events; only an archive and a recorded last seq can.
-  Evidence: `tests/archive/test_ledger_verify_parity.py` (both adapters); `verifier._scan_ledger`. Status: active
-- **L-P0-I7-O1** · 2026-10-10 · tags: mcp, security, follow-up
-  The P0-I7 path-leak re-review found that the lake_query MCP tool keeps paths out of messages for expected LakeErrors,
-  through fixed sentences in tl_mcp/errors.py. Unexpected filesystem errors (a corrupt catalog, a directory that is a
-  file, no permission) are not LakeError, and the MCP SDK masks them as a bare "Error executing tool". That safety
-  depends on the SDK. P0-I8 hardening: catch Exception in `guarded`, log the error server-side, and return a fixed sentence.
-  Evidence: re-review at 07ad1b0. Status: active
-- **L-P0-I8B-1** · 2026-10-10 · tags: schema, tooling
-  A LinkML package that imports a repository base class (`throughline/core/extension`) is linted and read on a private temporary copy of `schema/core` placed beside a copy of the
-  package's `type.yaml` (`tl_core/extypes/compile.py`): `Linter.lint(path)` resolves imports relative to the file and takes no import map. Annotations on a metamodel element are a
-  `JsonObj` (test `tag in element.annotations`, there is no `.get`), and pyright reports the metamodel's optional unions as errors, so type the objects as `Any`.
-  Evidence: `tests/extypes/test_validate_package.py`; `compile.py` `_workspace`. Status: active
-- **L-P0-I8B-2** · 2026-10-10 · tags: tests, env
-  `extypes.provider.attach(factory)` changes the process-wide default `DirectorySchemaProvider`, and `create_app`, `build_server`, `EmbeddedClient` and the CLI root all call it. A test that
-  registers types installs its own provider with `use_provider(DirectorySchemaProvider())` before it builds the app or ledger. The source treats any failure to read the registry (no table in an old
-  ledger, a deleted file, a closed engine) as "no types", so a stale source can never take another test's schema down.
-  Evidence: `tests/extypes/conftest.py`; `packages/tl-api/tests/test_api_extypes.py` fixture. Status: active
-- **L-P0-I8B-3** · 2026-10-10 · tags: ledger, schema
-  A registration whose files may change on disk but whose version is immutable keeps its row and records the refused change on it (`conflict_hash`, the report); flipping the status would let a stray
-  edit remove a type from the schema. Reverting the files must re-register to clear the note. The idempotence rule is one function (`registry._already_known`) used before and after validation.
-  Evidence: `tests/extypes/test_registry_sync.py::test_reverting_the_files_clears_the_conflict`. Status: active
-- **L-P0-I8B-4** · 2026-10-10 · tags: ledger, security
-  A quarantine that must survive the failing read's rollback is written by a wrapper that holds the unit-of-work *factory* (`body.read_body`), never by the function that raises (`load_body`); it is
-  operational state (`tl_body_quarantine`, like `wh_*`) so a rebuild cannot clear it. A key outside `sha256/` is overwritten by `FsObjectStore.put`, which is what heals a damaged body: re-storing
-  the same body appends no event but puts the object again and lifts the quarantine.
-  Evidence: `tests/extypes/test_body_store.py` (`test_storing_the_body_again_heals...`, `test_a_rebuild_keeps_the_quarantine...`). Status: active
-- **L-P0-I8B-5** · 2026-10-10 · tags: schema
-  A non-project pset path has exactly one segment after `psets.` (`is_property_path`), so the pset of an extension type cannot contain dots: it is `<namespace with underscores>_<snake Name>`
-  (`co_acme_lift_plan`). Namespace segments therefore forbid underscores (no double underscore, which `PackageDoc` refuses) and two types can still collide on the name (`co.acme.lift.Plan` and
-  `co.acme.LiftPlan`), which sync reports as a `conflict`.
-  Evidence: `tl_core/extypes/names.py`; `test_two_types_whose_names_give_the_same_pset_conflict`. Status: active
-- **L-P0-I8B-6** · 2026-10-10 · tags: process, tests
-  With several workstreams sharing four CPUs the whole `just test` took 13.5 minutes (4081 tests). Start it with `run_in_background` and wait with a foreground `timeout N bash -c 'while kill -0 PID ...'`
-  rather than a polling `sleep`; `pkill -f <pattern>` killed the shell again (see L-P0-I7-B5). A stub ticket's implementation notes go in comments, not the docstring, when the docstring reaches
-  the committed OpenAPI document.
-  Evidence: this round's full run; `docs/tickets/P0-I8/T21-api-types.md`. Status: active
-- **L-P0-I8B-7** · 2026-10-10 · tags: process, tickets, tests
-  Run `pyright` over a provided test before dispatching it: copy the `.py.txt` into its test directory, run `uv run pyright <package>`, delete the copy. Two provided tests (a
-  `tuple(row)` on `Row | None`, a subscript of `get_record_by_id(...)`) passed pytest against the reference but failed `just check` on the ticket branch, and the ticket forbids editing the
-  provided file, so the implementers correctly stopped as Blocked and the supervisor had to fix the test on the branch and in the provided source.
-  Evidence: T22 at 197b81c, T23 at 938c8ce. Status: active
-- **L-P0-I8B-8** · 2026-10-10 · tags: ledger, tests
-  A function that appends inside the caller's unit of work cannot tell a cache it has changed anything (the transaction may still roll back, and a reader in between would cache the old state).
-  Give the service a wrapper that owns the factory and notifies after the commit (`registry.deprecate`), and make every entry point call the wrapper; `tl types deprecate` called the inner
-  function until the re-review.
-  Evidence: `tests/extypes/test_registry_sync.py::test_deprecate_tells_the_provider_after_the_commit`, `packages/tl-cli/tests/test_cli_extypes_conflict.py`. Status: active
-- **L-P0-I8B-9** · 2026-10-10 · tags: process, tests, cli
-  Run the whole test suite of every package a supervisor commit touches, not only the new tests, before relaying the base: S33 added `--type` to `tl tui` and a `record_type` key to the call
-  that `tl_cli.tui` makes, and `packages/tl-cli/tests/test_cli_serve_tui.py` compared that call dict exactly. Only the `tl-tui` suite had run, so an implementer found the red test on the base.
-  Evidence: `test_tui_is_embedded_by_default_on_the_root_db` (fixed with two new `--type` tests). Status: active
-- **L-P0-I8B-10** · 2026-10-10 · tags: tui, forms
-  `FieldEditor.validate()` only sets an error for typed text; for a Select or a Switch it returns the old error, so a "Required" mark on a choice stayed until the next save. A Switch also always
-  reads `False`, so a form that collects `editor.value` for every field stores an untouched optional bool as `false`. `_raw_changed` now clears the mark of a choice, and the extension form
-  sends a slot only when the user changed it or it is required.
-  Evidence: `packages/tl-tui/tests/test_extension_form_rules.py`. Status: active
-- **L-P0-I8B-11** · 2026-10-10 · tags: tui, auth, errors
-  A second client path that bypasses the API also bypasses its rules: the embedded client took any actor (an `agent:*` could write bodies, which the API refuses) and let an `OSError` of the object
-  store escape the `CLIENT_ERRORS` tuple (the TUI would stop with a path in the traceback). When a surface is added to a service, copy the API's refusals (agent writes) and map operating-system
-  failures to a `ServiceError` with a message that names no path. Two parallel implementations of one write (`store_body` plus a scope check in the route, and `store_record_body`) were merged into one.
-  Evidence: `packages/tl-tui/tests/test_embedded_types.py` (agent guard, failing store). Status: active
-- **L-P0-I8B-12** · 2026-10-10 · tags: tickets, cli, process
-  Implementation notes written into a stub's docstring survive the implementation, and a docstring is user-facing text wherever a framework publishes it: Typer prints it as `--help`, FastAPI as
-  OpenAPI, MCP as the tool description. Three `tl types` commands shipped `registry.list_quarantined(...)` and `_fail` in their help. L-P0-I8B-6 covered OpenAPI; the rule is "notes in comments,
-  everywhere", and a test that renders every command's help and greps for internal names (`test_cli_extypes_help.py`) keeps it so.
-  Evidence: `packages/tl-cli/tests/test_cli_extypes_help.py`. Status: active
-- **L-P0-I8B-13** · 2026-10-10 · tags: demos, shell
-  A demo under `set -o pipefail` that pipes a command into `head` fails on some runs: `head` closes the pipe, the writer gets SIGPIPE and the pipeline's status is non-zero. Print the whole
-  output, or capture it in a variable first.
-  Evidence: `dev/demos/P0-I8-B.sh` failed one run in two before the pipes were removed. Status: active
-
-- **L-P0-I8A-1** · 2026-10-10 · tags: tooling
-  A package `__init__` that exports a function with the name of one of its submodules hides the module: `from tl_core.settings import definitions as defs` returned the function `definitions()`, not the module. The contract names the function, so the module is `tl_core.settings.registry`. Check `__all__` against the submodule names before naming a module.
-  Evidence: first run of `test_settings_definitions.py` (13 errors, `'function' object has no attribute 'PLATFORM_FILE_ENV'`). Status: active
-
-- **L-P0-I8A-2** · 2026-10-10 · tags: schema, tests
-  The generated `json_schema/core.schema.json` renders the LinkML `Any` class without arrays, so a list default (`feed.signal_tags`) fails validation against `SettingDefinition`. The event catalog generator widens `Any` for its own schemas; a test that validates data against the core schema must replace `$defs.Any` with `{}`. A `required` slot of range `Any` is how a nullable JSON value is made mandatory (`default` of a definition).
-  Evidence: `packages/tl-core/tests/test_settings_definitions.py::test_the_generated_json_schema_accepts_every_platform_entry`. Status: active
-
-- **L-P0-I8A-3** · 2026-10-10 · tags: ledger
-  Scheduled settings need the resolver to order by effective time, not by `seq`: the entry in force is the greatest `(max(recorded_at, applies_at), seq)` not after "now", so a change recorded later but applying earlier wins until the earlier-recorded one applies, and nothing is applied by a job. Cancelling a pending change is recording the old state for the same instant (the later `seq` wins the tie). `cur_setting` therefore keeps one row per event, not one per key.
-  Evidence: `packages/tl-core/tests/test_settings_resolver.py` (oracle property), `tests/settings/test_service.py::test_reverting_a_scheduled_change_cancels_it`. Status: active
-
-- **L-P0-I8A-4** · 2026-10-10 · tags: tests
-  Extends L-P0-I5-B6. A fake clock handed to code that compares it with event times must be the real clock plus an offset: a fixed fake "now" taken at set-up was already behind the `recorded_at` of every event the test wrote, so every entry looked "not yet in force" (8 of 12 reader tests failed with the default value). Move time in such a test by changing the offset.
-  Evidence: `tests/settings/test_reader.py` `Clock`. Status: active
-
-- **L-P0-I8A-5** · 2026-10-10 · tags: cli, process
-  Typer's `app.add_typer(other)` without a `name` flattens the other app's commands into the parent group, so two tickets can own two files of one command group (`tl config` in `config.py`, `diff|export|import` in `config_exchange.py`) with disjoint Allowed paths. A ticket's provided test must seed state with the service, not with the other ticket's commands (extends L-P0-I6A-5).
-  Evidence: scratch probe; `docs/tickets/P0-I8/provided/t02-test_cli_config_exchange.py.txt`. Status: active
-
-- **L-P0-I8A-6** · 2026-10-10 · tags: mcp, security
-  An MCP tool ignores arguments it does not declare (pydantic does not forbid extras), so `accept_risk=True` sent to `propose_setting_change` neither fails nor takes effect. The test that proves an agent cannot accept a risk asserts the stored command (`accept_risk` false) and that the person's accept still fails without the flag, not an error.
-  Evidence: `packages/tl-mcp/tests/test_mcp_setting_proposals.py::test_the_tool_cannot_carry_a_risk_acceptance`. Status: active
-
-- **L-P0-I8A-7** · 2026-10-10 · tags: tests, process
-  Adding a command to the API table, a tool to `PROPOSABLE_TOOLS` or an event type to the catalog breaks tests that assert literal counts or lists elsewhere: `len(COMMANDS) == 17` and the agent-refusal count of 13 in `tl-api`, `PROPOSE_TOOLS` and `PROPOSING` in `tl-mcp`, `register_write_tools`' assertion on the tool modes, the table lists of `test_generate.py` and `test_ddl.py`, and the webhook scenario. Run `just test` once after the contract amendment and fix all of them in the same commit.
-  Evidence: the first full `just test` of P0-I8-A (3 failures, then 1 more in `tl-api`). Status: active
-
-- **L-P0-I8A-8** · 2026-10-10 · tags: process
-  A ticket's test count must be counted from the provided file (`grep -c "^def test_"`), not remembered: two of the first six tickets named the wrong number and the implementers had to stop and ask.
-  Evidence: reports `docs/reports/P0-I8/P0-I8-T04.md` (8 named, 7 in the file) and `P0-I8-T05.md`. Status: active
-
-- **L-P0-I8A-9** · 2026-10-10 · tags: tooling, security
-  Hostile numbers and nesting raise errors other than the ones a parser documents: `yaml.safe_load` raises `RecursionError` (50,000 nested levels) and `ValueError` (integers over 4300 digits); `float(huge_int)` raises `OverflowError`; `json.dumps` of such an integer raises `ValueError`. Wrap the parse, the float conversion and the message formatting, and turn each into the domain error.
-  Evidence: `tests/settings/test_exchange.py::test_a_file_that_breaks_the_yaml_reader_is_a_document_error`, `packages/tl-core/tests/test_settings_values.py::test_a_number_too_large_for_a_float_is_out_of_range_not_an_error`. Status: active
-- **L-P0-I8B-14** · 2026-10-11 · tags: ledger, cli, process
-  Reading the ledger "once at attach" is not free for SQLite: opening a missing file creates it, so the CLI root callback (it runs before `tl archive` and `tl backup` decide the ledger is missing) made
-  two commands report a different error. A hook that touches the database belongs behind an explicit flag (`attach(prime=True)`), set only where the ledger is known to exist, and the full suite of every
-  package a change reaches is the check that finds it (L-P0-I8B-9).
-  Evidence: `test_seal_without_a_key_or_a_ledger_exits_1`, `test_a_missing_ledger_exits_1_without_creating_it`; `tests/extypes/test_extension_settings.py::test_attach_reads_the_ledger_only_when_asked_to_prime`. Status: active
-- **L-P0-I6C-12** · 2026-10-10 · tags: tests, process
-  A check that fails only on an empty log still passes a run in which the interesting actor did nothing: swallowing every refusal (a budget, a bad argument) in the actor and asserting only what
-  was logged made "the assistant proposed nothing" green. Tell the assertion which actors are enabled and bound to act (`Expected`), narrow what an actor may shrug off to the one benign refusal, and
-  keep a test where the actor is on and everything is refused. To test a subprocess transport use a real ledger in `tmp_path`, a missing one, and a stub server that reads stdin forever.
-  Evidence: `tests/test_assertions.py::test_an_assistant_whose_every_proposal_is_a_duplicate_leaves_the_run_red`, `tests/test_mcp_caller.py`. Status: active
-
-- **L-P0-I8C-1** · 2026-10-10 · tags: mcp, security
-  A function deny-list cannot guard Postgres. `ts_stat(text)` and `ts_rewrite(..., text)` run a SQL string on the server, so a denied
-  name split with `||` (`'pg_re'||'ad_file'`) escapes any screen of the statement text, and with a superuser URL every such read works
-  (files, `pg_authid`, `data_directory`, `wh_secret`). READ ONLY does not help: they are reads. A safe Postgres `query_db` needs a
-  non-superuser reader role checked after connecting, and a function allow-list; until then `query_db` is SQLite only (decision C4).
-  Evidence: S41 security review of 6d885d2; `tests/test_dev_sqlguard.py::test_every_postgres_statement_is_refused`. Status: active
-- **L-P0-I8C-2** · 2026-10-10 · tags: tooling, process
-  `dev/seed/seed.sh` starts its API with `setsid`, so a signal to the script's process group (even SIGKILL) does not reach it; only the
-  script's EXIT trap stops it. A tool that kills the script must also find the API by its command line (`tl serve --port N` in /proc).
-  Evidence: T43 review; `tool_seed._stop_api_on`. Status: active
-- **L-P0-I8C-3** · 2026-10-10 · tags: tooling
-  A uv workspace `members = ["packages/*"]` rejects a bare `packages/tl-modules` directory ("missing a pyproject.toml"). Nested members need
-  `members = ["packages/*", "packages/tl-modules/*"]` and `exclude = ["packages/tl-modules"]`; the lock is unchanged while no module exists.
-  Evidence: S42, scaffold proved with `uv sync` and `just check`. Status: active
-- **L-P0-I8C-4** · 2026-10-10 · tags: tooling, tests
-  Scaffolded code must be ruff-format-stable for every name the scaffolder accepts, or `just check` fails for a long name. Keep names
-  short (module 20, class 30, projector 40), keep names out of docstrings, and write name-dependent lines with a magic trailing comma
-  (one argument per line, exploded imports) so the formatter never joins or splits them. Test the longest names with ruff.
-  Evidence: S42 `test_the_longest_*_still_give_formatted_code`. Status: active
-- **L-P0-I8C-5** · 2026-10-10 · tags: tui, mcp, tests
-  Textual's `Pilot.press` accepts any string and never raises for an unknown key; check key names yourself. `asyncio.TimeoutError` is the
-  builtin `TimeoutError`, an `OSError`, so catch it before a generic `OSError` branch. `sqlite3.connect("file:...", uri=True)` needs a
-  percent-encoded path (`Path.as_uri()`). Sync MCP tools run on worker threads, so a tool that changes the working directory (the schema
-  generators do) needs a lock.
-  Evidence: T45 and T41 reports. Status: active
-- **L-P0-I8C-6** · 2026-10-10 · tags: process, gates
-  Run `just check` on the base before relaying it to implementers. A one-line E501 in a supervisor commit made every ticket's acceptance
-  command fail, so a whole batch came back BLOCKED for a reason outside the tickets and cost a round. `just check` also lints `dev/`,
-  which `pyright` does not cover.
-  Evidence: S44 commit f01ab70 (`dev/tools/scan_secrets.py:2`), fixed in the following commit. Status: active
-- **L-P0-I8C-7** · 2026-10-10 · tags: process, tickets
-  A ticket with provided tests for a sibling ticket in the same package cannot have `pytest <package>` in its acceptance: T48's whole-package run
-  fails on the T49 stub by design, and the reverse. Scope the acceptance to the ticket's own test file plus `just check`, and say so in the
-  ticket. Also write the file each replacement applies to when a rename table covers several files, and list every file an escalation trigger needs
-  in *Context*, because implementers follow the Context list literally.
-  Evidence: T48 and T49 reports; the batch review rulings. Status: active
-- **L-P0-I8C-8** · 2026-10-10 · tags: mcp, tests
-  The MCP SDK's resource-template router rejects a `{name}` that contains `..`, a raw `/` or `%00` before the function runs (`Unknown resource`),
-  so only a single clean path segment reaches the document lookup. A traversal test accepts both that text and the function's own refusal. In
-  Python `re.match` with a trailing `$` also matches before a final newline: patterns that validate unstripped input use `fullmatch`.
-  Evidence: T47 report; `names.py` and `guard.py` after the review note (commit 6fbb9b1). Status: active
-- **L-P0-I8C-9** · 2026-10-10 · tags: tooling
-  `dev/tools/audit_docs.py` exits 0 when it reports findings unless `--strict` is given, so an acceptance that relies on its output checks the
-  printed counts. `just check` stops at its first failing step, so one lint error hides the pyright, codegen, openapi and licence steps; run the
-  steps one by one when diagnosing.
-  Evidence: T50, T47 and T48 reports. Status: active
-- **L-P0-I8D-1** · 2026-10-10 · tags: env, tooling
-  pg8000 talks TLS to a loopback Postgres by default, and every statement pays for it: a seed of 1,067 events took 13.6 s with TLS and 9.7 s without. The adapter
-  URL now accepts `?sslmode=disable` (the bench datasets use it on loopback). Projection work on Postgres is statement-bound at about 0.5 ms per statement
-  (the projectors run 17 statements for a new record and about 15 for a link event, before the ledger's three), so a bulk load or rebuild of 100k records takes about an hour there against 8 minutes on SQLite: count statements
-  before optimising anything else.
-  Evidence: `docs/reports/P0-I8-D.md`; `tests/bench/bench_data.py`; `packages/tl-adapters/tests/test_postgres_url.py`. Status: active
-- **L-P0-I8D-2** · 2026-10-10 · tags: schema, tests
-  An `ORDER BY (col IS NULL), col, id` cannot use an index on `col`, and a top-N sort over 100k rows costs 40 ms or 280 ms on SQLite depending on the order the rows
-  arrive (a descending sort of keys inserted ascending is the worst case, and it is the common one: newest first). Fixes that held on both engines: drop the NULL term for NOT NULL
-  columns, and index the exact expression `(col IS NULL OR col = '')` for text (`tl:ix_<name>: "scope, voided, empty_last(key), key desc, id"`). Check a plan with
-  `EXPLAIN QUERY PLAN` (`tests/query/test_query_plans.py`) and never trust a timing of the dataset's lucky order.
-  Evidence: `docs/reports/P0-I8-perf.md` sort table; S61 and S62 commits. Status: active
-- **L-P0-I8D-3** · 2026-10-10 · tags: schema, tests
-  Do not turn a negated pset or link predicate into `NOT IN (SELECT ...)`: Postgres plans it as a hashed SubPlan only while the set fits `work_mem`, otherwise it rescans per row.
-  Positive predicates compile to `id IN (set)` built from a covering index (150 ms to 0.2 ms for a one-record pset filter at 100k rows on SQLite); negations stay correlated `NOT EXISTS`.
-  `cur_link_counts` looks like the cheap answer to `count(linked)` but the query tests seed `cur_links` alone and the contract says `cur_links`: it was tried and reverted.
-  Evidence: `tl_core/query/compiler.py`; `tests/query/test_run_query.py` (four failures with the shortcut). Status: active
-- **L-P0-I8D-4** · 2026-10-10 · tags: tests, process
-  A bench finds real defects: `list_records(order_by=[("created_at", ...)])` raised `invalid input syntax for type timestamp with time zone: ""` on Postgres because the
-  "empty text sorts last" rule (`col IS NULL OR col = ''`) was applied to a TIMESTAMPTZ column; the fix first limited it to text columns, and S62 then dropped the NULL term
-  altogether for the NOT NULL non-text columns. No parity test ordered by a timestamp. When a rule is written for "text columns", derive the set from the DDL, not from a list.
-  Evidence: `tests/services/test_record_queries_ui.py::test_order_by_timestamp_columns_works_on_both_adapters`. Status: active
-- **L-P0-I8D-5** · 2026-10-10 · tags: process, tests
-  A shared container makes timings 1.5 to 3 times worse and noisy (load average 3 to 10 on 4 CPUs while other agents run). Store the load average before every round with the result,
-  keep the p95 of each round next to the pooled p95, and compare a fix against a baseline taken at a similar load; one-call `min of 3` timings (`explore.py` style) are the right tool for deciding whether a change helps, the harness for the report.
-  Evidence: `tests/bench/bench_stats.py`; baseline file `dev/data/bench/results/*baseline-sqlite*`. Status: active
-- **L-P0-I8D-6** · 2026-10-10 · tags: tests, process
-  A performance change must not change query results, including for data the tests never build. S62 joined the record at the other end of a link only when the type or a nested
-  condition looked at it, so a link to a missing record began to count; the review found it with a differential run of about 16k queries, old compiler against new. Before a
-  rewrite of a compiler or projector, keep the old version in the scratchpad, diff results over generated queries and edge data (dangling links, empty and NULL values), and pin each edge in a test
-  (`tests/query/test_dangling_links.py`).
-  Evidence: review of S61/S62; `tests/query/test_dangling_links.py` fails on 9f96286 and passes now. Status: active
-- **L-P0-I8D-7** · 2026-10-10 · tags: ledger, schema
-  On Postgres, state that one transaction updates over and over under one index key gets slower with every update: dead row versions stay in the index until the transaction ends, and a
-  unique check or a lookup on that key reads all of them. The feed projector kept "the open card of a scope" as a unique `open_scope` (one hot key), a rebuild is one transaction, so
-  the feed took 418 s of a 570 s rebuild of 10k records and would take hours at 100k. Fix: find the open card as the newest card of the scope through `(scope, first_seq)`, with
-  `first_seq < :seq` so the scan starts at the event and skips rows the rebuild's own reset deleted; no unique index (229 s for the same rebuild). Existing databases keep the old unique index
-  until a migration drops it (`DROP INDEX ux_cur_feed_items_open_scope`; a migration is a human gate). To find such a spot, time each statement of one projector over a rebuild (`stmtprof`) and
-  look for a statement whose average cost is many times its cost on a small ledger.
-  Evidence: `docs/reports/P0-I8-perf.md` rebuild section; `tl_core/projection/feed.py` `_OPEN_CARD_SQL`. Status: active
-
-- **L-P0-I8A-10** · 2026-10-10 · tags: tui, tests
-  `pytest --snapshot-update` rewrites the tracked `snapshot_report.html` at the repository root as well as the `.raw` files: restore it with `git checkout snapshot_report.html` before committing. A new palette command or key map entry changes the palette snapshot (`test_snapshots_links.py::test_command_palette`) and the key map context list in `test_keymap.py`.
-  Evidence: P0-I8-S19 (`git status` after the update). Status: active
-
-- **L-P0-I8A-11** · 2026-10-10 · tags: cli, process
-  Typer prints a command function's whole docstring as its `--help`. A stub docstring that carries implementation steps ("call `list_views(...)` and print `view_line`") stays in the file when the implementer only deletes the STUB paragraph, and then reaches the user. For a CLI ticket, tell the implementer to rewrite each command docstring as user help, and look at `tl <group> <command> --help` before merging.
-  Evidence: `tl config set --help` after the T01 and T02 merges showed unit-of-work instructions; fixed in P0-I8-S20. Status: active
-
-- **L-P0-I8E-1** · 2026-10-11 · tags: tui, tests
-  Two Textual apps run side by side in one asyncio loop: `async with app_a.run_test() as a, app_b.run_test() as b:` gives two TUIs against one server, which is how the exit demo shows live updates between two clients. If the body raises, the pending live-refresh handlers hit a closed screen stack and `run_test` re-raises their `ScreenStackError`, which hides the real error; wrap the body, print its traceback, then exit non-zero.
-  Evidence: `dev/demos/p0_i8_demo.py` (`main` and `phases`); first demo runs failed with `NoMatches: #grid` / `No screens on stack` that came from a wrong keyword in a settings call. Status: active
-
-- **L-P0-I8E-2** · 2026-10-11 · tags: ledger, tests
-  `tl restore --from-archive A --db postgresql://...` restores a SQLite ledger's archive into Postgres, so a dialect-equality check needs no new tool: create a scratch database with `tl_adapters.postgres.admin.create_database` (never `tl_test`), restore, compare events and every `cur_*` table through `make_engine` and `read_tx`, and drop the database in a `finally`. `tl archive seal` prints `archive is at seq N` and a `manifest_sha256` line; pass both to `tl archive verify --expect-last-seq --expect-manifest` so truncation is caught too.
-  Evidence: `dev/demos/p0_i8_demo.py::restore_into_postgres`, `clause_restore`. Status: active
-
+- **L-P0-I2-3** · 2026-10-09 · tags: process, tests
+  A supervisor-written stub (names, signatures, docstrings) plus a provided test file under `docs/tickets/<inc>/provided/`
+  plus a spec verified against a scratch reference implementation gave first-attempt passes for 6 of 7 implementer tickets (the seventh, T04b, was flagged only for committing its report file). Keep
+  the reference implementation until the ticket merges; it is the takeover path. State in the ticket that the stub's
+  `STUB:` docstring paragraph must be removed (T01 left it).
+  Evidence: P0-I2 reports T01, T04, T04b, T06, T08, T08a, T10. Status: active
+- **L-P0-I2-B7** · 2026-10-09 · tags: process
+  The ticket workflow tells implementers to commit their report, so list `docs/reports/<inc>/<ticket-id>.md` in every
+  ticket's *Allowed paths* and say "commit your report". A ticket that says "return it in your final message" produced one
+  review round lost to a committed report (T12) and one report left uncommitted in a worktree (T15).
+  Evidence: T12 attempt 1; T15 worktree; tickets T16b onward. Status: active
 - **L-P0-I8E-3** · 2026-10-11 · tags: process
   A brief bullet that no increment plan names gets built by nobody: "upgrade tooling" (§16 ops baseline) and "comments" appear in no ticket of `05-phase0-plan.md`, and the audit at the end found them missing or replaced. At the start of a phase map every bullet and exit clause to an increment ticket, and check the map at each increment report. Likewise a CI workflow that is never pushed is never tested: the repository had no workflow run after eight increments.
   Evidence: `docs/reports/PHASE-0-AUDIT.md` bullets 3f and 8; GitHub Actions run list for the repository (empty, 2026-10-11). Status: active
 
-- **L-P0-I8E-4** · 2026-10-11 · tags: tests, api
-  A link is its own stream, so `AddLink` does not change the record's version; a `SetPsetValues` that follows a `CreateRecord` takes the version the create returned. `ReactToPost` takes `post_id` (not `stream_id`) and the reactions are `ack`, `+1` and `resolved`. A receiver that must prove a signature independently of our code needs only HMAC-SHA256 over `<id>.<timestamp>.<body>` with the base64 key after `whsec_`.
-  Evidence: the exit demo's `clause_api`, `clause_settings` and `ExternalReceiver`. Status: active
-- **L-P0-I8D-8** · 2026-10-11 · tags: tests, tooling
-  `PsetProjector._update_promoted` reads the column list of `cur_core_record` (`SELECT * ... WHERE 1 = 0`) on every apply, even when no promoted columns exist, so a new record costs two
-  statements, not one (about 0.5 ms on Postgres). A statement budget of one needs that list cached per transaction or skipped; budgets in `test_*_projector_statements.py` allow for it.
-  The same ticket batch showed that a bound-parameter naming scheme must be written in the ticket (a sketch and a parenthetical disagreed) and that scratch scripts against Postgres must use `tl_adapters.db.make_engine`,
-  not `sqlalchemy.create_engine("postgresql://...")` (no psycopg here).
-  Evidence: `docs/reports/P0-I8/P0-I8-T61.md` Learnings. Status: active
+### security: Domain: security rules for services that take client input.
+
+- **L-P0-I4-B6** · 2026-10-09 · tags: process, api
+  Security review of the upload service found four fixable things a test-by-mutation pass had not: a dedupe gate that counted
+  quarantined rows (so a second user could read a file before its scan), `hmac.compare_digest` on a client-controlled `str`
+  (raises on non-ASCII), a silent public fallback secret, and a global rejected-hash check (kept on purpose, recorded as a
+  decision). Rules: gate any "no bytes needed" shortcut on the state that grants read access, compare secrets as bytes, fail
+  closed on missing secrets, and serve client-typed files as attachments with `nosniff`.
+  Evidence: `docs/tickets/P0-I4/README-B.md` D8, D9, D12, D13; `tests/services/test_file_service.py`. Status: active
