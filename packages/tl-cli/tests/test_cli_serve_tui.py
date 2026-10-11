@@ -1,4 +1,4 @@
-"""`tl serve` and `tl tui` (P0-I4-T61). Provided; do not edit.
+"""`tl serve` and `tl tui` (P0-I4-T61). Provided; P1-I0-S5 added the `signed_in` key.
 
 Both commands are thin: they hand the root options to ``tl_api.main.main`` and
 ``tl_tui.main.run``. The tests replace those two functions, so no server starts and no terminal
@@ -126,6 +126,7 @@ def test_tui_is_embedded_by_default_on_the_root_db(
             "project": None,
             "actor": None,
             "record_type": None,
+            "signed_in": None,  # nobody ran `tl login` on this ledger: the TUI asks
         }
     ]
 
