@@ -13,10 +13,13 @@ from typing import Any
 
 from sqlalchemy import Connection, text
 
+from tl_core.auth import names
 from tl_core.auth._time import Clock, iso_z
 from tl_core.util import new_ulid, utcnow
 
 RETENTION = timedelta(days=90)
+#: Repeated failures of one name within this long share one row with a count.
+COLLAPSE_WINDOW = timedelta(minutes=15)
 EVENTS = (
     "sign_in_ok",
     "sign_in_failed",
@@ -40,6 +43,7 @@ class AuditEntry:
     account_id: str | None
     actor: str | None
     detail: str | None
+    count: int = 1
 
 
 def record(
@@ -58,6 +62,20 @@ def record(
     conn.execute(
         text("DELETE FROM auth_audit WHERE at < :cutoff"), {"cutoff": iso_z(now - RETENTION)}
     )
+    if event == "sign_in_failed" and username_key is not None and detail is not None:
+        latest = conn.execute(
+            text(
+                "SELECT audit_id, at FROM auth_audit WHERE username_key = :k AND event = :e "
+                "AND detail = :d ORDER BY at DESC, audit_id DESC LIMIT 1"
+            ),
+            {"k": username_key, "e": event, "d": detail},
+        ).first()
+        if latest is not None and str(latest[1]) >= iso_z(now - COLLAPSE_WINDOW):
+            conn.execute(
+                text("UPDATE auth_audit SET count = count + 1, at = :at WHERE audit_id = :i"),
+                {"at": iso_z(now), "i": latest[0]},
+            )
+            return
     conn.execute(
         text(
             "INSERT INTO auth_audit (audit_id, at, event, username_key, account_id, actor, detail) "
@@ -93,12 +111,29 @@ def list_audit(
         params["e"] = event
     if username_key is not None:
         clauses.append("username_key = :k")
-        params["k"] = username_key
+        params["k"] = names.username_key(username_key)
     rows = conn.execute(
         text(
-            "SELECT audit_id, at, event, username_key, account_id, actor, detail FROM auth_audit "
+            "SELECT audit_id, at, event, username_key, account_id, actor, detail, count "
+            "FROM auth_audit "
             f"WHERE {' AND '.join(clauses)} ORDER BY at DESC, audit_id DESC LIMIT :n"
         ),
         params,
     ).all()
-    return [AuditEntry(*(None if v is None else str(v) for v in row)) for row in rows]  # type: ignore[arg-type]
+
+    def text_or_none(value: Any) -> str | None:
+        return None if value is None else str(value)
+
+    return [
+        AuditEntry(
+            audit_id=str(r[0]),
+            at=str(r[1]),
+            event=str(r[2]),
+            username_key=text_or_none(r[3]),
+            account_id=text_or_none(r[4]),
+            actor=text_or_none(r[5]),
+            detail=text_or_none(r[6]),
+            count=int(r[7]),
+        )
+        for r in rows
+    ]

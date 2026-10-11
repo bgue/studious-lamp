@@ -243,13 +243,18 @@ classes:
         annotations:
           tl:indexed: true
       username_key:
-        description: The normalised username the attempt named, whether or not an account exists.
+        description: The normalised username the attempt named, whether or not an account exists, or `<invalid>` when what was typed cannot be a username (it may have been a password, so it is never kept).
       account_id:
         range: Ulid
       actor:
         description: The actor that did it, when there is one.
       detail:
         description: A short reason code or id (`bad_credentials`, `disabled`, a token id, the end of a lock). Never a secret.
+      count:
+        range: integer
+        required: true
+        ifabsent: int(1)
+        description: How many times this happened in a row; repeated failures of one name in a lock window share one row, and `at` is the last of them.
 
   AccountEventPayload:
     abstract: true

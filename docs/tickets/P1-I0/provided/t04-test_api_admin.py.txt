@@ -484,7 +484,7 @@ class WriteWatch:
 def test_no_password_is_hashed_while_a_write_transaction_is_open(
     cast: Cast, harness: Harness, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A hash is slow and the writer lock is global: hash first (`prepare_password`), write after."""
+    """A hash is slow and the writer lock is global: hash first (`prepare_password`), then write."""
     from tl_api.app import create_app
     from tl_core.auth import password as pw
 

@@ -24,7 +24,7 @@ from tl_api.tokens import TokenStore
 from tl_core.auth import accounts, seed, sessions
 from tl_core.auth import password as pw
 from tl_core.auth.password import prepare_password
-from tl_core.auth.provider import AGENT_ACTIONS, RoleAuthorizer
+from tl_core.auth.provider import RoleAuthorizer
 from tl_core.auth.types import Principal
 
 PASSWORD = "correct horse battery"
@@ -333,26 +333,70 @@ def route_actions(app: Any) -> set[str]:
     return found
 
 
-def test_every_route_action_is_decided_for_agents_and_new_ones_are_closed(
-    harness: Harness,
-) -> None:
+#: Every non-command action a route may use, decided once. A route with an action in neither set
+#: fails the test below: whoever adds it has to say whether an agent may call it.
+AGENT_MAY = {
+    "auth.me",
+    "auth.sign_out",
+    "events.read",
+    "events.stream",
+    "feed.read",
+    "file.read",
+    "link.read",
+    "openapi.read",
+    "proposal.read",
+    "proposal.accept",  # the service answers proposal_decider
+    "proposal.reject",
+    "record.read",
+    "reference.read",
+    "setting.read",
+    "type.read",
+}
+AGENT_MAY_NOT = {
+    "auth.password",
+    "file.upload",
+    "record.write",
+    "setting.write",
+    "admin.accounts.list",
+    "admin.accounts.create",
+    "admin.accounts.roles",
+    "admin.accounts.state",
+    "admin.accounts.password",
+    "admin.tokens.list",
+    "admin.tokens.issue",
+    "admin.tokens.revoke",
+}
+FEED_COMMANDS = {"PostToFeed", "EditPost", "RetractPost", "ReactToPost"}
+
+
+def test_every_route_action_is_decided_for_agents(harness: Harness) -> None:
     actions = route_actions(app_with(harness))
-    assert actions >= {"record.read", "record.write", "command.CreateRecord", "events.read"}
-    allowed = {a for a in actions if _agent_may(a)}
-    # a new route's action is denied until someone adds it to AGENT_ACTIONS on purpose
-    assert allowed <= AGENT_ACTIONS
-    reads = {a for a in actions if a.endswith(".read") or a in ("events.stream", "auth.me")}
-    assert reads <= allowed | {"openapi.read"} | set()
-    denied = actions - allowed
-    for action in ("record.write", "file.upload", "setting.write"):
-        assert action in denied
-    assert not {
-        a
-        for a in denied
-        if a.startswith("command.")
-        and a.split(".")[1] in {"PostToFeed", "EditPost", "RetractPost", "ReactToPost"}
-    }
-    assert all(a not in allowed for a in actions if a.startswith("admin."))
+    commands = {a for a in actions if a.startswith("command.")}
+    others = actions - commands
+    undecided = others - AGENT_MAY - AGENT_MAY_NOT
+    assert not undecided, (
+        f"decide for agents (these sets and AGENT_ACTIONS): {sorted(undecided)}"
+    )
+    assert len(commands) >= 15 and len(others) >= 15  # the walk really found the routes
+    for action in others:
+        assert _agent_may(action) == (action in AGENT_MAY), action
+    for action in commands:
+        assert _agent_may(action) == (action.removeprefix("command.") in FEED_COMMANDS), action
+    assert {f"command.{n}" for n in FEED_COMMANDS} <= commands
+
+
+def test_the_walk_notices_a_new_undecided_action(harness: Harness) -> None:
+    app = app_with(harness)
+
+    @app.get("/_t/new")
+    def new_route(actor: Annotated[str, Depends(guard("brand.new"))]) -> dict[str, str]:
+        return {"actor": actor}
+
+    undecided = (
+        {a for a in route_actions(app) if not a.startswith("command.")} - AGENT_MAY - AGENT_MAY_NOT
+    )
+    assert undecided == {"brand.new"}
+    assert not _agent_may("brand.new")
 
 
 def _agent_may(action: str) -> bool:
@@ -453,3 +497,44 @@ def test_a_ledger_without_account_tables_says_to_run_init(tmp_path: Any) -> None
             check_demo_account(backend, host="127.0.0.1", env={"TL_ENV": "dev"})
     finally:
         backend.close()
+
+
+# --- the default filter fails closed (re-review item 5) ----------------------------------------
+
+
+def test_a_filter_built_without_thinking_hides_account_events() -> None:
+    from tl_core.changefeed import ANY, SubscriptionFilter
+    from tl_core.changefeed.filters import INTERNAL_STREAM_TYPES
+    from tl_core.ledger import Event
+
+    def event(stream_type: str) -> Event:
+        now = datetime.now(UTC)
+        return Event(
+            event_type="Account.Created", payload={}, seq=1, event_id="e", stream_id="s",
+            stream_type=stream_type, stream_version=1, scope="company", actor="u",
+            recorded_at=now, effective_at=now, correlation_id="c", causation_id=None,
+            source="t", prev_hash=None, hash="h",
+        )  # fmt: skip
+
+    account, record = event("core.Account"), event("core.Record")
+    for flt in (
+        ANY,
+        SubscriptionFilter(),
+        SubscriptionFilter(scope="company"),
+        SubscriptionFilter.of(),
+    ):
+        assert not flt.matches(account) and flt.matches(record)
+    assert "core.Account" in INTERNAL_STREAM_TYPES
+    admin = SubscriptionFilter.of(hide_stream_types=())
+    assert admin.matches(account) and admin.matches(record)
+
+
+def test_the_embedded_follower_and_tl_events_do_not_show_account_streams(
+    harness: Harness, cast: Cast
+) -> None:
+    from tl_core.changefeed import fetch_changes
+
+    page = fetch_changes(harness.backend.ledger, after_seq=0, limit=1000)
+    assert page.events == [] or all(e.stream_type != "core.Account" for e in page.events)
+    everything = harness.backend.ledger.read_after(0, limit=1000)
+    assert any(e.stream_type == "core.Account" for e in everything)  # they exist, only hidden

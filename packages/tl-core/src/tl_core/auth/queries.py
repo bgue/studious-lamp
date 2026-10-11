@@ -9,7 +9,7 @@ from sqlalchemy import Connection, text
 
 from tl_core.auth._time import Clock, iso_z
 from tl_core.auth.errors import AccountNotFoundError
-from tl_core.auth.names import actor_for, username_key
+from tl_core.auth.names import actor_for, is_id, username_key
 from tl_core.auth.types import (
     DEMO_USERNAME,
     AccountKind,
@@ -63,6 +63,8 @@ def find_account(
     if (account_id is None) == (username is None):
         raise ValueError("give exactly one of account_id and username")
     if account_id is not None:
+        if not is_id(account_id):  # NUL or a lone surrogate would break the query, not find a row
+            return None
         where, value = "a.account_id = :v", account_id
     else:
         where, value = "a.username = :v", username_key(str(username))
@@ -98,6 +100,8 @@ def list_agent_tokens(
     """Agent token metadata, oldest first. The tokens themselves cannot be read back."""
     clauses: list[str] = []
     params: dict[str, Any] = {}
+    if account_id is not None and not is_id(account_id):
+        return []
     if account_id is not None:
         clauses.append("account_id = :a")
         params["a"] = account_id

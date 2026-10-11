@@ -1,6 +1,6 @@
 # P1-I0-T03 — `/auth/*` routes and the client's sign-in calls
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: api
 Depends on: P1-I0-S2b, S2c and the review fixes F1 to F3 (on `p1/i0a`)
@@ -228,26 +228,21 @@ class AuthApi(ApiClientBase):
     def sign_out(self) -> None:
         """End this client's session (``POST /auth/sign-out``, 204)."""
         # STEPS:
-        # 1. Read the token with `bearer_token(request.scope["headers"])`.
-        # 2. When it is not None call `sessions.sign_out(ctx.backend, token=token)`
-        #    (it ignores tokens that are not sessions).
-        # 3. Return `Response(status_code=204)`.
+        # 1. `self._send("POST", "/auth/sign-out")` (a 204 has no body: do not call `.json()`).
         raise NotImplementedError
 
     def whoami(self) -> Principal:
         """Who the token belongs to (``GET /auth/me``)."""
         # STEPS:
-        # 1. Return `me`: the dependency already resolved the principal.
+        # 1. `return self._model(Principal, self._get_json("/auth/me"))`.
         raise NotImplementedError
 
     def change_own_password(self, current_password: str, new_password: str) -> None:
         """Change your own password (``POST /auth/password``, 204). Every session then ends."""
         # STEPS:
-        # 1. If `me.kind == "agent"` or `me.via == "dev_token"` raise
-        #    `ForbiddenError("this token has no password to change")`.
-        # 2. Call `sessions.change_own_password(ctx.backend, account_id=me.account_id,
-        #    current_password=body.current_password, new_password=body.new_password)`.
-        # 3. Return `Response(status_code=204)`.
+        # 1. `self._send("POST", "/auth/password", json={"current_password": ...,
+        #    "new_password": ...})`. The server answers 403 `forbidden` to an agent or dev token;
+        #    the client maps it to `ForbiddenError`; it does not check the kind itself.
         raise NotImplementedError
 ```
 
@@ -308,3 +303,6 @@ Standard report (`docs/templates/haiku-report.md`): deviations first, then the c
 
 ## Decision
 (supervisor or orchestrator writes here)
+
+## Outcome (supervisor)
+Merged at cdce513 after a `pass` review. The first version of this ticket pasted the server routes' STEPS into the three client methods, where they could not run (they name `request`, `ctx`, `me`); the implementer built the methods from their docstrings and said so. The STEPS above are the corrected text. The generator that made the stubs now picks client steps before route steps (L-P1-I0A-12).
