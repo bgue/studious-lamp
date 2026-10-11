@@ -29,7 +29,7 @@ Measure the §15 targets on a seeded 100k-record project on SQLite and Postgres,
 |---|---|---|---|---|
 | S60 | Bench harness, 100k generator, measurement method, `just bench*` recipes | The method and the dataset decide what every number means | self | done |
 | S61 | `tl:ix_` annotations in the DDL generator and the index definitions in `schema/core` | Generator logic and `schema/**` | orchestrator | done |
-| S62 | Query compiler: sets instead of per-record probes; ordering an index can serve | Query compiler (Sonnet-authored list) | orchestrator | done |
+| S62 | Query compiler: sets instead of per-record probes; ordering an index can serve | Query compiler (supervisor-authored list, build spec 01 §3) | orchestrator | done |
 | S63 | Per-target measurements, before and after, both dialects | The report depends on them | self | done |
 | S65 | Feed projector: open card without a hot unique index (`schema/core/feed.yaml`, `projection/feed.py`) | Projector and `schema/**` | orchestrator | done |
 | S64 | Runbook, package README notes, demo script, perf report, workstream report | Closes the workstream | self | done |
@@ -52,7 +52,7 @@ Measure the §15 targets on a seeded 100k-record project on SQLite and Postgres,
 ## Risks and escalation triggers
 - The container is shared: load average was 3 to 10 during measurements. Every result carries the load before each round and the spread between rounds.
 - The Postgres seed takes about an hour; the Postgres numbers come last.
-- The query compiler and the DDL generator are Sonnet-authored areas: S61 and S62 are marked for orchestrator review before merge into the trunk.
+- The query compiler and the DDL generator are supervisor-authored area (build spec 01 §3)s: S61 and S62 are marked for orchestrator review before merge into the trunk.
 
 ## Blocked / Decision
 (none)

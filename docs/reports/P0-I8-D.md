@@ -17,7 +17,7 @@ Objective met: partially. The §15 targets were measured on SQLite and Postgres 
 |---|---|---|
 | S60 | Bench harness (`tests/bench/`, `just bench-seed`, `just bench`, `just bench-rebuild`), deterministic generator, measurement method, results files | done (test tooling; no fresh-context review) |
 | S61 | `tl:ix_*` index annotations in the DDL generator; indexes in `record.yaml`, `psets.yaml`, `links.yaml`; sslmode mapping | done; fresh-context review: changes requested (test gaps, name limits, sslmode), fixed (f579cea, 2c3f978), re-review passed |
-| S62 | Query compiler: sets instead of per-record probes; ordering an index can serve | done; review: changes requested (a link to a missing record began to count), fixed (bc8229e), re-review passed with 0 differences over 16k queries; marked for orchestrator review as a Sonnet-authored area |
+| S62 | Query compiler: sets instead of per-record probes; ordering an index can serve | done; review: changes requested (a link to a missing record began to count), fixed (bc8229e), re-review passed with 0 differences over 16k queries; marked for orchestrator review as a supervisor-authored area (build spec 01 §3) |
 | S63 | Measurements and learnings | done |
 | S64 | Runbook, demo, README and AGENTS notes, perf report, this report | done |
 | S65 | Feed projector without a hot unique index (`feed.yaml`, `projection/feed.py`) | done; review passed; accepted by the orchestrator |
