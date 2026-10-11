@@ -87,7 +87,8 @@ linkml_meta = LinkMLMeta({'default_prefix': 'throughline',
                  'integration',
                  'outbox',
                  'extension',
-                 'events'],
+                 'events',
+                 'auth'],
      'name': 'tl_core',
      'prefixes': {'linkml': {'prefix_prefix': 'linkml',
                              'prefix_reference': 'https://w3id.org/linkml/'},
@@ -459,6 +460,49 @@ class StorageMode(str, Enum):
     """
 
 
+class AccountKind(str, Enum):
+    """
+    What kind of principal an account is.
+    """
+    person = "person"
+    """
+    A human who signs in with a username and password (later Entra ID).
+    """
+    agent = "agent"
+    """
+    An AI agent. It never has a password or the admin role; it authenticates with an admin-issued token and is always propose-only.
+    """
+    sim = "sim"
+    """
+    A simulator actor, a seeded account with the user role.
+    """
+
+
+class AccountStatus(str, Enum):
+    """
+    Whether an account may authenticate.
+    """
+    active = "active"
+    disabled = "disabled"
+    """
+    Cannot sign in; its sessions and agent tokens are refused.
+    """
+
+
+class AccountRole(str, Enum):
+    """
+    The two roles of Phase 1 (ADR-0008 decision 3).
+    """
+    admin = "admin"
+    """
+    Everything, including the admin module.
+    """
+    user = "user"
+    """
+    Everything except `admin.*` actions.
+    """
+
+
 
 class RecordEnvelope(ConfiguredBaseModel):
     """
@@ -515,7 +559,8 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     psets: Any = Field(default=..., description="""Property-set values keyed by pset name, stored as a JSON object.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['RecordEnvelope', 'RecordCreatedPayload']} })
     voided: bool = Field(default=False, description="""Set by `Record.Voided`. Voided rows are never deleted.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope'], 'ifabsent': 'false'} })
@@ -531,7 +576,8 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     last_seq: int = Field(default=..., description="""Ledger `seq` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -542,7 +588,9 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'WebhookCursor',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
     effective_schema_hash: Optional[str] = Field(default=None, description="""Hash of the effective schema in force at the last write; null before Increment 2.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValuesSetPayload',
                        'WorkflowTransitionedPayload',
@@ -556,7 +604,10 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
-                       'WebhookSecret']} })
+                       'WebhookSecret',
+                       'Account',
+                       'AuthSession',
+                       'AuthTokenSecret']} })
     updated_at: datetime  = Field(default=..., description="""Timestamp of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -564,7 +615,9 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'File',
                        'WebhookSubscription',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AuthCredential']} })
 
 
 class Record(RecordEnvelope):
@@ -641,7 +694,8 @@ class Record(RecordEnvelope):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     psets: Any = Field(default=..., description="""Property-set values keyed by pset name, stored as a JSON object.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['RecordEnvelope', 'RecordCreatedPayload']} })
     voided: bool = Field(default=False, description="""Set by `Record.Voided`. Voided rows are never deleted.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope'], 'ifabsent': 'false'} })
@@ -657,7 +711,8 @@ class Record(RecordEnvelope):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     last_seq: int = Field(default=..., description="""Ledger `seq` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -668,7 +723,9 @@ class Record(RecordEnvelope):
                        'WebhookSubscription',
                        'WebhookCursor',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
     effective_schema_hash: Optional[str] = Field(default=None, description="""Hash of the effective schema in force at the last write; null before Increment 2.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValuesSetPayload',
                        'WorkflowTransitionedPayload',
@@ -682,7 +739,10 @@ class Record(RecordEnvelope):
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
-                       'WebhookSecret']} })
+                       'WebhookSecret',
+                       'Account',
+                       'AuthSession',
+                       'AuthTokenSecret']} })
     updated_at: datetime  = Field(default=..., description="""Timestamp of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -690,7 +750,9 @@ class Record(RecordEnvelope):
                        'File',
                        'WebhookSubscription',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AuthCredential']} })
 
 
 class Event(ConfiguredBaseModel):
@@ -828,7 +890,9 @@ class PsetValue(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'WebhookCursor',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
     updated_at: datetime  = Field(default=..., description="""Timestamp of that event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -836,7 +900,9 @@ class PsetValue(ConfiguredBaseModel):
                        'File',
                        'WebhookSubscription',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AuthCredential']} })
 
 
 class Link(ConfiguredBaseModel):
@@ -891,7 +957,8 @@ class Link(ConfiguredBaseModel):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow'],
+                       'TypeRegistrationRow',
+                       'Account'],
          'ifabsent': 'string(active)'} })
     pin: Optional[str] = Field(default=None, description="""Revision the link is pinned to; null means floating to the current revision.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
                        'LinkAddedPayload',
@@ -928,17 +995,24 @@ class Link(ConfiguredBaseModel):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
     declined: bool = Field(default=False, description="""True when the link was a suggestion that a person declined. Declines are remembered.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link'], 'ifabsent': 'false'} })
     verified_by: Optional[str] = Field(default=None, description="""Actor of the last `Link.Verified` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
     verified_at: Optional[datetime ] = Field(default=None, description="""Time of the last `Link.Verified` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
-    created_by: str = Field(default=..., description="""Actor of the creating event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'WebhookSubscription']} })
+    created_by: str = Field(default=..., description="""Actor of the creating event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'WebhookSubscription', 'Account']} })
     created_at: datetime  = Field(default=..., description="""Time of the creating event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
-                       'WebhookSecret']} })
+                       'WebhookSecret',
+                       'Account',
+                       'AuthSession',
+                       'AuthTokenSecret']} })
     updated_at: datetime  = Field(default=..., description="""Time of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -946,7 +1020,9 @@ class Link(ConfiguredBaseModel):
                        'File',
                        'WebhookSubscription',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AuthCredential']} })
     version: int = Field(default=..., description="""Ledger `stream_version` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'NumberingCounter',
@@ -959,7 +1035,8 @@ class Link(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     last_seq: int = Field(default=..., description="""Ledger `seq` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -970,7 +1047,9 @@ class Link(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'WebhookCursor',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
 
 
 class LinkCount(ConfiguredBaseModel):
@@ -1025,7 +1104,9 @@ class LinkCount(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'WebhookCursor',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
 
 
 class NumberingCounter(ConfiguredBaseModel):
@@ -1076,7 +1157,8 @@ class NumberingCounter(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     last_seq: int = Field(default=..., description="""Ledger `seq` of the last allocation.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -1087,7 +1169,9 @@ class NumberingCounter(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'WebhookCursor',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
     updated_at: datetime  = Field(default=..., description="""Time of the last allocation (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -1095,7 +1179,9 @@ class NumberingCounter(ConfiguredBaseModel):
                        'File',
                        'WebhookSubscription',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AuthCredential']} })
 
 
 class WorkflowState(ConfiguredBaseModel):
@@ -1153,7 +1239,9 @@ class WorkflowState(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'WebhookCursor',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
 
 
 class EventPayload(ConfiguredBaseModel):
@@ -1267,7 +1355,11 @@ class RecordVoidedPayload(EventPayload):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
 
 
 class RecordCorrectedPayload(EventPayload):
@@ -1308,7 +1400,11 @@ class RecordCorrectedPayload(EventPayload):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
 
 
 class PsetValuesSetPayload(EventPayload):
@@ -1467,7 +1563,11 @@ class LinkDeclinedPayload(LinkPayload):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
 
 
 class LinkRepinnedPayload(LinkPayload):
@@ -1521,7 +1621,8 @@ class LinkFlaggedPayload(LinkPayload):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     reason: Optional[str] = Field(default=None, description="""Why it was flagged.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
                        'RecordVoidedPayload',
                        'RecordCorrectedPayload',
@@ -1541,7 +1642,11 @@ class LinkFlaggedPayload(LinkPayload):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
 
 
 class LinkRetractedPayload(LinkPayload):
@@ -1573,7 +1678,11 @@ class LinkRetractedPayload(LinkPayload):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
 
 
 class WorkflowTransitionedPayload(EventPayload):
@@ -1622,7 +1731,11 @@ class WorkflowTransitionedPayload(EventPayload):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
     conformance: Optional[str] = Field(default=None, description="""Conformance after the transition.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValuesSetPayload',
                        'WorkflowTransitionedPayload']} })
@@ -1722,7 +1835,8 @@ class FileUploadedPayload(EventPayload):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     deduplicated: Optional[bool] = Field(default=None, description="""True when the bytes already existed.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FileUploadedPayload', 'File']} })
 
 
@@ -1754,7 +1868,8 @@ class FileProcessedPayload(EventPayload):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     report: Optional[Any] = Field(default=None, description="""Scan report.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['FileProcessedPayload',
                        'FileRejectedPayload',
@@ -1793,7 +1908,8 @@ class FileRejectedPayload(EventPayload):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     reason: str = Field(default=..., description="""Why it was rejected.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
                        'RecordVoidedPayload',
                        'RecordCorrectedPayload',
@@ -1813,7 +1929,11 @@ class FileRejectedPayload(EventPayload):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
     report: Optional[Any] = Field(default=None, description="""Scan report.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['FileProcessedPayload',
                        'FileRejectedPayload',
@@ -1885,7 +2005,8 @@ class SchemaPackagePublishedPayload(EventPayload):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
 
 
 class WebhookSubscriptionCreatedPayload(WebhookEventPayload):
@@ -1929,7 +2050,10 @@ class WebhookSubscriptionCreatedPayload(WebhookEventPayload):
     event_schema_version: Optional[str] = Field(default=None, description="""Schema pin.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload', 'WebhookSubscription']} })
     expires_at: Optional[str] = Field(default=None, description="""ISO-8601 time after which the subscription stops.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'WebhookSubscription',
-                       'WebhookSecret']} })
+                       'WebhookSecret',
+                       'AgentToken',
+                       'AuthSession',
+                       'AgentTokenIssuedPayload']} })
     secret_id: str = Field(default=..., description="""Id of the first signing secret (not the secret).""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'WebhookSubscriptionSecretRotatedPayload',
                        'WebhookSecret']} })
@@ -1982,7 +2106,11 @@ class WebhookSubscriptionDisabledPayload(WebhookEventPayload):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
     detail: Optional[str] = Field(default=None, description="""Free-text detail, for example the failure counts.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionDisabledPayload', 'CloudEventData']} })
 
 
@@ -2026,7 +2154,7 @@ class FeedTag(ConfiguredBaseModel):
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'from_schema': 'https://example.org/throughline/core/feed'})
 
     text: str = Field(default=..., description="""The tag as written, without its leading sigil (`47-1234-S03`, `area:A12`, `party:acme-nde`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag']} })
-    kind: TagKind = Field(default=..., description="""Kind of the tag after resolution.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag', 'Hashtag']} })
+    kind: TagKind = Field(default=..., description="""Kind of the tag after resolution.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag', 'Hashtag', 'Account', 'AccountCreatedPayload']} })
     start: int = Field(default=..., description="""Character offset of the sigil in the body.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag']} })
     end: int = Field(default=..., description="""Character offset just past the last character of the tag.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag']} })
     namespace: Optional[str] = Field(default=None, description="""For code and mention tags written `ns:value`, the part before the colon.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag',
@@ -2234,7 +2362,11 @@ class FeedRetractedPayload(EventPayload):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
 
 
 class FeedReactedPayload(EventPayload):
@@ -2347,7 +2479,8 @@ class FeedItemRow(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
 
 
 class Hashtag(ConfiguredBaseModel):
@@ -2380,7 +2513,7 @@ class Hashtag(ConfiguredBaseModel):
                        'OutboxEvent',
                        'RecordBody',
                        'BodyQuarantine']} })
-    kind: TagKind = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag', 'Hashtag']} })
+    kind: TagKind = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag', 'Hashtag', 'Account', 'AccountCreatedPayload']} })
     tag_text: str = Field(default=..., description="""The tag as written, without its sigil. For a card's subject row, the record id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Hashtag']} })
     tag_key: str = Field(default=..., description="""Normalised text used to find the tag's feed (lower case). For a card's subject row, the record id.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Hashtag']} })
@@ -2462,7 +2595,8 @@ class ProposalAcceptedPayload(EventPayload):
                        'ProposalRow']} })
     by: str = Field(default=..., description="""The accepting person, `user:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload',
                        'ProposalRejectedPayload',
-                       'ProposalFailedPayload']} })
+                       'ProposalFailedPayload',
+                       'AccountPasswordChangedPayload']} })
     result_stream_id: str = Field(default=..., description="""Stream the command wrote to (the new record, the changed record, the link).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload', 'ProposalRow']} })
     result_version: int = Field(default=..., description="""Stream version after the command.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload']} })
 
@@ -2486,7 +2620,8 @@ class ProposalRejectedPayload(EventPayload):
                        'ProposalRow']} })
     by: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload',
                        'ProposalRejectedPayload',
-                       'ProposalFailedPayload']} })
+                       'ProposalFailedPayload',
+                       'AccountPasswordChangedPayload']} })
     reason: str = Field(default=..., description="""Why, for the agent and the audit trail.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
                        'RecordVoidedPayload',
                        'RecordCorrectedPayload',
@@ -2506,7 +2641,11 @@ class ProposalRejectedPayload(EventPayload):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
 
 
 class ProposalFailedPayload(EventPayload):
@@ -2528,7 +2667,8 @@ class ProposalFailedPayload(EventPayload):
                        'ProposalRow']} })
     by: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload',
                        'ProposalRejectedPayload',
-                       'ProposalFailedPayload']} })
+                       'ProposalFailedPayload',
+                       'AccountPasswordChangedPayload']} })
     error: str = Field(default=..., description="""`<ErrorClass>: <message>` of the refusal.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalFailedPayload', 'WebhookAttempt']} })
 
 
@@ -2588,7 +2728,8 @@ class ProposalRow(ConfiguredBaseModel):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow'],
+                       'TypeRegistrationRow',
+                       'Account'],
          'ifabsent': 'string(pending)'} })
     created_day: str = Field(default=..., description="""UTC day of creation, `YYYY-MM-DD`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['ProposalRow']} })
@@ -2597,7 +2738,10 @@ class ProposalRow(ConfiguredBaseModel):
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
-                       'WebhookSecret']} })
+                       'WebhookSecret',
+                       'Account',
+                       'AuthSession',
+                       'AuthTokenSecret']} })
     created_event_id: str = Field(default=..., description="""Event id of `Proposal.Created`; the cause of the accepted command's events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalRow']} })
     decided_by: Optional[str] = Field(default=None, description="""The person who accepted, rejected or failed it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalRow']} })
     decided_at: Optional[datetime ] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalRow']} })
@@ -2620,7 +2764,11 @@ class ProposalRow(ConfiguredBaseModel):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
     result_stream_id: Optional[str] = Field(default=None, description="""Accepted only; the stream the command wrote to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload', 'ProposalRow']} })
     seq: int = Field(default=..., description="""`seq` of `Proposal.Created`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Event',
@@ -2643,7 +2791,8 @@ class ProposalRow(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
 
 
 class SettingValidation(ConfiguredBaseModel):
@@ -2769,7 +2918,11 @@ class SettingChangedPayload(EventPayload):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
     applies_at: Optional[datetime ] = Field(default=None, description="""When the change takes effect, if later than the time it was recorded.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
     accept_risk: Optional[bool] = Field(default=None, description="""The person confirmed \"I accept the risk\" (a `dangerous` key).""", json_schema_extra = { "linkml_meta": {'domain_of': ['SettingChangedPayload', 'SettingChangeRow']} })
 
@@ -2823,7 +2976,11 @@ class SettingLockedPayload(EventPayload):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
 
 
 class SettingChangeRow(ConfiguredBaseModel):
@@ -2898,7 +3055,11 @@ class SettingChangeRow(ConfiguredBaseModel):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
     actor: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
@@ -2938,7 +3099,8 @@ class SettingChangeRow(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
 
 
 class SettingLockRow(ConfiguredBaseModel):
@@ -2981,7 +3143,11 @@ class SettingLockRow(ConfiguredBaseModel):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
     actor: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
@@ -3008,7 +3174,8 @@ class SettingLockRow(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     recorded_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'SettingChangeRow', 'SettingLockRow', 'OutboxEvent']} })
 
 
@@ -3089,7 +3256,8 @@ class File(ConfiguredBaseModel):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow'],
+                       'TypeRegistrationRow',
+                       'Account'],
          'ifabsent': 'string(quarantined)'} })
     deduplicated: bool = Field(default=False, description="""True when the object already existed in the store at upload time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FileUploadedPayload', 'File'], 'ifabsent': 'false'} })
     superseded_by: Optional[str] = Field(default=None, description="""The file that replaced this one in a cardinality-one slot; null while it is current.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
@@ -3118,7 +3286,11 @@ class File(ConfiguredBaseModel):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
     uploaded_by: str = Field(default=..., description="""Actor of the `File.Uploaded` event; the only reader while the file is quarantined.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
     uploaded_at: datetime  = Field(default=..., description="""Time of the `File.Uploaded` event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
     processed_at: Optional[datetime ] = Field(default=None, description="""Time of the `File.Processed` or `File.Rejected` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['File']} })
@@ -3129,7 +3301,9 @@ class File(ConfiguredBaseModel):
                        'File',
                        'WebhookSubscription',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AuthCredential']} })
     version: int = Field(default=..., description="""Ledger `stream_version` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'NumberingCounter',
@@ -3142,7 +3316,8 @@ class File(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     last_seq: int = Field(default=..., description="""Ledger `seq` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -3153,7 +3328,9 @@ class File(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'WebhookCursor',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
 
 
 class SubscriptionFilter(ConfiguredBaseModel):
@@ -3241,22 +3418,29 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow'],
+                       'TypeRegistrationRow',
+                       'Account'],
          'ifabsent': 'string(active)'} })
     disabled_reason: Optional[DisabledReason] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscription']} })
     active_windows: Any = Field(default=..., description="""JSON list of `{\"from\": seq, \"until\": seq or null}`. An event is delivered when `from < seq <= until` for some window (`until` null is open). Creation and every enable open a window; a disable closes the open one. Events committed while disabled are not delivered unless replayed.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['WebhookSubscription']} })
     expires_at: Optional[datetime ] = Field(default=None, description="""After this time the subscription no longer receives events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'WebhookSubscription',
-                       'WebhookSecret']} })
+                       'WebhookSecret',
+                       'AgentToken',
+                       'AuthSession',
+                       'AgentTokenIssuedPayload']} })
     current_secret_id: Optional[str] = Field(default=None, description="""The newest signing secret (the value lives in `wh_secret`, never here).""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscription']} })
-    created_by: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'WebhookSubscription']} })
+    created_by: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'WebhookSubscription', 'Account']} })
     created_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
-                       'WebhookSecret']} })
+                       'WebhookSecret',
+                       'Account',
+                       'AuthSession',
+                       'AuthTokenSecret']} })
     updated_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -3264,7 +3448,9 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'File',
                        'WebhookSubscription',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AuthCredential']} })
     version: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
                        'NumberingCounter',
@@ -3277,7 +3463,8 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     last_seq: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -3288,7 +3475,9 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'WebhookCursor',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
 
 
 class EventOrigin(ConfiguredBaseModel):
@@ -3326,7 +3515,8 @@ class EventOrigin(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     api: Optional[str] = Field(default=None, description="""API URL of the record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventOrigin']} })
 
 
@@ -3544,7 +3734,8 @@ class WebhookDelivery(ConfiguredBaseModel):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow'],
+                       'TypeRegistrationRow',
+                       'Account'],
          'ifabsent': 'string(pending)'} })
     body: str = Field(default=..., description="""The exact JSON text that is sent (and re-sent on every retry), built once when the delivery was created.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
                        'FeedPostedPayload',
@@ -3556,7 +3747,10 @@ class WebhookDelivery(ConfiguredBaseModel):
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
-                       'WebhookSecret']} })
+                       'WebhookSecret',
+                       'Account',
+                       'AuthSession',
+                       'AuthTokenSecret']} })
     next_attempt_at: str = Field(default=..., description="""ISO-8601 UTC. A pending delivery is not tried before this time.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookDelivery']} })
     lease_until: Optional[str] = Field(default=None, description="""ISO-8601 UTC while a worker holds the delivery; an expired lease can be taken over.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookDelivery']} })
     lease_owner: Optional[str] = Field(default=None, description="""Worker id that holds the lease.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookDelivery']} })
@@ -3601,7 +3795,8 @@ class WebhookAttempt(ConfiguredBaseModel):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     outcome: str = Field(default=..., description="""`delivered`, `retry`, `dead`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookAttempt']} })
     error: Optional[str] = Field(default=None, description="""Short failure reason.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalFailedPayload', 'WebhookAttempt']} })
     response_excerpt: Optional[str] = Field(default=None, description="""First 512 characters of the response body, control characters removed.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookAttempt']} })
@@ -3632,10 +3827,16 @@ class WebhookSecret(ConfiguredBaseModel):
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
-                       'WebhookSecret']} })
+                       'WebhookSecret',
+                       'Account',
+                       'AuthSession',
+                       'AuthTokenSecret']} })
     expires_at: Optional[str] = Field(default=None, description="""ISO-8601 UTC. A rotated-out secret keeps signing until this time (the overlap), then retires.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
                        'WebhookSubscription',
-                       'WebhookSecret']} })
+                       'WebhookSecret',
+                       'AgentToken',
+                       'AuthSession',
+                       'AgentTokenIssuedPayload']} })
 
 
 class WebhookHealth(ConfiguredBaseModel):
@@ -3683,7 +3884,9 @@ class WebhookCursor(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'WebhookCursor',
                        'TypeRegistrationRow',
-                       'RecordBody'],
+                       'RecordBody',
+                       'Account',
+                       'AgentToken'],
          'ifabsent': 'int(0)'} })
 
 
@@ -3743,7 +3946,8 @@ class ExtensionRecord(RecordEnvelope):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     psets: Any = Field(default=..., description="""Property-set values keyed by pset name, stored as a JSON object.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['RecordEnvelope', 'RecordCreatedPayload']} })
     voided: bool = Field(default=False, description="""Set by `Record.Voided`. Voided rows are never deleted.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope'], 'ifabsent': 'false'} })
@@ -3759,7 +3963,8 @@ class ExtensionRecord(RecordEnvelope):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     last_seq: int = Field(default=..., description="""Ledger `seq` of the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -3770,7 +3975,9 @@ class ExtensionRecord(RecordEnvelope):
                        'WebhookSubscription',
                        'WebhookCursor',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
     effective_schema_hash: Optional[str] = Field(default=None, description="""Hash of the effective schema in force at the last write; null before Increment 2.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValuesSetPayload',
                        'WorkflowTransitionedPayload',
@@ -3784,7 +3991,10 @@ class ExtensionRecord(RecordEnvelope):
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
-                       'WebhookSecret']} })
+                       'WebhookSecret',
+                       'Account',
+                       'AuthSession',
+                       'AuthTokenSecret']} })
     updated_at: datetime  = Field(default=..., description="""Timestamp of the last applied event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -3792,7 +4002,9 @@ class ExtensionRecord(RecordEnvelope):
                        'File',
                        'WebhookSubscription',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AuthCredential']} })
 
 
 class TypeRegistrationRegisteredPayload(EventPayload):
@@ -3836,7 +4048,8 @@ class TypeRegistrationRegisteredPayload(EventPayload):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     type_ref: str = Field(default=..., description="""`<namespace>.<name>@<version>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TypeRegistrationRegisteredPayload',
                        'TypeRegistrationQuarantinedPayload',
                        'TypeRegistrationDeprecatedPayload',
@@ -3864,7 +4077,8 @@ class TypeRegistrationRegisteredPayload(EventPayload):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     storage_mode: StorageMode = Field(default=..., description="""`managed` or `object-backed` in v0.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TypeRegistrationRegisteredPayload', 'TypeRegistrationRow']} })
     index_fields: Optional[list[str]] = Field(default=None, description="""Slots annotated `tl:index`: the query contract.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TypeRegistrationRegisteredPayload', 'TypeRegistrationRow']} })
     schema_hash: str = Field(default=..., description="""Hash of the compiled class: the schema a stored body validated against.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TypeRegistrationRegisteredPayload',
@@ -3941,7 +4155,11 @@ class TypeRegistrationDeprecatedPayload(EventPayload):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
 
 
 class RecordBodyStoredPayload(EventPayload):
@@ -4003,7 +4221,8 @@ class TypeRegistrationRow(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'EventOrigin',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     pset: Optional[str] = Field(default=None, description="""Name of the pset that holds the index fields of instances.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue', 'PsetValuesSetPayload', 'TypeRegistrationRow']} })
     location_uri: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['TypeRegistrationRegisteredPayload',
                        'TypeRegistrationQuarantinedPayload',
@@ -4029,7 +4248,8 @@ class TypeRegistrationRow(ConfiguredBaseModel):
                        'WebhookDelivery',
                        'WebhookAttempt',
                        'TypeRegistrationRegisteredPayload',
-                       'TypeRegistrationRow']} })
+                       'TypeRegistrationRow',
+                       'Account']} })
     storage_mode: Optional[StorageMode] = Field(default=None, description="""Null for a quarantined row.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TypeRegistrationRegisteredPayload', 'TypeRegistrationRow']} })
     index_fields: Optional[Any] = Field(default=None, description="""JSON list of index field names.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['TypeRegistrationRegisteredPayload', 'TypeRegistrationRow']} })
@@ -4062,7 +4282,11 @@ class TypeRegistrationRow(ConfiguredBaseModel):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
     first_seq: int = Field(default=..., description="""`seq` of the first event of the stream.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'TypeRegistrationRow']} })
     last_seq: int = Field(default=..., description="""`seq` of the last event of the stream.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
@@ -4074,7 +4298,9 @@ class TypeRegistrationRow(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'WebhookCursor',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
     version_n: int = Field(default=..., description="""Stream version after the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['TypeRegistrationRow']} })
     updated_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
@@ -4083,7 +4309,9 @@ class TypeRegistrationRow(ConfiguredBaseModel):
                        'File',
                        'WebhookSubscription',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AuthCredential']} })
 
 
 class RecordBody(ConfiguredBaseModel):
@@ -4143,7 +4371,9 @@ class RecordBody(ConfiguredBaseModel):
                        'WebhookSubscription',
                        'WebhookCursor',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
     updated_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
@@ -4151,7 +4381,9 @@ class RecordBody(ConfiguredBaseModel):
                        'File',
                        'WebhookSubscription',
                        'TypeRegistrationRow',
-                       'RecordBody']} })
+                       'RecordBody',
+                       'Account',
+                       'AuthCredential']} })
 
 
 class BodyQuarantine(ConfiguredBaseModel):
@@ -4215,8 +4447,574 @@ class BodyQuarantine(ConfiguredBaseModel):
                        'File',
                        'TypeRegistrationDeprecatedPayload',
                        'TypeRegistrationRow',
-                       'BodyQuarantine']} })
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
     detected_at: datetime  = Field(default=..., description="""When the mismatch was found.""", json_schema_extra = { "linkml_meta": {'domain_of': ['BodyQuarantine']} })
+
+
+class Account(ConfiguredBaseModel):
+    """
+    One account in its current state. A projection of the `Account.*` events.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table', 'value': 'cur_account'}},
+         'from_schema': 'https://example.org/throughline/core/auth',
+         'unique_keys': {'username': {'description': 'Usernames are unique across all '
+                                                     'account kinds.',
+                                      'unique_key_name': 'username',
+                                      'unique_key_slots': ['username']}}})
+
+    account_id: str = Field(default=..., description="""Immutable id; the ledger stream is `account:<account_id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
+                       'AgentToken',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    username: str = Field(default=..., description="""Normalised (NFKC, lower case) and matching `[a-z0-9][a-z0-9_.@-]{0,63}`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account', 'AccountCreatedPayload']} })
+    display_name: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Account', 'AccountCreatedPayload']} })
+    kind: AccountKind = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag', 'Hashtag', 'Account', 'AccountCreatedPayload']} })
+    roles: Any = Field(default=..., description="""JSON list of roles, `[\"admin\"]`, `[\"user\"]` or both.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['Account', 'AccountCreatedPayload', 'AccountRolesSetPayload']} })
+    is_admin: int = Field(default=0, description="""1 when `roles` holds `admin`. Lets the last-admin check count in plain SQL.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['Account'],
+         'ifabsent': 'int(0)'} })
+    status: AccountStatus = Field(default=AccountStatus("active"), json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Link',
+                       'LinkFlaggedPayload',
+                       'FileUploadedPayload',
+                       'FileProcessedPayload',
+                       'FileRejectedPayload',
+                       'ProposalRow',
+                       'File',
+                       'WebhookSubscription',
+                       'WebhookDelivery',
+                       'WebhookAttempt',
+                       'TypeRegistrationRegisteredPayload',
+                       'TypeRegistrationRow',
+                       'Account'],
+         'ifabsent': 'string(active)'} })
+    created_by: str = Field(default=..., description="""Actor that created the account.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'WebhookSubscription', 'Account']} })
+    created_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Link',
+                       'ProposalRow',
+                       'WebhookSubscription',
+                       'WebhookDelivery',
+                       'WebhookSecret',
+                       'Account',
+                       'AuthSession',
+                       'AuthTokenSecret']} })
+    updated_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'PsetValue',
+                       'Link',
+                       'NumberingCounter',
+                       'File',
+                       'WebhookSubscription',
+                       'TypeRegistrationRow',
+                       'RecordBody',
+                       'Account',
+                       'AuthCredential']} })
+    version: int = Field(default=..., description="""Version of the account stream after the last event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Link',
+                       'NumberingCounter',
+                       'SchemaPackagePublishedPayload',
+                       'FeedItemRow',
+                       'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File',
+                       'WebhookSubscription',
+                       'EventOrigin',
+                       'TypeRegistrationRegisteredPayload',
+                       'TypeRegistrationRow',
+                       'Account']} })
+    last_seq: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'PsetValue',
+                       'Link',
+                       'LinkCount',
+                       'NumberingCounter',
+                       'WorkflowState',
+                       'File',
+                       'WebhookSubscription',
+                       'WebhookCursor',
+                       'TypeRegistrationRow',
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
+
+
+class AgentToken(ConfiguredBaseModel):
+    """
+    The metadata of one agent token. The token itself is only in `auth_token_secret`, as a hash.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table', 'value': 'cur_agent_token'}},
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    token_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['AgentToken',
+                       'AuthTokenSecret',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    account_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['Account',
+                       'AgentToken',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    label: str = Field(default=..., description="""What the token is for; shown in lists.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AgentToken', 'AgentTokenIssuedPayload']} })
+    expires_at: Optional[str] = Field(default=None, description="""ISO-8601 UTC; null for a token that does not expire.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
+                       'WebhookSubscription',
+                       'WebhookSecret',
+                       'AgentToken',
+                       'AuthSession',
+                       'AgentTokenIssuedPayload']} })
+    revoked: int = Field(default=0, json_schema_extra = { "linkml_meta": {'domain_of': ['AgentToken'], 'ifabsent': 'int(0)'} })
+    revoked_at: Optional[str] = Field(default=None, description="""ISO-8601 UTC.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AgentToken']} })
+    revoke_reason: Optional[str] = Field(default=None, description="""Free text, no secrets.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AgentToken']} })
+    issued_by: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['AgentToken']} })
+    issued_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['AgentToken']} })
+    last_seq: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'PsetValue',
+                       'Link',
+                       'LinkCount',
+                       'NumberingCounter',
+                       'WorkflowState',
+                       'File',
+                       'WebhookSubscription',
+                       'WebhookCursor',
+                       'TypeRegistrationRow',
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
+
+
+class AuthCredential(ConfiguredBaseModel):
+    """
+    A password hash. Operational; never in the ledger, the archive, the lake or webhooks.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table', 'value': 'auth_credential'}},
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    account_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
+                       'AgentToken',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    password_hash: str = Field(default=..., description="""`scrypt$<log2 N>$<r>$<p>$<salt>$<hash>` (ADR-0009 section 2).""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthCredential']} })
+    updated_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'PsetValue',
+                       'Link',
+                       'NumberingCounter',
+                       'File',
+                       'WebhookSubscription',
+                       'TypeRegistrationRow',
+                       'RecordBody',
+                       'Account',
+                       'AuthCredential']} })
+
+
+class AuthSession(ConfiguredBaseModel):
+    """
+    A signed-in session. Only the SHA-256 of the token is stored; ending a session deletes the row.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table', 'value': 'auth_session'}},
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    token_hash: str = Field(default=..., description="""Hex SHA-256 of the `tls_` token.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthSession', 'AuthTokenSecret']} })
+    account_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['Account',
+                       'AgentToken',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    created_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Link',
+                       'ProposalRow',
+                       'WebhookSubscription',
+                       'WebhookDelivery',
+                       'WebhookSecret',
+                       'Account',
+                       'AuthSession',
+                       'AuthTokenSecret']} })
+    expires_at: str = Field(default=..., description="""ISO-8601 UTC. Sign-out, disable and a password change delete the row.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
+                       'WebhookSubscription',
+                       'WebhookSecret',
+                       'AgentToken',
+                       'AuthSession',
+                       'AgentTokenIssuedPayload']} })
+
+
+class AuthTokenSecret(ConfiguredBaseModel):
+    """
+    The hash of one agent token. Only a `token_id` links it to the ledger metadata.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table', 'value': 'auth_token_secret'}},
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    token_hash: str = Field(default=..., description="""Hex SHA-256 of the `tla_` token.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthSession', 'AuthTokenSecret']} })
+    token_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['AgentToken',
+                       'AuthTokenSecret',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    created_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Link',
+                       'ProposalRow',
+                       'WebhookSubscription',
+                       'WebhookDelivery',
+                       'WebhookSecret',
+                       'Account',
+                       'AuthSession',
+                       'AuthTokenSecret']} })
+
+
+class AuthAttempt(ConfiguredBaseModel):
+    """
+    Failed-sign-in counters, keyed by normalised username whether or not an account exists.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table', 'value': 'auth_attempt'}},
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    username_key: str = Field(default=..., description="""The normalised username, cut to 64 characters.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt']} })
+    failed_count: int = Field(default=0, json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt'], 'ifabsent': 'int(0)'} })
+    window_started_at: str = Field(default=..., description="""ISO-8601 UTC of the first failure in the current window.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt']} })
+    last_failed_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt']} })
+    lock_level: int = Field(default=0, description="""How many locks in a row; the duration doubles with it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt'], 'ifabsent': 'int(0)'} })
+    locked_until: Optional[str] = Field(default=None, description="""ISO-8601 UTC while locked.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AuthAttempt']} })
+
+
+class AccountEventPayload(EventPayload):
+    """
+    Payload of an `Account.*` or `AgentToken.*` event. The stream is `account:<account_id>`; no payload holds a secret. These events are internal: the webhook dispatcher never delivers them and the events API shows them to admins only.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'abstract': True, 'from_schema': 'https://example.org/throughline/core/auth'})
+
+    pass
+
+
+class AccountCreatedPayload(AccountEventPayload):
+    """
+    An account was created. A password, if any, is held outside the ledger. Internal: never delivered to webhooks.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Account.Created'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"account_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PA", '
+                                '"display_name": "Demo User", "kind": "person", '
+                                '"roles": ["admin"], "username": "demo"}'}],
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    account_id: str = Field(default=..., description="""Account id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
+                       'AgentToken',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    username: str = Field(default=..., description="""Normalised username.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account', 'AccountCreatedPayload']} })
+    display_name: str = Field(default=..., description="""Name shown in lists.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account', 'AccountCreatedPayload']} })
+    kind: AccountKind = Field(default=..., description="""person, agent or sim.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag', 'Hashtag', 'Account', 'AccountCreatedPayload']} })
+    roles: Any = Field(default=..., description="""List of roles.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['Account', 'AccountCreatedPayload', 'AccountRolesSetPayload']} })
+
+
+class AccountRolesSetPayload(AccountEventPayload):
+    """
+    The roles of an account were replaced. Internal: never delivered to webhooks.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Account.RolesSet'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"account_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PA", '
+                                '"reason": "promoted to run the admin module", '
+                                '"roles": ["admin", "user"]}'}],
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    account_id: str = Field(default=..., description="""Account id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
+                       'AgentToken',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    roles: Any = Field(default=..., description="""The new list of roles.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['Account', 'AccountCreatedPayload', 'AccountRolesSetPayload']} })
+    reason: Optional[str] = Field(default=None, description="""Why the roles changed.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File',
+                       'TypeRegistrationDeprecatedPayload',
+                       'TypeRegistrationRow',
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
+
+
+class AccountDisabledPayload(AccountEventPayload):
+    """
+    An account was disabled: it cannot sign in and its sessions and agent tokens stop working. Internal: never delivered to webhooks.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Account.Disabled'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"account_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PA", '
+                                '"reason": "left the project"}'}],
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    account_id: str = Field(default=..., description="""Account id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
+                       'AgentToken',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    reason: Optional[str] = Field(default=None, description="""Why it was disabled.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File',
+                       'TypeRegistrationDeprecatedPayload',
+                       'TypeRegistrationRow',
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
+
+
+class AccountEnabledPayload(AccountEventPayload):
+    """
+    A disabled account was enabled again. Internal: never delivered to webhooks.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Account.Enabled'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"account_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PA", '
+                                '"reason": "returned"}'}],
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    account_id: str = Field(default=..., description="""Account id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
+                       'AgentToken',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    reason: Optional[str] = Field(default=None, description="""Why it was enabled.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File',
+                       'TypeRegistrationDeprecatedPayload',
+                       'TypeRegistrationRow',
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
+
+
+class AccountPasswordChangedPayload(AccountEventPayload):
+    """
+    The password of an account was set or changed. The event records that it happened, never the password or its hash. Internal: never delivered to webhooks.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Account.PasswordChanged'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"account_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PA", "by": '
+                                '"user:demo", "forced": true}'}],
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    account_id: str = Field(default=..., description="""Account id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
+                       'AgentToken',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    by: str = Field(default=..., description="""Actor that changed it.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalAcceptedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalFailedPayload',
+                       'AccountPasswordChangedPayload']} })
+    forced: bool = Field(default=..., description="""True for an admin reset or a bootstrap, false for the person changing their own.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AccountPasswordChangedPayload']} })
+
+
+class AgentTokenIssuedPayload(AccountEventPayload):
+    """
+    An agent token was issued. The event holds its metadata; the token is shown once and stored only as a hash. Internal: never delivered to webhooks.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'AgentToken.Issued'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"account_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PB", '
+                                '"expires_at": "2027-01-09T03:14:07.000000Z", "label": '
+                                '"triage assistant", "token_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6PC"}'}],
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    token_id: str = Field(default=..., description="""Token id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AgentToken',
+                       'AuthTokenSecret',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    account_id: str = Field(default=..., description="""The agent account.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
+                       'AgentToken',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    label: str = Field(default=..., description="""What the token is for.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AgentToken', 'AgentTokenIssuedPayload']} })
+    expires_at: Optional[str] = Field(default=None, description="""ISO-8601 time after which the token stops working; null for none.""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscriptionCreatedPayload',
+                       'WebhookSubscription',
+                       'WebhookSecret',
+                       'AgentToken',
+                       'AuthSession',
+                       'AgentTokenIssuedPayload']} })
+
+
+class AgentTokenRevokedPayload(AccountEventPayload):
+    """
+    An agent token was revoked and no longer authenticates. Internal: never delivered to webhooks.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'AgentToken.Revoked'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"account_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PB", '
+                                '"reason": "rotated", "token_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6PC"}'}],
+         'from_schema': 'https://example.org/throughline/core/auth'})
+
+    token_id: str = Field(default=..., description="""Token id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['AgentToken',
+                       'AuthTokenSecret',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    account_id: str = Field(default=..., description="""The agent account.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account',
+                       'AgentToken',
+                       'AuthCredential',
+                       'AuthSession',
+                       'AccountCreatedPayload',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AccountPasswordChangedPayload',
+                       'AgentTokenIssuedPayload',
+                       'AgentTokenRevokedPayload']} })
+    reason: Optional[str] = Field(default=None, description="""Why it was revoked.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'FeedRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File',
+                       'TypeRegistrationDeprecatedPayload',
+                       'TypeRegistrationRow',
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
 
 
 # Model rebuild
@@ -4299,3 +5097,17 @@ RecordBodyStoredPayload.model_rebuild()
 TypeRegistrationRow.model_rebuild()
 RecordBody.model_rebuild()
 BodyQuarantine.model_rebuild()
+Account.model_rebuild()
+AgentToken.model_rebuild()
+AuthCredential.model_rebuild()
+AuthSession.model_rebuild()
+AuthTokenSecret.model_rebuild()
+AuthAttempt.model_rebuild()
+AccountEventPayload.model_rebuild()
+AccountCreatedPayload.model_rebuild()
+AccountRolesSetPayload.model_rebuild()
+AccountDisabledPayload.model_rebuild()
+AccountEnabledPayload.model_rebuild()
+AccountPasswordChangedPayload.model_rebuild()
+AgentTokenIssuedPayload.model_rebuild()
+AgentTokenRevokedPayload.model_rebuild()

@@ -1,0 +1,368 @@
+id: https://example.org/throughline/core/auth
+name: tl_core_auth
+title: Throughline accounts, roles and agent tokens (ADR-0009)
+description: >-
+  Who may sign in and as what (ADR-0008, ADR-0009). Accounts and agent-token metadata are ledger events on stream type
+  `core.Account` (stream id `account:<account_id>`, scope `company`); `cur_account` and `cur_agent_token` are their
+  projections and are rebuilt from the ledger like any other. **Secrets are never events:** password hashes, session
+  token hashes, agent token hashes and failed-sign-in counters live in the `auth_*` operational tables below. Like the
+  `wh_*` tables they use `tl:current_state` only to get one DDL for both dialects; no event produces them, a rebuild never
+  clears them, and the archive, the lake, the outbox and webhooks never read them. A restore from the archive therefore
+  brings back accounts without passwords (a forced reset) and agent tokens without secrets. Timestamps are ISO-8601 UTC strings
+  with microseconds and a `Z` suffix, which sort correctly as text on both databases. Flags are 0/1 integers.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+  - events
+default_range: string
+annotations:
+  tl:module: core
+
+enums:
+  AccountKind:
+    description: What kind of principal an account is.
+    permissible_values:
+      person:
+        description: A human who signs in with a username and password (later Entra ID).
+      agent:
+        description: An AI agent. It never has a password or the admin role; it authenticates with an admin-issued token and is always propose-only.
+      sim:
+        description: A simulator actor, a seeded account with the user role.
+  AccountStatus:
+    description: Whether an account may authenticate.
+    permissible_values:
+      active:
+      disabled:
+        description: Cannot sign in; its sessions and agent tokens are refused.
+  AccountRole:
+    description: The two roles of Phase 1 (ADR-0008 decision 3).
+    permissible_values:
+      admin:
+        description: Everything, including the admin module.
+      user:
+        description: Everything except `admin.*` actions.
+
+classes:
+  Account:
+    description: One account in its current state. A projection of the `Account.*` events.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_account
+    unique_keys:
+      username:
+        description: Usernames are unique across all account kinds.
+        unique_key_slots:
+          - username
+    attributes:
+      account_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Immutable id; the ledger stream is `account:<account_id>`.
+      username:
+        required: true
+        description: Normalised (NFKC, lower case) and matching `[a-z0-9][a-z0-9_.@-]{0,63}`.
+      display_name:
+        required: true
+      kind:
+        range: AccountKind
+        required: true
+      roles:
+        range: Any
+        required: true
+        description: JSON list of roles, `["admin"]`, `["user"]` or both.
+        annotations:
+          tl:json: true
+      is_admin:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: 1 when `roles` holds `admin`. Lets the last-admin check count in plain SQL.
+        annotations:
+          tl:indexed: true
+      status:
+        range: AccountStatus
+        required: true
+        ifabsent: string(active)
+      created_by:
+        required: true
+        description: Actor that created the account.
+      created_at:
+        required: true
+      updated_at:
+        required: true
+      version:
+        range: integer
+        required: true
+        description: Version of the account stream after the last event.
+      last_seq:
+        range: integer
+        required: true
+
+  AgentToken:
+    description: The metadata of one agent token. The token itself is only in `auth_token_secret`, as a hash.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_agent_token
+    attributes:
+      token_id:
+        identifier: true
+        range: Ulid
+        required: true
+      account_id:
+        range: Ulid
+        required: true
+        annotations:
+          tl:indexed: true
+      label:
+        required: true
+        description: What the token is for; shown in lists.
+      expires_at:
+        description: ISO-8601 UTC; null for a token that does not expire.
+      revoked:
+        range: integer
+        required: true
+        ifabsent: int(0)
+      revoked_at:
+        description: ISO-8601 UTC.
+      revoke_reason:
+        description: Free text, no secrets.
+      issued_by:
+        required: true
+      issued_at:
+        required: true
+      last_seq:
+        range: integer
+        required: true
+
+  AuthCredential:
+    description: A password hash. Operational; never in the ledger, the archive, the lake or webhooks.
+    annotations:
+      tl:current_state: true
+      tl:table: auth_credential
+    attributes:
+      account_id:
+        identifier: true
+        range: Ulid
+        required: true
+      password_hash:
+        required: true
+        description: "`scrypt$<log2 N>$<r>$<p>$<salt>$<hash>` (ADR-0009 section 2)."
+      updated_at:
+        required: true
+
+  AuthSession:
+    description: A signed-in session. Only the SHA-256 of the token is stored; ending a session deletes the row.
+    annotations:
+      tl:current_state: true
+      tl:table: auth_session
+    attributes:
+      token_hash:
+        identifier: true
+        required: true
+        description: Hex SHA-256 of the `tls_` token.
+      account_id:
+        range: Ulid
+        required: true
+        annotations:
+          tl:indexed: true
+      created_at:
+        required: true
+      expires_at:
+        required: true
+        description: ISO-8601 UTC. Sign-out, disable and a password change delete the row.
+
+  AuthTokenSecret:
+    description: The hash of one agent token. Only a `token_id` links it to the ledger metadata.
+    annotations:
+      tl:current_state: true
+      tl:table: auth_token_secret
+    attributes:
+      token_hash:
+        identifier: true
+        required: true
+        description: Hex SHA-256 of the `tla_` token.
+      token_id:
+        range: Ulid
+        required: true
+        annotations:
+          tl:indexed: true
+      created_at:
+        required: true
+
+  AuthAttempt:
+    description: Failed-sign-in counters, keyed by normalised username whether or not an account exists.
+    annotations:
+      tl:current_state: true
+      tl:table: auth_attempt
+    attributes:
+      username_key:
+        identifier: true
+        required: true
+        description: The normalised username, cut to 64 characters.
+      failed_count:
+        range: integer
+        required: true
+        ifabsent: int(0)
+      window_started_at:
+        required: true
+        description: ISO-8601 UTC of the first failure in the current window.
+      last_failed_at:
+        required: true
+      lock_level:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: How many locks in a row; the duration doubles with it.
+      locked_until:
+        description: ISO-8601 UTC while locked.
+
+  AccountEventPayload:
+    abstract: true
+    is_a: EventPayload
+    description: "Payload of an `Account.*` or `AgentToken.*` event. The stream is `account:<account_id>`; no payload holds a secret. These events are internal: the webhook dispatcher never delivers them and the events API shows them to admins only."
+
+  AccountCreatedPayload:
+    is_a: AccountEventPayload
+    description: >-
+      An account was created. A password, if any, is held outside the ledger. Internal: never delivered to webhooks.
+    annotations:
+      tl:event_type: Account.Created
+      tl:event_version: "1"
+    attributes:
+      account_id:
+        required: true
+        description: "Account id."
+      username:
+        required: true
+        description: "Normalised username."
+      display_name:
+        required: true
+        description: "Name shown in lists."
+      kind:
+        range: AccountKind
+        required: true
+        description: "person, agent or sim."
+      roles:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: "List of roles."
+    examples:
+      - value: "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"display_name\": \"Demo User\", \"kind\": \"person\", \"roles\": [\"admin\"], \"username\": \"demo\"}"
+  AccountRolesSetPayload:
+    is_a: AccountEventPayload
+    description: >-
+      The roles of an account were replaced. Internal: never delivered to webhooks.
+    annotations:
+      tl:event_type: Account.RolesSet
+      tl:event_version: "1"
+    attributes:
+      account_id:
+        required: true
+        description: "Account id."
+      roles:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: "The new list of roles."
+      reason:
+        description: "Why the roles changed."
+    examples:
+      - value: "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"reason\": \"promoted to run the admin module\", \"roles\": [\"admin\", \"user\"]}"
+  AccountDisabledPayload:
+    is_a: AccountEventPayload
+    description: >-
+      An account was disabled: it cannot sign in and its sessions and agent tokens stop working. Internal: never delivered to webhooks.
+    annotations:
+      tl:event_type: Account.Disabled
+      tl:event_version: "1"
+    attributes:
+      account_id:
+        required: true
+        description: "Account id."
+      reason:
+        description: "Why it was disabled."
+    examples:
+      - value: "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"reason\": \"left the project\"}"
+  AccountEnabledPayload:
+    is_a: AccountEventPayload
+    description: >-
+      A disabled account was enabled again. Internal: never delivered to webhooks.
+    annotations:
+      tl:event_type: Account.Enabled
+      tl:event_version: "1"
+    attributes:
+      account_id:
+        required: true
+        description: "Account id."
+      reason:
+        description: "Why it was enabled."
+    examples:
+      - value: "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"reason\": \"returned\"}"
+  AccountPasswordChangedPayload:
+    is_a: AccountEventPayload
+    description: >-
+      The password of an account was set or changed. The event records that it happened, never the password or its hash. Internal: never delivered to webhooks.
+    annotations:
+      tl:event_type: Account.PasswordChanged
+      tl:event_version: "1"
+    attributes:
+      account_id:
+        required: true
+        description: "Account id."
+      by:
+        required: true
+        description: "Actor that changed it."
+      forced:
+        range: boolean
+        required: true
+        description: "True for an admin reset or a bootstrap, false for the person changing their own."
+    examples:
+      - value: "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"by\": \"user:demo\", \"forced\": true}"
+  AgentTokenIssuedPayload:
+    is_a: AccountEventPayload
+    description: >-
+      An agent token was issued. The event holds its metadata; the token is shown once and stored only as a hash. Internal: never delivered to webhooks.
+    annotations:
+      tl:event_type: AgentToken.Issued
+      tl:event_version: "1"
+    attributes:
+      token_id:
+        required: true
+        description: "Token id."
+      account_id:
+        required: true
+        description: "The agent account."
+      label:
+        required: true
+        description: "What the token is for."
+      expires_at:
+        description: "ISO-8601 time after which the token stops working; null for none."
+    examples:
+      - value: "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PB\", \"expires_at\": \"2027-01-09T03:14:07.000000Z\", \"label\": \"triage assistant\", \"token_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PC\"}"
+  AgentTokenRevokedPayload:
+    is_a: AccountEventPayload
+    description: >-
+      An agent token was revoked and no longer authenticates. Internal: never delivered to webhooks.
+    annotations:
+      tl:event_type: AgentToken.Revoked
+      tl:event_version: "1"
+    attributes:
+      token_id:
+        required: true
+        description: "Token id."
+      account_id:
+        required: true
+        description: "The agent account."
+      reason:
+        description: "Why it was revoked."
+    examples:
+      - value: "{\"account_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PB\", \"reason\": \"rotated\", \"token_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PC\"}"
