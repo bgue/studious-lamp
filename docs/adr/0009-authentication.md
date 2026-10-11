@@ -1,6 +1,6 @@
 # ADR-0009 — Authentication, sessions, agent tokens and the admin roles
 
-Status: proposed (supervisor draft for P1-I0 workstream A; the orchestrator approves under ADR-0008 decision 6)
+Status: accepted (approved by the orchestrator under ADR-0008 decision 6 after two fresh-context security reviews; the approval is logged in `docs/reports/APPROVALS.md`)
 Date: 2026-10-11
 Deciders: P1-I0A supervisor; approval by the orchestrator, logged in `docs/reports/APPROVALS.md`
 Brief sections: §8 (identity and auth), §11.1 (auth), §18.12, §18.13; supersedes ADR-0005 for anything that is not dev or test
@@ -37,8 +37,9 @@ enumeration rules, the Entra seam, how a restore treats accounts, and the threat
   - the webhook dispatcher never delivers a `core.Account` stream event;
   - the feed shows no card for them;
   - `GET /events`, `GET /stream` and the change feed filter them out for everyone but a human admin (`SubscriptionFilter.hide_stream_types`);
-  - the product MCP server has no tool or resource that reads events, so no principal sees them there;
-  - the lake keeps a row for each, so `seq` stays gap-free and the hash tip still verifies, but it is redacted to `Internal.Redacted` with no stream, actor or payload;
+  - the product MCP server has no tool or resource that reads events, so no principal sees them there (a test pins the exact tool and resource lists);
+  - **the default filter fails closed**: `SubscriptionFilter` hides the account streams unless its caller passes `hide_stream_types=()`, which only the events routes do, for a human admin. The embedded TUI's live feed, `tl events` and the change-feed registry therefore never show them;
+  - the lake keeps a row for each, so `seq` stays gap-free, but it is redacted to `Internal.Redacted`: constant stream `internal` and version 1 (so it does not show how many accounts exist or how many events each has), a placeholder event id and hash, the day instead of the moment, no actor and no payload. The lake's tip check walks back to the newest row that is not redacted. An existing dev lake keeps its older, richer rows (and time travel shows them) until it is rebuilt: `tl lake rebuild --yes` (the runbooks say so); there is no migration;
   - admins read accounts through `/admin/*`.
 
 ### 2. Password hashing
@@ -49,8 +50,8 @@ enumeration rules, the Entra seam, how a restore treats accounts, and the threat
   the parameters from the string and refuses any above **twice** what this process makes (one more bit of N, double r and p, of the larger of the configured and the production cost), so a tampered row cannot make the server allocate gigabytes.
   Parameters inside that bound that scrypt itself refuses (N too large for r) also count as a wrong password.
 - A successful sign-in re-hashes the password when the stored parameters are weaker than the current ones (`needs_rehash`).
-- At most 4 password hashes run at once in one process (a semaphore), so a burst of sign-ins cannot exhaust memory (4 x 64 MiB). A hash waits at most 2 seconds
-  for a slot, then `AuthBusyError` becomes HTTP 503 `auth_busy` with `Retry-After: 2`.
+- At most 4 password hashes run at once in one process (4 x 64 MiB at most), of which sign-ins and self-service changes may hold 3; the fourth slot is kept for admin and local operations (create, reset, bootstrap, seed),
+  so a sign-in flood cannot stop an admin. A hash waits at most 2 seconds for a slot, then `AuthBusyError` becomes HTTP 503 `auth_busy` with `Retry-After: 2`.
 - **A hash never runs inside a write transaction**, because the writer lock is global and a held lock stalls every writer (review item 3). Sign-in verifies between two short transactions
   and computes a rehash before the write one. Services that store a password take a `PreparedPassword` (`prepare_password`: policy, then hash), which callers make before they open the unit of work.
 - A stored hash made with weaker parameters than the current ones is verified at its own (cheaper) cost, so the time of a sign-in for such an account differs a little from one for an unknown name
@@ -92,7 +93,8 @@ Applied by `prepare_password`, which every service that stores a password goes t
 
 ### 6. Lockout
 - Counters are keyed by the **normalised username string, whether or not an account exists**, so an unknown name locks exactly like a real one
-  and the response never tells them apart. The key is the first 64 characters.
+  and the response never tells them apart. A name that could not be a username (it does not match the username pattern, or has a NUL, a lone surrogate or too many characters) shares the single key `<invalid>`:
+  whatever was typed there may be a password and is never stored, in the counters or in the audit.
 - 5 consecutive failures within a 15-minute window lock the name for 15 minutes. **Every lock is 15 minutes, for every name, with no doubling** (review item 1): the requested cap for admins
   alone would have made the lock duration an oracle for which names are admins, and doubling for others for which names exist. At 5 guesses per name per 15 minutes a 12-character minimum is out of reach.
   A successful sign-in clears the counters.
@@ -103,13 +105,18 @@ Applied by `prepare_password`, which every service that stores a password goes t
 - **Recovery from a held lock** (review item 1). An attacker can keep every named admin locked, so three local-only commands work on a database the operator can open and have no API route:
   `tl admin unlock <username>` clears a lock; `tl admin bootstrap --username <admin>` resets the password and the lock of an existing active admin even though admins with passwords exist;
   `tl admin audit` shows who is hammering which name. An admin password reset through the API also clears the lock.
-- Source-address throttling is not a service concern (the service sees no address). A deployment puts a rate limiter in front of `POST /auth/sign-in`; the runbook says so.
+- **A per-source limit sits in front of the per-name lockout** (`tl_api.ratelimit`, re-review condition): 20 failed sign-ins (401, 403 or 423) within 10 minutes from one client address, and the next `POST /auth/sign-in` is
+  429 `rate_limited` with `Retry-After`, before any password is hashed or any row read. It defeats password spraying, which the per-name lockout cannot see, and the flat 15-minute lock. The address is the socket peer; behind a
+  reverse proxy the deployment sets `TL_TRUSTED_PROXY_HEADER` (for example `X-Forwarded-For`) and the **last** entry of that header is used; without the setting the header is ignored, so a client cannot choose its address.
+  It is in memory and per process (at most 10,000 sources), so it is a second layer: see section 15.
 
 ### 7. Constant time and enumeration
 - Every sign-in attempt for an unknown name, an agent account, an account without a password, a disabled-looking wrong password or a wrong password runs one full scrypt against the stored hash or a
   random-salt stand-in of the current cost, so the time does not show whether the account exists.
 - Input that cannot be hashed or stored (a NUL, a lone surrogate, more than 256 characters of username or 512 of password) is invalid credentials after the same one scrypt, with the same error, and writes nothing
   (Postgres rejects NUL in a parameter and would break the pooled connection). Usernames are never stripped: `" bob"` is not `bob`.
+- Every service that takes text from a caller applies the same checks before a query: ids (account, token) of at most 64 clean characters, else not found; usernames for lookup and unlock; `reason` fields of at most 500
+  clean characters without control characters, else `InvalidAccountError` (422). The path parameter `%00` or a reason with a surrogate therefore never reaches the database.
 - The error for an unknown name and a wrong password is the same exception with the same text: `InvalidCredentialsError("invalid username or password")`.
 - Comparisons of secrets use `hmac.compare_digest` on bytes (L-P0-I4-B6). Token lookup is by SHA-256 index equality; the token itself is never compared with a stored value.
 - `principal_for_bearer` raises one `InvalidCredentialsError` for every bad token (unknown, expired, revoked, disabled account); the API answers 401 `unauthorized`. Sessions resolve only for
@@ -150,7 +157,7 @@ A test lists the action of every route and fails when one is undecided.
 ### 12. The operational audit
 `auth_audit` records `sign_in_ok`, `sign_in_failed`, `locked`, `unlocked`, `sign_out`, `token_issued`, `token_revoked`, `password_reset` and `bootstrap`, with the time, the name used (whether or not an account
 exists), the account and actor when there are any, and a short code or id. It never holds a password, a hash or a token. Rows older than 90 days are deleted whenever a row is written. It is an operational table: not
-in the ledger, the archive or the lake, and denied to the dev MCP `query_db`. `tl admin audit` lists it. A flood of failed sign-ins grows it at the attack rate, which is another reason for the rate limiter in front of the API.
+in the ledger, the archive or the lake, and denied to the dev MCP `query_db`. `tl admin audit` lists it. Repeated failures of one name within 15 minutes share one row with a count, and the username column holds only a possible username (else `<invalid>`). A flood of distinct names still grows the table, bounded by the per-source limit and the retention.
 
 ### 13. The Entra seam
 `IdentityProvider` is the only place credentials are judged, and `Principal` the only thing callers see. Entra ID (OIDC) replaces the password provider, not its callers:
@@ -166,7 +173,7 @@ in the ledger, the archive or the lake, and denied to the dev MCP `query_db`. `t
 |---|---|---|
 | Offline guessing of stolen hashes | scrypt 64 MiB, 12-character minimum, common-password list | A weak but listed-safe password still falls to a long attack on a stolen file |
 | Online guessing | 5-failure lockout of 15 minutes; constant-cost verification; one error text | Lockout can be used to deny a name; the local `tl admin unlock` and `bootstrap` get an admin back in |
-| Password spraying (one password against many names) | Per-name lockout does not see it; the 12-character minimum and the common-password list make the first guesses fail, and every attempt costs a full scrypt | Needs a rate limiter or alert on failures per source in front of `POST /auth/sign-in` (runbook) |
+| Password spraying (one password against many names) | the per-source limit (20 failures in 10 minutes, then 429 before any hash); the 12-character minimum and the common-password list; every attempt costs a full scrypt | The in-process limit is per process and per address; a front-door limiter is a release gate (section 15) |
 | User enumeration by error, status code or time | one exception and text, full KDF always, unknown names locked like real ones, disabled status shown only after a correct password | A sign-in for a name that exists writes one row; the response is identical |
 | Stolen session or agent token | 256-bit tokens stored only as SHA-256, shown once, 12 h session, expiry and instant revocation for agent tokens, revoke on disable and password change | A token in a captured request works until it ends; TLS in front of the API is a deployment duty |
 | A database or backup leak | no plaintext secret anywhere; hashes in operational tables that archive, lake, outbox and webhooks never read | The hashes themselves leak with the file (see the guessing row) |
@@ -179,6 +186,16 @@ in the ledger, the archive or the lake, and denied to the dev MCP `query_db`. `t
 | The demo account in a real deployment | seeded only for dev, demo or test; it does not authenticate and its sessions stop unless `TL_ENV` allows it; the server refuses to start with it enabled outside dev, demo and test, or on a non-loopback bind | An operator who sets `TL_ENV=dev` on a public host defeats it; the runbook says not to |
 | A restore leaves accounts open | restored accounts have no password and no token secret | none: they are closed until an admin acts |
 | Dev token file in production | honoured only for `TL_ENV` of `dev`, `test`, `ci` | same as the demo row |
+
+### 15. Release gates
+
+Before any deployment that is not a developer's machine:
+1. **A front-door rate limiter** (reverse proxy, gateway or WAF) limits `POST /auth/sign-in`, and `/auth/password`, by client address and, for sign-in, alerts on a high failure rate. The in-process limit of section 6 is
+   per process and in memory; several workers each keep their own count, and a restart clears it. It is a second layer, and the runbook (`docs/runbooks/accounts-and-access.md`) lists this as a gate.
+2. TLS in front of the API: tokens and passwords travel in requests.
+3. `TL_ENV` is not `dev`, `demo` or `test`; no `demo` account exists or it is disabled (the server refuses to start otherwise); the dev token file is absent.
+4. `TL_TRUSTED_PROXY_HEADER` is set to the header the proxy writes, if there is a proxy.
+5. An admin other than `demo` exists and its password is stored in the operator's vault.
 
 ## Consequences
 - Contracts changed: `tl_core/auth/types.py` is implemented as frozen, except that the service signatures that store a password take a `PreparedPassword` (made before the unit of work opens) instead of a

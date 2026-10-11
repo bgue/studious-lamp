@@ -41,6 +41,7 @@ from tl_api.backend import Backend
 from tl_api.context import ApiContext
 from tl_api.errors import ERROR_TABLE, ApiError, ErrorBody, body_for
 from tl_api.feed import FeedHub
+from tl_api.ratelimit import RateLimitMiddleware, SourceLimiter
 from tl_api.routes import (
     admin,
     auth,
@@ -147,6 +148,7 @@ def create_app(
     identity: IdentityProvider | None = None,
     authorizer: CoreAuthorizer | None = None,
     dev_tokens: bool | None = None,
+    source_limiter: SourceLimiter | None = None,
 ) -> FastAPI:
     """Build the application over ``backend``.
 
@@ -160,7 +162,8 @@ def create_app(
     ``identity`` and ``authorizer`` default to the password provider and the role authorizer over
     ``backend``. The dev token file is honoured only when ``dev_tokens`` is true; by default that is
     when ``TL_ENV`` is ``dev``, ``test`` or ``ci`` (ADR-0009 section 9). ``authorize_hook`` is the
-    legacy 3-argument hook and runs after the authorizer.
+    legacy 3-argument hook and runs after the authorizer. ``source_limiter`` counts failed sign-ins
+    per client address (``tl_api.ratelimit``); the default is 20 in 10 minutes.
     """
     cfg = settings if settings is not None else ApiSettings()
     attach_extension_types(backend, prime=True)
@@ -211,7 +214,14 @@ def create_app(
     )
     install_error_handlers(app)
     app.add_middleware(AuthenticationMiddleware, resolver=resolver)
-    app.add_middleware(BodyLimitMiddleware)  # outermost: the limit applies before anything reads
+    app.add_middleware(BodyLimitMiddleware)  # the limit applies before anything reads
+    app.add_middleware(  # outermost: a limited source costs no hash, no body read, no query
+        RateLimitMiddleware,
+        limiter=source_limiter
+        if source_limiter is not None
+        else SourceLimiter(cfg.rate_limit_failures, cfg.rate_limit_window_s),
+        trusted_header=cfg.trusted_proxy_header,
+    )
 
     @app.get("/openapi.json", include_in_schema=False)
     def openapi_document(
