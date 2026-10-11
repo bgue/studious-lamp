@@ -3,10 +3,19 @@
 A full-size modal opened with ``F10`` by an admin (brief 10; ADR-0008). The table lists every
 account; ``t`` switches to the agent tokens. The panel under the table describes the highlighted
 account. ``d`` disables or enables the account, ``r`` gives or takes away the admin role; each asks
-for an optional reason first. The service decides what is allowed (the last active admin cannot
+for an optional reason first; ``a`` adds an account, ``p`` sets a person's password, ``i`` issues a
+token for the highlighted agent (shown once) and ``x`` revokes the highlighted token on the tokens
+view (P1-I0-T09b). The service decides what is allowed (the last active admin cannot
 be disabled or demoted): a refusal is shown in the status line and nothing changes. Every change is
 one client call and the lists are read again afterwards; nothing is stored here.
+
+STUB (P1-I0-T09b): the bodies of `current_token` and `action_add`, `action_password`,
+`action_issue` and `action_revoke` raise NotImplementedError and have a STEPS comment; everything
+else is final. Implement them, then delete this paragraph, the STEPS comments and the
+`ruff: noqa` line.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -32,6 +41,7 @@ from tl_tui.admin_text import (
 )
 from tl_tui.client import ClientInterface
 from tl_tui.errors import CLIENT_ERRORS, describe_error
+from tl_tui.widgets.account_forms import AccountForm, PasswordForm, TokenForm, TokenShown
 from tl_tui.widgets.prompt import PromptScreen
 
 
@@ -39,11 +49,16 @@ class AdminScreen(ModalScreen[None]):
     """Accounts and agent tokens. ``now`` is the clock used for token expiry (tests fix it)."""
 
     KEY_HINTS: ClassVar[str] = "d disable/enable  r admin role  t tokens  F5 reload  Esc close"
+    KEY_HINTS_MORE: ClassVar[str] = "a add  p password  i issue token  x revoke token"
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("d", "toggle_disabled", "Disable/enable", show=False),
         Binding("r", "toggle_admin", "Admin role", show=False),
         Binding("t", "toggle_view", "Tokens", show=False),
+        Binding("a", "add", "Add", show=False),
+        Binding("p", "password", "Password", show=False),
+        Binding("i", "issue", "Issue token", show=False),
+        Binding("x", "revoke", "Revoke token", show=False),
         Binding("f5", "reload", "Reload", show=False),
         Binding("escape", "close", "Close", show=False),
     ]
@@ -55,7 +70,7 @@ class AdminScreen(ModalScreen[None]):
     AdminScreen #admin-accounts, AdminScreen #admin-tokens { height: 1fr; min-height: 6; }
     AdminScreen #admin-detail { height: 9; border-top: solid $accent; padding: 0 1; }
     AdminScreen #admin-status { height: 1; }
-    AdminScreen #admin-hints { height: 1; color: $text-muted; }
+    AdminScreen #admin-hints, AdminScreen #admin-hints-more { height: 1; color: $text-muted; }
     """
 
     def __init__(
@@ -79,6 +94,7 @@ class AdminScreen(ModalScreen[None]):
             yield Static("", markup=False, id="admin-detail")
             yield Static("", markup=False, id="admin-status")
             yield Static(self.KEY_HINTS, markup=False, id="admin-hints")
+            yield Static(self.KEY_HINTS_MORE, markup=False, id="admin-hints-more")
 
     def on_mount(self) -> None:
         self.query_one("#admin-accounts", DataTable).add_columns(*ACCOUNT_COLUMNS)
@@ -138,6 +154,11 @@ class AdminScreen(ModalScreen[None]):
         if not self.accounts or not 0 <= table.cursor_row < len(self.accounts):
             return None
         return self.accounts[table.cursor_row]
+
+    def current_token(self) -> AgentTokenView | None:
+        # STEPS: the token under the "#admin-tokens" cursor (cursor_row), or None when there are
+        # no tokens or the row is out of range (like current_account).
+        raise NotImplementedError
 
     def _describe(self) -> None:
         detail = self.query_one("#admin-detail", Static)
@@ -228,3 +249,43 @@ class AdminScreen(ModalScreen[None]):
 
     def action_close(self) -> None:
         self.dismiss(None)
+
+    def action_add(self) -> None:
+        # STEPS: push AccountForm(self.client) on self.app with a callback `done(view)`: when the
+        # form was cancelled (None) do nothing; else self.reload() and
+        # self._say(f"Added {view.username}").
+        raise NotImplementedError
+
+    def action_password(self) -> None:
+        # STEPS
+        # 1. view = self.current_account(); return if None or showing_tokens.
+        # 2. view.kind == "agent": self._say(f"{view.username} is an agent: it has tokens, not a
+        #    password.") and return (no form).
+        # 3. Push PasswordForm(self.client, view) with a callback `done(result)`: None (cancelled):
+        #    nothing; else self.reload() and
+        #    self._say(f"Password reset for {view.username}; their sessions ended").
+        raise NotImplementedError
+
+    def action_issue(self) -> None:
+        # STEPS
+        # 1. While showing_tokens: self._say("Press t for the accounts, pick the agent, then i.")
+        #    and return.
+        # 2. view = self.current_account(); return if None. A kind other than "agent":
+        #    self._say(f"Only agents have tokens; {view.username} is a {view.kind} account.") and
+        #    return.
+        # 3. Push TokenForm(self.client, view) with a callback `done(result)`: None (cancelled):
+        #    nothing; else (label, token) = result: self.reload();
+        #    self._say(f"Issued token {label} for {view.username}"); then
+        #    self.app.push_screen(TokenShown(label, token)). Keep the token in no attribute and in
+        #    no message.
+        raise NotImplementedError
+
+    def action_revoke(self) -> None:
+        # STEPS
+        # 1. Not showing_tokens: self._say("Press t for the tokens, pick one, then x.") and return.
+        # 2. token = self.current_token(); return if None.
+        # 3. self._ask_reason(f"Revoke token {token.label}", apply) where apply(reason) calls
+        #    client.revoke_agent_token(token.token_id, reason=reason); on CLIENT_ERRORS
+        #    self._say(describe_error(exc), error=True) and return (nothing changes; check no rule
+        #    here); on success self.reload() and self._say(f"Revoked token {token.label}").
+        raise NotImplementedError

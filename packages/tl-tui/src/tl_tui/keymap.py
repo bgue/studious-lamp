@@ -204,6 +204,11 @@ KEYMAP: tuple[KeyEntry, ...] = (
     ),
     KeyEntry("Accounts", "r", "Give or take away the admin role (a person)", "AdminScreen", "r"),
     KeyEntry("Accounts", "t", "Switch between accounts and agent tokens", "AdminScreen", "t"),
+    KeyEntry("Accounts", "a", "Add an account (a form)", "AdminScreen", "a"),
+    KeyEntry("Accounts", "p", "Set a person's password (a form)", "AdminScreen", "p"),
+    KeyEntry("Accounts", "i", "Issue a token for the agent; it is shown once", "AdminScreen", "i"),
+    KeyEntry("Accounts", "x", "Revoke the highlighted token (tokens view)", "AdminScreen", "x"),
+    KeyEntry("Accounts", "Ctrl+S  Esc", "Apply or cancel a form", "AccountForm", "ctrl+s"),
     KeyEntry("Accounts", "F5", "Read the lists again", "AdminScreen", "f5"),
     KeyEntry("Accounts", "Esc", "Close", "AdminScreen", "escape"),
 )
