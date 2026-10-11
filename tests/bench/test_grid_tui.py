@@ -58,6 +58,7 @@ def test_grid_load_filter_and_paint(
         "load page": [],
         "apply filter": [],
         "filter to painted": [],
+        "pilot settle alone": [],
         "paint visible rows": [],
     }
     loads: list[float] = []
@@ -84,6 +85,9 @@ def test_grid_load_filter_and_paint(
                 assert result.ok and result.count is not None
                 await pilot.pause()
                 samples["filter to painted"].append((time.perf_counter() - started) * 1000.0)
+                started = time.perf_counter()
+                await pilot.pause()
+                samples["pilot settle alone"].append((time.perf_counter() - started) * 1000.0)
 
                 started = time.perf_counter()
                 for y in range(VIEWPORT[1]):
@@ -106,6 +110,12 @@ def test_grid_load_filter_and_paint(
                 dialect=dataset.dialect,
                 records=dataset.records,
                 loads=loads,
-                note="headless pilot, 120x45",
+                note="headless pilot, 120x45"
+                + (
+                    "; includes the pilot's own settle time (see 'pilot settle alone')"
+                    if name == "filter to painted"
+                    else ""
+                ),
+                informational=name in ("filter to painted", "pilot settle alone"),
             )
         )

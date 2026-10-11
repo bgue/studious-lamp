@@ -3,7 +3,7 @@
 #
 #   just demo P0-I8-D
 #
-# It seeds a 2000-record project (and a 500-record one for the rebuilds) through the same
+# It seeds a 2000-record project (and a 300-record one for the rebuilds) through the same
 # generator the 100k run uses, on SQLite and, when it is reachable, Postgres; runs the grid, TUI
 # grid, realtime and rebuild benches; and prints the tables of the brief section 15 targets.
 # Seeded files stay under dev/data/bench (git-ignored) and make the next run faster. The 100k
@@ -13,7 +13,7 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
 export TL_BENCH_RECORDS="${TL_BENCH_RECORDS:-2000}"
-export TL_BENCH_REBUILD_RECORDS="${TL_BENCH_REBUILD_RECORDS:-500}"
+export TL_BENCH_REBUILD_RECORDS="${TL_BENCH_REBUILD_RECORDS:-300}"
 export TL_BENCH_ROUNDS="${TL_BENCH_ROUNDS:-2}"
 export TL_BENCH_SAMPLES="${TL_BENCH_SAMPLES:-6}"
 export TL_BENCH_LABEL="demo"

@@ -33,7 +33,7 @@ Purpose: seed a 100k-record project on SQLite and Postgres, measure the §15 tar
    ```
    just bench-rebuild
    ```
-5. The small demo (2000 records, under three minutes): `just demo P0-I8-D`.
+5. The small demo (2000 records, about two and a half minutes the first time): `just demo P0-I8-D`.
 
 ## How a number is made
 - A scenario is a function of the sample number, so pages, filter values and record keys vary between calls.
