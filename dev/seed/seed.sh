@@ -3,7 +3,8 @@
 # Scales: xs (3 working days), s (10), m (30); see dev/seed/scenarios/seed-*.yaml. If no API answers at
 # TL_API_URL (default http://127.0.0.1:8765) this starts one on the dev ledger (TL_DB, TL_TOKENS) for
 # the duration of the run and stops it afterwards. Extra arguments go to `tl sim seed`, for example
-# `--run-id rmine` to seed a second project.
+# `--run-id rmine` to seed a second project. The simulated assistant proposes over MCP as the agent
+# `sim-assistant`: `tl sim` makes that account and a short-lived agent token on the dev ledger.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
@@ -33,7 +34,7 @@ trap stop_server EXIT
 # `uv` prints a harmless UV_NATIVE_TLS deprecation warning on every call in the build container.
 quiet() { "$@" 2> >(grep -v 'UV_NATIVE_TLS' >&2); }
 
-quiet uv run tl init
+quiet uv run tl init --dev  # also the dev account demo / demo (admin), so the TUI can sign in
 if ! curl -fs "$TL_API_URL/health" >/dev/null 2>&1; then
   port="${TL_API_URL##*:}"
   echo "no API at $TL_API_URL: starting one on the dev ledger"

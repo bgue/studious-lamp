@@ -1,8 +1,9 @@
 """``McpCaller``: how the simulator's one agent reaches the suite's MCP server.
 
 ``McpClientCaller(target)`` opens an MCP client session per call with ``mcp.Client``. The target is
-a ``StdioServerParameters`` (a real server process, ``python -m tl_mcp --actor agent:sim-assistant
---db <ledger>``) or an in-memory ``MCPServer`` (tests).
+a ``StdioServerParameters`` (a real server process, ``python -m tl_mcp --db <ledger>`` with the
+agent's token in ``TL_AGENT_TOKEN``; the token names the actor) or an in-memory ``MCPServer``
+(tests).
 
 Two kinds of failure, kept apart:
 
@@ -22,6 +23,7 @@ over MCP is stamped with real time; the decision on it and its effect are stampe
 from __future__ import annotations
 
 import asyncio
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -55,6 +57,7 @@ def _diagnose(params: StdioServerParameters) -> str:
     try:
         done = subprocess.run(
             [params.command, *params.args],
+            env={**os.environ, **(params.env or {})},
             stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
@@ -105,10 +108,14 @@ class McpClientCaller:
         return dict(result.structured_content or {})
 
 
-def stdio_caller(actor: str, db: Path, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> McpClientCaller:
-    """A caller that starts ``python -m tl_mcp`` for ``actor`` on the ledger file ``db``."""
+def stdio_caller(db: Path, token: str, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> McpClientCaller:
+    """A caller that starts ``python -m tl_mcp`` on the ledger ``db`` as the agent of ``token``.
+
+    The token goes to the child in its environment (``TL_AGENT_TOKEN``), never on its command line.
+    """
     params = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "tl_mcp", "--actor", actor, "--db", str(db)],
+        args=["-m", "tl_mcp", "--db", str(db)],
+        env={"TL_AGENT_TOKEN": token},
     )
     return McpClientCaller(params, timeout_s=timeout_s)

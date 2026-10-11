@@ -22,7 +22,7 @@ Output (the demo and the tests depend on these lines):
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, Any, NoReturn
@@ -39,6 +39,11 @@ from tl_sim.state import RunError
 app = typer.Typer(help="Run a simulated project team against the API.", no_args_is_help=True)
 
 SCALES = ("xs", "s", "m")
+
+#: Set by ``tl`` (which owns the ledger and the accounts): ``source(ledger)`` returns a function
+#: that makes the agent's MCP token on the dev ledger, or ``None``. The simulator itself never
+#: touches the ledger (AGENTS.md); standalone it relies on ``TL_SIM_AGENT_TOKEN``.
+AGENT_TOKEN_SOURCE: Callable[[Path], Callable[[], str] | None] | None = None
 
 
 def _fail(message: str) -> NoReturn:
@@ -74,7 +79,12 @@ def root(
     Under ``tl`` the ledger file is the root ``--db`` (the MCP server for the agent opens it).
     """
     ledger = ctx.obj if isinstance(ctx.obj, Path) else api.SimEnv.from_env().db_path
-    ctx.obj = api.SimEnv(sim_dir=sim_dir, api_url=api_url, tokens_path=tokens, db_path=ledger)
+    token = api.agent_token_from_env()  # a token made by hand wins
+    if token is None and AGENT_TOKEN_SOURCE is not None:
+        token = AGENT_TOKEN_SOURCE(ledger)
+    ctx.obj = api.SimEnv(
+        sim_dir=sim_dir, api_url=api_url, tokens_path=tokens, db_path=ledger, agent_token=token
+    )
 
 
 _Run = Annotated[str | None, typer.Option("--run", help="Run id; optional when one run exists.")]

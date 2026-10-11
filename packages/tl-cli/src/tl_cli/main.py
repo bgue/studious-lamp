@@ -43,6 +43,7 @@ from tl_cli import (
     restore,
     schema,
     serve,
+    sim_agent,
     tui,
     webhook,
     wf,
@@ -70,6 +71,7 @@ app.add_typer(lake.app, name="lake")
 app.add_typer(dev.app, name="dev")
 app.add_typer(new.app, name="new")
 app.add_typer(webhook.app, name="webhook")
+sim_cli.AGENT_TOKEN_SOURCE = sim_agent.provider  # the simulated assistant's MCP token
 app.add_typer(sim_cli.app, name="sim")
 app.add_typer(admin.app, name="admin")
 admin.app.add_typer(admin_user.app, name="user")
