@@ -6,14 +6,7 @@ account. ``d`` disables or enables the account, ``r`` gives or takes away the ad
 for an optional reason first. The service decides what is allowed (the last active admin cannot
 be disabled or demoted): a refusal is shown in the status line and nothing changes. Every change is
 one client call and the lists are read again afterwards; nothing is stored here.
-
-STUB (P1-I0-T09): the bodies below raise NotImplementedError; the layout (`compose`,
-`DEFAULT_CSS`, `BINDINGS`) and every signature are final (the provided snapshots pin the layout).
-Each body has a STEPS comment. Implement them, then delete this paragraph, the STEPS comments and
-the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -88,106 +81,150 @@ class AdminScreen(ModalScreen[None]):
             yield Static(self.KEY_HINTS, markup=False, id="admin-hints")
 
     def on_mount(self) -> None:
-        # STEPS
-        # 1. Add ACCOUNT_COLUMNS to "#admin-accounts" and TOKEN_COLUMNS to "#admin-tokens"
-        #    (DataTable.add_columns(*columns)). Hide the tokens table: its `display = False`.
-        # 2. self.reload(); then focus "#admin-accounts".
-        raise NotImplementedError
+        self.query_one("#admin-accounts", DataTable).add_columns(*ACCOUNT_COLUMNS)
+        tokens = self.query_one("#admin-tokens", DataTable)
+        tokens.add_columns(*TOKEN_COLUMNS)
+        tokens.display = False
+        self.reload()
+        self.query_one("#admin-accounts", DataTable).focus()
 
     # --- data ----------------------------------------------------------------------------
 
     def _stamp(self) -> str:
-        # STEPS: self.now() as ISO UTC text with microseconds: strftime("%Y-%m-%dT%H:%M:%S.000000Z")
-        raise NotImplementedError
+        return self.now().strftime("%Y-%m-%dT%H:%M:%S.000000Z")
 
     def reload(self) -> None:
         """Read both lists again and keep the highlighted account where it is."""
-        # STEPS
-        # 1. keep = self.current_account().
-        # 2. try: self.accounts = self.client.list_accounts(); self.tokens =
-        #    self.client.list_agent_tokens()
-        #    except CLIENT_ERRORS as exc: set both lists to [], self._fill(None), self._say(
-        #    describe_error(exc), error=True), return.
-        # 3. self._fill(keep.account_id if keep is not None else None).
-        raise NotImplementedError
+        keep = self.current_account()
+        try:
+            self.accounts = self.client.list_accounts()
+            self.tokens = self.client.list_agent_tokens()
+        except CLIENT_ERRORS as exc:
+            self.accounts = []
+            self.tokens = []
+            self._fill(None)
+            self._say(describe_error(exc), error=True)
+            return
+        self._fill(keep.account_id if keep is not None else None)
 
     def _fill(self, keep: str | None) -> None:
-        # STEPS
-        # 1. Accounts table: clear(); add_row(*(Text(cell) for cell in account_cells(view)),
-        #    key=view.account_id) per account (Text, not str: a cell is read as markup).
-        #    If there are accounts: move_cursor(row=index of `keep` in the account ids, else 0).
-        # 2. names = {account_id: username}. Tokens table: clear(); add_row(*(Text(cell) for cell
-        #    in token_cells(token, names, self._stamp())), key=token.token_id) per token.
-        # 3. self._title(); self._describe().
-        raise NotImplementedError
+        accounts = self.query_one("#admin-accounts", DataTable)
+        accounts.clear()
+        for view in self.accounts:
+            cells = account_cells(view)
+            accounts.add_row(*(Text(cell) for cell in cells), key=view.account_id)
+        if self.accounts:
+            ids = [view.account_id for view in self.accounts]
+            accounts.move_cursor(row=ids.index(keep) if keep in ids else 0)
+        names = {view.account_id: view.username for view in self.accounts}
+        tokens = self.query_one("#admin-tokens", DataTable)
+        tokens.clear()
+        now = self._stamp()
+        for token in self.tokens:
+            cells = token_cells(token, names, now)
+            tokens.add_row(*(Text(cell) for cell in cells), key=token.token_id)
+        self._title()
+        self._describe()
 
     def _title(self) -> None:
-        # STEPS: "#admin-title" gets f"{what} ({count})   t switches" with what/count = "Agent
-        # tokens"/len(self.tokens) while showing_tokens, else "Accounts"/len(self.accounts).
-        raise NotImplementedError
+        if self.showing_tokens:
+            what, count = "Agent tokens", len(self.tokens)
+        else:
+            what, count = "Accounts", len(self.accounts)
+        self.query_one("#admin-title", Static).update(f"{what} ({count})   t switches")
 
     def current_account(self) -> AccountView | None:
-        # STEPS: the account under the "#admin-accounts" cursor (table.cursor_row), or None when
-        # there are no accounts or the row is out of range.
-        raise NotImplementedError
+        table = self.query_one("#admin-accounts", DataTable)
+        if not self.accounts or not 0 <= table.cursor_row < len(self.accounts):
+            return None
+        return self.accounts[table.cursor_row]
 
     def _describe(self) -> None:
-        # STEPS: update "#admin-detail": while showing_tokens, "Tokens cannot be read back. Revoke
-        # one with `tl admin token revoke`."; with no current account "No accounts."; else
-        # "\n".join(detail_lines(view, self.tokens, self._stamp())).
-        raise NotImplementedError
+        detail = self.query_one("#admin-detail", Static)
+        if self.showing_tokens:
+            detail.update("Tokens cannot be read back. Revoke one with `tl admin token revoke`.")
+            return
+        view = self.current_account()
+        if view is None:
+            detail.update("No accounts.")
+            return
+        detail.update("\n".join(detail_lines(view, self.tokens, self._stamp())))
 
     def _say(self, text: str, *, error: bool = False) -> None:
-        # STEPS: update "#admin-status" with the text, prefixed "! " when error.
-        raise NotImplementedError
+        self.query_one("#admin-status", Static).update(("! " if error else "") + text)
 
     # --- events --------------------------------------------------------------------------
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
-        # STEPS: event.stop(); self._describe().
-        raise NotImplementedError
+        event.stop()
+        self._describe()
 
     # --- actions -------------------------------------------------------------------------
 
     def _ask_reason(self, title: str, then: Callable[[str | None], None]) -> None:
-        # STEPS: push PromptScreen(title, "Reason (optional)", required=False) on self.app with a
-        # callback `done(answer)`: when answer is None (cancelled) do nothing; else call
-        # then(answer or None) (an empty answer is "no reason").
-        raise NotImplementedError
+        def done(answer: str | None) -> None:
+            if answer is None:  # cancelled: nothing is changed
+                return
+            then(answer or None)  # an empty answer is "no reason"
+
+        self.app.push_screen(PromptScreen(title, "Reason (optional)", required=False), done)
 
     def action_toggle_disabled(self) -> None:
-        # STEPS
-        # 1. view = self.current_account(); return if None or showing_tokens.
-        # 2. enabling = view.status == "disabled"; verb = "Enable" or "Disable".
-        # 3. self._ask_reason(f"{verb} {view.username}", apply) where apply(reason) calls
-        #    client.enable_account(view.account_id, reason=reason) or client.disable_account(...);
-        #    on CLIENT_ERRORS: self._say(describe_error(exc), error=True) and return (nothing
-        #    changes; do not re-check any rule here); on success self.reload() and
-        #    self._say(f"{verb}d {view.username}").
-        raise NotImplementedError
+        view = self.current_account()
+        if view is None or self.showing_tokens:
+            return
+        enabling = view.status == "disabled"
+        verb = "Enable" if enabling else "Disable"
+
+        def apply(reason: str | None) -> None:
+            try:
+                if enabling:
+                    self.client.enable_account(view.account_id, reason=reason)
+                else:
+                    self.client.disable_account(view.account_id, reason=reason)
+            except CLIENT_ERRORS as exc:
+                self._say(describe_error(exc), error=True)
+                return
+            self.reload()
+            self._say(f"{verb}d {view.username}")
+
+        self._ask_reason(f"{verb} {view.username}", apply)
 
     def action_toggle_admin(self) -> None:
-        # STEPS
-        # 1. view = self.current_account(); return if None or showing_tokens.
-        # 2. If view.kind != "person": self._say(f"Only people can be admins; {view.username} is a
-        #    {view.kind} account.") and return (no client call).
-        # 3. taking = "admin" in view.roles; roles = ["user"] if taking else ["admin", "user"];
-        #    verb = "Take the admin role from" if taking else "Make admin".
-        # 4. self._ask_reason(f"{verb} {view.username}", apply) where apply(reason) calls
-        #    client.set_roles(view.account_id, roles, reason=reason); on CLIENT_ERRORS show it as
-        #    in action_toggle_disabled; on success reload() and
-        #    self._say(f"{view.username} is now {', '.join(roles)}").
-        raise NotImplementedError
+        view = self.current_account()
+        if view is None or self.showing_tokens:
+            return
+        if view.kind != "person":
+            self._say(f"Only people can be admins; {view.username} is a {view.kind} account.")
+            return
+        taking = "admin" in view.roles
+        roles = ["user"] if taking else ["admin", "user"]
+        verb = "Take the admin role from" if taking else "Make admin"
+
+        def apply(reason: str | None) -> None:
+            try:
+                self.client.set_roles(view.account_id, roles, reason=reason)
+            except CLIENT_ERRORS as exc:
+                self._say(describe_error(exc), error=True)
+                return
+            self.reload()
+            self._say(f"{view.username} is now {', '.join(roles)}")
+
+        self._ask_reason(f"{verb} {view.username}", apply)
 
     def action_toggle_view(self) -> None:
-        # STEPS: flip self.showing_tokens; show exactly one of "#admin-accounts" / "#admin-tokens"
-        # (their `display`), focus the shown one, then self._title() and self._describe().
-        raise NotImplementedError
+        self.showing_tokens = not self.showing_tokens
+        accounts = self.query_one("#admin-accounts", DataTable)
+        tokens = self.query_one("#admin-tokens", DataTable)
+        accounts.display = not self.showing_tokens
+        tokens.display = self.showing_tokens
+        (tokens if self.showing_tokens else accounts).focus()
+        self._title()
+        self._describe()
 
     def action_reload(self) -> None:
-        # STEPS: self.reload(); self._say("Reloaded.").
-        raise NotImplementedError
+        self.reload()
+        self._say("Reloaded.")
 
     def action_close(self) -> None:
-        # STEPS: self.dismiss(None).
-        raise NotImplementedError
+        self.dismiss(None)
