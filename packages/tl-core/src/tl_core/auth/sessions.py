@@ -30,9 +30,10 @@ from tl_core.auth.env import current_env, demo_allowed
 from tl_core.auth.errors import (
     AccountDisabledError,
     AccountLockedError,
+    InvalidAccountError,
     InvalidCredentialsError,
 )
-from tl_core.auth.names import actor_for, username_key
+from tl_core.auth.names import actor_for, is_id, username_key
 from tl_core.auth.queries import load_roles
 from tl_core.auth.tokens import new_session_token, token_hash, token_kind
 from tl_core.auth.types import DEMO_USERNAME, AccountKind, Principal
@@ -317,6 +318,8 @@ def sign_out(backend: UowFactory, *, token: str, clock: Clock = utcnow) -> None:
 
 def sign_out_all(backend: UowFactory, *, account_id: str) -> None:
     """End every session of an account."""
+    if not is_id(account_id):  # a lone surrogate would poison a pooled connection
+        raise InvalidAccountError("that is not an account id")
     with backend() as uow:
         uow.conn().execute(
             text("DELETE FROM auth_session WHERE account_id = :a"), {"a": account_id}
@@ -386,6 +389,9 @@ def change_own_password(
 
     The current password is checked and the new one hashed before the write transaction opens.
     """
+    if not is_id(account_id):  # not an account: answer like an unknown one, never query with it
+        pw.verify_password(None, "")
+        raise InvalidCredentialsError("the current password is incorrect")
     with backend(readonly=True) as uow:
         row = (
             uow.conn()

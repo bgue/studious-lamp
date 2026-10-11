@@ -15,6 +15,7 @@ from sqlalchemy import Connection, text
 
 from tl_core.auth import names
 from tl_core.auth._time import Clock, iso_z
+from tl_core.auth.errors import InvalidAccountError
 from tl_core.util import new_ulid, utcnow
 
 RETENTION = timedelta(days=90)
@@ -104,6 +105,8 @@ def list_audit(
     """The newest ``limit`` rows, newest first, optionally of one event or one name."""
     if not 1 <= limit <= 1000:
         raise ValueError("limit must be between 1 and 1000")
+    if event is not None and event not in EVENTS:
+        raise InvalidAccountError(f"unknown audit event; one of {', '.join(EVENTS)}")
     clauses = ["at >= :since"]
     params: dict[str, Any] = {"since": iso_z(clock() - RETENTION), "n": limit}
     if event is not None:

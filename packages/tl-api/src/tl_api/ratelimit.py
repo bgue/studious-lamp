@@ -68,6 +68,7 @@ class SourceLimiter:
             times = self._trim(key, now)
             if times is None or len(times) < self.failures:
                 return 0.0
+            self._seen.move_to_end(key)  # a blocked source stays recent: eviction takes quiet ones
             return max(times[0] + self.window_s - now, 0.001)
 
     def record_failure(self, key: str) -> None:
@@ -88,19 +89,42 @@ class SourceLimiter:
             return len(self._seen)
 
 
+def source_of(address: str) -> str:
+    """The counting key of one address.
+
+    IPv4 stays as is. An IPv4-mapped IPv6 address (``::ffff:a.b.c.d``) counts as its IPv4 address,
+    and any other IPv6 address counts as its /64, because one subscriber holds a whole /64 and can
+    rotate within it for free. Text that is not an address (a test client's name) stays as is.
+    """
+    try:
+        ip = ipaddress.ip_address(address.strip())
+    except ValueError:
+        return address
+    if isinstance(ip, ipaddress.IPv6Address):
+        if ip.ipv4_mapped is not None:
+            return str(ip.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{ip}/64", strict=False))
+    return str(ip)
+
+
 def client_key(scope: Scope, trusted_header: str | None) -> str:
-    """The address failures are counted under: the trusted proxy's last entry, else the peer."""
+    """The address failures are counted under: the trusted proxy's last entry, else the peer.
+
+    The header may arrive as several lines. A proxy that adds its own line (instead of appending
+    to one or overwriting it) writes the **last** one, so the last line's last entry is used; the
+    proxy must overwrite or append, never pass a client's own line through behind its own.
+    """
     peer = scope.get("client")
-    key = str(peer[0]) if peer else "unknown"
+    key = source_of(str(peer[0])) if peer else "unknown"
     if trusted_header:
         wanted = trusted_header.lower().encode("latin-1")
-        for name, value in scope["headers"]:
-            if name.lower() == wanted:
-                last = value.decode("latin-1").split(",")[-1].strip()
-                try:
-                    return str(ipaddress.ip_address(last))
-                except ValueError:
-                    return key  # not an address: fall back to the peer, never trust garbage
+        lines = [value for name, value in scope["headers"] if name.lower() == wanted]
+        if lines:
+            last = lines[-1].decode("latin-1").split(",")[-1].strip()
+            try:
+                return source_of(str(ipaddress.ip_address(last)))
+            except ValueError:
+                return key  # not an address: fall back to the peer, never trust garbage
     return key
 
 

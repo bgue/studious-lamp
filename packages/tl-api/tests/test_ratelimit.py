@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from harness import Harness
 from tl_api.app import create_app
-from tl_api.ratelimit import SourceLimiter, client_key
+from tl_api.ratelimit import SourceLimiter, client_key, source_of
 from tl_api.settings import ApiSettings
 from tl_api.tokens import TokenStore
 from tl_core.auth import accounts
@@ -74,7 +74,7 @@ def test_the_address_is_the_peer_unless_a_trusted_header_is_configured() -> None
     assert client_key(scope("10.0.0.5", chain), "x-forwarded-for") == "203.0.113.9"  # the last
     assert (
         client_key(scope("10.0.0.5", {"X-Forwarded-For": "2001:db8::1"}), "X-Forwarded-For")
-        == "2001:db8::1"
+        == "2001:db8::/64"
     )
     for junk in ("not an address", "", "1.1.1.1, evil"):
         assert (
@@ -82,6 +82,45 @@ def test_the_address_is_the_peer_unless_a_trusted_header_is_configured() -> None
             == "10.0.0.5"
         )
     assert client_key(scope("10.0.0.5", {}), "X-Forwarded-For") == "10.0.0.5"  # header absent
+
+
+def test_a_header_sent_in_several_lines_counts_by_the_last_line() -> None:
+    """A proxy that adds its own line (HAProxy `option forwardfor`) writes the last one."""
+    lines = {
+        "client": ("10.0.0.5", 5000),
+        "headers": [
+            (b"x-forwarded-for", b"6.6.6.6"),  # the client's own line
+            (b"x-other", b"1.2.3.4"),
+            (b"x-forwarded-for", b"7.7.7.7, 203.0.113.9"),  # the proxy's line
+        ],
+    }
+    assert client_key(lines, "X-Forwarded-For") == "203.0.113.9"
+    lines["headers"] = lines["headers"][:1]  # type: ignore[index]
+    assert client_key(lines, "X-Forwarded-For") == "6.6.6.6"  # a single line is the proxy's
+
+
+def test_ipv6_sources_count_by_their_64_and_mapped_v4_by_their_v4_address() -> None:
+    assert source_of("2001:db8:1:2:aaaa:bbbb:cccc:dddd") == "2001:db8:1:2::/64"
+    assert source_of("2001:db8:1:2:1::9") == source_of("2001:db8:1:2:ffff::1")  # same /64
+    assert source_of("2001:db8:1:3::1") != source_of("2001:db8:1:2::1")
+    assert source_of("::ffff:203.0.113.9") == "203.0.113.9"
+    assert source_of("203.0.113.9") == "203.0.113.9"
+    assert source_of("testclient") == "testclient"
+    peer = {"client": ("2001:db8::7", 1), "headers": []}
+    assert client_key(peer, None) == "2001:db8::/64"
+    mapped = {"client": ("10.0.0.5", 1), "headers": [(b"x-forwarded-for", b"::ffff:198.51.100.2")]}
+    assert client_key(mapped, "X-Forwarded-For") == "198.51.100.2"
+
+
+def test_a_blocked_source_stays_recent_so_eviction_takes_a_quiet_one_first() -> None:
+    limiter = SourceLimiter(1, 60.0, max_sources=3)
+    limiter.record_failure("blocked")
+    limiter.record_failure("quiet1")
+    limiter.record_failure("quiet2")
+    assert limiter.retry_after("blocked") > 0  # a 429 refreshes its recency
+    limiter.record_failure("newcomer")  # over the bound: the quietest goes
+    assert limiter.retry_after("blocked") > 0
+    assert limiter.retry_after("quiet1") == 0
 
 
 def make_app(harness: Harness, clock: Clock, **settings: Any) -> TestClient:

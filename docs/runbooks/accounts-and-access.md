@@ -62,7 +62,8 @@ Purpose: create and manage accounts, roles and agent tokens, get back in after a
 - [ ] **A front-door rate limiter** (reverse proxy, gateway or WAF) on `POST /auth/sign-in` and `/auth/password`, by client address, with an alert on a high failure rate. The server's own per-address limit is in memory and per process; it is a second layer.
 - [ ] TLS in front of the API.
 - [ ] `TL_ENV` is not `dev`, `demo` or `test`; the dev token file is absent; no enabled `demo` account.
-- [ ] `TL_TRUSTED_PROXY_HEADER` names the header the proxy writes (for example `X-Forwarded-For`), if there is a proxy.
+- [ ] `TL_TRUSTED_PROXY_HEADER` names the header the proxy writes (for example `X-Forwarded-For`), if there is a proxy. The proxy must **overwrite** the header or **append** the peer address to it. The server uses the last entry of the last header line, so a proxy that only adds its own line is safe, and one that passes a client's line through after its own is not.
+- [ ] Shared addresses are understood. The per-address limit counts IPv6 clients by their /64 and treats `::ffff:a.b.c.d` as that IPv4 address. Many people behind one NAT, or a proxy without `TL_TRUSTED_PROXY_HEADER` (every client then looks like the proxy), share one budget of 20 failures in 10 minutes: one person who fails 20 times blocks sign-in for all of them for the rest of the window (HTTP 429, `Retry-After`). Set the header, and size the front-door limiter for the real client addresses.
 - [ ] A real admin exists and its password is in the operator's vault.
 
 ## Verify
