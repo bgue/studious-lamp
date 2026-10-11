@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from collections import deque
-from pathlib import Path
 from typing import Annotated
 
 import typer
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_core.ledger import Event
 
 app = typer.Typer(help="Read the ledger.", no_args_is_help=True)
@@ -28,7 +27,7 @@ def tail(
     ] = 10,
 ) -> None:
     """Print the last N events of the project scope, oldest first."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     scope = f"project:{project}"
     newest: deque[Event] = deque(maxlen=n)
     with open_uow(db, readonly=True) as uow:

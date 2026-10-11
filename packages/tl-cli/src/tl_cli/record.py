@@ -4,12 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Annotated, NoReturn
 
 import typer
 from pydantic import ValidationError
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_core.ledger import ConcurrencyError, canonical_json
 from tl_core.services.commands import CreateRecord, VoidRecord
 from tl_core.services.errors import ServiceError
@@ -104,7 +103,7 @@ def create(
     ),
 ) -> None:
     """Create a record. Without --key the numbering service allocates one."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     with _service_errors(), open_uow(db) as uow:
         result = handle_create_record(
             uow,
@@ -134,7 +133,7 @@ def show(
     key: Annotated[str, typer.Argument(help="Record key.")],
 ) -> None:
     """Show the current state of a record."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     with open_uow(db, readonly=True) as uow:
         row = get_record(uow, f"project:{project}", key)
     if row is None:
@@ -158,7 +157,7 @@ def void(
     ),
 ) -> None:
     """Void a record. Its history stays in the ledger."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         current = get_record(uow, scope, key)
