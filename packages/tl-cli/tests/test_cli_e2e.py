@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from tl_adapters.db import DbTarget
 from tl_cli.main import app
 from typer.testing import CliRunner
 from typer.testing import Result as RunResult
@@ -23,9 +25,9 @@ def _lines(result: RunResult) -> list[str]:
 
 
 @pytest.fixture
-def env(tmp_path: Path) -> dict[str, str]:
+def env(new_db: Callable[[], DbTarget], tmp_path: Path) -> dict[str, str]:
     """A TL_DB pointing at a fresh ledger under tmp_path, initialised once."""
-    env = {"TL_DB": str(tmp_path / "tl.db")}
+    env = {"TL_DB": str(new_db())}
     result = _run(env, "init")
     assert result.exit_code == 0, result.output
     return env

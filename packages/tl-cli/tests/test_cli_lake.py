@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from tl_adapters.db import DbTarget
 from tl_cli.main import app
 from typer.testing import CliRunner
 from typer.testing import Result as RunResult
@@ -14,10 +16,12 @@ runner = CliRunner()
 
 
 @pytest.fixture
-def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+def env(
+    new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> dict[str, str]:
     """A fresh ledger with two records and a fresh, empty lake directory."""
     monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
-    values = {"TL_DB": str(tmp_path / "tl.db"), "TL_LAKE_DIR": str(tmp_path / "lake")}
+    values = {"TL_DB": str(new_db()), "TL_LAKE_DIR": str(tmp_path / "lake")}
     assert run(values, "init").exit_code == 0
     for key in ("A-1", "B-1"):
         result = run(

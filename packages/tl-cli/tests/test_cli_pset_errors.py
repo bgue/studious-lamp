@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from tl_adapters.db import DbTarget
 from tl_cli import pset as pset_module
 from tl_cli.main import app
 from tl_core.services.errors import RecordNotFoundError
@@ -14,8 +16,8 @@ runner = CliRunner()
 
 
 @pytest.fixture
-def env(tmp_path: Path) -> dict[str, str]:
-    env = {"TL_DB": str(tmp_path / "tl.db")}
+def env(new_db: Callable[[], DbTarget], tmp_path: Path) -> dict[str, str]:
+    env = {"TL_DB": str(new_db())}
     assert runner.invoke(app, ["init"], env=env).exit_code == 0
     created = runner.invoke(
         app, ["record", "create", "--project", "P123", "--key", "V-1", "--title", "V"], env=env

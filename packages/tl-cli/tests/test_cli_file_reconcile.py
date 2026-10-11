@@ -5,12 +5,13 @@ from __future__ import annotations
 
 import hashlib
 import io
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from sqlalchemy import text
+from tl_adapters.db import DbTarget, open_uow
 from tl_adapters.objectstore.fs import FsObjectStore
-from tl_adapters.sqlite.uow import open_uow
 from tl_cli.main import app
 from tl_core.files import object_key
 from typer.testing import CliRunner
@@ -21,7 +22,7 @@ INSERT = text(
     "INSERT INTO cur_files (file_id, scope, record_id, slot, revision, sha256, size, content_type, "
     "filename, status, deduplicated, uploaded_by, uploaded_at, updated_at, version, last_seq) "
     "VALUES (:file_id, 'project:P123', 'REC', NULL, 1, :sha, :size, 'text/plain', 'f.txt', "
-    "'available', 0, 'user:t', '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00', 1, 1)"
+    "'available', FALSE, 'user:t', '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00', 1, 1)"
 )
 
 
@@ -30,9 +31,9 @@ def run(env: dict[str, str], *args: str) -> RunResult:
 
 
 @pytest.fixture
-def env(tmp_path: Path) -> dict[str, str]:
+def env(new_db: Callable[[], DbTarget], tmp_path: Path) -> dict[str, str]:
     env = {
-        "TL_DB": str(tmp_path / "tl.db"),
+        "TL_DB": str(new_db()),
         "TL_OBJECT_ROOT": str(tmp_path / "objects"),
         "TL_ENV": "dev",
     }

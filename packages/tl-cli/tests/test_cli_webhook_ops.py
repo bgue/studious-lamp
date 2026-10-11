@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import sqlite3
-from collections.abc import Iterator
-from pathlib import Path
+from collections.abc import Callable, Iterator
 
 import pytest
-from tl_adapters.sqlite.factory import SqliteUowFactory
+from sqlalchemy import text
+from tl_adapters.db import DbTarget, make_uow_factory, open_uow
 from tl_cli.main import app
 from tl_core.webhooks.dispatch import Dispatcher
 from tl_core.webhooks.receiver import DevReceiver
@@ -44,20 +43,20 @@ def fields(result: RunResult) -> dict[str, str]:
 
 
 def sql(env: dict[str, str], query: str) -> list[tuple[object, ...]]:
-    with sqlite3.connect(env["TL_DB"]) as conn:
-        return conn.execute(query).fetchall()
+    with open_uow(env["TL_DB"], readonly=True) as uow:
+        return [tuple(row) for row in uow.conn().execute(text(query)).fetchall()]
 
 
 @pytest.fixture
-def env(tmp_path: Path) -> dict[str, str]:
-    env = {"TL_DB": str(tmp_path / "tl.db"), "TL_ENV": "dev", "TL_WEBHOOK_ALLOWLIST": ""}
+def env(new_db: Callable[[], DbTarget]) -> dict[str, str]:
+    env = {"TL_DB": str(new_db()), "TL_ENV": "dev", "TL_WEBHOOK_ALLOWLIST": ""}
     ok(run(env, "init"))
     return env
 
 
 def add(env: dict[str, str], url: str = "https://hook.example.net/in") -> dict[str, str]:
     """Create a subscription through the service API (not the CLI), as `tl webhook add` does."""
-    factory = SqliteUowFactory(Path(env["TL_DB"]))
+    factory = make_uow_factory(env["TL_DB"])
     try:
         with factory() as uow:
             issued = create_subscription(
@@ -78,7 +77,7 @@ def add(env: dict[str, str], url: str = "https://hook.example.net/in") -> dict[s
 
 def send_test(env: dict[str, str], subscription_id: str) -> None:
     """What `tl webhook test --allow-host 127.0.0.1` does."""
-    factory = SqliteUowFactory(Path(env["TL_DB"]))
+    factory = make_uow_factory(env["TL_DB"])
     try:
         result = make_engine(factory, allow_hosts=("127.0.0.1",)).send_test(subscription_id)
     finally:
@@ -89,15 +88,17 @@ def send_test(env: dict[str, str], subscription_id: str) -> None:
 def seed_dead_letters(env: dict[str, str], count: int) -> None:
     for n in range(count):
         ok(run(env, "record", "create", "--project", "P123", "--key", f"R-{n}", "--title", "r"))
-    factory = SqliteUowFactory(Path(env["TL_DB"]))
+    factory = make_uow_factory(env["TL_DB"])
     try:
         Dispatcher(factory).run_until_idle()
     finally:
         factory.dispose()
-    with sqlite3.connect(env["TL_DB"]) as conn:
-        conn.execute(
-            "UPDATE wh_delivery SET status = 'dead', attempts = 3, last_status = 503, "
-            "dead_at = '2026-10-09T03:00:00.000000Z', dead_reason = 'retries_exhausted'"
+    with open_uow(env["TL_DB"]) as uow:
+        uow.conn().execute(
+            text(
+                "UPDATE wh_delivery SET status = 'dead', attempts = 3, last_status = 503, "
+                "dead_at = '2026-10-09T03:00:00.000000Z', dead_reason = 'retries_exhausted'"
+            )
         )
 
 

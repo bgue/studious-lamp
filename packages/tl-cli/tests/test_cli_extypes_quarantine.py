@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import shutil
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
+from tl_adapters.db import DbTarget, open_uow
 from tl_adapters.objectstore.fs import FsObjectStore
-from tl_adapters.sqlite.uow import open_uow
 from tl_cli.main import app
 from tl_core.extypes import body, registry
 from tl_core.extypes.errors import BodyHashMismatchError
@@ -32,8 +32,8 @@ BODY: dict[str, Any] = {
 
 
 class Env:
-    def __init__(self, tmp_path: Path) -> None:
-        self.db = tmp_path / "tl.db"
+    def __init__(self, tmp_path: Path, db: DbTarget) -> None:
+        self.db = db
         self.root = tmp_path / "types"
         self.objects = tmp_path / "objects"
         self.env = {"TL_DB": str(self.db), "TL_OBJECT_ROOT": str(self.objects), "TL_ENV": "dev"}
@@ -60,9 +60,11 @@ class Env:
 
 
 @pytest.fixture
-def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Env]:
+def env(
+    tmp_path: Path, new_db: Callable[[], DbTarget], monkeypatch: pytest.MonkeyPatch
+) -> Iterator[Env]:
     monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
-    built = Env(tmp_path)
+    built = Env(tmp_path, new_db())
     shutil.copytree(TYPES, built.root)
     with use_provider(DirectorySchemaProvider()):
         assert built.run("init").exit_code == 0

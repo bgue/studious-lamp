@@ -7,10 +7,11 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
+from tl_adapters.db import DbTarget
 from tl_cli.config import detail_lines, history_line, view_line
 from tl_cli.main import app
 from tl_core.settings.registry import get_definition
@@ -24,10 +25,12 @@ DOT = "●"
 
 
 @pytest.fixture
-def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, str]]:
+def env(
+    new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[dict[str, str]]:
     monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
     monkeypatch.delenv("TL_SETTINGS_PLATFORM_FILE", raising=False)
-    values = {"TL_DB": str(tmp_path / "tl.db")}
+    values = {"TL_DB": str(new_db())}
     assert runner.invoke(app, ["init"], env=values).exit_code == 0
     yield values
 

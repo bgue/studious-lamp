@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from tl_adapters.db import DbTarget
 from tl_cli.main import app
 from typer.testing import CliRunner
 from typer.testing import Result as RunResult
@@ -20,8 +22,8 @@ def run(env: dict[str, str], *args: str) -> RunResult:
 
 
 @pytest.fixture
-def env(tmp_path: Path) -> dict[str, str]:
-    env = {"TL_DB": str(tmp_path / "tl.db")}
+def env(new_db: Callable[[], DbTarget], tmp_path: Path) -> dict[str, str]:
+    env = {"TL_DB": str(new_db())}
     assert run(env, "init").exit_code == 0
     created = run(
         env, "record", "create", "--project", "P123", "--key", "V-0001", "--title", "Valve 1"

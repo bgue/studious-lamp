@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
 import typer
+from tl_adapters.db import DbTarget
 from tl_cli.actors import refuse_agent
 from tl_cli.main import app
 from typer.testing import CliRunner
@@ -15,8 +16,8 @@ runner = CliRunner()
 
 
 @pytest.fixture
-def env(tmp_path: Path) -> Iterator[dict[str, str]]:
-    values = {"TL_DB": str(tmp_path / "tl.db")}
+def env(new_db: Callable[[], DbTarget], tmp_path: Path) -> Iterator[dict[str, str]]:
+    values = {"TL_DB": str(new_db())}
     assert runner.invoke(app, ["init"], env=values).exit_code == 0
     yield values
 
