@@ -42,15 +42,20 @@ def sign_in_test_user(env: dict[str, str], username: str = TEST_USER) -> None:
     import os
     from unittest import mock
 
-    from tl_adapters.backend import ledger_exists
+    from tl_adapters.backend import BackendUnavailableError, ledger_exists
     from tl_adapters.db import as_target, is_postgres
     from tl_cli import session
     from tl_core.auth import accounts, queries, sessions
     from tl_core.auth.password import prepare_password
 
     target = as_target(env["TL_DB"])
-    if not is_postgres(target) or not ledger_exists(target):
+    if not is_postgres(target):
         return
+    try:
+        if not ledger_exists(target):
+            return
+    except BackendUnavailableError:
+        return  # a server that cannot be reached: the test is about that, let the command say so
     with mock.patch.dict(os.environ, env):
         current = session.current_principal(target)
         if current is not None and current.actor == f"user:{username}":
