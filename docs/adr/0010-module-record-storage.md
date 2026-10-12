@@ -67,6 +67,8 @@ Nothing in `tl_core` could learn about a module: `default_registry()` lists proj
 
 ## Addendum 2026-10-12: generic commands on module records
 
+Status: accepted 2026-10-12 by the orchestrator (ADR-0008 decision 6), after a fresh-context security review (1 HIGH, 2 MEDIUM, 3 LOW) and a re-review pass at 2d1cc64.
+
 A security review of the HTTP commands found that any signed-in person could send `UpdateRecord` for a tag class or a
 code list and change its title and description: the generic commands load a record by id and check only its scope, so
 they reached module records as they reach core ones. The event landed on a registry stream as a `core.Record` event.
@@ -87,7 +89,7 @@ record change only through the module's own commands.**
    `CodeValue`, `TagClass`) and the registry's own `Standard` records allow none; `VoidRecord` is allowed on nothing.
 4. The allow-list says *which* commands, not *who*: core services see an actor string, not a role. A change that needs
    a role (the registry is admin-only) is a command of the module, gated by the API's `admin.command.<Name>` action and
-   the CLI's `require_admin`. An entry in `generic_commands` is therefore open to every signed-in person.
+   the CLI's `require_admin`. The CLI admin gates are: `tl standards load`, `close`, a company `add-value` and `close-value`; `tl standards class define`, `revise` and `close`; `tl tag create --allow-violation`; and `tl tag import --apply` (the preview is open to any signed-in person). An entry in `generic_commands` is therefore open to every signed-in person.
 5. `origin` of a tag is set by the server only (`created`, or `import` by the import service); `CreateTag` has no such
    field and no pattern policy. Keeping a number that breaks the pattern is the admin command `RecordTag`.
 
