@@ -150,7 +150,8 @@ run_backend() {
   out="$(as demo tl tag import "$LEGACY" --mapping "$MAPPING" --project P123 --apply --skip-invalid)"; echo "$out" | tail -n 3
   expect "applied instrument-index: created=11" "$out"
   printf 'TAG NO,SERVICE,TYPE,SIZE (IN),MATERIAL,MFR,FAIL,FAT WITNESS\n47-FV-2001,Reused number,CV,4,CS,Acme,FC,\n' >"$workdir/reuse.csv"
-  out="$(as demo tl tag import "$workdir/reuse.csv" --mapping "$MAPPING" --project P123)"; echo "$out"
+  out="$(as demo tl tag import "$workdir/reuse.csv" --mapping "$MAPPING" --project P123)"
+  echo "$out" | grep -E '^(import|new=|!)'
   expect "key '47-FV-2001' is already used by a superseded tag" "$out"
   as demo tl tag report summary --project P123
   out="$(as demo tl tag report violations --project P123)"; echo "$out"
