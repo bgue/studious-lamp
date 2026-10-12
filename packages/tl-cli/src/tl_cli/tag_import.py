@@ -4,14 +4,7 @@ The command reads a CSV file with a mapping template, compares it with the proje
 prints what would change; with `--apply` it writes the plan. Reading, comparing and writing are the
 module's (`tl_mod_engineering.imports`); this command parses options and prints. It is registered
 by `tl_cli.main` as `tl tag import`.
-
-STUB (P1-I1-T10c): the bodies of the commands raise NotImplementedError; their signatures, options
-and docstrings and the helpers (`_service_errors`, `_show`, `_preview`) are final. Each body has a
-STEPS comment. Implement them, then delete this paragraph, the STEPS comments and the `ruff: noqa`
-line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -111,17 +104,33 @@ def import_tags(
     ] = _DEFAULT_ACTOR,
 ) -> None:
     """Compare a tag list with the project's tags; with --apply, create and update them."""
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`; scope = f"project:{project}"; job = job or file.stem.
-    # 2. Inside `with _service_errors():` template = load_mapping(mapping); read the file
-    #    (`file.read_text(encoding="utf-8")`; an OSError or UnicodeDecodeError becomes
-    #    _fail(f"{file.name}: cannot read file: {exc}")); rows = read_rows(text, template).
-    # 3. Print f"import {template.name} {file.name} into project {project}".
-    # 4. `with open_uow(db, readonly=not apply) as uow:` plan = plan_import(rows,
-    #    existing_tags(uow.conn(), scope)); _preview(plan). Without --apply print
-    #    "dry run: nothing written; add --apply to write" and return.
-    # 5. With --apply, still inside that block: result = apply_plan(uow, scope, plan, actor=actor,
-    #    source=f"import:{job}", reason=f"import {job}", skip_invalid=skip_invalid).
-    # 6. After the block print f"applied {job}: created={result.created}  changed={result.changed}
-    #    skipped={result.skipped}" (two spaces between the three fields).
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    job = job or file.stem
+    with _service_errors():
+        template = load_mapping(mapping)
+        try:
+            text = file.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            _fail(f"{file.name}: cannot read file: {exc}")
+        rows = read_rows(text, template)
+        typer.echo(f"import {template.name} {file.name} into project {project}")
+        with open_uow(db, readonly=not apply) as uow:
+            plan = plan_import(rows, existing_tags(uow.conn(), scope))
+            _preview(plan)
+            if not apply:
+                typer.echo("dry run: nothing written; add --apply to write")
+                return
+            result = apply_plan(
+                uow,
+                scope,
+                plan,
+                actor=actor,
+                source=f"import:{job}",
+                reason=f"import {job}",
+                skip_invalid=skip_invalid,
+            )
+    typer.echo(
+        f"applied {job}: created={result.created}  changed={result.changed}"
+        f"  skipped={result.skipped}"
+    )
