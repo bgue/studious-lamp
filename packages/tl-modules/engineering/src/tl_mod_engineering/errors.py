@@ -89,3 +89,11 @@ class InvalidTagNumberError(EngineeringError):
     def __init__(self, message: str, issues: list[dict[str, Any]] | None = None) -> None:
         super().__init__(message)
         self.issues: list[dict[str, Any]] = issues if issues is not None else []
+
+
+class StandardsLoadError(EngineeringError):
+    """A standards document cannot be loaded into this ledger. ``problems`` lists each reason."""
+
+    def __init__(self, message: str, problems: list[str] | None = None) -> None:
+        super().__init__(message)
+        self.problems: list[str] = problems if problems is not None else []
