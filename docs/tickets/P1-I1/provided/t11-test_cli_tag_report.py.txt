@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from typing import Any
 
 import pytest
 from tl_adapters.db import DbTarget, open_uow
@@ -23,20 +24,21 @@ def env(new_db: Callable[[], DbTarget], monkeypatch: pytest.MonkeyPatch) -> dict
     values = {"TL_DB": str(target)}
     assert runner.invoke(app, ["init"], env=values).exit_code == 0
     seed_registry(target)
+    tags: tuple[tuple[str, dict[str, Any]], ...] = (
+        ("47-FV-1001", {"class_code": "ControlValve"}),
+        (
+            "47-FV-1002",
+            {
+                "class_code": "ControlValve",
+                "psets": {"valve_data": {"size_in": 4, "manufacturer": "Acme"}},
+            },
+        ),
+        ("10-PT-0001", {}),
+        ("47-FV-1005", {"class_code": "ManualValve"}),
+        ("LEGACY-1", {"pattern_policy": "record"}),
+    )
     with open_uow(target) as uow:
-        for number, more in (
-            ("47-FV-1001", {"class_code": "ControlValve"}),
-            (
-                "47-FV-1002",
-                {
-                    "class_code": "ControlValve",
-                    "psets": {"valve_data": {"size_in": 4, "manufacturer": "Acme"}},
-                },
-            ),
-            ("10-PT-0001", {}),
-            ("47-FV-1005", {"class_code": "ManualValve"}),
-            ("LEGACY-1", {"pattern_policy": "record"}),
-        ):
+        for number, more in tags:
             handle_create_tag(
                 uow,
                 CreateTag(
