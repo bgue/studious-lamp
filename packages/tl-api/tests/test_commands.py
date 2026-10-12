@@ -27,7 +27,7 @@ def create(h: Harness, key: str = "REC-1", **extra: Any) -> dict[str, Any]:
 def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     paths = harness.app.openapi()["paths"]
     assert {f"/commands/{spec.name}" for spec in COMMANDS} <= set(paths)
-    assert len(COMMANDS) == 18
+    assert len(COMMANDS) == 18 + 13  # the core commands and the engineering module's
 
 
 def test_create_record_returns_the_command_result(harness: Harness) -> None:
@@ -209,4 +209,7 @@ def test_links_and_the_workflow_through_commands(harness: Harness) -> None:
 @pytest.mark.parametrize("spec", COMMANDS, ids=lambda s: s.name)
 def test_a_command_with_no_body_is_a_422_not_a_500(harness: Harness, spec) -> None:  # type: ignore[no-untyped-def]
     response = harness.client.post(f"/commands/{spec.name}", json={})
+    if spec.access == "admin":  # the dev-token person is not an admin: refused before the body
+        assert response.status_code == 403 and response.json()["error"] == "forbidden"
+        return
     assert response.status_code == 422 and response.json()["error"] == "validation_error"

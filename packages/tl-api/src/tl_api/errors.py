@@ -23,6 +23,7 @@ from tl_core.query import QuerySyntaxError
 from tl_core.services import errors as svc
 from tl_core.webhooks import subscriptions as wh
 from tl_core.workflow.engine import GuardResult
+from tl_mod_engineering import errors as eng
 
 
 @dataclass(frozen=True)
@@ -139,6 +140,28 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(auth.InvalidAccountError, "invalid_account", 422),
         s(auth.AccountStateError, "account_state", 409),
         s(auth.AuthBusyError, "auth_busy", 503),
+        # --- engineering module (P1-I1): registry, tag classes, tags, imports ----------------
+        s(eng.EngineeringError, "engineering_error", 422),
+        s(eng.RegistryScopeError, "registry_scope", 422),
+        s(eng.DuplicateStandardError, "duplicate_standard", 409),
+        s(eng.StandardNotFoundError, "standard_not_found", 404),
+        s(eng.UnknownCodeListError, "unknown_code_list", 404),
+        s(eng.UnknownCodeError, "unknown_code", 422),
+        s(eng.DuplicateCodeValueError, "duplicate_code_value", 409),
+        s(eng.ListClosedError, "list_closed", 409),
+        s(eng.CrosswalkRequiredError, "crosswalk_required", 422),
+        s(eng.InvalidCrosswalkError, "invalid_crosswalk", 422),
+        s(eng.InvalidSupersessionError, "invalid_supersession", 422),
+        s(eng.AlreadyClosedError, "already_closed", 409),
+        s(eng.InvalidPatternError, "invalid_pattern", 422),
+        s(eng.DuplicateTagClassError, "duplicate_tag_class", 409),
+        s(eng.TagClassNotFoundError, "tag_class_not_found", 404),
+        s(eng.InvalidTagClassError, "invalid_tag_class", 422),
+        s(eng.TagNotFoundError, "tag_not_found", 404),
+        s(eng.TagSupersededError, "tag_superseded", 409),
+        s(eng.InvalidTagNumberError, "invalid_tag_number", 422),
+        s(eng.StandardsLoadError, "standards_load", 422),
+        s(eng.ImportApplyError, "import_apply", 422),
     )
 
 
@@ -227,6 +250,10 @@ def body_for(exc: BaseException) -> tuple[int, ErrorBody] | None:
         exc, (svc.PsetValidationError, ext.BodyValidationError, auth.WeakPasswordError)
     ):
         body.issues = list(exc.issues)
+    elif isinstance(exc, eng.InvalidTagNumberError):
+        body.issues = list(exc.issues)  # one dict per problem: segment, rule, level, message
+    elif isinstance(exc, (eng.StandardsLoadError, eng.ImportApplyError)):
+        body.issues = list(exc.problems)
     elif isinstance(exc, auth.AccountLockedError):
         body.locked_until = exc.locked_until
     return spec.status, body
@@ -254,6 +281,14 @@ def exception_for(status: int, body: dict[str, Any]) -> Exception:
             return ext.BodyValidationError(message, [str(i) for i in body.get("issues") or []])
         if spec.exc is auth.WeakPasswordError:
             return auth.WeakPasswordError(message, [str(i) for i in body.get("issues") or []])
+        if spec.exc is eng.InvalidTagNumberError:
+            return eng.InvalidTagNumberError(
+                message, [dict(i) for i in body.get("issues") or [] if isinstance(i, dict)]
+            )
+        if spec.exc is eng.StandardsLoadError:
+            return eng.StandardsLoadError(message, [str(i) for i in body.get("issues") or []])
+        if spec.exc is eng.ImportApplyError:
+            return eng.ImportApplyError(message, [str(i) for i in body.get("issues") or []])
         if spec.exc is auth.AccountLockedError:
             until = body.get("locked_until")
             return auth.AccountLockedError(message, None if until is None else str(until))

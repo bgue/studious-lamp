@@ -16,6 +16,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel, ConfigDict, Field, create_model
+from tl_core.auth.types import Principal
 from tl_core.services import links, psets
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
@@ -32,8 +33,9 @@ from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.uow import UnitOfWork
 from tl_core.util import effective_time
+from tl_mod_engineering.commands import API_COMMANDS
 
-from tl_api.auth import AGENT_DIRECT_COMMANDS, guard
+from tl_api.auth import AGENT_DIRECT_COMMANDS, current_principal, guard
 from tl_api.context import get_ctx
 from tl_api.effective import EFFECTIVE_AT_HEADER, resolve_effective_at
 
@@ -46,6 +48,9 @@ DEFAULT_SOURCE = "api"
 class CommandSpec:
     model: type[Command]
     handler: Handler
+    #: "user": any signed-in person; "admin": only an admin (action ``admin.command.<Name>``);
+    #: "company": an admin when ``scope`` is ``company``, any signed-in person otherwise.
+    access: str = "user"
 
     @property
     def name(self) -> str:
@@ -71,6 +76,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(RetractPost, handle_retract_post),
     CommandSpec(ReactToPost, handle_react_to_post),
     CommandSpec(ChangeSetting, handle_change_setting),
+    *(CommandSpec(c.model, c.handler, c.access) for c in API_COMMANDS),
 )
 """Every command the API accepts. Void, mark-pins-stale and the file commands are not here:
 voiding is not in the Phase 0 client contract, pin staleness is a system command, and files have
@@ -99,13 +105,14 @@ def request_model(model: type[Command], name: str) -> type[BaseModel]:
 
 
 def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[..., CommandResult]:
-    action = f"command.{spec.name}"
+    action = f"admin.command.{spec.name}" if spec.access == "admin" else f"command.{spec.name}"
     changes_records = spec.name not in AGENT_DIRECT_COMMANDS
 
     def endpoint(
         request: Request,
         body: Any,
         actor: Annotated[str, Depends(guard(action, changes_records=changes_records))],
+        principal: Annotated[Principal, Depends(current_principal)],
         effective_at: Annotated[
             str | None,
             Header(
@@ -121,6 +128,8 @@ def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[.
         if actor.startswith("agent:"):  # an agent cannot claim another source (brief 18.12)
             fields["source"] = source_for(actor)
         command = spec.model(**fields, actor=actor)
+        if spec.access == "company" and command.scope == "company":
+            ctx.authorizer.authorize(principal, f"admin.command.{spec.name}", request.url.path)
         when = resolve_effective_at(effective_at, command.scope)
         with effective_time(when), ctx.backend(False) as uow:
             return spec.handler(uow, command)

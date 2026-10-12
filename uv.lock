@@ -2566,6 +2566,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "tl-adapters" },
     { name = "tl-core" },
+    { name = "tl-mod-engineering" },
     { name = "tl-schema" },
     { name = "uvicorn" },
 ]
@@ -2577,6 +2578,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-schema", editable = "packages/tl-schema" },
     { name = "uvicorn" },
 ]

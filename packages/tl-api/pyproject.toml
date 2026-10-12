@@ -10,6 +10,7 @@ dependencies = [
   "tl-core",
   "tl-schema",
   "tl-adapters",
+  "tl-mod-engineering",
 ]
 
 [project.scripts]
