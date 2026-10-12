@@ -1,8 +1,9 @@
 """``McpCaller``: how the simulator's one agent reaches the suite's MCP server.
 
 ``McpClientCaller(target)`` opens an MCP client session per call with ``mcp.Client``. The target is
-a ``StdioServerParameters`` (a real server process, ``python -m tl_mcp --actor agent:sim-assistant
---db <ledger>``) or an in-memory ``MCPServer`` (tests).
+a ``StdioServerParameters`` (a real server process, ``python -m tl_mcp --db <ledger>`` with the
+agent's token in ``TL_AGENT_TOKEN``; the token names the actor) or an in-memory ``MCPServer``
+(tests).
 
 Two kinds of failure, kept apart:
 
@@ -22,15 +23,16 @@ over MCP is stamped with real time; the decision on it and its effect are stampe
 from __future__ import annotations
 
 import asyncio
+import os
 import subprocess
 import sys
-from pathlib import Path
 from typing import Any
 
 from mcp import Client, StdioServerParameters
 from mcp.server.mcpserver import MCPServer
 
 from tl_sim.state import RunError
+from tl_sim.target import LedgerTarget
 
 DEFAULT_TIMEOUT_S = 30.0
 DUPLICATE_LINK = "link already exists between these records"
@@ -55,6 +57,7 @@ def _diagnose(params: StdioServerParameters) -> str:
     try:
         done = subprocess.run(
             [params.command, *params.args],
+            env={**os.environ, **(params.env or {})},
             stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
@@ -105,10 +108,18 @@ class McpClientCaller:
         return dict(result.structured_content or {})
 
 
-def stdio_caller(actor: str, db: Path, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> McpClientCaller:
-    """A caller that starts ``python -m tl_mcp`` for ``actor`` on the ledger file ``db``."""
+def stdio_caller(
+    db: LedgerTarget, token: str, *, timeout_s: float = DEFAULT_TIMEOUT_S
+) -> McpClientCaller:
+    """A caller that starts ``python -m tl_mcp`` on the ledger ``db`` as the agent of ``token``.
+
+    ``db`` is a SQLite file or a ``postgresql://`` URL. The token and the ledger go to the child in
+    its environment (``TL_AGENT_TOKEN``, ``TL_DB``), never on its command line: a URL carries a
+    password and a command line is visible in the process list.
+    """
     params = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "tl_mcp", "--actor", actor, "--db", str(db)],
+        args=["-m", "tl_mcp"],
+        env={"TL_AGENT_TOKEN": token, "TL_DB": str(db)},
     )
     return McpClientCaller(params, timeout_s=timeout_s)

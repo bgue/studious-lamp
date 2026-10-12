@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import shutil
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
+from tl_adapters.db import DbTarget
 from tl_cli.main import app
 from tl_core.schema_provider import DirectorySchemaProvider, use_provider
 from typer.testing import CliRunner
@@ -17,12 +18,14 @@ KEY = "co.acme.lift_plan.max_load_tonnes"
 
 
 @pytest.fixture
-def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[Path, dict[str, str]]]:
+def env(
+    new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[tuple[Path, dict[str, str]]]:
     monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
     monkeypatch.delenv("TL_SETTINGS_PLATFORM_FILE", raising=False)
     root = tmp_path / "types"
     shutil.copytree(TYPES, root)
-    values = {"TL_DB": str(tmp_path / "tl.db")}
+    values = {"TL_DB": str(new_db())}
     with use_provider(DirectorySchemaProvider()):
         assert runner.invoke(app, ["init"], env=values).exit_code == 0
         yield root, values

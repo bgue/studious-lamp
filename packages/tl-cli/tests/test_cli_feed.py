@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from pg_support import person_or_agent
+from tl_adapters.db import DbTarget
 from tl_cli.main import app
 from typer.testing import CliRunner
 from typer.testing import Result as RunResult
@@ -14,9 +17,11 @@ P = "P123"
 
 
 @pytest.fixture
-def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+def env(
+    new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> dict[str, str]:
     monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
-    values = {"TL_DB": str(tmp_path / "tl.db")}
+    values = {"TL_DB": str(new_db())}
     assert runner.invoke(app, ["init"], env=values).exit_code == 0
     return values
 
@@ -86,9 +91,10 @@ def test_a_record_tag_reports_the_suggested_link(env: dict[str, str]) -> None:
 
 
 def test_post_takes_an_importance_and_an_actor(env: dict[str, str]) -> None:
-    post_id(post(env, "quiet", "--importance", "low", "--actor", "agent:triage"))
+    actor = person_or_agent(env, "agent:triage")
+    post_id(post(env, "quiet", "--importance", "low", "--actor", actor))
     (line,) = ls(env)
-    assert "  agent:triage  quiet" in line
+    assert f"  {actor.removeprefix('user:')}  quiet" in line  # the feed shows a person by name
 
 
 def test_post_errors(env: dict[str, str]) -> None:

@@ -2,7 +2,8 @@
 
 Each call opens one unit of work (read-only for queries), runs one service function, and closes
 it. There is no logic here beyond that; the remote client (`tl_tui.remote`) is the same interface
-over HTTP. `for_sqlite` keeps one engine and one in-process bus for the life of the client, so
+over HTTP. `for_target` opens the ledger as a `tl_adapters.backend` backend (a SQLite file or a
+`postgresql://` URL) and keeps its one engine and one in-process bus for the life of the client, so
 `change_feed()` can hand the app this process's own writes at once and other processes' by polling.
 """
 
@@ -11,11 +12,18 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
 from tl_api.auth import AGENT_MUST_PROPOSE
+from tl_core.auth import accounts as account_services
+from tl_core.auth import queries as account_queries
+from tl_core.auth.env import current_env, demo_allowed
+from tl_core.auth.errors import ForbiddenError
+from tl_core.auth.password import prepare_password
+from tl_core.auth.provider import PasswordIdentityProvider
+from tl_core.auth.types import DEMO_USERNAME, AccountKind, AccountView, AgentTokenView
 from tl_core.extypes import body as extype_bodies
 from tl_core.extypes import registry as extype_registry
 from tl_core.extypes.errors import BodyNotFoundError, BodyStoreUnavailableError
@@ -83,10 +91,12 @@ from tl_core.settings import set_setting as set_in_force
 from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView, get_view, list_views, view_at
 from tl_core.uow import UnitOfWork
+from tl_core.util import utcnow
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 from tl_tui.client import RelationInfo
 from tl_tui.live import ChangeFeed, EmbeddedFeed, OwnWrites
+from tl_tui.sign_in import SignedIn
 
 #: The actor of settings changes when none is given (the dev person; the header shows the same).
 DEFAULT_ACTOR = "user:dev"
@@ -97,16 +107,56 @@ SOURCE = "tui"
 UowFactory = Callable[[bool], AbstractContextManager[UnitOfWork]]
 
 
-def sqlite_uow_factory(path: str | Path) -> UowFactory:
-    """A factory over the SQLite dev ledger at ``path`` (one engine per unit of work)."""
-    from tl_adapters.sqlite.uow import open_uow
+def target_uow_factory(target: str | Path) -> UowFactory:
+    """A factory over the ledger ``target`` (a SQLite file or a Postgres URL), one engine per unit
+    of work."""
+    from tl_adapters.db import as_target, open_uow
 
-    db = Path(path)
+    where = as_target(target)
 
     def factory(readonly: bool) -> AbstractContextManager[UnitOfWork]:
-        return open_uow(db, readonly=readonly)
+        return open_uow(where, readonly=readonly)
 
     return factory
+
+
+class EmbeddedAuthenticator:
+    """Sign-in on the ledger: checks a username and password against its accounts.
+
+    The `Authenticator` of the embedded TUI. A failure raises the `tl_core.auth.errors` class
+    (`InvalidCredentialsError`, `AccountLockedError`, `AccountDisabledError`...); lockout and the
+    audit trail work as for the API. No session is created: the TUI process is the session.
+    """
+
+    def __init__(self, uow_factory: UowFactory) -> None:
+        self._uow = uow_factory
+
+    @classmethod
+    def for_target(cls, target: str | Path) -> EmbeddedAuthenticator:
+        """An authenticator over the ledger ``target`` (a SQLite file or a Postgres URL)."""
+        return cls(target_uow_factory(target))
+
+    @classmethod
+    def for_sqlite(cls, path: str | Path) -> EmbeddedAuthenticator:
+        """The same as :meth:`for_target` (the name from before Postgres support)."""
+        return cls.for_target(path)
+
+    def __call__(self, username: str, password: str) -> SignedIn:
+        provider = PasswordIdentityProvider(lambda readonly=False: self._uow(readonly))
+        principal = provider.authenticate_password(username, password)
+        return SignedIn(
+            actor=principal.actor,
+            username=principal.actor.partition(":")[2],
+            roles=tuple(principal.roles),
+        )
+
+    def demo_hint(self) -> str | None:
+        """A line for the sign-in screen while the demo account can be used, else None."""
+        if not demo_allowed(current_env()):
+            return None
+        with self._uow(True) as uow:
+            usable = account_queries.demo_account_enabled(uow.conn())
+        return f"dev setup: sign in as {DEMO_USERNAME} / {DEMO_USERNAME}" if usable else None
 
 
 class EmbeddedClient:
@@ -137,6 +187,40 @@ class EmbeddedClient:
         attach_extension_types(lambda readonly=False: uow_factory(readonly), prime=prime_types)
 
     @classmethod
+    def for_target(
+        cls,
+        target: str | Path,
+        *,
+        object_store: ObjectStore | None = None,
+        actor: str = DEFAULT_ACTOR,
+    ) -> EmbeddedClient:
+        """A client on the ledger ``target`` (a SQLite file or a ``postgresql://`` URL).
+
+        It keeps one engine and one in-process bus for its life (``tl_adapters.backend``). Record
+        bodies of extension types need an object store: the one given, else the one the
+        environment names (``TL_OBJECT_STORE``...), else none (body calls then say so).
+        ``BackendUnavailableError`` says a Postgres server cannot be reached.
+        """
+        from tl_adapters.backend import ledger_exists, open_backend
+        from tl_adapters.db import as_target
+        from tl_adapters.objectstore import make_object_store
+
+        where = as_target(target)
+        store = object_store
+        if store is None:
+            try:
+                store = make_object_store()
+            except ValueError:
+                store = None
+        exists = ledger_exists(where)
+        backend = open_backend(where)
+        try:
+            return cls(backend, object_store=store, actor=actor, prime_types=exists)
+        except BaseException:
+            backend.close()
+            raise
+
+    @classmethod
     def for_sqlite(
         cls,
         path: str | Path,
@@ -144,26 +228,8 @@ class EmbeddedClient:
         object_store: ObjectStore | None = None,
         actor: str = DEFAULT_ACTOR,
     ) -> EmbeddedClient:
-        """A client on the SQLite ledger at ``path`` with a long-lived engine and a bus.
-
-        Record bodies of extension types need an object store: the one given, else the one the
-        environment names (``TL_OBJECT_STORE``...), else none (body calls then say so).
-        """
-        from tl_adapters.objectstore import make_object_store
-        from tl_adapters.sqlite.factory import SqliteUowFactory
-
-        store = object_store
-        if store is None:
-            try:
-                store = make_object_store()
-            except ValueError:
-                store = None
-        return cls(
-            SqliteUowFactory(path),
-            object_store=store,
-            actor=actor,
-            prime_types=Path(path).is_file(),
-        )
+        """The same as :meth:`for_target` (the name from before Postgres support)."""
+        return cls.for_target(path, object_store=object_store, actor=actor)
 
     def change_feed(self, scope: str | None = None) -> ChangeFeed | None:
         """The live feed for this ledger, or ``None`` when the factory has no ledger and bus."""
@@ -174,7 +240,7 @@ class EmbeddedClient:
         return EmbeddedFeed(ledger, bus, scope=scope)
 
     def close(self) -> None:
-        """Release the engine when the factory owns one (``for_sqlite``)."""
+        """Release the engine when the factory owns one (``for_target``)."""
         close = getattr(self._uow, "close", None)
         if callable(close):
             close()
@@ -616,3 +682,113 @@ class EmbeddedClient:
                 accept_risk=accept_risk,
             )
             return view_at(uow.conn(), key, layer)
+
+    # --- accounts and agent tokens (P1-I0; ADR-0009) ------------------------------------------
+
+    def _admin_gate(self, uow: UnitOfWork) -> None:
+        """Only an active account with the admin role may use the calls below (as the API says)."""
+        name = self.actor.partition(":")[2]
+        found = account_queries.find_account(uow.conn(), username=name)
+        # the actor must be the account's own, character for character: `svc:root` and
+        # `USER:ROOT` are not `user:root`, whatever the name lookup folds them to
+        if (
+            found is None
+            or account_queries.actor_of(found) != self.actor
+            or found.status != "active"
+            or "admin" not in found.roles
+        ):
+            raise ForbiddenError("this action needs the admin role")
+
+    def list_accounts(self) -> list[AccountView]:
+        with self._uow(True) as uow:
+            self._admin_gate(uow)
+            return account_queries.list_accounts(uow.conn())
+
+    def get_account(self, account_id: str) -> AccountView:
+        with self._uow(True) as uow:
+            self._admin_gate(uow)
+            return account_queries.get_account(uow.conn(), account_id)
+
+    def create_account(
+        self,
+        username: str,
+        display_name: str,
+        *,
+        kind: AccountKind = "person",
+        roles: Sequence[str] = ("user",),
+        password: str | None = None,
+    ) -> AccountView:
+        with self._uow(True) as uow:
+            self._admin_gate(uow)
+        # the policy and the slow hash run before the write transaction opens (one global writer)
+        prepared = None if password is None else prepare_password(password, username=username)
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            return account_services.create_account(
+                uow,
+                username=username,
+                display_name=display_name,
+                kind=kind,
+                roles=list(roles),
+                password=prepared,
+                by=self.actor,
+            )
+
+    def set_roles(
+        self, account_id: str, roles: Sequence[str], *, reason: str | None = None
+    ) -> AccountView:
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            return account_services.set_roles(
+                uow, account_id=account_id, roles=list(roles), by=self.actor, reason=reason
+            )
+
+    def disable_account(self, account_id: str, *, reason: str | None = None) -> AccountView:
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            return account_services.disable(
+                uow, account_id=account_id, by=self.actor, reason=reason
+            )
+
+    def enable_account(self, account_id: str, *, reason: str | None = None) -> AccountView:
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            return account_services.enable(uow, account_id=account_id, by=self.actor, reason=reason)
+
+    def reset_password(self, account_id: str, new_password: str) -> AccountView:
+        with self._uow(True) as uow:
+            self._admin_gate(uow)
+            account = account_queries.get_account(uow.conn(), account_id)
+        prepared = prepare_password(new_password, username=account.username)
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            account_services.change_password(
+                uow, account_id=account_id, new_password=prepared, by=self.actor
+            )
+            return account_queries.get_account(uow.conn(), account_id)
+
+    def list_agent_tokens(
+        self, account_id: str | None = None, *, include_revoked: bool = True
+    ) -> list[AgentTokenView]:
+        with self._uow(True) as uow:
+            self._admin_gate(uow)
+            return account_queries.list_agent_tokens(
+                uow.conn(), account_id=account_id, include_revoked=include_revoked
+            )
+
+    def issue_agent_token(
+        self, account_id: str, label: str, *, expires_in_days: int | None = 90
+    ) -> tuple[AgentTokenView, str]:
+        expires = None if expires_in_days is None else utcnow() + timedelta(days=expires_in_days)
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            return account_services.issue_agent_token(
+                uow, account_id=account_id, label=label, expires_at=expires, by=self.actor
+            )
+
+    def revoke_agent_token(self, token_id: str, *, reason: str | None = None) -> AgentTokenView:
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            return account_services.revoke_agent_token(
+                uow, token_id=token_id, by=self.actor, reason=reason
+            )

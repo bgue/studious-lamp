@@ -1,20 +1,21 @@
 """Live-update plumbing without a terminal: event rules, the embedded feed, the thread runner.
 
-The embedded feed is tested on a real SQLite file: a write through this client arrives at once (the
-bus), a write through a second client on the same file arrives by polling, and nothing arrives
-twice. `LiveUpdates` is tested with a hand-driven feed against a minimal message pump.
+The embedded feed is tested on a real ledger, on SQLite and (with ``--adapters
+sqlite,postgres``) on Postgres: a write through this client arrives at once (the bus), a write
+through a second client on the same ledger arrives by polling, and nothing arrives twice.
+`LiveUpdates` is tested with a hand-driven feed against a minimal message pump.
 """
 
 from __future__ import annotations
 
 import threading
 import time
-from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
 import pytest
 from fakes_live import FakeFeed
-from tl_adapters.sqlite.uow import create_schema
+from tl_adapters.db import DbTarget, create_schema
 from tl_core.ledger import Event
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
 from tl_tui.embedded import EmbeddedClient
@@ -179,10 +180,10 @@ def create(client: EmbeddedClient, key: str) -> CommandResult:
 
 
 @pytest.fixture
-def two_clients(tmp_path: Path) -> Any:
-    db = tmp_path / "tl.db"
+def two_clients(new_db: Callable[[], DbTarget]) -> Any:
+    db = new_db()
     create_schema(db)
-    mine, other = EmbeddedClient.for_sqlite(db), EmbeddedClient.for_sqlite(db)
+    mine, other = EmbeddedClient.for_target(db), EmbeddedClient.for_target(db)
     yield mine, other
     mine.close()
     other.close()

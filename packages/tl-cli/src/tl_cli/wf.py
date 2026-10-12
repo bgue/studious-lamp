@@ -9,12 +9,11 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Annotated, NoReturn
 
 import typer
 from pydantic import ValidationError
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_core.ledger import ConcurrencyError
 from tl_core.links.expected import ExpectedLinkError
 from tl_core.services.errors import GuardFailedError, ServiceError
@@ -80,7 +79,7 @@ def show(
     ] = None,
 ) -> None:
     """Show a record's workflow state and, for each transition, whether its guards pass."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     scope = f"project:{project}"
     with _service_errors(), open_uow(db, readonly=True) as uow:
         row = get_record(uow, scope, key)
@@ -115,7 +114,7 @@ def transition(
     ),
 ) -> None:
     """Run a transition if every guard passes; otherwise list the guards and exit 1."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
         current = get_record(uow, scope, key)

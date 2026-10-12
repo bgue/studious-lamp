@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import sqlite3
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from sqlalchemy import text
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_cli.main import app
 from typer.testing import CliRunner
 from typer.testing import Result as RunResult
@@ -16,10 +16,12 @@ runner = CliRunner()
 
 
 @pytest.fixture
-def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+def env(
+    new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> dict[str, str]:
     """A fresh ledger; the sample schema directory (workflow, expected link, numbering)."""
     monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
-    values = {"TL_DB": str(tmp_path / "tl.db")}
+    values = {"TL_DB": str(new_db())}
     assert runner.invoke(app, ["init"], env=values).exit_code == 0
     return values
 
@@ -35,23 +37,29 @@ def create(env: dict[str, str], title: str) -> str:
 
 
 def record_id(env: dict[str, str], key: str) -> str:
-    with sqlite3.connect(env["TL_DB"]) as db:
-        return str(db.execute("SELECT id FROM cur_core_record WHERE key = ?", (key,)).fetchone()[0])
+    with open_uow(env["TL_DB"], readonly=True) as uow:
+        row = uow.conn().execute(
+            text("SELECT id FROM cur_core_record WHERE key = :key"), {"key": key}
+        )
+        return str(row.scalar_one())
 
 
 def link(env: dict[str, str], from_key: str, to_key: str) -> None:
     """Insert an active `references` link row directly (the link commands are another ticket)."""
-    with sqlite3.connect(env["TL_DB"]) as db:
-        db.execute(
-            "INSERT INTO cur_links (link_id, scope, from_id, to_id, relation, status, source, "
-            "declined, created_by, created_at, updated_at, version, last_seq) VALUES "
-            "(?, 'project:P123', ?, ?, 'references', 'active', 'manual', 0, 'u', '2026', '2026', "
-            "1, 1)",
-            (
-                f"L-{from_key}-{to_key}",
-                record_id(env, from_key),
-                record_id(env, to_key),
+    with open_uow(env["TL_DB"]) as uow:
+        uow.conn().execute(
+            text(
+                "INSERT INTO cur_links (link_id, scope, from_id, to_id, relation, status, source, "
+                "declined, created_by, created_at, updated_at, version, last_seq) VALUES "
+                "(:link_id, 'project:P123', :from_id, :to_id, 'references', 'active', 'manual', "
+                "FALSE, 'u', '2026-01-01T00:00:00+00:00', "
+                "'2026-01-01T00:00:00+00:00', 1, 1)"
             ),
+            {
+                "link_id": f"L-{from_key}-{to_key}",
+                "from_id": record_id(env, from_key),
+                "to_id": record_id(env, to_key),
+            },
         )
 
 

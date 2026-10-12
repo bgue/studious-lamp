@@ -14,7 +14,7 @@ A deterministic simulated project team that plays working days against a running
 | `tl_sim.orchestrator.Simulation` | class | The loop behind the five operations, over a `Connector` |
 | `tl_sim.client.HttpSimClient` | class | `SimClient` over `ApiClient`, MCP and the simulated clock |
 | `tl_sim.actors` | package | `BaseActor`, `Recorder`, the document controller, planner and crew (as `user:sim-<role>`), the assistant (`agent:sim-assistant`, proposes `link_records` over MCP) and the approver (`user:sim-approver`, accepts or rejects in the review queue). The last two are off unless the scenario names them |
-| `tl_sim.mcp_caller.McpClientCaller` | class | Calls a tool of the suite's MCP server (a `python -m tl_mcp` process on the ledger file, or an in-memory server in tests); a refused call is `ProposalRefusedError` |
+| `tl_sim.mcp_caller.McpClientCaller` | class | Calls a tool of the suite's MCP server (a `python -m tl_mcp` process on the ledger file, started with `stdio_caller(db, token)`: the token goes in its `TL_AGENT_TOKEN`; or an in-memory server in tests); a refused call is `ProposalRefusedError` |
 | `tl_sim.scenario_loader.load_scenario(source)` | function | A scenario from YAML (`dev/seed/scenarios`) |
 | `tl_sim.testing.FakeWorld` | class | An in-memory suite for tests |
 | `tl_sim.mcp_server.build_server(env, actor=..., authorize_hook=...)` | function | The five operations as MCP tools (`sim.<tool>` hook first; `sim_create` takes a bundled scenario name, never a path) |
@@ -46,8 +46,9 @@ just test -- packages/tl-sim
 |---|---|---|
 | `TL_SIM_DIR` | `./dev/data/sim` | One directory per run: `run.json` (0600, holds dev tokens) and `ground_truth.ndjson` |
 | `TL_API_URL` | `http://127.0.0.1:8765` | The running API |
+| `TL_SIM_AGENT_TOKEN` | unset | An agent token an admin issued for the simulated assistant. Under `tl sim` in a dev setup it is not needed: `tl_cli.sim_agent` makes the agent `sim-assistant` and a short-lived token on the dev ledger. Any other setup needs it |
 | `TL_TOKENS` | `./dev/data/tokens.json` | The token file the API reads; `sim_create` adds one token per simulated actor |
-| `TL_DB` | `./dev/data/tl.db` | The ledger file the agent's MCP server opens (under `tl`, the root `--db`) |
+| `TL_DB` | `./dev/data/tl.db` | The ledger the agent's MCP server opens, a SQLite file or a `postgresql://` URL (under `tl`, the root `--db`). The child process gets it, and the agent token, in its environment, never on its command line |
 | `TL_SEED_DIR` | `dev/seed` in the repository | `scenarios/*.yaml` and `templates/*.yaml` |
 
 ## Rules specific to this package

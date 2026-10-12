@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from tl_adapters.db import DbTarget
 from tl_cli.main import app
 from typer.testing import CliRunner
 from typer.testing import Result as RunResult
@@ -13,7 +15,9 @@ runner = CliRunner()
 
 
 @pytest.fixture
-def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+def env(
+    new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> dict[str, str]:
     schema = tmp_path / "schema"
     (schema / "numbering").mkdir(parents=True)
     (schema / "numbering" / "patterns.yaml").write_text(
@@ -28,7 +32,7 @@ patterns:
         encoding="utf-8",
     )
     monkeypatch.setenv("TL_SCHEMA_DIR", str(schema))
-    values = {"TL_DB": str(tmp_path / "tl.db")}
+    values = {"TL_DB": str(new_db())}
     assert runner.invoke(app, ["init"], env=values).exit_code == 0
     return values
 

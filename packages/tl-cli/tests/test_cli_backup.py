@@ -72,3 +72,13 @@ def test_a_missing_ledger_exits_1_without_creating_it(tmp_path: Path) -> None:
 def test_to_is_required(env: dict[str, str]) -> None:
     result = runner.invoke(app, ["backup", "sqlite"], env=env)
     assert result.exit_code == 2
+
+
+def test_a_postgres_target_is_refused_and_points_to_the_postgres_tools() -> None:
+    url = "postgresql://u:hunter2@127.0.0.1:1/tl?sslmode=disable"
+    result = runner.invoke(app, ["backup", "sqlite", "--to", "snap.db"], env={"TL_DB": url})
+    assert result.exit_code == 1
+    assert isinstance(result.exception, SystemExit)  # a clean exit, not a crash
+    assert "error: tl backup sqlite takes a SQLite ledger" in result.stderr
+    assert "use pgBackRest (" in result.stderr
+    assert "hunter2" not in result.output

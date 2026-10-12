@@ -25,4 +25,5 @@ imports:
   - outbox
   - extension
   - events
+  - auth
 default_range: string

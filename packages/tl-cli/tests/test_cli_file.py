@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from tl_adapters.db import DbTarget
 from tl_cli.main import app
 from typer.testing import CliRunner
 from typer.testing import Result as RunResult
@@ -30,9 +32,9 @@ def fields(result: RunResult) -> dict[str, str]:
 
 
 @pytest.fixture
-def env(tmp_path: Path) -> dict[str, str]:
+def env(new_db: Callable[[], DbTarget], tmp_path: Path) -> dict[str, str]:
     env = {
-        "TL_DB": str(tmp_path / "tl.db"),
+        "TL_DB": str(new_db()),
         "TL_OBJECT_ROOT": str(tmp_path / "objects"),
         "TL_ENV": "dev",
         "TL_SCHEMA_DIR": str(Path(__file__).resolve().parents[3] / "schema" / "fixtures"),
@@ -181,5 +183,13 @@ def test_an_unconfigured_secret_is_an_error_not_a_crash(
 ) -> None:
     monkeypatch.delenv("TL_ENV", raising=False)
     monkeypatch.delenv("TL_OBJECT_SECRET", raising=False)
-    result = put(env | {"TL_ENV": ""}, make(tmp_path, "r.pdf", PDF), "--slot", "report")
+    # TL_ENV=test lets `--actor` stand without a sign-in; only dev has the public object secret
+    result = put(
+        env | {"TL_ENV": "test"},
+        make(tmp_path, "r.pdf", PDF),
+        "--slot",
+        "report",
+        "--actor",
+        "user:dev",
+    )
     assert result.exit_code == 1 and "TL_OBJECT_SECRET" in result.stderr

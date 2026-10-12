@@ -31,6 +31,10 @@ def test_generation_is_deterministic() -> None:
     assert openapi.render() == openapi.render()
 
 
+#: Routes that need no bearer token (`tl_api.auth.OPEN_PATHS`).
+OPEN_ROUTES = ("/health", "/auth/sign-in")
+
+
 def test_the_document_describes_a_usable_api() -> None:
     doc = openapi.build_openapi()
     assert doc["openapi"].startswith("3.1")
@@ -38,7 +42,7 @@ def test_the_document_describes_a_usable_api() -> None:
     assert len(ids) == len(set(ids)), "operation ids must be unique"
     for path, item in doc["paths"].items():
         for method, op in item.items():
-            if path != "/health":
+            if path not in OPEN_ROUTES:
                 assert op.get("security"), f"{method} {path} does not declare the bearer scheme"
             assert {"401", "404", "409", "422"} <= set(op["responses"]) or path == "/health", path
     assert "ErrorBody" in doc["components"]["schemas"]

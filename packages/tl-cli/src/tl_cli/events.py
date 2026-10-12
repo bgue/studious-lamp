@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from collections import deque
-from pathlib import Path
 from typing import Annotated
 
 import typer
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
+from tl_core.changefeed.filters import INTERNAL_STREAM_TYPES
 from tl_core.ledger import Event
 
 app = typer.Typer(help="Read the ledger.", no_args_is_help=True)
@@ -28,7 +28,7 @@ def tail(
     ] = 10,
 ) -> None:
     """Print the last N events of the project scope, oldest first."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     scope = f"project:{project}"
     newest: deque[Event] = deque(maxlen=n)
     with open_uow(db, readonly=True) as uow:
@@ -37,7 +37,7 @@ def tail(
             page = uow.ledger.read_after(seq, scope=scope, limit=_PAGE)
             if not page:
                 break
-            newest.extend(page)
+            newest.extend(e for e in page if e.stream_type not in INTERNAL_STREAM_TYPES)
             seq = page[-1].seq
     for event in newest:
         typer.echo(

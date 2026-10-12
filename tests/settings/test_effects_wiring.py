@@ -77,11 +77,11 @@ def serve_args(ledger: Path, tmp_path: Path, port: int) -> list[str]:
 
 def test_the_server_start_carries_out_restart_once_it_listens(ledger: Path, tmp_path: Path) -> None:
     from tl_api.app import create_app
-    from tl_api.backend import open_sqlite_backend
+    from tl_api.backend import open_backend
     from tl_api.settings import ApiSettings
 
     port = free_port()
-    backend = open_sqlite_backend(ledger)
+    backend = open_backend(ledger)
     settings = ApiSettings(db_path=ledger, tokens_path=tmp_path / "tokens.json", port=port)
     add_token(settings.tokens_path, "user:dev")
     app = create_app(backend, settings=settings)

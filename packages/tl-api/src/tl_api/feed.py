@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
@@ -57,6 +57,8 @@ class FeedHub:
         keepalive_s: float = 15.0,
         wait_s: float = 1.0,
         max_streams: int = MAX_STREAMS,
+        recheck_s: float = 15.0,
+        max_age_s: float = 12 * 3600.0,
     ) -> None:
         self.backend = backend
         self._registry: SubscriptionRegistry | None = None
@@ -64,6 +66,8 @@ class FeedHub:
         self._poll_interval_s = poll_interval_s
         self.poller: ChangePoller | None = None  # built in start(): it reads the ledger head
         self.keepalive_s = keepalive_s
+        self.recheck_s = recheck_s
+        self.max_age_s = max_age_s
         self.wait_s = wait_s  # how long a worker blocks on the queue before looking again
         self._executor = ThreadPoolExecutor(max_workers=max_streams, thread_name_prefix="tl-sse")
         self._max_streams = max_streams
@@ -114,14 +118,23 @@ class FeedHub:
             self._open = max(0, self._open - 1)
 
     async def stream(
-        self, flt: SubscriptionFilter, after_seq: int | None = None
+        self,
+        flt: SubscriptionFilter,
+        after_seq: int | None = None,
+        *,
+        still_valid: Callable[[], bool] | None = None,
     ) -> AsyncIterator[str]:
         """SSE text chunks for the matching events, until the consumer stops iterating.
 
         The caller reserved a slot with :meth:`try_open_stream` and releases it when the response
         ends (``SlotResponse`` in ``routes/events.py``), whether or not this generator ever ran.
+
+        ``still_valid`` is called (in a worker thread) every ``recheck_s`` seconds, events or not;
+        when it says no, or the stream is older than ``max_age_s``, the stream ends with a
+        ``closed`` event, so a signed-out, revoked or expired token does not keep a stream open.
         """
         loop = asyncio.get_running_loop()
+        opened = checked = loop.time()
         sub: QueueSubscription | None = None
         try:
             yield ": connected\n\n"
@@ -146,6 +159,15 @@ class FeedHub:
             sub = self.registry.subscribe_queue(flt, after_seq=cursor)
             idle = 0.0
             while True:
+                now = loop.time()
+                if now - opened >= self.max_age_s:
+                    yield 'event: closed\ndata: {"reason": "expired"}\n\n'
+                    return
+                if still_valid is not None and now - checked >= self.recheck_s:
+                    checked = now
+                    if not await loop.run_in_executor(self._executor, still_valid):
+                        yield 'event: closed\ndata: {"reason": "unauthorized"}\n\n'
+                        return
                 try:
                     events = await loop.run_in_executor(
                         self._executor, sub.get_many, 100, self.wait_s

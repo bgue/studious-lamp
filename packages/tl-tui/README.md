@@ -1,15 +1,18 @@
 # tl-tui (`tl_tui`)
 
-The Textual application shell, grid, record view, and forms; every screen reads and writes through `ClientInterface`, so the same screens run embedded (a SQLite file in this process) or remote (a running API server), and in both modes they show other writers' changes live (§4, §5.3, §10.1–§10.4, §10.6 sketches 1, 2, 11).
+The Textual application shell, grid, record view, and forms; every screen reads and writes through `ClientInterface`, so the same screens run embedded (a SQLite file or a Postgres database opened in this process) or remote (a running API server), and in both modes they show other writers' changes live (§4, §5.3, §10.1–§10.4, §10.6 sketches 1, 2, 11).
 
 ## Public interface
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `tl_tui.client.ClientInterface` | Protocol | The only way a screen reads or writes. Contract from P0-I2; `list_records` also takes `order_by` (additive, P0-I2 decision B7); P0-I3 added link, search, workflow, key-detection and `edit_record` methods; P0-I4 added `query_records(scope, q, ...)` and `count_records(scope, q)` (the query language, decision O3) |
-| `tl_tui.embedded.EmbeddedClient` | class | `ClientInterface` over in-process `tl_core` services; `EmbeddedClient.for_sqlite(path)` keeps one engine and bus; `.change_feed(scope)` and `.own_writes` |
+| `tl_tui.embedded.EmbeddedClient` | class | `ClientInterface` over in-process `tl_core` services; `EmbeddedClient.for_target(target)` (a SQLite path or a `postgresql://` URL; `for_sqlite` is an alias) keeps one engine and bus, so the live feed works on either database; `.change_feed(scope)` and `.own_writes` |
 | `tl_tui.remote.RemoteClient`, `RemoteFeed` | classes | `ClientInterface` over `tl_api.client.ApiClient` (`RemoteClient.connect(url, token)`): converts `RelationOut`, reports `unreachable` / `live` to `connection_listener`, 3 s call timeout, `.change_feed(scope)` is the SSE stream resumed by `seq` |
 | `tl_tui.live` | module | `ChangeFeed` / `FeedSink` protocols, `EmbeddedFeed`, `LiveUpdates` (feed thread posting `LiveEvents` / `ConnectionChanged`), `OwnWrites`, and the pure rules `touched_record_ids`, `detect_conflict`, `describe_changes` |
 | `tl_tui.errors.CLIENT_ERRORS`, `describe_error` | tuple, function | Expected failures a screen catches (now including `ApiError`, `ApiUnavailableError` = "server unreachable"), and the one-line text to show |
+| `tl_tui.sign_in` (`SignedIn`, `Authenticator`, `SignInScreen`, `SignInApp`) | module | The sign-in screen the TUI shows first (P1-I0): username, masked password, the service's refusal under the fields, Esc quits. `EmbeddedAuthenticator` (`embedded.py`) checks the ledger file's accounts with lockout and audit; `RemoteAuthenticator` (`remote.py`) signs in over `POST /auth/sign-in` and the 12-hour token lives in memory; `remote.sign_out` ends it on every exit. `main.run` signs in unless `tl tui` passes the `tl login` session or a token is given; the screen warns about plain http to a non-loopback host |
+| `ClientInterface` admin calls (`list_accounts`, `create_account`, `set_roles`, `disable_account`, `enable_account`, `reset_password`, `list_agent_tokens`, `issue_agent_token`, `revoke_agent_token`, `get_account`) | methods | Same names and signatures as `tl_api.client.AdminApi`. The embedded client refuses any actor that is not an active admin account (`ForbiddenError`) and hashes passwords before its write transaction |
+| `tl_tui.widgets.admin_screen.AdminScreen`, `account_forms`, `tl_tui.admin_text` | modal, forms, helpers | Accounts and agent tokens (`F10`, admins only): table and detail, `d` disable or enable, `r` admin role, `t` tokens, `a` add, `p` password, `i` issue (shown once, `TokenShown`), `x` revoke. The service decides every rule; text helpers are pure and carry the `✓ ! ✗ ■` symbols |
 | `tl_tui.messages` | module | Messages widgets post and the app routes (`OpenRecord`, `RecordHighlighted`, `SelectionChanged`, `RecordChanged`, `CloseRecord`, `StepRecord`, `StatusMessage`, `NavSelected`) |
 | `tl_tui.paths.pset_value`, `relative_key` | functions | Layer-aware pset path lookup and `SetPsetValues` key derivation |
 | `tl_tui.text` | module | Display helpers: `format_value`, `short_hash`, `timestamp`, `conformance_mark`, `unit_label` |
@@ -43,7 +46,7 @@ The Textual application shell, grid, record view, and forms; every screen reads 
 | `tl_tui.main.make_app`, `run`, `main` | functions | `tl-tui` / `python -m tl_tui` / `tl tui`: embedded by default, remote with `--remote URL` and a token |
 
 ## Depends on / used by
-- Depends on: `textual`, `tl_core` (services, query language, change feed), `tl_schema` (form metadata models), `tl_adapters` (only `EmbeddedClient.for_sqlite`), `tl_api` and `httpx2` (only `remote.py`).
+- Depends on: `textual`, `tl_core` (services, query language, change feed), `tl_schema` (form metadata models), `tl_adapters` (only `tl_adapters.backend` / `tl_adapters.db`, in `embedded.py` and `main.py`), `tl_api` and `httpx2` (only `remote.py`).
 - Used by: `just tui`, `tl tui`, `dev/demos/P0-I2.sh`, `P0-I3.sh`, `P0-I4.sh`. Runbook: `docs/runbooks/tui-dev.md`.
 
 ## Commands
@@ -58,7 +61,7 @@ uv run pytest packages/tl-tui/tests/test_grid.py -q
 ## Configuration
 | Setting or env var | Default | Notes |
 |---|---|---|
-| `TL_DB` | `./dev/data/tl.db` | SQLite ledger file for embedded mode |
+| `TL_DB` | `./dev/data/tl.db` | The ledger for embedded mode: a SQLite file or a `postgresql://` URL (prefer the variable for a URL; the sign-in screen shows it without the password) |
 | `TL_PROJECT` | `P123` | Project whose records the grid shows (scope `project:<id>`) |
 | `TL_TYPE` / `--type` | `core.Record` | Record type the grid lists; an extension type (`co.acme.LiftPlan`) gets the columns of its `form.yaml` |
 | `TL_OBJECT_STORE`, `TL_OBJECT_ROOT`, `TL_OBJECT_SECRET` | see `tl_adapters` | Object store for record bodies in embedded mode |
@@ -70,4 +73,4 @@ uv run pytest packages/tl-tui/tests/test_grid.py -q
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1 (skeleton). First interface: P0-I2 workstream B (shell, grid, record view, forms, key map). P0-I3 added the link, workflow, trace and tray screens, the palette, and `ClientInterface` methods for links, search, workflow, key detection and `edit_record` (atomic form save). P0-I4 workstream D added the remote client, live updates in both modes, the filter bar and the conflict banner (plan: `docs/tickets/P0-I4/README-D.md`). P0-I6 workstream B: the six feed methods of `RemoteClient` now go to the API (`GET /feed`, the feed command routes), and an open feed pane reads its first page again when any event of its project arrives (`TlApp._refresh_feed_pane`). Review-queue screens and `RemoteClient` proposal methods are not built (`ClientInterface` has no proposal methods). P0-I8 workstream A added the settings calls and the about:config screens (`F9`); not built in the screen: diff against another project, Enter toggling a boolean, origin as scope ids, lock on `L` (it is `k`), scheduled changes (`applies_at`) and company bounds (use `tl config`). Known limit: the grid load, record view and filter calls still run on the UI thread (3 s timeout in remote mode); moving them to workers is a P0-I8 hardening follow-up. Extension type grid and forms added in P0-I8 workstream B (`docs/tickets/P0-I8/README-B.md`; runbook `docs/runbooks/extension-types.md`).
+Sign-in, the accounts screen and the admin client calls added in P1-I0 workstream A (`docs/tickets/P1-I0/README-A.md`; `docs/runbooks/accounts-and-access.md`). Introduced in P0-I1 (skeleton). First interface: P0-I2 workstream B (shell, grid, record view, forms, key map). P0-I3 added the link, workflow, trace and tray screens, the palette, and `ClientInterface` methods for links, search, workflow, key detection and `edit_record` (atomic form save). P0-I4 workstream D added the remote client, live updates in both modes, the filter bar and the conflict banner (plan: `docs/tickets/P0-I4/README-D.md`). P0-I6 workstream B: the six feed methods of `RemoteClient` now go to the API (`GET /feed`, the feed command routes), and an open feed pane reads its first page again when any event of its project arrives (`TlApp._refresh_feed_pane`). Review-queue screens and `RemoteClient` proposal methods are not built (`ClientInterface` has no proposal methods). P0-I8 workstream A added the settings calls and the about:config screens (`F9`); not built in the screen: diff against another project, Enter toggling a boolean, origin as scope ids, lock on `L` (it is `k`), scheduled changes (`applies_at`) and company bounds (use `tl config`). Known limit: the grid load, record view and filter calls still run on the UI thread (3 s timeout in remote mode); moving them to workers is a P0-I8 hardening follow-up. Extension type grid and forms added in P0-I8 workstream B (`docs/tickets/P0-I8/README-B.md`; runbook `docs/runbooks/extension-types.md`).

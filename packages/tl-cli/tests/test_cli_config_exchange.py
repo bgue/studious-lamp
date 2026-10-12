@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
 import yaml
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_cli.config_exchange import diff_line
 from tl_cli.main import app
 from tl_core import settings
@@ -21,10 +21,12 @@ runner = CliRunner()
 
 
 @pytest.fixture
-def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, str]]:
+def env(
+    new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[dict[str, str]]:
     monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
     monkeypatch.delenv("TL_SETTINGS_PLATFORM_FILE", raising=False)
-    values = {"TL_DB": str(tmp_path / "tl.db")}
+    values = {"TL_DB": str(new_db())}
     assert runner.invoke(app, ["init"], env=values).exit_code == 0
     yield values
 
@@ -49,7 +51,7 @@ def refused(env: dict[str, str], *args: str) -> str:
 
 def put(env: dict[str, str], key: str, layer: str, value: object, **kw: object) -> None:
     """Set a key with the service (this file does not depend on the other `tl config` commands)."""
-    with open_uow(Path(env["TL_DB"])) as uow:
+    with open_uow(env["TL_DB"]) as uow:
         settings.set_setting(
             uow,
             key=key,
@@ -62,19 +64,19 @@ def put(env: dict[str, str], key: str, layer: str, value: object, **kw: object) 
 
 
 def lock(env: dict[str, str], key: str) -> None:
-    with open_uow(Path(env["TL_DB"])) as uow:
+    with open_uow(env["TL_DB"]) as uow:
         settings.lock_setting(
             uow, key=key, locked=True, bounds=None, actor="user:dev", source="test", reason="policy"
         )
 
 
 def value(env: dict[str, str], key: str, project: str | None = None) -> object:
-    with open_uow(Path(env["TL_DB"]), readonly=True) as uow:
+    with open_uow(env["TL_DB"], readonly=True) as uow:
         return settings.value_of(uow.conn(), key, project=project)
 
 
 def changes(env: dict[str, str], key: str) -> int:
-    with open_uow(Path(env["TL_DB"]), readonly=True) as uow:
+    with open_uow(env["TL_DB"], readonly=True) as uow:
         return len(settings.history(uow.conn(), key))
 
 
@@ -202,7 +204,7 @@ def test_import_takes_one_reason_for_the_keys_that_need_it(
     assert "say why" in refused(env, "import", str(path), "--company")
     out = ok(env, "import", str(path), "--company", "--reason", "template v2")
     assert out == "imported 1 keys into company\n"
-    with open_uow(Path(env["TL_DB"]), readonly=True) as uow:
+    with open_uow(env["TL_DB"], readonly=True) as uow:
         (only,) = settings.history(uow.conn(), "webhooks.retry.max_hours")
     assert only.reason == "template v2"
     risky = write(
@@ -238,7 +240,7 @@ def test_locks_are_imported_into_the_company_only(env: dict[str, str], tmp_path:
     assert ok(env, "import", str(path), "--company", "--reason", "policy") == (
         "imported 1 keys into company\n"
     )
-    with open_uow(Path(env["TL_DB"])) as uow, pytest.raises(SettingLockedError):
+    with open_uow(env["TL_DB"]) as uow, pytest.raises(SettingLockedError):
         settings.set_setting(
             uow,
             key="feed.reactions.enabled",

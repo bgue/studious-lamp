@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_cli.main import app
 from tl_core import settings
 from tl_core.services import proposals
@@ -18,9 +18,11 @@ AGENT = "agent:triage"
 
 
 @pytest.fixture
-def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, str]]:
+def env(
+    new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[dict[str, str]]:
     monkeypatch.delenv("TL_AGENT_DAILY_PROPOSALS", raising=False)
-    values = {"TL_DB": str(tmp_path / "tl.db")}
+    values = {"TL_DB": str(new_db())}
     assert runner.invoke(app, ["init"], env=values).exit_code == 0
     yield values
 
@@ -37,7 +39,7 @@ def propose(env: dict[str, str]) -> str:
     )
 
     def factory(readonly: bool = False):  # type: ignore[no-untyped-def]
-        return open_uow(Path(env["TL_DB"]), readonly=readonly)
+        return open_uow(env["TL_DB"], readonly=readonly)
 
     return proposals.submit(
         factory, tool="propose_setting_change", agent=AGENT, command=command, summary="Allow hub"
@@ -52,7 +54,7 @@ def test_a_dangerous_proposal_needs_the_flag_and_stays_pending(env: dict[str, st
     assert pid in pending.stdout  # still in the queue
     done = runner.invoke(app, ["proposal", "accept", pid, "--accept-risk"], env=env)
     assert done.exit_code == 0 and done.stdout.startswith(f"accepted {pid}")
-    with open_uow(Path(env["TL_DB"]), readonly=True) as uow:
+    with open_uow(env["TL_DB"], readonly=True) as uow:
         assert settings.value_of(uow.conn(), "webhooks.egress.allowlist") == ["hub.example.com"]
 
 
@@ -82,7 +84,7 @@ def test_a_user_layer_proposal_names_whose_preference_it_changes(env: dict[str, 
     )
 
     def factory(readonly: bool = False):  # type: ignore[no-untyped-def]
-        return open_uow(Path(env["TL_DB"]), readonly=readonly)
+        return open_uow(env["TL_DB"], readonly=readonly)
 
     pid = proposals.submit(
         factory, tool="propose_setting_change", agent=AGENT, command=command, summary="vim for bob"

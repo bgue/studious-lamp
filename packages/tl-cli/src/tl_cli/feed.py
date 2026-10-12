@@ -9,12 +9,11 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Annotated, Literal, NoReturn, cast
 
 import typer
 from pydantic import ValidationError
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_core.feed.types import FeedItem, Importance, Reaction
 from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import ServiceError
@@ -103,7 +102,7 @@ def post(
     (``@text (kind)`` for a mention); then, when the result holds more events than ``Feed.Posted``,
     ``suggested N link`` or ``suggested N links``.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     if importance not in ("low", "normal", "high"):
         _fail(f"--importance must be low, normal or high, not {importance!r}")
     level = cast(Importance, importance)
@@ -157,7 +156,7 @@ def ls(
     include_linked=linked, tag=tag, item_type="post" for --posts / "card" for --events / None,
     limit=n)``. Print ``item_line(item, page)`` for each item. Nothing is printed for an empty feed.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     scope = f"project:{project}"
     if posts and events:
         _fail("--posts and --events exclude each other")
@@ -198,7 +197,7 @@ def retract(
     scope=f"project:{project}", post_id=..., reason=...))`` inside ``_service_errors``. Print
     ``retracted <post id>``.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     with _service_errors(), open_uow(db) as uow:
         handle_retract_post(
             uow,
@@ -229,7 +228,7 @@ def react(
     source="cli", scope=..., post_id=..., reaction=..., on=not off))`` inside ``_service_errors``.
     Print ``reacted <post id> <reaction>``, or ``cleared <post id> <reaction>`` with ``--off``.
     """
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     if reaction not in ("ack", "+1", "resolved"):
         _fail(f"--reaction must be ack, +1 or resolved, not {reaction!r}")
     with _service_errors(), open_uow(db) as uow:

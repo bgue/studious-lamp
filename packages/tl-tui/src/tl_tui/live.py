@@ -4,7 +4,9 @@ A ``ChangeFeed`` blocks in ``follow(sink, stop)`` on a background thread and han
 events to a ``FeedSink`` in ``seq`` order, each event once (brief 5.3, 10.2). Two feeds exist:
 
 * ``EmbeddedFeed`` (here): the in-process bus for this process's own writes plus a ``ChangePoller``
-  for writes by other processes on the same SQLite file, joined by one ``SubscriptionRegistry``.
+  for writes by other processes on the same ledger (a SQLite file or a Postgres database), joined
+  by one ``SubscriptionRegistry``. It takes any ``Ledger`` and ``Bus``; ``EmbeddedClient`` hands it
+  those of its ``tl_adapters.backend`` backend.
 * ``RemoteFeed`` (``tl_tui.remote``): the API's SSE stream, resumed by ``seq`` after a drop.
 
 ``LiveUpdates`` runs a feed on a daemon thread and posts ``LiveEvents`` and ``ConnectionChanged``
@@ -189,7 +191,7 @@ def detect_conflict(record_id: str, opened_version: int, events: Iterable[Event]
 
 
 class EmbeddedFeed:
-    """Changes of a SQLite ledger this process has open: own writes at once, others' by polling."""
+    """Changes of a ledger this process has open: own writes at once, others' by polling."""
 
     def __init__(
         self,

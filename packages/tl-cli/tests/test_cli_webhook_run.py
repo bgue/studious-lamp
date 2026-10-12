@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import sqlite3
-from collections.abc import Iterator
-from pathlib import Path
+from collections.abc import Callable, Iterator
 
 import pytest
+from sqlalchemy import text
+from tl_adapters.db import DbTarget, open_uow
 from tl_cli.main import app
 from tl_core.webhooks.receiver import DevReceiver
 from typer.testing import CliRunner
@@ -34,8 +34,8 @@ def fields(result: RunResult) -> dict[str, str]:
 
 
 @pytest.fixture
-def env(tmp_path: Path) -> dict[str, str]:
-    env = {"TL_DB": str(tmp_path / "tl.db"), "TL_ENV": "dev", "TL_WEBHOOK_ALLOWLIST": ""}
+def env(new_db: Callable[[], DbTarget]) -> dict[str, str]:
+    env = {"TL_DB": str(new_db()), "TL_ENV": "dev", "TL_WEBHOOK_ALLOWLIST": ""}
     ok(run(env, "init"))
     return env
 
@@ -80,5 +80,6 @@ def test_run_once_without_an_allow_list_dead_letters_a_loopback_target(
     assert receiver.messages() == [] and receiver.rejected() == []
     row = ok(run(env, "webhook", "dlq", "ls")).stdout.rstrip("\n").split("\t")
     assert row[5] == "" and row[6] == "egress_denied"  # no HTTP status: an empty cell, not "None"
-    with sqlite3.connect(env["TL_DB"]) as conn:
-        assert conn.execute("SELECT status FROM wh_delivery").fetchall() == [("dead",)]
+    with open_uow(env["TL_DB"], readonly=True) as uow:
+        found = uow.conn().execute(text("SELECT status FROM wh_delivery")).fetchall()
+    assert [tuple(row) for row in found] == [("dead",)]

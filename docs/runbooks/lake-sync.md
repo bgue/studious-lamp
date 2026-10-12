@@ -14,7 +14,7 @@ The lake is an analytics copy, never a source of truth, and never a backup. It c
 - Trigger: a crash during a sync, or a ledger restore has finished.
 
 ## Before you start
-- Access needed: read access to the ledger file (`TL_DB`, default `./dev/data/tl.db`), and read and write access to the lake directory (`TL_LAKE_DIR`, default `./dev/data/lake`, git-ignored).
+- Access needed: read access to the ledger (`TL_DB`: the SQLite file, default `./dev/data/tl.db`, or a `postgresql://` URL; a sync reads one consistent snapshot of either), and read and write access to the lake directory (`TL_LAKE_DIR`, default `./dev/data/lake`, git-ignored).
 - The lake directory holds `catalog.ducklake` (DuckDB catalog), `data/` (Parquet), `lake_query.log.jsonl` (one JSON line per `lake_query` call), `.lake.lock` and `tmp/`.
 - Safe to run during business hours: `tl lake sync` yes (it is incremental and holds the lake lock only for the sync transaction; queries wait for the lock and then see the new snapshot). `tl lake rebuild --yes` no (it wipes and reloads, queries are blocked or return nothing until it finishes, and on a large ledger it runs for minutes): run it out of hours, or after telling users.
 
@@ -94,3 +94,12 @@ The lake is an analytics copy, never a source of truth, and never a backup. It c
 - `docs/runbooks/api-and-mcp-dev.md`, section "Give an agent `lake_query`": start the MCP server with a lake and let an agent call the `lake_query` tool.
 - `docs/runbooks/rebuild-projections.md` rebuilds the ledger's current-state tables (`cur_*`). It is a different rebuild and does not rebuild the lake.
 - `docs/runbooks/README.md` indexes the restore runbooks, which cover restoring the ledger.
+- `docs/runbooks/run-on-postgres.md` (the same commands on a Postgres ledger).
+
+## After the accounts upgrade (P1-I0)
+Account events (usernames and roles) are redacted in the lake from P1-I0 on: one row per event with a constant stream and version, a placeholder id and hash, and the day instead of the moment (ADR-0009 section 1). A lake that was synced **before** that upgrade still holds the richer rows from when accounts did not exist or were synced unredacted, and lake time travel (an older snapshot) shows them until the lake is rebuilt. There is no migration. If the lake ever held account events, rebuild it once, out of hours (see the safety note above):
+```
+uv run tl lake rebuild --yes
+```
+Expected: the old catalog and Parquet files are deleted and everything is loaded again, with the account rows redacted. A lake that never saw an `Account.*` event needs nothing.
+

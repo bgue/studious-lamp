@@ -91,6 +91,7 @@ class TlApp(App[None]):
         Binding("F", "feed", "Feed", show=False),
         Binding("p", "post", "Post", show=False),
         Binding("f9", "settings", "Settings", show=False),
+        Binding("f10", "admin", "Accounts", show=False),
         Binding("alt+left", "back", "Back", show=False),
         Binding("alt+right", "forward", "Forward", show=False),
     ]
@@ -105,6 +106,7 @@ class TlApp(App[None]):
         actor: str = "user:dev",
         mode: str = "embedded",
         roles: tuple[str, ...] = (),
+        is_admin: bool = False,
         feed: ChangeFeed | None = None,
     ) -> None:
         super().__init__()
@@ -116,6 +118,7 @@ class TlApp(App[None]):
         self.mode = mode
         # Roles the user claims for workflow guards: a stub until auth exists (brief 8).
         self.roles = roles
+        self.is_admin = is_admin  # the person signed in holds the admin role (F10 accounts screen)
         self.tray = ReferenceTray()
         self.history = NavHistory()
         self._open_key: str | None = None
@@ -529,6 +532,17 @@ class TlApp(App[None]):
         from tl_tui.widgets.settings_screen import SettingsScreen
 
         self.push_screen(SettingsScreen(self.client, self.scope, self.actor))
+
+    def action_admin(self) -> None:
+        """Accounts and agent tokens: for admins only (the service refuses anyone else anyway)."""
+        if self._modal_open():
+            return
+        if not self.is_admin:
+            self._say("Accounts need the admin role", "warning")
+            return
+        from tl_tui.widgets.admin_screen import AdminScreen
+
+        self.push_screen(AdminScreen(self.client, self.actor))
 
     def action_help(self) -> None:
         # The app-level `F1` and `?` bindings stay live under a modal; help must not open over

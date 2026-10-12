@@ -5,13 +5,14 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.responses import StreamingResponse
 from starlette.types import Receive, Send
 from starlette.types import Scope as AsgiScope
+from tl_core.auth.types import Principal
 from tl_core.changefeed import SubscriptionFilter, fetch_changes
 
-from tl_api.auth import guard
+from tl_api.auth import bearer_token, current_principal, guard
 from tl_api.context import ApiContext, get_ctx
 from tl_api.errors import ApiError
 from tl_api.models import EventPage
@@ -49,12 +50,17 @@ RecordIds = Annotated[
 
 
 def build_filter(
-    scope: str | None, types: list[str] | None, record_ids: list[str] | None
+    scope: str | None,
+    types: list[str] | None,
+    record_ids: list[str] | None,
+    principal: Principal,
 ) -> SubscriptionFilter:
+    """The caller's filter. Account events (usernames, roles) are for admins only (ADR-0009)."""
     return SubscriptionFilter.of(
         scope=scope or None,
         event_types=types or None,
         record_ids=record_ids or None,
+        hide_stream_types=() if principal.is_admin and principal.kind != "agent" else None,
     )
 
 
@@ -62,6 +68,7 @@ def build_filter(
 def list_events(
     ctx: Ctx,
     actor: Annotated[str, Depends(guard("events.read"))],
+    me: Annotated[Principal, Depends(current_principal)],
     after: Annotated[int, Query(ge=0, description="Return events with a greater `seq`.")] = 0,
     scope: Scope = None,
     types: Types = None,
@@ -72,7 +79,7 @@ def list_events(
     page = fetch_changes(
         ctx.backend.ledger,
         after_seq=after,
-        flt=build_filter(scope, types, record_id),
+        flt=build_filter(scope, types, record_id, me),
         limit=limit,
     )
     return EventPage(events=page.events, next_seq=page.next_seq, has_more=page.has_more)
@@ -88,8 +95,10 @@ def list_events(
     },
 )
 async def stream_events(
+    request: Request,
     ctx: Ctx,
     actor: Annotated[str, Depends(guard("events.stream"))],
+    me: Annotated[Principal, Depends(current_principal)],
     last_event_id: Annotated[
         str | None,
         Header(alias="Last-Event-ID", description="Resume after this `seq` (set by reconnects)."),
@@ -114,11 +123,16 @@ async def stream_events(
             ) from exc
         if cursor < 0:
             raise ApiError(422, "invalid_argument", "Last-Event-ID must not be negative")
-    flt = build_filter(scope, types, record_id)
+    flt = build_filter(scope, types, record_id, me)
+    token = bearer_token(request.scope["headers"])
+
+    def still_valid() -> bool:
+        return token is not None and ctx.resolver.resolve(token) is not None
+
     if not ctx.feed.try_open_stream():
         raise ApiError(503, "unavailable", "too many open event streams; try again later")
     return SlotResponse(
-        ctx.feed.stream(flt, cursor),
+        ctx.feed.stream(flt, cursor, still_valid=still_valid),
         ctx.feed.release_stream,
         media_type="text/event-stream",
         headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},

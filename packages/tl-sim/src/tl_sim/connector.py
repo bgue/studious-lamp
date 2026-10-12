@@ -6,6 +6,11 @@ for people, so they are ``user:sim-<role>``: the API refuses record-changing com
 ``agent:*`` token (agents propose, people accept). The one simulated agent is
 ``agent:sim-assistant``. A token already issued for a run is kept in the run state and reused when
 the run is reopened.
+
+The agent's MCP server needs a real agent token (``TL_AGENT_TOKEN``, ADR-0009), which only an
+admin can issue. The connector is given ``agent_token``, a function that returns one; ``tl sim``
+under ``tl`` provisions the account and the token on the dev ledger, and ``TL_SIM_AGENT_TOKEN``
+supplies one made by hand.
 """
 
 from __future__ import annotations
@@ -23,6 +28,7 @@ from tl_sim.orchestrator import ASSISTANT, ORCHESTRATOR
 from tl_sim.reader import HttpReader, SimReader
 from tl_sim.scenario import Scenario
 from tl_sim.state import RunError
+from tl_sim.target import LedgerTarget
 from tl_sim.types import SimClient
 
 
@@ -33,27 +39,39 @@ class HttpConnector:
         tokens_path: Path,
         *,
         run_id: str,
-        db_path: Path | None = None,
+        db_path: LedgerTarget | None = None,
         mcp: Callable[[str], McpCaller | None] | None = None,
+        agent_token: Callable[[], str] | None = None,
     ) -> None:
         self.base_url = base_url
         self.tokens_path = tokens_path
         self.run_id = run_id
         self.db_path = db_path
         self._mcp = mcp
+        self._agent_token = agent_token
 
     @property
     def scope(self) -> str:
         return f"project:sim-{self.run_id}"
 
     def check(self, scenario: Scenario) -> None:
-        """The agent's MCP server opens the ledger file; without it nothing could be proposed."""
+        """The agent's MCP server opens the ledger; without it nothing could be proposed.
+
+        A ledger file must exist. A database server (a URL) is not opened here: the MCP server
+        says so itself when it cannot reach it.
+        """
         if scenario.actors.assistant is None or self._mcp is not None:
             return
-        if self.db_path is None or not self.db_path.is_file():
+        if self.db_path is None or (isinstance(self.db_path, Path) and not self.db_path.is_file()):
             raise RunError(
                 f"the scenario has an assistant (an agent that proposes over MCP) but there is "
                 f"no ledger file at {self.db_path}; run `tl init`, or set TL_DB or `tl --db`"
+            )
+        if self._agent_token is None:
+            raise RunError(
+                "the scenario has an assistant (an agent that proposes over MCP) but no agent "
+                "token: set TL_SIM_AGENT_TOKEN to one (`tl admin token issue <agent> --label "
+                "sim`), or run under `tl sim` in a dev setup, which makes the agent itself"
             )
 
     def provision(self, identities: Sequence[str]) -> dict[str, str]:
@@ -77,8 +95,8 @@ class HttpConnector:
         """The agent reaches the MCP server (a process on the ledger file); people do not."""
         if self._mcp is not None:
             return self._mcp(identity)
-        if identity == ASSISTANT and self.db_path is not None:
-            return stdio_caller(identity, self.db_path)
+        if identity == ASSISTANT and self.db_path is not None and self._agent_token is not None:
+            return stdio_caller(self.db_path, self._agent_token())
         return None
 
     def reader(self, tokens: dict[str, str]) -> SimReader:

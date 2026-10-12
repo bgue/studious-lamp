@@ -28,3 +28,19 @@ def harness(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Harness
         yield built
     finally:
         built.close()
+
+
+@pytest.fixture
+def parity_harness(
+    db: str | Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[Harness]:
+    """Like ``harness`` but over the parity fixture ``db``: SQLite, and Postgres under --adapters.
+
+    A test file that should run on both adapters re-exports it as ``harness`` (the admin tests do).
+    """
+    monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
+    built = Harness.build(tmp_path, target=db)
+    try:
+        yield built
+    finally:
+        built.close()

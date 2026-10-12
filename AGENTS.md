@@ -23,7 +23,7 @@ tickets in `docs/tickets/`, reports in `docs/reports/`, decisions in `docs/adr/`
 2. **Generated code is never edited by hand.** Change the LinkML source or the generator, run `just gen`, commit both.
 3. **Events are immutable.** No UPDATE or DELETE on event tables, no rewriting history, no fixing an event in place. Corrections are new events (§5.2).
 4. **Current-state DDL is generated.** No hand-written `cur_*`, `hist_*`, or `v_*` objects (§5.4).
-5. **Dialect-neutral core.** Runtime SQLite- or Postgres-specific SQL lives only under `packages/tl-adapters/`.
+5. **Dialect-neutral core.** Runtime SQLite- or Postgres-specific SQL lives only under `packages/tl-adapters/`. Entry points (API, TUI, MCP, simulator, `tl` commands) take the database as a `DbTarget` (a SQLite path or a `postgresql://` URL, read with `tl_adapters.db.as_target`) and open it through `tl_adapters.db` or `tl_adapters.backend`; they never import `tl_adapters.sqlite` (`tests/tools/test_no_sqlite_imports.py`) and never print a URL, only `display_target(...)`.
    Codegen is the one exception: `tl_schema.generators` emits per-dialect DDL, which adapters execute.
 6. **Run before done.** Run every command the ticket lists and paste the output into the report. Unrun commands mean the ticket is not done.
 7. **Deviations first.** If anything changed outside the ticket's scope, say so in the first line of the report.
@@ -45,6 +45,7 @@ tickets in `docs/tickets/`, reports in `docs/reports/`, decisions in `docs/adr/`
 - Never merge your own work. Implementer PRs are merged by the supervisor after a reviewer verdict; supervisor-authored core engines are merged after orchestrator or human review.
 - Never touch `schema/**` from a ticket that is not labelled `schema` and does not name a human approver.
 - Never write auth, permission, migration, numbering-allocation, or sync/merge code from a Haiku ticket. Those are Sonnet-tier with a human gate (§25.5).
+- Never log, print, echo, store in an event or put in an error text a password, a password hash or a session or agent token, and never accept a password as a command-line argument (ADR-0009). Hash before a write transaction. Authorization is closed for agents: a new route or MCP tool is denied until someone allows it.
 - Never put business logic in the TUI. Screens call the same command and query contracts the API uses (§16, "Web readiness").
 
 ## Commands
@@ -74,4 +75,5 @@ Details: `docs/build-spec/03-repo-and-toolchain.md`.
 | Event catalog (generated: schemas, samples, AsyncAPI, page) | `packages/tl-schema/src/tl_schema/generated/catalog/`, `generated/docs/event-catalog.md` |
 | Dev MCP server for coding agents (`python -m tl_mcp.dev`, dev data only; runbook `docs/runbooks/dev-mcp.md`) | `packages/tl-mcp/src/tl_mcp/dev/` |
 | Scaffolded modules (`tl new module`, `record-type`, `projector`) | `packages/tl-modules/<m>/`, `schema/modules/<m>/`, `docs/modules/<m>/` |
+| Accounts, sessions, agent tokens, roles (`tl_core.auth`; ADR-0009; runbook `docs/runbooks/accounts-and-access.md`) | `packages/tl-core/src/tl_core/auth/`, `schema/core/auth.yaml`; CLI `packages/tl-cli/src/tl_cli/{session,login,admin*}.py`; API `routes/auth.py`, `routes/admin.py`; TUI `sign_in.py`, `widgets/admin_screen.py` |
 | Docs and memory rules | `.claude/skills/throughline-docs/SKILL.md` |

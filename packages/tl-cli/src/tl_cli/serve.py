@@ -1,7 +1,8 @@
 """`tl serve`: the REST API and event stream on the dev ledger (P0-I4; ADR-0005).
 
 A thin wrapper over ``tl_api.main.main`` (what ``just serve`` runs): it passes the ledger chosen by
-the root ``--db`` option and the options below, and exits with the server's exit code.
+the root ``--db`` option (a SQLite file or a ``postgresql://`` URL) and the options below, and
+exits with the server's exit code. The call is in process, so a URL is not on any command line.
 """
 
 from __future__ import annotations

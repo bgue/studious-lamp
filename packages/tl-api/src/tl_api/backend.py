@@ -1,16 +1,16 @@
 """The storage seam of the API (O5): a unit-of-work factory plus the ledger and bus behind it.
 
 Routes never import an adapter. They call ``ctx.backend(readonly)`` and get an entered
-``UnitOfWork``. Phase 0 opens SQLite; the Postgres adapter (P0-I5) provides an object with the same
-shape and ``create_app`` takes it unchanged.
+``UnitOfWork``. ``open_backend`` builds the backend from a SQLite path or a ``postgresql://`` URL
+(P1-I0 workstream B); ``create_app`` takes either unchanged.
 """
 
 from __future__ import annotations
 
 from contextlib import AbstractContextManager
-from pathlib import Path
 from typing import Protocol
 
+from tl_adapters.db import DbTarget
 from tl_core.bus import Bus
 from tl_core.ledger import Ledger
 from tl_core.uow import UnitOfWork
@@ -34,8 +34,12 @@ class Backend(Protocol):
     def close(self) -> None: ...
 
 
-def open_sqlite_backend(path: str | Path) -> Backend:
-    """The Phase 0 backend: one SQLite file, one engine, one in-process bus."""
-    from tl_adapters.sqlite.factory import SqliteUowFactory
+def open_backend(target: DbTarget) -> Backend:
+    """The backend for ``target``: a SQLite file path or a ``postgresql://`` URL.
 
-    return SqliteUowFactory(path)
+    One engine and one in-process bus for the life of the process, whichever database it is. The
+    caller closes it. See :func:`tl_adapters.backend.open_backend`.
+    """
+    from tl_adapters.backend import open_backend as open_database_backend
+
+    return open_database_backend(target)

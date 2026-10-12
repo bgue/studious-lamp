@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_cli.main import app
 from tl_core.services import proposals
 from tl_core.services.commands import CreateRecord, UpdateRecord
@@ -25,10 +25,12 @@ KEY = "P123-REC-0042"
 
 
 @pytest.fixture
-def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, str]]:
+def env(
+    new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[dict[str, str]]:
     monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
     monkeypatch.delenv("TL_AGENT_DAILY_PROPOSALS", raising=False)
-    values = {"TL_DB": str(tmp_path / "tl.db")}
+    values = {"TL_DB": str(new_db())}
     assert runner.invoke(app, ["init"], env=values).exit_code == 0
     yield values
 
@@ -39,7 +41,7 @@ def run(env: dict[str, str], *args: str) -> RunResult:
 
 def factory(env: dict[str, str]) -> Any:
     def open_one(readonly: bool = False) -> Any:
-        return open_uow(Path(env["TL_DB"]), readonly=readonly)
+        return open_uow(env["TL_DB"], readonly=readonly)
 
     return open_one
 
@@ -67,7 +69,7 @@ def make_record(env: dict[str, str], title: str = "Spool") -> str:
 
 
 def record_id(env: dict[str, str], key: str) -> str:
-    with open_uow(Path(env["TL_DB"]), readonly=True) as uow:
+    with open_uow(env["TL_DB"], readonly=True) as uow:
         row = get_record(uow, SCOPE, key)
     assert row is not None
     return str(row["id"])
@@ -164,7 +166,7 @@ def test_accept_runs_the_command_as_the_person_with_the_agent_as_source(
     assert lines[0] == f"accepted {pid}" and lines[1].startswith("result ")
     new_id = lines[1].split()[1]
     assert new_id == record_id(env, KEY)
-    with open_uow(Path(env["TL_DB"]), readonly=True) as uow:
+    with open_uow(env["TL_DB"], readonly=True) as uow:
         (made,) = uow.ledger.read_stream(new_id)
         decided = uow.ledger.read_stream(pid)[1]
     assert (made.actor, made.source) == ("user:alice", "mcp:triage")
@@ -179,7 +181,7 @@ def test_accept_runs_the_command_as_the_person_with_the_agent_as_source(
 def test_the_default_actor_is_user_dev(env: dict[str, str]) -> None:
     pid = propose_create(env)
     assert run(env, "proposal", "accept", pid).exit_code == 0
-    with open_uow(Path(env["TL_DB"]), readonly=True) as uow:
+    with open_uow(env["TL_DB"], readonly=True) as uow:
         assert uow.ledger.read_stream(pid)[1].actor == "user:dev"
 
 
@@ -201,7 +203,12 @@ def test_an_agent_cannot_decide_from_the_command_line(env: dict[str, str]) -> No
         ["proposal", "reject", pid, "--reason", "mine", "--actor", AGENT],
     ):
         result = run(env, *args)
-        assert result.exit_code == 1 and "only a person" in result.stderr, args
+        assert result.exit_code == 1, args
+        # on a ledger file the command refuses an agent; a server never lets anyone but the
+        # signed-in person act, so its session check answers first
+        assert "only a person" in result.stderr or "is not the signed-in user" in result.stderr, (
+            args
+        )
     assert f"{pid}  pending" in run(env, "proposal", "ls", "--project", P).stdout
 
 
@@ -223,7 +230,7 @@ def test_a_proposal_the_record_has_outgrown_fails_loudly_and_changes_nothing(
     view = proposals.submit(
         factory(env), tool="update_psets", agent=AGENT, command=command, summary="Set maker"
     )
-    with open_uow(Path(env["TL_DB"])) as uow:  # a person edits the record first
+    with open_uow(env["TL_DB"]) as uow:  # a person edits the record first
         handle_update_record(
             uow,
             UpdateRecord(
@@ -241,7 +248,7 @@ def test_a_proposal_the_record_has_outgrown_fails_loudly_and_changes_nothing(
     assert result.stderr.startswith("error: ") and "ConcurrencyError" in result.stderr
     shown = run(env, "proposal", "show", view.proposal_id).stdout.splitlines()
     assert "status failed" in shown and "decided by user:alice" in shown
-    with open_uow(Path(env["TL_DB"]), readonly=True) as uow:
+    with open_uow(env["TL_DB"], readonly=True) as uow:
         types = [e.event_type for e in uow.ledger.read_stream(rid)]
     assert "Pset.ValuesSet" not in types
 
@@ -298,11 +305,11 @@ def test_reject_records_the_reason_and_never_runs_the_command(env: dict[str, str
     result = run(env, "proposal", "reject", pid, "--reason", "Duplicate of NCR-0040")
     assert result.exit_code == 0 and result.exception is None, result.output
     assert result.stdout.splitlines() == [f"rejected {pid}"]
-    with open_uow(Path(env["TL_DB"]), readonly=True) as uow:
+    with open_uow(env["TL_DB"], readonly=True) as uow:
         event = uow.ledger.read_stream(pid)[1]
     assert (event.event_type, event.actor, event.source) == ("Proposal.Rejected", "user:dev", "cli")
     assert event.payload["reason"] == "Duplicate of NCR-0040"
-    with open_uow(Path(env["TL_DB"]), readonly=True) as uow:
+    with open_uow(env["TL_DB"], readonly=True) as uow:
         assert get_record(uow, SCOPE, KEY) is None
 
 

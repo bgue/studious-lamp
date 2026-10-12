@@ -302,3 +302,106 @@ def test_two_scopes_land_in_every_table(ledger: LedgerBuilder, lake: LakeConfig)
     for table in ("events", "cur_core_record", "links", "pset_values"):
         scopes = {r[0] for r in lake_rows(lake, f"SELECT DISTINCT scope FROM {table}")}
         assert scopes == ({SCOPE, OTHER_SCOPE} if table != "pset_values" else {OTHER_SCOPE}), table
+
+
+def account_events(ledger: LedgerBuilder, *names: str) -> None:
+    from tl_adapters.db import make_uow_factory
+    from tl_core.auth import accounts
+    from tl_core.auth.password import prepare_password
+
+    prepared = prepare_password("correct horse battery")
+    factory = make_uow_factory(ledger.db)
+    try:
+        with factory() as uow:
+            for name in names:
+                view = accounts.create_account(
+                    uow, username=name, display_name=f"{name.title()} Person", kind="person",
+                    roles=["admin"], password=prepared, by="user:root",
+                )  # fmt: skip
+                accounts.set_roles(
+                    uow, account_id=view.account_id, roles=["admin", "user"], by="user:root",
+                    reason="more",
+                )  # fmt: skip
+    finally:
+        factory.dispose()
+
+
+def test_account_events_reach_the_lake_as_empty_rows(
+    ledger: LedgerBuilder, lake: LakeConfig
+) -> None:
+    """Usernames and roles are not for lake_query (ADR-0009); the row stays so seq has no gap."""
+    ledger.record("A-1")
+    account_events(ledger, "alice")
+    ledger.record("A-2")
+    sync(ledger, lake)
+    head = ledger.head()
+    assert lake_rows(lake, "SELECT count(*), min(seq), max(seq) FROM events") == [(head, 1, head)]
+    redacted = lake_rows(
+        lake,
+        "SELECT event_type, stream_type, actor, payload, source FROM events "
+        "WHERE event_type = 'Internal.Redacted'",
+    )
+    assert len(redacted) == 2 and all(r[1:3] == ("internal", "internal") for r in redacted)
+    assert all(str(r[3]).strip() in ("{}", "") for r in redacted)
+    everything = " ".join(str(r) for r in lake_rows(lake, "SELECT * FROM events"))
+    for secret in ("alice", "Alice Person", "Account.", "core.Account", "user:root"):
+        assert secret not in everything
+    ledger.record("A-3")
+    sync(ledger, lake)  # a second sync stays consistent with the first
+
+
+def test_redacted_rows_do_not_reveal_how_many_accounts_or_events_each_has(
+    ledger: LedgerBuilder, lake: LakeConfig
+) -> None:
+    account_events(ledger, "alice", "bob", "carol")  # 3 accounts, 2 events each
+    sync(ledger, lake)
+    rows = lake_rows(
+        lake,
+        "SELECT seq, event_id, stream_id, stream_version, recorded_at, effective_at, "
+        "correlation_id, hash, prev_hash, schema_version FROM events ORDER BY seq",
+    )
+    assert len(rows) == 6
+    assert {r[2] for r in rows} == {"internal"}  # one constant stream, not one per account
+    assert {r[3] for r in rows} == {1}  # no per-account version count
+    assert {r[7] for r in rows} == {"redacted"} and {r[8] for r in rows} == {None}
+    assert all(r[4].endswith("T00:00:00.000000+00:00") for r in rows)  # the day, not the moment
+    assert all(r[5].endswith("T00:00:00.000000+00:00") for r in rows)
+    assert [r[1] for r in rows] == [
+        f"redacted-{r[0]}" for r in rows
+    ]  # not the ULID (it has a time)
+    assert all(r[6] == r[1] for r in rows)
+
+
+def test_the_tip_check_works_when_the_newest_event_is_redacted(
+    ledger: LedgerBuilder, lake: LakeConfig
+) -> None:
+    ledger.record("A-1")
+    account_events(ledger, "alice")  # the ledger now ends with account events
+    sync(ledger, lake)
+    sync(ledger, lake)  # nothing new: the tip check walks back to A-1's hash and passes
+    ledger.record("A-2")
+    sync(ledger, lake)
+    assert lake_rows(lake, "SELECT count(*) FROM events") == [(ledger.head(),)]
+
+
+def test_a_lake_of_nothing_but_redacted_rows_still_syncs(
+    ledger: LedgerBuilder, lake: LakeConfig
+) -> None:
+    account_events(ledger, "alice")
+    sync(ledger, lake)
+    account_events(ledger, "bob")
+    sync(ledger, lake)
+    assert lake_rows(lake, "SELECT count(*) FROM events") == [(4,)]
+
+
+def test_the_tip_check_still_catches_a_different_ledger_behind_redacted_rows(
+    ledger: LedgerBuilder, new_ledger: Any, lake: LakeConfig
+) -> None:
+    ledger.record("A-1")
+    account_events(ledger, "alice")
+    sync(ledger, lake)
+    other = new_ledger()
+    other.record("A-1", title="a different history")
+    account_events(other, "alice")
+    with pytest.raises(LakeDivergedError):
+        sync(other, lake)

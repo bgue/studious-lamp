@@ -8,6 +8,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from tl_adapters.db import DbTarget, as_target
+
 DEFAULT_DB = "./dev/data/tl.db"
 DEFAULT_TOKENS = "./dev/data/tokens.json"
 DEFAULT_HOST = "127.0.0.1"
@@ -20,7 +22,8 @@ DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024**3
 class ApiSettings:
     """What ``create_app`` and the server entry point need to know."""
 
-    db_path: Path = Path(DEFAULT_DB)
+    #: A SQLite ledger file, or a ``postgresql://`` URL (the name predates Postgres support).
+    db_path: DbTarget = Path(DEFAULT_DB)
     tokens_path: Path = Path(DEFAULT_TOKENS)
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
@@ -29,6 +32,12 @@ class ApiSettings:
     poll_interval_s: float = 0.25  # how often the feed looks for events written by other processes
     sse_keepalive_s: float = 15.0  # idle seconds before an SSE comment line is sent
     sse_wait_s: float = 1.0  # how long a stream blocks on its queue before it looks again
+    sse_recheck_s: float = 15.0  # how often an open stream re-checks that its token is still good
+    sse_max_age_s: float = 12 * 3600.0  # no stream outlives a session (ADR-0009 section 4)
+    rate_limit_failures: int = 20  # failed sign-ins per source in the window, then 429
+    rate_limit_window_s: float = 600.0
+    #: Header a trusted proxy sets with the client address (``X-Forwarded-For``); none: ignored.
+    trusted_proxy_header: str | None = None
     max_streams: int = 32  # open SSE streams; more get 503 (each holds a worker thread)
     max_upload_bytes: int = DEFAULT_MAX_UPLOAD_BYTES
 
@@ -37,10 +46,11 @@ class ApiSettings:
         """``TL_DB``, ``TL_TOKENS``, ``TL_API_HOST`` and ``TL_API_PORT`` override the defaults."""
         source = os.environ if env is None else env
         return ApiSettings(
-            db_path=Path(source.get("TL_DB", DEFAULT_DB)),
+            db_path=as_target(source.get("TL_DB", DEFAULT_DB)),
             tokens_path=Path(source.get("TL_TOKENS", DEFAULT_TOKENS)),
             host=source.get("TL_API_HOST", DEFAULT_HOST),
             port=int(source.get("TL_API_PORT", str(DEFAULT_PORT))),
+            trusted_proxy_header=source.get("TL_TRUSTED_PROXY_HEADER") or None,
         )
 
 

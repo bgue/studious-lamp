@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_cli import lake
 from tl_cli.main import app
 from tl_core.settings import set_setting
@@ -71,9 +72,11 @@ def test_a_failed_sync_is_reported_and_the_loop_goes_on(
 
 
 @pytest.fixture
-def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+def env(
+    new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> dict[str, str]:
     monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
-    values = {"TL_DB": str(tmp_path / "tl.db"), "TL_LAKE_DIR": str(tmp_path / "lake")}
+    values = {"TL_DB": str(new_db()), "TL_LAKE_DIR": str(tmp_path / "lake")}
     assert run(values, "init").exit_code == 0
     result = run(values, "record", "create", "--project", "P1", "--key", "A-1", "--title", "A")
     assert result.exit_code == 0, result.output
@@ -85,7 +88,7 @@ def run(env: dict[str, str], *args: str) -> RunResult:
 
 
 def set_interval(env: dict[str, str], value: str) -> None:
-    with open_uow(Path(env["TL_DB"])) as uow:
+    with open_uow(env["TL_DB"]) as uow:
         set_setting(
             uow,
             key="lake.sync.interval",

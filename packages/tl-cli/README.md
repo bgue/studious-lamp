@@ -1,11 +1,15 @@
 # tl-cli (`tl_cli`)
 
-The `tl` command: a thin typer front end over the `tl_core` command and query services and the SQLite adapter (§25.2, §29.4).
+The `tl` command: a thin typer front end over the `tl_core` command and query services and the SQLite and Postgres adapters (§25.2, §29.4). The database is the root `--db` / `TL_DB`: a SQLite file or a `postgresql://` URL, read through `tl_adapters.db.as_target` into `ctx.obj`.
 
 ## Public interface
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `tl init` | command | Create the ledger file and its schema |
+| `tl init [--dev]` | command | Create the ledger file and its schema; `--dev` also creates the dev account `demo` / `demo` (admin) where `TL_ENV` is dev, demo or test |
+| `tl login USERNAME [--password-stdin]`, `tl logout`, `tl whoami` | commands | Sign in to the ledger (`--db`): the password from a hidden prompt or one line of stdin, never an option. The session token is kept in `TL_SESSION_FILE` (default `~/.config/throughline/session.json`, mode 0600, one entry per ledger, 12 hours). `logout` ends it in the ledger; `whoami` prints the actor and roles (`tl_cli.login`, `tl_cli.session`) |
+| `tl admin user ls|show|add|roles|disable|enable|reset-password`, `tl admin token ls|issue|revoke` | commands | Accounts and agent tokens; each needs a signed-in admin (`tl_cli.admin_user`, `tl_cli.admin_token`). A token is printed once, alone on stdout |
+| `tl admin bootstrap --username N`, `unlock NAME`, `audit [--event E] [--username N] [--limit N] [--json]` | commands | Local recovery, no sign-in (`tl_cli.admin`): create the first admin or reset an existing admin's password and lock, clear a sign-in lock, read the authentication audit. They write the OS user to the audit row |
+| `tl_cli.actor_hook`, `tl_cli.session.check_actor` | module | The default `--actor` of every command is the signed-in user; a named actor is honoured only for the session's own actor, or in a dev, test or ci setup on a ledger file. A `--db` with `scheme://` always needs a session (ADR-0009 section 7) |
 | `tl record create --project ID --key KEY --title TITLE` | command | Calls `handle_create_record`; prints stream id, key, version |
 | `tl record show --project ID KEY` | command | Calls `get_record`; prints the current-state row |
 | `tl record void --project ID KEY --reason R` | command | Calls `handle_void_record` with the record's current version |
@@ -56,7 +60,7 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl archive verify [--archive DIR] [--public-key FILE] [--db TARGET] [--deep] [--all] [--expect-last-seq N] [--expect-manifest SHA]` | command | Verify the archive (and a database); prints `divergence: <kind> segment=.. seq=..: <detail>` and exits 1 on the first divergence (runbook: `docs/runbooks/ledger-archive-and-verify.md`) |
 | `tl ledger verify [--db TARGET]` | command | Recompute every event hash and check every scope chain in the database alone |
 | `tl restore --from-archive DIR --db TARGET [--public-key FILE]` | command | Rebuild an empty SQLite file or Postgres database from the archive alone (runbook: `docs/runbooks/restore-from-archive.md`); warnings on stderr |
-| `tl backup sqlite --to FILE` | command | Online snapshot of the SQLite ledger (runbook: `docs/runbooks/sqlite-backup-and-litestream.md`) |
+| `tl backup sqlite --to FILE` | command | Online snapshot of the SQLite ledger (runbook: `docs/runbooks/sqlite-backup-and-litestream.md`); refuses a Postgres target and points to pgBackRest and `tl archive seal` |
 | `tl_cli.file_reconcile` | module | `tl file reconcile`: compare the ledger's file rows with the object store |
 | `tl_cli.webhook_common` | module | Helpers shared by the `tl webhook` commands: the unit-of-work factory, scope and error output |
 | `tl_cli.webhook_ops` | module | The second half of `tl webhook`: `dlq ls`, `dlq redrive`, `disable`, `enable`, `rotate-secret` |
@@ -84,8 +88,10 @@ just demo P0-I1
 ## Configuration
 | Setting or env var | Default | Notes |
 |---|---|---|
-| `--db PATH` / `TL_DB` | `./dev/data/tl.db` | The SQLite ledger file (git-ignored under `dev/data/`) |
-| `--actor` | `user:dev` | Actor recorded on events |
+| `--db TARGET` / `TL_DB` | `./dev/data/tl.db` | The ledger: a SQLite file (git-ignored under `dev/data/`) or a `postgresql://` URL (`?sslmode=`, `?options=-csearch_path=<schema>`). Prefer `TL_DB` for a URL: a command line is visible in the process list. A value that is not a target (another `scheme://`, no user, an unescaped `@`, an unsupported `sslmode`) is `error: ...`, exit 2; an unreachable server, a wrong password or a missing database is one `error: cannot reach the database ...` line, exit 1, from every command. Output shows the URL without its password |
+| `--actor` | the signed-in user (`user:dev` in a dev setup without a session) | Actor recorded on events; see `tl_cli.actor_hook` |
+| `TL_SESSION_FILE` | `~/.config/throughline/session.json` | Where `tl login` keeps the session token (mode 0600) |
+| `TL_SIM_AGENT_TOKEN` | unset | An agent token for the simulated assistant outside a dev setup (`tl_cli.sim_agent` makes one in dev) |
 | `--dir PATH` / `TL_SCHEMA_DIR` | `schema/fixtures` | Package directory for `tl schema` commands; file slots are read from its `files/` folder |
 | `TL_WEBHOOK_ALLOWLIST` | empty | Comma-separated egress allow-list for `tl webhook test` and `run` |
 | `TL_ARCHIVE_DIR`, `TL_ARCHIVE_KEY`, `TL_ARCHIVE_PUBLIC_KEY` | `./dev/data/archive`, `dev/data/archive-signing.key`, `dev/data/archive-signing.pub` | Archive directory and keys for `tl archive` and `tl restore` |
@@ -95,4 +101,4 @@ just demo P0-I1
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P0-I1; `config` group, `lake sync --watch` and the effect record of `projections rebuild` added in P0-I8 workstream A; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `dev` group added in P0-I4 workstream C; `webhook` group added in P0-I5 workstream B; `new` group (scaffolders) added in P0-I8 workstream C; `feed` group added in P0-I6 workstream A; `proposal` group added in P0-I6 workstream B; `backup`, `archive`, `ledger` groups and `restore` added in P0-I7 workstream A. `--role` is a stub list (no auth yet). `types` group added in P0-I8 workstream B (`docs/tickets/P0-I8/README-B.md`); `tl tui --type`.
+Identity commands (`login`, `logout`, `whoami`, `admin ...`, `init --dev`, the actor hook, `sim_agent`) added in P1-I0 workstream A (`docs/tickets/P1-I0/README-A.md`; operations: `docs/runbooks/accounts-and-access.md`). Introduced in P0-I1; `config` group, `lake sync --watch` and the effect record of `projections rebuild` added in P0-I8 workstream A; `schema` and `pset` groups added in P0-I2; `link` and `wf` groups, key numbering and `--segment` added in P0-I3; `file` group added in P0-I4 workstream B; `dev` group added in P0-I4 workstream C; `webhook` group added in P0-I5 workstream B; `new` group (scaffolders) added in P0-I8 workstream C; `feed` group added in P0-I6 workstream A; `proposal` group added in P0-I6 workstream B; `backup`, `archive`, `ledger` groups and `restore` added in P0-I7 workstream A. `--role` is a stub list (no auth yet). `types` group added in P0-I8 workstream B (`docs/tickets/P0-I8/README-B.md`); `tl tui --type`.

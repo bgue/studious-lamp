@@ -7,10 +7,12 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
+from pg_support import account_events
+from tl_adapters.db import DbTarget
 from tl_cli.config import detail_lines, history_line, view_line
 from tl_cli.main import app
 from tl_core.settings.registry import get_definition
@@ -24,10 +26,12 @@ DOT = "●"
 
 
 @pytest.fixture
-def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, str]]:
+def env(
+    new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[dict[str, str]]:
     monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
     monkeypatch.delenv("TL_SETTINGS_PLATFORM_FILE", raising=False)
-    values = {"TL_DB": str(tmp_path / "tl.db")}
+    values = {"TL_DB": str(new_db())}
     assert runner.invoke(app, ["init"], env=values).exit_code == 0
     yield values
 
@@ -285,7 +289,8 @@ def test_set_at_a_future_time_is_scheduled(env: dict[str, str]) -> None:
     assert out == "scheduled feed.reactions.enabled company false at 2099-01-01T00:00:00.000000Z\n"
     assert ok(env, "get", "feed.reactions.enabled") == "true\n"
     long = ok(env, "get", "feed.reactions.enabled", "--long").splitlines()
-    assert "scheduled 2099-01-01T00:00:00.000000Z false (seq 1)" in long
+    seq = 1 + account_events(env)  # the signed-in test account of a Postgres ledger comes first
+    assert f"scheduled 2099-01-01T00:00:00.000000Z false (seq {seq})" in long
 
 
 def test_set_at_needs_a_time_with_a_zone(env: dict[str, str]) -> None:

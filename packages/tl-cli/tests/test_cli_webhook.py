@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import json
-import sqlite3
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
-from tl_adapters.sqlite.factory import SqliteUowFactory
+from sqlalchemy import text
+from tl_adapters.db import DbTarget, make_uow_factory, open_uow
 from tl_cli.main import app
 from tl_core.webhooks.dispatch import Dispatcher
 from tl_core.webhooks.receiver import DevReceiver
@@ -44,8 +43,8 @@ def fields(result: RunResult) -> dict[str, str]:
 
 
 @pytest.fixture
-def env(tmp_path: Path) -> dict[str, str]:
-    env = {"TL_DB": str(tmp_path / "tl.db"), "TL_ENV": "dev", "TL_WEBHOOK_ALLOWLIST": ""}
+def env(new_db: Callable[[], DbTarget]) -> dict[str, str]:
+    env = {"TL_DB": str(new_db()), "TL_ENV": "dev", "TL_WEBHOOK_ALLOWLIST": ""}
     ok(run(env, "init"))
     return env
 
@@ -55,8 +54,8 @@ def add(env: dict[str, str], *extra: str, url: str = "https://hook.example.net/i
 
 
 def sql(env: dict[str, str], query: str) -> list[tuple[object, ...]]:
-    with sqlite3.connect(env["TL_DB"]) as conn:
-        return conn.execute(query).fetchall()
+    with open_uow(env["TL_DB"], readonly=True) as uow:
+        return [tuple(row) for row in uow.conn().execute(text(query)).fetchall()]
 
 
 def test_add_prints_the_id_and_the_secret_and_stores_the_filter(env: dict[str, str]) -> None:
@@ -133,7 +132,7 @@ def test_add_refuses_bad_input_without_writing_anything(env: dict[str, str]) -> 
         ),
         "exactly one",
     )  # fmt: skip
-    assert sql(env, "SELECT * FROM events") == []
+    assert sql(env, "SELECT * FROM events WHERE event_type NOT LIKE 'Account.%'") == []
 
 
 def test_ls_lists_one_line_per_subscription_and_filters_by_scope(env: dict[str, str]) -> None:
@@ -234,7 +233,7 @@ def seed_events(env: dict[str, str]) -> None:
 def test_replay_resends_a_seq_range_and_a_time_range(env: dict[str, str]) -> None:
     sid = fields(ok(add(env, "--event-type", "Record.*")))["subscription"]
     seed_events(env)
-    factory = SqliteUowFactory(Path(env["TL_DB"]))
+    factory = make_uow_factory(env["TL_DB"])
     try:
         Dispatcher(factory).run_until_idle()
     finally:

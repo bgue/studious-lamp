@@ -7,11 +7,11 @@ error with the same position.
 
 from __future__ import annotations
 
-from pathlib import Path
+from collections.abc import Callable, Iterator
 
 import pytest
 from fakes import FakeClient, keys
-from tl_adapters.sqlite.uow import create_schema
+from tl_adapters.db import DbTarget, create_schema
 from tl_core.query import QuerySyntaxError
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
 from tl_tui.client import ClientInterface
@@ -34,13 +34,14 @@ def _create(client: ClientInterface, key: str, title: str) -> CommandResult:
 
 
 @pytest.fixture
-def embedded(tmp_path: Path) -> EmbeddedClient:
-    db = tmp_path / "tl.db"
+def embedded(new_db: Callable[[], DbTarget]) -> Iterator[EmbeddedClient]:
+    db = new_db()
     create_schema(db)
-    client = EmbeddedClient.for_sqlite(db)
+    client = EmbeddedClient.for_target(db)
     for key, title in [("A-1", "Bevel gauge"), ("A-2", "Pipe spool"), ("A-3", "Bevel plate")]:
         _create(client, key, title)
-    return client
+    yield client
+    client.close()
 
 
 def seeded_fake() -> FakeClient:

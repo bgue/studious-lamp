@@ -72,6 +72,15 @@ def write_tx(engine: Engine) -> Generator[Connection]:
 
 @contextmanager
 def read_tx(engine: Engine) -> Generator[Connection]:
-    """One read transaction (a consistent snapshot)."""
+    """One read transaction (a consistent snapshot) that refuses writes.
+
+    ``PRAGMA query_only`` makes any CREATE, INSERT, UPDATE or DELETE fail with "attempt to write a
+    readonly database", as ``READ ONLY`` does on Postgres. The pragma is reset before the connection
+    goes back to the pool.
+    """
     with engine.connect() as conn, conn.begin():
-        yield conn
+        conn.exec_driver_sql("PRAGMA query_only=ON")
+        try:
+            yield conn
+        finally:
+            conn.exec_driver_sql("PRAGMA query_only=OFF")

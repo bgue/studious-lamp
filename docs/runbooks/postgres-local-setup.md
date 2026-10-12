@@ -55,6 +55,7 @@ Purpose: start the native PostgreSQL 16 cluster, run the parity suite against it
    Long-running workers use `tl_adapters.postgres.factory.PostgresUowFactory(url)`: `factory()` for a write unit of work, `factory(readonly=True)` for a snapshot read, and `dispose()` at exit.
 
 7. Change-feed wake-ups (optional). `NotifyListener(url, wake_event)` from `tl_adapters.postgres.notify` sets `wake_event` after each commit. Pass the same event to the poller as `ChangePoller(..., wake=event)`. Delivery stays correct without it; it only makes it prompt.
+8. Run the services on it. Export the URL as `TL_DB` and every `tl` command, `tl serve` and `tl tui` use the Postgres ledger: `docs/runbooks/run-on-postgres.md`.
 
 ## Verify
 - `pg_isready -h localhost` prints `localhost:5432 - accepting connections`.
@@ -79,6 +80,7 @@ Purpose: start the native PostgreSQL 16 cluster, run the parity suite against it
 ## Related
 - `docs/adr/0002-build-environment-constraints.md` (native Postgres 16 in the build container; `docker-compose.yml` is documentation only).
 - `packages/tl-adapters/README.md` (Postgres adapter, `rebuild_projections`).
-- `docs/runbooks/rebuild-projections.md` (rebuilding current-state tables, SQLite ledger).
+- `docs/runbooks/rebuild-projections.md` (rebuilding current-state tables).
 - `dev/docker-compose.yml` (the `postgres` service, for machines with Docker). It publishes host port 5432, the same port as the native cluster of ADR-0002: run one or the other, or change the left-hand port in the compose file and `TL_PG_URL` together.
 - Brief §14.
+- `docs/runbooks/run-on-postgres.md` (the API, the TUI and the `tl` commands on a Postgres ledger).

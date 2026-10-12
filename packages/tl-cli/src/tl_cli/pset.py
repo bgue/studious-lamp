@@ -9,12 +9,11 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Annotated, Any, Literal, NoReturn, cast
 
 import typer
 from pydantic import ValidationError
-from tl_adapters.sqlite.uow import open_uow
+from tl_adapters.db import DbTarget, open_uow
 from tl_core.ledger import ConcurrencyError, canonical_json
 from tl_core.services.errors import ServiceError
 from tl_core.services.psets import SetPsetValues, conformance, handle_set_pset_values
@@ -70,7 +69,7 @@ def set_values(
     ),
 ) -> None:
     """Set values of one pset on a record (NAME=null unsets a value)."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     values = dict(parse_assignment(a) for a in assignments)
     scope = f"project:{project}"
     with _service_errors(), open_uow(db) as uow:
@@ -112,7 +111,7 @@ def get_values(
     pset: Annotated[str | None, typer.Argument(help="Show only this pset.")] = None,
 ) -> None:
     """Show a record's pset values, stored schema hash and live conformance."""
-    db: Path = ctx.obj
+    db: DbTarget = ctx.obj
     scope = f"project:{project}"
     with _service_errors(), open_uow(db, readonly=True) as uow:
         row = get_record(uow, scope, key)

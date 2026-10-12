@@ -1,6 +1,6 @@
 # Runbook — Run the API, the event stream and the MCP server on the dev ledger
 
-Purpose: start the REST API with an SSE stream and the MCP read server against the SQLite dev ledger, create a dev token, and recover from the usual first-run problems. Brief: §4, §11, §18. Identity is the dev-only stub of ADR-0005.
+Purpose: start the REST API with an SSE stream and the MCP read server against the dev ledger (a SQLite file, or a Postgres database through `TL_DB=postgresql://...`: `docs/runbooks/run-on-postgres.md`), create a dev token, and recover from the usual first-run problems. Brief: §4, §11, §18. Identity is the dev-only stub of ADR-0005.
 
 ## When to use
 - Trigger: a developer or demo needs the HTTP API, a remote TUI, a script or an AI agent to read or write the dev ledger.
