@@ -6,14 +6,7 @@ no) and how to translate its codes (``CV`` in the file is ``ControlValve`` here)
 in the form of ``dev/seed/templates/tag-list-instrument-index.yaml``. ``read_rows`` applies one to
 the text of a CSV file and returns an ``ImportRow`` per data row. A cell that cannot be read does
 not stop the file: the row carries the problem and the diff reports it.
-
-STUB (P1-I1-T10a): ``parse_mapping``, ``load_mapping``, ``_read_cell`` and ``read_rows`` raise
-NotImplementedError; the models, the signatures and the docstrings are final. Each body has a
-STEPS comment. Implement them, then delete this paragraph, the STEPS comments and the
-``ruff: noqa`` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -104,40 +97,55 @@ def parse_mapping(text: str, *, source: str = "<string>") -> TagListMapping:
     Raises ``MappingError`` whose message starts with ``source``: invalid YAML, a document that is
     not a mapping, or a field that does not validate (one line each, ``<location>: <why>``).
     """
-    # STEPS
-    # 1. data = yaml.safe_load(text). A yaml.YAMLError becomes
-    #    MappingError(f"{source}: invalid YAML: {exc}") (raise ... from exc).
-    # 2. If data is not a dict:
-    #    MappingError(f"{source}: a mapping template must be a YAML mapping").
-    # 3. TagListMapping.model_validate(data). A ValidationError becomes one MappingError whose
-    #    message has one line per error: f"{source}: {location}: {message}", where location is the
-    #    error's "loc" parts joined with "." (or "(document)" when empty) and message is its "msg".
-    raise NotImplementedError
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise MappingError(f"{source}: invalid YAML: {exc}") from exc
+    if not isinstance(data, dict):
+        raise MappingError(f"{source}: a mapping template must be a YAML mapping")
+    try:
+        return TagListMapping.model_validate(data)
+    except ValidationError as exc:
+        lines = []
+        for error in exc.errors():
+            location = ".".join(str(part) for part in error["loc"]) or "(document)"
+            lines.append(f"{source}: {location}: {error['msg']}")
+        raise MappingError("\n".join(lines)) from exc
 
 
 def load_mapping(path: Path) -> TagListMapping:
     """Read and parse one template file. A read error becomes a ``MappingError``."""
-    # STEPS
-    # 1. Read the file as UTF-8; an OSError or UnicodeDecodeError becomes
-    #    MappingError(f"{path.name}: cannot read file: {exc}") (raise ... from exc).
-    # 2. return parse_mapping(text, source=path.name).
-    raise NotImplementedError
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise MappingError(f"{path.name}: cannot read file: {exc}") from exc
+    return parse_mapping(text, source=path.name)
 
 
 def _read_cell(column: ColumnMap, cell: str) -> tuple[Any, str | None]:
     """``(value, problem)`` for one non-blank cell: exactly one of the two is ``None``."""
-    # STEPS
-    # 1. type "string": with column.values, a cell found in it gives (column.values[cell], None);
-    #    a cell not found gives
-    #    (None, f"{column.column}: {cell!r} is not one of the mapped values").
-    #    Without values the cell itself is the value.
-    # 2. type "bool": cell.lower() in _TRUE gives True, in _FALSE gives False; anything else is a
-    #    problem. type "int": int(cell). type "decimal": float(cell), which must be finite
-    #    (math.isfinite), else it is a problem.
-    # 3. The problem text for 2 is f"{column.column}: {cell[:40]!r} is not a valid {column.type}".
-    #    Catch ValueError and OverflowError around the conversions (an integer of 5,000 digits
-    #    raises ValueError).
-    raise NotImplementedError
+    if column.type == "string":
+        if column.values:
+            if cell in column.values:
+                return column.values[cell], None
+            return None, f"{column.column}: {cell!r} is not one of the mapped values"
+        return cell, None
+    problem = f"{column.column}: {cell[:40]!r} is not a valid {column.type}"
+    try:
+        if column.type == "bool":
+            if cell.lower() in _TRUE:
+                return True, None
+            if cell.lower() in _FALSE:
+                return False, None
+            return None, problem
+        if column.type == "int":
+            return int(cell), None
+        number = float(cell)
+    except (ValueError, OverflowError):
+        return None, problem
+    if math.isfinite(number):
+        return number, None
+    return None, problem
 
 
 def read_rows(text: str, mapping: TagListMapping) -> list[ImportRow]:
@@ -152,23 +160,65 @@ def read_rows(text: str, mapping: TagListMapping) -> list[ImportRow]:
     Raises ``MappingError`` when the file has no header row, lacks a column the mapping names (the
     message lists every missing column) or is not valid CSV (an unterminated quote).
     """
-    # STEPS
-    # 1. reader = csv.reader(io.StringIO(text.removeprefix("\ufeff")), delimiter=mapping.delimiter,
-    #    strict=True). header = [cell.strip() for cell in next(reader)]; an empty file
-    #    (StopIteration) is MappingError("the file has no header row").
-    # 2. missing = the mapping's column headers not in header, in the mapping's order. If any:
-    #    MappingError("the file lacks the column(s): " + ", ".join(missing)).
-    # 3. Read all records with records = list(enumerate(reader, start=2)); a csv.Error becomes
-    #    MappingError(f"the file is not readable as CSV: {exc}").
-    # 4. For each (number, cells): skip it when every cell is blank after stripping. raw = every
-    #    header to its stripped cell ("" when the row is short).
-    # 5. For each mapped column in the mapping's order, take its cell from raw. A blank cell sets
-    #    nothing, except that a blank cell of the "number" column adds the problem
-    #    "the tag number is blank". A non-blank cell goes through _read_cell: a problem is added to
-    #    the row's problems and nothing is set; otherwise the value goes to the number (tag),
-    #    class_code, service, or psets[<pset>][<property>] named by column.to. For a pset target
-    #    use PSET_TARGET.fullmatch(column.to): group 1 is the pset, group 2 the property key
-    #    (which may be "x.name").
-    # 6. Append ImportRow(line=number, number=tag, class_code=..., service=..., psets=...,
-    #    problems=..., raw=raw). Return the rows in file order.
-    raise NotImplementedError
+    reader = csv.reader(
+        io.StringIO(text.removeprefix("﻿")), delimiter=mapping.delimiter, strict=True
+    )
+    try:
+        header = [cell.strip() for cell in next(reader)]
+    except StopIteration as exc:
+        raise MappingError("the file has no header row") from exc
+    except csv.Error as exc:
+        raise MappingError(f"the file is not readable as CSV: {exc}") from exc
+    missing = [column.column for column in mapping.columns if column.column not in header]
+    if missing:
+        raise MappingError("the file lacks the column(s): " + ", ".join(missing))
+    try:
+        records = list(enumerate(reader, start=2))
+    except csv.Error as exc:
+        raise MappingError(f"the file is not readable as CSV: {exc}") from exc
+
+    rows: list[ImportRow] = []
+    for number, cells in records:
+        stripped = [cell.strip() for cell in cells]
+        if not any(stripped):
+            continue
+        raw = {name: (stripped[i] if i < len(stripped) else "") for i, name in enumerate(header)}
+        tag: str = ""
+        class_code: str | None = None
+        service: str | None = None
+        psets: dict[str, dict[str, Any]] = {}
+        problems: list[str] = []
+        for column in mapping.columns:
+            cell = raw[column.column]
+            if not cell:
+                if column.to == "number":
+                    problems.append("the tag number is blank")
+                continue
+            value, problem = _read_cell(column, cell)
+            if problem is not None:
+                problems.append(problem)
+                continue
+            if column.to == "number":
+                tag = value
+            elif column.to == "class":
+                class_code = value
+            elif column.to == "service":
+                service = value
+            else:
+                # ColumnMap has already checked that the target is a pset target.
+                pset = PSET_TARGET.fullmatch(column.to)
+                if pset is None:
+                    raise MappingError(f"{column.to!r} is not a pset target")
+                psets.setdefault(pset.group(1), {})[pset.group(2)] = value
+        rows.append(
+            ImportRow(
+                line=number,
+                number=tag,
+                class_code=class_code,
+                service=service,
+                psets=psets,
+                problems=problems,
+                raw=raw,
+            )
+        )
+    return rows
