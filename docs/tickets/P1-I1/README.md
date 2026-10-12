@@ -4,7 +4,7 @@ Status: in-progress
 Supervisor session: 2026-10-12
 Brief sections: §6.4 (standards registry), §6.3 (value lists, enforcement), §8 (numbering), §9 M2, §27.3 and §27.5 (effective schema, change classes), §29.6 and §29.8 (legacy loads, module definition of done), §5.4 (current state), §7 (links)
 Branch: `p1/i1` (base: the trunk merge of P1-I0, `d6e3afc`)
-Decisions: ADR-0008 (Phase 1 owner decisions), ADR-0009 (authentication), ADR-0010 (module record storage, proposed in this increment)
+Decisions: ADR-0008 (Phase 1 owner decisions), ADR-0009 (authentication), ADR-0010 (module record storage, accepted 2026-10-12)
 
 ## Objective
 Build the company "holding zone" (§6.4) as the first module, `engineering`: code lists with `value_list_policy` and
@@ -112,7 +112,7 @@ supervisor writes the stub and the test that fix its interfaces.
 | Parity, contract, snapshot, permission and restore tests | parity: every module test uses the parity fixtures; contract: the webhook scenario; snapshots: T09d; permission: admin-only registry (CLI and API tests); restore: a rebuild-equals-incremental test in S13 |
 
 ## Risks and escalation triggers
-- ADR-0010 is a decision the orchestrator may want to change; every later module repeats it. It is proposed, not assumed accepted.
+- ADR-0010 is accepted (2026-10-12) on one condition: the generated wide view `v_<module>_<class>` must exist before the first consumer that needs a flat per-type row (P1-I8 lake marts, or any report or grid that would hand-write the join). T11 reports must read through `registry.py` joins or this view, never a new ad hoc join.
 - `schema/fixtures/standards/` adds a data directory the package registry ignores (it reads `*.yaml` at the top level only). If a later change makes the registry recurse, the fixture would be read as a package and fail.
 - The class binding changes what `conformance` means for a record with a class. Existing core record tests are unaffected (no module, no binding); the Tag path is covered by T08.
 - Escalate to the orchestrator: any change to a `tl_core` interface that another workstream uses; a change to what `ModuleSpec` offers once P1-I2 has started; anything in `04-gates.md` §2 beyond the delegated schema approvals.

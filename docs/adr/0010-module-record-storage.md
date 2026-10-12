@@ -1,8 +1,8 @@
 # ADR-0010 — Module records: one envelope row, one typed side table, discovered through entry points
 
-Status: proposed
+Status: accepted 2026-10-12 by the orchestrator (ADR-0008 decision 6)
 Date: 2026-10-12
-Deciders: P1-I1 supervisor (proposal); the orchestrator accepts or changes it before P1-I2 builds on it
+Deciders: P1-I1 supervisor (proposal); accepted by the orchestrator under the KICKOFF delegation
 Brief sections: §5.4, §6.2, §7, §9 (M2), §25.2, §27.2, §29.8
 
 ## Context
@@ -51,7 +51,7 @@ Nothing in `tl_core` could learn about a module: `default_registry()` lists proj
   optional trailing argument. `RecordFacts` gains `bound`. `numbering_for(conn)` joins the file patterns with the
   patterns modules hold in the ledger; record creation and key detection in posts call it instead of `get_numbering()`.
 - Brief §5.4 differs: the typed table has no envelope columns. A generated wide view per type (`v_<module>_<class>`)
-  can present the joined row; it is not built in P1-I1.
+  can present the joined row. Condition of the acceptance: the generated wide view `v_<module>_<class>` must exist before the first consumer that needs a flat per-type row, that is the P1-I8 lake marts or any report or grid that would otherwise hand-write the join, whichever comes first.
 - Every later module repeats the same steps: `tl new module`, LinkML classes with `tl:current_state` and
   `tl:record_types`, projectors that call `touch_record`, a `module.py` with `spec()`, an entry point.
 - Gates affected: `schema/modules/**` and the `schema/core/annotations.yaml` note (`tl:record_types`) are schema merges
