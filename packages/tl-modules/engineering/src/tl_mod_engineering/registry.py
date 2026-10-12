@@ -345,3 +345,41 @@ def find_tag(conn: Connection, scope: str, number: str) -> TagRow | None:
     sql = _TAG_SELECT + " AND t.scope = :scope AND t.number = :number"
     found = conn.execute(text(sql), {"no": False, "scope": scope, "number": number}).first()
     return None if found is None else _tag(found)
+
+
+def list_tags(
+    conn: Connection,
+    scope: str,
+    *,
+    class_code: str | None = None,
+    status: str | None = None,
+    mnemonic: str | None = None,
+    area: str | None = None,
+    number_status: str | None = None,
+    include_ended: bool = False,
+    limit: int = 1000,
+    offset: int = 0,
+) -> list[TagRow]:
+    """The tags of ``scope`` that match every filter given, ordered by number.
+
+    A tag in workflow state ``Superseded`` or ``Deleted`` is left out unless ``include_ended``
+    (a filter ``status`` that names one of those states also finds it). ``limit`` and ``offset``
+    page the result.
+    """
+    sql = _TAG_SELECT + " AND t.scope = :scope"
+    params: dict[str, Any] = {"no": False, "scope": scope, "limit": limit, "offset": offset}
+    for column, value in (
+        ("t.class_code", class_code),
+        ("r.status", status),
+        ("t.mnemonic", mnemonic),
+        ("t.area", area),
+        ("t.number_status", number_status),
+    ):
+        if value is not None:
+            name = column.split(".")[1]
+            sql += f" AND {column} = :{name}"
+            params[name] = value
+    if not include_ended and status is None:
+        sql += " AND (r.status IS NULL OR r.status NOT IN ('Superseded', 'Deleted'))"
+    sql += " ORDER BY t.number LIMIT :limit OFFSET :offset"
+    return [_tag(r) for r in conn.execute(text(sql), params)]
