@@ -1,0 +1,221 @@
+# Acme company standards, first edition (brief 6.4). Data only: read by tl_mod_engineering.document.
+# Values are listed in the order the loader numbers them. Quote any value that YAML would read as
+# another type (numbers such as "10", dates, versions) so that codes stay text.
+standards: co.acme.standards
+version: "1.0.0"
+title: Acme company standards
+description: "The engineered standards of the sample company Acme: code lists, mnemonics, the tag number pattern and tag classes."
+owner: "role:standards-steward"
+effective_from: "2026-01-01"
+
+code_lists:
+  Discipline:
+    label: Discipline
+    definition: "The engineering discipline that owns a document, a tag or a work item."
+    value_list_policy: closed
+    values:
+      - {code: PIP, label: Piping}
+      - {code: MEC, label: Mechanical}
+      - {code: ELE, label: Electrical}
+      - {code: INS, label: Instrumentation}
+      - {code: CIV, label: Civil}
+      - {code: STR, label: Structural}
+      - {code: PRO, label: Process}
+      - {code: HSE, label: Health safety and environment}
+
+  Area:
+    label: Area
+    definition: "The process unit or plant area that a tag or a document belongs to, by its unit number."
+    value_list_policy: extensible
+    values:
+      - {code: "10", label: "Unit 10, Tank farm"}
+      - {code: "20", label: "Unit 20, Crude distillation"}
+      - {code: "30", label: "Unit 30, Catalytic reforming"}
+      - {code: "40", label: "Unit 40, Utilities"}
+      - {code: "47", label: "Unit 47, Hydrotreater"}
+      - {code: "50", label: "Unit 50, Sulfur recovery"}
+
+  DocumentType:
+    label: Document type
+    definition: "The kind of engineering document, as its number and register show."
+    value_list_policy: extensible
+    values:
+      - {code: ISO, label: Isometric drawing}
+      - {code: PID, label: Piping and instrument diagram}
+      - {code: GA, label: General arrangement}
+      - {code: DS, label: Datasheet}
+      - {code: LD, label: Loop diagram}
+      - {code: SPC, label: Specification}
+      - {code: PRC, label: Procedure}
+      - {code: CAL, label: Calculation}
+      - {code: MTO, label: Material take-off}
+      - {code: ITR, label: Inspection and test record}
+      - {code: WPS, label: Welding procedure specification}
+      - {code: DRW, label: General drawing}
+
+  NdeMethod:
+    label: Non-destructive examination method
+    definition: "The non-destructive examination method used to inspect a weld or a component."
+    value_list_policy: closed
+    values:
+      - {code: RT, label: Radiographic testing}
+      - {code: UT, label: Ultrasonic testing}
+      - {code: MT, label: Magnetic particle testing}
+      - {code: PT, label: Liquid penetrant testing}
+      - {code: VT, label: Visual testing}
+      - {code: PAUT, label: Phased array ultrasonic testing}
+
+  WeldType:
+    label: Weld type
+    definition: "The joint geometry of a weld, as it is named on the weld record."
+    value_list_policy: closed
+    values:
+      - {code: BW, label: Butt weld}
+      - {code: SW, label: Socket weld}
+      - {code: FW, label: Fillet weld}
+      - {code: SL, label: Seal weld}
+
+  Craft:
+    label: Craft
+    definition: "The trade that carries out a work package, as the site labour plan names it."
+    value_list_policy: project_defined
+    values:
+      - {code: PF, label: Pipefitter}
+      - {code: WLD, label: Welder}
+      - {code: ELC, label: Electrician}
+      - {code: INT, label: Instrument technician}
+      - {code: SCF, label: Scaffolder}
+      - {code: RIG, label: Rigger}
+
+  UnitOfMeasure:
+    label: Unit of measure
+    definition: "A unit in which an engineering quantity is recorded, with its UCUM code and dimension."
+    value_list_policy: closed
+    values:
+      - {code: mm, label: Millimetre, attributes: {ucum: mm, dimension: length}}
+      - {code: in, label: Inch, attributes: {ucum: "[in_i]", dimension: length}}
+      - {code: m, label: Metre, attributes: {ucum: m, dimension: length}}
+      - {code: bar, label: Bar, attributes: {ucum: bar, dimension: pressure}}
+      - {code: psi, label: Pound-force per square inch, attributes: {ucum: "[psi]", dimension: pressure}}
+      - {code: degC, label: Degree Celsius, attributes: {ucum: Cel, dimension: temperature}}
+      - {code: degF, label: Degree Fahrenheit, attributes: {ucum: "[degF]", dimension: temperature}}
+      - {code: kg, label: Kilogram, attributes: {ucum: kg, dimension: mass}}
+      - {code: lb, label: Pound (mass), attributes: {ucum: "[lb_av]", dimension: mass}}
+      - {code: m3, label: Cubic metre, attributes: {ucum: m3, dimension: volume}}
+
+  MaterialCode:
+    label: Material code
+    definition: "The material of a valve body or other wetted part, as the company standards name it."
+    value_list_policy: extensible
+    values:
+      - {code: CS, label: Carbon steel}
+      - {code: SS304, label: 304 stainless steel}
+      - {code: SS316L, label: 316L stainless steel}
+      - {code: DUPLEX, label: Duplex stainless steel}
+      - {code: other, label: Other (see description)}
+
+  FailAction:
+    label: Fail action
+    definition: "The position an actuator moves to on loss of signal or air."
+    value_list_policy: closed
+    values:
+      - {code: FC, label: Fail closed}
+      - {code: FO, label: Fail open}
+      - {code: FL, label: Fail last position}
+
+mnemonics:
+  - {code: FV, label: Flow control valve, class_hint: ControlValve}
+  - {code: PV, label: Pressure control valve, class_hint: ControlValve}
+  - {code: LV, label: Level control valve, class_hint: ControlValve}
+  - {code: TV, label: Temperature control valve, class_hint: ControlValve}
+  - {code: XV, label: On-off valve, class_hint: ControlValve}
+  - {code: HV, label: Hand valve, class_hint: ManualValve}
+  - {code: PSV, label: Pressure safety valve, class_hint: SafetyValve}
+  - {code: FT, label: Flow transmitter, class_hint: Transmitter}
+  - {code: PT, label: Pressure transmitter, class_hint: Transmitter}
+  - {code: LT, label: Level transmitter, class_hint: Transmitter}
+  - {code: TT, label: Temperature transmitter, class_hint: Transmitter}
+  - {code: FIC, label: Flow indicating controller, class_hint: Controller}
+  - {code: PIC, label: Pressure indicating controller, class_hint: Controller}
+  - {code: LIC, label: Level indicating controller, class_hint: Controller}
+  - {code: TIC, label: Temperature indicating controller, class_hint: Controller}
+  - {code: P, label: Pump, class_hint: Pump}
+  - {code: E, label: Heat exchanger, class_hint: HeatExchanger}
+  - {code: V, label: Vessel, class_hint: Vessel}
+  - {code: K, label: Compressor, class_hint: Compressor}
+  - {code: M, label: Motor, class_hint: Motor}
+  - {code: HS, label: Hand switch}
+  - {code: TW, label: Thermowell}
+
+numbering_patterns:
+  - code: tag
+    label: Tag number
+    definition: "Area, mnemonic and a four-digit sequence, separated by hyphens, for example 47-FV-1001."
+    record_type: engineering.Tag
+    template: "{area}-{mnemonic}-{seq:4}"
+    segments:
+      area: {role: area, list: Area}
+      mnemonic: {role: mnemonic, registry: mnemonic}
+      seq: {role: sequence}
+
+tag_classes:
+  - code: ControlValve
+    label: Control valve
+    definition: "A valve that an actuator moves to hold a process variable at its set point."
+    family: valve
+    required_psets: [valve_data]
+    mnemonics: [FV, PV, LV, TV, XV]
+  - code: ManualValve
+    label: Manual valve
+    definition: "A valve that is operated by hand, with no actuator and no controller."
+    family: valve
+    required_psets: [valve_data]
+    mnemonics: [HV]
+  - code: SafetyValve
+    label: Pressure safety valve
+    definition: "A spring-loaded valve that opens to relieve pressure above its set point and protect equipment."
+    family: valve
+    required_psets: [valve_data, safety_data]
+    mnemonics: [PSV]
+  - code: Transmitter
+    label: Transmitter
+    definition: "A field device that measures a process variable and sends it on as a signal."
+    family: instrument
+    required_psets: []
+    mnemonics: [FT, PT, LT, TT]
+  - code: Controller
+    label: Indicating controller
+    definition: "A controller that displays a process variable and acts on it to hold its set point."
+    family: instrument
+    required_psets: []
+    mnemonics: [FIC, PIC, LIC, TIC]
+  - code: Pump
+    label: Pump
+    definition: "A rotating machine that moves a liquid through the process."
+    family: pump
+    required_psets: []
+    mnemonics: [P]
+  - code: Vessel
+    label: Vessel
+    definition: "A pressure or storage vessel that holds a fluid or a process step."
+    family: equipment
+    required_psets: []
+    mnemonics: [V]
+  - code: HeatExchanger
+    label: Heat exchanger
+    definition: "An equipment item that transfers heat between two fluids."
+    family: equipment
+    required_psets: []
+    mnemonics: [E]
+  - code: Compressor
+    label: Compressor
+    definition: "A machine that raises the pressure of a gas."
+    family: equipment
+    required_psets: []
+    mnemonics: [K]
+  - code: Motor
+    label: Motor
+    definition: "An electric motor that drives a rotating machine."
+    family: equipment
+    required_psets: []
+    mnemonics: [M]
