@@ -5,20 +5,12 @@ a read) and prints. The rules (code-list policies, supersession, what the regist
 in the module. The registry is company data: every command that changes it needs the admin role,
 except adding a value to a code list in a project (`add-value --project`), which any signed-in user
 may do when the list's policy allows it.
-
-STUB (P1-I1-T09a): the bodies of the commands raise NotImplementedError; their signatures, options
-and docstrings and the helpers (`_service_errors`, `_kind`, `_scope`, `_counts`) are final. Each
-body has a STEPS comment. Implement them, then delete this paragraph, the STEPS comments and the
-`ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import date
 from pathlib import Path
 from typing import Annotated, NoReturn
 
@@ -112,14 +104,20 @@ def load(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Load an edition of the standards into the registry. Entries already there are skipped."""
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`; `require_admin(db)` (it exits with its own error line).
-    # 2. Inside `with _service_errors():` doc = load_standards_file(file).
-    # 3. With --dry-run: `with open_uow(db, readonly=True) as uow:` report = plan_load(uow.conn(),
-    #    doc); print f"plan {doc.edition}"; call _counts(report); return.
-    # 4. Otherwise `with open_uow(db) as uow:` report = load_standards(uow, doc, actor=actor,
-    #    source="cli"); after the block print f"loaded {doc.edition}" and call _counts(report).
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    require_admin(db)
+    with _service_errors():
+        doc = load_standards_file(file)
+        if dry_run:
+            with open_uow(db, readonly=True) as uow:
+                plan = plan_load(uow.conn(), doc)
+            typer.echo(f"plan {doc.edition}")
+            _counts(plan)
+            return
+        with open_uow(db) as uow:
+            report = load_standards(uow, doc, actor=actor, source="cli")
+    typer.echo(f"loaded {doc.edition}")
+    _counts(report)
 
 
 @app.command("ls")
@@ -133,15 +131,18 @@ def ls(
     ] = False,
 ) -> None:
     """List registry entries: kind, code, edition, lifecycle, label."""
-    # STEPS
-    # 1. kinds = [_kind(kind)] when --kind is given, else all three values of KINDS in the order
-    #    code_list, mnemonic, numbering_pattern.
-    # 2. Inside `with _service_errors(), open_uow(db, readonly=True) as uow:` for each kind
-    #    rows += registry.find_standards(uow.conn(), scope=COMPANY, kind=k,
-    #    active_only=not include_closed).
-    # 3. Print one line per row with two spaces between the columns: the *CLI* kind name (the key
-    #    of KINDS whose value is row.kind), row.code, row.edition, row.lifecycle, row.label.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    kinds = [_kind(kind)] if kind is not None else list(KINDS.values())
+    rows: list[registry.StandardRow] = []
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        for stored in kinds:
+            rows += registry.find_standards(
+                uow.conn(), scope=COMPANY, kind=stored, active_only=not include_closed
+            )
+    names = {stored: name for name, stored in KINDS.items()}
+    for row in rows:
+        fields = [names[row.kind], row.code, row.edition, row.lifecycle, row.label]
+        typer.echo("  ".join(fields))
 
 
 @app.command("show")
@@ -151,17 +152,31 @@ def show(
     code: Annotated[str, typer.Argument(help="The entry's code, for example Area or FV.")],
 ) -> None:
     """Show one registry entry: its fields and, for a code list, how many values it has."""
-    # STEPS
-    # 1. Inside `with _service_errors(), open_uow(db, readonly=True) as uow:` rows =
-    #    registry.find_standards(uow.conn(), scope=COMPANY, kind=_kind(kind), code=code); if none,
-    #    _fail(f"no {kind} {code!r} in the registry"). row = the last one (the newest edition).
-    #    For a code list also count = len(registry.code_values(uow.conn(), COMPANY, code)).
-    # 2. Print `name: value` lines in this order: kind (the CLI name as typed), code, label,
-    #    edition, lifecycle, adoption, owner ("-" when None), key ("-" when None), definition
-    #    ("-" when None).
-    # 3. A code list also prints `value_list_policy: <policy>` and `values: <count>`; a numbering
-    #    pattern prints `record_type: <data["record_type"]>` and `template: <data["template"]>`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    stored = _kind(kind)
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        rows = registry.find_standards(uow.conn(), scope=COMPANY, kind=stored, code=code)
+        if not rows:
+            _fail(f"no {kind} {code!r} in the registry")
+        row = rows[-1]
+        count = 0
+        if stored == "code_list":
+            count = len(registry.code_values(uow.conn(), COMPANY, code))
+    typer.echo(f"kind: {kind}")
+    typer.echo(f"code: {row.code}")
+    typer.echo(f"label: {row.label}")
+    typer.echo(f"edition: {row.edition}")
+    typer.echo(f"lifecycle: {row.lifecycle}")
+    typer.echo(f"adoption: {row.adoption}")
+    typer.echo(f"owner: {row.owner or '-'}")
+    typer.echo(f"key: {row.key or '-'}")
+    typer.echo(f"definition: {row.definition or '-'}")
+    if stored == "code_list":
+        typer.echo(f"value_list_policy: {row.value_list_policy}")
+        typer.echo(f"values: {count}")
+    if stored == "numbering_pattern":
+        typer.echo(f"record_type: {row.data['record_type']}")
+        typer.echo(f"template: {row.data['template']}")
 
 
 @app.command("values")
@@ -174,12 +189,14 @@ def values(
     ] = False,
 ) -> None:
     """List a code list's values as a scope sees them: company values, then the project's own."""
-    # STEPS
-    # 1. Inside `with _service_errors(), open_uow(db, readonly=True) as uow:` found =
-    #    codelists.values(uow.conn(), _scope(project), code_list, usable_only=not include_all).
-    # 2. Print one line per value, columns separated by two spaces: code, label, origin,
-    #    company_code ("-" when None), lifecycle.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        found = codelists.values(
+            uow.conn(), _scope(project), code_list, usable_only=not include_all
+        )
+    for item in found:
+        fields = [item.code, item.label, item.origin, item.company_code or "-", item.lifecycle]
+        typer.echo("  ".join(fields))
 
 
 @app.command("add-value")
@@ -199,15 +216,28 @@ def add_value(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Add a value to a code list: a company value (admin) or a project's own (any user)."""
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`; scope = _scope(project); without --project call
-    #    `require_admin(db)`.
-    # 2. Inside `with _service_errors(), open_uow(db) as uow:` handle_add_code_value(uow,
-    #    AddCodeValue(actor=actor, source="cli", scope=scope, code_list=code_list, code=code,
-    #    label=label, crosswalk=crosswalk, meaning=meaning)); then row =
-    #    registry.find_code_value(uow.conn(), scope, code_list, code).
-    # 3. Print f"added {code_list}.{code} origin={row.origin} crosswalk={row.crosswalk or '-'}".
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = _scope(project)
+    if project is None:
+        require_admin(db)
+    with _service_errors(), open_uow(db) as uow:
+        handle_add_code_value(
+            uow,
+            AddCodeValue(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                code_list=code_list,
+                code=code,
+                label=label,
+                crosswalk=crosswalk,
+                meaning=meaning,
+            ),
+        )
+        row = registry.find_code_value(uow.conn(), scope, code_list, code)
+    if row is None:
+        _fail(f"no value {code_list}.{code} in {scope}")
+    typer.echo(f"added {code_list}.{code} origin={row.origin} crosswalk={row.crosswalk or '-'}")
 
 
 @app.command("close")
@@ -228,20 +258,44 @@ def close(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """End the life of a code list, mnemonic or numbering pattern (admin)."""
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`; `require_admin(db)`; stored = _kind(kind).
-    # 2. Inside `with _service_errors(), open_uow(db) as uow:` active = registry.find_standards(
-    #    uow.conn(), scope=COMPANY, kind=stored, code=code, active_only=True); with --edition keep
-    #    the rows whose edition equals it. None left: _fail(f"no active {kind} {code!r}"); more than
-    #    one: _fail(f"{kind} {code!r} has several active editions: use --edition"). row = the one.
-    # 3. successor = None; with --superseded-by find the row among
-    #    registry.find_standards(uow.conn(), scope=COMPANY, kind=stored) whose key equals it and
-    #    use its id; no such row: _fail(f"no {kind} with key {superseded_by!r}").
-    # 4. handle_close_standard(uow, CloseStandard(actor=actor, source="cli", scope=COMPANY,
-    #    stream_id=row.id, lifecycle="superseded" if successor else "retired",
-    #    superseded_by=successor, reason=reason)).
-    # 5. After the block print f"closed {kind} {row.code} {row.edition} as {lifecycle}".
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    require_admin(db)
+    stored = _kind(kind)
+    with _service_errors(), open_uow(db) as uow:
+        active = registry.find_standards(
+            uow.conn(), scope=COMPANY, kind=stored, code=code, active_only=True
+        )
+        if edition is not None:
+            active = [r for r in active if r.edition == edition]
+        if not active:
+            _fail(f"no active {kind} {code!r}")
+        if len(active) > 1:
+            _fail(f"{kind} {code!r} has several active editions: use --edition")
+        row = active[0]
+        successor: str | None = None
+        if superseded_by is not None:
+            replacing = [
+                r
+                for r in registry.find_standards(uow.conn(), scope=COMPANY, kind=stored)
+                if r.key == superseded_by
+            ]
+            if not replacing:
+                _fail(f"no {kind} with key {superseded_by!r}")
+            successor = replacing[0].id
+        lifecycle = "superseded" if successor is not None else "retired"
+        handle_close_standard(
+            uow,
+            CloseStandard(
+                actor=actor,
+                source="cli",
+                scope=COMPANY,
+                stream_id=row.id,
+                lifecycle=lifecycle,
+                superseded_by=successor,
+                reason=reason,
+            ),
+        )
+    typer.echo(f"closed {kind} {row.code} {row.edition} as {lifecycle}")
 
 
 @app.command("close-value")
@@ -258,16 +312,30 @@ def close_value(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """End the life of a value of a code list: a company value (admin) or a project's own."""
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`; scope = _scope(project); without --project call
-    #    `require_admin(db)`.
-    # 2. Inside `with _service_errors(), open_uow(db) as uow:` row = registry.find_code_value(
-    #    uow.conn(), scope, code_list, code); none: _fail(f"no value {code_list}.{code} in
-    #    {scope}"). With --superseded-by other = registry.find_code_value(uow.conn(), scope,
-    #    code_list, superseded_by); none: _fail(f"no value {code_list}.{superseded_by} in
-    #    {scope}").
-    # 3. handle_close_code_value(uow, CloseCodeValue(actor=actor, source="cli", scope=scope,
-    #    stream_id=row.id, lifecycle="superseded" if other else "retired",
-    #    superseded_by=other.id if other else None, reason=reason)).
-    # 4. After the block print f"closed value {code_list}.{code} as {lifecycle}".
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = _scope(project)
+    if project is None:
+        require_admin(db)
+    with _service_errors(), open_uow(db) as uow:
+        row = registry.find_code_value(uow.conn(), scope, code_list, code)
+        if row is None:
+            _fail(f"no value {code_list}.{code} in {scope}")
+        other = None
+        if superseded_by is not None:
+            other = registry.find_code_value(uow.conn(), scope, code_list, superseded_by)
+            if other is None:
+                _fail(f"no value {code_list}.{superseded_by} in {scope}")
+        lifecycle = "superseded" if other is not None else "retired"
+        handle_close_code_value(
+            uow,
+            CloseCodeValue(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                stream_id=row.id,
+                lifecycle=lifecycle,
+                superseded_by=other.id if other is not None else None,
+                reason=reason,
+            ),
+        )
+    typer.echo(f"closed value {code_list}.{code} as {lifecycle}")
