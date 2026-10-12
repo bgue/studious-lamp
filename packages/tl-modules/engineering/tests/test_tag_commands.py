@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 from engworld import as_json, seed_registry
+from pydantic import ValidationError
 from sqlalchemy import text
 from tl_adapters.db import DbTarget, open_uow, rebuild_projections
 from tl_core.ledger import Event
@@ -30,11 +31,13 @@ from tl_mod_engineering.handlers.tags import (
     CreateTag,
     MergeTags,
     ReclassifyTag,
+    RecordTag,
     RenameTag,
     SplitTag,
     handle_create_tag,
     handle_merge_tags,
     handle_reclassify_tag,
+    handle_record_tag,
     handle_rename_tag,
     handle_split_tag,
 )
@@ -179,7 +182,8 @@ def test_a_number_that_breaks_the_pattern_is_refused_with_every_problem(ledger: 
 
 
 def test_the_record_policy_keeps_a_bad_number_as_a_violation(ledger: DbTarget) -> None:
-    create(ledger, "LEGACY-7", pattern_policy="record", origin="import")
+    with open_uow(ledger) as uow:
+        handle_record_tag(uow, RecordTag(**BASE, number="LEGACY-7"), origin="import")
     row = tag(ledger, "LEGACY-7")
     assert (row.number_status, row.origin, row.segments, row.area) == (
         "violation",
@@ -498,3 +502,44 @@ def test_a_rebuild_of_the_projections_gives_the_same_tags(ledger: DbTarget) -> N
         )["seq"]
         == "0001"
     )
+
+
+# --- who can write what: the origin is the server's, a recorded violation is a separate command ---
+
+
+def test_a_create_command_has_no_origin_and_no_pattern_policy() -> None:
+    for extra in ({"origin": "import"}, {"pattern_policy": "record"}):
+        with pytest.raises(ValidationError, match="Extra inputs"):
+            CreateTag.model_validate({**BASE, "number": "47-FV-1001", **extra})
+    with pytest.raises(ValidationError, match="Extra inputs"):
+        RecordTag.model_validate({**BASE, "number": "LEGACY-1", "origin": "import"})
+
+
+def test_record_tag_keeps_a_bad_number_and_says_created_unless_the_service_says_import(
+    ledger: DbTarget,
+) -> None:
+    with open_uow(ledger) as uow:
+        handle_record_tag(uow, RecordTag(**BASE, number="LEGACY-8"))
+    assert (tag(ledger, "LEGACY-8").number_status, tag(ledger, "LEGACY-8").origin) == (
+        "violation",
+        "created",
+    )
+    with pytest.raises(InvalidTagNumberError):
+        create(ledger, "LEGACY-9")  # the ordinary command still refuses it
+
+
+def test_the_commands_bound_their_lists_mappings_and_texts() -> None:
+    from tl_mod_engineering.limits import MAX_ITEMS, MAX_NUMBER, MAX_PROPERTIES, MAX_PSETS
+
+    ids = [f"id{n}" for n in range(MAX_ITEMS + 1)]
+    with pytest.raises(ValidationError, match="at most 500"):
+        MergeTags(**BASE, stream_ids=ids, new_number="47-FV-1001", reason="r")
+    with pytest.raises(ValidationError, match="at most 500"):
+        SplitTag(**BASE, stream_id="x", new_numbers=ids, reason="r")
+    with pytest.raises(ValidationError, match="at most 50"):
+        CreateTag(**BASE, number="47-FV-1001", psets={f"p{n}": {} for n in range(MAX_PSETS + 1)})
+    wide = {"valve_data": {f"k{n}": 1 for n in range(MAX_PROPERTIES + 1)}}
+    with pytest.raises(ValidationError, match="more than 200 properties"):
+        CreateTag(**BASE, number="47-FV-1001", psets=wide)
+    with pytest.raises(ValidationError, match="at most 128"):
+        CreateTag(**BASE, number="9" * (MAX_NUMBER + 1))

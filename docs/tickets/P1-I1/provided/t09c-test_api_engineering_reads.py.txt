@@ -21,8 +21,10 @@ from tl_mod_engineering.handlers.standards import (
 )
 from tl_mod_engineering.handlers.tags import (
     CreateTag,
+    RecordTag,
     RenameTag,
     handle_create_tag,
+    handle_record_tag,
     handle_rename_tag,
 )
 from tl_mod_engineering.loader import load_standards
@@ -60,7 +62,6 @@ def world(harness: Harness) -> Harness:
         ("47-FV-1001", {"class_code": "ControlValve", "service": "Feed gas"}),
         ("47-FV-1002", {"class_code": "ControlValve"}),
         ("47-HV-1003", {"class_code": "ManualValve"}),
-        ("LEGACY-1", {"pattern_policy": "record"}),
     )
     with harness.backend() as uow:
         for number, more in tags:
@@ -68,6 +69,9 @@ def world(harness: Harness) -> Harness:
                 uow, CreateTag(**BASE, scope=PROJECT, number=number, **more)
             )
     with harness.backend() as uow:
+        handle_record_tag(  # a legacy number, kept as a violation the way an import keeps it
+            uow, RecordTag(**BASE, scope=PROJECT, number="LEGACY-1"), origin="import"
+        )
         handle_rename_tag(
             uow,
             RenameTag(

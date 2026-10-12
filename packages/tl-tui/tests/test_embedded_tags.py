@@ -15,8 +15,10 @@ from tl_core.schema_provider import DirectorySchemaProvider, use_provider
 from tl_mod_engineering.errors import TagNotFoundError
 from tl_mod_engineering.handlers.tags import (
     CreateTag,
+    RecordTag,
     RenameTag,
     handle_create_tag,
+    handle_record_tag,
     handle_rename_tag,
 )
 from tl_mod_engineering.testing import seed_registry
@@ -55,7 +57,7 @@ def both(tmp_path: Path) -> Iterator[tuple[ClientInterface, ClientInterface]]:
             )
             handle_create_tag(uow, CreateTag(**BASE, number="47-FV-1002", class_code="ManualValve"))
             handle_create_tag(uow, CreateTag(**BASE, number="10-PT-0001"))
-            handle_create_tag(uow, CreateTag(**BASE, number="LEGACY-1", pattern_policy="record"))
+            handle_record_tag(uow, RecordTag(**BASE, number="LEGACY-1"), origin="import")
         with open_uow(path) as uow:
             handle_rename_tag(
                 uow,

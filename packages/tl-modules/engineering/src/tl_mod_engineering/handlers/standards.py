@@ -42,6 +42,15 @@ from tl_mod_engineering.errors import (
     RegistryScopeError,
     StandardNotFoundError,
 )
+from tl_mod_engineering.limits import (
+    MAX_DESCRIPTION,
+    MAX_ITEMS,
+    MAX_NUMBER,
+    MAX_PROPERTIES,
+    MAX_REASON,
+    MAX_SEGMENTS,
+    MAX_TEXT,
+)
 from tl_mod_engineering.names import (
     CODE_LIST,
     CODE_VALUE,
@@ -67,11 +76,11 @@ def _iso_date(value: str | None) -> str | None:
 class _Entry(Command):
     """The fields every registry entry has."""
 
-    code: str
-    label: str = Field(min_length=1)
-    definition: str | None = None
-    edition: str
-    owner: str | None = None
+    code: str = Field(max_length=MAX_NUMBER)
+    label: str = Field(min_length=1, max_length=MAX_TEXT)
+    definition: str | None = Field(default=None, max_length=MAX_DESCRIPTION)
+    edition: str = Field(max_length=MAX_NUMBER)
+    owner: str | None = Field(default=None, max_length=MAX_TEXT)
     adoption: Adoption = "default"
     effective_from: str | None = None
     effective_to: str | None = None
@@ -121,11 +130,11 @@ class RegisterNumberingPattern(_Entry):
 
     record_type: str
     template: str
-    segments: dict[str, SegmentDef]
+    segments: dict[str, SegmentDef] = Field(max_length=MAX_SEGMENTS)
     allocate: bool = False
     gap_free: bool = True
     scope_selector: str = "project:*"
-    reserved: list[tuple[int, int]] = []
+    reserved: list[tuple[int, int]] = Field(default=[], max_length=MAX_ITEMS)
 
     @field_validator("code")
     @classmethod
@@ -145,16 +154,18 @@ class RegisterNumberingPattern(_Entry):
 class AddCodeValue(Command):
     """Add a value to a code list in ``scope`` (``company`` or a project)."""
 
-    code_list: str
-    code: str
-    label: str = Field(min_length=1)
-    meaning: str | None = None
-    crosswalk: str | None = None
+    code_list: str = Field(max_length=MAX_NUMBER)
+    code: str = Field(max_length=MAX_NUMBER)
+    label: str = Field(min_length=1, max_length=MAX_TEXT)
+    meaning: str | None = Field(default=None, max_length=MAX_TEXT)
+    crosswalk: str | None = Field(default=None, max_length=MAX_NUMBER)
     sort_order: int | None = None  # None: ten after the scope's last value of the list
     effective_from: str | None = None
     effective_to: str | None = None
-    attributes: dict[str, Any] = {}
-    edition: str | None = None  # None: the list's edition (company) or "project" (a project)
+    attributes: dict[str, Any] = Field(default={}, max_length=MAX_PROPERTIES)
+    edition: str | None = Field(
+        default=None, max_length=MAX_NUMBER
+    )  # None: the list's edition (company) or "project" (a project)
 
     @field_validator("code")
     @classmethod
@@ -175,7 +186,7 @@ class _Close(Command):
     lifecycle: Literal["superseded", "retired"] = "retired"
     superseded_by: str | None = None  # the replacing entry; required for ``superseded``
     effective_to: str | None = None
-    reason: str
+    reason: str = Field(max_length=MAX_REASON)
 
     @field_validator("reason")
     @classmethod

@@ -25,10 +25,10 @@ from tl_core.util import new_ulid
 from tl_mod_engineering import registry
 from tl_mod_engineering.errors import ImportApplyError
 from tl_mod_engineering.handlers.tags import (
-    CreateTag,
     ReclassifyTag,
-    handle_create_tag,
+    RecordTag,
     handle_reclassify_tag,
+    handle_record_tag,
 )
 from tl_mod_engineering.imports.model import ExistingTag, ImportPlan, ImportRow, RowChange
 
@@ -82,17 +82,16 @@ def _create(uow: UnitOfWork, base: dict[str, Any], row: ImportRow) -> None:
             standard_psets[pset] = standard
         if extra:
             custom[pset] = extra
-    made = handle_create_tag(
+    made = handle_record_tag(
         uow,
-        CreateTag(
+        RecordTag(
             **base,
             number=row.number,
             class_code=row.class_code,
             service=row.service,
             psets=standard_psets,
-            pattern_policy="record",
-            origin="import",
         ),
+        origin="import",
     )
     for pset, values in sorted(custom.items()):
         handle_set_pset_values(

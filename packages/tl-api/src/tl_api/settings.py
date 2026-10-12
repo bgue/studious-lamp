@@ -16,6 +16,8 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 #: Largest body ``PUT /uploads/{id}/content`` accepts (the unslotted attachment limit, 5 GiB).
 DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024**3
+#: Largest body ``POST /commands/*`` accepts (1 MiB): a command is a few hundred bytes of JSON.
+DEFAULT_COMMAND_BYTES = 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -40,6 +42,8 @@ class ApiSettings:
     trusted_proxy_header: str | None = None
     max_streams: int = 32  # open SSE streams; more get 503 (each holds a worker thread)
     max_upload_bytes: int = DEFAULT_MAX_UPLOAD_BYTES
+    #: Largest body of ``POST /commands/*``; a bigger one is a 413 before it is parsed.
+    max_command_bytes: int = DEFAULT_COMMAND_BYTES
 
     @staticmethod
     def from_env(env: Mapping[str, str] | None = None) -> ApiSettings:
@@ -51,6 +55,9 @@ class ApiSettings:
             host=source.get("TL_API_HOST", DEFAULT_HOST),
             port=int(source.get("TL_API_PORT", str(DEFAULT_PORT))),
             trusted_proxy_header=source.get("TL_TRUSTED_PROXY_HEADER") or None,
+            max_command_bytes=int(
+                source.get("TL_API_MAX_COMMAND_BYTES", str(DEFAULT_COMMAND_BYTES))
+            ),
         )
 
 

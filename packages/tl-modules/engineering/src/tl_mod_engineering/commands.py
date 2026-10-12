@@ -46,14 +46,16 @@ from tl_mod_engineering.handlers.tags import (
     CreateTag,
     MergeTags,
     ReclassifyTag,
+    RecordTag,
     RenameTag,
     handle_create_tag,
     handle_merge_tags,
     handle_reclassify_tag,
+    handle_record_tag,
     handle_rename_tag,
 )
 
-Access = Literal["admin", "company", "user"]
+Access = Literal["admin", "company", "user"]  # a typo is a type error, not an open door
 
 
 @dataclass(frozen=True)
@@ -74,6 +76,7 @@ API_COMMANDS: tuple[ApiCommand, ...] = (
     ApiCommand(ReviseTagClass, handle_revise_tag_class, "admin"),
     ApiCommand(CloseTagClass, handle_close_tag_class, "admin"),
     ApiCommand(CreateTag, handle_create_tag, "user"),
+    ApiCommand(RecordTag, handle_record_tag, "admin"),
     ApiCommand(ReclassifyTag, handle_reclassify_tag, "user"),
     ApiCommand(RenameTag, handle_rename_tag, "user"),
     ApiCommand(MergeTags, handle_merge_tags, "user"),

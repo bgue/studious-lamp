@@ -9,7 +9,12 @@ from typing import Any
 import pytest
 from tl_adapters.db import DbTarget, open_uow
 from tl_cli.main import app
-from tl_mod_engineering.handlers.tags import CreateTag, handle_create_tag
+from tl_mod_engineering.handlers.tags import (
+    CreateTag,
+    RecordTag,
+    handle_create_tag,
+    handle_record_tag,
+)
 from tl_mod_engineering.testing import seed_registry
 from typer.testing import CliRunner
 from typer.testing import Result as RunResult
@@ -35,7 +40,6 @@ def env(new_db: Callable[[], DbTarget], monkeypatch: pytest.MonkeyPatch) -> dict
         ),
         ("10-PT-0001", {}),
         ("47-FV-1005", {"class_code": "ManualValve"}),
-        ("LEGACY-1", {"pattern_policy": "record"}),
     )
     with open_uow(target) as uow:
         for number, more in tags:
@@ -45,6 +49,11 @@ def env(new_db: Callable[[], DbTarget], monkeypatch: pytest.MonkeyPatch) -> dict
                     actor="user:dev", source="test", scope="project:P123", number=number, **more
                 ),
             )
+        handle_record_tag(  # a legacy number: kept as a violation, the way an import keeps it
+            uow,
+            RecordTag(actor="user:dev", source="test", scope="project:P123", number="LEGACY-1"),
+            origin="import",
+        )
     return values
 
 

@@ -33,7 +33,7 @@ from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.uow import UnitOfWork
 from tl_core.util import effective_time
-from tl_mod_engineering.commands import API_COMMANDS
+from tl_mod_engineering.commands import API_COMMANDS, Access
 
 from tl_api.auth import AGENT_DIRECT_COMMANDS, current_principal, guard
 from tl_api.context import get_ctx
@@ -50,7 +50,7 @@ class CommandSpec:
     handler: Handler
     #: "user": any signed-in person; "admin": only an admin (action ``admin.command.<Name>``);
     #: "company": an admin when ``scope`` is ``company``, any signed-in person otherwise.
-    access: str = "user"
+    access: Access = "user"
 
     @property
     def name(self) -> str:

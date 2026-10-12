@@ -113,6 +113,7 @@ A company adds a record type with a package of files (brief 31, 27.3). Runbook: 
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `ModuleSpec`, `load_modules`, `use_modules` | class, functions | What a module package gives the core: its record types, a factory for its projectors and two optional hooks. Modules are found through the entry point group `throughline.modules`; `use_modules` installs fakes in tests |
+| `GENERIC_COMMANDS`, `require_generic_command` | constant, function | The generic commands that reach a record whatever its type, and the check every one of their handlers makes: a module record type allows only the commands its `ModuleSpec.generic_commands` lists (ADR-0010 addendum) |
 | `module_projectors`, `module_record_types`, `bound_psets`, `ledger_numbering_patterns` | functions | What the core asks the loaded modules. `default_registry()` registers the module projectors after the core ones and before the outbox |
 | `tl_core.services.records.create_module_record` | function | `Record.Created` plus the module's own events in one append, for a record type a module provides |
 | `tl_core.numbering.config.numbering_for(conn)` | function | The file patterns plus the numbering patterns modules hold in the ledger; record creation and key detection in posts use it |

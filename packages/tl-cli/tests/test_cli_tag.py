@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
-from tl_adapters.db import DbTarget
+from auth_support import bootstrap, sign_in
+from engcli_support import ordinary_env
+from tl_adapters.db import DbTarget, as_target, is_postgres
 from tl_cli.main import app
 from tl_mod_engineering.testing import seed_registry
 from typer.testing import CliRunner
@@ -39,6 +42,14 @@ def tag(env: dict[str, str], *args: str, ok: bool = True) -> RunResult:
 
 def make(env: dict[str, str], number: str, *more: str) -> RunResult:
     return tag(env, "create", number, "--project", "P123", *more)
+
+
+def make_legacy(env: dict[str, str], number: str) -> RunResult:
+    """``tl tag create --allow-violation``, which needs an admin (signed in here on SQLite)."""
+    if not is_postgres(as_target(env["TL_DB"])):  # on Postgres the conftest signs an admin in
+        assert bootstrap(env).exit_code == 0
+        sign_in(env)
+    return make(env, number, "--allow-violation")
 
 
 def ls(env: dict[str, str], *more: str) -> list[str]:
@@ -80,7 +91,7 @@ def make_fail(env: dict[str, str], number: str, *more: str) -> RunResult:
 
 
 def test_allow_violation_stores_the_number_as_a_violation(env: dict[str, str]) -> None:
-    result = make(env, "LEGACY-7", "--allow-violation")
+    result = make_legacy(env, "LEGACY-7")
     assert "number_status violation" in result.stdout.splitlines()
     assert "segments -" in result.stdout.splitlines()
     shown = tag(env, "show", "LEGACY-7", "--project", "P123").stdout
@@ -161,7 +172,7 @@ def test_ls_lists_by_number_and_filters(env: dict[str, str]) -> None:
     make(env, "47-FV-1002", "--class", "ControlValve", "--service", "Fuel gas")
     make(env, "47-FV-1001", "--class", "ControlValve")
     make(env, "10-PT-0001")
-    make(env, "LEGACY-1", "--allow-violation")
+    make_legacy(env, "LEGACY-1")
     assert ls(env) == [
         "10-PT-0001  -  -  ok  10-PT-0001",
         "47-FV-1001  ControlValve  -  nonconformant  47-FV-1001",
@@ -281,3 +292,22 @@ def test_a_change_to_an_unknown_tag_is_an_error(env: dict[str, str]) -> None:
     ):
         result = tag(env, *args[:1], *args[1:], "--project", "P123", ok=False)
         assert "error: no tag 'NOPE-1' in project 'P123'" in result.stderr
+
+
+def test_only_an_admin_may_keep_a_number_that_breaks_the_pattern(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    if is_postgres(as_target(env["TL_DB"])):
+        pytest.skip("the Postgres test account is an admin")
+    assert bootstrap(env).exit_code == 0
+    sign_in(env)
+    amy = ordinary_env(env, tmp_path)
+    refused = runner.invoke(
+        app, ["tag", "create", "LEGACY-7", "--project", "P123", "--allow-violation"], env=amy
+    )
+    assert refused.exit_code == 1
+    assert refused.stderr.strip() == "error: forbidden: this command needs the admin role"
+    assert ls(amy) == []
+    # the ordinary command still works for her, and still checks the number
+    assert make(amy, "47-FV-1001", "--class", "ControlValve").exit_code == 0
+    assert make_fail(amy, "LEGACY-7").exit_code == 1

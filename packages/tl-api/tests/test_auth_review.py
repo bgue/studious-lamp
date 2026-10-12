@@ -375,6 +375,7 @@ AGENT_MAY_NOT = {
     "admin.command.DefineTagClass",
     "admin.command.ReviseTagClass",
     "admin.command.CloseTagClass",
+    "admin.command.RecordTag",
 }
 FEED_COMMANDS = {"PostToFeed", "EditPost", "RetractPost", "ReactToPost"}
 

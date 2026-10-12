@@ -28,6 +28,13 @@ from tl_mod_engineering.errors import (
     RegistryScopeError,
     TagClassNotFoundError,
 )
+from tl_mod_engineering.limits import (
+    MAX_DESCRIPTION,
+    MAX_ITEMS,
+    MAX_NUMBER,
+    MAX_REASON,
+    MAX_TEXT,
+)
 from tl_mod_engineering.names import (
     COMPANY,
     TAG_CLASS,
@@ -44,14 +51,14 @@ _LIST_FIELDS = ("required_psets", "itr_templates", "mnemonics")
 class DefineTagClass(Command):
     """Create a tag class. ``scope`` must be ``company``."""
 
-    code: str
-    label: str = Field(min_length=1)
-    definition: str | None = None
+    code: str = Field(max_length=MAX_NUMBER)
+    label: str = Field(min_length=1, max_length=MAX_TEXT)
+    definition: str | None = Field(default=None, max_length=MAX_DESCRIPTION)
     family: TagFamily
-    required_psets: list[str] = []
-    itr_templates: list[str] = []
-    mnemonics: list[str] = []
-    edition: str = Field(min_length=1)
+    required_psets: list[str] = Field(default=[], max_length=MAX_ITEMS)
+    itr_templates: list[str] = Field(default=[], max_length=MAX_ITEMS)
+    mnemonics: list[str] = Field(default=[], max_length=MAX_ITEMS)
+    edition: str = Field(min_length=1, max_length=MAX_NUMBER)
 
     @field_validator("code")
     @classmethod
@@ -66,8 +73,8 @@ class ReviseTagClass(Command):
 
     stream_id: str
     expected_version: int | None = None  # None: whatever version the class has now
-    changes: dict[str, Any]
-    reason: str
+    changes: dict[str, Any] = Field(max_length=len(REVISABLE))
+    reason: str = Field(max_length=MAX_REASON)
 
     @field_validator("reason")
     @classmethod
@@ -84,7 +91,7 @@ class CloseTagClass(Command):
     expected_version: int | None = None
     lifecycle: Literal["superseded", "retired"] = "retired"
     superseded_by: str | None = None  # the replacing class; required for ``superseded``
-    reason: str
+    reason: str = Field(max_length=MAX_REASON)
 
     @field_validator("reason")
     @classmethod

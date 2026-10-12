@@ -206,21 +206,22 @@ BODY_LIMITS: tuple[tuple[str, int], ...] = (("/auth/", 16 * 1024), ("/admin/", 6
 
 
 class BodyLimitMiddleware:
-    """Answers 413 `payload_too_large` to an oversized body on the auth and admin routes.
+    """Answers 413 `payload_too_large` to an oversized body on the auth, admin and command routes.
 
     It checks ``Content-Length`` and also counts the bytes of a chunked body, so a sign-in cannot be
     used to make the server read or parse megabytes before it says no. It runs before the
     authentication middleware, so an unauthenticated caller gets the same limit.
     """
 
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, limits: tuple[tuple[str, int], ...] = BODY_LIMITS) -> None:
         self.app = app
+        self._limits = limits
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         limit = None
         if scope["type"] == "http":
             path = scope["path"]
-            limit = next((size for prefix, size in BODY_LIMITS if path.startswith(prefix)), None)
+            limit = next((size for prefix, size in self._limits if path.startswith(prefix)), None)
         if limit is None:
             await self.app(scope, receive, send)
             return

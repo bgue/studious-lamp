@@ -11,8 +11,10 @@ from tl_core.services.commands import CommandResult
 from tl_mod_engineering import registry
 from tl_mod_engineering.handlers.tags import (
     CreateTag,
+    RecordTag,
     RenameTag,
     handle_create_tag,
+    handle_record_tag,
     handle_rename_tag,
 )
 
@@ -23,6 +25,12 @@ BASE: dict[str, Any] = {"actor": "user:u", "source": "test", "scope": "project:P
 def make(db: DbTarget, number: str, **more: Any) -> CommandResult:
     with open_uow(db) as uow:
         return handle_create_tag(uow, CreateTag(**BASE, number=number, **more))
+
+
+def make_legacy(db: DbTarget, number: str) -> CommandResult:
+    """A tag whose number breaks the pattern, as the import service makes it."""
+    with open_uow(db) as uow:
+        return handle_record_tag(uow, RecordTag(**BASE, number=number), origin="import")
 
 
 def listed(db: DbTarget, **filters: Any) -> list[str]:
@@ -37,7 +45,7 @@ def ledger(db: DbTarget) -> DbTarget:
     make(db, "47-FV-1001", class_code="ControlValve")
     make(db, "10-PT-0001")
     make(db, "10-HV-0001", class_code="ManualValve")
-    make(db, "LEGACY-1", pattern_policy="record", origin="import")
+    make_legacy(db, "LEGACY-1")
     return db
 
 

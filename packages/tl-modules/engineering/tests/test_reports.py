@@ -10,8 +10,10 @@ from tl_adapters.db import DbTarget, open_uow
 from tl_mod_engineering import reports
 from tl_mod_engineering.handlers.tags import (
     CreateTag,
+    RecordTag,
     RenameTag,
     handle_create_tag,
+    handle_record_tag,
     handle_rename_tag,
 )
 from tl_mod_engineering.reports import MissingIssue, MissingLine, SummaryLine, ViolationLine
@@ -24,6 +26,12 @@ BASE: dict[str, Any] = {"actor": "user:u", "source": "test", "scope": SCOPE}
 def make(db: DbTarget, number: str, **more: Any) -> str:
     with open_uow(db) as uow:
         return handle_create_tag(uow, CreateTag(**BASE, number=number, **more)).stream_id
+
+
+def make_legacy(db: DbTarget, number: str) -> str:
+    """A tag whose number breaks the pattern, as the import service makes it."""
+    with open_uow(db) as uow:
+        return handle_record_tag(uow, RecordTag(**BASE, number=number), origin="import").stream_id
 
 
 @pytest.fixture
@@ -39,7 +47,7 @@ def ledger(db: DbTarget) -> DbTarget:
     make(db, "10-PT-0001")  # no class
     make(db, "10-HV-0001", class_code="ManualValve")
     make(db, "47-FV-1005", class_code="ManualValve")  # FV does not usually identify a ManualValve
-    make(db, "LEGACY-1", pattern_policy="record", origin="import")
+    make_legacy(db, "LEGACY-1")
     old = make(db, "47-FV-1006", class_code="ControlValve")
     with open_uow(db) as uow:
         handle_rename_tag(

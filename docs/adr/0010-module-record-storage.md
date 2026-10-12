@@ -64,3 +64,32 @@ Nothing in `tl_core` could learn about a module: `default_registry()` lists proj
 | Typed fields as a pset on the generic row (the extension-type way) | No typed columns or indexes for segments, class and status; the P1-I1 exit asks for parsed segment columns |
 | Module events without a `Record.Created` | The record would not exist for links, feed and queries |
 | Modules listed by hand in `default_registry()` | `tl_core` would import every module; a module could not be added without editing the core |
+
+## Addendum 2026-10-12: generic commands on module records
+
+A security review of the HTTP commands found that any signed-in person could send `UpdateRecord` for a tag class or a
+code list and change its title and description: the generic commands load a record by id and check only its scope, so
+they reached module records as they reach core ones. The event landed on a registry stream as a `core.Record` event.
+
+Decision (orchestrator, ADR-0008 decision 6): **the envelope (title, description) and the typed fields of a module
+record change only through the module's own commands.**
+
+1. `ModuleSpec.generic_commands` maps a record type to the generic commands that may act on it. A type that is not a key,
+   or is mapped to an empty set, allows none. The names are those of `tl_core.modules.GENERIC_COMMANDS`: `UpdateRecord`,
+   `VoidRecord`, `SetPsetValues`, `TransitionWorkflow`, `AddLink`, `SuggestLink`, `AttachFile`. A spec that names anything
+   else, or a type it does not own, is a `ModuleLoadError`.
+2. `require_generic_command(record_type, command)` is called by the handlers of those commands, in `tl_core`, so the API,
+   the CLI, MCP and an accepted proposal all inherit it. It raises `UnsupportedRecordTypeError` (422
+   `unsupported_record_type`) with a fixed message that names the command and the type. `EditRecord` is covered through
+   the two handlers it calls. A link is checked at its source end only, so a feed post can still reference any record.
+3. The engineering module allows, for `engineering.Tag`: `UpdateRecord`, `SetPsetValues`, `TransitionWorkflow`,
+   `AddLink`, `SuggestLink` and `AttachFile`. The registry types (`CodeList`, `Mnemonic`, `NumberingPattern`,
+   `CodeValue`, `TagClass`) and the registry's own `Standard` records allow none; `VoidRecord` is allowed on nothing.
+4. The allow-list says *which* commands, not *who*: core services see an actor string, not a role. A change that needs
+   a role (the registry is admin-only) is a command of the module, gated by the API's `admin.command.<Name>` action and
+   the CLI's `require_admin`. An entry in `generic_commands` is therefore open to every signed-in person.
+5. `origin` of a tag is set by the server only (`created`, or `import` by the import service); `CreateTag` has no such
+   field and no pattern policy. Keeping a number that breaks the pattern is the admin command `RecordTag`.
+
+Consequences. Whoever adds a module record type must decide its allow-list; the default is closed. Learning
+L-P1-I1-8: when a module adds record types, check every generic command that can reach `cur_core_record`.

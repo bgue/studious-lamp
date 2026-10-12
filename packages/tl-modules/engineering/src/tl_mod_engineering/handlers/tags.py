@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 from tl_core.ledger import NewEvent
 from tl_core.schema_provider import get_provider
 from tl_core.services.commands import Command, CommandResult
@@ -32,6 +32,15 @@ from tl_mod_engineering.errors import (
     TagClassNotFoundError,
     TagNotFoundError,
     TagSupersededError,
+)
+from tl_mod_engineering.limits import (
+    MAX_DESCRIPTION,
+    MAX_ITEMS,
+    MAX_NUMBER,
+    MAX_PROPERTIES,
+    MAX_PSETS,
+    MAX_REASON,
+    MAX_TEXT,
 )
 from tl_mod_engineering.names import (
     COMPANY,
@@ -56,24 +65,44 @@ def _non_blank(value: str) -> str:
 
 
 class CreateTag(Command):
-    """Create a tag in a project scope. ``number`` becomes the record key."""
+    """Create a tag in a project scope. ``number`` becomes the record key.
 
-    number: str = Field(min_length=1)
-    class_code: str | None = None
-    service: str | None = None  # the service description; becomes the title (default: the number)
-    description: str | None = None
-    psets: dict[str, dict[str, Any]] = {}  # initial standard-layer values, by pset
-    # "enforce": a number that breaks the pattern is refused. "record": it is stored as a
-    # violation (a legacy import); the problems are kept on the tag.
-    pattern_policy: Literal["enforce", "record"] = "enforce"
-    origin: Literal["created", "import"] = "created"
+    The number must fit the registry numbering pattern. A command has no ``origin`` and no pattern
+    policy: a tag made here is ``created`` and its number is checked. A number that breaks the
+    pattern is stored only through :class:`RecordTag` (admin) or the import service.
+    """
+
+    model_config = ConfigDict(extra="forbid")  # a stale `pattern_policy=` or `origin=` is an error
+
+    number: str = Field(min_length=1, max_length=MAX_NUMBER)
+    class_code: str | None = Field(default=None, max_length=MAX_NUMBER)
+    service: str | None = Field(default=None, max_length=MAX_TEXT)  # the title; default: the number
+    description: str | None = Field(default=None, max_length=MAX_DESCRIPTION)
+    psets: dict[str, dict[str, Any]] = Field(default={}, max_length=MAX_PSETS)
+
+    @field_validator("psets")
+    @classmethod
+    def _psets_fit(cls, value: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        for name, values in value.items():
+            if len(values) > MAX_PROPERTIES:
+                raise ValueError(f"pset {name!r} has more than {MAX_PROPERTIES} properties")
+        return value
+
+
+class RecordTag(CreateTag):
+    """Create a tag and keep a number that breaks the pattern, as a violation (admin).
+
+    For legacy numbers that are kept as they are. The violations are stored with the tag and show
+    in the reports. The API offers it as an admin command; ``tl tag create --allow-violation``
+    needs the admin role.
+    """
 
 
 class ReclassifyTag(Command):
     stream_id: str
     expected_version: int | None = None
-    class_code: str
-    reason: str
+    class_code: str = Field(max_length=MAX_NUMBER)
+    reason: str = Field(max_length=MAX_REASON)
 
     @field_validator("reason")
     @classmethod
@@ -86,8 +115,8 @@ class RenameTag(Command):
 
     stream_id: str
     expected_version: int | None = None
-    new_number: str = Field(min_length=1)
-    reason: str
+    new_number: str = Field(min_length=1, max_length=MAX_NUMBER)
+    reason: str = Field(max_length=MAX_REASON)
 
     @field_validator("reason")
     @classmethod
@@ -100,8 +129,8 @@ class SplitTag(Command):
 
     stream_id: str
     expected_version: int | None = None
-    new_numbers: list[str] = Field(min_length=2)
-    reason: str
+    new_numbers: list[str] = Field(min_length=2, max_length=MAX_ITEMS)
+    reason: str = Field(max_length=MAX_REASON)
 
     @field_validator("reason")
     @classmethod
@@ -112,9 +141,9 @@ class SplitTag(Command):
 class MergeTags(Command):
     """Replace several tags by one. The new tag takes class, service and values of the first."""
 
-    stream_ids: list[str] = Field(min_length=2)
-    new_number: str = Field(min_length=1)
-    reason: str
+    stream_ids: list[str] = Field(min_length=2, max_length=MAX_ITEMS)
+    new_number: str = Field(min_length=1, max_length=MAX_NUMBER)
+    reason: str = Field(max_length=MAX_REASON)
 
     @field_validator("reason")
     @classmethod
@@ -256,6 +285,24 @@ def handle_create_tag(uow: UnitOfWork, cmd: CreateTag) -> CommandResult:
     registry pattern: ``issues`` lists every problem), ``DuplicateKeyError`` and the pset errors.
     With no registry pattern for tags the number is accepted as written.
     """
+    return _create_from(uow, cmd, policy="enforce", origin="created")
+
+
+def handle_record_tag(
+    uow: UnitOfWork, cmd: RecordTag, *, origin: Literal["created", "import"] = "created"
+) -> CommandResult:
+    """Like :func:`handle_create_tag`, but a number that breaks the pattern is kept as a violation.
+
+    ``origin`` is not part of the command: only a caller inside the platform (the import service)
+    can say ``import``. Who may call this is the caller's rule (``RecordTag`` is admin-only in the
+    API and the CLI).
+    """
+    return _create_from(uow, cmd, policy="record", origin=origin)
+
+
+def _create_from(
+    uow: UnitOfWork, cmd: CreateTag, *, policy: str, origin: Literal["created", "import"]
+) -> CommandResult:
     _require_project(cmd)
     cmd = _correlated(cmd)
     writes: list[Write] = [(name, "standard", values) for name, values in sorted(cmd.psets.items())]
@@ -267,8 +314,8 @@ def handle_create_tag(uow: UnitOfWork, cmd: CreateTag) -> CommandResult:
         title=cmd.service or cmd.number,
         description=cmd.description,
         writes=writes,
-        policy=cmd.pattern_policy,
-        origin=cmd.origin,
+        policy=policy,
+        origin=origin,
         supersedes=[],
     )
 

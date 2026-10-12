@@ -25,16 +25,19 @@ from tl_mod_engineering.handlers.tags import (
     CreateTag,
     MergeTags,
     ReclassifyTag,
+    RecordTag,
     RenameTag,
     SplitTag,
     handle_create_tag,
     handle_merge_tags,
     handle_reclassify_tag,
+    handle_record_tag,
     handle_rename_tag,
     handle_split_tag,
 )
 
 from tl_cli.pset import parse_assignment
+from tl_cli.session import require_admin
 
 app = typer.Typer(help="Create, show and change engineering tags.", no_args_is_help=True)
 
@@ -135,24 +138,26 @@ def create(
     ] = False,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Create a tag. The number must fit the registry numbering pattern."""
+    """Create a tag. The number must fit the numbering pattern (--allow-violation: admins)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
+    if allow_violation:
+        require_admin(db)  # keeping a number that breaks the pattern is an admin's decision
+    fields: dict[str, Any] = {
+        "actor": actor,
+        "source": "cli",
+        "scope": scope,
+        "number": number,
+        "class_code": class_code,
+        "service": service,
+        "description": description,
+        "psets": _psets(pset),
+    }
     with _service_errors(), open_uow(db) as uow:
-        result = handle_create_tag(
-            uow,
-            CreateTag(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                number=number,
-                class_code=class_code,
-                service=service,
-                description=description,
-                psets=_psets(pset),
-                pattern_policy="record" if allow_violation else "enforce",
-            ),
-        )
+        if allow_violation:
+            result = handle_record_tag(uow, RecordTag(**fields))
+        else:
+            result = handle_create_tag(uow, CreateTag(**fields))
         _show_created(uow, scope, project, number, result.stream_id)
 
 
