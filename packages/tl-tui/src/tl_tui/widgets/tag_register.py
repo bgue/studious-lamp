@@ -6,14 +6,7 @@ level. The panel under the table describes the highlighted tag: its parts, why i
 refused or accepted, and what it still lacks. Everything is read through the client; nothing here
 changes a tag. The filter keys narrow the list on the screen (class, violations only, text);
 ``a`` asks the client for the ended tags too.
-
-STUB (P1-I1-T09d): the bodies of the methods marked by a STEPS comment raise NotImplementedError;
-their signatures, docstrings and the layout, the events and the other actions are final. Each body
-has a STEPS comment. Implement them, then delete this paragraph, the STEPS comments and the `ruff:
-noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -93,31 +86,45 @@ class TagRegisterScreen(ModalScreen[None]):
 
     def reload(self) -> None:
         """Read the list again and keep the highlighted tag where it is."""
-        # STEPS
-        # 1. keep = self._number() (the highlighted number, or None).
-        # 2. Inside `try:` self.views = self.client.list_tags(self.project,
-        #    include_ended=self.include_ended, limit=MAX_TAGS). On `CLIENT_ERRORS` call
-        #    self._say(describe_error(exc), error=True) and return.
-        # 3. self._fill(keep).
-        raise NotImplementedError
+        keep = self._number()
+        try:
+            self.views = self.client.list_tags(
+                self.project, include_ended=self.include_ended, limit=MAX_TAGS
+            )
+        except CLIENT_ERRORS as exc:
+            self._say(describe_error(exc), error=True)
+            return
+        self._fill(keep)
 
     def _fill(self, keep: str | None = None) -> None:
         """Apply the screen's filters to ``self.views`` and fill the table."""
-        # STEPS
-        # 1. needle = self.text.strip().lower(). self.shown = the views for which: the class
-        #    filter is off or view.class_code equals it; the violations filter is off or
-        #    view.number_status == "violation"; and the needle is empty or is in view.number.lower()
-        #    or view.title.lower().
-        # 2. table = the #tags-table DataTable; table.clear(); for each shown view add one row of
-        #    Text(cell) for cell in row_cells(view), with key=view.number (Text, not str: a cell is
-        #    read as markup).
-        # 3. Move the cursor to the row of `keep` when it is shown, else to row 0 (only when rows
-        #    exist): table.move_cursor(row=...).
-        # 4. Update #tags-status with summary_line(len(self.shown), len(self.views),
-        #    class_code=self.class_code, violations_only=self.violations_only,
-        #    include_ended=self.include_ended, text=self.text).
-        # 5. self._describe().
-        raise NotImplementedError
+        needle = self.text.strip().lower()
+        self.shown = [
+            v
+            for v in self.views
+            if (self.class_code is None or v.class_code == self.class_code)
+            and (not self.violations_only or v.number_status == "violation")
+            and (not needle or needle in v.number.lower() or needle in v.title.lower())
+        ]
+        table = self.query_one("#tags-table", DataTable)
+        table.clear()
+        for view in self.shown:
+            # Text, not str: a cell is read as markup, and a title such as [a, b] is not markup
+            table.add_row(*(Text(cell) for cell in row_cells(view)), key=view.number)
+        if self.shown:
+            numbers = [v.number for v in self.shown]
+            table.move_cursor(row=numbers.index(keep) if keep in numbers else 0)
+        self.query_one("#tags-status", Static).update(
+            summary_line(
+                len(self.shown),
+                len(self.views),
+                class_code=self.class_code,
+                violations_only=self.violations_only,
+                include_ended=self.include_ended,
+                text=self.text,
+            )
+        )
+        self._describe()
 
     def _number(self) -> str | None:
         view = self.current()
@@ -131,14 +138,18 @@ class TagRegisterScreen(ModalScreen[None]):
 
     def _describe(self) -> None:
         """Show the highlighted tag with what it lacks (one ``get_tag`` call per tag)."""
-        # STEPS
-        # 1. detail = the #tags-detail Static; view = self.current(). None: detail.update("No tag
-        #    matches.") and return.
-        # 2. Inside `try:` full = self.client.get_tag(self.project, view.number). On
-        #    `CLIENT_ERRORS` set full = view (the listing's copy) and call
-        #    self._say(describe_error(exc), error=True).
-        # 3. self.detail = full; detail.update("\n".join(detail_lines(full))).
-        raise NotImplementedError
+        detail = self.query_one("#tags-detail", Static)
+        view = self.current()
+        if view is None:
+            detail.update("No tag matches.")
+            return
+        try:
+            full = self.client.get_tag(self.project, view.number)
+        except CLIENT_ERRORS as exc:
+            full = view  # the listing's copy: no issues
+            self._say(describe_error(exc), error=True)
+        self.detail = full
+        detail.update("\n".join(detail_lines(full)))
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#tags-status", Static).update(("! " if error else "") + text)
@@ -162,23 +173,25 @@ class TagRegisterScreen(ModalScreen[None]):
 
     def action_class_filter(self) -> None:
         """Show the next class: all, then each class that has a tag in the list, then all."""
-        # STEPS
-        # 1. If an Input has focus (isinstance(self.focused, Input)) return (the key is text).
-        # 2. self.class_code = next_class(self.class_code, [v.class_code for v in self.views if
-        #    v.class_code is not None]); self._fill(self._number()).
-        raise NotImplementedError
+        if isinstance(self.focused, Input):
+            return  # the key is text
+        classes = [v.class_code for v in self.views if v.class_code is not None]
+        self.class_code = next_class(self.class_code, classes)
+        self._fill(self._number())
 
     def action_violations(self) -> None:
         """Show only the tags whose number breaks the pattern, or all again."""
-        # STEPS
-        # 1. Return if an Input has focus. Flip self.violations_only; self._fill(self._number()).
-        raise NotImplementedError
+        if isinstance(self.focused, Input):
+            return  # the key is text
+        self.violations_only = not self.violations_only
+        self._fill(self._number())
 
     def action_ended(self) -> None:
         """Include the superseded and deleted tags, or leave them out again (reads again)."""
-        # STEPS
-        # 1. Return if an Input has focus. Flip self.include_ended; self.reload().
-        raise NotImplementedError
+        if isinstance(self.focused, Input):
+            return  # the key is text
+        self.include_ended = not self.include_ended
+        self.reload()
 
     def action_filter(self) -> None:
         self.query_one("#tags-filter", Input).focus()
