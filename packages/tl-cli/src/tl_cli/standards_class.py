@@ -4,14 +4,7 @@ A tag class names the property sets a tag of that class must carry (brief 9 M2).
 parses options, makes one call into `tl_mod_engineering` (a handler or a read) and prints. The rules
 (a required pset must exist, a closed class takes no more tags) live in the module. Classes are
 company data: define, revise and close need the admin role; ls and show are open.
-
-STUB (P1-I1-T09e): the bodies of the commands raise NotImplementedError; their signatures, options
-and docstrings and the helpers (`_service_errors`, `_class`, `_list`) are final. Each body has a
-STEPS comment. Implement them, then delete this paragraph, the STEPS comments and the `ruff: noqa`
-line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -104,14 +97,27 @@ def define(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Define a tag class (admin). Its required property sets must exist in the company schema."""
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`; `require_admin(db)`.
-    # 2. Inside `with _service_errors(), open_uow(db) as uow:` handle_define_tag_class(uow,
-    #    DefineTagClass(actor=actor, source="cli", scope=COMPANY, code=code, label=label,
-    #    definition=definition, family=family, required_psets=pset or [], itr_templates=itr or
-    #    [], mnemonics=mnemonic or [], edition=edition)).
-    # 3. After the block print f"defined class {code}" and f"psets {_list(pset or [])}".
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    require_admin(db)
+    with _service_errors(), open_uow(db) as uow:
+        handle_define_tag_class(
+            uow,
+            DefineTagClass(
+                actor=actor,
+                source="cli",
+                scope=COMPANY,
+                code=code,
+                label=label,
+                definition=definition,
+                family=family,  # type: ignore[arg-type]  -- the model validates the text
+                required_psets=pset or [],
+                itr_templates=itr or [],
+                mnemonics=mnemonic or [],
+                edition=edition,
+            ),
+        )
+    typer.echo(f"defined class {code}")
+    typer.echo(f"psets {_list(pset or [])}")
 
 
 @app.command("ls")
@@ -122,24 +128,31 @@ def ls(
     ] = False,
 ) -> None:
     """List tag classes by code: code, family, lifecycle, required property sets, label."""
-    # STEPS
-    # 1. Inside `with _service_errors(), open_uow(db, readonly=True) as uow:` rows =
-    #    registry.find_tag_classes(uow.conn(), COMPANY, active_only=not include_closed).
-    # 2. One line per row, columns separated by two spaces: code, family, lifecycle,
-    #    _list(row.required_psets), label.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        rows = registry.find_tag_classes(uow.conn(), COMPANY, active_only=not include_closed)
+    for row in rows:
+        fields = [row.code, row.family, row.lifecycle, _list(row.required_psets), row.label]
+        typer.echo("  ".join(fields))
 
 
 @app.command("show")
 def show(ctx: typer.Context, code: _Code) -> None:
     """Show one tag class: its fields, required property sets, prefixes and ITR templates."""
-    # STEPS
-    # 1. Inside `with _service_errors(), open_uow(db, readonly=True) as uow:` row = _class(uow,
-    #    code).
-    # 2. Print `name: value` lines in this order: code, label, family, lifecycle, edition, key
-    #    ("-" when None), superseded_by ("-" when None), psets (_list of required_psets),
-    #    mnemonics (_list), itr (_list of itr_templates), version.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        row = _class(uow, code)
+    typer.echo(f"code: {row.code}")
+    typer.echo(f"label: {row.label}")
+    typer.echo(f"family: {row.family}")
+    typer.echo(f"lifecycle: {row.lifecycle}")
+    typer.echo(f"edition: {row.edition}")
+    typer.echo(f"key: {row.key or '-'}")
+    typer.echo(f"superseded_by: {row.superseded_by or '-'}")
+    typer.echo(f"psets: {_list(row.required_psets)}")
+    typer.echo(f"mnemonics: {_list(row.mnemonics)}")
+    typer.echo(f"itr: {_list(row.itr_templates)}")
+    typer.echo(f"version: {row.version}")
 
 
 @app.command("revise")
@@ -162,18 +175,36 @@ def revise(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Change a tag class (admin). A list option replaces the whole list."""
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`; `require_admin(db)`.
-    # 2. changes = {} with these entries, only for the options that were given: "label", "family",
-    #    "required_psets" (from --pset), "mnemonics" (from --mnemonic), "itr_templates" (from
-    #    --itr). None given: _fail("nothing to revise: give --label, --family, --pset, --mnemonic
-    #    or --itr").
-    # 3. Inside `with _service_errors(), open_uow(db) as uow:` row = _class(uow, code);
-    #    handle_revise_tag_class(uow, ReviseTagClass(actor=actor, source="cli", scope=COMPANY,
-    #    stream_id=row.id, changes=changes, reason=reason)).
-    # 4. After the block print f"revised class {code}: " and the changed field names in the order
-    #    of REVISABLE, joined by ", " (one line).
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    require_admin(db)
+    changes: dict[str, Any] = {}
+    if label is not None:
+        changes["label"] = label
+    if family is not None:
+        changes["family"] = family
+    if pset is not None:
+        changes["required_psets"] = pset
+    if mnemonic is not None:
+        changes["mnemonics"] = mnemonic
+    if itr is not None:
+        changes["itr_templates"] = itr
+    if not changes:
+        _fail("nothing to revise: give --label, --family, --pset, --mnemonic or --itr")
+    with _service_errors(), open_uow(db) as uow:
+        row = _class(uow, code)
+        handle_revise_tag_class(
+            uow,
+            ReviseTagClass(
+                actor=actor,
+                source="cli",
+                scope=COMPANY,
+                stream_id=row.id,
+                changes=changes,
+                reason=reason,
+            ),
+        )
+    changed = [name for name in REVISABLE if name in changes]
+    typer.echo(f"revised class {code}: " + ", ".join(changed))
 
 
 @app.command("close")
@@ -188,12 +219,22 @@ def close(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """End the life of a tag class (admin). Tags already of that class keep it."""
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`; `require_admin(db)`.
-    # 2. Inside `with _service_errors(), open_uow(db) as uow:` row = _class(uow, code); with
-    #    --superseded-by other = _class(uow, superseded_by); lifecycle = "superseded" if other
-    #    else "retired"; handle_close_tag_class(uow, CloseTagClass(actor=actor, source="cli",
-    #    scope=COMPANY, stream_id=row.id, lifecycle=lifecycle, superseded_by=other.id if other
-    #    else None, reason=reason)).
-    # 3. After the block print f"closed class {code} as {lifecycle}".
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    require_admin(db)
+    with _service_errors(), open_uow(db) as uow:
+        row = _class(uow, code)
+        other = _class(uow, superseded_by) if superseded_by is not None else None
+        lifecycle = "superseded" if other is not None else "retired"
+        handle_close_tag_class(
+            uow,
+            CloseTagClass(
+                actor=actor,
+                source="cli",
+                scope=COMPANY,
+                stream_id=row.id,
+                lifecycle=lifecycle,
+                superseded_by=other.id if other is not None else None,
+                reason=reason,
+            ),
+        )
+    typer.echo(f"closed class {code} as {lifecycle}")
