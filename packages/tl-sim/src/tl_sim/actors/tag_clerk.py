@@ -21,13 +21,7 @@ only where stated:
 
 A tag the clerk renumbers is replaced, never edited: the old tag stays in the ledger as
 ``Superseded`` and the new tag ``supersedes`` it (the log names both).
-
-STUB (P1-I1-T12): the bodies of the functions raise NotImplementedError; their signatures,
-docstrings and the constants are final. Each body has a STEPS comment. Implement them, then delete
-this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -51,11 +45,13 @@ ENDED_STATE = "Superseded"
 
 def next_number(known: list[str], area: str, mnemonic: str) -> str:
     """The next free number for ``area`` and ``mnemonic`` given the numbers already used."""
-    # STEPS
-    # 1. prefix = f"{area}-{mnemonic}-". seqs = the integer after the prefix of every number in
-    #    ``known`` that starts with it and whose rest is all digits.
-    # 2. Return f"{prefix}{max(seqs, default=0) + 1:04d}".
-    raise NotImplementedError
+    prefix = f"{area}-{mnemonic}-"
+    seqs = [
+        int(number.removeprefix(prefix))
+        for number in known
+        if number.startswith(prefix) and number.removeprefix(prefix).isdecimal()
+    ]
+    return f"{prefix}{max(seqs, default=0) + 1:04d}"
 
 
 class TagClerk(BaseActor):
@@ -63,16 +59,19 @@ class TagClerk(BaseActor):
     params: TagClerkParams
 
     def act(self, ctx: SimContext, rec: Recorder) -> None:
-        # STEPS
-        # 1. existing = rec.records(TAG_QUERY); known = [tag.key for tag in existing].
-        # 2. Draw n = draw(self.params.tags_per_day, ctx.rng). For each of the n tags (draw the area
-        #    then the kind as the module docstring says): number = next_number(known, area,
-        #    mnemonic); made = rec.create_tag(number, class_code, f"{noun} {number}"); append
-        #    number to known.
-        # 3. roll = ctx.rng.random(). candidates = the tags of ``existing`` whose ``state`` is not
-        #    ENDED_STATE, in key order (existing is already in key order). When roll <
-        #    self.params.rename_rate and candidates: victim = ctx.rng.choice(candidates); split
-        #    victim.key at "-" into area and mnemonic (the first two parts); new_number =
-        #    next_number(known, area, mnemonic); rec.rename_tag(victim, new_number,
-        #    "renumbered"); append new_number to known.
-        raise NotImplementedError
+        existing: list[Rec] = rec.records(TAG_QUERY)
+        known = [tag.key for tag in existing]
+        for _ in range(draw(self.params.tags_per_day, ctx.rng)):
+            area = ctx.rng.choice(AREAS)
+            mnemonic, class_code, noun = ctx.rng.choice(KINDS)
+            number = next_number(known, area, mnemonic)
+            rec.create_tag(number, class_code, f"{noun} {number}")
+            known.append(number)
+        roll = ctx.rng.random()
+        candidates = [tag for tag in existing if tag.state != ENDED_STATE]
+        if roll < self.params.rename_rate and candidates:
+            victim = ctx.rng.choice(candidates)
+            area, mnemonic = victim.key.split("-")[:2]
+            new_number = next_number(known, area, mnemonic)
+            rec.rename_tag(victim, new_number, "renumbered")
+            known.append(new_number)
