@@ -45,6 +45,7 @@ from tl_api.ratelimit import RateLimitMiddleware, SourceLimiter
 from tl_api.routes import (
     admin,
     auth,
+    engineering,
     events,
     extypes,
     files,
@@ -255,6 +256,7 @@ def create_app(
         proposals,
         extypes,
         settings_routes,
+        engineering,
     ):
         app.include_router(module.router)
     app.include_router(commands.router)

@@ -350,6 +350,8 @@ AGENT_MAY = {
     "record.read",
     "reference.read",
     "setting.read",
+    "standards.read",
+    "tag.read",
     "type.read",
 }
 AGENT_MAY_NOT = {
