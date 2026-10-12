@@ -3,14 +3,7 @@
 Each subcommand parses options, makes one call into `tl_mod_engineering` (a handler or a read) and
 prints. The rules (the numbering pattern, the class, the supersession of a rename) live in the
 module. Tags are named by number.
-
-STUB (P1-I1-T09b): the bodies of the seven commands raise NotImplementedError; their signatures,
-options, docstrings and the helpers (`_service_errors`, `_tag`, `_segments_text`, `_issue_lines`,
-`_psets`, `_show_created`) are final. Each body has a STEPS comment. Implement them, then delete
-this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -143,14 +136,24 @@ def create(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Create a tag. The number must fit the registry numbering pattern."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}".
-    # 2. Inside `with _service_errors(), open_uow(db) as uow:` call handle_create_tag(uow,
-    #    CreateTag(actor=actor, source="cli", scope=scope, number=number, class_code=class_code,
-    #    service=service, description=description, psets=_psets(pset),
-    #    pattern_policy="record" if allow_violation else "enforce")).
-    # 3. Still inside the block: _show_created(uow, scope, project, number, result.stream_id).
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db) as uow:
+        result = handle_create_tag(
+            uow,
+            CreateTag(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                number=number,
+                class_code=class_code,
+                service=service,
+                description=description,
+                psets=_psets(pset),
+                pattern_policy="record" if allow_violation else "enforce",
+            ),
+        )
+        _show_created(uow, scope, project, number, result.stream_id)
 
 
 @app.command("show")
@@ -160,18 +163,31 @@ def show(
     project: _Project,
 ) -> None:
     """Show a tag: its parts, its class, what it lacks, its values."""
-    # STEPS
-    # 1. Inside `with _service_errors(), open_uow(db, readonly=True) as uow:` row = _tag(uow, scope,
-    #    project, number); issues = _issue_lines(uow, row.id).
-    # 2. Print `name: value` for these fields in this order: id, number, title, class (class_code
-    #    or "-"), status ("-" when None), area ("-"), mnemonic ("-"), sequence ("-" when None),
-    #    pattern (pattern_code or "-"), number_status, origin, conformance, version.
-    # 3. Then `segments: ` + _segments_text(row).
-    # 4. For each violation of row.violations print
-    #    f"violation {level} {segment or 'number'}: {message}".
-    # 5. Print each line of issues. Last, print "psets: " + json.dumps(row.psets, sort_keys=True,
-    #    separators=(",", ":")).
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        row = _tag(uow, scope, project, number)
+        issues = _issue_lines(uow, row.id)
+    typer.echo(f"id: {row.id}")
+    typer.echo(f"number: {row.number}")
+    typer.echo(f"title: {row.title}")
+    typer.echo(f"class: {row.class_code or '-'}")
+    typer.echo(f"status: {row.status or '-'}")
+    typer.echo(f"area: {row.area or '-'}")
+    typer.echo(f"mnemonic: {row.mnemonic or '-'}")
+    typer.echo(f"sequence: {'-' if row.sequence is None else row.sequence}")
+    typer.echo(f"pattern: {row.pattern_code or '-'}")
+    typer.echo(f"number_status: {row.number_status}")
+    typer.echo(f"origin: {row.origin}")
+    typer.echo(f"conformance: {row.conformance}")
+    typer.echo(f"version: {row.version}")
+    typer.echo(f"segments: {_segments_text(row)}")
+    for violation in row.violations:
+        where = violation["segment"] or "number"
+        typer.echo(f"violation {violation['level']} {where}: {violation['message']}")
+    for line in issues:
+        typer.echo(line)
+    typer.echo("psets: " + json.dumps(row.psets, sort_keys=True, separators=(",", ":")))
 
 
 @app.command("ls")
@@ -192,16 +208,37 @@ def ls(
     as_json: Annotated[bool, typer.Option("--json", help="Print a JSON list.")] = False,
 ) -> None:
     """List a project's tags by number: number, class, status, conformance, title."""
-    # STEPS
-    # 1. Inside `with _service_errors(), open_uow(db, readonly=True) as uow:` rows =
-    #    registry.list_tags(uow.conn(), f"project:{project}", class_code=class_code, status=status,
-    #    mnemonic=mnemonic, area=area, number_status=number_status, include_ended=include_ended,
-    #    limit=limit).
-    # 2. With --json print json.dumps(list of dicts, indent=2): for each row the keys number,
-    #    class_code, status, conformance, title, number_status (values as on the row), then return.
-    # 3. Otherwise one line per row: number, class_code or "-", status or "-", conformance and
-    #    title joined with two spaces.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        rows = registry.list_tags(
+            uow.conn(),
+            scope,
+            class_code=class_code,
+            status=status,
+            mnemonic=mnemonic,
+            area=area,
+            number_status=number_status,
+            include_ended=include_ended,
+            limit=limit,
+        )
+    if as_json:
+        items = [
+            {
+                "number": row.number,
+                "class_code": row.class_code,
+                "status": row.status,
+                "conformance": row.conformance,
+                "title": row.title,
+                "number_status": row.number_status,
+            }
+            for row in rows
+        ]
+        typer.echo(json.dumps(items, indent=2))
+        return
+    for row in rows:
+        fields = [row.number, row.class_code or "-", row.status or "-", row.conformance, row.title]
+        typer.echo("  ".join(fields))
 
 
 @app.command("reclassify")
@@ -214,13 +251,24 @@ def reclassify(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Move a tag to another class; the new class binds its own property sets."""
-    # STEPS
-    # 1. Inside `with _service_errors(), open_uow(db) as uow:` row = _tag(uow, scope, project,
-    #    number); handle_reclassify_tag(uow, ReclassifyTag(actor=actor, source="cli", scope=scope,
-    #    stream_id=row.id, class_code=class_code, reason=reason)); after = _tag(...) again.
-    # 2. Print f"reclassified {number} {row.class_code or '-'} -> {after.class_code}" and then
-    #    f"conformance {after.conformance}".
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db) as uow:
+        row = _tag(uow, scope, project, number)
+        handle_reclassify_tag(
+            uow,
+            ReclassifyTag(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                stream_id=row.id,
+                class_code=class_code,
+                reason=reason,
+            ),
+        )
+        after = _tag(uow, scope, project, number)
+    typer.echo(f"reclassified {number} {row.class_code or '-'} -> {after.class_code}")
+    typer.echo(f"conformance {after.conformance}")
 
 
 @app.command("rename")
@@ -233,12 +281,23 @@ def rename(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Replace a tag by a new one with another number; the old tag is superseded."""
-    # STEPS
-    # 1. Inside `with _service_errors(), open_uow(db) as uow:` row = _tag(...); made =
-    #    handle_rename_tag(uow, RenameTag(actor=actor, source="cli", scope=scope, stream_id=row.id,
-    #    new_number=new_number, reason=reason)).
-    # 2. Print f"renamed {number} -> {new_number}" and f"created {made.stream_id}".
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db) as uow:
+        row = _tag(uow, scope, project, number)
+        made = handle_rename_tag(
+            uow,
+            RenameTag(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                stream_id=row.id,
+                new_number=new_number,
+                reason=reason,
+            ),
+        )
+    typer.echo(f"renamed {number} -> {new_number}")
+    typer.echo(f"created {made.stream_id}")
 
 
 @app.command("split")
@@ -251,13 +310,24 @@ def split(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Replace a tag by several; the old tag is superseded."""
-    # STEPS
-    # 1. Inside `with _service_errors(), open_uow(db) as uow:` row = _tag(...); made =
-    #    handle_split_tag(uow, SplitTag(actor=actor, source="cli", scope=scope, stream_id=row.id,
-    #    new_numbers=new_numbers, reason=reason)) (a list of results).
-    # 2. Print f"split {number} -> " + ", ".join(new_numbers), then one f"created {id}" line per
-    #    result.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db) as uow:
+        row = _tag(uow, scope, project, number)
+        made_list = handle_split_tag(
+            uow,
+            SplitTag(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                stream_id=row.id,
+                new_numbers=new_numbers,
+                reason=reason,
+            ),
+        )
+    typer.echo(f"split {number} -> " + ", ".join(new_numbers))
+    for made in made_list:
+        typer.echo(f"created {made.stream_id}")
 
 
 @app.command("merge")
@@ -270,9 +340,20 @@ def merge(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Replace several tags by one; the new tag takes the values of the first number."""
-    # STEPS
-    # 1. Inside `with _service_errors(), open_uow(db) as uow:` rows = [_tag(...) for each number];
-    #    made = handle_merge_tags(uow, MergeTags(actor=actor, source="cli", scope=scope,
-    #    stream_ids=[r.id for r in rows], new_number=into, reason=reason)).
-    # 2. Print f"merged {', '.join(numbers)} -> {into}" and f"created {made.stream_id}".
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db) as uow:
+        rows = [_tag(uow, scope, project, n) for n in numbers]
+        made = handle_merge_tags(
+            uow,
+            MergeTags(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                stream_ids=[r.id for r in rows],
+                new_number=into,
+                reason=reason,
+            ),
+        )
+    typer.echo(f"merged {', '.join(numbers)} -> {into}")
+    typer.echo(f"created {made.stream_id}")
