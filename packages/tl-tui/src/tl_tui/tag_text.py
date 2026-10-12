@@ -4,7 +4,13 @@ The rows, the detail panel and the summary line are text built from ``TagView`` 
 else, so the tests check them without a terminal. None of it decides anything: a number that
 breaks the pattern, a class that lacks a property set and a tag in the wrong state are the
 module's findings, shown here as they come.
+
+STUB (P1-I1-T09d): the bodies of the functions raise NotImplementedError; their signatures,
+docstrings and the column names, `ALL_CLASSES` and the imports are final. Each body has a STEPS
+comment. Implement them, then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -21,16 +27,7 @@ def row_cells(view: TagView) -> tuple[str, ...]:
     # STEPS
     # 1. Number, class (``-`` when none), status (``-`` when none), the number check (``ok`` when
     #    ``number_status`` is ``ok``, else ``BAD``), the conformance level as stored, the title.
-    # IMPL
-    return (
-        view.number,
-        view.class_code or "-",
-        view.status or "-",
-        "ok" if view.number_status == "ok" else "BAD",
-        view.conformance,
-        view.title,
-    )
-    # END
+    raise NotImplementedError
 
 
 def detail_lines(view: TagView) -> list[str]:
@@ -46,29 +43,7 @@ def detail_lines(view: TagView) -> list[str]:
     # 5. With ``view.issues``: the line ``lacks:`` and then one line per issue: ``  <level>  <path>
     #    <message>`` (two spaces after the level, one after the path). Without: ``nothing lacking``
     #    when ``view.conformance`` is ``ok``, else ``no detail loaded`` (a listing has no issues).
-    # IMPL
-    lines = [
-        f"{view.number}  {view.title}",
-        "  |  ".join(
-            (
-                f"class {view.class_code or '-'}",
-                f"status {view.status or '-'}",
-                f"conformance {view.conformance}",
-            )
-        ),
-    ]
-    segments = " ".join(f"{k}={v}" for k, v in view.segments.items()) or "-"
-    lines.append(f"number {view.number_status}: {segments}")
-    for violation in view.violations:
-        where = violation.get("segment") or "number"
-        lines.append(f"  ! {where}: {violation['message']} ({violation['level']})")
-    if view.issues:
-        lines.append("lacks:")
-        lines += [f"  {i.level}  {i.path} {i.message}" for i in view.issues]
-    else:
-        lines.append("nothing lacking" if view.conformance == "ok" else "no detail loaded")
-    return lines
-    # END
+    raise NotImplementedError
 
 
 def next_class(current: str | None, classes: Sequence[str]) -> str | None:
@@ -77,12 +52,7 @@ def next_class(current: str | None, classes: Sequence[str]) -> str | None:
     # 1. The cycle is ``[None, *sorted(set(classes))]``.
     # 2. ``current`` is in the cycle: the next one, wrapping to ``None`` after the last. ``current``
     #    is not in it (the class has no tag any more): ``None``.
-    # IMPL
-    cycle: list[str | None] = [None, *sorted(set(classes))]
-    if current not in cycle:
-        return None
-    return cycle[(cycle.index(current) + 1) % len(cycle)]
-    # END
+    raise NotImplementedError
 
 
 def summary_line(
@@ -100,15 +70,4 @@ def summary_line(
     # 2. Then, each preceded by two spaces and only when it applies, in this order:
     #    ``class <code>``, ``violations only``, ``incl. ended``, ``filter "<text>"`` (text
     #    stripped; none when it is blank).
-    # IMPL
-    parts = [f"{shown} of {total} tags"]
-    if class_code is not None:
-        parts.append(f"class {class_code}")
-    if violations_only:
-        parts.append("violations only")
-    if include_ended:
-        parts.append("incl. ended")
-    if text.strip():
-        parts.append(f'filter "{text.strip()}"')
-    return "  ".join(parts)
-    # END
+    raise NotImplementedError

@@ -67,10 +67,11 @@ the tag register and the reports show the tags by class, status and missing prop
 | T09e | `tl standards class` CLI: define, ls, show, revise, close (admin) | H | T07 | ready | split from T09a so each ticket stays under the size limit |
 | T09b | `tl tag` CLI (create, show, ls, reclassify, rename, split, merge) | H | T06, T08 | merged | first attempt (18 cases, 36 with Postgres) |
 | T09c | API read routes for standards, code lists, tag classes and tags | H | T06, T08 | ready | the command table, admin gating, error rows and the agent actions are supervisor work (done, `commands.py`, `errors.py`, tests); MCP read tools are a later ticket (T09f) |
-| T09d | TUI: tag register grid, tag record view (segments, class, missing psets) | H | T09c | planned | |
+| T09d | TUI: tag register screen (F8) with segments, class and what each tag lacks | H | client methods (supervisor) | ready | the screen is a modal like about:config; the client methods, the fake, the F8 binding and the palette entry are supervisor work (done) |
 | T10c | `tl tag import`: preview and apply | H | T06, T10a, T10b, apply service | ready | the apply service (`imports/apply.py`, 8 cases on both databases) is a supervisor piece |
 | T11 | Reports: summary by class and state, missing mandatory psets, pattern violations (module functions and `tl tag report`) | H | T08 | review | implemented; blocked on two base defects (NULL ordering of the summary on Postgres; a provided CLI test with three pyright errors), both fixed by the supervisor; review-only relay | 
-| T12 | Simulator tag-list actor; legacy mapping template `dev/seed/templates/tag-list-instrument-index.yaml` | H | T10c | planned | |
+| T12 | Simulator tag-list actor | H | T10c, T09c | planned | the legacy mapping template `dev/seed/templates/tag-list-instrument-index.yaml`, a sample file and an end-to-end test are done (supervisor) |
+| T09f | MCP read tools: `list_code_values`, `list_tag_classes`, `get_tag` | H | T09c | planned | waits for the re-review of the agent action lists |
 
 Haiku-ability notes. T01 touches `schema/**` (a fixture, data only); it carries the `schema` label and the delegated
 approver below, and a provided test pins its content. Every other ticket passes the checklist (01-tiers §6) after the
@@ -80,7 +81,7 @@ supervisor writes the stub and the test that fix its interfaces.
 1. Round 1: S1, T02, S3, S5; dispatched T01, T07, T10a, T10b (all passed first time, merged).
 2. Round 2: S4, T05, T06, T08 built; T03 and T09b passed first time and are merged; T11 came back blocked on two defects of the base (fixed).
 3. Round 3 (this one): loader, import apply, API commands and errors built (supervisor); dispatch T09a, T09e, T10c, T09c and the review of T11.
-4. Round 4: T09d (TUI), T09f (MCP read tools), T12 (simulator and legacy template).
+4. Round 4: T09d (TUI, ready), T09f (MCP read tools), T12 (simulator actor). Between rounds 3 and 4 the supervisor fixed the security review of the HTTP commands (ADR-0010 addendum: generic commands on module records; server-set origin; `RecordTag`; request and list limits).
 5. Last: S13, gates (`just check`, `just test`, `just test-parity`, `just test-tui`), demo on both databases, report.
 
 ## Brief coverage map (L-P0-I8E-3)

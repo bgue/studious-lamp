@@ -188,6 +188,7 @@
           "attributes": {
             "additionalProperties": true,
             "default": {},
+            "maxProperties": 200,
             "title": "Attributes",
             "type": "object"
           },
@@ -203,10 +204,12 @@
             "title": "Causation Id"
           },
           "code": {
+            "maxLength": 128,
             "title": "Code",
             "type": "string"
           },
           "code_list": {
+            "maxLength": 128,
             "title": "Code List",
             "type": "string"
           },
@@ -224,6 +227,7 @@
           "crosswalk": {
             "anyOf": [
               {
+                "maxLength": 128,
                 "type": "string"
               },
               {
@@ -235,6 +239,7 @@
           "edition": {
             "anyOf": [
               {
+                "maxLength": 128,
                 "type": "string"
               },
               {
@@ -277,6 +282,7 @@
             "title": "Idempotency Key"
           },
           "label": {
+            "maxLength": 500,
             "minLength": 1,
             "title": "Label",
             "type": "string"
@@ -284,6 +290,7 @@
           "meaning": {
             "anyOf": [
               {
+                "maxLength": 500,
                 "type": "string"
               },
               {
@@ -810,6 +817,7 @@
             "type": "string"
           },
           "reason": {
+            "maxLength": 2000,
             "title": "Reason",
             "type": "string"
           },
@@ -915,6 +923,7 @@
             "type": "string"
           },
           "reason": {
+            "maxLength": 2000,
             "title": "Reason",
             "type": "string"
           },
@@ -1009,6 +1018,7 @@
             "type": "string"
           },
           "reason": {
+            "maxLength": 2000,
             "title": "Reason",
             "type": "string"
           },
@@ -1499,6 +1509,7 @@
           "class_code": {
             "anyOf": [
               {
+                "maxLength": 128,
                 "type": "string"
               },
               {
@@ -1521,6 +1532,7 @@
           "description": {
             "anyOf": [
               {
+                "maxLength": 10000,
                 "type": "string"
               },
               {
@@ -1541,26 +1553,9 @@
             "title": "Idempotency Key"
           },
           "number": {
+            "maxLength": 128,
             "minLength": 1,
             "title": "Number",
-            "type": "string"
-          },
-          "origin": {
-            "default": "created",
-            "enum": [
-              "created",
-              "import"
-            ],
-            "title": "Origin",
-            "type": "string"
-          },
-          "pattern_policy": {
-            "default": "enforce",
-            "enum": [
-              "enforce",
-              "record"
-            ],
-            "title": "Pattern Policy",
             "type": "string"
           },
           "psets": {
@@ -1569,6 +1564,7 @@
               "type": "object"
             },
             "default": {},
+            "maxProperties": 50,
             "title": "Psets",
             "type": "object"
           },
@@ -1579,6 +1575,7 @@
           "service": {
             "anyOf": [
               {
+                "maxLength": 500,
                 "type": "string"
               },
               {
@@ -1709,6 +1706,7 @@
             "title": "Causation Id"
           },
           "code": {
+            "maxLength": 128,
             "title": "Code",
             "type": "string"
           },
@@ -1726,6 +1724,7 @@
           "definition": {
             "anyOf": [
               {
+                "maxLength": 10000,
                 "type": "string"
               },
               {
@@ -1735,6 +1734,7 @@
             "title": "Definition"
           },
           "edition": {
+            "maxLength": 128,
             "minLength": 1,
             "title": "Edition",
             "type": "string"
@@ -1768,10 +1768,12 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 500,
             "title": "Itr Templates",
             "type": "array"
           },
           "label": {
+            "maxLength": 500,
             "minLength": 1,
             "title": "Label",
             "type": "string"
@@ -1781,6 +1783,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 500,
             "title": "Mnemonics",
             "type": "array"
           },
@@ -1789,6 +1792,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 500,
             "title": "Required Psets",
             "type": "array"
           },
@@ -3585,11 +3589,13 @@
             "title": "Idempotency Key"
           },
           "new_number": {
+            "maxLength": 128,
             "minLength": 1,
             "title": "New Number",
             "type": "string"
           },
           "reason": {
+            "maxLength": 2000,
             "title": "Reason",
             "type": "string"
           },
@@ -3607,6 +3613,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 500,
             "minItems": 2,
             "title": "Stream Ids",
             "type": "array"
@@ -4211,6 +4218,7 @@
             "title": "Causation Id"
           },
           "class_code": {
+            "maxLength": 128,
             "title": "Class Code",
             "type": "string"
           },
@@ -4248,6 +4256,7 @@
             "title": "Idempotency Key"
           },
           "reason": {
+            "maxLength": 2000,
             "title": "Reason",
             "type": "string"
           },
@@ -4388,6 +4397,112 @@
         "title": "RecordOut",
         "type": "object"
       },
+      "RecordTagBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "class_code": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Code"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "number": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "psets": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "default": {},
+            "maxProperties": 50,
+            "title": "Psets",
+            "type": "object"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "number"
+        ],
+        "title": "RecordTagBody",
+        "type": "object"
+      },
       "RegisterCodeListBody": {
         "additionalProperties": false,
         "properties": {
@@ -4413,6 +4528,7 @@
             "title": "Causation Id"
           },
           "code": {
+            "maxLength": 128,
             "title": "Code",
             "type": "string"
           },
@@ -4430,6 +4546,7 @@
           "definition": {
             "anyOf": [
               {
+                "maxLength": 10000,
                 "type": "string"
               },
               {
@@ -4439,6 +4556,7 @@
             "title": "Definition"
           },
           "edition": {
+            "maxLength": 128,
             "title": "Edition",
             "type": "string"
           },
@@ -4476,6 +4594,7 @@
             "title": "Idempotency Key"
           },
           "label": {
+            "maxLength": 500,
             "minLength": 1,
             "title": "Label",
             "type": "string"
@@ -4483,6 +4602,7 @@
           "owner": {
             "anyOf": [
               {
+                "maxLength": 500,
                 "type": "string"
               },
               {
@@ -4557,6 +4677,7 @@
             "title": "Class Hint"
           },
           "code": {
+            "maxLength": 128,
             "title": "Code",
             "type": "string"
           },
@@ -4574,6 +4695,7 @@
           "definition": {
             "anyOf": [
               {
+                "maxLength": 10000,
                 "type": "string"
               },
               {
@@ -4594,6 +4716,7 @@
             "title": "Discipline"
           },
           "edition": {
+            "maxLength": 128,
             "title": "Edition",
             "type": "string"
           },
@@ -4631,6 +4754,7 @@
             "title": "Idempotency Key"
           },
           "label": {
+            "maxLength": 500,
             "minLength": 1,
             "title": "Label",
             "type": "string"
@@ -4638,6 +4762,7 @@
           "owner": {
             "anyOf": [
               {
+                "maxLength": 500,
                 "type": "string"
               },
               {
@@ -4696,6 +4821,7 @@
             "title": "Causation Id"
           },
           "code": {
+            "maxLength": 128,
             "title": "Code",
             "type": "string"
           },
@@ -4713,6 +4839,7 @@
           "definition": {
             "anyOf": [
               {
+                "maxLength": 10000,
                 "type": "string"
               },
               {
@@ -4722,6 +4849,7 @@
             "title": "Definition"
           },
           "edition": {
+            "maxLength": 128,
             "title": "Edition",
             "type": "string"
           },
@@ -4764,6 +4892,7 @@
             "title": "Idempotency Key"
           },
           "label": {
+            "maxLength": 500,
             "minLength": 1,
             "title": "Label",
             "type": "string"
@@ -4771,6 +4900,7 @@
           "owner": {
             "anyOf": [
               {
+                "maxLength": 500,
                 "type": "string"
               },
               {
@@ -4798,6 +4928,7 @@
               ],
               "type": "array"
             },
+            "maxItems": 500,
             "title": "Reserved",
             "type": "array"
           },
@@ -4814,6 +4945,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/SegmentDef"
             },
+            "maxProperties": 20,
             "title": "Segments",
             "type": "object"
           },
@@ -5026,11 +5158,13 @@
             "title": "Idempotency Key"
           },
           "new_number": {
+            "maxLength": 128,
             "minLength": 1,
             "title": "New Number",
             "type": "string"
           },
           "reason": {
+            "maxLength": 2000,
             "title": "Reason",
             "type": "string"
           },
@@ -5412,6 +5546,7 @@
           },
           "changes": {
             "additionalProperties": true,
+            "maxProperties": 5,
             "title": "Changes",
             "type": "object"
           },
@@ -5449,6 +5584,7 @@
             "title": "Idempotency Key"
           },
           "reason": {
+            "maxLength": 2000,
             "title": "Reason",
             "type": "string"
           },
@@ -9978,7 +10114,7 @@
     },
     "/commands/CreateTag": {
       "post": {
-        "description": "Create a tag in a project scope. ``number`` becomes the record key.",
+        "description": "Create a tag in a project scope. ``number`` becomes the record key.\n\nThe number must fit the registry numbering pattern. A command has no ``origin`` and no pattern\npolicy: a tag made here is ``created`` and its number is checked. A number that breaks the\npattern is stored only through :class:`RecordTag` (admin) or the import service.",
         "operationId": "command_CreateTag",
         "parameters": [
           {
@@ -11041,6 +11177,113 @@
           }
         ],
         "summary": "ReclassifyTag",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/RecordTag": {
+      "post": {
+        "description": "Create a tag and keep a number that breaks the pattern, as a violation (admin).\n\nFor legacy numbers that are kept as they are. The violations are stored with the tag and show\nin the reports. The API offers it as an admin command; ``tl tag create --allow-violation``\nneeds the admin role.",
+        "operationId": "command_RecordTag",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordTagBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "RecordTag",
         "tags": [
           "commands"
         ]
