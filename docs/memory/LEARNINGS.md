@@ -296,3 +296,12 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P1-I0B-9** · 2026-10-12 · tags: security, process
   When a value is a URL that carries secrets, allow-list its parts instead of deny-listing the secret ones: a denylist (`password`, `sslpassword`) missed `options=`, a different case, and `host=`/`port=`, which silently replaced the address part and made two keys name one server. `as_target` now accepts `sslmode`, `options`, `application_name` only; display shows two of them; the session key holds `options` as a hash. And a rule that the server side owns ("a Postgres target needs a session") must be checked in every helper that used the file-side shortcut ("TL_ENV=dev and the ledger exists"): the simulator's token minting was such a helper and the review found it, not a test.
   Evidence: `tl_adapters/db.py`, `tl_cli/sim_agent.py`, `test_cli_sim_agent_targets.py`; ADR-0009 addendum. Status: active
+- **L-P1-I1-1** · 2026-10-12 · tags: tests, process
+  Extends L-P1-I0A-4. A new catalog event type also needs the webhook contract scenario to produce it (`tests/webhooks/scenario.py`), and an event of a module record needs that record's envelope row first: module projectors raise `LookupError` without a `cur_core_record` row. The scenario appends `Record.Created` and then the module's events on one stream per module record type (`append_module_events`).
+  Evidence: `tests/contract/test_webhook_catalog_contract.py::test_the_scenario_delivers_every_event_type_of_the_catalog` failed right after the module events entered the catalog. Status: active
+- **L-P1-I1-2** · 2026-10-12 · tags: tests, tooling
+  `csv.reader` takes a quote that is never closed as the end of the cell unless `strict=True`; use it for any file a person exported. A YAML `title:` or `description:` that contains `: ` must be quoted, or LinkML reports `mapping values are not allowed in this context` with only a column.
+  Evidence: `imports/mapping.py` (`read_rows`); `schema/modules/engineering/module.yaml` first load. Status: active
+- **L-P1-I1-3** · 2026-10-12 · tags: schema, tooling
+  A LinkML root that imports core files shows the core classes in its `SchemaView`. A generator run on a module root keeps only the classes whose own schema carries the module's `tl:module` (`ddl.current_state_classes(view, module)`, `catalog._owner_module`), or every core table and event would be generated again under the module.
+  Evidence: first prototype listed `Record` with the module's tables (`cur_core_record`). Status: active
