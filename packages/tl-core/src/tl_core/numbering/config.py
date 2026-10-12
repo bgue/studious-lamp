@@ -25,6 +25,7 @@ from typing import Any, Self, cast
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from sqlalchemy import Connection
 from tl_schema.registry import default_schema_dir
 
 from tl_core.numbering.pattern import FIELD_VALUE, Pattern, PatternError, parse_pattern
@@ -172,6 +173,25 @@ def load_numbering(path: Path) -> NumberingRegistry:
     except (OSError, UnicodeDecodeError) as exc:
         raise NumberingConfigError(f"{path.name}: cannot read file: {exc}") from exc
     return parse_numbering(text, source=path.name)
+
+
+def numbering_for(conn: Connection) -> NumberingRegistry:
+    """The patterns in force for this ledger: ``get_numbering()`` plus the modules' ledger patterns.
+
+    A module (ADR-0010) may hold numbering patterns as records of the ledger (the standards
+    registry does). Their ids never clash with the file's: a clash is a ``NumberingConfigError``.
+    With no module patterns this is exactly ``get_numbering()``.
+    """
+    from tl_core.modules import ledger_numbering_patterns  # modules imports this module
+
+    extra = ledger_numbering_patterns(conn)
+    base = get_numbering()
+    if not extra:
+        return base
+    merged = NumberingRegistry(base.all())
+    for pattern in extra:
+        merged.add(pattern)
+    return merged
 
 
 _override: NumberingRegistry | None = None

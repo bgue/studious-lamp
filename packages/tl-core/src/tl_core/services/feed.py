@@ -30,7 +30,7 @@ from tl_core.feed.tags import (
 )
 from tl_core.feed.types import FEED_EDITED, FEED_POSTED, Importance, ParsedTag
 from tl_core.ledger import Event, NewEvent
-from tl_core.numbering.config import get_numbering
+from tl_core.numbering.config import numbering_for
 from tl_core.numbering.detect import KeyMatch, resolve_chips
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import (
@@ -159,7 +159,7 @@ def parse_post(uow: UnitOfWork, scope: str, body: str) -> list[ParsedTag]:
 
     return parse_tags(
         body,
-        patterns=get_numbering().for_scope(scope),
+        patterns=numbering_for(uow.conn()).for_scope(scope),
         resolve=resolve,
         signal_tags=signal_tags(uow.conn(), scope),
     )

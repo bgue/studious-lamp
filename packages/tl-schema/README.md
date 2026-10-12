@@ -7,7 +7,7 @@ The schema runtime: generators that turn the LinkML sources in `schema/` into Py
 |---|---|---|
 | `tl_schema.generate` (`python -m tl_schema.generate [--check]`) | module / command | Runs every generator; `--check` fails when committed output differs (codegen drift gate, §25.4) |
 | `tl_schema.generate.GENERATORS`, `outputs()` | list, function | The registered generators and their combined `{path: text}` output |
-| `tl_schema.generators.pydantic_gen`, `jsonschema_gen` | modules | LinkML to Pydantic v2 and JSON Schema (run inside `schema/core` so no absolute paths leak) |
+| `tl_schema.generators.pydantic_gen`, `jsonschema_gen` | modules | LinkML to Pydantic v2 and JSON Schema of the core root (run inside `schema/core` so no absolute paths leak); module roots are not generated for these two yet |
 | `tl_schema.generators.ddl.generate` | function | Classes annotated `tl:current_state` to `cur_<module>_<class>` DDL per dialect, with the unique keys, the `tl:indexed` single-column indexes and the composite `tl:ix_<name>` indexes (slots, `slot desc`, `empty_last(slot)`; names under 64 characters) |
 | `tl_schema.generators.ddl_types.column_type`, `sql_literal` | functions | LinkML built-in type to SQL type and DEFAULT literal, table driven |
 | `tl_schema.ddl_loader.statements(table, dialect)` | function | Reads the committed generated DDL at runtime, one string per statement |
@@ -18,7 +18,8 @@ The schema runtime: generators that turn the LinkML sources in `schema/` into Py
 | `tl_schema.compose`: `compose`, `EffectiveCache`, `core_digest` | functions, class | `EffectiveSchema` for a scope with its content hash; artefacts cached by hash |
 | `tl_schema.effective`: `EffectiveSchema`, `EffectivePset`, `EffectiveProperty`, `states_cover`, `required_in` | models, helpers | The resolved, hashable schema every runtime reader uses |
 | `tl_schema.validation`: `record_json_schema`, `validate_psets` | functions | JSON Schema of a record type's `psets`; structured value issues |
-| `tl_schema.conformance.evaluate` | function | `ok / warning / nonconformant / waived` for a record's psets, state and date |
+| `tl_schema.conformance.evaluate` | function | `ok / warning / nonconformant / waived` for a record's psets, state and date; `bound` names psets the record's class binds (`class_required` when a bound pset has no values) |
+| `tl_schema.modules.module_roots` | function | The module roots `schema/modules/<m>/module.yaml` beside `schema/core`; `ddl` and `catalog` generate from each after the core root (ADR-0010) |
 | `tl_schema.formgen.form_metadata` | function | `FormMetadata` for the TUI (contract models in `tl_schema.forms`) |
 | `tl_schema.lint.lint_documents` | function | Lint rules L001 to L007 over package documents |
 | `tl_schema.linkml_render`: `build_view`, `linkml_yaml` | functions | The effective schema as LinkML (pset classes merged into core) for lint and export |

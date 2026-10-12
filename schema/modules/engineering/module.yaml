@@ -1,0 +1,31 @@
+id: https://example.org/throughline/modules/engineering
+name: tl_mod_engineering
+title: "The engineering module (M2, standards registry, tags and tag classes)"
+description: >-
+  Engineering data (brief 9, M2) and the company standards registry it relies on (brief 6.4).
+  The registry holds code lists with their values, tag-prefix mnemonics and numbering patterns,
+  each with an owner, effective dates, supersession and an adoption policy. `Tag` and `TagClass`
+  are the engineering records: a tag number is parsed by a registry numbering pattern into
+  segments, and the tag class names the property sets a tag of that class must carry.
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` (so links,
+  property sets, workflow, the query language and the feed work on it) and also a row of the
+  module's own current-state table, joined on `id`, which holds the typed columns. The tables are
+  generated from the classes below that carry `tl:current_state`; the projectors in
+  `packages/tl-modules/engineering` write them. Module spec: docs/modules/engineering/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - standard
+  - code_value
+  - tag_class
+  - tag
+  - events
+default_range: string
+annotations:
+  tl:module: engineering

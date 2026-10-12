@@ -1,0 +1,102 @@
+id: https://example.org/throughline/modules/engineering/code_value
+name: tl_mod_engineering_code_value
+title: Code list values (brief 6.4, 6.3)
+description: >-
+  One value of a registry code list. Company values live in `company` scope. A project may add
+  values in its own scope when the list's policy allows it (`extensible`: each must crosswalk to a
+  company value; `project_defined`: it owns the list, a crosswalk is optional), so a project's local
+  values always map to company values for reporting. Spec: docs/modules/engineering/standards.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - standard
+default_range: string
+annotations:
+  tl:module: engineering
+
+enums:
+  CodeOrigin:
+    description: Who defined a code value.
+    permissible_values:
+      company:
+      project:
+
+classes:
+  CodeValue:
+    description: >-
+      One value of a code list, in the scope that defined it. Record type `engineering.CodeValue`.
+      `attributes` holds what a list adds to a value (for a unit of measure its UCUM code and
+      dimension; for a weld type its process code).
+    annotations:
+      tl:current_state: true
+      tl:record_types: "engineering.CodeValue"
+      tl:ix_scope_list_order: "scope, code_list, sort_order, code"
+    unique_keys:
+      scope_list_code:
+        description: A value is defined once per scope and list.
+        unique_key_slots:
+          - scope
+          - code_list
+          - code
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: "`company`, or the project scope that added the value."
+      code_list:
+        required: true
+        description: Code of the list the value belongs to (a `Standard` of kind `code_list`).
+      code:
+        required: true
+        description: The value's code within its list.
+      label:
+        required: true
+        description: Display text.
+      meaning:
+        description: IRI that says what the value means (brief 27.6).
+      crosswalk:
+        description: The company code a project-added value maps to; null for a company value.
+      origin:
+        range: CodeOrigin
+        required: true
+        description: Company or project.
+      sort_order:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Position in the list; ties are ordered by code.
+      effective_from:
+        description: ISO date (YYYY-MM-DD) from which the value applies; null means always.
+      effective_to:
+        description: ISO date (YYYY-MM-DD) after which it no longer applies; null means open.
+      lifecycle:
+        range: RegistryLifecycle
+        required: true
+        ifabsent: string(active)
+        description: Active, superseded or retired.
+      superseded_by:
+        range: Ulid
+        description: The value that replaced this one, when superseded.
+      attributes:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: List-specific content, a JSON object.
+      edition:
+        required: true
+        description: The standards edition that supplied the value.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

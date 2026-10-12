@@ -27,6 +27,9 @@ Rules (brief 5.4, build spec 03 section 9):
   accept the same text.
 * Every statement is ``IF NOT EXISTS`` so applying the DDL twice is harmless. Statements end with
   ``;`` and are separated by one blank line. Output is deterministic.
+* Module schemas (``schema/modules/<m>/module.yaml``, ADR-0010) are generated like the core one,
+  from their own root. A module root imports core files, so only the classes whose own schema
+  carries the module's ``tl:module`` annotation are tables of that module.
 """
 
 from __future__ import annotations
@@ -39,6 +42,7 @@ from typing import Any, cast
 from linkml_runtime.utils.schemaview import SchemaView
 
 from tl_schema.generators.ddl_types import Dialect, collated, column_type, sql_literal
+from tl_schema.modules import module_roots
 
 ROOT_SCHEMA = "core.yaml"
 DIALECTS: tuple[Dialect, ...] = ("sqlite", "postgres")
@@ -212,17 +216,19 @@ def table_ddl(view: SchemaView, class_name: str, dialect: Dialect) -> str:
     return "\n\n".join(statements) + "\n"
 
 
-def current_state_classes(view: SchemaView) -> list[str]:
-    return sorted(
-        c for c in view.all_classes() if _annotation(view.get_class(c), "tl:current_state")
-    )
+def current_state_classes(view: SchemaView, module: str | None = None) -> list[str]:
+    """Classes annotated ``tl:current_state``; with ``module``, only that module's own classes."""
+    found = [c for c in view.all_classes() if _annotation(view.get_class(c), "tl:current_state")]
+    if module is not None:
+        found = [c for c in found if _module_of(view, c) == module]
+    return sorted(found)
 
 
-def generate_from(schema_path: Path) -> dict[str, str]:
+def generate_from(schema_path: Path, module: str | None = None) -> dict[str, str]:
     """``{"ddl/<dialect>/<table>.sql": text}`` for each current-state class in the schema."""
     view = SchemaView(str(schema_path))
     files: dict[str, str] = {}
-    for class_name in current_state_classes(view):
+    for class_name in current_state_classes(view, module):
         table = table_name(view, class_name)
         for dialect in DIALECTS:
             files[f"ddl/{dialect}/{table}.sql"] = table_ddl(view, class_name, dialect)
@@ -230,6 +236,13 @@ def generate_from(schema_path: Path) -> dict[str, str]:
 
 
 def generate(schema_dir: Path) -> dict[str, str]:
-    """Entry point used by ``tl_schema.generate``; runs inside ``schema_dir``."""
+    """Entry point used by ``tl_schema.generate``: the core schema, then each module's.
+
+    Runs inside the directory of each root so no absolute path is read into the output.
+    """
     with chdir(schema_dir):
-        return generate_from(Path(ROOT_SCHEMA))
+        files = generate_from(Path(ROOT_SCHEMA))
+    for root in module_roots(schema_dir):
+        with chdir(root.directory):
+            files.update(generate_from(Path(root.file), root.name))
+    return files

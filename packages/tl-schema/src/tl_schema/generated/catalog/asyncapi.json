@@ -64,6 +64,24 @@
       },
       "title": "An agent token was revoked and no longer authenticates."
     },
+    "CodeValue.Closed": {
+      "address": "CodeValue.Closed",
+      "messages": {
+        "CodeValue.Closed": {
+          "$ref": "#/components/messages/CodeValue.Closed"
+        }
+      },
+      "title": "A code value was superseded by another or retired; it still resolves for old records."
+    },
+    "CodeValue.Defined": {
+      "address": "CodeValue.Defined",
+      "messages": {
+        "CodeValue.Defined": {
+          "$ref": "#/components/messages/CodeValue.Defined"
+        }
+      },
+      "title": "A value was added to a code list."
+    },
     "Feed.Edited": {
       "address": "Feed.Edited",
       "messages": {
@@ -333,6 +351,78 @@
         }
       },
       "title": "The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to."
+    },
+    "Standard.Closed": {
+      "address": "Standard.Closed",
+      "messages": {
+        "Standard.Closed": {
+          "$ref": "#/components/messages/Standard.Closed"
+        }
+      },
+      "title": "A registry entry was superseded by another or retired; it stays resolvable for history."
+    },
+    "Standard.Defined": {
+      "address": "Standard.Defined",
+      "messages": {
+        "Standard.Defined": {
+          "$ref": "#/components/messages/Standard.Defined"
+        }
+      },
+      "title": "A registry entry (a code list, a mnemonic or a numbering pattern) was defined."
+    },
+    "Tag.Defined": {
+      "address": "Tag.Defined",
+      "messages": {
+        "Tag.Defined": {
+          "$ref": "#/components/messages/Tag.Defined"
+        }
+      },
+      "title": "A tag was created, with its number parsed into segments and its class."
+    },
+    "Tag.Reclassified": {
+      "address": "Tag.Reclassified",
+      "messages": {
+        "Tag.Reclassified": {
+          "$ref": "#/components/messages/Tag.Reclassified"
+        }
+      },
+      "title": "A tag moved to another class; the new class may bind other property sets."
+    },
+    "Tag.Superseded": {
+      "address": "Tag.Superseded",
+      "messages": {
+        "Tag.Superseded": {
+          "$ref": "#/components/messages/Tag.Superseded"
+        }
+      },
+      "title": "A tag was replaced by one or more others (a rename, a split or a merge); it stays in the ledger as history."
+    },
+    "TagClass.Closed": {
+      "address": "TagClass.Closed",
+      "messages": {
+        "TagClass.Closed": {
+          "$ref": "#/components/messages/TagClass.Closed"
+        }
+      },
+      "title": "A tag class was retired; tags already of that class keep it."
+    },
+    "TagClass.Defined": {
+      "address": "TagClass.Defined",
+      "messages": {
+        "TagClass.Defined": {
+          "$ref": "#/components/messages/TagClass.Defined"
+        }
+      },
+      "title": "A tag class was defined."
+    },
+    "TagClass.Revised": {
+      "address": "TagClass.Revised",
+      "messages": {
+        "TagClass.Revised": {
+          "$ref": "#/components/messages/TagClass.Revised"
+        }
+      },
+      "title": "A tag class changed."
     },
     "TypeRegistration.Deprecated": {
       "address": "TypeRegistration.Deprecated",
@@ -2251,6 +2341,590 @@
         },
         "summary": "An agent token was revoked and no longer authenticates.",
         "title": "An agent token was revoked and no longer authenticates."
+      },
+      "CodeValue.Closed": {
+        "contentType": "application/json",
+        "description": "A code value was superseded by another or retired; it still resolves for old records.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "effective_to": null,
+                  "lifecycle": "retired",
+                  "reason": "No longer used on site",
+                  "superseded_by": null
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/CodeValue.Closed/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.CodeValue.Closed.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.CodeValue.Closed.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "effective_to": {
+                      "description": "ISO date the value stops applying.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lifecycle": {
+                      "description": "superseded or retired.",
+                      "type": "string"
+                    },
+                    "reason": {
+                      "description": "Why.",
+                      "type": "string"
+                    },
+                    "superseded_by": {
+                      "description": "Record id of the value that replaced this one.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "lifecycle",
+                    "reason"
+                  ],
+                  "title": "CodeValueClosedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/CodeValue.Closed/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.CodeValue.Closed.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "A code value was superseded by another or retired; it still resolves for old records.",
+        "title": "A code value was superseded by another or retired; it still resolves for old records."
+      },
+      "CodeValue.Defined": {
+        "contentType": "application/json",
+        "description": "A value was added to a code list.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "attributes": {},
+                  "code": "PIP",
+                  "code_list": "Discipline",
+                  "crosswalk": null,
+                  "edition": "co.acme.standards@1.0.0",
+                  "effective_from": null,
+                  "effective_to": null,
+                  "label": "Piping",
+                  "meaning": null,
+                  "origin": "company",
+                  "sort_order": 10
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/CodeValue.Defined/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.CodeValue.Defined.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.CodeValue.Defined.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "attributes": {
+                      "description": "List-specific content."
+                    },
+                    "code": {
+                      "description": "The value's code.",
+                      "type": "string"
+                    },
+                    "code_list": {
+                      "description": "Code of the list.",
+                      "type": "string"
+                    },
+                    "crosswalk": {
+                      "description": "The company code a project-added value maps to.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "edition": {
+                      "description": "The standards edition that supplied the value.",
+                      "type": "string"
+                    },
+                    "effective_from": {
+                      "description": "ISO date from which the value applies.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "effective_to": {
+                      "description": "ISO date after which it no longer applies.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "label": {
+                      "description": "Display text.",
+                      "type": "string"
+                    },
+                    "meaning": {
+                      "description": "IRI that says what the value means.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "origin": {
+                      "description": "company or project.",
+                      "type": "string"
+                    },
+                    "sort_order": {
+                      "description": "Position in the list.",
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code_list",
+                    "code",
+                    "label",
+                    "origin",
+                    "edition"
+                  ],
+                  "title": "CodeValueDefinedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/CodeValue.Defined/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.CodeValue.Defined.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "A value was added to a code list.",
+        "title": "A value was added to a code list."
       },
       "Feed.Edited": {
         "contentType": "application/json",
@@ -10398,6 +11072,2293 @@
         "summary": "The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to.",
         "title": "The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to."
       },
+      "Standard.Closed": {
+        "contentType": "application/json",
+        "description": "A registry entry was superseded by another or retired; it stays resolvable for history.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "effective_to": "2027-01-01",
+                  "lifecycle": "superseded",
+                  "reason": "Edition 2 replaces the pattern",
+                  "superseded_by": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/Standard.Closed/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.Standard.Closed.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.Standard.Closed.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "effective_to": {
+                      "description": "ISO date the entry stops applying.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lifecycle": {
+                      "description": "superseded or retired.",
+                      "type": "string"
+                    },
+                    "reason": {
+                      "description": "Why.",
+                      "type": "string"
+                    },
+                    "superseded_by": {
+                      "description": "Record id of the entry that replaced this one.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "lifecycle",
+                    "reason"
+                  ],
+                  "title": "StandardClosedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/Standard.Closed/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.Standard.Closed.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "A registry entry was superseded by another or retired; it stays resolvable for history.",
+        "title": "A registry entry was superseded by another or retired; it stays resolvable for history."
+      },
+      "Standard.Defined": {
+        "contentType": "application/json",
+        "description": "A registry entry (a code list, a mnemonic or a numbering pattern) was defined.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "adoption": "mandatory",
+                  "code": "FV",
+                  "data": {
+                    "class_hint": "ControlValve"
+                  },
+                  "definition": null,
+                  "edition": "co.acme.standards@1.0.0",
+                  "effective_from": null,
+                  "effective_to": null,
+                  "kind": "mnemonic",
+                  "label": "Flow control valve",
+                  "owner": "role:standards-steward",
+                  "value_list_policy": null
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/Standard.Defined/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.Standard.Defined.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.Standard.Defined.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "adoption": {
+                      "description": "mandatory, default or optional.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "code": {
+                      "description": "The entry's code within its kind.",
+                      "type": "string"
+                    },
+                    "data": {
+                      "description": "Kind-specific content."
+                    },
+                    "definition": {
+                      "description": "What the entry means or governs.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "edition": {
+                      "description": "The standards edition that supplied it.",
+                      "type": "string"
+                    },
+                    "effective_from": {
+                      "description": "ISO date from which the entry applies.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "effective_to": {
+                      "description": "ISO date after which it no longer applies.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "kind": {
+                      "description": "code_list, mnemonic or numbering_pattern.",
+                      "type": "string"
+                    },
+                    "label": {
+                      "description": "Display name or meaning.",
+                      "type": "string"
+                    },
+                    "owner": {
+                      "description": "Steward of the entry.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "value_list_policy": {
+                      "description": "Code lists only: closed, extensible or project_defined.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "code",
+                    "label",
+                    "edition"
+                  ],
+                  "title": "StandardDefinedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/Standard.Defined/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.Standard.Defined.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "A registry entry (a code list, a mnemonic or a numbering pattern) was defined.",
+        "title": "A registry entry (a code list, a mnemonic or a numbering pattern) was defined."
+      },
+      "Tag.Defined": {
+        "contentType": "application/json",
+        "description": "A tag was created, with its number parsed into segments and its class.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "area": "47",
+                  "bound_psets": [
+                    "valve_data"
+                  ],
+                  "class_code": "ControlValve",
+                  "conformance": "nonconformant",
+                  "effective_schema_hash": "9f2c",
+                  "mnemonic": "FV",
+                  "number": "47-FV-1001",
+                  "number_status": "ok",
+                  "origin": "created",
+                  "pattern_code": "tag",
+                  "segments": {
+                    "area": "47",
+                    "mnemonic": "FV",
+                    "seq": "1001"
+                  },
+                  "sequence": 1001,
+                  "supersedes": [],
+                  "violations": []
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/Tag.Defined/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.Tag.Defined.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.Tag.Defined.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "area": {
+                      "description": "The area or unit segment.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "bound_psets": {
+                      "description": "Pset names the class binds to the tag."
+                    },
+                    "class_code": {
+                      "description": "Code of the tag's class; null until classified.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "conformance": {
+                      "description": "Conformance of the new tag: ok, warning, nonconformant or waived.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "effective_schema_hash": {
+                      "description": "Hash of the effective schema in force.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "mnemonic": {
+                      "description": "The mnemonic segment.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "number": {
+                      "description": "The tag number.",
+                      "type": "string"
+                    },
+                    "number_status": {
+                      "description": "ok or violation.",
+                      "type": "string"
+                    },
+                    "origin": {
+                      "description": "created, import, rename, split or merge.",
+                      "type": "string"
+                    },
+                    "pattern_code": {
+                      "description": "Code of the numbering pattern the number was checked against.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "segments": {
+                      "description": "Every parsed segment by name."
+                    },
+                    "sequence": {
+                      "description": "The sequence segment.",
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "supersedes": {
+                      "description": "Record ids of the tags this one replaces."
+                    },
+                    "violations": {
+                      "description": "The problems found in the number."
+                    }
+                  },
+                  "required": [
+                    "number",
+                    "number_status",
+                    "origin"
+                  ],
+                  "title": "TagDefinedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/Tag.Defined/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.Tag.Defined.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "A tag was created, with its number parsed into segments and its class.",
+        "title": "A tag was created, with its number parsed into segments and its class."
+      },
+      "Tag.Reclassified": {
+        "contentType": "application/json",
+        "description": "A tag moved to another class; the new class may bind other property sets.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {
+                  "class_code": [
+                    "ManualValve",
+                    "ControlValve"
+                  ]
+                },
+                "detail": {
+                  "bound_psets": [
+                    "valve_data"
+                  ],
+                  "conformance": "nonconformant",
+                  "effective_schema_hash": "9f2c",
+                  "from_class": "ManualValve",
+                  "reason": "Actuator added",
+                  "to_class": "ControlValve"
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/Tag.Reclassified/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.Tag.Reclassified.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.Tag.Reclassified.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "bound_psets": {
+                      "description": "Pset names the new class binds."
+                    },
+                    "conformance": {
+                      "description": "Conformance after the change.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "effective_schema_hash": {
+                      "description": "Hash of the effective schema in force.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "from_class": {
+                      "description": "The previous class code; null when the tag had none.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "reason": {
+                      "description": "Why.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "to_class": {
+                      "description": "The new class code.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "to_class"
+                  ],
+                  "title": "TagReclassifiedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/Tag.Reclassified/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.Tag.Reclassified.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "A tag moved to another class; the new class may bind other property sets.",
+        "title": "A tag moved to another class; the new class may bind other property sets."
+      },
+      "Tag.Superseded": {
+        "contentType": "application/json",
+        "description": "A tag was replaced by one or more others (a rename, a split or a merge); it stays in the ledger as history.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "operation": "rename",
+                  "reason": "P&ID revision 3 renumbers the loop",
+                  "superseded_by": [
+                    "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+                  ]
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/Tag.Superseded/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.Tag.Superseded.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.Tag.Superseded.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "operation": {
+                      "description": "rename, split or merge.",
+                      "type": "string"
+                    },
+                    "reason": {
+                      "description": "Why.",
+                      "type": "string"
+                    },
+                    "superseded_by": {}
+                  },
+                  "required": [
+                    "operation",
+                    "superseded_by",
+                    "reason"
+                  ],
+                  "title": "TagSupersededPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/Tag.Superseded/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.Tag.Superseded.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "A tag was replaced by one or more others (a rename, a split or a merge); it stays in the ledger as history.",
+        "title": "A tag was replaced by one or more others (a rename, a split or a merge); it stays in the ledger as history."
+      },
+      "TagClass.Closed": {
+        "contentType": "application/json",
+        "description": "A tag class was retired; tags already of that class keep it.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "lifecycle": "retired",
+                  "reason": "Merged into ControlValve",
+                  "superseded_by": null
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/TagClass.Closed/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.TagClass.Closed.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.TagClass.Closed.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "lifecycle": {
+                      "description": "superseded or retired.",
+                      "type": "string"
+                    },
+                    "reason": {
+                      "description": "Why.",
+                      "type": "string"
+                    },
+                    "superseded_by": {
+                      "description": "Record id of the class that replaced this one.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "lifecycle",
+                    "reason"
+                  ],
+                  "title": "TagClassClosedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/TagClass.Closed/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.TagClass.Closed.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "A tag class was retired; tags already of that class keep it.",
+        "title": "A tag class was retired; tags already of that class keep it."
+      },
+      "TagClass.Defined": {
+        "contentType": "application/json",
+        "description": "A tag class was defined.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {},
+                "detail": {
+                  "code": "ControlValve",
+                  "edition": "co.acme.standards@1.0.0",
+                  "family": "valve",
+                  "itr_templates": [
+                    "ITR-VALVE-01"
+                  ],
+                  "label": "Control valve",
+                  "mnemonics": [
+                    "FV"
+                  ],
+                  "required_psets": [
+                    "valve_data"
+                  ]
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/TagClass.Defined/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.TagClass.Defined.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.TagClass.Defined.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "code": {
+                      "description": "The class code.",
+                      "type": "string"
+                    },
+                    "edition": {
+                      "description": "The standards edition that supplied the class.",
+                      "type": "string"
+                    },
+                    "family": {
+                      "description": "instrument, valve, pump, line, equipment, cable or other.",
+                      "type": "string"
+                    },
+                    "itr_templates": {
+                      "description": "ITR template references."
+                    },
+                    "label": {
+                      "description": "Display name.",
+                      "type": "string"
+                    },
+                    "mnemonics": {
+                      "description": "Mnemonic codes that normally identify this class."
+                    },
+                    "required_psets": {
+                      "description": "Pset names a tag of this class must carry."
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "label",
+                    "family",
+                    "edition"
+                  ],
+                  "title": "TagClassDefinedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/TagClass.Defined/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.TagClass.Defined.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "A tag class was defined.",
+        "title": "A tag class was defined."
+      },
+      "TagClass.Revised": {
+        "contentType": "application/json",
+        "description": "A tag class changed. Adding a required pset is a constraining change: existing tags are flagged, not rewritten.",
+        "examples": [
+          {
+            "headers": {
+              "webhook-id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "webhook-signature": "v1,ZXhhbXBsZS1zaWduYXR1cmU=",
+              "webhook-timestamp": "1760000047"
+            },
+            "name": "sample",
+            "payload": {
+              "data": {
+                "changes": {
+                  "required_psets": [
+                    [
+                      "valve_data"
+                    ],
+                    [
+                      "valve_data",
+                      "safety_data"
+                    ]
+                  ]
+                },
+                "detail": {
+                  "changes": {
+                    "required_psets": [
+                      [
+                        "valve_data"
+                      ],
+                      [
+                        "valve_data",
+                        "safety_data"
+                      ]
+                    ]
+                  },
+                  "reason": "SIS valves need safety data"
+                },
+                "links": [],
+                "origin": {
+                  "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+                  "key": "47-1234-W012",
+                  "type": "core.Record",
+                  "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+                  "version": 7
+                }
+              },
+              "datacontenttype": "application/json",
+              "dataschema": "https://tl.example.com/schema/events/TagClass.Revised/1",
+              "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+              "source": "https://tl.example.com/c/acme/p/P123",
+              "specversion": "1.0",
+              "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+              "time": "2026-10-09T03:14:07.000000Z",
+              "tlactor": "user:jsmith",
+              "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+              "tlseq": 48211933,
+              "tlstreamversion": 7,
+              "type": "tl.core.TagClass.Revised.v1"
+            }
+          }
+        ],
+        "headers": {
+          "$ref": "#/components/schemas/WebhookHeaders"
+        },
+        "name": "tl.core.TagClass.Revised.v1",
+        "payload": {
+          "additionalProperties": false,
+          "description": "The CloudEvents 1.0 envelope (brief 18.3) used for webhooks, streams, the events API and exports. Extension attributes are lower-case as CloudEvents requires: `tlseq`, `tlstreamversion`, `tlcorrelationid`, `tlactor`.",
+          "properties": {
+            "data": {
+              "additionalProperties": true,
+              "description": "The `data` member of a webhook CloudEvent.",
+              "properties": {
+                "changes": {
+                  "description": "Delta and full modes. Object of field path to `[old, new]`; `old` is null when the event does not carry it."
+                },
+                "detail": {
+                  "additionalProperties": true,
+                  "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
+                  "properties": {
+                    "changes": {},
+                    "reason": {
+                      "description": "Why it changed.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "changes",
+                    "reason"
+                  ],
+                  "title": "TagClassRevisedPayload",
+                  "type": "object"
+                },
+                "links": {
+                  "description": "Delta and full modes. Immediate links.",
+                  "items": {
+                    "additionalProperties": false,
+                    "description": "One immediate link of the origin record (delta mode).",
+                    "properties": {
+                      "id": {
+                        "description": "`urn:tl:<ulid>` of the record at the other end.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "key": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rel": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "uri": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rel"
+                    ],
+                    "title": "EventLinkRef",
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "origin": {
+                  "additionalProperties": false,
+                  "description": "Pointer to the originating record at the version of the event (brief 18.3, `RecordRef`).",
+                  "properties": {
+                    "api": {
+                      "description": "API URL of the record.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "id": {
+                      "description": "`urn:tl:<ulid>` of the record.",
+                      "type": "string"
+                    },
+                    "key": {
+                      "description": "Human-readable key.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "type": {
+                      "description": "Record type.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "uri": {
+                      "description": "Resolvable URI of the record at this version (`...@v7`).",
+                      "type": "string"
+                    },
+                    "version": {
+                      "description": "Version of the record after the event.",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "uri",
+                    "version"
+                  ],
+                  "title": "EventOrigin",
+                  "type": "object"
+                },
+                "record": {
+                  "description": "Full mode only. The record projection as of delivery preparation, with its `version`."
+                }
+              },
+              "required": [
+                "origin"
+              ],
+              "title": "CloudEventData",
+              "type": "object"
+            },
+            "datacontenttype": {
+              "const": "application/json",
+              "type": "string"
+            },
+            "dataschema": {
+              "const": "https://tl.example.com/schema/events/TagClass.Revised/1",
+              "description": "URI of the catalog schema of this event type.",
+              "type": "string"
+            },
+            "id": {
+              "description": "The ledger event id. Receivers dedupe on it.",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            },
+            "source": {
+              "description": "URI of the company and project the event came from.",
+              "type": "string"
+            },
+            "specversion": {
+              "const": "1.0",
+              "type": "string"
+            },
+            "subject": {
+              "description": "`urn:tl:<ulid>` of the subject record, the ordering key.",
+              "type": "string"
+            },
+            "time": {
+              "description": "When the ledger committed the event (UTC).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "tlactor": {
+              "type": "string"
+            },
+            "tlcorrelationid": {
+              "type": "string"
+            },
+            "tlseq": {
+              "description": "Ledger `seq`.",
+              "type": "integer"
+            },
+            "tlstreamversion": {
+              "description": "Version within the event's stream.",
+              "type": "integer"
+            },
+            "type": {
+              "const": "tl.core.TagClass.Revised.v1",
+              "description": "`tl.<module>.<Class>.<Verb>.v<schema version>`, for example `tl.core.Record.Created.v1`.",
+              "pattern": "^tl\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.[A-Za-z0-9_]+\\.v[0-9]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "specversion",
+            "id",
+            "source",
+            "type",
+            "time",
+            "subject",
+            "dataschema",
+            "datacontenttype",
+            "tlseq",
+            "tlstreamversion",
+            "tlcorrelationid",
+            "tlactor",
+            "data"
+          ],
+          "title": "CloudEvent",
+          "type": "object"
+        },
+        "summary": "A tag class changed.",
+        "title": "A tag class changed."
+      },
       "TypeRegistration.Deprecated": {
         "contentType": "application/json",
         "description": "The owner retired a version. Existing instances stay readable and editable; no new instance can be created.",
@@ -12995,6 +15956,30 @@
       ],
       "summary": "An agent token was revoked and no longer authenticates."
     },
+    "receiveCodeValueClosed": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/CodeValue.Closed"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/CodeValue.Closed/messages/CodeValue.Closed"
+        }
+      ],
+      "summary": "A code value was superseded by another or retired; it still resolves for old records."
+    },
+    "receiveCodeValueDefined": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/CodeValue.Defined"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/CodeValue.Defined/messages/CodeValue.Defined"
+        }
+      ],
+      "summary": "A value was added to a code list."
+    },
     "receiveFeedEdited": {
       "action": "receive",
       "channel": {
@@ -13354,6 +16339,102 @@
         }
       ],
       "summary": "The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to."
+    },
+    "receiveStandardClosed": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/Standard.Closed"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/Standard.Closed/messages/Standard.Closed"
+        }
+      ],
+      "summary": "A registry entry was superseded by another or retired; it stays resolvable for history."
+    },
+    "receiveStandardDefined": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/Standard.Defined"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/Standard.Defined/messages/Standard.Defined"
+        }
+      ],
+      "summary": "A registry entry (a code list, a mnemonic or a numbering pattern) was defined."
+    },
+    "receiveTagClassClosed": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/TagClass.Closed"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/TagClass.Closed/messages/TagClass.Closed"
+        }
+      ],
+      "summary": "A tag class was retired; tags already of that class keep it."
+    },
+    "receiveTagClassDefined": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/TagClass.Defined"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/TagClass.Defined/messages/TagClass.Defined"
+        }
+      ],
+      "summary": "A tag class was defined."
+    },
+    "receiveTagClassRevised": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/TagClass.Revised"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/TagClass.Revised/messages/TagClass.Revised"
+        }
+      ],
+      "summary": "A tag class changed."
+    },
+    "receiveTagDefined": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/Tag.Defined"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/Tag.Defined/messages/Tag.Defined"
+        }
+      ],
+      "summary": "A tag was created, with its number parsed into segments and its class."
+    },
+    "receiveTagReclassified": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/Tag.Reclassified"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/Tag.Reclassified/messages/Tag.Reclassified"
+        }
+      ],
+      "summary": "A tag moved to another class; the new class may bind other property sets."
+    },
+    "receiveTagSuperseded": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/Tag.Superseded"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/Tag.Superseded/messages/Tag.Superseded"
+        }
+      ],
+      "summary": "A tag was replaced by one or more others (a rename, a split or a merge); it stays in the ledger as history."
     },
     "receiveTypeRegistrationDeprecated": {
       "action": "receive",

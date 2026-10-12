@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from tl_core.auth.projector import AccountProjector, AuthStateTables
+from tl_core.modules import module_projectors
 from tl_core.projection.extypes import (
     BodyQuarantineTable,
     RecordBodyProjector,
@@ -46,6 +47,10 @@ def default_registry() -> InMemoryRegistry:
     registry.register(BodyQuarantineTable())  # operational; never reset by a rebuild
     registry.register(SettingProjector())  # independent: settings are their own streams
     registry.register(FeedProjector())  # sees every event; reads only its own tables
+    # Module projectors (ADR-0010) read and update the rows of the projectors above, so they come
+    # after them; the outbox stays last.
+    for projector in module_projectors():
+        registry.register(projector)
     # Last, on purpose: it reads the rows the projectors above wrote for the same event.
     registry.register(OutboxProjector())
     return registry
