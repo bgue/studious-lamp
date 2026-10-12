@@ -15,7 +15,7 @@ import pytest
 from auth_support import bootstrap, login
 from auth_support import run as tl
 from sqlalchemy import text
-from tl_adapters.db import DbTarget, is_postgres, open_uow
+from tl_adapters.db import DbTarget, display_target, is_postgres, open_uow
 from tl_cli import session
 
 DEMO = "demo"
@@ -74,6 +74,53 @@ def test_login_whoami_the_default_actor_and_logout_on_either_database(
     assert tl(env, "whoami").exit_code == 1
 
 
+def test_no_output_of_sign_in_shows_the_options_of_the_url(
+    env: dict[str, str], target: DbTarget
+) -> None:
+    """The ``options`` value of a Postgres URL (a schema name here) is not printed by sign-in."""
+    for result in (login(env), tl(env, "whoami"), tl(env, "logout")):
+        assert result.exit_code == 0, result.output
+        assert "tl_t_" not in result.output
+    shown = display_target(target)
+    assert "tl_t_" not in shown
+    if is_postgres(target):
+        assert "options=***" in shown
+
+
+def test_logout_forgets_the_local_session_even_when_the_server_cannot_be_reached(
+    env: dict[str, str], target: DbTarget, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tl_adapters.backend import BackendUnavailableError
+
+    assert login(env).exit_code == 0
+
+    def unreachable(_target: DbTarget) -> bool:
+        raise BackendUnavailableError("cannot reach the database db.example: down")
+
+    monkeypatch.setattr("tl_cli.login.ledger_exists", unreachable)
+    out = tl(env, "logout")
+    assert out.exit_code == 0, out.output
+    assert out.stdout.strip() == "signed out root"
+    warnings = [line for line in out.stderr.splitlines() if line]
+    assert len(warnings) == 1 and warnings[0].startswith("warning: the session on the server")
+    assert "cannot reach the database" in warnings[0] and "Traceback" not in out.output
+    monkeypatch.undo()
+    assert tl(env, "whoami").exit_code == 1  # the local entry is gone
+
+
+def test_logout_names_a_refused_login_without_the_password(
+    env: dict[str, str], target: DbTarget
+) -> None:
+    if not is_postgres(target):
+        return  # a file has no server to refuse
+    assert login(env).exit_code == 0
+    refused = env | {"TL_DB": str(target).replace("postgres:postgres@", "postgres:wr0ng-s3cret@")}
+    out = tl(refused, "logout")  # same ledger (the key has no password), the server refuses it
+    assert out.exit_code == 0, out.output
+    assert "could not be revoked" in out.stderr and "wr0ng-s3cret" not in out.output
+    assert tl(env, "whoami").exit_code == 1
+
+
 def test_the_session_file_names_the_ledger_and_never_a_password(
     env: dict[str, str], target: DbTarget
 ) -> None:
@@ -85,6 +132,8 @@ def test_the_session_file_names_the_ledger_and_never_a_password(
         assert key.startswith("pg:postgres@localhost:5432/")
         assert "postgres:postgres@" not in stored  # user:password never reaches the file
         assert "sslmode" not in stored
+        assert "tl_t_" not in stored  # the schema scope (the `options` value) is hashed in the key
+        assert "tl_t_" not in key
 
 
 def test_the_actor_rules_differ_only_where_a_database_server_is_not_a_file(

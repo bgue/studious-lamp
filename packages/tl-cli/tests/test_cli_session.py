@@ -291,8 +291,9 @@ def test_the_session_key_of_a_server_has_no_password_and_ignores_the_tls_mode() 
     scoped = session.db_target(
         as_target("postgresql://tl:secret@db.example/ledger?options=-csearch_path%3Dtl_demo")
     )
-    assert scoped == "pg:tl@db.example:5432/ledger?options=-csearch_path=tl_demo"
-    assert "secret" not in plain + scoped
+    assert scoped.startswith("pg:tl@db.example:5432/ledger?options=sha256:")
+    assert len(scoped.rpartition(":")[2]) == 16  # the options are hashed, never stored in clear
+    assert "secret" not in plain + scoped and "tl_demo" not in scoped
     assert session.db_target(Path("tl.db")).startswith("db:/")
 
 

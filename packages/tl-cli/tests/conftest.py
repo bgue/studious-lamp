@@ -8,12 +8,11 @@ act as ``user:dev`` without signing in; a ``postgresql://`` target never does. T
 tests were written for the file rule and run on both databases (``--adapters sqlite,postgres``),
 so on Postgres the fixture below signs a test account called ``dev`` (role admin, so its actor is
 ``user:dev``, the actor those tests expect) in to the ledger the first time a command runs against
-it, exactly as ``tl login`` would (a command that names ``--actor user:<name>`` runs as that
-person: an admin account made on demand and signed in for that command; the next one is ``dev``
-again), through the session file ``TL_SESSION_FILE`` names. A command that names
-``--actor user:<name>`` runs as that person (an admin account made on demand, and signed in for
-that command; the next command is ``dev`` again). A test module
-that is about signing in sets ``AUTO_SIGN_IN = False`` and does it itself. SQLite is untouched.
+it, exactly as ``tl login`` would, through the session file ``TL_SESSION_FILE`` names. A command
+that names ``--actor user:<name>`` runs as that person (an admin account made on demand and signed
+in for that command); the next command is ``dev`` again. A server that cannot be reached is left to
+the command under test. A test module that is about signing in sets ``AUTO_SIGN_IN = False`` and
+does it itself. SQLite is untouched.
 """
 
 from __future__ import annotations

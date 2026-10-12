@@ -60,7 +60,7 @@ No ticket was taken over. A reference implementation of T31 to T38 (branch `p1/i
 | `just test` | 6020 passed, 1 skipped, 34 snapshots, 0 failed (25 min) on the final tree; the skip is not one of this workstream's tests. The run before the last conftest fix had 3 failures, all fixed (`2067586`) |
 | `just test-tui` | 708 passed, 34 snapshots (final tree minus the same one-line conftest change) |
 | `just test-parity` | 3147 passed on SQLite and Postgres, 0 failed (1 h 1 min), run at `827bdcc`; the only later change is a test `conftest.py` step-aside for unreachable servers (below), and the 9 affected CLI files plus `test_cli_session.py` and `test_cli_backup.py` were re-run on both adapters afterwards |
-| Fresh-context reviews | S30 to S34: changes requested (no blockers), fixed in S35a and S35b, re-review pass. S35 (the merge and the session on a target): requested with this report |
+| Fresh-context reviews | S30 to S34: changes requested (no blockers), fixed in S35a and S35b, re-review pass. S35 (the merge and the session on a target): changes requested (1 MEDIUM, 5 LOW, no HIGH), all fixed in the review-fix round below (decision B15; ADR-0009 addendum "Addendum (P1-I0 WS-B)") |
 
 ## Deviations from plan
 - T30 folded into S34; the MCP and simulator work waited for A (planned), and the import guard was added in two steps (S35c, then S35).
@@ -69,12 +69,17 @@ No ticket was taken over. A reference implementation of T31 to T38 (branch `p1/i
 - A Postgres target always needs a session (ADR-0009 section 7, A's rule), which the command-group tests converted in S33 predate. `packages/tl-cli/tests/conftest.py` signs a test account `dev` (admin, so the actor stays `user:dev`) in to a Postgres ledger on the first command, follows `--actor user:<name>` by making that person on demand, and steps aside for an unreachable server; `pg_support.py` offsets the tests that count events or name a seq by the account event. Found by the first full `just test-parity` after the merge (160 failures), none of them a product defect.
 - `SQLite read_tx` became read-only (a behaviour change found by the review): 2317 tests that exercise it still pass.
 
+## Review-fix round (security review of S35)
+- MEDIUM: the simulator no longer mints an agent token on a Postgres ledger without a session; it needs a signed-in admin and the events name that admin (`svc:sim` only on a file in dev).
+- LOW: query allow-list in `as_target` (`host`, `port`, `connect_timeout` and the rest refused with one line, no `TypeError`); `display_target` allow-list; `target_key` lower-cases the host and hashes `options`; import guard covers `from tl_adapters import sqlite`, `db.sqlite`, string `import_module`; `SimEnv.db_path` out of repr; `tl logout` revokes first and forgets locally even if the server is down; duplicated sentence removed from the CLI conftest docstring.
+- Tests: `test_cli_sim_agent_targets.py` (new), additions to `test_backend.py`, `test_cli_target.py`, `test_cli_session.py`, `test_cli_auth_targets.py`, `test_mcp_target.py`, `tests/tools/test_no_sqlite_imports.py`.
+
 ## Escalations and decisions
-- B13: the session of a Postgres ledger is keyed `pg:user@host:port/database[?options]`. ADR-0009 section 4 names only the file key; **the orchestrator should add the `pg:` key to the ADR** (an addendum, not a change of rule: a server target always needs a session and `--actor` is honoured only for the session's own actor, as A decided).
+- B13/B15: the session of a Postgres ledger is keyed `pg:user@host:port/database[?options=sha256:<16 hex>]`. The ADR-0009 addendum "Addendum (P1-I0 WS-B)" records the key, the refusal of `host`/`port` query parameters and the simulator's Postgres rule; the coordinator logs it in APPROVALS.md on merge.
 - Nothing else was escalated; no `schema/**` change (nothing to list under SCHEMA_APPROVALS); no new external dependency.
 
 ## Learnings
-`L-P1-I0B-1` to `L-P1-I0B-8` (tests, process, security, tooling). Implementer proposals declined: none.
+`L-P1-I0B-1` to `L-P1-I0B-9` (tests, process, security, tooling). Implementer proposals declined: none.
 
 ## Docs
 - New: `docs/runbooks/run-on-postgres.md` (indexed in `docs/runbooks/README.md`); the plan `docs/tickets/P1-I0/README-B.md`; tickets T30 to T39; ticket reports `docs/reports/P1-I0/P1-I0-T31.md` to `T39.md`.

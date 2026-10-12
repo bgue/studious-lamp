@@ -10,7 +10,8 @@ from __future__ import annotations
 from typing import Annotated
 
 import typer
-from tl_adapters.backend import ledger_exists
+from sqlalchemy.exc import DBAPIError
+from tl_adapters.backend import BackendUnavailableError, connection_failure, ledger_exists
 from tl_adapters.db import DbTarget
 from tl_core.auth import sessions
 
@@ -65,17 +66,39 @@ def login(
 
 
 def logout(ctx: typer.Context) -> None:
-    """Sign out: end the session in the ledger and forget it. Harmless when not signed in."""
+    """Sign out: end the session in the ledger and forget it. Harmless when not signed in.
+
+    The session on the server is ended first. If the server cannot be reached the local entry is
+    forgotten all the same and one warning line says the server session was not revoked (it ends
+    when it expires).
+    """
     db: DbTarget = ctx.obj
+    key = db_target(db)
     try:
-        earlier = forget(db_target(db))
+        live = load(key)  # None when absent or already expired
+    except SessionFileError as exc:
+        fail(str(exc))
+    problem: str | None = None
+    if live is not None:
+        try:
+            if ledger_exists(db):
+                sessions.sign_out(open_backend(db), token=live.token)
+        except (BackendUnavailableError, DBAPIError) as exc:
+            failure = connection_failure(db, exc)
+            problem = str(failure) if failure is not None else "the database refused the request"
+    try:
+        earlier = forget(key)
     except SessionFileError as exc:
         fail(str(exc))
     if earlier is None:
         typer.echo("not signed in")
         return
-    if ledger_exists(db):
-        sessions.sign_out(open_backend(db), token=earlier.token)
+    if problem is not None:
+        typer.echo(
+            f"warning: the session on the server could not be revoked ({problem}); "
+            "it ends when it expires",
+            err=True,
+        )
     typer.echo(f"signed out {earlier.username}")
 
 

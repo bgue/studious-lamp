@@ -45,7 +45,8 @@ class SimEnv:
     sim_dir: Path = Path(DEFAULT_SIM_DIR)
     api_url: str = DEFAULT_API_URL
     tokens_path: Path = Path(DEFAULT_TOKENS)
-    db_path: LedgerTarget = Path(DEFAULT_DB)  # the ledger the MCP server (the agent) opens
+    #: The ledger the MCP server (the agent) opens; not in ``repr``: a URL carries a password.
+    db_path: LedgerTarget = field(default=Path(DEFAULT_DB), repr=False)
     #: Gives the agent's MCP token when the assistant first proposes; not part of equality.
     agent_token: Callable[[], str] | None = field(default=None, compare=False, repr=False)
 

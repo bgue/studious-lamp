@@ -168,3 +168,17 @@ def test_an_unsupported_sslmode_is_one_error_line_before_any_command_runs(
     assert "unsupported sslmode" in result.output
     assert "Traceback" not in result.output
     assert "hunter2" not in result.output
+
+
+@pytest.mark.parametrize(
+    "query", ["connect_timeout=5", "host=evil.example", "port=5999", "password=SeCrEt", "user=x"]
+)
+@pytest.mark.parametrize("args", [["init"], ["record", "show", "--project", "P1", "K"]])
+def test_a_query_parameter_the_adapter_does_not_accept_is_one_error_line_not_a_type_error(
+    query: str, args: list[str]
+) -> None:
+    result = run(f"postgresql://someone:SeCrEt@127.0.0.1:1/tl?sslmode=disable&{query}", *args)
+    assert result.exit_code == 2, result.output
+    assert "query parameter" in result.output and "allowed: sslmode, options" in result.output
+    assert "TypeError" not in result.output and "Traceback" not in result.output
+    assert "SeCrEt" not in result.output and "127.0.0.1" not in result.output

@@ -30,6 +30,7 @@ from tl_adapters.db import (
     display_target,
     is_postgres,
     make_engine,
+    target_key,
 )
 from tl_adapters.postgres import engine as pg_engine
 from tl_core.ledger import Event, NewEvent
@@ -286,3 +287,49 @@ def test_sslmode_reaches_the_driver_as_the_documented_tls_policy(
     for refused in ("prefer", "allow"):
         with pytest.raises(ValueError, match="sslmode"):
             tls_of(base + f"?sslmode={refused}", monkeypatch)
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "host=evil.example",
+        "port=5999",
+        "hostaddr=10.0.0.9",
+        "HOST=evil.example",
+        "password=SeCrEt",
+        "PASSWORD=SeCrEt",
+        "sslpassword=SeCrEt",
+        "connect_timeout=5",
+        "user=other",
+    ],
+)
+def test_a_query_parameter_the_adapter_does_not_understand_is_refused(query: str) -> None:
+    with pytest.raises(ValueError, match="query parameter") as raised:
+        as_target(f"postgresql://u:pw@db.example/tl?{query}")
+    assert "SeCrEt" not in str(raised.value) and "evil" not in str(raised.value)
+    for good in ("sslmode=disable", "options=-csearch_path%3Dx", "application_name=tl"):
+        assert as_target(f"postgresql://u:pw@db.example/tl?{good}")
+
+
+def test_two_spellings_of_one_server_share_a_session_key_and_two_servers_never_do() -> None:
+    one = target_key(as_target("postgresql://u:pw@DB.Example:5432/tl"))
+    assert one == target_key(as_target("postgres://u:other@db.example/tl?sslmode=require"))
+    assert one == "pg:u@db.example:5432/tl"
+    assert one != target_key(as_target("postgresql://u:pw@db.example:5433/tl"))
+    assert one != target_key(as_target("postgresql://u:pw@db2.example/tl"))
+    with pytest.raises(ValueError):  # a host= in the query string would alias another server
+        as_target("postgresql://u:pw@db.example/tl?host=db2.example")
+
+
+def test_the_key_and_the_display_never_hold_the_value_of_options_or_another_parameter() -> None:
+    secret = "-csearch_path%3Dtop_secret_schema"
+    url = f"postgresql://u:pw@db.example/tl?options={secret}&application_name=tl&sslmode=disable"
+    key, shown = target_key(url), display_target(url)
+    assert "top_secret_schema" not in key + shown and "pw@" not in shown
+    assert key.startswith("pg:u@db.example:5432/tl?options=sha256:")
+    assert "application_name=tl" in shown and "sslmode=disable" in shown
+    assert "options=***" in shown
+    # defensive: display_target is also called on text that as_target never saw
+    for raw in ("password=SeCrEt", "PASSWORD=SeCrEt", "sslpassword=SeCrEt", "host=evil.example"):
+        assert "SeCrEt" not in display_target(f"postgresql://u:pw@h/d?{raw}")
+        assert "evil" not in display_target(f"postgresql://u:pw@h/d?{raw}")

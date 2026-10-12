@@ -86,3 +86,19 @@ def test_an_unreachable_server_and_a_bad_target_are_one_error_line(
         main(["--db", "mysql://u:hunter2@h/d"])
     assert raised.value.code == 2
     assert "hunter2" not in capsys.readouterr().err
+
+
+def test_a_query_parameter_the_adapter_does_not_accept_is_one_error_line(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("TL_AGENT_TOKEN", "tla_" + "a" * 43)
+    monkeypatch.setenv("TL_DB", "postgresql://u:hunter2@127.0.0.1:1/tl?connect_timeout=5")
+    assert main([]) == 2
+    err = capsys.readouterr().err
+    assert err.startswith("error:") and "query parameter" in err
+    assert "TypeError" not in err and "hunter2" not in err
+    monkeypatch.delenv("TL_DB")
+    with pytest.raises(SystemExit) as raised:
+        main(["--db", "postgresql://u:hunter2@127.0.0.1:1/tl?host=evil.example"])
+    assert raised.value.code == 2
+    assert "hunter2" not in capsys.readouterr().err
