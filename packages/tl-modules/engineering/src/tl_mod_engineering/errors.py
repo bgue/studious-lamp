@@ -51,6 +51,10 @@ class InvalidCrosswalkError(EngineeringError):
     """The crosswalk names no active company value of the list."""
 
 
+class InvalidSupersessionError(EngineeringError):
+    """A close names a replacement that does not exist, is of another kind, or is not allowed."""
+
+
 class AlreadyClosedError(EngineeringError):
     """The entry is already superseded or retired."""
 

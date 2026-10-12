@@ -229,7 +229,7 @@ class StandardsDoc(_Strict):
                         "is not a value of Discipline"
                     )
         for pattern in self.numbering_patterns:
-            found += _pattern_problems(pattern, set(self.code_lists))
+            found += pattern_problems(pattern, set(self.code_lists))
         class_codes = {c.code for c in self.tag_classes}
         for tag_class in self.tag_classes:
             for code in tag_class.mnemonics:
@@ -254,7 +254,7 @@ def _duplicates(what: str, codes: list[str]) -> list[str]:
     return out
 
 
-def _pattern_problems(pattern: PatternDef, lists: set[str]) -> list[str]:
+def pattern_problems(pattern: PatternDef, lists: set[str]) -> list[str]:
     """Problems of one pattern: the template must parse and the segments must match its fields."""
     try:
         parsed = parse_pattern(pattern.template)
