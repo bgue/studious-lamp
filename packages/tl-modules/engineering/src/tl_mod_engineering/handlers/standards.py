@@ -5,14 +5,7 @@ check raises a ``ServiceError`` before anything is appended, so nothing is writt
 entries live in ``company`` scope; only a code value may also be added in a project scope, by the
 policy of its list (``tl_mod_engineering.codelists``). Entries are never rewritten: a new edition is
 a new record and the old one is closed (``Standard.Closed``, ``CodeValue.Closed``).
-
-STUB (P1-I1-T03): the six public ``handle_*`` bodies raise NotImplementedError; the command
-models, the signatures, the docstrings and the helpers ``_register`` and ``_close`` are final. Each
-body has a STEPS comment. Implement them, then delete this paragraph, the STEPS comments and the
-``ruff: noqa`` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -262,10 +255,15 @@ def handle_register_code_list(uow: UnitOfWork, cmd: RegisterCodeList) -> Command
     Raises ``RegistryScopeError`` (not company scope) and ``DuplicateStandardError`` (the code is
     already registered in that edition).
     """
-    # STEPS
-    # return _register(uow, cmd, record_type=CODE_LIST, kind="code_list", prefix="CL",
-    #     what="code lists", value_list_policy=cmd.value_list_policy).
-    raise NotImplementedError
+    return _register(
+        uow,
+        cmd,
+        record_type=CODE_LIST,
+        kind="code_list",
+        prefix="CL",
+        what="code lists",
+        value_list_policy=cmd.value_list_policy,
+    )
 
 
 def handle_register_mnemonic(uow: UnitOfWork, cmd: RegisterMnemonic) -> CommandResult:
@@ -274,10 +272,15 @@ def handle_register_mnemonic(uow: UnitOfWork, cmd: RegisterMnemonic) -> CommandR
     ``data`` is ``{"class_hint": ..., "discipline": ...}``. Raises ``RegistryScopeError`` and
     ``DuplicateStandardError``.
     """
-    # STEPS
-    # return _register(uow, cmd, record_type=MNEMONIC, kind="mnemonic", prefix="MN",
-    #     what="mnemonics", data={"class_hint": cmd.class_hint, "discipline": cmd.discipline}).
-    raise NotImplementedError
+    return _register(
+        uow,
+        cmd,
+        record_type=MNEMONIC,
+        kind="mnemonic",
+        prefix="MN",
+        what="mnemonics",
+        data={"class_hint": cmd.class_hint, "discipline": cmd.discipline},
+    )
 
 
 def handle_register_numbering_pattern(
@@ -291,27 +294,52 @@ def handle_register_numbering_pattern(
     not match its fields, a segment names a code list that is not registered and active, or another
     active pattern already numbers this record type) and ``DuplicateStandardError``.
     """
-    # STEPS
-    # 1. _require_company(cmd, "numbering patterns").
-    # 2. parse_pattern(cmd.template); a PatternError becomes
-    #    InvalidPatternError(f"template {cmd.template!r}: {exc}") (raise ... from exc).
-    # 3. lists = {row.code for row in registry.find_standards(uow.conn(), scope=COMPANY,
-    #    kind="code_list", active_only=True)}.
-    # 4. definition = PatternDef(code=cmd.code, label=cmd.label,
-    #    definition=cmd.definition or cmd.label, record_type=cmd.record_type,
-    #    template=cmd.template, segments=cmd.segments); problems = pattern_problems(definition,
-    #    lists); if any: InvalidPatternError("; ".join(problems)).
-    # 5. For every active numbering_pattern in COMPANY (find_standards with active_only=True): if
-    #    its data["record_type"] equals cmd.record_type and its code differs from cmd.code, raise
-    #    InvalidPatternError(f"{cmd.record_type} is already numbered by the active pattern "
-    #    f"{other.code!r}").
-    # 6. data = {"record_type": cmd.record_type, "template": cmd.template, "segments":
-    #    {name: seg.model_dump() for name, seg in sorted(cmd.segments.items())}, "allocate":
-    #    cmd.allocate, "gap_free": cmd.gap_free, "scope": cmd.scope_selector, "reserved":
-    #    [list(pair) for pair in cmd.reserved]}.
-    # 7. return _register(uow, cmd, record_type=NUMBERING_PATTERN, kind="numbering_pattern",
-    #    prefix="NP", what="numbering patterns", data=data).
-    raise NotImplementedError
+    _require_company(cmd, "numbering patterns")
+    try:
+        parse_pattern(cmd.template)
+    except PatternError as exc:
+        raise InvalidPatternError(f"template {cmd.template!r}: {exc}") from exc
+    conn = uow.conn()
+    lists = {
+        row.code
+        for row in registry.find_standards(conn, scope=COMPANY, kind="code_list", active_only=True)
+    }
+    definition = PatternDef(
+        code=cmd.code,
+        label=cmd.label,
+        definition=cmd.definition or cmd.label,
+        record_type=cmd.record_type,
+        template=cmd.template,
+        segments=cmd.segments,
+    )
+    problems = pattern_problems(definition, lists)
+    if problems:
+        raise InvalidPatternError("; ".join(problems))
+    for other in registry.find_standards(
+        conn, scope=COMPANY, kind="numbering_pattern", active_only=True
+    ):
+        if other.data.get("record_type") == cmd.record_type and other.code != cmd.code:
+            raise InvalidPatternError(
+                f"{cmd.record_type} is already numbered by the active pattern {other.code!r}"
+            )
+    data = {
+        "record_type": cmd.record_type,
+        "template": cmd.template,
+        "segments": {name: seg.model_dump() for name, seg in sorted(cmd.segments.items())},
+        "allocate": cmd.allocate,
+        "gap_free": cmd.gap_free,
+        "scope": cmd.scope_selector,
+        "reserved": [list(pair) for pair in cmd.reserved],
+    }
+    return _register(
+        uow,
+        cmd,
+        record_type=NUMBERING_PATTERN,
+        kind="numbering_pattern",
+        prefix="NP",
+        what="numbering patterns",
+        data=data,
+    )
 
 
 def handle_add_code_value(uow: UnitOfWork, cmd: AddCodeValue) -> CommandResult:
@@ -322,20 +350,42 @@ def handle_add_code_value(uow: UnitOfWork, cmd: AddCodeValue) -> CommandResult:
     ``InvalidCrosswalkError``. The key is ``CV:<list>.<code>@<version>`` in company scope (the
     version of the edition) and ``CV:<list>.<code>`` in a project scope.
     """
-    # STEPS
-    # 1. conn = uow.conn(); plan = codelists.plan_new_value(conn, scope=cmd.scope,
-    #    name=cmd.code_list, code=cmd.code, crosswalk=cmd.crosswalk).
-    # 2. In company scope: edition = cmd.edition or codelists.code_list(conn, cmd.code_list).edition
-    #    and key = f"CV:{cmd.code_list}.{cmd.code}@{_version(edition)}". In a project scope:
-    #    edition = cmd.edition or "project" and key = f"CV:{cmd.code_list}.{cmd.code}".
-    # 3. order = cmd.sort_order if it is not None, else ten more than the largest sort_order of
-    #    registry.code_values(conn, cmd.scope, cmd.code_list), or 10 when the scope has none.
-    # 4. payload = {"code_list", "code", "label", "meaning", "crosswalk": plan.crosswalk,
-    #    "origin": plan.origin, "sort_order": order, "effective_from", "effective_to",
-    #    "attributes", "edition": edition} (the rest from cmd).
-    # 5. return create_module_record(uow, cmd, record_type=CODE_VALUE, title=cmd.label, key=key,
-    #    extra_events=[NewEvent(event_type=CODE_VALUE_DEFINED, payload=payload)]).
-    raise NotImplementedError
+    conn = uow.conn()
+    plan = codelists.plan_new_value(
+        conn, scope=cmd.scope, name=cmd.code_list, code=cmd.code, crosswalk=cmd.crosswalk
+    )
+    if cmd.scope == COMPANY:
+        edition = cmd.edition or codelists.code_list(conn, cmd.code_list).edition
+        key = f"CV:{cmd.code_list}.{cmd.code}@{_version(edition)}"
+    else:
+        edition = cmd.edition or "project"
+        key = f"CV:{cmd.code_list}.{cmd.code}"
+    if cmd.sort_order is not None:
+        order = cmd.sort_order
+    else:
+        existing = registry.code_values(conn, cmd.scope, cmd.code_list)
+        order = max((row.sort_order for row in existing), default=0) + 10
+    payload = {
+        "code_list": cmd.code_list,
+        "code": cmd.code,
+        "label": cmd.label,
+        "meaning": cmd.meaning,
+        "crosswalk": plan.crosswalk,
+        "origin": plan.origin,
+        "sort_order": order,
+        "effective_from": cmd.effective_from,
+        "effective_to": cmd.effective_to,
+        "attributes": cmd.attributes,
+        "edition": edition,
+    }
+    return create_module_record(
+        uow,
+        cmd,
+        record_type=CODE_VALUE,
+        title=cmd.label,
+        key=key,
+        extra_events=[NewEvent(event_type=CODE_VALUE_DEFINED, payload=payload)],
+    )
 
 
 def _close(
@@ -393,17 +443,23 @@ def handle_close_standard(uow: UnitOfWork, cmd: CloseStandard) -> CommandResult:
     ``superseded`` close whose ``superseded_by`` is missing, unknown or of another kind; a
     ``retired`` close that names a replacement) and ``AlreadyClosedError``.
     """
-    # STEPS
-    # 1. row = registry.get_standard(uow.conn(), cmd.stream_id); if it is None or its scope is not
-    #    cmd.scope: StandardNotFoundError(f"no registry entry {cmd.stream_id!r} in scope "
-    #    f"{cmd.scope!r}").
-    # 2. other = None if cmd.superseded_by is None else
-    #    registry.get_standard(uow.conn(), cmd.superseded_by).
-    # 3. return _close(uow, cmd, row_id=row.id, row_label=f"{row.kind} {row.code}",
-    #    lifecycle_now=row.lifecycle, version=row.version, record_type=row.record_type,
-    #    event_type=STANDARD_CLOSED, key=row.key, successor_ok=other is not None and
-    #    other.kind == row.kind and other.id != row.id).
-    raise NotImplementedError
+    conn = uow.conn()
+    row = registry.get_standard(conn, cmd.stream_id)
+    if row is None or row.scope != cmd.scope:
+        raise StandardNotFoundError(f"no registry entry {cmd.stream_id!r} in scope {cmd.scope!r}")
+    other = None if cmd.superseded_by is None else registry.get_standard(conn, cmd.superseded_by)
+    return _close(
+        uow,
+        cmd,
+        row_id=row.id,
+        row_label=f"{row.kind} {row.code}",
+        lifecycle_now=row.lifecycle,
+        version=row.version,
+        record_type=row.record_type,
+        event_type=STANDARD_CLOSED,
+        key=row.key,
+        successor_ok=other is not None and other.kind == row.kind and other.id != row.id,
+    )
 
 
 def handle_close_code_value(uow: UnitOfWork, cmd: CloseCodeValue) -> CommandResult:
@@ -411,14 +467,20 @@ def handle_close_code_value(uow: UnitOfWork, cmd: CloseCodeValue) -> CommandResu
 
     Raises as ``handle_close_standard`` does, with "same list" for "same kind".
     """
-    # STEPS
-    # 1. row = registry.get_code_value(uow.conn(), cmd.stream_id); if it is None or its scope is
-    #    not cmd.scope: StandardNotFoundError(f"no code value {cmd.stream_id!r} in scope "
-    #    f"{cmd.scope!r}").
-    # 2. other = None if cmd.superseded_by is None else
-    #    registry.get_code_value(uow.conn(), cmd.superseded_by).
-    # 3. return _close(uow, cmd, row_id=row.id, row_label=f"value {row.code_list}.{row.code}",
-    #    lifecycle_now=row.lifecycle, version=row.version, record_type=CODE_VALUE,
-    #    event_type=CODE_VALUE_CLOSED, key=row.key, successor_ok=other is not None and
-    #    other.code_list == row.code_list and other.id != row.id).
-    raise NotImplementedError
+    conn = uow.conn()
+    row = registry.get_code_value(conn, cmd.stream_id)
+    if row is None or row.scope != cmd.scope:
+        raise StandardNotFoundError(f"no code value {cmd.stream_id!r} in scope {cmd.scope!r}")
+    other = None if cmd.superseded_by is None else registry.get_code_value(conn, cmd.superseded_by)
+    return _close(
+        uow,
+        cmd,
+        row_id=row.id,
+        row_label=f"value {row.code_list}.{row.code}",
+        lifecycle_now=row.lifecycle,
+        version=row.version,
+        record_type=CODE_VALUE,
+        event_type=CODE_VALUE_CLOSED,
+        key=row.key,
+        successor_ok=other is not None and other.code_list == row.code_list and other.id != row.id,
+    )
