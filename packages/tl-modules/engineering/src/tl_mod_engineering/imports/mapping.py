@@ -56,6 +56,8 @@ class ColumnMap(BaseModel):
             raise ValueError("values translate text; a decimal, int or bool column has none")
         if self.values and self.to in ("number", "service"):
             raise ValueError(f"{self.to} cannot have values")
+        if self.to in ("number", "class", "service") and self.type != "string":
+            raise ValueError(f"{self.to} is text; its type must be string")
         return self
 
 
@@ -161,7 +163,7 @@ def read_rows(text: str, mapping: TagListMapping) -> list[ImportRow]:
     message lists every missing column) or is not valid CSV (an unterminated quote).
     """
     reader = csv.reader(
-        io.StringIO(text.removeprefix("﻿")), delimiter=mapping.delimiter, strict=True
+        io.StringIO(text.removeprefix("\ufeff")), delimiter=mapping.delimiter, strict=True
     )
     try:
         header = [cell.strip() for cell in next(reader)]
@@ -169,6 +171,9 @@ def read_rows(text: str, mapping: TagListMapping) -> list[ImportRow]:
         raise MappingError("the file has no header row") from exc
     except csv.Error as exc:
         raise MappingError(f"the file is not readable as CSV: {exc}") from exc
+    twice = sorted({name for name in header if name and header.count(name) > 1})
+    if twice:
+        raise MappingError("the file has a column twice: " + ", ".join(twice))
     missing = [column.column for column in mapping.columns if column.column not in header]
     if missing:
         raise MappingError("the file lacks the column(s): " + ", ".join(missing))

@@ -330,7 +330,7 @@ uv run pytest packages/tl-modules/engineering/tests/test_tag_class_commands.py -
 TL_PG_URL=postgresql://postgres:postgres@localhost:5432/tl_test uv run pytest packages/tl-modules/engineering/tests/test_tag_class_commands.py -q --adapters sqlite,postgres
 uv run pytest packages/tl-modules -q
 ```
-Expected: `just check` clean; 31 passed on SQLite; 62 passed with both adapters; the whole module package passes.
+Expected: `just check` clean; 31 passed on SQLite; 56 passed with both adapters; the whole module package passes.
 
 ## Tests to add
 None beyond the provided file.

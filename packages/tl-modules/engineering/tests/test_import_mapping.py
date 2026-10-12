@@ -214,3 +214,22 @@ def test_a_file_that_is_not_valid_csv_is_refused() -> None:
             f'{HEADER}\n47-FV-1001,"unterminated\n',
             mapping(),
         )
+
+
+def test_a_number_class_or_service_column_must_be_text() -> None:
+    for column in (
+        {"column": "A", "to": "number", "type": "int"},
+        {"column": "B", "to": "class", "type": "decimal"},
+        {"column": "B", "to": "service", "type": "bool"},
+    ):
+        columns = [{"column": "A", "to": "number"}, column]
+        if column["to"] == "number":
+            columns = [column]
+        text = yaml.safe_dump({**TEMPLATE, "columns": columns, "ignore": []})
+        assert "is text; its type must be string" in refused(text)
+
+
+def test_a_header_that_appears_twice_is_refused() -> None:
+    header = HEADER.replace("SERVICE", "MFR")
+    with pytest.raises(MappingError, match="the file has a column twice: MFR"):
+        read_rows(f"{header}\n47-FV-1001,a,CV,4,Acme,,,,,\n", mapping())
