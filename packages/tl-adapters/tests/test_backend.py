@@ -301,6 +301,10 @@ def test_sslmode_reaches_the_driver_as_the_documented_tls_policy(
         "sslpassword=SeCrEt",
         "connect_timeout=5",
         "user=other",
+        "SSLMODE=disable",  # allowed names match exactly: another casing used to crash split_url
+        "Options=-csearch_path%3Dx",
+        "Application_Name=tl",
+        "sslMode=require",
     ],
 )
 def test_a_query_parameter_the_adapter_does_not_understand_is_refused(query: str) -> None:
@@ -309,6 +313,14 @@ def test_a_query_parameter_the_adapter_does_not_understand_is_refused(query: str
     assert "SeCrEt" not in str(raised.value) and "evil" not in str(raised.value)
     for good in ("sslmode=disable", "options=-csearch_path%3Dx", "application_name=tl"):
         assert as_target(f"postgresql://u:pw@db.example/tl?{good}")
+
+
+def test_another_casing_of_an_allowed_name_is_one_fixed_message_never_a_type_error() -> None:
+    for name in ("SSLMODE", "Options", "ApplicationName", "SslMode"):
+        with pytest.raises(ValueError, match="query parameter the adapter does not accept"):
+            as_target(f"postgresql://u:pw@db.example/tl?{name}=disable")
+    shown = display_target("postgresql://u:pw@db.example/tl?SSLMODE=disable")
+    assert "disable" not in shown and "pw@" not in shown  # an unknown spelling is masked
 
 
 def test_two_spellings_of_one_server_share_a_session_key_and_two_servers_never_do() -> None:

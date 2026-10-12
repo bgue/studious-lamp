@@ -84,7 +84,7 @@ def as_target(value: str | Path) -> DbTarget:
         )
     if not parsed.username:
         raise ValueError("the database URL needs a user name (postgresql://user:password@host/db)")
-    if any(name.lower() not in _ALLOWED_QUERY for name in parsed.query):
+    if any(name not in _ALLOWED_QUERY for name in parsed.query):  # exact: `SSLMODE` is refused
         raise ValueError(
             "the database URL has a query parameter the adapter does not accept; "
             f"allowed: {', '.join(_ALLOWED_QUERY)} (host, port and password belong in the "
@@ -112,7 +112,7 @@ def display_target(target: DbTarget) -> str:
         return "<invalid database URL>"
     if parsed.host is not None and "@" in parsed.host:
         return "<invalid database URL>"
-    hidden = {key: "***" for key in parsed.query if key.lower() not in _SHOWN_QUERY}
+    hidden = {key: "***" for key in parsed.query if key not in _SHOWN_QUERY}
     shown = parsed.update_query_dict(hidden).render_as_string(hide_password=True)
     return shown.replace("%2A%2A%2A", "***")  # the query string percent-encodes the mask
 
