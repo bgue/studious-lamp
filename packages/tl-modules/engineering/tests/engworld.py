@@ -119,3 +119,75 @@ def record(engine: Engine, record_id: str) -> dict[str, Any]:
 def as_json(value: Any) -> Any:
     """A JSON column as Python: SQLite and Postgres both hand back JSON text through the adapter."""
     return json.loads(value) if isinstance(value, str) else value
+
+
+def put_standard(
+    events: Events,
+    engine: Engine,
+    kind: str,
+    code: str,
+    *,
+    label: str | None = None,
+    policy: str | None = None,
+    data: dict[str, Any] | None = None,
+    edition: str = "co.acme.standards@1.0.0",
+) -> str:
+    """Write a registry entry straight through the projectors (no handler). Returns its id."""
+    record_type = {
+        "code_list": "engineering.CodeList",
+        "mnemonic": "engineering.Mnemonic",
+        "numbering_pattern": "engineering.NumberingPattern",
+    }[kind]
+    stream = f"S-{kind}-{code}-{edition}"
+    apply(
+        engine,
+        events.created(stream, record_type, f"{kind}:{code}@{edition}", scope=COMPANY),
+        events.make(
+            "Standard.Defined",
+            {
+                "kind": kind,
+                "code": code,
+                "label": label or code,
+                "edition": edition,
+                "value_list_policy": policy,
+                "data": data or {},
+            },
+            stream_id=stream,
+            stream_type=record_type,
+            scope=COMPANY,
+        ),
+    )
+    return stream
+
+
+def put_value(
+    events: Events,
+    engine: Engine,
+    code_list: str,
+    code: str,
+    *,
+    scope: str = COMPANY,
+    **more: Any,
+) -> str:
+    """Write a code value straight through the projectors (no handler). Returns its id."""
+    stream = f"V-{scope}-{code_list}-{code}"
+    payload: dict[str, Any] = {
+        "code_list": code_list,
+        "code": code,
+        "label": f"{code} label",
+        "origin": "company" if scope == COMPANY else "project",
+        "edition": "co.acme.standards@1.0.0",
+    }
+    payload.update(more)
+    apply(
+        engine,
+        events.created(stream, "engineering.CodeValue", f"CV:{code_list}.{code}", scope=scope),
+        events.make(
+            "CodeValue.Defined",
+            payload,
+            stream_id=stream,
+            stream_type="engineering.CodeValue",
+            scope=scope,
+        ),
+    )
+    return stream
