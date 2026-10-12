@@ -173,3 +173,24 @@ def test_a_plan_reports_its_counts_and_starts_empty() -> None:
         "removed": 0,
         "invalid": 0,
     }
+
+
+def test_a_number_an_ended_tag_holds_is_invalid_not_new() -> None:
+    plan = plan_import(
+        [row("47-FV-1001"), row("47-FV-1002", line=3), row("47-FV-1003", line=4)],
+        [tag("47-FV-1002")],
+        ended={"47-FV-1001": "Superseded", "47-FV-1003": "Deleted"},
+    )
+    assert [(r.number, r.problems) for r in plan.invalid] == [
+        ("47-FV-1001", ["key '47-FV-1001' is already used by a superseded tag"]),
+        ("47-FV-1003", ["key '47-FV-1003' is already used by a deleted tag"]),
+    ]
+    assert plan.new == [] and plan.unchanged == ["47-FV-1002"]
+    # a number in service wins over a stale ended entry, and no ``ended`` is the old behaviour
+    assert (
+        plan_import(
+            [row("47-FV-1002")], [tag("47-FV-1002")], ended={"47-FV-1002": "Deleted"}
+        ).invalid
+        == []
+    )
+    assert [r.number for r in plan_import([row("47-FV-1001")], []).new] == ["47-FV-1001"]

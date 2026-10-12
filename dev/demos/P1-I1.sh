@@ -9,7 +9,8 @@
 #   3  filling in valve_data makes the tag conform (the class binds the property set);
 #   4  a rename creates a new tag that supersedes the old one, which leaves service;
 #   5  a legacy tag list is previewed as a diff and applied (admin only); bad numbers stay as
-#      violations; the three base reports read them;
+#      violations; a number a superseded tag holds is refused in the preview; the three base reports
+#      read them;
 #   6  a user cannot change the registry, edit a tag class generically or set `origin`;
 #   7  the API, the TUI tag register (F8) and an agent's MCP tools read the same tags.
 #
@@ -148,6 +149,9 @@ run_backend() {
   expect "needs the admin role" "$out"
   out="$(as demo tl tag import "$LEGACY" --mapping "$MAPPING" --project P123 --apply --skip-invalid)"; echo "$out" | tail -n 3
   expect "applied instrument-index: created=11" "$out"
+  printf 'TAG NO,SERVICE,TYPE,SIZE (IN),MATERIAL,MFR,FAIL,FAT WITNESS\n47-FV-2001,Reused number,CV,4,CS,Acme,FC,\n' >"$workdir/reuse.csv"
+  out="$(as demo tl tag import "$workdir/reuse.csv" --mapping "$MAPPING" --project P123)"; echo "$out"
+  expect "key '47-FV-2001' is already used by a superseded tag" "$out"
   as demo tl tag report summary --project P123
   out="$(as demo tl tag report violations --project P123)"; echo "$out"
   expect "FV1009" "$out"

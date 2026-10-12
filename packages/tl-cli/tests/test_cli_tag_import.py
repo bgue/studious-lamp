@@ -232,3 +232,22 @@ def test_only_an_admin_may_apply_an_import_and_a_refusal_writes_nothing(
     assert count(env) == before and listed(env) == []
     # the preview is open to any signed-in person
     assert "new=4" in ok(imp(amy, file, mapping))[1]
+
+
+def test_a_number_a_superseded_tag_holds_is_refused_in_the_preview(
+    env: dict[str, str], mapping: Path, tmp_path: Path
+) -> None:
+    file = write(tmp_path, FILE)
+    ok(imp(env, file, mapping, "--apply"))
+    renamed = tl(
+        env, "tag", "rename", "47-FV-1001", "47-FV-1009", "--project", "P123", "--reason", "r"
+    )
+    assert renamed.exit_code == 0, renamed.output
+    lines = ok(imp(env, file, mapping))
+    assert lines[1] == "new=0  changed=0  unchanged=3  removed=1  invalid=1"
+    assert "! line 2: key '47-FV-1001' is already used by a superseded tag" in lines
+    refused = imp(env, file, mapping, "--apply")
+    assert refused.exit_code == 1
+    assert refused.stderr.splitlines()[1] == (
+        "  - line 2: key '47-FV-1001' is already used by a superseded tag"
+    )

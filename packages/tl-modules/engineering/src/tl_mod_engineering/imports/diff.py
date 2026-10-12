@@ -7,7 +7,7 @@ the file only changes what it states.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from tl_mod_engineering.imports.model import (
@@ -58,13 +58,21 @@ def row_changes(row: ImportRow, existing: ExistingTag) -> list[FieldChange]:
     return changes
 
 
-def plan_import(rows: Sequence[ImportRow], existing: Sequence[ExistingTag]) -> ImportPlan:
+def plan_import(
+    rows: Sequence[ImportRow],
+    existing: Sequence[ExistingTag],
+    *,
+    ended: Mapping[str, str] | None = None,
+) -> ImportPlan:
     """What importing ``rows`` into a project that holds ``existing`` would do.
 
     * A row with ``problems`` is ``invalid`` and takes no further part.
     * A second row with a number an earlier row already used is ``invalid`` too: a copy of the row
       with the problem ``duplicate of row <n>`` added (the first one is judged on its own).
-    * A valid row whose number no existing tag has is ``new``.
+    * A valid row whose number an ended tag (``ended``: number to state, ``Superseded`` or
+      ``Deleted``) still holds is ``invalid`` too, with the problem ``key '<number>' is already used
+      by a <state> tag``: a number is never reused, so apply would refuse it.
+    * A valid row whose number no tag has is ``new``.
     * A valid row whose number matches an existing tag is ``changed`` when ``row_changes`` finds
       anything, else its number is ``unchanged``.
     * An existing tag no row of the file mentions, valid or not, is ``removed``.
@@ -90,6 +98,20 @@ def plan_import(rows: Sequence[ImportRow], existing: Sequence[ExistingTag]) -> I
                     service=row.service,
                     psets=row.psets,
                     problems=[f"duplicate of row {first_seen[row.number]}"],
+                    raw=row.raw,
+                )
+            )
+            continue
+        gone = (ended or {}).get(row.number)
+        if gone is not None and row.number not in by_number:
+            plan.invalid.append(
+                ImportRow(
+                    line=row.line,
+                    number=row.number,
+                    class_code=row.class_code,
+                    service=row.service,
+                    psets=row.psets,
+                    problems=[f"key '{row.number}' is already used by a {gone.lower()} tag"],
                     raw=row.raw,
                 )
             )

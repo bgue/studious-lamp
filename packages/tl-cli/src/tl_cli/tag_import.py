@@ -20,7 +20,7 @@ from tl_adapters.db import DbTarget, open_uow
 from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import ServiceError
 from tl_mod_engineering.errors import ImportApplyError
-from tl_mod_engineering.imports.apply import apply_plan, existing_tags
+from tl_mod_engineering.imports.apply import apply_plan, ended_numbers, existing_tags
 from tl_mod_engineering.imports.diff import plan_import
 from tl_mod_engineering.imports.mapping import MappingError, load_mapping, read_rows
 from tl_mod_engineering.imports.model import ImportPlan
@@ -120,7 +120,11 @@ def import_tags(
         rows = read_rows(text, template)
         typer.echo(f"import {template.name} {file.name} into project {project}")
         with open_uow(db, readonly=not apply) as uow:
-            plan = plan_import(rows, existing_tags(uow.conn(), scope))
+            plan = plan_import(
+                rows,
+                existing_tags(uow.conn(), scope),
+                ended=ended_numbers(uow.conn(), scope),
+            )
             _preview(plan)
             if not apply:
                 typer.echo("dry run: nothing written; add --apply to write")

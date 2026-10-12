@@ -11,7 +11,7 @@ from tl_adapters.db import DbTarget, open_uow
 from tl_mod_engineering import registry
 from tl_mod_engineering.errors import ImportApplyError
 from tl_mod_engineering.handlers.tags import RenameTag, handle_rename_tag
-from tl_mod_engineering.imports.apply import apply_plan, existing_tags
+from tl_mod_engineering.imports.apply import apply_plan, ended_numbers, existing_tags
 from tl_mod_engineering.imports.diff import plan_import
 from tl_mod_engineering.imports.mapping import parse_mapping, read_rows
 from tl_mod_engineering.imports.model import ImportPlan
@@ -57,7 +57,11 @@ def ledger(db: DbTarget) -> DbTarget:
 
 def plan_of(db: DbTarget, text_: str) -> ImportPlan:
     with open_uow(db, readonly=True) as uow:
-        return plan_import(read_rows(text_, MAPPING), existing_tags(uow.conn(), SCOPE))
+        return plan_import(
+            read_rows(text_, MAPPING),
+            existing_tags(uow.conn(), SCOPE),
+            ended=ended_numbers(uow.conn(), SCOPE),
+        )
 
 
 def apply(db: DbTarget, text_: str, **more: Any) -> Any:
@@ -178,3 +182,35 @@ def test_existing_tags_leave_out_tags_that_were_superseded(ledger: DbTarget) -> 
         numbers = [t.number for t in existing_tags(uow.conn(), SCOPE)]
     assert numbers == sorted(numbers)
     assert "47-FV-1009" in numbers and "47-FV-1001" not in numbers
+
+
+def test_a_number_held_by_a_superseded_tag_is_refused_in_the_preview_as_apply_would(
+    ledger: DbTarget,
+) -> None:
+    apply(ledger, FILE)
+    old = tag(ledger, "47-FV-1001")
+    with open_uow(ledger) as uow:
+        handle_rename_tag(
+            uow,
+            RenameTag(
+                actor="user:u",
+                source="test",
+                scope=SCOPE,
+                stream_id=old.id,
+                new_number="47-FV-1009",
+                reason="renumbered",
+            ),
+        )
+    with open_uow(ledger, readonly=True) as uow:
+        assert ended_numbers(uow.conn(), SCOPE) == {"47-FV-1001": "Superseded"}
+    plan = plan_of(ledger, FILE)
+    assert plan.counts()["new"] == 0 and plan.counts()["invalid"] == 1
+    (row,) = plan.invalid
+    assert (row.number, row.line) == ("47-FV-1001", 2)
+    assert row.problems == ["key '47-FV-1001' is already used by a superseded tag"]
+    # apply says the same, and with skip_invalid the rest of the file still goes through
+    with pytest.raises(ImportApplyError) as caught:
+        apply(ledger, FILE)
+    assert caught.value.problems == ["line 2: key '47-FV-1001' is already used by a superseded tag"]
+    again = apply(ledger, FILE, skip_invalid=True)
+    assert again.skipped == 1 and again.created == 0

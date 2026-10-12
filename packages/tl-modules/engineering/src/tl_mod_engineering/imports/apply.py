@@ -25,6 +25,7 @@ from tl_core.util import new_ulid
 from tl_mod_engineering import registry
 from tl_mod_engineering.errors import ImportApplyError
 from tl_mod_engineering.handlers.tags import (
+    ENDED,
     ReclassifyTag,
     RecordTag,
     handle_reclassify_tag,
@@ -58,6 +59,20 @@ def existing_tags(conn: Connection, scope: str) -> list[ExistingTag]:
         )
         for row in registry.list_tags(conn, scope, limit=1_000_000)
     ]
+
+
+def ended_numbers(conn: Connection, scope: str) -> dict[str, str]:
+    """Tag numbers that ended tags (``Superseded`` or ``Deleted``) still hold, with the state.
+
+    A tag number is a record key and is never used twice, so an import cannot give one of these
+    numbers to a new tag: pass this to ``plan_import(..., ended=...)`` and the row is refused in
+    the preview, with the message apply would give.
+    """
+    return {
+        row.number: str(row.status)
+        for row in registry.list_tags(conn, scope, include_ended=True, limit=1_000_000)
+        if row.status in ENDED
+    }
 
 
 def _split(values: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
