@@ -6,13 +6,7 @@ conform (``register_summary``), which of them still lack what their class requir
 required pset shows at once), and which numbers break the numbering pattern
 (``pattern_violations``). They read; nothing here writes. A tag that left service (state
 ``Superseded`` or ``Deleted``) is not reported.
-
-STUB (P1-I1-T11): the three report functions raise NotImplementedError; the values, `_SUMMARY_SQL`
-and the signatures are final. Each body has a STEPS comment. Implement them, then delete this
-paragraph, the STEPS comments and the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -83,11 +77,18 @@ def register_summary(conn: Connection, scope: str) -> list[SummaryLine]:
     Lines are ordered by class then state, a missing class or state first. Counts come from the
     conformance stored with the tag at its last write.
     """
-    # STEPS
-    # 1. rows = conn.execute(_SUMMARY_SQL, {"no": False, "scope": scope}).
-    # 2. One SummaryLine per row: class_code, status, tags, ok, warning, nonconformant (the
-    #    counts as int). The SQL already groups and orders.
-    raise NotImplementedError
+    rows = conn.execute(_SUMMARY_SQL, {"no": False, "scope": scope})
+    return [
+        SummaryLine(
+            class_code=row.class_code,
+            status=row.status,
+            tags=int(row.tags),
+            ok=int(row.ok),
+            warning=int(row.warning),
+            nonconformant=int(row.nonconformant),
+        )
+        for row in rows
+    ]
 
 
 def missing_psets(uow: UnitOfWork, scope: str, *, level: str | None = None) -> list[MissingLine]:
@@ -97,14 +98,17 @@ def missing_psets(uow: UnitOfWork, scope: str, *, level: str | None = None) -> l
     the issues of ``MISSING_RULES`` are listed; a tag with none is left out. With ``level``
     ("warning" or "nonconformant") only issues of that level count.
     """
-    # STEPS
-    # 1. For each tag of registry.list_tags(uow.conn(), scope, limit=100000) (ordered by number):
-    #    report = conformance(uow, tag.id).
-    # 2. issues = [MissingIssue(i.path, i.rule, i.level, i.message) for i in report.issues if
-    #    i.rule in MISSING_RULES and (level is None or i.level == level)].
-    # 3. If issues is not empty append MissingLine(tag.number, tag.class_code, tag.status, issues).
-    # 4. return the lines.
-    raise NotImplementedError
+    lines: list[MissingLine] = []
+    for tag in registry.list_tags(uow.conn(), scope, limit=100000):
+        report = conformance(uow, tag.id)
+        issues = [
+            MissingIssue(i.path, i.rule, i.level, i.message)
+            for i in report.issues
+            if i.rule in MISSING_RULES and (level is None or i.level == level)
+        ]
+        if issues:
+            lines.append(MissingLine(tag.number, tag.class_code, tag.status, issues))
+    return lines
 
 
 def pattern_violations(
@@ -116,9 +120,10 @@ def pattern_violations(
     ``include_warnings`` tags whose number is fine but carries a warning (a mnemonic that does not
     usually identify the class) are listed too.
     """
-    # STEPS
-    # 1. For each tag of registry.list_tags(conn, scope, limit=100000): include it when
-    #    tag.number_status == "violation", or when include_warnings is true and tag.violations is
-    #    not empty. A line is ViolationLine(tag.number, tag.number_status, tag.violations).
-    # 2. return the lines (already in number order).
-    raise NotImplementedError
+    lines: list[ViolationLine] = []
+    for tag in registry.list_tags(conn, scope, limit=100000):
+        broken = tag.number_status == "violation"
+        warned = include_warnings and bool(tag.violations)
+        if broken or warned:
+            lines.append(ViolationLine(tag.number, tag.number_status, tag.violations))
+    return lines
