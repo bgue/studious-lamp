@@ -132,7 +132,7 @@ def test_add_refuses_bad_input_without_writing_anything(env: dict[str, str]) -> 
         ),
         "exactly one",
     )  # fmt: skip
-    assert sql(env, "SELECT * FROM events") == []
+    assert sql(env, "SELECT * FROM events WHERE event_type NOT LIKE 'Account.%'") == []
 
 
 def test_ls_lists_one_line_per_subscription_and_filters_by_scope(env: dict[str, str]) -> None:

@@ -20,6 +20,8 @@ from tl_cli import session
 
 DEMO = "demo"
 
+AUTO_SIGN_IN = False  # these tests are about who is signed in (see conftest.py)
+
 
 @pytest.fixture
 def target(new_db: Callable[[], DbTarget]) -> DbTarget:

@@ -6,6 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from pg_support import person_or_agent
 from tl_adapters.db import DbTarget
 from tl_cli.main import app
 from typer.testing import CliRunner
@@ -90,9 +91,10 @@ def test_a_record_tag_reports_the_suggested_link(env: dict[str, str]) -> None:
 
 
 def test_post_takes_an_importance_and_an_actor(env: dict[str, str]) -> None:
-    post_id(post(env, "quiet", "--importance", "low", "--actor", "agent:triage"))
+    actor = person_or_agent(env, "agent:triage")
+    post_id(post(env, "quiet", "--importance", "low", "--actor", actor))
     (line,) = ls(env)
-    assert "  agent:triage  quiet" in line
+    assert f"  {actor.removeprefix('user:')}  quiet" in line  # the feed shows a person by name
 
 
 def test_post_errors(env: dict[str, str]) -> None:

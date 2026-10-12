@@ -19,6 +19,8 @@ from typer.testing import Result as RunResult
 
 runner = CliRunner()
 
+AUTO_SIGN_IN = False  # these tests are about who is signed in (see conftest.py)
+
 
 def run(target: DbTarget | str, *args: str) -> RunResult:
     return runner.invoke(app, list(args), env={"TL_DB": str(target), "TL_ENV": "dev"})

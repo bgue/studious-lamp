@@ -203,7 +203,12 @@ def test_an_agent_cannot_decide_from_the_command_line(env: dict[str, str]) -> No
         ["proposal", "reject", pid, "--reason", "mine", "--actor", AGENT],
     ):
         result = run(env, *args)
-        assert result.exit_code == 1 and "only a person" in result.stderr, args
+        assert result.exit_code == 1, args
+        # on a ledger file the command refuses an agent; a server never lets anyone but the
+        # signed-in person act, so its session check answers first
+        assert "only a person" in result.stderr or "is not the signed-in user" in result.stderr, (
+            args
+        )
     assert f"{pid}  pending" in run(env, "proposal", "ls", "--project", P).stdout
 
 

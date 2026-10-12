@@ -7,6 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from pg_support import account_events
 from tl_adapters.db import DbTarget
 from tl_cli.main import app
 from typer.testing import CliRunner
@@ -106,7 +107,7 @@ def test_projections_rebuild_replays_and_show_is_unchanged(env: dict[str, str]) 
 
     rebuilt = _run(env, "projections", "rebuild")
     assert rebuilt.exit_code == 0, rebuilt.output
-    assert "replayed 2 events" in _lines(rebuilt)
+    assert f"replayed {2 + account_events(env)} events" in _lines(rebuilt)
 
     after = _run(env, "record", "show", "--project", "P123", "DEMO-0001")
     assert after.exit_code == 0, after.output
