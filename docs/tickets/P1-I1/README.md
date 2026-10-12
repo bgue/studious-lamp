@@ -128,3 +128,9 @@ supervisor writes the stub and the test that fix its interfaces.
 
 ## Blocked / Decision
 (none)
+
+## Merge adaptations for batch 3
+Batch 3 was dispatched on e5fb7b7, before the security fixes. When its tickets are merged:
+- T10c: `tl tag import --apply` needs the admin role (`require_admin(db)` before the unit of work; the preview does not); the provided test signs an admin in on SQLite (`engcli_support.admin_env` style) and gains a refusal case for an ordinary person. The apply service already creates tags through `handle_record_tag(..., origin="import")`.
+- T09c: its test copy is replaced by the current provided file (the legacy tag is made with `handle_record_tag`, not `CreateTag(pattern_policy=...)`, which no longer exists).
+- T09a, T09e: no change expected.
