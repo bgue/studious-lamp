@@ -49,26 +49,26 @@ the tag register and the reports show the tags by class, status and missing prop
 | T02 | `schema/modules/engineering/*.yaml`: `Standard`, `CodeValue`, `TagClass`, `Tag` and ten event payload classes; generated DDL and catalog | Schema, human gate (ADR-0008 decision 6) | orchestrator | done |
 | S3 | Four projectors, `registry.py` reads, `errors.py`, `document.py` (the standards document), tests | Projection correctness; they are the base of every ticket | reviewer | done |
 | S5 | Class binding in `tl_schema` (`psets_for`, `bound` in `validate_psets`, `record_json_schema`, `form_metadata`, `evaluate`) and in the pset, workflow and conformance services | Conformance semantics (01-tiers §3: schema semantics) | orchestrator | done (hook wired; the engineering hook comes with T08) |
-| S4 | Code-list service (T04): resolve, crosswalk, `value_list_policy` enforcement | Policy semantics | reviewer | planned |
-| T05 | Pattern engine: segment-level parse and diagnosis, registry patterns, allocator wiring | Numbering (01-tiers §3) | orchestrator | planned |
-| T06 | Tag commands: create, reclassify, rename, split, merge | Invariants across several streams | reviewer | planned |
-| T08 | The engineering `bound_psets` hook; conformance on tag events | Conformance semantics | orchestrator | planned |
+| S4 | Code-list service (T04): resolve, crosswalk, `value_list_policy` enforcement | Policy semantics | reviewer | done |
+| T05 | Pattern engine: segment-level parse and diagnosis, registry patterns, allocator wiring | Numbering (01-tiers §3) | orchestrator | done |
+| T06 | Tag commands: create, reclassify, rename, split, merge; the `engineering.tag` workflow | Invariants across several streams | reviewer | done |
+| T08 | The engineering `bound_psets` hook; conformance on tag events | Conformance semantics | orchestrator | done |
 | S13 | Demo `dev/demos/P1-I1.sh`, module spec pages, runbook, package READMEs, report | Closing | — | planned |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| T01 | Standards fixture `schema/fixtures/standards/co.acme.standards@1.0.0.yaml` | H (schema label, data only) | S3 | ready | |
-| T07 | TagClass commands: define, revise, close | H | S3 | ready | |
-| T10a | Tag-list mapping template and CSV reader | H | S3 | ready | |
-| T10b | Import diff: new, changed, unchanged, removed, invalid | H | S3 | ready | |
-| T03 | Registry commands (`RegisterCodeList`, `AddCodeValue`, `RegisterMnemonic`, `RegisterNumberingPattern`, `Close*`) and `load_standards` | H | S4, T01 | planned | |
+| T01 | Standards fixture `schema/fixtures/standards/co.acme.standards@1.0.0.yaml` | H (schema label, data only) | S3 | merged | first attempt; placeholder Area labels accepted as sample data |
+| T07 | TagClass commands: define, revise, close | H | S3 | merged | first attempt |
+| T10a | Tag-list mapping template and CSV reader | H | S3 | merged | first attempt; follow-ups done by the supervisor: text-only key columns, duplicate headers |
+| T10b | Import diff: new, changed, unchanged, removed, invalid | H | S3 | merged | first attempt |
+| T03 | Registry commands (`RegisterCodeList`, `AddCodeValue`, `RegisterMnemonic`, `RegisterNumberingPattern`, `Close*`); the loader (`load_standards`) follows as a supervisor piece | H | S4 | ready | |
 | T09a | `tl standards` CLI (admin) | H | T03 | planned | |
-| T09b | `tl tag` CLI (create, show, ls, reclassify, rename, split, merge) | H | T06, T08 | planned | |
+| T09b | `tl tag` CLI (create, show, ls, reclassify, rename, split, merge) | H | T06, T08 | ready | |
 | T09c | API routes, command table and MCP read tools for standards and tags | H | T06, T08 | planned | |
 | T09d | TUI: tag register grid, tag record view (segments, class, missing psets) | H | T09c | planned | |
 | T10c | Import apply (`tl tag import`) with diff preview | H | T06, T10a, T10b | planned | |
-| T11 | Reports: tag register by class and status, missing mandatory psets, pattern violations | H | T08 | planned | |
+| T11 | Reports: summary by class and state, missing mandatory psets, pattern violations (module functions and `tl tag report`) | H | T08 | ready | |
 | T12 | Simulator tag-list actor; legacy mapping template `dev/seed/templates/tag-list-instrument-index.yaml` | H | T10c | planned | |
 
 Haiku-ability notes. T01 touches `schema/**` (a fixture, data only); it carries the `schema` label and the delegated
@@ -76,10 +76,10 @@ approver below, and a provided test pins its content. Every other ticket passes 
 supervisor writes the stub and the test that fix its interfaces.
 
 ## Order of work
-1. Round 1 (this round): S1, T02, S3, S5, then dispatch T01, T07, T10a, T10b (independent files, no ticket calls another's code).
-2. Round 2: merge round 1; S4 (code-list service); dispatch T03 and whatever else is ready.
-3. Round 3: T05, T06, T08 (the tag path); dispatch T09a.
-4. Round 4: dispatch T09b, T09c, T10c, T11; round 5: T09d, T12.
+1. Round 1: S1, T02, S3, S5; dispatched T01, T07, T10a, T10b (all passed first time, merged).
+2. Round 2 (this one): S4, T05, T06, T08 built; dispatch T03, T09b, T11.
+3. Round 3: the standards loader (supervisor, needs T03), then T09a (`tl standards`), T09c (API and MCP), T10c (import apply).
+4. Round 4: T09d (TUI), T12 (simulator and legacy template).
 5. Last: S13, gates (`just check`, `just test`, `just test-parity`, `just test-tui`), demo on both databases, report.
 
 ## Brief coverage map (L-P0-I8E-3)

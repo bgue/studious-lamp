@@ -24,6 +24,9 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl record create --project ID --title TITLE [--key KEY] [--segment NAME=VALUE]...` | command | Without `--key` the numbering pattern allocates the key (`P123-REC-0001`) |
 | `tl link add|suggest --project ID FROM TO [--relation R] [--pin P] [--note N]` | command | Create an active link, or a suggestion with `--confidence`; prints the link id, relation and status |
 | `tl link list --project ID KEY [--all]` | command | Links in both directions (`out`/`in`, label, other key, status, pin, id) and the expected links still missing |
+| `tl tag create NUMBER --project ID [--class C] [--service S] [--pset PSET.PROP=VALUE] [--allow-violation]` | command | Create an engineering tag: the number is checked against the registry pattern (every problem is listed), the class binds psets; prints the segments, the conformance and what is missing (T09b) |
+| `tl tag show|ls|reclassify|rename|split|merge ...` | command | Show a tag, list tags with filters, move a tag to another class, replace it by one or several (the old tag is superseded) or merge several into one (T09b) |
+| `tl tag report summary|missing|violations --project ID [--json]` | command | Tags by class and state, tags lacking what their class requires, numbers that break the pattern (T11) |
 | `tl link accept|decline|verify|repin|retract|flag --project ID LINK_ID ...` | command | Link lifecycle; `retract` and `flag` need `--reason`; a declined suggestion is not made again |
 | `tl link trace --project ID KEY [--depth N] [--direction out|in|both]` | command | Records reachable through links, as an indented tree with stale and broken marks |
 | `tl feed post --project ID BODY [--importance low|normal|high] [--actor A]` | command | Post to the project feed; prints the post id, its tags and how many links were suggested (a `#KEY` tag suggests a `references` link, nothing else changes) |
