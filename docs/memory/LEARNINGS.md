@@ -305,3 +305,10 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P1-I1-3** · 2026-10-12 · tags: schema, tooling
   A LinkML root that imports core files shows the core classes in its `SchemaView`. A generator run on a module root keeps only the classes whose own schema carries the module's `tl:module` (`ddl.current_state_classes(view, module)`, `catalog._owner_module`), or every core table and event would be generated again under the module.
   Evidence: first prototype listed `Record` with the module's tables (`cur_core_record`). Status: active
+- **L-P1-I1-4** · 2026-10-12 · tags: tests, process, database
+  Two defects of the supervisor's base blocked a ticket that was otherwise right. (1) SQL ordering: SQLite sorts NULL first and Postgres last, so a report that says "no class first" needs `ORDER BY (col IS NULL) DESC, col`, and a test that checks the order must run on Postgres before the ticket goes out. (2) A provided test that builds a command with `**more` from a dict literal of mixed values is typed `dict[str, str]` by pyright and fails strict checks in the implementer's tree: give the dict an explicit `dict[str, Any]`. Before a batch goes out: pyright and ruff on every provided test in its target path, and the Postgres variant of every test that touches ordering.
+  Evidence: T11 review (`_SUMMARY_SQL`, `test_cli_tag_report.py`); fixed in `reports.py` and the provided test. Status: active
+- **L-P1-I1-5** · 2026-10-12 · tags: tests, process
+  Extends L-P1-I0A-11. A provided test must set its world up through the module, not through another ticket's CLI command: the first draft of the tag-class CLI test loaded the standards with `tl standards load`, a command that was still a stub. Share the setup as a helper in the tree (`engcli_support.load_acme`) so tickets stay independent.
+  Evidence: `packages/tl-cli/tests/engcli_support.py`, `t09e-test_cli_standards_class.py.txt`. Status: active
+

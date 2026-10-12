@@ -62,13 +62,14 @@ the tag register and the reports show the tags by class, status and missing prop
 | T07 | TagClass commands: define, revise, close | H | S3 | merged | first attempt |
 | T10a | Tag-list mapping template and CSV reader | H | S3 | merged | first attempt; follow-ups done by the supervisor: text-only key columns, duplicate headers |
 | T10b | Import diff: new, changed, unchanged, removed, invalid | H | S3 | merged | first attempt |
-| T03 | Registry commands (`RegisterCodeList`, `AddCodeValue`, `RegisterMnemonic`, `RegisterNumberingPattern`, `Close*`); the loader (`load_standards`) follows as a supervisor piece | H | S4 | ready | |
-| T09a | `tl standards` CLI (admin) | H | T03 | planned | |
-| T09b | `tl tag` CLI (create, show, ls, reclassify, rename, split, merge) | H | T06, T08 | ready | |
-| T09c | API routes, command table and MCP read tools for standards and tags | H | T06, T08 | planned | |
+| T03 | Registry commands (`RegisterCodeList`, `AddCodeValue`, `RegisterMnemonic`, `RegisterNumberingPattern`, `Close*`); the loader (`load_standards`) follows as a supervisor piece | H | S4 | merged | first attempt (28 cases, 48 with Postgres); the loader is a supervisor piece (`loader.py`, 20 cases on both databases) |
+| T09a | `tl standards` CLI: load, ls, show, values, add-value, close, close-value (admin for company data) | H | T03, loader | ready | |
+| T09e | `tl standards class` CLI: define, ls, show, revise, close (admin) | H | T07 | ready | split from T09a so each ticket stays under the size limit |
+| T09b | `tl tag` CLI (create, show, ls, reclassify, rename, split, merge) | H | T06, T08 | merged | first attempt (18 cases, 36 with Postgres) |
+| T09c | API read routes for standards, code lists, tag classes and tags | H | T06, T08 | ready | the command table, admin gating, error rows and the agent actions are supervisor work (done, `commands.py`, `errors.py`, tests); MCP read tools are a later ticket (T09f) |
 | T09d | TUI: tag register grid, tag record view (segments, class, missing psets) | H | T09c | planned | |
-| T10c | Import apply (`tl tag import`) with diff preview | H | T06, T10a, T10b | planned | |
-| T11 | Reports: summary by class and state, missing mandatory psets, pattern violations (module functions and `tl tag report`) | H | T08 | ready | |
+| T10c | `tl tag import`: preview and apply | H | T06, T10a, T10b, apply service | ready | the apply service (`imports/apply.py`, 8 cases on both databases) is a supervisor piece |
+| T11 | Reports: summary by class and state, missing mandatory psets, pattern violations (module functions and `tl tag report`) | H | T08 | review | implemented; blocked on two base defects (NULL ordering of the summary on Postgres; a provided CLI test with three pyright errors), both fixed by the supervisor; review-only relay | 
 | T12 | Simulator tag-list actor; legacy mapping template `dev/seed/templates/tag-list-instrument-index.yaml` | H | T10c | planned | |
 
 Haiku-ability notes. T01 touches `schema/**` (a fixture, data only); it carries the `schema` label and the delegated
@@ -77,9 +78,9 @@ supervisor writes the stub and the test that fix its interfaces.
 
 ## Order of work
 1. Round 1: S1, T02, S3, S5; dispatched T01, T07, T10a, T10b (all passed first time, merged).
-2. Round 2 (this one): S4, T05, T06, T08 built; dispatch T03, T09b, T11.
-3. Round 3: the standards loader (supervisor, needs T03), then T09a (`tl standards`), T09c (API and MCP), T10c (import apply).
-4. Round 4: T09d (TUI), T12 (simulator and legacy template).
+2. Round 2: S4, T05, T06, T08 built; T03 and T09b passed first time and are merged; T11 came back blocked on two defects of the base (fixed).
+3. Round 3 (this one): loader, import apply, API commands and errors built (supervisor); dispatch T09a, T09e, T10c, T09c and the review of T11.
+4. Round 4: T09d (TUI), T09f (MCP read tools), T12 (simulator and legacy template).
 5. Last: S13, gates (`just check`, `just test`, `just test-parity`, `just test-tui`), demo on both databases, report.
 
 ## Brief coverage map (L-P0-I8E-3)
