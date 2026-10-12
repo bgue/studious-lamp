@@ -25,6 +25,8 @@ from tl_mod_engineering.imports.diff import plan_import
 from tl_mod_engineering.imports.mapping import MappingError, load_mapping, read_rows
 from tl_mod_engineering.imports.model import ImportPlan
 
+from tl_cli.session import require_admin
+
 _DEFAULT_ACTOR = "user:dev"
 
 
@@ -107,6 +109,8 @@ def import_tags(
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
     job = job or file.stem
+    if apply:
+        require_admin(db)  # an import keeps numbers that break the pattern: an admin's decision
     with _service_errors():
         template = load_mapping(mapping)
         try:

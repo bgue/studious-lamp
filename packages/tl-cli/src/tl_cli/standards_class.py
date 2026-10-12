@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Annotated, Any, NoReturn
+from typing import Annotated, Any, NoReturn, cast
 
 import typer
 from pydantic import ValidationError
@@ -18,6 +18,7 @@ from tl_adapters.db import DbTarget, open_uow
 from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import ServiceError
 from tl_mod_engineering import registry
+from tl_mod_engineering.document import TagFamily
 from tl_mod_engineering.handlers.tag_class import (
     REVISABLE,
     CloseTagClass,
@@ -109,7 +110,7 @@ def define(
                 code=code,
                 label=label,
                 definition=definition,
-                family=family,  # type: ignore[arg-type]  -- the model validates the text
+                family=cast(TagFamily, family),  # the model validates the text
                 required_psets=pset or [],
                 itr_templates=itr or [],
                 mnemonics=mnemonic or [],

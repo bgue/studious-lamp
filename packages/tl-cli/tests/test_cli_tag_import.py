@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 import yaml
+from auth_support import bootstrap, sign_in
+from engcli_support import count, ordinary_env
 from tl_adapters.db import DbTarget, is_postgres
 from tl_cli.main import app
 from tl_mod_engineering.testing import seed_registry
@@ -42,6 +44,11 @@ def env(new_db: Callable[[], DbTarget], monkeypatch: pytest.MonkeyPatch) -> dict
     values = {"TL_DB": str(target)}
     assert runner.invoke(app, ["init"], env=values).exit_code == 0
     seed_registry(target)
+    if not is_postgres(
+        target
+    ):  # applying an import is an admin's; on Postgres the conftest signs one in
+        assert bootstrap(values).exit_code == 0
+        sign_in(values)
     return values
 
 
@@ -209,3 +216,19 @@ def test_the_source_of_the_events_names_the_job(
             "SELECT DISTINCT source FROM events WHERE event_type = 'Tag.Defined'"
         ).fetchall()
     assert found == [("import:J42",)]
+
+
+def test_only_an_admin_may_apply_an_import_and_a_refusal_writes_nothing(
+    env: dict[str, str], mapping: Path, tmp_path: Path
+) -> None:
+    if is_postgres(env["TL_DB"]):
+        pytest.skip("the Postgres test account is an admin")
+    amy = ordinary_env(env, tmp_path)
+    file = write(tmp_path, FILE)
+    before = count(env)
+    refused = imp(amy, file, mapping, "--apply")
+    assert refused.exit_code == 1
+    assert refused.stderr.strip() == "error: forbidden: this command needs the admin role"
+    assert count(env) == before and listed(env) == []
+    # the preview is open to any signed-in person
+    assert "new=4" in ok(imp(amy, file, mapping))[1]
