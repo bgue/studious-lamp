@@ -4,14 +4,7 @@ A tag class is a company record (``engineering.TagClass``) whose ``required_pset
 property sets a tag of that class must carry. Each handler runs inside an entered unit of work,
 appends through it and never commits. A failed check raises a ``ServiceError`` before anything is
 appended, so nothing is written.
-
-STUB (P1-I1-T07): the three ``handle_*`` bodies raise NotImplementedError; the command models, the
-signatures, the docstrings and the helpers (``_require_company``, ``_require_psets``,
-``_load_active``, ``_check_value``) are final. Each body has a STEPS comment. Implement them, then
-delete this paragraph, the STEPS comments and the ``ruff: noqa`` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -130,18 +123,31 @@ def handle_define_tag_class(uow: UnitOfWork, cmd: DefineTagClass) -> CommandResu
     company schema does not define) and ``DuplicateTagClassError`` (the code is taken, closed or
     not).
     """
-    # STEPS
-    # 1. _require_company(cmd); _require_psets(cmd.required_psets).
-    # 2. taken = registry.find_tag_classes(uow.conn(), COMPANY, code=cmd.code); if there is one,
-    #    raise DuplicateTagClassError(
-    #        f"tag class {cmd.code!r} is already defined (lifecycle {taken[0].lifecycle})").
-    # 3. payload = a dict with exactly these keys: code, label, family, required_psets,
-    #    itr_templates, mnemonics, edition (all from cmd; the definition is not in the payload, it
-    #    is the record's description).
-    # 4. return create_module_record(uow, cmd, record_type=TAG_CLASS, title=cmd.label,
-    #        description=cmd.definition, key=f"TC:{cmd.code}",
-    #        extra_events=[NewEvent(event_type=TAG_CLASS_DEFINED, payload=payload)]).
-    raise NotImplementedError
+    _require_company(cmd)
+    _require_psets(cmd.required_psets)
+    taken = registry.find_tag_classes(uow.conn(), COMPANY, code=cmd.code)
+    if taken:
+        raise DuplicateTagClassError(
+            f"tag class {cmd.code!r} is already defined (lifecycle {taken[0].lifecycle})"
+        )
+    payload = {
+        "code": cmd.code,
+        "label": cmd.label,
+        "family": cmd.family,
+        "required_psets": cmd.required_psets,
+        "itr_templates": cmd.itr_templates,
+        "mnemonics": cmd.mnemonics,
+        "edition": cmd.edition,
+    }
+    return create_module_record(
+        uow,
+        cmd,
+        record_type=TAG_CLASS,
+        title=cmd.label,
+        description=cmd.definition,
+        key=f"TC:{cmd.code}",
+        extra_events=[NewEvent(event_type=TAG_CLASS_DEFINED, payload=payload)],
+    )
 
 
 def handle_revise_tag_class(uow: UnitOfWork, cmd: ReviseTagClass) -> CommandResult:
@@ -151,28 +157,52 @@ def handle_revise_tag_class(uow: UnitOfWork, cmd: ReviseTagClass) -> CommandResu
     outside ``REVISABLE``), ``InvalidTagClassError`` (a blank label, an unknown family, a list field
     that is not a list of strings), ``UnknownPsetError`` and ``NoChangesError`` (nothing differs).
     """
-    # STEPS
-    # 1. row = _load_active(uow, cmd, cmd.stream_id).
-    # 2. unsupported = sorted(set(cmd.changes) - set(REVISABLE)); if any, raise
-    #    UnsupportedFieldError(f"fields {', '.join(unsupported)} cannot be revised; "
-    #                         f"only {', '.join(REVISABLE)} can").
-    # 3. current = {"label": row.label, "family": row.family, "required_psets": row.required_psets,
-    #    "itr_templates": row.itr_templates, "mnemonics": row.mnemonics}.
-    # 4. changes: dict[str, list[Any]] = {}. For each (field, new) of cmd.changes in order:
-    #    _check_value(field, new); if new != current[field]: changes[field] = [current[field], new].
-    # 5. If "required_psets" in changes: _require_psets(changes["required_psets"][1]).
-    # 6. If changes is empty: raise NoChangesError(
-    #        f"no field of tag class {row.code} differs from the request").
-    # 7. result = uow.append(stream_id=row.id, stream_type=TAG_CLASS, scope=cmd.scope,
-    #        expected_version=cmd.expected_version if cmd.expected_version is not None
-    #            else row.version,
-    #        events=[NewEvent(event_type=TAG_CLASS_REVISED,
-    #                         payload={"changes": changes, "reason": cmd.reason})],
-    #        actor=cmd.actor, source=cmd.source,
-    #        correlation_id=cmd.correlation_id or new_ulid(), causation_id=cmd.causation_id).
-    # 8. return CommandResult(stream_id=row.id, key=row.key, version=result.new_version,
-    #        events=result.events).
-    raise NotImplementedError
+    row = _load_active(uow, cmd, cmd.stream_id)
+    unsupported = sorted(set(cmd.changes) - set(REVISABLE))
+    if unsupported:
+        raise UnsupportedFieldError(
+            f"fields {', '.join(unsupported)} cannot be revised; only {', '.join(REVISABLE)} can"
+        )
+    current: dict[str, Any] = {
+        "label": row.label,
+        "family": row.family,
+        "required_psets": row.required_psets,
+        "itr_templates": row.itr_templates,
+        "mnemonics": row.mnemonics,
+    }
+    changes: dict[str, list[Any]] = {}
+    for field, new in cmd.changes.items():
+        _check_value(field, new)
+        if new != current[field]:
+            changes[field] = [current[field], new]
+    if "required_psets" in changes:
+        _require_psets(changes["required_psets"][1])
+    if not changes:
+        raise NoChangesError(f"no field of tag class {row.code} differs from the request")
+    result = uow.append(
+        stream_id=row.id,
+        stream_type=TAG_CLASS,
+        scope=cmd.scope,
+        expected_version=(
+            cmd.expected_version if cmd.expected_version is not None else row.version
+        ),
+        events=[
+            NewEvent(
+                event_type=TAG_CLASS_REVISED,
+                payload={"changes": changes, "reason": cmd.reason},
+            )
+        ],
+        actor=cmd.actor,
+        source=cmd.source,
+        correlation_id=cmd.correlation_id or new_ulid(),
+        causation_id=cmd.causation_id,
+    )
+    return CommandResult(
+        stream_id=row.id,
+        key=row.key,
+        version=result.new_version,
+        events=result.events,
+    )
 
 
 def _check_value(field: str, value: Any) -> None:
@@ -193,20 +223,42 @@ def handle_close_tag_class(uow: UnitOfWork, cmd: CloseTagClass) -> CommandResult
     Raises ``TagClassNotFoundError``, ``AlreadyClosedError`` and ``InvalidTagClassError`` (a
     ``superseded`` close without a replacing class that exists, or a ``retired`` close with one).
     """
-    # STEPS
-    # 1. row = _load_active(uow, cmd, cmd.stream_id).
-    # 2. If cmd.lifecycle == "superseded": successor = None if cmd.superseded_by is None else
-    #    registry.get_tag_class(uow.conn(), cmd.superseded_by); if successor is None, or
-    #    successor.scope != cmd.scope, or successor.id == row.id, raise InvalidTagClassError(
-    #    "a superseded class needs superseded_by: another tag class").
-    #    Else if cmd.superseded_by is not None: raise InvalidTagClassError(
-    #    "a retired class has no superseded_by").
-    # 3. result = uow.append(stream_id=row.id, stream_type=TAG_CLASS, scope=cmd.scope,
-    #        expected_version=as in revise,
-    #        events=[NewEvent(event_type=TAG_CLASS_CLOSED, payload={"lifecycle": cmd.lifecycle,
-    #                "superseded_by": cmd.superseded_by, "reason": cmd.reason})],
-    #        actor=cmd.actor, source=cmd.source,
-    #        correlation_id=cmd.correlation_id or new_ulid(), causation_id=cmd.causation_id).
-    # 4. return CommandResult(stream_id=row.id, key=row.key, version=result.new_version,
-    #        events=result.events).
-    raise NotImplementedError
+    row = _load_active(uow, cmd, cmd.stream_id)
+    if cmd.lifecycle == "superseded":
+        successor = (
+            None
+            if cmd.superseded_by is None
+            else registry.get_tag_class(uow.conn(), cmd.superseded_by)
+        )
+        if successor is None or successor.scope != cmd.scope or successor.id == row.id:
+            raise InvalidTagClassError("a superseded class needs superseded_by: another tag class")
+    elif cmd.superseded_by is not None:
+        raise InvalidTagClassError("a retired class has no superseded_by")
+    result = uow.append(
+        stream_id=row.id,
+        stream_type=TAG_CLASS,
+        scope=cmd.scope,
+        expected_version=(
+            cmd.expected_version if cmd.expected_version is not None else row.version
+        ),
+        events=[
+            NewEvent(
+                event_type=TAG_CLASS_CLOSED,
+                payload={
+                    "lifecycle": cmd.lifecycle,
+                    "superseded_by": cmd.superseded_by,
+                    "reason": cmd.reason,
+                },
+            )
+        ],
+        actor=cmd.actor,
+        source=cmd.source,
+        correlation_id=cmd.correlation_id or new_ulid(),
+        causation_id=cmd.causation_id,
+    )
+    return CommandResult(
+        stream_id=row.id,
+        key=row.key,
+        version=result.new_version,
+        events=result.events,
+    )
