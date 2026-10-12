@@ -62,6 +62,7 @@ from tl_cli import (
     standards,
     standards_class,
     tag,
+    tag_import,
     tag_report,
     tui,
     webhook,
@@ -109,6 +110,7 @@ app.add_typer(standards.app, name="standards")
 standards.app.add_typer(standards_class.app, name="class")
 app.add_typer(tag.app, name="tag")
 tag.app.add_typer(tag_report.app, name="report")
+tag.app.command("import")(tag_import.import_tags)
 app.add_typer(config.app, name="config")
 app.add_typer(extypes.app, name="types")
 extypes.app.add_typer(extypes_quarantine.app, name="quarantine")
