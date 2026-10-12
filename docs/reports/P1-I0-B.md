@@ -34,8 +34,8 @@ Demo path: `just demo P1-I0` is workstream A's (it runs on Postgres after this m
 | S35a | a86108b, 75c5934 | review fixes: URL spellings, read-only SQLite snapshot, one error line, TLS pin test |
 | S35b | d8e8eb6 | `sslmode` validated in `as_target` |
 | S35c | e661bee | import guard test |
-| S35 | 03f1f40, 649f828 | merge of `p1/i0` (A) with conflict resolution; MCP, simulator and CLI session on a target; parity tests for sign-in, actor rules, API and MCP |
-| S36 | docs commit and this report | READMEs, AGENTS.md, runbooks, B13 and B14, learnings |
+| S35 | 03f1f40, 649f828, 8862ef9, 827bdcc, 2067586 | merge of `p1/i0` (A, 608fdf6) with conflict resolution; MCP, simulator and CLI session on a target; parity tests for sign-in, actor rules, API and MCP; the simulator keeps to its boundary (`tl_sim/target.py`); the command-group tests signed in on Postgres |
+| S36 | 8a716a3, 8af0c98 and the final commit | READMEs, AGENTS.md, runbooks, B13 and B14, learnings, this report |
 
 ## Tickets
 | ID | Outcome | Review rounds | Notes |
@@ -51,21 +51,22 @@ Demo path: `just demo P1-I0` is workstream A's (it runs on Postgres after this m
 | T38 `tl lake`; `tl backup sqlite` refuses Postgres | merged (b4683b7, merge f00ac86) | 1 | 48; the provided `pgbackrest` assertion matched only a path, now `use pgBackRest (` |
 | T39 runbooks | merged (4aa4131, 4ee772c, merge cadfeff) | 1 (after a block) | blocked once on an acceptance `grep` the steps did not satisfy; ruling: add the Related link to two runbooks |
 
-No ticket was taken over. A reference implementation of T31 to T38 (branch `p1/i0b-ref`, worktree `/home/user/wt/p1-i0b-ref`) was never needed and is not merged.
+No ticket was taken over. A reference implementation of T31 to T38 (branch `p1/i0b-ref`, not merged; its worktree is removed) was never needed.
 
 ## Gates
 | Gate | Result |
 |---|---|
-| `just check` | GATE_CHECK |
-| `just test` | GATE_TEST |
-| `just test-tui` | GATE_TUI |
-| `just test-parity` | GATE_PARITY |
+| `just check` | clean (final tree) |
+| `just test` | 6020 passed, 1 skipped, 34 snapshots, 0 failed (25 min) on the final tree; the skip is not one of this workstream's tests. The run before the last conftest fix had 3 failures, all fixed (`2067586`) |
+| `just test-tui` | 708 passed, 34 snapshots (final tree minus the same one-line conftest change) |
+| `just test-parity` | 3147 passed on SQLite and Postgres, 0 failed (1 h 1 min), run at `827bdcc`; the only later change is a test `conftest.py` step-aside for unreachable servers (below), and the 9 affected CLI files plus `test_cli_session.py` and `test_cli_backup.py` were re-run on both adapters afterwards |
 | Fresh-context reviews | S30 to S34: changes requested (no blockers), fixed in S35a and S35b, re-review pass. S35 (the merge and the session on a target): requested with this report |
 
 ## Deviations from plan
 - T30 folded into S34; the MCP and simulator work waited for A (planned), and the import guard was added in two steps (S35c, then S35).
 - The provided CLI tests are the existing test files converted to `new_db` (B9), not new tests. Only the entry points got new tests.
 - The simulator may not import `tl_adapters` (brief 29.1; its boundary test failed in the first full run), so it carries the ledger as an opaque `LedgerTarget` (`tl_sim/target.py`) and only checks that a ledger *file* exists; the MCP child validates a URL. No dependency changed.
+- A Postgres target always needs a session (ADR-0009 section 7, A's rule), which the command-group tests converted in S33 predate. `packages/tl-cli/tests/conftest.py` signs a test account `dev` (admin, so the actor stays `user:dev`) in to a Postgres ledger on the first command, follows `--actor user:<name>` by making that person on demand, and steps aside for an unreachable server; `pg_support.py` offsets the tests that count events or name a seq by the account event. Found by the first full `just test-parity` after the merge (160 failures), none of them a product defect.
 - `SQLite read_tx` became read-only (a behaviour change found by the review): 2317 tests that exercise it still pass.
 
 ## Escalations and decisions
@@ -73,7 +74,7 @@ No ticket was taken over. A reference implementation of T31 to T38 (branch `p1/i
 - Nothing else was escalated; no `schema/**` change (nothing to list under SCHEMA_APPROVALS); no new external dependency.
 
 ## Learnings
-`L-P1-I0B-1` to `L-P1-I0B-7` (tests, process, security, tooling). Implementer proposals declined: none.
+`L-P1-I0B-1` to `L-P1-I0B-8` (tests, process, security, tooling). Implementer proposals declined: none.
 
 ## Docs
 - New: `docs/runbooks/run-on-postgres.md` (indexed in `docs/runbooks/README.md`); the plan `docs/tickets/P1-I0/README-B.md`; tickets T30 to T39; ticket reports `docs/reports/P1-I0/P1-I0-T31.md` to `T39.md`.
