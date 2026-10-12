@@ -312,3 +312,9 @@ test or a generated artefact already enforces, or narrative history (that belong
   Extends L-P1-I0A-11. A provided test must set its world up through the module, not through another ticket's CLI command: the first draft of the tag-class CLI test loaded the standards with `tl standards load`, a command that was still a stub. Share the setup as a helper in the tree (`engcli_support.load_acme`) so tickets stay independent.
   Evidence: `packages/tl-cli/tests/engcli_support.py`, `t09e-test_cli_standards_class.py.txt`. Status: active
 
+- **L-P1-I1-6** · 2026-10-12 · tags: tests, process
+  From the T03 report. A parity run's count is not "the SQLite count twice": under `--adapters sqlite,postgres` a case that does not use the `db`/`new_db` fixtures runs once, and a database case runs on both. T03 had 28 cases on SQLite (8 without the fixture, 20 with) and 48 with both (8 + 2 x 20). A ticket's *Expected* line must give the split, or a correct run looks short.
+  Evidence: `docs/reports/P1-I1/P1-I1-T03.md`; the T09a, T09e and T10c tickets state their skips. Status: active
+- **L-P1-I1-7** · 2026-10-12 · tags: process, tickets
+  From the T09b report. The STEPS of a ticket must name the keys of any dict a command reads back (`level`, `segment`, `message` on a tag's `violations`), because the implementer can only learn them from the provided test or the handler. `_service_errors` and `tl tag show` read the same three keys; the dict is written by the module's number check. Name the keys in the stub's STEPS or the interface block.
+  Evidence: `tl_cli/tag.py` (`show`, `_service_errors`), `docs/reports/P1-I1/P1-I1-T09b.md`. Status: active
