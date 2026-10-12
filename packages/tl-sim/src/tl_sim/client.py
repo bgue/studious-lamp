@@ -25,6 +25,7 @@ from tl_core.services.feed import PostToFeed
 from tl_core.services.links import AddLink
 from tl_core.services.psets import SetPsetValues
 from tl_core.services.workflow import TransitionWorkflow
+from tl_mod_engineering.handlers.tags import CreateTag, RenameTag
 
 from tl_sim.clock import SimClock
 
@@ -52,6 +53,8 @@ class ApiLike(Protocol):
     def add_link(self, cmd: AddLink) -> CommandResult: ...
     def transition(self, cmd: TransitionWorkflow) -> CommandResult: ...
     def feed_post(self, cmd: PostToFeed) -> CommandResult: ...
+    def create_tag(self, cmd: CreateTag) -> CommandResult: ...
+    def rename_tag(self, cmd: RenameTag) -> CommandResult: ...
     def get_record_by_id(self, record_id: str) -> dict[str, Any] | None: ...
     def query_records(
         self, scope: str, q: str, *, limit: int = 500, offset: int = 0
@@ -75,6 +78,14 @@ class ProposalDesk(Protocol):
     def pending_proposals(self) -> list[dict[str, Any]]: ...
     def accept_proposal(self, proposal_id: str) -> dict[str, Any]: ...
     def reject_proposal(self, proposal_id: str, reason: str) -> dict[str, Any]: ...
+
+
+@runtime_checkable
+class TagDesk(Protocol):
+    """What a person who keeps the tag list needs on top of ``SimClient`` (not part of it)."""
+
+    def create_tag(self, number: str, class_code: str, service: str) -> dict[str, Any]: ...
+    def rename_tag(self, record_id: str, new_number: str, reason: str) -> dict[str, Any]: ...
 
 
 class Keys:
@@ -207,6 +218,22 @@ class HttpSimClient:
 
     def query(self, q: str, *, limit: int = 100) -> list[dict[str, Any]]:
         return self._api.query_records(self._scope, q, limit=min(limit, MAX_QUERY))
+
+    # --- the tag list, for the person who keeps it (``TagDesk``) ---------------------------
+
+    def create_tag(self, number: str, class_code: str, service: str) -> dict[str, Any]:
+        """Create a tag. The registry checks the number against the numbering pattern."""
+        self._clock.tick()
+        cmd = CreateTag(**self._common(), number=number, class_code=class_code, service=service)
+        result = self._api.create_tag(cmd)
+        return {"id": result.stream_id, "key": result.key, "version": result.version}
+
+    def rename_tag(self, record_id: str, new_number: str, reason: str) -> dict[str, Any]:
+        """Replace a tag by a new one with ``new_number``; the answer is the new tag."""
+        self._clock.tick()
+        cmd = RenameTag(**self._common(), stream_id=record_id, new_number=new_number, reason=reason)
+        result = self._api.rename_tag(cmd)
+        return {"id": result.stream_id, "key": result.key, "version": result.version}
 
     # --- the review queue, for the person who works it (``ProposalDesk``) -----------------------
 

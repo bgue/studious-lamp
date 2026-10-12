@@ -22,7 +22,12 @@ INJECT_EVENTS = ("material_late", "design_revision", "post")
 MAX_INJECT_COUNT = 20  # revisions one design_revision injection may force
 MAX_INJECT_KEYS = 16
 MAX_INJECT_TEXT = 2000  # characters in any string argument, a post body included
-ROLE_NAMES = ("document_controller", "planner", "crew")  # the project team, people (user:sim-*)
+ROLE_NAMES = (
+    "document_controller",
+    "planner",
+    "crew",
+    "tag_clerk",
+)  # the project team, people (user:sim-*)
 ACTOR_NAMES = (*ROLE_NAMES, "assistant", "approver")  # the order they act in each day
 
 
@@ -96,6 +101,15 @@ class CrewParams(Strict):
     announce: str | None = None  # one-off: the `material_late` injection posts this text
 
 
+class TagClerkParams(Strict):
+    """Keeps the tag list: registers new tags (class and number from the registry) and now and then
+    renumbers one, which supersedes the old tag. Needs the company standards loaded in the ledger.
+    """
+
+    tags_per_day: Count = CountRange(min=1, max=3)
+    rename_rate: float = Field(default=0.2, ge=0, le=1)  # chance per day of renumbering one tag
+
+
 class AssistantParams(Strict):
     """The one simulated agent: proposes cross-references over MCP, changes no record itself."""
 
@@ -114,6 +128,7 @@ class ActorsConfig(Strict):
     document_controller: DocumentControllerParams | None = DocumentControllerParams()
     planner: PlannerParams | None = PlannerParams()
     crew: CrewParams | None = CrewParams()
+    tag_clerk: TagClerkParams | None = None  # off unless named: needs the standards loaded
     assistant: AssistantParams | None = None  # off unless the scenario names it: needs MCP
     approver: ApproverParams | None = None
 

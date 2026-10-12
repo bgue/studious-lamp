@@ -70,8 +70,8 @@ the tag register and the reports show the tags by class, status and missing prop
 | T09d | TUI: tag register screen (F8) with segments, class and what each tag lacks | H | client methods (supervisor) | ready | the screen is a modal like about:config; the client methods, the fake, the F8 binding and the palette entry are supervisor work (done) |
 | T10c | `tl tag import`: preview and apply | H | T06, T10a, T10b, apply service | ready | the apply service (`imports/apply.py`, 8 cases on both databases) is a supervisor piece |
 | T11 | Reports: summary by class and state, missing mandatory psets, pattern violations (module functions and `tl tag report`) | H | T08 | review | implemented; blocked on two base defects (NULL ordering of the summary on Postgres; a provided CLI test with three pyright errors), both fixed by the supervisor; review-only relay | 
-| T12 | Simulator tag-list actor | H | T10c, T09c | planned | the legacy mapping template `dev/seed/templates/tag-list-instrument-index.yaml`, a sample file and an end-to-end test are done (supervisor) |
-| T09f | MCP read tools: `list_code_values`, `list_tag_classes`, `get_tag` | H | T09c | planned | waits for the re-review of the agent action lists |
+| T12 | Simulator tag clerk (actor: new tags, now and then a rename) | H | none | ready | the `TagDesk`, recorder methods, fake world and scenario parameters are supervisor work (done); the real-API end-to-end test waits for T09c (`after-t09c/`); the legacy mapping template `dev/seed/templates/tag-list-instrument-index.yaml`, a sample file and an end-to-end test are done (supervisor) |
+| T09f | MCP read tools: `list_code_values`, `list_tag_classes`, `get_tag` | H | none | ready | wiring, instructions and `MCP_ACTIONS` are done (supervisor); the response models are the API's |
 
 Haiku-ability notes. T01 touches `schema/**` (a fixture, data only); it carries the `schema` label and the delegated
 approver below, and a provided test pins its content. Every other ticket passes the checklist (01-tiers §6) after the
