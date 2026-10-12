@@ -146,3 +146,18 @@ def test_a_company_scope_has_no_tag_register() -> None:
         assert not isinstance(app.screen, TagRegisterScreen)
 
     run_pilot(app, go)
+
+
+def test_when_the_filter_matches_nothing_the_panel_says_so_and_no_tag_is_described() -> None:
+    async def steps(pilot: Pilot[None], app: TlApp, screen: TagRegisterScreen) -> None:
+        assert screen.detail is not None  # the first tag is described
+        await pilot.press("slash")
+        screen.query_one("#tags-filter", Input).value = "no such tag"
+        await pilot.pause()
+        assert numbers(screen) == [] and screen.detail is None
+        assert "No tag matches." in screen_text(app)
+        await pilot.press("escape")
+        await pilot.pause()
+        assert screen.detail is not None and screen.detail.number == "47-FV-1001"
+
+    scenario(world(), steps)

@@ -141,6 +141,7 @@ class TagRegisterScreen(ModalScreen[None]):
         detail = self.query_one("#tags-detail", Static)
         view = self.current()
         if view is None:
+            self.detail = None  # nothing is highlighted, so nothing is described
             detail.update("No tag matches.")
             return
         try:
