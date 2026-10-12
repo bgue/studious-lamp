@@ -51,6 +51,7 @@ from tl_core.files.scan import PassScanner, Scanner, ScanResult
 from tl_core.files.slots import FileSlotRegistry, default_file_slots
 from tl_core.files.types import ObjectNotFound, ObjectStore, object_key
 from tl_core.ledger import Event, NewEvent
+from tl_core.modules import require_generic_command
 from tl_core.services.commands import Command
 from tl_core.services.errors import (
     ContentRejectedError,
@@ -348,6 +349,7 @@ class FileService:
         row = uow.conn().execute(_RECORD_SQL, {"id": record_id}).first()
         if row is None or row.scope != scope:
             raise RecordNotFoundError(f"no record {record_id!r} in scope {scope!r}")
+        require_generic_command(row.type, "AttachFile")
         if row.voided:
             raise RecordVoidedError(f"record {record_id!r} is voided; files cannot be attached")
         return _Record(id=row.id, type=row.type)

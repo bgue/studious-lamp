@@ -25,7 +25,7 @@ from sqlalchemy import text
 
 from tl_core.extypes.service import prepare_create, refuse_index_write
 from tl_core.ledger import NewEvent
-from tl_core.modules import is_module_record_type
+from tl_core.modules import is_module_record_type, require_generic_command
 from tl_core.numbering.allocator import allocate_key, segment_values
 from tl_core.numbering.config import numbering_for
 from tl_core.services.commands import (
@@ -267,6 +267,7 @@ def create_module_record(
 
 def handle_update_record(uow: UnitOfWork, cmd: UpdateRecord) -> CommandResult:
     stored = _load_record(uow, cmd.scope, cmd.stream_id)
+    require_generic_command(stored.type, "UpdateRecord")
     if stored.voided:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot be updated")
     if "psets" in cmd.changes:
@@ -312,6 +313,7 @@ def handle_update_record(uow: UnitOfWork, cmd: UpdateRecord) -> CommandResult:
 
 def handle_void_record(uow: UnitOfWork, cmd: VoidRecord) -> CommandResult:
     stored = _load_record(uow, cmd.scope, cmd.stream_id)
+    require_generic_command(stored.type, "VoidRecord")
     if stored.voided:
         raise AlreadyVoidedError(f"record {cmd.stream_id!r} is already voided")
 

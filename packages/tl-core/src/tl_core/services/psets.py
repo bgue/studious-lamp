@@ -18,7 +18,7 @@ from tl_schema.validation import validate_psets
 
 from tl_core.extypes.service import refuse_index_write
 from tl_core.ledger import NewEvent
-from tl_core.modules import bound_psets
+from tl_core.modules import bound_psets, require_generic_command
 from tl_core.projection.promoted import ensure_promoted_columns
 from tl_core.projection.pset import apply_values
 from tl_core.schema_provider import get_provider
@@ -83,6 +83,7 @@ def apply_index_values(uow: UnitOfWork, cmd: SetPsetValues) -> CommandResult:
 
 def _set_pset_values(uow: UnitOfWork, cmd: SetPsetValues, *, from_body: bool) -> CommandResult:
     row = load_row(uow, cmd.stream_id, cmd.scope)
+    require_generic_command(row.type, "SetPsetValues")
     if row.voided:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot be updated")
     if not from_body:

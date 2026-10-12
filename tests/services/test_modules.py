@@ -100,7 +100,14 @@ def fixture_schemas() -> Iterator[None]:
 
 @pytest.fixture(autouse=True)
 def fake_module() -> Iterator[None]:
-    with use_modules([fake_spec(numbering_patterns=registered_patterns)]):
+    with use_modules(
+        [
+            fake_spec(
+                numbering_patterns=registered_patterns,
+                generic_commands={THING: frozenset({"SetPsetValues"})},
+            )
+        ]
+    ):
         yield
 
 
@@ -306,3 +313,76 @@ def test_two_modules_may_not_claim_one_record_type(monkeypatch: pytest.MonkeyPat
             FakeEntry("aaa", lambda: clash),
             FakeEntry("fake", lambda: fake_spec()),
         )
+
+
+# --- generic commands on module records (ADR-0010 addendum) -------------------------------------
+
+
+def test_a_module_type_allows_no_generic_command_unless_its_spec_lists_it(db: DbTarget) -> None:
+    from tl_core.modules import GENERIC_COMMANDS, require_generic_command
+
+    made = make_thing(db, "B-1")
+    with pytest.raises(UnsupportedRecordTypeError, match="UpdateRecord cannot change a fake.Thing"):
+        require_generic_command(THING, "UpdateRecord")
+    assert made is not None
+    require_generic_command("core.Record", "UpdateRecord")  # not a module type: untouched
+    with use_modules([fake_spec(generic_commands={THING: frozenset({"SetPsetValues"})})]):
+        require_generic_command(THING, "SetPsetValues")
+        with pytest.raises(UnsupportedRecordTypeError):
+            require_generic_command(THING, "UpdateRecord")
+    assert {"UpdateRecord", "SetPsetValues", "VoidRecord", "AddLink"} <= GENERIC_COMMANDS
+
+
+def test_the_generic_write_commands_refuse_a_module_record(db: DbTarget) -> None:
+    from tl_core.services.commands import UpdateRecord, VoidRecord
+    from tl_core.services.links import AddLink, handle_add_link
+    from tl_core.services.records import handle_update_record, handle_void_record
+    from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
+
+    thing = make_thing(db, "B-1")
+    other = make_thing(db, "B-2")
+    base: dict[str, Any] = {"actor": "user:u", "source": "test", "scope": SCOPE}
+    refused: list[Callable[[Any], Any]] = [
+        lambda uow: handle_update_record(
+            uow,
+            UpdateRecord(
+                **base, stream_id=thing.stream_id, expected_version=1, changes={"title": "x"}
+            ),
+        ),
+        lambda uow: handle_void_record(
+            uow,
+            VoidRecord(**base, stream_id=thing.stream_id, expected_version=1, reason="r"),
+        ),
+        lambda uow: handle_set_pset_values(
+            uow,
+            SetPsetValues(
+                **base,
+                stream_id=thing.stream_id,
+                expected_version=1,
+                pset="valve_data",
+                layer="standard",
+                values={"manufacturer": "Acme"},
+            ),
+        ),
+        lambda uow: handle_transition_workflow(
+            uow,
+            TransitionWorkflow(
+                **base, stream_id=thing.stream_id, expected_version=1, transition="submit"
+            ),
+        ),
+        lambda uow: handle_add_link(
+            uow, AddLink(**base, from_id=thing.stream_id, to_id=other.stream_id)
+        ),
+    ]
+    with use_modules([fake_spec(numbering_patterns=registered_patterns)]):  # allows nothing
+        for run in refused:
+            with pytest.raises(UnsupportedRecordTypeError, match="fake.Thing"):
+                with open_uow(db) as uow:
+                    run(uow)
+
+
+def test_a_spec_cannot_allow_what_is_not_a_generic_command_or_not_its_type() -> None:
+    with pytest.raises(ModuleLoadError, match="not a generic command"):
+        fake_spec(generic_commands={THING: frozenset({"DropTable"})})
+    with pytest.raises(ModuleLoadError, match="not one of its record types"):
+        fake_spec(generic_commands={"fake.Other": frozenset({"UpdateRecord"})})

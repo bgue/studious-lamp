@@ -31,9 +31,9 @@ projector would leave tables empty without a trace.
 from __future__ import annotations
 
 import threading
-from collections.abc import Callable, Generator, Sequence
+from collections.abc import Callable, Generator, Mapping, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib.metadata import entry_points
 
 from sqlalchemy import Connection
@@ -42,6 +42,22 @@ from tl_core.numbering.config import NumberingPattern
 from tl_core.projection.types import Projector
 
 ENTRY_POINT_GROUP = "throughline.modules"
+
+#: The generic commands that reach a record through ``cur_core_record`` whatever its type. A module
+#: record type allows none of them unless its spec lists the command in ``generic_commands``
+#: (ADR-0010 addendum): the envelope and the typed fields of a module record change through the
+#: module's own commands, which check the module's rules and the caller's role.
+GENERIC_COMMANDS = frozenset(
+    {
+        "UpdateRecord",
+        "VoidRecord",
+        "SetPsetValues",
+        "TransitionWorkflow",
+        "AddLink",
+        "SuggestLink",
+        "AttachFile",
+    }
+)
 
 ProjectorFactory = Callable[[], Sequence[Projector]]
 #: ``(conn, record_type, record_id)`` to the names of the psets the record's class binds, in order.
@@ -54,6 +70,10 @@ class ModuleLoadError(RuntimeError):
     """An installed module could not be loaded, or two modules claim the same name or type."""
 
 
+def _no_commands() -> dict[str, frozenset[str]]:
+    return {}
+
+
 @dataclass(frozen=True)
 class ModuleSpec:
     name: str  # ``engineering``; equal to the directory under ``schema/modules`` and the tl:module
@@ -61,8 +81,23 @@ class ModuleSpec:
     projectors: ProjectorFactory  # fresh projector instances; registered in this order
     bound_psets: BoundPsetsHook | None = None
     numbering_patterns: NumberingPatternsHook | None = None
+    #: Per record type, the generic commands (``GENERIC_COMMANDS``) people may run on it. A type
+    #: that is not a key allows none. These commands are open to every signed-in person: a change
+    #: that needs a role is a command of the module, not an entry here.
+    generic_commands: Mapping[str, frozenset[str]] = field(default_factory=_no_commands)
 
     def __post_init__(self) -> None:
+        for record_type, commands in self.generic_commands.items():
+            if record_type not in self.record_types:
+                raise ModuleLoadError(
+                    f"module {self.name!r}: generic_commands names {record_type!r}, "
+                    "which is not one of its record types"
+                )
+            unknown = sorted(commands - GENERIC_COMMANDS)
+            if unknown:
+                raise ModuleLoadError(
+                    f"module {self.name!r}: {', '.join(unknown)} is not a generic command"
+                )
         for record_type in self.record_types:
             if not record_type.startswith(f"{self.name}."):
                 raise ModuleLoadError(
@@ -135,6 +170,26 @@ def module_projectors() -> list[Projector]:
     for spec in load_modules():
         projectors.extend(spec.projectors())
     return projectors
+
+
+def require_generic_command(record_type: str, command: str) -> None:
+    """Refuse ``command`` on a record of a module type that does not allow it.
+
+    A core or extension record type is not a module's and passes. Raises
+    ``UnsupportedRecordTypeError`` (422 ``unsupported_record_type``) with a fixed message that
+    names the type and the command, so every entry point (API, CLI, MCP, a proposal accepted
+    later) answers the same.
+    """
+    for spec in load_modules():
+        if record_type in spec.record_types:
+            if command in spec.generic_commands.get(record_type, frozenset()):
+                return
+            from tl_core.services.errors import UnsupportedRecordTypeError  # avoid an import cycle
+
+            raise UnsupportedRecordTypeError(
+                f"{command} cannot change a {record_type} record: it changes through the "
+                f"{spec.name} module's own commands"
+            )
 
 
 def module_record_types() -> frozenset[str]:
