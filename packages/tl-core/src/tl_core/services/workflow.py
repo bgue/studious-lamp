@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 
 from tl_core.ledger import NewEvent
+from tl_core.modules import bound_psets
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import (
     GuardFailedError,
@@ -73,13 +74,14 @@ def _load(uow: UnitOfWork, record_id: str, scope: str | None = None) -> Any:
     return row
 
 
-def _facts(row: Any) -> RecordFacts:
+def _facts(uow: UnitOfWork, row: Any) -> RecordFacts:
     return RecordFacts(
         id=row.id,
         key=row.key,
         type=row.type,
         scope=row.scope,
         psets=json.loads(row.psets_json),
+        bound=list(bound_psets(uow.conn(), row.type, row.id)),
     )
 
 
@@ -112,7 +114,7 @@ def workflow_status(
     row = _load(uow, record_id)
     definition = _definition(row, f"record {row.key or record_id}")
     state = _current_state(row, definition)
-    facts = _facts(row)
+    facts = _facts(uow, row)
     today = utcnow().date()
     options: list[TransitionOption] = []
     for transition in definition.transitions_from(state):
@@ -169,7 +171,7 @@ def handle_transition_workflow(uow: UnitOfWork, cmd: TransitionWorkflow) -> Comm
             f"{available})"
         )
 
-    facts = _facts(row)
+    facts = _facts(uow, row)
     today = utcnow().date()
     results = evaluate_guards(uow, facts, transition, roles=cmd.actor_roles, today=today)
     failed = [r for r in results if not r.passed]

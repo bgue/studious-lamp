@@ -129,6 +129,15 @@ class EffectiveSchema(BaseModel):
         """Psets whose ``applies_to`` names ``record_type``, in name order."""
         return [p for p in self.psets.values() if record_type in p.applies_to]
 
+    def psets_for(self, record_type: str, bound: Sequence[str] = ()) -> list[EffectivePset]:
+        """The psets that apply to a record: those of its type, plus the ones its class binds.
+
+        ``bound`` names psets a record class binds to the record (ADR-0010): they apply whatever
+        their ``applies_to`` says. A name the schema does not define is ignored. Name order.
+        """
+        wanted = set(bound)
+        return [p for p in self.psets.values() if record_type in p.applies_to or p.name in wanted]
+
     def find_pset(self, name: str) -> EffectivePset | None:
         return self.psets.get(name)
 
