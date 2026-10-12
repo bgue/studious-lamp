@@ -71,7 +71,9 @@ _SUMMARY_SQL = text(
     f"FROM {TAG_TABLE} t JOIN cur_core_record r ON r.id = t.id "
     "WHERE r.voided = :no AND t.scope = :scope "
     "AND (r.status IS NULL OR r.status NOT IN ('Superseded', 'Deleted')) "
-    "GROUP BY t.class_code, r.status ORDER BY t.class_code, r.status"
+    "GROUP BY t.class_code, r.status "
+    # A missing class or state sorts first on both databases (Postgres puts NULL last by default).
+    "ORDER BY (t.class_code IS NULL) DESC, t.class_code, (r.status IS NULL) DESC, r.status"
 )
 
 
