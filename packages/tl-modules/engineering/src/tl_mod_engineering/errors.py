@@ -97,3 +97,11 @@ class StandardsLoadError(EngineeringError):
     def __init__(self, message: str, problems: list[str] | None = None) -> None:
         super().__init__(message)
         self.problems: list[str] = problems if problems is not None else []
+
+
+class ImportApplyError(EngineeringError):
+    """A tag-list import cannot be applied. ``problems`` lists each reason, one line per row."""
+
+    def __init__(self, message: str, problems: list[str] | None = None) -> None:
+        super().__init__(message)
+        self.problems: list[str] = problems if problems is not None else []
