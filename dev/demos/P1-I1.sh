@@ -4,7 +4,7 @@
 #
 # The exit clauses, each ending in a PASS line, once on SQLite and once on Postgres:
 #   1  an admin loads the company standards (dry run first); a second load changes nothing;
-#   2  `tl tag create 47-FV-1001 --class ControlValve` parses the segments (47, FV, 1001) and shows
+#   2  `tl tag create 47-FV-2001 --class ControlValve` parses the segments (47, FV, 2001) and shows
 #      the missing valve_data as non-conformant; `47-XX-1` is refused with every problem;
 #   3  filling in valve_data makes the tag conform (the class binds the property set);
 #   4  a rename creates a new tag that supersedes the old one, which leaves service;
@@ -114,30 +114,30 @@ run_backend() {
   echo "PASS 1: the standards are in the registry, and loading them again is a no-op"
 
   step "[$backend] clause 2: a tag number is parsed; a wrong one is refused with every problem"
-  out="$(as demo tl tag create 47-FV-1001 --class ControlValve --service "Feed gas flow control" --project P123)"; echo "$out"
-  expect "segments area=47 mnemonic=FV seq=1001" "$out"
+  out="$(as demo tl tag create 47-FV-2001 --class ControlValve --service "Feed gas flow control" --project P123)"; echo "$out"
+  expect "segments area=47 mnemonic=FV seq=2001" "$out"
   expect "conformance nonconformant" "$out"
   expect "valve_data" "$out"
   if out="$(as demo tl tag create 47-XX-1 --project P123 2>&1)"; then fail "47-XX-1 was accepted"; fi
   echo "$out"
   expect "mnemonic" "$out"
   expect "seq" "$out"
-  echo "PASS 2: 47-FV-1001 is parsed and non-conformant; 47-XX-1 is refused"
+  echo "PASS 2: 47-FV-2001 is parsed and non-conformant; 47-XX-1 is refused"
 
   step "[$backend] clause 3: the class binds the property set; filling it in makes the tag conform"
-  as demo tl pset set --project P123 47-FV-1001 valve_data manufacturer=Acme size_in=4
-  out="$(as demo tl tag show 47-FV-1001 --project P123)"; echo "$out"
+  as demo tl pset set --project P123 47-FV-2001 valve_data manufacturer=Acme size_in=4
+  out="$(as demo tl tag show 47-FV-2001 --project P123)"; echo "$out"
   expect "conformance: ok" "$out"
   echo "PASS 3: valve_data satisfies the class"
 
   step "[$backend] clause 4: a rename creates a new tag that supersedes the old one"
-  as demo tl tag rename 47-FV-1001 47-FV-1002 --reason "renumbered by the design office" --project P123
+  as demo tl tag rename 47-FV-2001 47-FV-2002 --reason "renumbered by the design office" --project P123
   out="$(as demo tl tag ls --project P123)"; echo "$out"
-  expect "47-FV-1002" "$out"
-  case "$out" in *"47-FV-1001"*) fail "the old tag is still in service" ;; esac
+  expect "47-FV-2002" "$out"
+  case "$out" in *"47-FV-2001"*) fail "the old tag is still in service" ;; esac
   out="$(as demo tl tag ls --project P123 --all)"; echo "$out"
-  expect "47-FV-1001" "$out"
-  echo "PASS 4: 47-FV-1001 was replaced by 47-FV-1002 (the old one is kept as Superseded)"
+  expect "47-FV-2001" "$out"
+  echo "PASS 4: 47-FV-2001 was replaced by 47-FV-2002 (the old one is kept as Superseded)"
 
   step "[$backend] clause 5: a legacy list is previewed and applied (admin only); bad numbers stay as violations"
   out="$(as demo tl tag import "$LEGACY" --mapping "$MAPPING" --project P123)"; echo "$out"
@@ -161,7 +161,7 @@ run_backend() {
   driver refused
 
   step "[$backend] clause 7: the API, the TUI tag register and an agent read the same tags"
-  export TL_DEMO_TAG=47-FV-1002
+  export TL_DEMO_TAG=47-FV-2002
   driver reads
 
   stop_server
