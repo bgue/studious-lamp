@@ -5,13 +5,7 @@ values a code list allows, what a tag class requires and what a tag still lacks;
 from the registry. Changing any of it stays a person's work (the registry commands are admin-only
 and a tag change is a proposal): none of these tools writes. The response models are the API's
 (``tl_api.routes.engineering``), so an agent and a client see the same fields.
-
-STUB (P1-I1-T09f): the bodies of the three `*_impl` functions raise NotImplementedError; their
-signatures, docstrings and `register_engineering_tools` are final. Each body has a STEPS comment.
-Implement them, then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -21,7 +15,7 @@ from typing import Annotated
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import Field
-from tl_api.routes.engineering import CodeValueOut, TagClassOut, TagDetail
+from tl_api.routes.engineering import CodeValueOut, TagClassOut, TagDetail, TagOut
 from tl_core.services.psets import conformance
 from tl_mod_engineering import codelists, registry
 from tl_mod_engineering.errors import TagNotFoundError
@@ -37,36 +31,41 @@ def list_code_values_impl(
     ctx: McpContext, *, code_list: str, project: str | None, include_all: bool
 ) -> list[CodeValueOut]:
     """The values of ``code_list`` as a scope sees them: the company's, then the project's own."""
-    # STEPS
-    # 1. scope = COMPANY, or f"project:{project}" when ``project`` is given.
-    # 2. In `with ctx.factory(True) as uow:` found = codelists.values(uow.conn(), scope, code_list,
-    #    on=date.today(), usable_only=not include_all). It raises UnknownCodeListError (``guarded``
-    #    turns it into a tool error the agent can read).
-    # 3. One CodeValueOut per item: code_list, code, label, scope, origin, company_code, lifecycle
-    #    and usable, from the item's attributes of the same names.
-    raise NotImplementedError
+    scope = COMPANY if project is None else f"project:{project}"
+    with ctx.factory(True) as uow:
+        found = codelists.values(
+            uow.conn(), scope, code_list, on=date.today(), usable_only=not include_all
+        )
+        return [
+            CodeValueOut(
+                code_list=item.code_list,
+                code=item.code,
+                label=item.label,
+                scope=item.scope,
+                origin=item.origin,
+                company_code=item.company_code,
+                lifecycle=item.lifecycle,
+                usable=item.usable,
+            )
+            for item in found
+        ]
 
 
 def list_tag_classes_impl(ctx: McpContext, *, include_closed: bool) -> list[TagClassOut]:
     """The company's tag classes by code, with the property sets each requires."""
-    # STEPS
-    # 1. In `with ctx.factory(True) as uow:` rows = registry.find_tag_classes(uow.conn(), COMPANY,
-    #    active_only=not include_closed).
-    # 2. Return [TagClassOut.of(row) for row in rows].
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        rows = registry.find_tag_classes(uow.conn(), COMPANY, active_only=not include_closed)
+        return [TagClassOut.of(row) for row in rows]
 
 
 def get_tag_impl(ctx: McpContext, *, project: str, number: str) -> TagDetail:
     """One tag by number with its segments, class, state and what it still lacks."""
-    # STEPS
-    # 1. In `with ctx.factory(True) as uow:` row = registry.find_tag(uow.conn(),
-    #    f"project:{project}", number). None: raise TagNotFoundError(f"no tag {number!r} in
-    #    project {project!r}").
-    # 2. Still inside the block: report = conformance(uow, row.id).
-    # 3. Return TagDetail(**TagOut-fields of row, issues=report.issues): build it with
-    #    TagDetail(**TagOut.of(row).model_dump(), issues=report.issues) (import TagOut from
-    #    tl_api.routes.engineering).
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        row = registry.find_tag(uow.conn(), f"project:{project}", number)
+        if row is None:
+            raise TagNotFoundError(f"no tag {number!r} in project {project!r}")
+        report = conformance(uow, row.id)
+        return TagDetail(**TagOut.of(row).model_dump(), issues=report.issues)
 
 
 Project = Annotated[
