@@ -1,0 +1,47 @@
+# Workflow of an engineering tag (brief 9 M2: planned, design, installed, commissioned, deleted).
+# A tag moves to Design, Installed and Commissioned only while it conforms to the effective schema
+# in the target state, so the property sets its class requires (valve_data for a control valve) must
+# be filled in first. `supersede` is used by the rename, split and merge commands; `delete` is for a
+# tag that never gets built. Both end the tag's life.
+id: engineering.tag
+version: 1
+record_type: engineering.Tag
+scope: company
+initial_state: Planned
+states:
+  - name: Planned
+  - name: Design
+  - name: Installed
+  - name: Commissioned
+  - name: Deleted
+  - name: Superseded
+transitions:
+  - name: design
+    label: Start design
+    from: [Planned]
+    to: Design
+    guards:
+      - kind: conformance
+        max_status: warning
+  - name: install
+    label: Mark installed
+    from: [Design]
+    to: Installed
+    guards:
+      - kind: conformance
+        max_status: warning
+  - name: commission
+    label: Mark commissioned
+    from: [Installed]
+    to: Commissioned
+    guards:
+      - kind: conformance
+        max_status: warning
+  - name: delete
+    label: Delete the tag
+    from: [Planned, Design, Installed, Commissioned]
+    to: Deleted
+  - name: supersede
+    label: Replace by other tags
+    from: [Planned, Design, Installed, Commissioned]
+    to: Superseded

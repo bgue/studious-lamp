@@ -58,12 +58,13 @@ class NumberIssue:
     segment: str | None  # the segment at fault; None for the number as a whole
     rule: str  # pattern | sequence | unknown_code | inactive_code | unknown_list | unknown_mnemonic
     message: str
+    level: str = "error"  # error | warning
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "segment": self.segment,
             "rule": self.rule,
-            "level": "error",
+            "level": self.level,
             "message": self.message,
         }
 

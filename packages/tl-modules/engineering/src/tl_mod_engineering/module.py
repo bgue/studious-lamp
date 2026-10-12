@@ -10,6 +10,7 @@ from tl_core.modules import ModuleSpec
 from tl_core.projection.types import Projector
 
 from tl_mod_engineering import MODULE
+from tl_mod_engineering.binding import bound_psets
 from tl_mod_engineering.names import RECORD_TYPES
 from tl_mod_engineering.patterns import ledger_numbering_patterns
 from tl_mod_engineering.projectors import (
@@ -30,5 +31,6 @@ def spec() -> ModuleSpec:
         name=MODULE,
         record_types=RECORD_TYPES,
         projectors=projectors,
+        bound_psets=bound_psets,
         numbering_patterns=ledger_numbering_patterns,
     )
