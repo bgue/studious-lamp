@@ -6,13 +6,7 @@ translate its codes (``ISOMETRIC`` in the file is ``ISO`` here). It is a YAML fi
 ``dev/seed/templates/document-register-dms-export.yaml``. ``read_rows`` applies one to the text of
 a CSV file and returns an ``ImportRow`` per data row. A cell that cannot be read does not stop the
 file: the row carries the problem and the plan reports it.
-
-STUB (P1-I2-T12b): the bodies of parse_mapping and read_rows raise NotImplementedError; their
-signatures, options, docstrings and the helpers are final. Each body has a STEPS comment.
-Implement them, then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -92,15 +86,20 @@ def parse_mapping(text: str, *, source: str = "<string>") -> DocumentMapping:
     Raises ``MappingError`` whose message starts with ``source``: invalid YAML, a document that is
     not a mapping, or a field that does not validate (one line each, ``<location>: <why>``).
     """
-    # STEPS
-    # 1. data = yaml.safe_load(text); a yaml.YAMLError is MappingError(f"{source}: invalid YAML:
-    #    {exc}") (raise ... from exc).
-    # 2. When data is not a dict: MappingError(f"{source}: a mapping template must be a YAML
-    #    mapping").
-    # 3. Return DocumentMapping.model_validate(data). A ValidationError becomes one MappingError
-    #    whose message has one line per error, f"{source}: {location}: {message}", where location
-    #    is the dotted `loc` of the error or "(document)" when it is empty.
-    raise NotImplementedError
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise MappingError(f"{source}: invalid YAML: {exc}") from exc
+    if not isinstance(data, dict):
+        raise MappingError(f"{source}: a mapping template must be a YAML mapping")
+    try:
+        return DocumentMapping.model_validate(data)
+    except ValidationError as exc:
+        lines = []
+        for error in exc.errors():
+            location = ".".join(str(part) for part in error["loc"]) or "(document)"
+            lines.append(f"{source}: {location}: {error['msg']}")
+        raise MappingError("\n".join(lines)) from exc
 
 
 def load_mapping(path: Path) -> DocumentMapping:
@@ -124,26 +123,81 @@ def read_rows(text: str, mapping: DocumentMapping) -> list[ImportRow]:
     Raises ``MappingError`` when the file has no header row, lacks a column the mapping names (the
     message lists every missing column), has a column twice or is not valid CSV.
     """
-    # STEPS
-    # 1. reader = csv.reader(io.StringIO(text.removeprefix("﻿")),
-    #    delimiter=mapping.delimiter, strict=True). header = [cell.strip() for cell in
-    #    next(reader)]; StopIteration is MappingError("the file has no header row"); csv.Error is
-    #    MappingError(f"the file is not readable as CSV: {exc}").
-    # 2. A header name that appears twice: MappingError("the file has a column twice: " +
-    #    ", ".join(sorted names)). Mapped columns the header lacks: MappingError("the file lacks
-    #    the column(s): " + ", ".join(them, in the order of mapping.columns)).
-    # 3. records = list(enumerate(reader, start=2)) (a csv.Error here is the "not readable as CSV"
-    #    error too).
-    # 4. For each (line, cells): stripped = [c.strip() for c in cells]; skip the row when no cell
-    #    is non-blank; raw = {header name: stripped[i] or "" past the end of the row}.
-    # 5. For each column of mapping.columns: cell = raw[column.column]. A blank cell: for the
-    #    number add the problem "the document number is blank", for any other column nothing.
-    #    Otherwise value = column.values[cell] when column.values is non-empty and has the cell,
-    #    else problem f"{column.column}: {cell!r} is not one of the mapped values" when values is
-    #    non-empty and lacks it, else the cell itself. Set the field of column.to: number,
-    #    title, doc_type (to "type"), discipline, originator, legacy_revision ("revision"),
-    #    legacy_status ("status"), legacy_date ("date").
-    # 6. Append ImportRow(line=line, number=number or "", title=..., doc_type=..., discipline=...,
-    #    originator=..., legacy_revision=..., legacy_status=..., legacy_date=..., problems=...,
-    #    raw=raw).
-    raise NotImplementedError
+    reader = csv.reader(
+        io.StringIO(text.removeprefix("﻿")), delimiter=mapping.delimiter, strict=True
+    )
+    try:
+        header = [cell.strip() for cell in next(reader)]
+    except StopIteration as exc:
+        raise MappingError("the file has no header row") from exc
+    except csv.Error as exc:
+        raise MappingError(f"the file is not readable as CSV: {exc}") from exc
+    # A blank header cell names no column (a trailing comma in an export), so it never counts.
+    twice = sorted({name for name in header if name and header.count(name) > 1})
+    if twice:
+        raise MappingError("the file has a column twice: " + ", ".join(twice))
+    missing = [column.column for column in mapping.columns if column.column not in header]
+    if missing:
+        raise MappingError("the file lacks the column(s): " + ", ".join(missing))
+    try:
+        records = list(enumerate(reader, start=2))
+    except csv.Error as exc:
+        raise MappingError(f"the file is not readable as CSV: {exc}") from exc
+
+    rows: list[ImportRow] = []
+    for line, cells in records:
+        stripped = [cell.strip() for cell in cells]
+        if not any(stripped):
+            continue
+        raw = {name: (stripped[i] if i < len(stripped) else "") for i, name in enumerate(header)}
+        number = ""
+        title: str | None = None
+        doc_type: str | None = None
+        discipline: str | None = None
+        originator: str | None = None
+        legacy_revision: str | None = None
+        legacy_status: str | None = None
+        legacy_date: str | None = None
+        problems: list[str] = []
+        for column in mapping.columns:
+            cell = raw[column.column]
+            if not cell:
+                if column.to == "number":
+                    problems.append("the document number is blank")
+                continue
+            if column.values and cell not in column.values:
+                problems.append(f"{column.column}: {cell!r} is not one of the mapped values")
+                continue
+            value = column.values[cell] if column.values else cell
+            if column.to == "number":
+                number = value
+            elif column.to == "title":
+                title = value
+            elif column.to == "type":
+                doc_type = value
+            elif column.to == "discipline":
+                discipline = value
+            elif column.to == "originator":
+                originator = value
+            elif column.to == "revision":
+                legacy_revision = value
+            elif column.to == "status":
+                legacy_status = value
+            elif column.to == "date":
+                legacy_date = value
+        rows.append(
+            ImportRow(
+                line=line,
+                number=number,
+                title=title,
+                doc_type=doc_type,
+                discipline=discipline,
+                originator=originator,
+                legacy_revision=legacy_revision,
+                legacy_status=legacy_status,
+                legacy_date=legacy_date,
+                problems=problems,
+                raw=raw,
+            )
+        )
+    return rows
