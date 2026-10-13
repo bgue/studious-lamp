@@ -2,6 +2,8 @@
 
 Purpose: the record of what Phase 0 built, what it deviated from, where each gate stands, and everything that is left for a human or for engineering. Written 2026-10-11 by the P0-I8 workstream E supervisor as a draft for the orchestrator, who fills the final gate numbers (§3) after the last merge. Companion documents: `docs/reports/PHASE-0-AUDIT.md` (each §16 bullet against the code), `docs/reports/RISKS.md` (the register), `docs/reports/P0-I8.md` (the exit increment), `docs/reports/STATUS.md`, `docs/reports/APPROVALS.md`.
 
+**Screenshot tour:** [PHASE-0-TOUR.md](PHASE-0-TOUR.md) shows each capability on a seeded demo ledger, with real screenshots and the standard activity, novel approach and unique value of each; regenerate it with `uv run python dev/tour/phase0.py`.
+
 ## 1. Outcome
 
 The four clauses of the §16 Phase 0 exit are met and demonstrated by one script on a simulated project, `just demo P0-I8` (about 90 seconds, a PASS line per clause): a record is created, linked and given psets through the TUI (headless pilot), the REST API and MCP (an agent proposes, a person accepts); a second TUI repaints a change in about 0.1 s; an independent loopback receiver verifies every signed event of a filtered subscription and receives none of the unmatched ones; the ledger archive restores into SQLite and into a scratch Postgres database with equal state and verified hash chains. The audit finds 16 of 22 rows done, 3 partial (ledger on two adapters but services on SQLite only, ops/upgrade tooling, cross-reference operations) and 3 deviations (comments, MinIO, simulator through MCP). Nothing is deployable: real authentication, permissions and secrets handling are human gates that were not crossed.

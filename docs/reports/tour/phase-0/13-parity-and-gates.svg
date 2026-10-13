@@ -1,0 +1,80 @@
+<svg class="rich-terminal" viewBox="0 0 1482 269.6" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    
+    
+
+    .terminal-1929872883-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-1929872883-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-1929872883-r1 { fill: #9a9b99;font-style: italic; }
+.terminal-1929872883-r2 { fill: #c5c8c6 }
+.terminal-1929872883-r3 { fill: #98a84b;font-weight: bold }
+.terminal-1929872883-r4 { fill: #c5c8c6;font-weight: bold }
+.terminal-1929872883-r5 { fill: #98a84b }
+    </style>
+
+    <defs>
+    <clipPath id="terminal-1929872883-clip-terminal">
+      <rect x="0" y="0" width="1463.0" height="218.6" />
+    </clipPath>
+    <clipPath id="terminal-1929872883-line-0">
+    <rect x="0" y="1.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1929872883-line-1">
+    <rect x="0" y="25.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1929872883-line-2">
+    <rect x="0" y="50.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1929872883-line-3">
+    <rect x="0" y="74.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1929872883-line-4">
+    <rect x="0" y="99.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1929872883-line-5">
+    <rect x="0" y="123.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1929872883-line-6">
+    <rect x="0" y="147.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1929872883-line-7">
+    <rect x="0" y="172.3" width="1464" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="267.6" rx="8"/><text class="terminal-1929872883-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Evidence&#160;kept&#160;from&#160;the&#160;Phase&#160;0&#160;gates&#160;(stored,&#160;not&#160;re-run&#160;by&#160;this&#160;tour)</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-1929872883-clip-terminal)">
+    
+    <g class="terminal-1929872883-matrix">
+    <text class="terminal-1929872883-r1" x="0" y="20" textLength="1085.8" clip-path="url(#terminal-1929872883-line-0)">#&#160;figures&#160;copied&#160;from&#160;docs/reports/PHASE-0.md&#160;section&#160;3;&#160;the&#160;runs&#160;take&#160;30&#160;minutes&#160;or&#160;more</text><text class="terminal-1929872883-r2" x="1464" y="20" textLength="12.2" clip-path="url(#terminal-1929872883-line-0)">
+</text><text class="terminal-1929872883-r3" x="0" y="44.4" textLength="24.4" clip-path="url(#terminal-1929872883-line-1)">$&#160;</text><text class="terminal-1929872883-r4" x="24.4" y="44.4" textLength="195.2" clip-path="url(#terminal-1929872883-line-1)">just&#160;test-parity</text><text class="terminal-1929872883-r2" x="1464" y="44.4" textLength="12.2" clip-path="url(#terminal-1929872883-line-1)">
+</text><text class="terminal-1929872883-r2" x="0" y="68.8" textLength="683.2" clip-path="url(#terminal-1929872883-line-2)">2166&#160;passed&#160;on&#160;SQLite&#160;and&#160;Postgres,&#160;no&#160;skips&#160;(32&#160;m&#160;39&#160;s)</text><text class="terminal-1929872883-r2" x="1464" y="68.8" textLength="12.2" clip-path="url(#terminal-1929872883-line-2)">
+</text><text class="terminal-1929872883-r3" x="0" y="93.2" textLength="24.4" clip-path="url(#terminal-1929872883-line-3)">$&#160;</text><text class="terminal-1929872883-r4" x="24.4" y="93.2" textLength="109.8" clip-path="url(#terminal-1929872883-line-3)">just&#160;test</text><text class="terminal-1929872883-r2" x="1464" y="93.2" textLength="12.2" clip-path="url(#terminal-1929872883-line-3)">
+</text><text class="terminal-1929872883-r2" x="0" y="117.6" textLength="597.8" clip-path="url(#terminal-1929872883-line-4)">5302&#160;passed,&#160;1&#160;skipped,&#160;16&#160;deselected&#160;(19&#160;m&#160;49&#160;s)</text><text class="terminal-1929872883-r2" x="1464" y="117.6" textLength="12.2" clip-path="url(#terminal-1929872883-line-4)">
+</text><text class="terminal-1929872883-r3" x="0" y="142" textLength="24.4" clip-path="url(#terminal-1929872883-line-5)">$&#160;</text><text class="terminal-1929872883-r4" x="24.4" y="142" textLength="158.6" clip-path="url(#terminal-1929872883-line-5)">just&#160;test-tui</text><text class="terminal-1929872883-r2" x="1464" y="142" textLength="12.2" clip-path="url(#terminal-1929872883-line-5)">
+</text><text class="terminal-1929872883-r2" x="0" y="166.4" textLength="427" clip-path="url(#terminal-1929872883-line-6)">608&#160;passed,&#160;26&#160;snapshots&#160;(3&#160;m&#160;56&#160;s)</text><text class="terminal-1929872883-r2" x="1464" y="166.4" textLength="12.2" clip-path="url(#terminal-1929872883-line-6)">
+</text><text class="terminal-1929872883-r3" x="0" y="190.8" textLength="24.4" clip-path="url(#terminal-1929872883-line-7)">$&#160;</text><text class="terminal-1929872883-r4" x="24.4" y="190.8" textLength="183" clip-path="url(#terminal-1929872883-line-7)">just&#160;demo&#160;P0-I8</text><text class="terminal-1929872883-r2" x="1464" y="190.8" textLength="12.2" clip-path="url(#terminal-1929872883-line-7)">
+</text><text class="terminal-1929872883-r5" x="0" y="215.2" textLength="1024.8" clip-path="url(#terminal-1929872883-line-8)">PASS&#160;exit-1&#160;TUI&#160;/&#160;API&#160;/&#160;MCP,&#160;exit-2&#160;live,&#160;exit-3&#160;webhook,&#160;exit-4&#160;restore,&#160;...&#160;(84&#160;s)</text><text class="terminal-1929872883-r2" x="1464" y="215.2" textLength="12.2" clip-path="url(#terminal-1929872883-line-8)">
+</text>
+    </g>
+    </g>
+</svg>
