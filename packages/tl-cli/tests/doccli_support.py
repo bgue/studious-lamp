@@ -12,8 +12,9 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from auth_support import bootstrap, sign_in
 from auth_support import run as tl
-from tl_adapters.db import DbTarget, as_target, open_uow
+from tl_adapters.db import DbTarget, as_target, is_postgres, open_uow
 from tl_mod_documents.testing import DocumentsWorld
 from tl_mod_engineering.document import load_standards_file
 from tl_mod_engineering.loader import load_standards
@@ -43,3 +44,16 @@ def load_document_standards(env: dict[str, str]) -> None:
             load_standards(
                 uow, load_standards_file(STANDARDS / name), actor="user:seed", source="test"
             )
+
+
+def admin_session(env: dict[str, str]) -> bool:
+    """Sign an admin in to a SQLite ledger (``root``); True when the test can also try a non-admin.
+
+    On Postgres the conftest signs an admin in for every command, so there is nothing to do and no
+    refusal to test (it returns False).
+    """
+    if is_postgres(as_target(env["TL_DB"])):
+        return False
+    assert bootstrap(env).exit_code == 0
+    sign_in(env)
+    return True

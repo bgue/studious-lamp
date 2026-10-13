@@ -43,6 +43,10 @@ from tl_cli import (
     config,
     dev,
     doc,
+    doc_link,
+    doc_rendition,
+    doc_report,
+    doc_rev,
     events,
     extypes,
     extypes_quarantine,
@@ -111,6 +115,13 @@ app.add_typer(standards.app, name="standards")
 standards.app.add_typer(standards_class.app, name="class")
 app.add_typer(tag.app, name="tag")
 app.add_typer(doc.app, name="doc")
+doc.app.add_typer(doc_rev.app, name="rev")
+doc.app.add_typer(doc_rendition.app, name="rendition")
+doc.app.add_typer(doc_report.app, name="report")
+doc.app.command("link")(doc_link.link)
+doc.app.command("stale")(doc_link.stale)
+doc.app.command("diff")(doc_link.diff)
+doc.app.command("repin")(doc_link.repin)
 tag.app.add_typer(tag_report.app, name="report")
 tag.app.command("import")(tag_import.import_tags)
 app.add_typer(config.app, name="config")
