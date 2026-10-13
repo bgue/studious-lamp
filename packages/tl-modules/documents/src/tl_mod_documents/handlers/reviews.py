@@ -12,13 +12,7 @@ document stays Issued whatever later cycles do.
 
 Each handler runs inside an entered unit of work, appends through it and never commits. All
 events of one command share one correlation id.
-
-STUB (P1-I2-T08b): the bodies of the three `handle_*` functions raise NotImplementedError; the
-command classes, `_SEVERITY`, `_load_cycle` and every signature are final. Each body has a STEPS
-comment. Implement them, then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -147,26 +141,49 @@ def handle_open_review_cycle(uow: UnitOfWork, cmd: OpenReviewCycle) -> CommandRe
     Raises ``ProjectScopeError``, ``RevisionNotFoundError``, ``DocumentClosedError``,
     ``RevisionStateError`` (not a draft), ``InvalidReviewError`` (a reviewer listed twice).
     """
-    # STEPS
-    # 1. require_project(cmd); cmd = correlated(cmd); rev = load_revision(uow, cmd,
-    #    cmd.revision_id); doc = open_document(uow, cmd, rev.document_id).
-    # 2. If rev.voided or rev.state != "Draft" raise RevisionStateError(f"revision {rev.code} of
-    #    {doc.number} is {rev.state}; only a draft can be sent for review").
-    # 3. names = [r.reviewer.strip() for r in cmd.reviewers]; if names has a repeat raise
-    #    InvalidReviewError("a reviewer can be listed only once").
-    # 4. round_number = len(registry.review_cycles_of(uow.conn(), rev.id)) + 1.
-    # 5. made = create_module_record(uow, cmd, record_type=REVIEW_CYCLE, title=f"Review of
-    #    {rev.key}, round {round_number}", key=f"{rev.key}/RC{round_number}",
-    #    extra_events=[NewEvent(event_type=REVIEW_DEFINED, payload={...})]) where the payload
-    #    has revision_id (rev.id), document_id (doc.id), round (round_number), due_date
-    #    (cmd.due_date), opened_on (today()) and reviewers: one {"reviewer": name, "due_date":
-    #    r.due_date} per request, in order (zip(names, cmd.reviewers, strict=True)).
-    # 6. events = list(made.events); events += transition(uow, cmd, rev.id,
-    #    "start_review").events; if doc.state == DOC_REGISTERED also events += transition(uow,
-    #    cmd, doc.id, "start_review").events.
-    # 7. Return CommandResult(stream_id=made.stream_id, key=made.key, version=made.version,
-    #    events=events).
-    raise NotImplementedError
+    require_project(cmd)
+    cmd = correlated(cmd)
+    rev = load_revision(uow, cmd, cmd.revision_id)
+    doc = open_document(uow, cmd, rev.document_id)
+    if rev.voided or rev.state != "Draft":
+        raise RevisionStateError(
+            f"revision {rev.code} of {doc.number} is {rev.state}; "
+            "only a draft can be sent for review"
+        )
+    names = [r.reviewer.strip() for r in cmd.reviewers]
+    if len(set(names)) != len(names):
+        raise InvalidReviewError("a reviewer can be listed only once")
+    round_number = len(registry.review_cycles_of(uow.conn(), rev.id)) + 1
+    made = create_module_record(
+        uow,
+        cmd,
+        record_type=REVIEW_CYCLE,
+        title=f"Review of {rev.key}, round {round_number}",
+        key=f"{rev.key}/RC{round_number}",
+        extra_events=[
+            NewEvent(
+                event_type=REVIEW_DEFINED,
+                payload={
+                    "revision_id": rev.id,
+                    "document_id": doc.id,
+                    "round": round_number,
+                    "due_date": cmd.due_date,
+                    "opened_on": today(),
+                    "reviewers": [
+                        {"reviewer": name, "due_date": r.due_date}
+                        for name, r in zip(names, cmd.reviewers, strict=True)
+                    ],
+                },
+            )
+        ],
+    )
+    events: list[Event] = list(made.events)
+    events += transition(uow, cmd, rev.id, "start_review").events
+    if doc.state == DOC_REGISTERED:
+        events += transition(uow, cmd, doc.id, "start_review").events
+    return CommandResult(
+        stream_id=made.stream_id, key=made.key, version=made.version, events=events
+    )
 
 
 def handle_record_review_outcome(uow: UnitOfWork, cmd: RecordReviewOutcome) -> CommandResult:
@@ -175,19 +192,37 @@ def handle_record_review_outcome(uow: UnitOfWork, cmd: RecordReviewOutcome) -> C
     Raises ``ReviewNotFoundError``, ``ReviewStateError`` (the cycle is closed, or this reviewer
     already answered) and ``InvalidReviewError`` (not a reviewer of the cycle).
     """
-    # STEPS
-    # 1. cmd = correlated(cmd); cycle = _load_cycle(uow, cmd, cmd.review_cycle_id); if
-    #    cycle.state != "open" raise ReviewStateError(f"review cycle {cycle.key} is closed").
-    # 2. reviewer = cmd.reviewer.strip(); mine = [r for r in registry.reviewers_of(uow.conn(),
-    #    cycle.id) if r.reviewer == reviewer]. No match: raise InvalidReviewError(f"{reviewer!r}
-    #    is not a reviewer of {cycle.key}"). mine[0].outcome is not None: raise
-    #    ReviewStateError(f"{reviewer} has already answered {cycle.key}").
-    # 3. done = append(uow, cmd, cycle.id, REVIEW_CYCLE, [NewEvent(event_type=REVIEW_OUTCOME,
-    #    payload={"reviewer": reviewer, "outcome": cmd.outcome, "comment": cmd.comment,
-    #    "responded_on": today()})], expected=cmd.expected_version).
-    # 4. Return CommandResult(stream_id=cycle.id, key=cycle.key, version=done.new_version,
-    #    events=list(done.events)).
-    raise NotImplementedError
+    cmd = correlated(cmd)
+    cycle = _load_cycle(uow, cmd, cmd.review_cycle_id)
+    if cycle.state != "open":
+        raise ReviewStateError(f"review cycle {cycle.key} is closed")
+    reviewer = cmd.reviewer.strip()
+    mine = [r for r in registry.reviewers_of(uow.conn(), cycle.id) if r.reviewer == reviewer]
+    if not mine:
+        raise InvalidReviewError(f"{reviewer!r} is not a reviewer of {cycle.key}")
+    if mine[0].outcome is not None:
+        raise ReviewStateError(f"{reviewer} has already answered {cycle.key}")
+    done = append(
+        uow,
+        cmd,
+        cycle.id,
+        REVIEW_CYCLE,
+        [
+            NewEvent(
+                event_type=REVIEW_OUTCOME,
+                payload={
+                    "reviewer": reviewer,
+                    "outcome": cmd.outcome,
+                    "comment": cmd.comment,
+                    "responded_on": today(),
+                },
+            )
+        ],
+        expected=cmd.expected_version,
+    )
+    return CommandResult(
+        stream_id=cycle.id, key=cycle.key, version=done.new_version, events=list(done.events)
+    )
 
 
 def handle_close_review_cycle(uow: UnitOfWork, cmd: CloseReviewCycle) -> CommandResult:
@@ -197,26 +232,41 @@ def handle_close_review_cycle(uow: UnitOfWork, cmd: CloseReviewCycle) -> Command
     ``InvalidReviewError`` (a reviewer is missing and no reason is given; nobody answered and no
     outcome is given).
     """
-    # STEPS
-    # 1. cmd = correlated(cmd); cycle = _load_cycle(...); if cycle.state != "open" raise
-    #    ReviewStateError(f"review cycle {cycle.key} is already closed").
-    # 2. reviewers = registry.reviewers_of(uow.conn(), cycle.id); answered = [r.outcome for r in
-    #    reviewers if r.outcome is not None].
-    # 3. If some reviewer has not answered and cmd.reason is empty or blank: missing = ",
-    #    ".join(the reviewers with no outcome); raise InvalidReviewError(f"{missing} have not
-    #    answered; give a reason to close {cycle.key} early").
-    # 4. outcome = cmd.outcome when given; else the worst answer: max(answered, key=lambda o:
-    #    _SEVERITY[o]); else (nobody answered) raise InvalidReviewError(f"nobody has answered
-    #    {cycle.key}; give the outcome to close it").
-    # 5. done = append(uow, cmd, cycle.id, REVIEW_CYCLE, [NewEvent(event_type=REVIEW_CLOSED,
-    #    payload={"outcome": outcome, "closed_on": today(), "reason": cmd.reason})],
-    #    expected=cmd.expected_version); events = list(done.events).
-    # 6. rev = registry.get_revision(uow.conn(), cycle.revision_id); if rev is not None and
-    #    rev.state == "In Review": events += transition(uow, cmd, rev.id,
-    #    "return_to_draft").events.
-    # 7. doc = registry.get_document(uow.conn(), cycle.document_id); if doc is not None and
-    #    doc.state == DOC_IN_REVIEW and doc.current_revision_id is None: events +=
-    #    transition(uow, cmd, doc.id, "end_review").events.
-    # 8. Return CommandResult(stream_id=cycle.id, key=cycle.key, version=done.new_version,
-    #    events=events).
-    raise NotImplementedError
+    cmd = correlated(cmd)
+    cycle = _load_cycle(uow, cmd, cmd.review_cycle_id)
+    if cycle.state != "open":
+        raise ReviewStateError(f"review cycle {cycle.key} is already closed")
+    reviewers = registry.reviewers_of(uow.conn(), cycle.id)
+    answered = [r.outcome for r in reviewers if r.outcome is not None]
+    if any(r.outcome is None for r in reviewers) and not (cmd.reason or "").strip():
+        missing = ", ".join(r.reviewer for r in reviewers if r.outcome is None)
+        raise InvalidReviewError(
+            f"{missing} have not answered; give a reason to close {cycle.key} early"
+        )
+    if cmd.outcome is not None:
+        outcome = cmd.outcome
+    elif answered:
+        outcome = max(answered, key=lambda o: _SEVERITY[o])
+    else:
+        raise InvalidReviewError(f"nobody has answered {cycle.key}; give the outcome to close it")
+    done = append(
+        uow,
+        cmd,
+        cycle.id,
+        REVIEW_CYCLE,
+        [
+            NewEvent(
+                event_type=REVIEW_CLOSED,
+                payload={"outcome": outcome, "closed_on": today(), "reason": cmd.reason},
+            )
+        ],
+        expected=cmd.expected_version,
+    )
+    events: list[Event] = list(done.events)
+    rev = registry.get_revision(uow.conn(), cycle.revision_id)
+    if rev is not None and rev.state == "In Review":
+        events += transition(uow, cmd, rev.id, "return_to_draft").events
+    doc = registry.get_document(uow.conn(), cycle.document_id)
+    if doc is not None and doc.state == DOC_IN_REVIEW and doc.current_revision_id is None:
+        events += transition(uow, cmd, doc.id, "end_review").events
+    return CommandResult(stream_id=cycle.id, key=cycle.key, version=done.new_version, events=events)
