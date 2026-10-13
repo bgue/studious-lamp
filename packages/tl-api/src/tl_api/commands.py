@@ -33,6 +33,7 @@ from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.uow import UnitOfWork
 from tl_core.util import effective_time
+from tl_mod_documents.commands import API_COMMANDS as DOCUMENT_COMMANDS
 from tl_mod_engineering.commands import API_COMMANDS, Access
 
 from tl_api.auth import AGENT_DIRECT_COMMANDS, current_principal, guard
@@ -77,6 +78,7 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(ReactToPost, handle_react_to_post),
     CommandSpec(ChangeSetting, handle_change_setting),
     *(CommandSpec(c.model, c.handler, c.access) for c in API_COMMANDS),
+    *(CommandSpec(c.model, c.handler, c.access) for c in DOCUMENT_COMMANDS),
 )
 """Every command the API accepts. Void, mark-pins-stale and the file commands are not here:
 voiding is not in the Phase 0 client contract, pin staleness is a system command, and files have

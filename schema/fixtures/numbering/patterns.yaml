@@ -8,3 +8,11 @@ patterns:
     template: "{project}-{type}-{seq:4}"
     type_code: REC
     gap_free: true
+  # Transmittals (brief 9 M1) are numbered by the allocator: P123-TRN-0001. A document number is typed in
+  # (it comes from the drawing or the client) and checked by the registry pattern instead.
+  - id: documents.Transmittal
+    record_type: documents.Transmittal
+    scope: "project:*"
+    template: "{project}-{type}-{seq:4}"
+    type_code: TRN
+    gap_free: true

@@ -23,6 +23,7 @@ from tl_core.query import QuerySyntaxError
 from tl_core.services import errors as svc
 from tl_core.webhooks import subscriptions as wh
 from tl_core.workflow.engine import GuardResult
+from tl_mod_documents import errors as doc
 from tl_mod_engineering import errors as eng
 
 
@@ -162,6 +163,30 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(eng.InvalidTagNumberError, "invalid_tag_number", 422),
         s(eng.StandardsLoadError, "standards_load", 422),
         s(eng.ImportApplyError, "import_apply", 422),
+        # --- documents module (P1-I2): documents, revisions, renditions, transmittals, reviews --
+        s(doc.DocumentsError, "documents_error", 422),
+        s(doc.ProjectScopeError, "project_scope", 422),
+        s(doc.DocumentNotFoundError, "document_not_found", 404),
+        s(doc.DocumentClosedError, "document_closed", 409),
+        s(doc.InvalidDocumentNumberError, "invalid_document_number", 422),
+        s(doc.InvalidDocumentTypeError, "invalid_document_type", 422),
+        s(doc.UnknownSchemeError, "unknown_scheme", 422),
+        s(doc.InvalidRevisionCodeError, "invalid_revision_code", 422),
+        s(doc.RevisionNotFoundError, "revision_not_found", 404),
+        s(doc.OpenRevisionError, "open_revision", 409),
+        s(doc.RevisionStateError, "revision_state", 409),
+        s(doc.RevisionSequenceError, "revision_sequence", 409),
+        s(doc.InvalidIssueStatusError, "invalid_issue_status", 422),
+        s(doc.NoRenditionError, "no_rendition", 409),
+        s(doc.RenditionNotAllowedError, "rendition_not_allowed", 409),
+        s(doc.FileNotAvailableError, "file_not_available", 422),
+        s(doc.InvalidPinError, "invalid_pin", 422),
+        s(doc.TransmittalNotFoundError, "transmittal_not_found", 404),
+        s(doc.TransmittalStateError, "transmittal_state", 409),
+        s(doc.InvalidTransmittalError, "invalid_transmittal", 422),
+        s(doc.ReviewNotFoundError, "review_not_found", 404),
+        s(doc.ReviewStateError, "review_state", 409),
+        s(doc.InvalidReviewError, "invalid_review", 422),
     )
 
 
@@ -250,7 +275,7 @@ def body_for(exc: BaseException) -> tuple[int, ErrorBody] | None:
         exc, (svc.PsetValidationError, ext.BodyValidationError, auth.WeakPasswordError)
     ):
         body.issues = list(exc.issues)
-    elif isinstance(exc, eng.InvalidTagNumberError):
+    elif isinstance(exc, (eng.InvalidTagNumberError, doc.InvalidDocumentNumberError)):
         body.issues = list(exc.issues)  # one dict per problem: segment, rule, level, message
     elif isinstance(exc, (eng.StandardsLoadError, eng.ImportApplyError)):
         body.issues = list(exc.problems)
@@ -283,6 +308,10 @@ def exception_for(status: int, body: dict[str, Any]) -> Exception:
             return auth.WeakPasswordError(message, [str(i) for i in body.get("issues") or []])
         if spec.exc is eng.InvalidTagNumberError:
             return eng.InvalidTagNumberError(
+                message, [dict(i) for i in body.get("issues") or [] if isinstance(i, dict)]
+            )
+        if spec.exc is doc.InvalidDocumentNumberError:
+            return doc.InvalidDocumentNumberError(
                 message, [dict(i) for i in body.get("issues") or [] if isinstance(i, dict)]
             )
         if spec.exc is eng.StandardsLoadError:

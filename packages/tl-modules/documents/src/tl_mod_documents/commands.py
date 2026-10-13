@@ -31,6 +31,14 @@ from tl_mod_documents.handlers.documents import (
     handle_void_document,
 )
 from tl_mod_documents.handlers.renditions import AttachRendition, handle_attach_rendition
+from tl_mod_documents.handlers.reviews import (
+    CloseReviewCycle,
+    OpenReviewCycle,
+    RecordReviewOutcome,
+    handle_close_review_cycle,
+    handle_open_review_cycle,
+    handle_record_review_outcome,
+)
 from tl_mod_documents.handlers.revisions import (
     CreateRevision,
     IssueRevision,
@@ -40,6 +48,18 @@ from tl_mod_documents.handlers.revisions import (
     handle_issue_revision,
     handle_supersede_revision,
     handle_void_revision,
+)
+from tl_mod_documents.handlers.transmittals import (
+    CloseTransmittal,
+    CreateTransmittal,
+    IssueTransmittal,
+    RecordTransmittalResponse,
+    VoidTransmittal,
+    handle_close_transmittal,
+    handle_create_transmittal,
+    handle_issue_transmittal,
+    handle_record_transmittal_response,
+    handle_void_transmittal,
 )
 from tl_mod_documents.resolver import (
     LinkToDocument,
@@ -70,4 +90,12 @@ API_COMMANDS: tuple[ApiCommand, ...] = (
     ApiCommand(AttachRendition, handle_attach_rendition, "user"),
     ApiCommand(LinkToDocument, handle_link_to_document, "user"),
     ApiCommand(RepinDocumentLink, handle_repin_document_link, "user"),
+    ApiCommand(CreateTransmittal, handle_create_transmittal, "user"),
+    ApiCommand(IssueTransmittal, handle_issue_transmittal, "user"),
+    ApiCommand(RecordTransmittalResponse, handle_record_transmittal_response, "user"),
+    ApiCommand(CloseTransmittal, handle_close_transmittal, "user"),
+    ApiCommand(VoidTransmittal, handle_void_transmittal, "user"),
+    ApiCommand(OpenReviewCycle, handle_open_review_cycle, "user"),
+    ApiCommand(RecordReviewOutcome, handle_record_review_outcome, "user"),
+    ApiCommand(CloseReviewCycle, handle_close_review_cycle, "user"),
 )

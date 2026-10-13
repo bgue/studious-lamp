@@ -376,6 +376,8 @@ AGENT_MAY_NOT = {
     "admin.command.ReviseTagClass",
     "admin.command.CloseTagClass",
     "admin.command.RecordTag",
+    # the documents module (P1-I2): voiding a whole document is the one admin command
+    "admin.command.VoidDocument",
 }
 FEED_COMMANDS = {"PostToFeed", "EditPost", "RetractPost", "ReactToPost"}
 
