@@ -17,6 +17,7 @@ from tl_mod_engineering.names import (
     TAG_CLASS_DEFINED,
     TAG_CLASS_REVISED,
     TAG_CLASS_TABLE,
+    TAG_CLASS_VIEW,
 )
 from tl_mod_engineering.projectors._common import ddl_for, json_text, touch_record
 
@@ -47,7 +48,7 @@ class TagClassProjector:
     handles = frozenset({TAG_CLASS_DEFINED, TAG_CLASS_REVISED, TAG_CLASS_CLOSED})
 
     def ddl(self, dialect: str) -> list[str]:
-        return ddl_for(TAG_CLASS_TABLE, dialect)
+        return ddl_for(TAG_CLASS_TABLE, dialect) + ddl_for(TAG_CLASS_VIEW, dialect)
 
     def apply(self, conn: Connection, event: Event) -> None:
         payload: dict[str, Any] = event.payload

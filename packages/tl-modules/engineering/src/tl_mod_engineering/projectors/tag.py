@@ -19,6 +19,7 @@ from tl_mod_engineering.names import (
     TAG_RECLASSIFIED,
     TAG_SUPERSEDED,
     TAG_TABLE,
+    TAG_VIEW,
 )
 from tl_mod_engineering.projectors._common import ddl_for, json_text, touch_record
 
@@ -39,7 +40,7 @@ class TagProjector:
     handles = frozenset({TAG_DEFINED, TAG_RECLASSIFIED, TAG_SUPERSEDED})
 
     def ddl(self, dialect: str) -> list[str]:
-        return ddl_for(TAG_TABLE, dialect)
+        return ddl_for(TAG_TABLE, dialect) + ddl_for(TAG_VIEW, dialect)
 
     def apply(self, conn: Connection, event: Event) -> None:
         payload: dict[str, Any] = event.payload
