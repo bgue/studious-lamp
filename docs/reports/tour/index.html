@@ -1,0 +1,185 @@
+<title>Throughline Build Tours</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@85,600;85,800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a drafting-sheet frame. Narrow reading column, title block at the top, phase tabs as drawing-sheet tabs, screenshots set wider than the text. */
+:root {
+  --paper: #f3f5f7;
+  --sheet: #ffffff;
+  --ink: #18202a;
+  --muted: #56616e;
+  --rule: #d5dbe2;
+  --accent: #1f5f9c;        /* steel blue: links, active tab */
+  --hivis: #c96a00;         /* hi-vis amber: the "novel" stripe */
+  --std: #6b7785;           /* standard practice stripe */
+  --value: #2f7d4f;         /* value stripe */
+  --code-bg: #e9edf1;
+  --frame: #0f141a;
+  --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1318; --sheet: #151c23; --ink: #e3e8ee; --muted: #9aa6b3; --rule: #2a3440;
+    --accent: #7db4ea; --hivis: #f0a443; --std: #8d99a7; --value: #6cc58f; --code-bg: #1d2630; --frame: #05080b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1318; --sheet: #151c23; --ink: #e3e8ee; --muted: #9aa6b3; --rule: #2a3440;
+  --accent: #7db4ea; --hivis: #f0a443; --std: #8d99a7; --value: #6cc58f; --code-bg: #1d2630; --frame: #05080b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.6; padding-inline: 16px; }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 28px 64px; }
+header.title-block { display: grid; grid-template-columns: 1fr auto; gap: 8px 24px; align-items: end; border: 1.5px solid var(--ink); background: var(--sheet); padding: 18px 20px; }
+header.title-block h1 { font-family: var(--font-display); font-stretch: 85%; font-weight: 800; font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.05; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+header.title-block p { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+.meta { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); text-align: right; line-height: 1.7; }
+.meta b { color: var(--ink); font-weight: 600; }
+@media (max-width: 640px) { header.title-block { grid-template-columns: 1fr; } .meta { text-align: left; } }
+nav.tabs { display: flex; gap: 6px; margin-top: 18px; flex-wrap: wrap; }
+nav.tabs button { font-family: var(--font-display); font-stretch: 85%; font-weight: 600; font-size: 1rem; letter-spacing: 0.02em; text-transform: uppercase; padding: 9px 16px; border: 1.5px solid var(--rule); border-bottom: none; background: transparent; color: var(--muted); cursor: pointer; border-radius: 4px 4px 0 0; }
+nav.tabs button[aria-selected="true"] { background: var(--sheet); color: var(--ink); border-color: var(--ink); }
+nav.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+nav.tabs .tag { font-family: var(--font-mono); font-size: 11px; text-transform: none; letter-spacing: 0; margin-left: 6px; color: var(--hivis); }
+main { background: var(--sheet); border: 1.5px solid var(--ink); padding: clamp(18px, 4vw, 44px); min-width: 0; }
+.doc { max-width: 68ch; margin: 0 auto; min-width: 0; }
+.doc h1 { font-family: var(--font-display); font-stretch: 85%; font-weight: 800; font-size: 2rem; line-height: 1.15; margin: 0 0 0.6em; text-wrap: balance; }
+.doc h2 { font-family: var(--font-display); font-stretch: 85%; font-weight: 800; font-size: 1.5rem; line-height: 1.2; margin: 2.4em 0 0.6em; padding-top: 0.8em; border-top: 1px solid var(--rule); text-wrap: balance; scroll-margin-top: 16px; }
+.doc h3 { font-family: var(--font-display); font-stretch: 85%; font-weight: 600; font-size: 1.2rem; margin: 1.6em 0 0.4em; scroll-margin-top: 16px; }
+.doc p, .doc ul, .doc ol { margin: 0 0 1em; }
+.doc a { color: var(--accent); text-underline-offset: 2px; }
+.doc code { font-family: var(--font-mono); font-size: 0.84em; background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 3px; overflow-wrap: anywhere; }
+.doc pre { background: var(--code-bg); padding: 12px 14px; overflow-x: auto; border-radius: 4px; }
+.doc pre code { background: none; padding: 0; }
+.doc .tablewrap { overflow-x: auto; margin: 0 0 1.2em; }
+.doc table { border-collapse: collapse; width: 100%; font-size: 0.92em; font-variant-numeric: tabular-nums; }
+.doc th, .doc td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.doc th { font-family: var(--font-display); font-stretch: 85%; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.82em; color: var(--muted); }
+.shot { margin: 1.4em -6vw 1.4em; max-width: none; }
+@media (min-width: 1080px) { .shot { margin-inline: -120px; } }
+@media (max-width: 760px) { .shot { margin-inline: 0; } }
+.shot a { display: block; background: var(--frame); border-radius: 6px; padding: 6px; line-height: 0; }
+.shot img { width: 100%; height: auto; display: block; border-radius: 3px; }
+.shot figcaption { font-size: 0.86em; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+.narr { border-left: 4px solid var(--rule); padding: 2px 0 2px 14px; }
+.narr.std { border-color: var(--std); }
+.narr.novel { border-color: var(--hivis); }
+.narr.value { border-color: var(--value); }
+.narr > strong:first-child { font-family: var(--font-display); font-stretch: 85%; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.86em; }
+.narr.std > strong:first-child { color: var(--std); }
+.narr.novel > strong:first-child { color: var(--hivis); }
+.narr.value > strong:first-child { color: var(--value); }
+.repro { font-size: 0.92em; color: var(--muted); }
+.status { font-family: var(--font-mono); font-size: 13px; color: var(--muted); padding: 24px 0; }
+footer { margin-top: 18px; font-size: 13px; color: var(--muted); text-align: center; }
+@media (prefers-reduced-motion: no-preference) { .doc { animation: fade 0.25s ease-out both; } @keyframes fade { from { opacity: 0.4; } to { opacity: 1; } } }
+</style>
+
+<div class="wrap">
+  <header class="title-block">
+    <div>
+      <h1>Throughline Build Tours</h1>
+      <p>What each phase of the build delivered, shown on real screens. Every screenshot is generated from a seeded demo ledger by a script in the repository, with a frozen clock so reruns are identical.</p>
+    </div>
+    <div class="meta">
+      <div>PROJECT <b>Throughline</b></div>
+      <div>DEMO LEDGER <b>P123</b></div>
+      <div>CLOCK <b>2026-10-12</b> (frozen)</div>
+      <div>SOURCE <b>dev/tour/phase*.py</b></div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Phase">
+    <button role="tab" id="tab-phase-0" aria-controls="panel" aria-selected="true" data-doc="phase-0">Phase 0 · Core platform</button>
+    <button role="tab" id="tab-phase-1" aria-controls="panel" aria-selected="false" data-doc="phase-1">Phase 1 so far<span class="tag">interim</span></button>
+  </nav>
+
+  <main id="panel" role="tabpanel" aria-live="polite">
+    <div class="doc" id="doc"><p class="status">Loading the tour…</p></div>
+  </main>
+
+  <footer>Screens are terminal output rendered to SVG. Open any screenshot for full size.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script>
+(function () {
+  var REPO = "https://github.com/bgue/studious-lamp/blob/main/docs/reports/";
+  var DOCS = { "phase-0": "PHASE-0-TOUR.md", "phase-1": "PHASE-1-TOUR.md" };
+  var BY_FILE = { "PHASE-0-TOUR.md": "phase-0", "PHASE-1-TOUR.md": "phase-1" };
+  var cache = {};
+  var docEl = document.getElementById("doc");
+  var tabs = Array.prototype.slice.call(document.querySelectorAll("nav.tabs button"));
+
+  function slug(text) {
+    return text.trim().toLowerCase().replace(/[^\w\- ]+/g, "").replace(/ /g, "-");
+  }
+
+  function decorate(root) {
+    root.querySelectorAll("h1, h2, h3").forEach(function (h) { h.id = slug(h.textContent); });
+    root.querySelectorAll("table").forEach(function (t) {
+      var w = document.createElement("div"); w.className = "tablewrap";
+      t.parentNode.insertBefore(w, t); w.appendChild(t);
+    });
+    root.querySelectorAll("p > img:only-child").forEach(function (img) {
+      var p = img.parentNode;
+      var fig = document.createElement("figure"); fig.className = "shot";
+      var a = document.createElement("a"); a.href = img.getAttribute("src"); a.target = "_blank"; a.rel = "noopener";
+      img.loading = "lazy";
+      a.appendChild(img); fig.appendChild(a);
+      if (img.alt) { var cap = document.createElement("figcaption"); cap.textContent = img.alt; fig.appendChild(cap); }
+      p.replaceWith(fig);
+    });
+    root.querySelectorAll("p > strong:first-child").forEach(function (s) {
+      var t = s.textContent.toLowerCase();
+      var p = s.parentNode;
+      if (t.indexOf("standard activity") === 0) p.classList.add("narr", "std");
+      else if (t.indexOf("novel approach") === 0) p.classList.add("narr", "novel");
+      else if (t.indexOf("unique value") === 0) p.classList.add("narr", "value");
+      else if (t.indexOf("reproduce") === 0) p.classList.add("repro");
+    });
+    root.querySelectorAll("a[href]").forEach(function (a) {
+      var href = a.getAttribute("href");
+      if (/^https?:/i.test(href) || href.charAt(0) === "#" || /\.svg$/i.test(href)) return;
+      var file = href.split("#")[0];
+      if (BY_FILE[file]) { a.href = "#" + BY_FILE[file]; a.dataset.doc = BY_FILE[file]; return; }
+      a.href = REPO + href; a.target = "_blank"; a.rel = "noopener";
+    });
+  }
+
+  function show(key, scroll) {
+    tabs.forEach(function (b) { b.setAttribute("aria-selected", b.dataset.doc === key ? "true" : "false"); });
+    try { history.replaceState(null, "", "#" + key); } catch (e) {}
+    var render = function (md) {
+      docEl.innerHTML = window.marked ? marked.parse(md) : "<pre>" + md.replace(/</g, "&lt;") + "</pre>";
+      decorate(docEl);
+      if (scroll) window.scrollTo({ top: 0 });
+    };
+    if (cache[key]) { render(cache[key]); return; }
+    docEl.innerHTML = '<p class="status">Loading the tour…</p>';
+    fetch(DOCS[key]).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.text();
+    }).then(function (md) { cache[key] = md; render(md); })
+      .catch(function () { docEl.innerHTML = '<p class="status">The tour text could not be loaded. Reload the page to try again.</p>'; });
+  }
+
+  tabs.forEach(function (b) { b.addEventListener("click", function () { show(b.dataset.doc, true); }); });
+  docEl.addEventListener("click", function (e) {
+    var a = e.target.closest("a"); if (!a) return;
+    if (a.dataset.doc) { e.preventDefault(); show(a.dataset.doc, true); return; }
+    var href = a.getAttribute("href");
+    if (href && href.charAt(0) === "#" && !DOCS[href.slice(1)]) {
+      var t = document.getElementById(href.slice(1));
+      if (t) { e.preventDefault(); t.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    }
+  });
+  var start = (location.hash || "").slice(1);
+  show(DOCS[start] ? start : "phase-0", false);
+})();
+</script>
