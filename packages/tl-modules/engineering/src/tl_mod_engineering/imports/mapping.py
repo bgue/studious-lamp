@@ -157,7 +157,8 @@ def read_rows(text: str, mapping: TagListMapping) -> list[ImportRow]:
     blank line is skipped. For each row: cells are stripped; a blank cell leaves the field unset;
     a tag number that is blank, a code the mapping's ``values`` does not know, or a cell that is not
     of its column's type is a problem of that row (the field stays unset). ``raw`` holds every
-    cell by header, including columns the mapping does not mention.
+    cell by header, including columns the mapping does not mention. A cell with a control
+    character (other than tab, CR and LF) is a problem of its row too.
 
     Raises ``MappingError`` when the file has no header row, lacks a column the mapping names (the
     message lists every missing column) or is not valid CSV (an unterminated quote).
@@ -199,6 +200,9 @@ def read_rows(text: str, mapping: TagListMapping) -> list[ImportRow]:
                 if column.to == "number":
                     problems.append("the tag number is blank")
                 continue
+            if any((ord(c) < 32 and c not in "\t\r\n") or ord(c) == 127 for c in cell):
+                problems.append(f"{column.column}: holds a control character")
+                continue  # a NUL would also break a Postgres write, so it never leaves the file
             value, problem = _read_cell(column, cell)
             if problem is not None:
                 problems.append(problem)
