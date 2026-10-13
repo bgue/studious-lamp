@@ -1,0 +1,17 @@
+DOC NO,TITLE,DOC TYPE,DISCIPLINE,ORIGINATOR,REV,STATUS,REV DATE,FILE PATH,CHECKED BY,REMARKS
+ISO-0101,"Isometric, line 47-P-101",ISOMETRIC,PIPING,Acme Piping,C,IFC,2024-02-12,\\dms\p123\iso\ISO-0101_C.pdf,R. Singh,
+ISO-0102,"Isometric, line 47-P-102",ISOMETRIC,PIPING,Acme Piping,B,IFC,2024-02-12,\\dms\p123\iso\ISO-0102_B.pdf,R. Singh,
+PID-0001,P&ID feed gas section,P&ID,PROCESS,Acme Process,D,AFC,2024-01-20,\\dms\p123\pid\PID-0001_D.pdf,L. Moreau,Hold 3 open
+PID-0002,P&ID flare header,P&ID,PROCESS,Acme Process,A,IFR,2024-03-02,\\dms\p123\pid\PID-0002_A.pdf,,
+DS-0010,Datasheet control valve 47-FV-1001,DATASHEET,INSTRUMENTATION,Borealis,2,IFC,2024-02-27,\\dms\p123\ds\DS-0010_2.pdf,J. Okafor,
+DS-0011,Datasheet pressure transmitter 47-PT-1005,DATASHEET,INSTRUMENTATION,Borealis,1,IFR,2024-03-05,,,
+LD-0020,Loop diagram 47-FIC-1001,LOOP DIAGRAM,INSTRUMENTATION,Borealis,0,IFA,2024-03-06,,,
+SPC-0003,Piping material specification,SPECIFICATION,PIPING,Acme Piping,3,IFC,2023-11-30,\\dms\p123\spc\SPC-0003_3.pdf,R. Singh,
+CAL-0007,Pipe stress calculation line 47-P-101,CALCULATION,STRUCTURAL,Acme Structural,A,IFR,2024-03-08,,,
+ISO-0101,"Isometric, line 47-P-101 (copy)",ISOMETRIC,PIPING,Acme Piping,A,IFA,2023-12-01,,,Duplicate number
+ISO-12,"Isometric, short number",ISOMETRIC,PIPING,Acme Piping,A,IFA,2024-03-09,,,
+XYZ-0001,Unknown type code in the number,ISOMETRIC,PIPING,Acme Piping,A,IFA,2024-03-09,,,
+GA-0004,General arrangement unit 47,GENERAL ARRANGEMENT,WELDING,Acme Civil,B,IFC,2024-02-01,,,
+,Row with no number,DATASHEET,MECHANICAL,Borealis,1,IFR,2024-03-09,,,
+DS-0012,,DATASHEET,MECHANICAL,Borealis,1,IFR,2024-03-09,,,
+PRC-0002,Hot work procedure,PROCEDURE,PROCESS,Acme HSE,1,UNDER REVIEW,2024-03-10,,,

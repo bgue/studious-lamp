@@ -43,6 +43,7 @@ from tl_cli import (
     config,
     dev,
     doc,
+    doc_import,
     doc_link,
     doc_rendition,
     doc_report,
@@ -126,6 +127,7 @@ doc.app.command("link")(doc_link.link)
 doc.app.command("stale")(doc_link.stale)
 doc.app.command("diff")(doc_link.diff)
 doc.app.command("repin")(doc_link.repin)
+doc.app.command("import")(doc_import.import_documents)
 tag.app.add_typer(tag_report.app, name="report")
 tag.app.command("import")(tag_import.import_tags)
 app.add_typer(config.app, name="config")
