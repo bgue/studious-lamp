@@ -24,6 +24,9 @@ class KeyRequiredError(ServiceError): ...  # CreateRecord without a key
 class DuplicateKeyError(ServiceError): ...  # (scope, key) already exists, voided or not
 
 
+class ReservedKeyError(ServiceError): ...  # a typed-in key holds a character modules reserve
+
+
 class UnsupportedRecordTypeError(ServiceError): ...  # record_type other than "core.Record"
 
 

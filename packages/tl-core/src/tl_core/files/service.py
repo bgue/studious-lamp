@@ -51,7 +51,7 @@ from tl_core.files.scan import PassScanner, Scanner, ScanResult
 from tl_core.files.slots import FileSlotRegistry, default_file_slots
 from tl_core.files.types import ObjectNotFound, ObjectStore, object_key
 from tl_core.ledger import Event, NewEvent
-from tl_core.modules import require_generic_command
+from tl_core.modules import require_generic
 from tl_core.services.commands import Command
 from tl_core.services.errors import (
     ContentRejectedError,
@@ -220,7 +220,7 @@ class FileService:
 
     def register_upload(self, uow: UnitOfWork, cmd: RegisterUpload) -> UploadTicket:
         """Check the declaration and answer with a dedupe hit or a presigned staging URL."""
-        record = self._load_record(uow, cmd.scope, cmd.record_id)
+        record = self._load_record(uow, cmd.scope, cmd.record_id, cmd.slot)
         self._check_declared(uow, record, cmd)
         key = object_key(cmd.sha256)
         exists = (
@@ -345,11 +345,13 @@ class FileService:
         return self._slots
 
     @staticmethod
-    def _load_record(uow: UnitOfWork, scope: str, record_id: str) -> _Record:
+    def _load_record(
+        uow: UnitOfWork, scope: str, record_id: str, slot: str | None = None
+    ) -> _Record:
         row = uow.conn().execute(_RECORD_SQL, {"id": record_id}).first()
         if row is None or row.scope != scope:
             raise RecordNotFoundError(f"no record {record_id!r} in scope {scope!r}")
-        require_generic_command(row.type, "AttachFile")
+        require_generic(uow.conn(), row.type, "AttachFile", record_id, slot=slot)
         if row.voided:
             raise RecordVoidedError(f"record {record_id!r} is voided; files cannot be attached")
         return _Record(id=row.id, type=row.type)
@@ -440,7 +442,7 @@ class FileService:
     def _attach(
         self, uow: UnitOfWork, cmd: AttachFile, *, data: BinaryIO | None, staging: str | None
     ) -> FileResult:
-        record = self._load_record(uow, cmd.scope, cmd.record_id)
+        record = self._load_record(uow, cmd.scope, cmd.record_id, cmd.slot)
         self._check_declared(uow, record, cmd)
         same = self._same_attachment(uow, cmd)
         if same is not None:

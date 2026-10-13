@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 
 from tl_core.ledger import NewEvent
-from tl_core.modules import bound_psets, require_generic_command
+from tl_core.modules import bound_psets, require_generic
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import (
     GuardFailedError,
@@ -160,7 +160,7 @@ def handle_transition_workflow(
     """
     row = _load(uow, cmd.stream_id, cmd.scope)
     if not by_module:
-        require_generic_command(row.type, "TransitionWorkflow")
+        require_generic(uow.conn(), row.type, "TransitionWorkflow", cmd.stream_id)
     if row.voided:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot change state")
     definition = _definition(row, f"record {row.key or cmd.stream_id}")
