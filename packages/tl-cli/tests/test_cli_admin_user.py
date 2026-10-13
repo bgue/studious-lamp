@@ -166,6 +166,61 @@ def test_roles_changes_them_and_records_who_and_why(env: dict[str, str]) -> None
     assert actor == "user:root" and "promoted" in payload
 
 
+def test_document_controller_is_granted_and_taken_back_with_add_and_remove(
+    env: dict[str, str],
+) -> None:
+    assert add(env, "amy") == 0
+    granted = tl(env, "admin", "user", "roles", "amy", "--add", "document_controller",
+                 "--reason", "takes over document control")  # fmt: skip
+    assert granted.exit_code == 0, granted.stderr
+    assert granted.stdout.strip() == "amy  person  document_controller,user  active"
+    actor, payload = events(env, "Account.RolesSet")[-1]
+    assert actor == "user:root" and "document_controller" in payload and "takes over" in payload
+    back = tl(env, "admin", "user", "roles", "amy", "--remove", "document_controller")
+    assert back.exit_code == 0 and back.stdout.strip() == "amy  person  user  active"
+    # replace works with the new name too, and a controller may stand alone
+    only = tl(env, "admin", "user", "roles", "amy", "--role", "document_controller")
+    assert only.exit_code == 0 and only.stdout.strip() == "amy  person  document_controller  active"
+    shown = tl(env, "admin", "user", "show", "amy")
+    assert "roles document_controller" in shown.stdout
+
+
+def test_roles_takes_replace_or_add_and_remove_and_never_both(env: dict[str, str]) -> None:
+    assert add(env, "amy") == 0
+    both = tl(env, "admin", "user", "roles", "amy", "--role", "user", "--add", "admin")
+    assert both.exit_code == 2
+    nothing = tl(env, "admin", "user", "roles", "amy")
+    assert nothing.exit_code == 2
+    unknown = tl(env, "admin", "user", "roles", "amy", "--add", "controller")
+    assert unknown.exit_code == 1 and "unknown role controller" in unknown.stderr
+    assert "document_controller" in unknown.stderr
+    emptied = tl(env, "admin", "user", "roles", "amy", "--remove", "user")
+    assert emptied.exit_code == 1 and "at least one role" in emptied.stderr
+    same = tl(env, "admin", "user", "roles", "amy", "--add", "user")
+    assert same.exit_code == 1 and "already" in same.stderr
+    assert tl(env, "admin", "user", "ls").stdout.count("amy  person  user  active") == 1
+
+
+def test_an_agent_account_is_refused_the_role_by_the_command(env: dict[str, str]) -> None:
+    made = tl(env, "admin", "user", "add", "triage", "--kind", "agent")
+    assert made.exit_code == 0, made.stderr
+    refused = tl(env, "admin", "user", "roles", "triage", "--add", "document_controller")
+    assert refused.exit_code == 1
+    assert "agent account cannot hold the document_controller role" in refused.stderr
+    again = tl(
+        env, "admin", "user", "add", "bot2", "--kind", "agent", "--role", "document_controller"
+    )
+    assert again.exit_code == 1 and "document_controller" in again.stderr
+    assert "triage  agent  user  active" in tl(env, "admin", "user", "ls").stdout
+
+
+def test_a_sim_account_may_be_a_document_controller(env: dict[str, str]) -> None:
+    made = tl(env, "admin", "user", "add", "sim-dc", "--kind", "sim", "--role", "user",
+              "--role", "document_controller", "--password-stdin", stdin=GOOD)  # fmt: skip
+    assert made.exit_code == 0, made.stderr
+    assert "sim-dc  sim  document_controller,user  active" in tl(env, "admin", "user", "ls").stdout
+
+
 def test_the_last_admin_cannot_be_demoted_or_disabled_and_a_no_op_is_refused(
     env: dict[str, str],
 ) -> None:
@@ -175,7 +230,7 @@ def test_the_last_admin_cannot_be_demoted_or_disabled_and_a_no_op_is_refused(
     assert disable.exit_code == 1 and "last active admin" in disable.stderr
     same = tl(env, "admin", "user", "roles", "root", "--role", "admin")
     assert same.exit_code == 1 and "already" in same.stderr
-    assert tl(env, "admin", "user", "roles", "root").exit_code == 2  # --role is required
+    assert tl(env, "admin", "user", "roles", "root").exit_code == 2  # a change is required
 
 
 def test_disable_ends_sessions_and_blocks_sign_in_until_enabled(
@@ -292,3 +347,25 @@ def test_help_lists_the_seven_commands(env: dict[str, str]) -> None:
     out = tl(env, "admin", "user", "--help").stdout
     for name in ("ls", "show", "add", "roles", "disable", "enable", "reset-password"):
         assert f" {name} " in out
+
+
+def test_add_and_remove_start_from_the_roles_the_write_sees_not_from_an_earlier_read(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Another admin gave amy the controller role between the lookup and the change."""
+    from tl_cli import admin_user
+    from tl_cli.admin import find_account as real
+
+    assert add(env, "amy") == 0
+    assert tl(env, "admin", "user", "roles", "amy", "--add", "document_controller").exit_code == 0
+
+    def stale(backend: object, username: str):  # type: ignore[no-untyped-def]
+        found = real(backend, username)  # type: ignore[arg-type]
+        return found.model_copy(update={"roles": ["user"]})  # the list as it was before
+
+    monkeypatch.setattr(admin_user, "find_account", stale)
+    result = tl(env, "admin", "user", "roles", "amy", "--add", "admin")
+    assert result.exit_code == 0, result.stderr
+    assert result.stdout.strip() == "amy  person  admin,document_controller,user  active"
+    gone = tl(env, "admin", "user", "roles", "amy", "--remove", "user")
+    assert gone.stdout.strip() == "amy  person  admin,document_controller  active"

@@ -40,12 +40,14 @@ enums:
       disabled:
         description: Cannot sign in; its sessions and agent tokens are refused.
   AccountRole:
-    description: The two roles of Phase 1 (ADR-0008 decision 3).
+    description: The three roles of Phase 1 (ADR-0008 decision 3, amended by ADR-0013).
     permissible_values:
       admin:
         description: Everything, including the admin module.
       user:
-        description: Everything except `admin.*` actions.
+        description: Everything except `admin.*` and `control.*` actions.
+      document_controller:
+        description: A user who may also run the controlling acts of document control (`control.*`). Not an admin; never held by an agent.
 
 classes:
   Account:
@@ -75,7 +77,7 @@ classes:
       roles:
         range: Any
         required: true
-        description: JSON list of roles, `["admin"]`, `["user"]` or both.
+        description: JSON list of roles from `admin`, `user` and `document_controller`, for example `["user", "document_controller"]`.
         annotations:
           tl:json: true
       is_admin:

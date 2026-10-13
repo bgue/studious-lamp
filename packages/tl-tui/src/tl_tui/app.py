@@ -109,6 +109,7 @@ class TlApp(App[None]):
         mode: str = "embedded",
         roles: tuple[str, ...] = (),
         is_admin: bool = False,
+        is_controller: bool = False,
         feed: ChangeFeed | None = None,
     ) -> None:
         super().__init__()
@@ -121,6 +122,8 @@ class TlApp(App[None]):
         # Roles the user claims for workflow guards: a stub until auth exists (brief 8).
         self.roles = roles
         self.is_admin = is_admin  # the person signed in holds the admin role (F10 accounts screen)
+        # an admin or a document controller: the document screens offer the controlling acts
+        self.is_controller = is_controller or is_admin
         self.tray = ReferenceTray()
         self.history = NavHistory()
         self._open_key: str | None = None
@@ -539,7 +542,11 @@ class TlApp(App[None]):
         if project is None:
             self.notify("The document register needs a project.", severity="warning")
             return
-        self.push_screen(DocumentRegisterScreen(self.client, project, self.actor))
+        self.push_screen(
+            DocumentRegisterScreen(
+                self.client, project, self.actor, is_controller=self.is_controller
+            )
+        )
 
     def action_tags(self) -> None:
         """The tag register of this project: class, state, conformance, what each tag lacks."""

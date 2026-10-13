@@ -12,6 +12,7 @@ from tl_core.auth.errors import AccountNotFoundError
 from tl_core.auth.names import actor_for, is_id, username_key
 from tl_core.auth.types import (
     DEMO_USERNAME,
+    ROLES,
     AccountKind,
     AccountStatus,
     AccountView,
@@ -31,7 +32,7 @@ def load_roles(value: Any) -> list[Role]:
     """The roles column as a list: SQLite returns JSON text, Postgres JSONB returns a list."""
     raw: Any = json.loads(value) if isinstance(value, (str, bytes, bytearray)) else value
     items = cast("list[Any]", raw) if isinstance(raw, list) else []
-    return [cast(Role, str(r)) for r in items if str(r) in ("admin", "user")]
+    return [cast(Role, str(r)) for r in items if str(r) in ROLES]
 
 
 def account_view(row: Any) -> AccountView:

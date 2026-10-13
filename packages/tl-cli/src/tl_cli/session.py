@@ -307,3 +307,15 @@ def require_admin(db: DbTarget) -> Principal:
     if not principal.is_admin:
         fail("forbidden: this command needs the admin role")
     return principal
+
+
+def require_controller(db: DbTarget) -> Principal:
+    """Like :func:`require_session`, and the principal must be an admin or a document controller.
+
+    The gate of the controlling acts of document control (ADR-0013). Anything else exits 1 with
+    `error: forbidden: ...`; an agent session cannot exist, and an agent cannot hold the role.
+    """
+    principal = require_session(db)
+    if not principal.is_controller:
+        fail("forbidden: this command needs the document_controller or admin role")
+    return principal

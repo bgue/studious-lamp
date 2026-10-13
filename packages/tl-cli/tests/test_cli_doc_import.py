@@ -56,7 +56,7 @@ def test_the_preview_says_what_would_happen_and_writes_nothing(env: dict[str, st
     assert register(env) == []
 
 
-def test_apply_is_for_an_admin_and_refuses_a_file_with_invalid_rows(
+def test_apply_is_for_a_controller_and_refuses_a_file_with_invalid_rows(
     env: dict[str, str], tmp_path: Path
 ) -> None:
     if admin_session(env):
@@ -70,7 +70,7 @@ def test_apply_is_for_an_admin_and_refuses_a_file_with_invalid_rows(
 def test_a_user_can_preview_but_cannot_apply_and_nothing_is_written(
     env: dict[str, str], tmp_path: Path
 ) -> None:
-    """A bulk write into the controlled register is the admin's (ADR-0011), like `tl tag import`."""
+    """A bulk write into the controlled register is a controller's act (ADR-0013)."""
     if not admin_session(env):
         return  # on Postgres the test session is already an admin: there is no user to refuse
     user = ordinary_env(env, tmp_path)

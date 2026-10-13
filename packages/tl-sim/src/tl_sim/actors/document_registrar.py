@@ -25,8 +25,9 @@ and the document number pattern. One working day (``act``), in this order, drawi
    ctx.rng.choice(created)`` and link them with ``rec.link(tag, document, "references")``. Only a
    document created today is linked, so a pair is never linked twice.
 
-No revision is issued: issuing is an admin's act (ADR-0011) and a simulated person is never an
-admin, so no pin goes stale in a simulation. The link is floating.
+No revision is issued: issuing is a document controller's act (ADR-0013) and a simulated person
+signs in with a dev token, which carries the `user` role only (ADR-0009 section 9), so no pin goes
+stale in a simulation. The link is floating.
 """
 
 from __future__ import annotations

@@ -210,7 +210,55 @@ def test_links_and_the_workflow_through_commands(harness: Harness) -> None:
 @pytest.mark.parametrize("spec", COMMANDS, ids=lambda s: s.name)
 def test_a_command_with_no_body_is_a_422_not_a_500(harness: Harness, spec) -> None:  # type: ignore[no-untyped-def]
     response = harness.client.post(f"/commands/{spec.name}", json={})
-    if spec.access == "admin":  # the dev-token person is not an admin: refused before the body
+    if spec.access in ("admin", "controller"):  # a dev-token person holds neither: refused first
         assert response.status_code == 403 and response.json()["error"] == "forbidden"
         return
     assert response.status_code == 422 and response.json()["error"] == "validation_error"
+
+
+def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> None:
+    """The authorizer's list (ADR-0013) is derived from the typed table; this pins the ten."""
+    from tl_api.commands import controller_actions
+
+    assert controller_actions() == {
+        f"control.command.{name}"
+        for name in (
+            "SetDocumentConfidentiality",
+            "SupersedeDocument",
+            "VoidDocument",
+            "IssueRevision",
+            "SupersedeRevision",
+            "RegisterSignedRendition",
+            "ReplaceSignedRendition",
+            "IssueTransmittal",
+            "RecordReviewOutcomeOnBehalf",
+            "OverrideReviewOutcome",
+        )
+    }
+    assert {s.name for s in COMMANDS if s.access == "controller"} == {
+        a.removeprefix("control.command.") for a in controller_actions()
+    }
+
+
+def test_the_core_and_engineering_admin_commands_are_not_controller_commands() -> None:
+    """RecordTag, the registry and the link recovery commands stay the admin's (ADR-0013)."""
+    stay_admin = {s.name for s in COMMANDS if s.access == "admin"}
+    assert {"AdminFlagLink", "AdminRetractLink", "RecordTag", "RegisterCodeList"} <= stay_admin
+
+
+def test_an_unknown_access_value_has_no_action_so_it_fails_closed() -> None:
+    from tl_api.commands import CommandSpec, action_for
+    from tl_core.services.commands import CreateRecord
+    from tl_core.services.records import handle_create_record
+
+    known = {"admin": "admin.command.", "controller": "control.command.", "user": "command."}
+    for access, prefix in known.items():
+        spec = CommandSpec(CreateRecord, handle_create_record, access)  # type: ignore[arg-type]
+        assert action_for(spec) == f"{prefix}CreateRecord"
+    assert action_for(CommandSpec(CreateRecord, handle_create_record, "company")) == (
+        "command.CreateRecord"
+    )
+    for typo in ("Controller", "control", "", "admn"):
+        bad = CommandSpec(CreateRecord, handle_create_record, typo)  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match="unknown access"):
+            action_for(bad)

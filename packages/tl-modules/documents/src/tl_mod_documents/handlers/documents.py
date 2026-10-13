@@ -99,7 +99,7 @@ class RegisterDocument(Command):
 
 class UpdateDocument(Command):
     """Change a document's title, description or register fields (not its number, its scheme or
-    its confidentiality, which an admin sets with ``SetDocumentConfidentiality``)."""
+    its confidentiality, which a document controller sets with ``SetDocumentConfidentiality``)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -119,7 +119,7 @@ class UpdateDocument(Command):
 
 
 class SetDocumentConfidentiality(Command):
-    """Set or clear a document's confidentiality class (admin). The reason is kept.
+    """Set or clear a document's confidentiality class (controller). The reason is kept.
 
     In Phase 1 confidentiality is recorded but not enforced: every signed-in person and every
     agent can read all documents and transmittals of a project, including recipient emails.
@@ -141,7 +141,7 @@ class SetDocumentConfidentiality(Command):
 
 
 class SupersedeDocument(Command):
-    """Replace a document by another one: the old is Superseded and its links go stale (admin).
+    """Replace a document by another one: the old is Superseded and its links go stale (controller).
 
     The replacement must be a live document that has a current issued revision; a reason is
     required. Its document type may differ (an isometric can be replaced by a general arrangement),
@@ -162,7 +162,7 @@ class SupersedeDocument(Command):
 
 
 class VoidDocument(Command):
-    """Void a document that was registered in error. Its links go stale. Admin only."""
+    """Void a document that was registered in error. Its links go stale. Controller only."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -454,7 +454,7 @@ def handle_void_document(uow: UnitOfWork, cmd: VoidDocument) -> CommandResult:
 def handle_set_document_confidentiality(
     uow: UnitOfWork, cmd: SetDocumentConfidentiality
 ) -> CommandResult:
-    """Append ``Document.Updated`` with the new confidentiality class and the reason (admin).
+    """Append ``Document.Updated`` with the new confidentiality class and the reason (controller).
 
     Raises ``DocumentNotFoundError``, ``DocumentClosedError`` and ``NoChangesError``.
     """

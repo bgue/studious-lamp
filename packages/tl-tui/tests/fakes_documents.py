@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from tl_core.auth.errors import ForbiddenError
 from tl_core.services.commands import CommandResult
 from tl_core.services.errors import RecordNotFoundError
 from tl_mod_documents import reports, views
@@ -21,7 +22,7 @@ from tl_mod_documents.errors import (
     RevisionNotFoundError,
     TransmittalNotFoundError,
 )
-from tl_mod_documents.handlers.transmittals import CreateTransmittal
+from tl_mod_documents.handlers.transmittals import CreateTransmittal, IssueTransmittal
 from tl_mod_documents.resolver import CURRENT, RepinDocumentLink
 
 
@@ -35,6 +36,7 @@ class FakeDocumentSupport:
         self._overdue: dict[str, list[reports.OverdueLine]] = {}
         self._diffs: dict[tuple[str, str, str, str], views.RevisionDiffView] = {}
         self.document_commands: list[object] = []  # every command a document screen sent
+        self.is_controller = True  # False: issuing raises ForbiddenError, as the server would
 
     def seed_documents(self, project: str = "P123") -> None:
         """Three documents the document screens' tests share.
@@ -294,3 +296,16 @@ class FakeDocumentSupport:
             items=items,
         )
         return CommandResult(stream_id=known[number].id, key=number, version=2, events=[])
+
+    def issue_transmittal(self, cmd: IssueTransmittal) -> CommandResult:
+        """Issue a stored draft; a caller who is not a controller or an admin is refused."""
+        self.calls.append("issue_transmittal")  # type: ignore[attr-defined]
+        self.document_commands.append(cmd)
+        if not self.is_controller:
+            raise ForbiddenError("this action needs the document_controller or admin role")
+        for known in self._transmittals.values():
+            for number, view in known.items():
+                if view.id == cmd.stream_id:
+                    known[number] = view.model_copy(update={"state": "Issued", "version": 3})
+                    return CommandResult(stream_id=view.id, key=number, version=3, events=[])
+        raise RecordNotFoundError(f"no transmittal {cmd.stream_id!r}")

@@ -146,6 +146,48 @@ def test_the_admin_box_and_the_kind_choose_the_roles_and_the_kind() -> None:
     ]
 
 
+def test_the_controller_box_adds_the_document_controller_role() -> None:
+    client = seeded()
+    app = Host(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await open_form(pilot, app, "a", AccountForm)
+        fill(app, username="dora", password=GOOD, repeat=GOOD)
+        app.screen.query_one("#form-controller", Checkbox).value = True
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        await open_form(pilot, app, "a", AccountForm)
+        fill(app, username="both", password=GOOD, repeat=GOOD)
+        app.screen.query_one("#form-admin", Checkbox).value = True
+        app.screen.query_one("#form-controller", Checkbox).value = True
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+
+    run_pilot(app, scenario)
+    made = calls(client, "create_account")
+    assert [(c["username"], c["roles"]) for c in made] == [
+        ("dora", ["user", "document_controller"]),
+        ("both", ["admin", "user", "document_controller"]),
+    ]
+
+
+def test_an_agent_with_the_controller_box_ticked_is_refused_by_the_service() -> None:
+    client = seeded()
+    app = Host(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await open_form(pilot, app, "a", AccountForm)
+        fill(app, username="bot")
+        app.screen.query_one("#form-kind", RadioSet).query(RadioButton)[2].value = True
+        app.screen.query_one("#form-controller", Checkbox).value = True
+        await pilot.press("ctrl+s")
+        await pilot.pause()
+        assert isinstance(app.screen, AccountForm)  # stays open, the refusal under the fields
+        assert "agent account cannot hold the document_controller role" in error(app)
+
+    run_pilot(app, scenario)
+
+
 def test_an_agent_is_added_without_a_password() -> None:
     client = seeded()
     app = Host(client)

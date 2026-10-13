@@ -12,7 +12,7 @@ endpoints' annotations at run time, and one of them closes over a local (the act
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel, ConfigDict, Field, create_model
@@ -34,15 +34,19 @@ from tl_core.services.workflow import TransitionWorkflow, handle_transition_work
 from tl_core.uow import UnitOfWork
 from tl_core.util import effective_time
 from tl_mod_documents.commands import API_COMMANDS as DOCUMENT_COMMANDS
-from tl_mod_engineering.commands import API_COMMANDS, Access
+from tl_mod_engineering.commands import API_COMMANDS
 
 from tl_api.auth import AGENT_DIRECT_COMMANDS, current_principal, guard
 from tl_api.context import get_ctx
 from tl_api.effective import EFFECTIVE_AT_HEADER, resolve_effective_at
 
 Handler = Callable[[UnitOfWork, Any], CommandResult]
+Access = Literal[
+    "admin", "controller", "company", "user"
+]  # a typo is a type error, not an open door
 SOURCE_PATTERN = r"^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$"
 DEFAULT_SOURCE = "api"
+CONTROLLER_PREFIX = "control.command."
 
 
 @dataclass(frozen=True)
@@ -50,7 +54,8 @@ class CommandSpec:
     model: type[Command]
     handler: Handler
     #: "user": any signed-in person; "admin": only an admin (action ``admin.command.<Name>``);
-    #: "company": an admin when ``scope`` is ``company``, any signed-in person otherwise.
+    #: "controller": an admin or a document controller (action ``control.command.<Name>``,
+    #: ADR-0013); "company": an admin when ``scope`` is ``company``, any signed-in person otherwise.
     access: Access = "user"
 
     @property
@@ -109,8 +114,24 @@ def request_model(model: type[Command], name: str) -> type[BaseModel]:
     )
 
 
+def action_for(spec: CommandSpec) -> str:
+    """The authorization action of a command: one explicit prefix per access level."""
+    if spec.access == "admin":
+        return f"admin.command.{spec.name}"
+    if spec.access == "controller":
+        return f"{CONTROLLER_PREFIX}{spec.name}"
+    if spec.access in ("company", "user"):
+        return f"command.{spec.name}"
+    raise ValueError(f"unknown access {spec.access!r} for {spec.name}")  # fail closed at start-up
+
+
+def controller_actions() -> frozenset[str]:
+    """The exact ``control.command.<Name>`` actions a document controller may run (ADR-0013)."""
+    return frozenset(action_for(spec) for spec in COMMANDS if spec.access == "controller")
+
+
 def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[..., CommandResult]:
-    action = f"admin.command.{spec.name}" if spec.access == "admin" else f"command.{spec.name}"
+    action = action_for(spec)
     changes_records = spec.name not in AGENT_DIRECT_COMMANDS
 
     def endpoint(

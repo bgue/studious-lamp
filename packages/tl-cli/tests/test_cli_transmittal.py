@@ -148,7 +148,7 @@ def test_show_of_an_unknown_number_is_an_error(env: dict[str, str]) -> None:
 # --- issue, answer, close, void -------------------------------------------------------------------
 
 
-def test_issue_is_for_an_admin_and_dates_are_today_unless_a_reason_backs_them(
+def test_issue_is_for_a_controller_and_dates_are_today_unless_a_reason_backs_them(
     env: dict[str, str], issued: DocumentsWorld, tmp_path: Path
 ) -> None:
     create(env)

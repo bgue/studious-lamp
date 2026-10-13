@@ -13,7 +13,7 @@ Phase 0 stopped at the end of its scope (`docs/reports/STOPPED.md`) and left hum
 2. **Authentication now: username and password.** Microsoft Entra ID (OIDC) comes later. Identity is resolved behind one seam, so Entra can replace the password provider without changing callers.
    - Accounts, password hashing, sessions or tokens, and lockout are the orchestrator's design, recorded in an ADR for the owner's review.
    - Any new dependency must pass the licence gate.
-3. **Authorization: an admin module with two roles, `admin` and `user`.** It has no per-scope or per-record ACLs in Phase 1.
+3. **Authorization: an admin module with two roles, `admin` and `user`.** It has no per-scope or per-record ACLs in Phase 1. *Amended 2026-10-13 by ADR-0013 (owner request): a third role, `document_controller`, holds the controlling acts of document control. Still no per-scope or per-record ACLs.*
    - The admin module manages accounts, roles and agent service tokens. It is reachable from the CLI, API and TUI.
    - ADR-0005 is superseded for production use. The dev-token path may stay for tests.
 4. **Seed account `demo` / `demo`.** It exists in dev and demo setups only, created by `just seed` and `tl init --dev`. It is refused when `TL_ENV=prod` or when the server binds a non-loopback address. A startup warning is shown while it exists.

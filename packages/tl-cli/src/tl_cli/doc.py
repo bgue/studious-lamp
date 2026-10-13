@@ -36,7 +36,7 @@ from tl_mod_documents.handlers.documents import (
 )
 from tl_mod_documents.handlers.revisions import CreateRevision, handle_create_revision
 
-from tl_cli.session import require_admin
+from tl_cli.session import require_controller
 
 app = typer.Typer(help="Register, show and change controlled documents.", no_args_is_help=True)
 
@@ -301,7 +301,7 @@ def confidentiality(
     clear: Annotated[bool, typer.Option("--clear", help="Remove the class.")] = False,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Set or clear a document's confidentiality class (admin). The reason is kept.
+    """Set or clear a document's confidentiality class (controller). The reason is kept.
 
     In Phase 1 the class is recorded but not enforced: every signed-in person and every agent can
     read all documents and transmittals of a project, including recipient emails.
@@ -310,7 +310,7 @@ def confidentiality(
     scope = f"project:{project}"
     if (value is None) == (not clear):
         _fail("give the new class with --class, or --clear to remove it")
-    require_admin(db)
+    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         row = _document(uow, scope, project, number)
         handle_set_document_confidentiality(
@@ -336,10 +336,10 @@ def supersede(
     reason: _Reason,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Replace a document by another one (admin). Every link to the old one goes stale."""
+    """Replace a document by another one (controller). Every link to the old one goes stale."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_admin(db)
+    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         old = _document(uow, scope, project, number)
         new = _document(uow, scope, project, by)
@@ -365,10 +365,10 @@ def void(
     reason: _Reason,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Void a document registered in error (admin). Every link to it goes stale."""
+    """Void a document registered in error (controller). Every link to it goes stale."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_admin(db)
+    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         row = _document(uow, scope, project, number)
         handle_void_document(

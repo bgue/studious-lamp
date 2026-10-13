@@ -274,3 +274,18 @@ def test_write_mode_is_refused_before_the_token_is_read(
     monkeypatch.delenv("TL_AGENT_TOKEN", raising=False)
     assert main(["--db", str(tmp_path / "x.db"), "--tool-mode", "create_record=write"]) == 2
     assert "human gate" in capsys.readouterr().err
+
+
+def test_no_agent_action_is_a_controlling_act(world: Setup) -> None:
+    """ADR-0013: an agent proposes and never controls, and no list can open a `control.*` action."""
+    from tl_core.auth.provider import AGENT_ACTIONS
+
+    assert not [a for a in AGENT_ACTIONS | MCP_ACTIONS if a.startswith(("control.", "admin."))]
+    hook = token_authorizer(world.factory, world.token)
+    for action in (
+        "control.command.IssueRevision",
+        "control.command.IssueTransmittal",
+        "control.command.OverrideReviewOutcome",
+    ):
+        with pytest.raises(ForbiddenError):
+            hook("agent:triage", action, "x")

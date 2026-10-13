@@ -96,7 +96,9 @@ def test_markups_are_additive_one_never_replaces_another(world: World) -> None:
     ]
 
 
-def test_the_signed_copy_is_registered_and_replaced_by_admin_commands_only(world: World) -> None:
+def test_the_signed_copy_is_registered_and_replaced_by_controller_commands_only(
+    world: World,
+) -> None:
     from tl_mod_documents.handlers.renditions import (
         RegisterSignedRendition,
         ReplaceSignedRendition,
@@ -108,7 +110,7 @@ def test_the_signed_copy_is_registered_and_replaced_by_admin_commands_only(world
     rev = world.revision("ISO-1234", "A")
     first_file = world.upload(rev.id, "signed", b"%PDF signed 1", "s1.pdf")
     # the ordinary command refuses a signed copy, the first one included
-    with pytest.raises(RenditionNotAllowedError, match="registered by an admin"):
+    with pytest.raises(RenditionNotAllowedError, match="registered by a document controller"):
         attach_file(world, rev.id, first_file.file_id)
     assert [r for r in renditions(world, "ISO-1234", "A") if r.kind == "signed"] == []
     with open_uow(world.db) as uow:
@@ -279,7 +281,7 @@ def test_the_preflight_refuses_what_the_command_would_before_a_file_is_uploaded(
 
     check("markup", "attach")
     check("signed", "register_signed")
-    with pytest.raises(RenditionNotAllowedError, match="registered by an admin"):
+    with pytest.raises(RenditionNotAllowedError, match="registered by a document controller"):
         check("signed", "attach")
     with pytest.raises(RenditionNotAllowedError, match="no signed copy to replace"):
         check("signed", "replace_signed")

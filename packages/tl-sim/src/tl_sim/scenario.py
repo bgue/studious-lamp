@@ -114,8 +114,8 @@ class TagClerkParams(Strict):
 class DocumentRegistrarParams(Strict):
     """Keeps the document register: registers documents under the company's numbering, starts the
     first revision of some, and links tags to documents (floating). Needs the document standards
-    loaded in the ledger. Issuing a revision is an admin's act (ADR-0011) and no simulated person
-    is an admin, so no revision is issued and no pin goes stale.
+    loaded in the ledger. Issuing a revision is a document controller's act (ADR-0013) and a
+    simulated person holds the `user` role only, so no revision is issued and no pin goes stale.
     """
 
     documents_per_day: Count = CountRange(min=1, max=3)

@@ -76,7 +76,10 @@ def add(
     ] = "person",
     role: Annotated[
         list[str] | None,
-        typer.Option("--role", help="admin or user; repeat for both. Default user."),
+        typer.Option(
+            "--role",
+            help="admin, user or document_controller; repeat for several. Default user.",
+        ),
     ] = None,
     password_stdin: _Stdin = False,
 ) -> None:
@@ -107,17 +110,43 @@ def add(
 def roles(
     ctx: typer.Context,
     username: _Name,
-    role: Annotated[list[str], typer.Option("--role", help="admin or user; repeat for both.")],
+    role: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--role",
+            help="Replace the roles with these: admin, user or document_controller; repeat.",
+        ),
+    ] = None,
+    add: Annotated[
+        list[str] | None, typer.Option("--add", help="Add this role to the ones it has; repeat.")
+    ] = None,
+    remove: Annotated[
+        list[str] | None, typer.Option("--remove", help="Take this role away; repeat.")
+    ] = None,
     reason: _Reason = None,
 ) -> None:
-    """Replace an account's roles. The last active admin cannot be demoted."""
+    """Change an account's roles: replace them (--role) or add and remove (--add, --remove).
+
+    The last active admin cannot be demoted; an agent account cannot hold admin or
+    document_controller.
+    """
     admin = require_admin(ctx.obj)
+    if role and (add or remove):
+        raise typer.BadParameter("give --role (replace) or --add and --remove, not both")
+    if not (role or add or remove):
+        raise typer.BadParameter("give --role, --add or --remove")
     backend = backend_of(ctx)
     with service_errors():
         target = find_account(backend, username)
         with backend() as uow:
+            # --add/--remove start from the roles as the write unit of work sees them (it holds the
+            # writer lock), so a role changed meanwhile is not overwritten with a stale list
+            current = queries.get_account(uow.conn(), target.account_id).roles
+            wanted = (
+                list(role) if role else sorted((set(current) | set(add or [])) - set(remove or []))
+            )
             view = accounts.set_roles(
-                uow, account_id=target.account_id, roles=role, by=admin.actor, reason=reason
+                uow, account_id=target.account_id, roles=wanted, by=admin.actor, reason=reason
             )
     typer.echo(account_line(view))
 

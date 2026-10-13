@@ -27,10 +27,10 @@ from tl_core.auth.errors import (
 )
 from tl_core.auth.names import MAX_DISPLAY_NAME, MAX_LABEL, check_reason, check_text, check_username
 from tl_core.auth.password import check_policy
-from tl_core.auth.types import AccountKind, AccountView, AgentTokenView, Role
+from tl_core.auth.types import ROLES, AccountKind, AccountView, AgentTokenView, Role
 
 _ADMIN_T0 = datetime(2026, 10, 9, 9, 0, 0, tzinfo=UTC)
-_ROLES = ("admin", "user")
+_ROLES = ROLES
 MAX_LIVE_TOKENS = 20
 
 
@@ -99,13 +99,15 @@ class FakeAdminSupport:
         unknown = sorted(set(roles) - set(_ROLES))
         if unknown:
             raise InvalidAccountError(
-                f"unknown role {', '.join(unknown)}; roles are admin and user"
+                f"unknown role {', '.join(unknown)}; roles are {', '.join(ROLES)}"
             )
-        found: list[Role] = [r for r in ("admin", "user") if r in set(roles)]  # type: ignore[misc]
+        found: list[Role] = [r for r in ROLES if r in set(roles)]
         if not found:
             raise InvalidAccountError("an account needs at least one role")
         if kind != "person" and "admin" in found:
             raise InvalidAccountError(f"a {kind} account cannot hold the admin role")
+        if kind == "agent" and "document_controller" in found:
+            raise InvalidAccountError("an agent account cannot hold the document_controller role")
         return found
 
     def _last_admin(self, view: AccountView, *, still_admin: bool) -> None:
@@ -153,11 +155,24 @@ class FakeAdminSupport:
         return self.seed_account(name, kind=kind, roles=role_list, display_name=shown)
 
     def set_roles(
-        self, account_id: str, roles: Sequence[str], *, reason: str | None = None
+        self,
+        account_id: str,
+        roles: Sequence[str],
+        *,
+        reason: str | None = None,
+        expected_roles: Sequence[str] | None = None,
     ) -> AccountView:
-        self._gate("set_roles", account_id=account_id, roles=list(roles), reason=reason)
+        self._gate(
+            "set_roles",
+            account_id=account_id,
+            roles=list(roles),
+            reason=reason,
+            expected_roles=None if expected_roles is None else list(expected_roles),
+        )
         check_reason(reason)
         view = self._account(account_id)
+        if expected_roles is not None and sorted(expected_roles) != sorted(view.roles):
+            raise AccountStateError("the roles changed since they were read; read them again")
         new_roles = self._roles(view.kind, roles)
         if new_roles == view.roles:
             raise AccountStateError("the account already has these roles")

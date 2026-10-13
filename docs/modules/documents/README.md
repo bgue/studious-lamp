@@ -1,7 +1,7 @@
 # Module spec: documents (M1)
 
 Status: accepted (built in P1-I2). Brief sections: §9 M1, §7.1 and §7.3 (pinned links), §6.4 (document numbers), §29.6
-(legacy import). Decisions: ADR-0010 (module storage), ADR-0011 (permissions), ADR-0012 (class-aware stale pins).
+(legacy import). Decisions: ADR-0010 (module storage), ADR-0011 (permissions, superseded in part), ADR-0013 (the document controller role), ADR-0012 (class-aware stale pins).
 
 ## Purpose
 The documents module is document control. A `Document` is registered once under its number; it has `Revision`s whose codes
@@ -52,21 +52,24 @@ review < construction < record.
 Each `*.Defined` event follows `Record.Created` in the same append. The catalog is `schema/modules/documents/events.yaml`
 (generated: `packages/tl-schema/src/tl_schema/generated/docs/event-catalog.md`).
 
-## Who can do what (ADR-0011)
-Controlling acts are the admin's until a document-controller role exists; everything that prepares work is open to a
-signed-in person; an agent never changes a record directly (it proposes).
+## Who can do what (ADR-0013, ADR-0011)
+Controlling acts are the document controller's, and an admin may run them too; everything that prepares work is open to a
+signed-in person; an agent never changes a record directly (it proposes). A document controller is a person (or a sim
+account) whom an admin gave the role `document_controller` (`tl admin user roles NAME --add document_controller`); it is not
+an admin and has no `admin.*` action.
 
 | Action | Entry points | Access |
 |---|---|---|
 | Register or update a document; start or void a draft revision; attach a PDF, native or markup; link and re-pin; draft a transmittal, record a response, close or void it; open a review, answer for yourself, close a round | `tl doc register|update`, `tl doc rev create|void`, `tl doc rendition add`, `tl doc link|repin`, `tl transmittal create|answer|close|void`, `tl review open|answer|close`, `POST /commands/<Name>`, TUI `F7` | any signed-in person |
-| Issue or supersede a revision; supersede or void a document; set the confidentiality class; register or replace the signed copy; issue a transmittal; record a reviewer's answer on their behalf; override a review outcome; recover a link (the core commands `AdminFlagLink`, `AdminRetractLink`) | `tl doc rev issue|supersede`, `tl doc supersede|void|confidentiality`, `tl doc rendition register-signed|replace-signed`, `tl transmittal issue`, `tl review on-behalf|override`, the matching `POST /commands/<Name>` | admin (`require_admin`, API action `admin.command.<Name>`) |
-| Import a legacy DMS register | `tl doc import FILE --mapping M` | the preview: any signed-in person; `--apply`: admin |
+| Issue or supersede a revision; supersede or void a document; set the confidentiality class; register or replace the signed copy; issue a transmittal; record a reviewer's answer on their behalf; override a review outcome | `tl doc rev issue|supersede`, `tl doc supersede|void|confidentiality`, `tl doc rendition register-signed|replace-signed`, `tl transmittal issue`, `tl review on-behalf|override`, the matching `POST /commands/<Name>` | document controller or admin (`require_controller`, API action `control.command.<Name>`) |
+| Recover a link a module wrote, or any link (the core commands `AdminFlagLink`, `AdminRetractLink`) | the matching `POST /commands/<Name>` | admin only (`admin.command.<Name>`): it repairs the whole link graph, not only documents |
+| Import a legacy DMS register | `tl doc import FILE --mapping M` | the preview: any signed-in person; `--apply`: document controller or admin |
 | Read documents, revisions, links, stale links, overdue reviews, transmittals, the diff of two revisions | `tl doc ls|show|diff|stale`, `tl doc report ...`, `GET /projects/{p}/documents`, `/documents/{number}`, `/document-diffs/{number}`, `/stale-links`, `/overdue-reviews`, `/transmittals`, MCP `list_documents`, `get_document`, `get_document_diff`, `list_stale_links`, `list_overdue_reviews`, `list_transmittals`, `get_transmittal` | any signed-in person; agents may read (`document.read`) |
-| Change a document, revision, rendition or review cycle with a generic command | none | refused for everyone, an admin too: only property sets, links and uploads are allowed on the types that need them, and the module's guards check state (ADR-0010 addenda) |
+| Change a document, revision, rendition or review cycle with a generic command | none | refused for everyone, an admin and a document controller too: only property sets, links and uploads are allowed on the types that need them, and the module's guards check state (ADR-0010 addenda) |
 
-Rules the commands enforce: a reviewer answers as themselves (an admin records for someone else with `on-behalf`); reviewers
+Rules the commands enforce: a reviewer answers as themselves (a controller records for someone else with `on-behalf`); reviewers
 are active person accounts and at least one is not the author; only the opener or the revision's author closes a round; a
-close milder than the worst answer needs an admin override; the first signed copy and any replacement are the admin's; a
+close milder than the worst answer needs a controller's override; the first signed copy and any replacement are the controller's; a
 rendition kind must fit the revision's state (an issued revision takes markup and signed only); an issue, transmittal or
 answer date defaults to today, is never in the future and needs a reason if earlier (`date_reason`); the system sources of
 a link (`rule`, `enricher`, `import`, `mapping`) are the server's and a client cannot claim them.
@@ -100,7 +103,7 @@ reason, 10 000 in a description, 200 items on a transmittal, 100 recipients, 50 
 
 ## Open questions and follow-ups
 - A "newer revision in review" marker beside a healthy construction pin (the owner's option C in ADR-0012).
-- A document-controller role, so the admin-only controlling acts (ADR-0011) can be given to a person without the admin role.
+- The document controller role is company-wide; a project-level assignment waits for the SSO increment (ADR-0013, known limits). The simulator's people hold `user` only, so the simulator never issues.
 - Enforcing confidentiality (per-record access lists), including recipient emails on transmittals.
 - Revisions with their files and issue dates from a legacy register (P1-I8 loaders); `DerivedDocument` and `DocumentSchema` (P1-I3).
-- Two admins issuing the same revision at once are serialised by the single writer lock (ADR-0011, known limits).
+- Two controllers issuing the same revision at once are serialised by the single writer lock (ADR-0011, known limits).

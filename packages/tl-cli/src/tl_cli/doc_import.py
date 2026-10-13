@@ -26,7 +26,7 @@ from tl_mod_documents.imports.mapping import (
 from tl_mod_documents.imports.model import ImportPlan
 
 from tl_cli.doc import _DEFAULT_ACTOR, _Actor, _fail, _Project, _service_errors
-from tl_cli.session import require_admin
+from tl_cli.session import require_controller
 
 
 def _preview(plan: ImportPlan) -> None:
@@ -54,7 +54,8 @@ def import_documents(
         Path, typer.Option("--mapping", help="The mapping template (YAML) for this file.")
     ],
     apply: Annotated[
-        bool, typer.Option("--apply", help="Register the new documents (admin). Default: preview.")
+        bool,
+        typer.Option("--apply", help="Register the new documents (controller). Default: preview."),
     ] = False,
     skip_invalid: Annotated[
         bool, typer.Option("--skip-invalid", help="Import the valid rows and leave the others out.")
@@ -69,7 +70,7 @@ def import_documents(
     scope = f"project:{project}"
     job = job or file.stem
     if apply:
-        require_admin(db)  # a bulk registration is an admin's decision (ADR-0011)
+        require_controller(db)  # a bulk registration is a controller's decision (ADR-0013)
     with _service_errors():
         try:
             template = load_mapping(mapping)

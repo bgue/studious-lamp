@@ -8,7 +8,7 @@ from fakes import SCOPE, FakeClient
 from helpers import run_pilot, screen_text
 from textual.pilot import Pilot
 from textual.widgets import Input, SelectionList, Static
-from tl_mod_documents.handlers.transmittals import CreateTransmittal
+from tl_mod_documents.handlers.transmittals import CreateTransmittal, IssueTransmittal
 from tl_tui.app import TlApp
 from tl_tui.widgets.transmittal_composer import TransmittalComposerScreen
 
@@ -21,13 +21,21 @@ def world() -> FakeClient:
     return client
 
 
-def scenario(client: FakeClient, steps: Steps, *, document: str | None = "ISO-1234") -> None:
+def scenario(
+    client: FakeClient,
+    steps: Steps,
+    *,
+    document: str | None = "ISO-1234",
+    is_controller: bool = False,
+) -> None:
     app = TlApp(client, scope=SCOPE, actor="user:kim")
     results: list[str | None] = []
 
     async def go(pilot: Pilot[None]) -> None:
         app.push_screen(
-            TransmittalComposerScreen(client, "P123", "user:kim", document=document),
+            TransmittalComposerScreen(
+                client, "P123", "user:kim", document=document, is_controller=is_controller
+            ),
             results.append,
         )
         await pilot.pause()
@@ -180,3 +188,78 @@ def test_escape_cancels() -> None:
         assert not isinstance(app.screen, TransmittalComposerScreen)
 
     scenario(client, steps)
+
+
+# --- the controlling act (ADR-0013): draft and issue ------------------------------------------
+
+
+def test_a_controller_sees_the_issue_key_and_a_user_does_not() -> None:
+    async def steps(
+        pilot: Pilot[None], app: TlApp, screen: TransmittalComposerScreen, results: list[str | None]
+    ) -> None:
+        hints = str(screen.query_one("#tc-hints", Static).render())
+        assert "Ctrl+T draft and issue" in hints
+
+    async def plain(
+        pilot: Pilot[None], app: TlApp, screen: TransmittalComposerScreen, results: list[str | None]
+    ) -> None:
+        hints = str(screen.query_one("#tc-hints", Static).render())
+        assert "Ctrl+T" not in hints and "Ctrl+S draft" in hints
+
+    scenario(world(), steps, is_controller=True)
+    scenario(world(), plain)
+
+
+def test_ctrl_t_drafts_and_issues_for_a_controller() -> None:
+    client = world()
+
+    async def steps(
+        pilot: Pilot[None], app: TlApp, screen: TransmittalComposerScreen, results: list[str | None]
+    ) -> None:
+        fill(screen, subject="Isometrics for site", to="Site:Acme:site@acme.test")
+        await pilot.press("ctrl+t")
+        await pilot.pause()
+        made, sent = client.document_commands
+        assert isinstance(made, CreateTransmittal) and isinstance(sent, IssueTransmittal)
+        assert (sent.actor, sent.source, sent.scope) == ("user:kim", "tui", "project:P123")
+        assert sent.stream_id == client.get_transmittal("P123", "P123-TRN-0001").id
+        assert results == ["P123-TRN-0001"] and screen.issued and screen.issue_error is None
+        assert client.get_transmittal("P123", "P123-TRN-0001").state == "Issued"
+
+    scenario(client, steps, is_controller=True)
+
+
+def test_ctrl_t_for_a_user_says_what_is_missing_and_sends_nothing() -> None:
+    client = world()
+
+    async def steps(
+        pilot: Pilot[None], app: TlApp, screen: TransmittalComposerScreen, results: list[str | None]
+    ) -> None:
+        fill(screen, subject="Isometrics for site", to="Site")
+        await pilot.press("ctrl+t")
+        await pilot.pause()
+        assert "needs the document_controller or admin role" in status(screen)
+        assert client.document_commands == [] and results == []
+        assert isinstance(app.screen, TransmittalComposerScreen)
+
+    scenario(client, steps)
+
+
+def test_a_server_refusal_after_the_draft_keeps_the_draft_and_is_reported() -> None:
+    """The role in the TUI is a convenience; the server decides (here it refuses the issue)."""
+    client = world()
+    client.is_controller = False
+
+    async def steps(
+        pilot: Pilot[None], app: TlApp, screen: TransmittalComposerScreen, results: list[str | None]
+    ) -> None:
+        fill(screen, subject="Isometrics for site", to="Site")
+        await pilot.press("ctrl+t")
+        await pilot.pause()
+        assert results == ["P123-TRN-0001"] and not screen.issued
+        assert (
+            screen.issue_error is not None and "document_controller or admin" in screen.issue_error
+        )
+        assert client.get_transmittal("P123", "P123-TRN-0001").state == "Draft"
+
+    scenario(client, steps, is_controller=True)

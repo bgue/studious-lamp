@@ -3,9 +3,9 @@
 Seven read-only tools. An agent that proposes a link to a document, or reports on what is overdue,
 needs to know which revisions exist, what is current, which links went stale and what is waiting
 for an answer; these answer from the register. Changing any of it stays a person's work (issuing,
-superseding and voiding are an admin's acts, ADR-0011, and an agent only proposes): none of these
-tools writes. The response models are the module's (``tl_mod_documents.views`` and ``reports``),
-so an agent, the API and a screen see the same fields.
+superseding and voiding are a document controller's acts, ADR-0013, and an agent only proposes):
+none of these tools writes. The response models are the module's (``tl_mod_documents.views`` and
+``reports``), so an agent, the API and a screen see the same fields.
 """
 
 from __future__ import annotations

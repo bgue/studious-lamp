@@ -2,17 +2,18 @@
 
 The API builds one ``POST /commands/<Name>`` route per row. ``access`` says who may call it:
 
-* ``admin``: only an admin (action ``admin.command.<Name>``);
+* ``controller``: an admin or a document controller (action ``control.command.<Name>``);
+* ``admin``: only an admin (action ``admin.command.<Name>``); none of this module's commands;
 * ``user``: any signed-in person.
 
-Document control has no role of its own in Phase 1 (ADR-0008 has two roles). Until one exists
-(Entra groups, later) the **controlling acts** are the admin's (ADR-0011): issuing a revision,
-superseding a revision or a document, voiding a document, issuing a transmittal, registering or
-replacing a signed copy, setting the confidentiality class, and the two corrections of a review.
-Everything that prepares work stays open to any signed-in person: registering, revising,
-attaching in draft, opening a review, recording one's own answer, linking and re-pinning. An agent
-never changes a record: its calls are proposals a person accepts, and a command is closed to
-agents until ``tl_core.auth.provider`` lists it.
+The **controlling acts** belong to the document controller role (ADR-0013, which replaced the
+interim admin-only rule of ADR-0011); an admin may run them too: issuing a revision, superseding a
+revision or a document, voiding a document, issuing a transmittal, registering or replacing a
+signed copy, setting the confidentiality class, and the two corrections of a review. Everything
+that prepares work stays open to any signed-in person: registering, revising, attaching in draft,
+opening a review, recording one's own answer, linking and re-pinning. An agent never changes a
+record: its calls are proposals a person accepts, and a command is closed to agents until
+``tl_core.auth.provider`` lists it.
 """
 
 from __future__ import annotations
@@ -85,7 +86,7 @@ from tl_mod_documents.resolver import (
     handle_repin_document_link,
 )
 
-Access = Literal["admin", "user"]  # a typo is a type error, not an open door
+Access = Literal["admin", "controller", "user"]  # a typo is a type error, not an open door
 
 
 @dataclass(frozen=True)
@@ -98,26 +99,26 @@ class ApiCommand:
 API_COMMANDS: tuple[ApiCommand, ...] = (
     ApiCommand(RegisterDocument, handle_register_document, "user"),
     ApiCommand(UpdateDocument, handle_update_document, "user"),
-    ApiCommand(SetDocumentConfidentiality, handle_set_document_confidentiality, "admin"),
-    ApiCommand(SupersedeDocument, handle_supersede_document, "admin"),
-    ApiCommand(VoidDocument, handle_void_document, "admin"),
+    ApiCommand(SetDocumentConfidentiality, handle_set_document_confidentiality, "controller"),
+    ApiCommand(SupersedeDocument, handle_supersede_document, "controller"),
+    ApiCommand(VoidDocument, handle_void_document, "controller"),
     ApiCommand(CreateRevision, handle_create_revision, "user"),
-    ApiCommand(IssueRevision, handle_issue_revision, "admin"),
-    ApiCommand(SupersedeRevision, handle_supersede_revision, "admin"),
+    ApiCommand(IssueRevision, handle_issue_revision, "controller"),
+    ApiCommand(SupersedeRevision, handle_supersede_revision, "controller"),
     ApiCommand(VoidRevision, handle_void_revision, "user"),
     ApiCommand(AttachRendition, handle_attach_rendition, "user"),
-    ApiCommand(RegisterSignedRendition, handle_register_signed_rendition, "admin"),
-    ApiCommand(ReplaceSignedRendition, handle_replace_signed_rendition, "admin"),
+    ApiCommand(RegisterSignedRendition, handle_register_signed_rendition, "controller"),
+    ApiCommand(ReplaceSignedRendition, handle_replace_signed_rendition, "controller"),
     ApiCommand(LinkToDocument, handle_link_to_document, "user"),
     ApiCommand(RepinDocumentLink, handle_repin_document_link, "user"),
     ApiCommand(CreateTransmittal, handle_create_transmittal, "user"),
-    ApiCommand(IssueTransmittal, handle_issue_transmittal, "admin"),
+    ApiCommand(IssueTransmittal, handle_issue_transmittal, "controller"),
     ApiCommand(RecordTransmittalResponse, handle_record_transmittal_response, "user"),
     ApiCommand(CloseTransmittal, handle_close_transmittal, "user"),
     ApiCommand(VoidTransmittal, handle_void_transmittal, "user"),
     ApiCommand(OpenReviewCycle, handle_open_review_cycle, "user"),
     ApiCommand(RecordReviewOutcome, handle_record_review_outcome, "user"),
     ApiCommand(CloseReviewCycle, handle_close_review_cycle, "user"),
-    ApiCommand(RecordReviewOutcomeOnBehalf, handle_record_review_outcome_on_behalf, "admin"),
-    ApiCommand(OverrideReviewOutcome, handle_override_review_outcome, "admin"),
+    ApiCommand(RecordReviewOutcomeOnBehalf, handle_record_review_outcome_on_behalf, "controller"),
+    ApiCommand(OverrideReviewOutcome, handle_override_review_outcome, "controller"),
 )

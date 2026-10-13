@@ -96,6 +96,7 @@ class AccountForm(_Form):
                 yield RadioButton("sim")
                 yield RadioButton("agent (gets tokens, no password)")
             yield Checkbox("Admin role (people only)", id="form-admin")
+            yield Checkbox("Document controller role (not agents)", id="form-controller")
             yield Static("Password", classes="form-label", markup=False)
             yield Input(password=True, id="form-password", classes="form-password")
             yield Static("Repeat the password", classes="form-label", markup=False)
@@ -129,7 +130,12 @@ class AccountForm(_Form):
             self._clear_passwords()
             return
         admin = self.query_one("#form-admin", Checkbox).value
-        roles = ["admin", "user"] if admin else ["user"]
+        controller = self.query_one("#form-controller", Checkbox).value
+        roles = ["user"]
+        if admin:
+            roles.insert(0, "admin")
+        if controller:
+            roles.append("document_controller")
         try:
             view = self.client.create_account(
                 username,

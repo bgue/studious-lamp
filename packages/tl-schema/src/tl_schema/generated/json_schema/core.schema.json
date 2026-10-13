@@ -31,7 +31,7 @@
                 },
                 "roles": {
                     "$ref": "#/$defs/Any",
-                    "description": "JSON list of roles, `[\"admin\"]`, `[\"user\"]` or both."
+                    "description": "JSON list of roles from `admin`, `user` and `document_controller`, for example `[\"user\", \"document_controller\"]`."
                 },
                 "status": {
                     "$ref": "#/$defs/AccountStatus"
@@ -198,10 +198,11 @@
             "type": "object"
         },
         "AccountRole": {
-            "description": "The two roles of Phase 1 (ADR-0008 decision 3).",
+            "description": "The three roles of Phase 1 (ADR-0008 decision 3, amended by ADR-0013).",
             "enum": [
                 "admin",
-                "user"
+                "user",
+                "document_controller"
             ],
             "title": "AccountRole",
             "type": "string"

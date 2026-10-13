@@ -92,7 +92,9 @@ def test_ls_of_an_unknown_document_is_an_error(env: dict[str, str]) -> None:
 # --- issue ----------------------------------------------------------------------------------------
 
 
-def test_issue_is_for_an_admin_and_needs_a_rendition(env: dict[str, str], tmp_path: Path) -> None:
+def test_issue_is_for_a_controller_and_needs_a_rendition(
+    env: dict[str, str], tmp_path: Path
+) -> None:
     made = draft(env, tmp_path)
     rev(env, "create", "ISO-1234", "--project", "P123")
     can_refuse = admin_session(env)
@@ -154,7 +156,7 @@ def test_issuing_a_new_revision_flags_the_links_pinned_to_the_old_one(
 # --- supersede and void ---------------------------------------------------------------------------
 
 
-def test_supersede_is_for_an_admin_and_names_the_revision_that_replaces_it(
+def test_supersede_is_for_a_controller_and_names_the_revision_that_replaces_it(
     env: dict[str, str], tmp_path: Path
 ) -> None:
     made = world(env, tmp_path)

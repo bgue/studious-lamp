@@ -112,4 +112,4 @@ class InvalidReviewError(DocumentsError):
 
 
 class NotYourReviewError(DocumentsError):
-    """Only the reviewer records their own answer; an admin records one on their behalf."""
+    """Only the reviewer records their own answer; a document controller can record one for them."""

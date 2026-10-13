@@ -377,20 +377,20 @@ AGENT_MAY_NOT = {
     "admin.command.ReviseTagClass",
     "admin.command.CloseTagClass",
     "admin.command.RecordTag",
-    # the documents module (P1-I2, ADR-0011): the controlling acts are the admin's
-    "admin.command.SetDocumentConfidentiality",
-    "admin.command.SupersedeDocument",
-    "admin.command.VoidDocument",
-    "admin.command.IssueRevision",
-    "admin.command.SupersedeRevision",
-    "admin.command.RegisterSignedRendition",
-    "admin.command.ReplaceSignedRendition",
-    # recovery: flag or retract any link, a module's rule link included
+    # recovery: flag or retract any link, a module's rule link included (the admin's, ADR-0013)
     "admin.command.AdminFlagLink",
     "admin.command.AdminRetractLink",
-    "admin.command.IssueTransmittal",
-    "admin.command.RecordReviewOutcomeOnBehalf",
-    "admin.command.OverrideReviewOutcome",
+    # the documents module (P1-I2, ADR-0013): the controlling acts are the controller's
+    "control.command.SetDocumentConfidentiality",
+    "control.command.SupersedeDocument",
+    "control.command.VoidDocument",
+    "control.command.IssueRevision",
+    "control.command.SupersedeRevision",
+    "control.command.RegisterSignedRendition",
+    "control.command.ReplaceSignedRendition",
+    "control.command.IssueTransmittal",
+    "control.command.RecordReviewOutcomeOnBehalf",
+    "control.command.OverrideReviewOutcome",
 }
 FEED_COMMANDS = {"PostToFeed", "EditPost", "RetractPost", "ReactToPost"}
 
