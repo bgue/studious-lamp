@@ -54,7 +54,7 @@ Then: a rejected document number (`ISO-12`); a review cycle with an overdue revi
 | T02 | `schema/modules/documents/*.yaml` (five record classes, two sub-tables, fifteen event classes); fixtures: workflows, file slots, revision schemes, document standards edition, transmittal numbering pattern | Schema, human gate (ADR-0008 decision 6) | orchestrator | done |
 | S3 | Package `tl-mod-documents`: projectors, registry reads, scheme engine (T05), document/revision/rendition commands (T04), pin and stale resolver (T07), invariants, API command table, test world | Invariants across streams; resolver semantics (01-tiers §3) | reviewer | done |
 | S4 | API wiring (19 commands, 23 error rows), `by_module` transition argument | Security surface | orchestrator | done |
-| S5 | Reference implementations of T08a, T08b, T09a, T11a (kept in the history of `p1/i2` at `1734486`) | Takeover path | — | done |
+| S5 | Reference implementations of T08a, T08b, T09a, T11a, kept in the history of `p1/i2` (`1734486`; the T11a reference was refreshed at `5abf509`) for a takeover; the tree holds stubs until each ticket merges | Takeover path | — | done |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
