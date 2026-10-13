@@ -6,7 +6,13 @@ stores the bytes in the revision's slot of that name) and `AttachRendition` (the
 the available file as the revision's rendition and supersedes an older native or PDF). The commands
 here do both. What a revision accepts depends on its state; the module says so. Replacing a signed
 copy is an admin's act (ADR-0011).
+
+STUB (P1-I2-T09c): the bodies of the three commands raise NotImplementedError; their signatures,
+options, docstrings and the helpers are final. Each body has a STEPS comment. Implement them,
+then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -122,27 +128,7 @@ def add(
     #    AttachRendition(actor=actor, source="cli", scope=scope, revision_id=rev.id,
     #    file_id=file_id, page_count=pages)).
     # 5. Print `attached <kind> <path.name> to <number>@<code>`, then `rendition <made.stream_id>`.
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    if kind not in KINDS:
-        _fail(f"kind must be one of {', '.join(KINDS)}")
-    with _service_errors(), open_uow(db, readonly=True) as uow:
-        rev = _revision(uow, scope, project, number, code)
-    file_id = _upload(db, scope, actor, rev.id, kind, path, content_type)
-    with _service_errors(), open_uow(db) as uow:
-        made = handle_attach_rendition(
-            uow,
-            AttachRendition(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                revision_id=rev.id,
-                file_id=file_id,
-                page_count=pages,
-            ),
-        )
-    typer.echo(f"attached {kind} {path.name} to {number}@{code}")
-    typer.echo(f"rendition {made.stream_id}")
+    raise NotImplementedError
 
 
 @app.command("replace-signed")
@@ -168,27 +154,7 @@ def replace_signed(
     #    file_id=file_id, page_count=pages, reason=reason)).
     # 5. Print `replaced the signed copy of <number>@<code> with <path.name>` and then
     #    `rendition <made.stream_id>`.
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    require_admin(db)
-    with _service_errors(), open_uow(db, readonly=True) as uow:
-        rev = _revision(uow, scope, project, number, code)
-    file_id = _upload(db, scope, actor, rev.id, "signed", path, content_type)
-    with _service_errors(), open_uow(db) as uow:
-        made = handle_replace_signed_rendition(
-            uow,
-            ReplaceSignedRendition(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                revision_id=rev.id,
-                file_id=file_id,
-                page_count=pages,
-                reason=reason,
-            ),
-        )
-    typer.echo(f"replaced the signed copy of {number}@{code} with {path.name}")
-    typer.echo(f"rendition {made.stream_id}")
+    raise NotImplementedError
 
 
 @app.command("ls")
@@ -209,19 +175,4 @@ def ls(
     #    current_only=not all_).
     # 3. For each row print two spaces between: kind, filename, f"{size}B", f"{page_count}p"
     #    (or "-p" when page_count is None), sha256[:12], "current" or "replaced".
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    with _service_errors(), open_uow(db, readonly=True) as uow:
-        rev = _revision(uow, scope, project, number, code)
-        rows = registry.renditions_of(uow.conn(), rev.id, current_only=not all_)
-    for row in rows:
-        pages = "-" if row.page_count is None else str(row.page_count)
-        fields = [
-            row.kind,
-            row.filename,
-            f"{row.size}B",
-            f"{pages}p",
-            row.sha256[:12],
-            "current" if row.is_current else "replaced",
-        ]
-        typer.echo("  ".join(fields))
+    raise NotImplementedError
