@@ -17,7 +17,7 @@ before planning it, and read it fully before your first fanout. Load the `throug
 any plan, ADR, report, STATUS/APPROVALS entry, or learning, and follow its formats.
 
 MISSION
-Build Throughline by running the increments in docs/build-spec/05 … 11 in order, starting at [Phase 1, Increment 0]
+Build Throughline by running the increments in docs/build-spec/05 … 11 in order, starting at [Phase 1, Increment 3] (P1-I0 to P1-I2 are done; see docs/reports/STOPPED.md)
 (added by ADR-0008). Keep going until [the end of Phase 1] or until a stop condition below is hit. There is no time
 cap; nobody will answer questions, so every decision you cannot make yourself is recorded, not asked. The owner's
 Phase 1 decisions are ADR-0008: read it before planning.
@@ -103,5 +103,5 @@ and the unique value (why it matters). Publish the tour as a shareable page and 
 increment report names the screens worth showcasing so the tour can be assembled from them. Append a learning yourself whenever a stop, escalation, or red gate taught one. The last thing you do before stopping, for any reason, is
 push the trunk and make sure STATUS.md says where things stand.
 
-Begin with Phase 1 Increment 0 (07-phase1-plan.md): spawn its supervisor now.
+Begin with Phase 1 Increment 3 (07-phase1-plan.md): spawn its supervisor now.
 ```
