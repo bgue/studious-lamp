@@ -8078,6 +8078,27 @@
         "additionalProperties": false,
         "description": "Body of ``PUT /admin/accounts/{account_id}/roles``.",
         "properties": {
+          "expected_roles": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "admin",
+                    "user",
+                    "document_controller"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 3,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The roles the caller read before computing `roles`; if the account's roles differ now, nothing is written (409 `account_state`).",
+            "title": "Expected Roles"
+          },
           "reason": {
             "anyOf": [
               {

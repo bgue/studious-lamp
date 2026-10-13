@@ -6,7 +6,12 @@ import pytest
 from authworld import World
 from tl_adapters.db import rebuild_projections
 from tl_core.auth import accounts, queries
-from tl_core.auth.errors import ForbiddenError, InvalidAccountError, LastAdminError
+from tl_core.auth.errors import (
+    AccountStateError,
+    ForbiddenError,
+    InvalidAccountError,
+    LastAdminError,
+)
 from tl_core.auth.provider import AGENT_ACTIONS, RoleAuthorizer
 from tl_core.auth.types import ROLES, AccountKind, Principal, Role
 
@@ -198,3 +203,40 @@ def test_the_role_does_not_count_for_the_last_admin_rule(world: World) -> None:
         accounts.disable(uow, account_id=controller.account_id, by="user:root", reason=None)
     with world.factory(readonly=True) as uow:
         assert queries.count_active_admins(uow.conn()) == 1
+
+
+def test_a_role_change_computed_from_a_stale_read_is_refused_and_writes_nothing(
+    world: World,
+) -> None:
+    world.admin()
+    bob = world.create("bob")  # roles: user
+    with world.factory() as uow:  # another admin gives bob the role meanwhile
+        accounts.set_roles(
+            uow, account_id=bob.account_id, roles=["document_controller", "user"],
+            by="user:root", reason=None,
+        )  # fmt: skip
+    before = len(world.events())
+    with world.factory() as uow, pytest.raises(AccountStateError, match="changed since"):
+        accounts.set_roles(  # "make admin" computed from the old list ["user"]
+            uow, account_id=bob.account_id, roles=["admin", "user"], by="user:root",
+            reason=None, expected_roles=["user"],
+        )  # fmt: skip
+    assert len(world.events()) == before
+    with world.factory(readonly=True) as uow:
+        assert queries.get_account(uow.conn(), bob.account_id).roles == [
+            "document_controller",
+            "user",
+        ]
+
+
+def test_the_expected_roles_match_in_any_order_and_then_the_change_is_written(
+    world: World,
+) -> None:
+    world.admin()
+    bob = world.create("bob", roles=("user", "document_controller"))
+    with world.factory() as uow:
+        changed = accounts.set_roles(
+            uow, account_id=bob.account_id, roles=["user"], by="user:root", reason=None,
+            expected_roles=["user", "document_controller"],
+        )  # fmt: skip
+    assert changed.roles == ["user"]

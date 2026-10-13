@@ -596,3 +596,28 @@ def test_an_unknown_role_is_a_422_before_the_service(cast: Cast) -> None:
         f"/admin/accounts/{cast.bob}/roles", json={"roles": ["controller"]}, headers=cast.admin
     )
     assert refused.status_code == 422
+
+
+def test_expected_roles_make_a_role_change_safe_against_a_concurrent_one(cast: Cast) -> None:
+    url = f"/admin/accounts/{cast.bob}/roles"
+    # another admin gave bob the role after this caller read ["user"]
+    gave = cast.client.put(url, json={"roles": ["user", "document_controller"]}, headers=cast.admin)
+    assert gave.status_code == 200
+    stale = cast.client.put(
+        url, json={"roles": ["admin", "user"], "expected_roles": ["user"]}, headers=cast.admin
+    )
+    assert stale.status_code == 409 and stale.json()["error"] == "account_state"
+    now = cast.client.get(f"/admin/accounts/{cast.bob}", headers=cast.admin).json()
+    assert now["roles"] == ["document_controller", "user"]
+    fresh = cast.client.put(
+        url,
+        json={"roles": ["document_controller", "user", "admin"],
+              "expected_roles": ["user", "document_controller"]},
+        headers=cast.admin,
+    )  # fmt: skip
+    assert fresh.status_code == 200, fresh.text
+    assert fresh.json()["roles"] == ["admin", "document_controller", "user"]
+    bad = cast.client.put(
+        url, json={"roles": ["user"], "expected_roles": ["owner"]}, headers=cast.admin
+    )
+    assert bad.status_code == 422

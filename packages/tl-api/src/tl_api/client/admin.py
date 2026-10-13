@@ -48,11 +48,23 @@ class AdminApi(ApiClientBase):
         return self._model(AccountView, data)
 
     def set_roles(
-        self, account_id: str, roles: Sequence[str], *, reason: str | None = None
+        self,
+        account_id: str,
+        roles: Sequence[str],
+        *,
+        reason: str | None = None,
+        expected_roles: Sequence[str] | None = None,
     ) -> AccountView:
-        """Replace the roles (``PUT /admin/accounts/{id}/roles``)."""
+        """Replace the roles (``PUT /admin/accounts/{id}/roles``).
+
+        ``expected_roles``: the roles read before ``roles`` was computed; a change in between is
+        409 ``account_state`` and nothing is written.
+        """
         path = f"/admin/accounts/{quote(account_id)}/roles"
-        data = self._send("PUT", path, json={"roles": list(roles), "reason": reason}).json()
+        body: dict[str, object] = {"roles": list(roles), "reason": reason}
+        if expected_roles is not None:
+            body["expected_roles"] = list(expected_roles)
+        data = self._send("PUT", path, json=body).json()
         return self._model(AccountView, data)
 
     def disable_account(self, account_id: str, *, reason: str | None = None) -> AccountView:

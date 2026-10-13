@@ -458,9 +458,18 @@ class ClientInterface(Protocol):
         ...
 
     def set_roles(
-        self, account_id: str, roles: Sequence[str], *, reason: str | None = None
+        self,
+        account_id: str,
+        roles: Sequence[str],
+        *,
+        reason: str | None = None,
+        expected_roles: Sequence[str] | None = None,
     ) -> AccountView:
-        """Replace the roles. The last active admin cannot be demoted (``LastAdminError``)."""
+        """Replace the roles. The last active admin cannot be demoted (``LastAdminError``).
+
+        ``expected_roles`` are the roles the caller read; if they changed since, nothing is
+        written (``AccountStateError``).
+        """
         ...
 
     def disable_account(self, account_id: str, *, reason: str | None = None) -> AccountView:

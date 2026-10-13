@@ -244,3 +244,21 @@ def test_the_core_and_engineering_admin_commands_are_not_controller_commands() -
     """RecordTag, the registry and the link recovery commands stay the admin's (ADR-0013)."""
     stay_admin = {s.name for s in COMMANDS if s.access == "admin"}
     assert {"AdminFlagLink", "AdminRetractLink", "RecordTag", "RegisterCodeList"} <= stay_admin
+
+
+def test_an_unknown_access_value_has_no_action_so_it_fails_closed() -> None:
+    from tl_api.commands import CommandSpec, action_for
+    from tl_core.services.commands import CreateRecord
+    from tl_core.services.records import handle_create_record
+
+    known = {"admin": "admin.command.", "controller": "control.command.", "user": "command."}
+    for access, prefix in known.items():
+        spec = CommandSpec(CreateRecord, handle_create_record, access)  # type: ignore[arg-type]
+        assert action_for(spec) == f"{prefix}CreateRecord"
+    assert action_for(CommandSpec(CreateRecord, handle_create_record, "company")) == (
+        "command.CreateRecord"
+    )
+    for typo in ("Controller", "control", "", "admn"):
+        bad = CommandSpec(CreateRecord, handle_create_record, typo)  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match="unknown access"):
+            action_for(bad)

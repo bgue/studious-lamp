@@ -347,3 +347,25 @@ def test_help_lists_the_seven_commands(env: dict[str, str]) -> None:
     out = tl(env, "admin", "user", "--help").stdout
     for name in ("ls", "show", "add", "roles", "disable", "enable", "reset-password"):
         assert f" {name} " in out
+
+
+def test_add_and_remove_start_from_the_roles_the_write_sees_not_from_an_earlier_read(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Another admin gave amy the controller role between the lookup and the change."""
+    from tl_cli import admin_user
+    from tl_cli.admin import find_account as real
+
+    assert add(env, "amy") == 0
+    assert tl(env, "admin", "user", "roles", "amy", "--add", "document_controller").exit_code == 0
+
+    def stale(backend: object, username: str):  # type: ignore[no-untyped-def]
+        found = real(backend, username)  # type: ignore[arg-type]
+        return found.model_copy(update={"roles": ["user"]})  # the list as it was before
+
+    monkeypatch.setattr(admin_user, "find_account", stale)
+    result = tl(env, "admin", "user", "roles", "amy", "--add", "admin")
+    assert result.exit_code == 0, result.stderr
+    assert result.stdout.strip() == "amy  person  admin,document_controller,user  active"
+    gone = tl(env, "admin", "user", "roles", "amy", "--remove", "user")
+    assert gone.stdout.strip() == "amy  person  admin,document_controller  active"

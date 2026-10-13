@@ -62,6 +62,12 @@ class RolesBody(BaseModel):
 
     roles: list[Role] = Field(min_length=1, max_length=len(ROLES))
     reason: Reason = None
+    expected_roles: list[Role] | None = Field(
+        default=None,
+        max_length=len(ROLES),
+        description="The roles the caller read before computing `roles`; if the account's roles "
+        "differ now, nothing is written (409 `account_state`).",
+    )
 
 
 class ReasonBody(BaseModel):
@@ -159,6 +165,7 @@ def set_roles(account_id: str, body: RolesBody, ctx: Ctx, actor: RoleSetter) -> 
             roles=list(body.roles),
             by=actor,
             reason=body.reason,
+            expected_roles=body.expected_roles,
         )
 
 

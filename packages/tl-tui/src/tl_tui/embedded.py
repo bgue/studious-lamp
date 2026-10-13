@@ -676,6 +676,8 @@ class EmbeddedClient:
     def issue_transmittal(self, cmd: IssueTransmittal) -> CommandResult:
         with self._uow(False) as uow:
             self._controller_gate(uow)
+            if cmd.actor != self.actor:  # the gate checked this client's actor, so must the command
+                raise ForbiddenError("the command names an actor other than the signed-in person")
             return self.own_writes.note(handle_issue_transmittal(uow, cmd))
 
     # --- settings (P0-I8) ---------------------------------------------------------------------
@@ -860,12 +862,22 @@ class EmbeddedClient:
             )
 
     def set_roles(
-        self, account_id: str, roles: Sequence[str], *, reason: str | None = None
+        self,
+        account_id: str,
+        roles: Sequence[str],
+        *,
+        reason: str | None = None,
+        expected_roles: Sequence[str] | None = None,
     ) -> AccountView:
         with self._uow(False) as uow:
             self._admin_gate(uow)
             return account_services.set_roles(
-                uow, account_id=account_id, roles=list(roles), by=self.actor, reason=reason
+                uow,
+                account_id=account_id,
+                roles=list(roles),
+                by=self.actor,
+                reason=reason,
+                expected_roles=expected_roles,
             )
 
     def disable_account(self, account_id: str, *, reason: str | None = None) -> AccountView:

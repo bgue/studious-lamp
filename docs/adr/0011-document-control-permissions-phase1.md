@@ -80,5 +80,5 @@ The review rules that go with it:
 | Option | Why not |
 |---|---|
 | Keep every command open to any signed-in person | A person could issue, supersede and transmit with no second pair of eyes; the review rated it MEDIUM |
-| Add a document controller role now | Needs the role model of the SSO increment; ADR-0008 fixes two roles for Phase 1 |
+| Add a document controller role now | Rejected here; **overtaken by ADR-0013** (owner request, 2026-10-13), which adds the role without the SSO role model |
 | Check ownership of the draft (author only) | There is no ownership model in Phase 1; a colleague taking over a draft would be locked out |

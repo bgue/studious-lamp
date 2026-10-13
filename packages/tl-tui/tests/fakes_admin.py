@@ -155,11 +155,24 @@ class FakeAdminSupport:
         return self.seed_account(name, kind=kind, roles=role_list, display_name=shown)
 
     def set_roles(
-        self, account_id: str, roles: Sequence[str], *, reason: str | None = None
+        self,
+        account_id: str,
+        roles: Sequence[str],
+        *,
+        reason: str | None = None,
+        expected_roles: Sequence[str] | None = None,
     ) -> AccountView:
-        self._gate("set_roles", account_id=account_id, roles=list(roles), reason=reason)
+        self._gate(
+            "set_roles",
+            account_id=account_id,
+            roles=list(roles),
+            reason=reason,
+            expected_roles=None if expected_roles is None else list(expected_roles),
+        )
         check_reason(reason)
         view = self._account(account_id)
+        if expected_roles is not None and sorted(expected_roles) != sorted(view.roles):
+            raise AccountStateError("the roles changed since they were read; read them again")
         new_roles = self._roles(view.kind, roles)
         if new_roles == view.roles:
             raise AccountStateError("the account already has these roles")

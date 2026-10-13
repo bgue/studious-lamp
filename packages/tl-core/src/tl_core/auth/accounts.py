@@ -222,11 +222,28 @@ def create_account(
 
 
 def set_roles(
-    uow: UnitOfWork, *, account_id: str, roles: Sequence[str], by: str, reason: str | None
+    uow: UnitOfWork,
+    *,
+    account_id: str,
+    roles: Sequence[str],
+    by: str,
+    reason: str | None,
+    expected_roles: Sequence[str] | None = None,
 ) -> AccountView:
+    """Replace the roles. ``expected_roles`` is what the caller read before it computed ``roles``.
+
+    A caller that adds or removes one role from a list it read earlier passes it: if the account's
+    roles changed in between, nothing is written (``AccountStateError``, 409) instead of the stale
+    list overwriting the newer change. The read here is inside the write unit of work, which holds
+    the ledger's single writer lock.
+    """
     reason = check_reason(reason)
     conn = uow.conn()
     account = _row(conn, account_id)
+    if expected_roles is not None and sorted(expected_roles) != sorted(
+        load_roles(account["roles_json"])
+    ):
+        raise AccountStateError("the roles changed since they were read; read them again")
     new_roles = _normalise_roles(account["kind"], roles)
     if new_roles == load_roles(account["roles_json"]):
         raise AccountStateError("the account already has these roles")

@@ -120,7 +120,9 @@ def action_for(spec: CommandSpec) -> str:
         return f"admin.command.{spec.name}"
     if spec.access == "controller":
         return f"{CONTROLLER_PREFIX}{spec.name}"
-    return f"command.{spec.name}"
+    if spec.access in ("company", "user"):
+        return f"command.{spec.name}"
+    raise ValueError(f"unknown access {spec.access!r} for {spec.name}")  # fail closed at start-up
 
 
 def controller_actions() -> frozenset[str]:

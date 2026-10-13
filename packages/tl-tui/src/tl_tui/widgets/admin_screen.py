@@ -218,8 +218,11 @@ class AdminScreen(ModalScreen[None]):
 
         def apply(reason: str | None) -> None:
             try:
-                self.client.set_roles(view.account_id, roles, reason=reason)
+                self.client.set_roles(
+                    view.account_id, roles, reason=reason, expected_roles=view.roles
+                )
             except CLIENT_ERRORS as exc:
+                self.reload()  # show what the account really has now
                 self._say(describe_error(exc), error=True)
                 return
             self.reload()

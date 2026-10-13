@@ -138,10 +138,13 @@ def roles(
     backend = backend_of(ctx)
     with service_errors():
         target = find_account(backend, username)
-        wanted = (
-            list(role) if role else sorted((set(target.roles) | set(add or [])) - set(remove or []))
-        )
         with backend() as uow:
+            # --add/--remove start from the roles as the write unit of work sees them (it holds the
+            # writer lock), so a role changed meanwhile is not overwritten with a stale list
+            current = queries.get_account(uow.conn(), target.account_id).roles
+            wanted = (
+                list(role) if role else sorted((set(current) | set(add or [])) - set(remove or []))
+            )
             view = accounts.set_roles(
                 uow, account_id=target.account_id, roles=wanted, by=admin.actor, reason=reason
             )

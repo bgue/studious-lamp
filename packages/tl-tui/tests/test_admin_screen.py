@@ -409,3 +409,26 @@ def test_c_on_an_agent_explains_and_calls_nothing_but_a_sim_account_may_be_a_con
 def test_the_hints_name_the_controller_key() -> None:
     assert "c controller role" in AdminScreen.KEY_HINTS_MORE
     assert len(AdminScreen.KEY_HINTS_MORE) <= 76  # one line of the 80-column screen
+
+
+def test_a_role_toggle_from_a_stale_row_is_refused_and_keeps_the_other_change() -> None:
+    """Another admin changed amy's roles after the table was read: `c` must not overwrite it."""
+    client = seeded()
+    app = Host(client)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        cursor_to(app, "amy")
+        amy = next(a for a in screen(app).accounts if a.username == "amy")
+        client.set_roles(amy.account_id, ["admin", "user"])  # behind the screen's back
+        await pilot.press("c")
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+        assert "roles changed since they were read" in text("#admin-status", app)
+        now = next(a for a in screen(app).accounts if a.username == "amy")
+        assert now.roles == ["admin", "user"]  # the other admin's change stands
+
+    run_pilot(app, scenario)
+    sent = calls(client, "set_roles")[-1]
+    assert sent["expected_roles"] == ["user"] and sent["roles"] == ["document_controller", "user"]
