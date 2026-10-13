@@ -50,9 +50,9 @@ class DocumentsApi(ApiClientBase):
     def document_diff(
         self, project: str, number: str, from_code: str, to_code: str
     ) -> views.RevisionDiffView:
-        """What changed between two issued revisions (``GET .../documents/{n}/diff``)."""
+        """What changed between two issued revisions (``GET .../document-diffs/{n}``)."""
         data = self._get_json(
-            f"/projects/{quote(project)}/documents/{quote(number)}/diff",
+            f"/projects/{quote(project)}/document-diffs/{quote(number)}",
             {"from": from_code, "to": to_code},
         )
         return self._model(views.RevisionDiffView, data)

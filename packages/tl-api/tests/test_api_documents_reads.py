@@ -81,7 +81,7 @@ def world(harness: Harness) -> DocumentsWorld:
 READS = (
     f"{P}/documents",
     f"{P}/documents/ISO-1234",
-    f"{P}/documents/ISO-1234/diff?from=A&to=B",
+    f"{P}/document-diffs/ISO-1234?from=A&to=B",
     f"{P}/stale-links",
     f"{P}/overdue-reviews",
     f"{P}/transmittals",
@@ -112,7 +112,7 @@ def test_the_listing_and_the_detail(readers: Readers, world: DocumentsWorld) -> 
 def test_the_diff_stale_links_overdue_reviews_and_transmittals(
     readers: Readers, world: DocumentsWorld
 ) -> None:
-    diff = readers.bob.get(f"{P}/documents/ISO-1234/diff", params={"from": "A", "to": "B"}).json()
+    diff = readers.bob.get(f"{P}/document-diffs/ISO-1234", params={"from": "A", "to": "B"}).json()
     assert diff["summary"][0] == "ISO-1234: A (IFR) to B (IFC)"
     stale = readers.bob.get(f"{P}/stale-links").json()
     assert [(s["document_number"], s["pinned_code"], s["current_code"]) for s in stale] == [
@@ -125,6 +125,22 @@ def test_the_diff_stale_links_overdue_reviews_and_transmittals(
     assert [(i["document_number"], i["revision_code"]) for i in one["items"]] == [("ISO-1234", "B")]
 
 
+def test_a_document_numbered_x_slash_diff_is_still_reachable(
+    readers: Readers, world: DocumentsWorld
+) -> None:
+    """The diff has its own prefix, so a number may end in ``/diff`` (or hold any ``/``)."""
+    world.issued_document("X/diff", "IFR")
+    world.create_revision("X/diff", purpose="For construction")
+    world.attach("X/diff", "B", data=b"%PDF-1.7 b", name="b.pdf")
+    world.issue("X/diff", "B", "IFC")
+    for path in ("X/diff", "X%2Fdiff"):
+        got = readers.bob.get(f"{P}/documents/{path}")
+        assert got.status_code == 200 and got.json()["number"] == "X/diff", path
+    diff = readers.bob.get(f"{P}/document-diffs/X%2Fdiff", params={"from": "A", "to": "B"})
+    assert diff.status_code == 200 and diff.json()["summary"][0].startswith("X/diff: A")
+    assert readers.bob.get(f"{P}/documents/X").status_code == 404
+
+
 def test_unknown_things_are_the_modules_404_and_422(
     readers: Readers, world: DocumentsWorld
 ) -> None:
@@ -134,9 +150,9 @@ def test_unknown_things_are_the_modules_404_and_422(
     assert other.status_code == 404
     gone = readers.bob.get(f"{P}/transmittals/NOPE-1")
     assert (gone.status_code, gone.json()["error"]) == (404, "transmittal_not_found")
-    bad = readers.bob.get(f"{P}/documents/ISO-1234/diff", params={"from": "A", "to": "Z"})
+    bad = readers.bob.get(f"{P}/document-diffs/ISO-1234", params={"from": "A", "to": "Z"})
     assert (bad.status_code, bad.json()["error"]) == (422, "invalid_pin")
-    assert readers.bob.get(f"{P}/documents/ISO-1234/diff").status_code == 422  # no from/to
+    assert readers.bob.get(f"{P}/document-diffs/ISO-1234").status_code == 422  # no from/to
 
 
 def test_the_client_returns_the_models_and_rebuilds_the_errors(

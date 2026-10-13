@@ -49,7 +49,7 @@ def list_documents(
         )
 
 
-@router.get("/projects/{project}/documents/{number:path}/diff", operation_id="get_document_diff")
+@router.get("/projects/{project}/document-diffs/{number:path}", operation_id="get_document_diff")
 def get_document_diff(
     ctx: Ctx,
     actor: Reader,
@@ -58,7 +58,11 @@ def get_document_diff(
     from_code: Annotated[str, Query(alias="from", min_length=1, max_length=128)],
     to_code: Annotated[str, Query(alias="to", min_length=1, max_length=128)],
 ) -> views.RevisionDiffView:
-    """What changed between two issued revisions. 422 `invalid_pin` for a code that is not one."""
+    """What changed between two issued revisions. 422 `invalid_pin` for a code that is not one.
+
+    A separate prefix, not `.../documents/{number}/diff`: a number may hold `/`, so a document
+    numbered `X/diff` must stay reachable at `.../documents/X/diff`.
+    """
     with ctx.backend(True) as uow:
         return views.revision_diff_view(
             uow.conn(), f"project:{project}", number, from_code, to_code
