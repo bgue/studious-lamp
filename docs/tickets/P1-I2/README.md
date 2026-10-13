@@ -1,0 +1,122 @@
+# Increment plan — P1-I2 M1 Document control core
+
+Status: in-progress
+Supervisor session: 2026-10-13
+Brief sections: §9 M1 (record types, revision control concepts, workflows), §7.1 and §7.3 (pinned and floating links, stale pins, re-pin), §15 (base reports), §20.1 (file slots), §8 (numbering), §9 M10 (Document-control domain: transmittals), §29.8 (module definition of done)
+Branch: `p1/i2` (base: trunk `claude/wizardly-allen-m2v96s` at `1541eb4`, the P1-I1 merge)
+Decisions: ADR-0008 (Phase 1 owner decisions), ADR-0009 (authentication), ADR-0010 (module record storage, with the generic-command addendum)
+
+## Objective
+Build the second module, `documents` (M1 document control core), on the seam P1-I1 set. A `Document` is registered under its number; it has `Revision`s whose codes follow a configurable scheme (A/B/C, 0/1/2, P1/C1); a revision has `Rendition`s (native, PDF, markup, signed) that are files in the file service; a document keeps **one current revision per status class**; a link can **pin a revision or float**, a pinned link goes **stale** when a newer revision is issued, and **re-pin** shows what changed between the two revisions before it is confirmed; `Transmittal`s and `ReviewCycle`s record the formal exchange and the review of revisions. The derived-document pipeline (`DerivedDocument`, `DocumentSchema`) is P1-I3, not here.
+
+## Demo
+`just demo P1-I2` (SQLite and Postgres). The commands a person types:
+```
+tl login demo                                   # password demo
+tl standards load schema/fixtures/standards/co.acme.standards@1.0.0.yaml
+tl standards load schema/fixtures/standards/co.acme.documents@1.0.0.yaml     # the document number pattern
+tl doc register ISO-1234 --project P123 --type ISO --discipline PIP --title "Isometric, line 47-P-101" --first-revision
+tl doc rendition add ISO-1234 A sheet-A.pdf --project P123 --kind pdf --pages 3
+tl doc rev issue ISO-1234 A --project P123 --status IFR
+tl doc link 47-FV-1001 ISO-1234 --project P123 --pin A          # a tag pinned to rev A
+tl doc rev create ISO-1234 --project P123 --purpose "Issued for construction"
+tl doc rendition add ISO-1234 B sheet-B.pdf --project P123 --kind pdf --pages 5
+tl doc rev issue ISO-1234 B --project P123 --status IFC         # the tag's link goes stale
+tl doc stale --project P123                                     # 47-FV-1001 -> ISO-1234 pinned A, current B
+tl doc repin <link> --project P123                              # shows the diff summary; --apply confirms
+tl transmittal create --project P123 ... && tl transmittal issue ...   # the transmittal lists rev B
+```
+Then: a rejected document number (`ISO-12`); a review cycle with an overdue reviewer in the report; a user cannot void a document or change a revision through a generic command; the API, the TUI register and an agent's MCP tools read the same documents.
+
+## Design decisions (supervisor, this increment)
+| ID | Decision | Why | Where |
+|---|---|---|---|
+| D1 | Five record types, each a row of `cur_core_record` plus a row of its own table (ADR-0010): `Document`, `Revision`, `Rendition`, `Transmittal`, `ReviewCycle`. A transmittal's items and a review cycle's reviewers are sub-tables (`cur_documents_transmittal_item`, `cur_documents_reviewer`), not records. | Links, psets, workflow and the feed need the envelope row; items and reviewers need no identity of their own. | `schema/modules/documents/` |
+| D2 | Flat views `v_<module>_<class>` are generated for every module record class and the module reads through them. | ADR-0010 made the view a condition of the first consumer that needs a flat row; the register, history and transmittal log are that consumer. | `tl_schema.generators.ddl.view_ddl`, `registry.py`, `reports.py` |
+| D3 | A document number is its record key. It is checked against the registry numbering pattern for `documents.Document` **when the company has one**; the type and discipline against `DocumentType` and `Discipline` **when those lists are registered**. Without a registry anything is accepted. The Acme pattern is a second edition file, `co.acme.documents@1.0.0.yaml`, because a standards file must be complete on its own. | The tag module works the same way; a project without standards must still be able to register documents. | `handlers/documents.py`, `schema/fixtures/standards/` |
+| D4 | Revision schemes are data: `schema/fixtures/documents/revision-schemes.yaml` (three kinds: alpha with skipped letters, numeric, staged; the issue statuses and their classes; which scheme numbers a document by project and type). | "Configurable per project and document type" (§9 M1). The file is read per call like the workflows. | `schemes.py` |
+| D5 | **Status classes**: `review` (IFR, IFA), `construction` (IFC, AFC), `record` (ASB). Issuing a revision makes it current for its class and supersedes the one that was; the document row mirrors the newest current revision (`current_revision_*`). Different classes coexist (A stays the current IFR while B is the current IFC). | §9 M1: "only one current revision per status class". | `handlers/revisions.py`, `invariants.py` |
+| D6 | **Stale pins**: issuing any revision flags every active link pinned to another revision of the document (the core's `MarkPinsStale`); voiding or superseding a document flags every active link to it, pinned or floating (§7.3). A floating link is never stale because of a new revision. "Owners are notified" means the `Link.Flagged` events: they are catalogued, so webhook subscribers and the feed projector see them; a per-user notification setting is a later increment. | §7.3. No change to the core link interfaces. | `resolver.py` |
+| D7 | A pin is the revision **code** on the link (`cur_links.pin`). `LinkToDocument` and `RepinDocumentLink` check that the pin names an issued revision; `current` pins the revision that is current now. The generic `AddLink` with a free pin remains possible and resolves as `unknown`. | The core link model already has a free-text pin; only the module knows the codes. | `resolver.py` |
+| D8 | **Renditions**: the four file slots are on the Revision (`schema/fixtures/files/documents-revision.yaml`); a person uploads into a slot (generic `AttachFile`, allowed on Revision) and `AttachRendition` registers the available file as the controlled rendition. What a revision accepts depends on its state (Draft: native, pdf, markup; In Review: markup; Issued and Superseded: markup, signed; Void: none). A newer rendition of a kind supersedes the older. | The file service already does quarantine, scan, dedupe and slots; the module adds the control. | `handlers/renditions.py` |
+| D9 | Three workflows, moved only by the module's commands (`handle_transition_workflow(..., by_module=True)`, a Python-only argument): `documents.document`, `documents.revision`, `documents.transmittal`. The generic `TransitionWorkflow` is closed to these types. | Issuing, voiding and superseding carry invariants a bare transition would skip. | `schema/fixtures/workflows/`, `tl_core/services/workflow.py` |
+| D10 | Generic commands (ADR-0010 addendum): Document allows `SetPsetValues`, `AddLink`, `SuggestLink`; Revision allows `AddLink`, `SuggestLink`, `AttachFile`; Transmittal allows `AddLink`, `SuggestLink`, `AttachFile`; Rendition and ReviewCycle allow none. `UpdateRecord`, `VoidRecord` and `TransitionWorkflow` are never allowed. | The title, the state and a void are controlled changes. | `module.py`, `tests/test_generic_commands.py` |
+| D11 | Access levels: every command is open to a signed-in person except `VoidDocument` (admin, action `admin.command.VoidDocument`; CLI `require_admin`). Agents stay propose-only; no new agent action beyond the read tools. | ADR-0008 has two roles; document control has no role of its own in Phase 1. | `commands.py` |
+| D12 | A document has at most one revision being prepared or reviewed (Draft or In Review); codes only go forward and a void revision keeps its code; a revision needs a PDF or native rendition to be issued; an issued revision is superseded, never voided. | Keeps "next code", "the open revision" and the history unambiguous. | `handlers/revisions.py` |
+| D13 | A revision is In Review exactly while a review cycle on it is open; closing a cycle returns it to Draft with the outcome on the cycle. The document is In Review during the first review only. | One place decides what "in review" means. | `handlers/reviews.py` |
+| D14 | Transmittal numbers are typed in or allocated by the numbering pattern `documents.Transmittal` (`P123-TRN-0001`). A transmittal carries issued revisions (Issued or Superseded), once each; only a draft can be voided. | A transmittal is a record of what was sent. | `handlers/transmittals.py`, `schema/fixtures/numbering/patterns.yaml` |
+| D15 | `confidentiality` of a document is stored and shown; filtering by it is not built (ADR-0008 has no per-record ACLs in Phase 1). | Scope. | follow-ups |
+
+## Supervisor-built pieces (in order)
+| # | Piece | Why supervisor-tier | Reviewer | Status |
+|---|---|---|---|---|
+| S1 | `v_<module>_<class>` view generator; engineering projectors create their views | Generator core (01-tiers §3) | orchestrator | done |
+| T02 | `schema/modules/documents/*.yaml` (five record classes, two sub-tables, fifteen event classes); fixtures: workflows, file slots, revision schemes, document standards edition, transmittal numbering pattern | Schema, human gate (ADR-0008 decision 6) | orchestrator | done |
+| S3 | Package `tl-mod-documents`: projectors, registry reads, scheme engine (T05), document/revision/rendition commands (T04), pin and stale resolver (T07), invariants, API command table, test world | Invariants across streams; resolver semantics (01-tiers §3) | reviewer | done |
+| S4 | API wiring (19 commands, 23 error rows), `by_module` transition argument | Security surface | orchestrator | done |
+| S5 | Reference implementations of T08a, T08b, T09a, T11a (kept in the history of `p1/i2` at `1734486`) | Takeover path | — | done |
+
+## Tickets
+| ID | Title | Tier | Depends | Status | Outcome |
+|---|---|---|---|---|---|
+| T01 | Revision scheme fixture and document type list | H (schema label, data) | — | merged (supervisor) | built with the engine because it needs it; the document type list is the existing `DocumentType` list |
+| T08a | Transmittal commands | H | S3 | ready (batch 1) | |
+| T08b | Review cycle commands | H | S3 | ready (batch 1) | |
+| T09a | `tl doc`: register, show, ls, update, supersede, void | H | S3 | ready (batch 1) | |
+| T11a | Base reports (module functions) | H | S3 | ready (batch 1) | |
+
+More tickets are written as their bases merge (batch 2: `tl doc rev` and `rendition`, `tl doc link/repin/stale/diff`, `tl transmittal` and `tl review`, `tl doc report`, API reads, MCP reads, TUI, simulator actor and legacy mapping template).
+
+## Order of work
+1. Round 1: S1, T02, S3, S4, S5 built and green; batch 1 dispatched (T08a, T08b, T09a, T11a).
+2. Round 2: merge batch 1; build the client interface and API read models; batch 2.
+3. Later rounds: the remaining entry points, the simulator actor and mapping template, the demo, the gates, the report.
+
+## Brief coverage map (L-P0-I8E-3)
+| Brief item | Where |
+|---|---|
+| §9 M1 `Document` (number pattern, type, discipline, originator, confidentiality, current revision, status) | T02, `handlers/documents.py`, T09a |
+| §9 M1 `Revision` (code per scheme, date, purpose, status IFR/IFC/AFC/As-Built/Void, reviewer comments) | T02, `schemes.py`, `handlers/revisions.py`; reviewer comments are the review outcome and a markup rendition |
+| §9 M1 `Rendition` (hash, filename, MIME, size, page count, native/PDF/markup) | T02, `handlers/renditions.py` |
+| §9 M1 `Transmittal`, `ReviewCycle` | T08a, T08b |
+| §9 M1 `DerivedDocument`, `DocumentSchema`, extract/validate/publish | P1-I3 |
+| §9 M1 revision schemes configurable per project and type | D4 |
+| §9 M1 one current revision per status class; superseded retained and visibly superseded | D5, `invariants.py` |
+| §9 M1 links pin a revision or float | D7 |
+| §7.3 stale pins on issue, owners notified, re-pin with a diff before confirming | D6, `resolver.py`, T09c (CLI), TUI re-pin dialog |
+| §7.3 target voided or superseded -> stale | D6 |
+| §9 M1 workflow Draft -> Registered -> In Review -> Issued -> Superseded/Void | D9 |
+| §15 base reports: register, revision history, overdue reviews, transmittal log, documents by status/discipline, stale pinned revisions | T11a, T11b; the derived-document validation status belongs to P1-I3 |
+| §20.1 file slots native, pdf, markup, signed | D8 |
+| §9 M10 Document-control domain: transmittal and review return as items of one register | T08a (transmittals); the correspondence core is P1-I5 |
+
+### Module definition of done (§29.8) for `documents`
+| Item | Plan |
+|---|---|
+| LinkML reviewed, artefacts current, tables and views generated | T02, S1, `just gen` |
+| Workflows, required psets, file slots, spatial paths | three workflows; four file slots; no required psets; no spatial context |
+| TUI screens, forms, API, MCP, webhooks | batch 2/3; webhooks by the catalog |
+| Merge policies, settings keys, expected links | none declared (merge policies are Phase 3); no settings; no expected links |
+| Base reports | T11a, T11b |
+| Simulation actors | document controller actor (batch 3) |
+| Legacy mapping template | DMS export template (batch 3) |
+| Parity, contract, snapshot, permission and restore tests | every module test uses the parity fixtures; webhook scenario covers the new events; snapshots with the TUI tickets; permission: `test_generic_commands.py` and API tests; restore: `test_rebuild.py` |
+
+## Risks and escalation triggers
+- The pin and stale resolver needs no change to the 03 §7 core interfaces: it uses the core's `MarkPinsStale`, `FlagLink`, `AddLink`, `RepinLink` as they are. If a later ticket needs the core to validate a pin itself (a `ModuleSpec` hook), that is a change to `ModuleSpec` and goes to the orchestrator.
+- `by_module=True` on `handle_transition_workflow` is a new Python argument of a core service. It is not reachable from HTTP (the command model has no such field) and it skips only the generic-command allow-list, not the guards.
+- A file in a revision slot is an unregistered upload until `AttachRendition` runs: `AttachFile` is allowed on Revision, so anyone signed in can upload into an issued revision's slot. The file is listed with the record but is not a rendition, and the register and reports count renditions only. Recorded for the security review.
+- Two classes of status coexist, so a pin on an IFC revision goes stale when an IFR revision is issued later. That follows §7.3 literally ("when a new revision is issued, pinned links go stale"); a class-aware rule is an open question.
+
+## Schema approvals requested (ADR-0008 decisions 6 and 7a)
+| Path | Class | Ticket |
+|---|---|---|
+| `schema/modules/documents/module.yaml`, `document.yaml`, `revision.yaml`, `transmittal.yaml`, `review_cycle.yaml`, `events.yaml` | additive (a new module) | T02 |
+| `schema/fixtures/workflows/documents-document.yaml`, `documents-revision.yaml`, `documents-transmittal.yaml` | additive (new workflows) | T02 |
+| `schema/fixtures/files/documents-revision.yaml` | additive (new file slots) | T02 |
+| `schema/fixtures/documents/revision-schemes.yaml` | additive (a new fixture) | T01 |
+| `schema/fixtures/standards/co.acme.documents@1.0.0.yaml` | additive (a new fixture) | T01 |
+| `schema/fixtures/numbering/patterns.yaml` (one pattern added) | additive | S3 |
+
+## Blocked / Decision
+(none)
