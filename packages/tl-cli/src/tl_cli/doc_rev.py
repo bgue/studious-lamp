@@ -4,13 +4,7 @@ Each subcommand parses options, makes one call into `tl_mod_documents` (a handle
 prints. The rules (the revision scheme, one open revision, the status classes, stale pins, dates)
 live in the module. A revision is named by its document number and its code (`ISO-1234 A`); the
 project comes from `--project`. Issuing and superseding a revision are an admin's acts (ADR-0011).
-
-STUB (P1-I2-T09b): the bodies of the five commands raise NotImplementedError; their signatures,
-options, docstrings and the helpers are final. Each body has a STEPS comment. Implement them,
-then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -74,15 +68,27 @@ def create(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Start the next revision of a document, as a draft. Prints `created revision <code> Draft`."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}".
-    # 2. `with _service_errors(), open_uow(db) as uow:` row = _document(uow, scope, project,
-    #    number); made = handle_create_revision(uow, CreateRevision(actor=actor, source="cli",
-    #    scope=scope, document_id=row.id, code=code, stage=stage, purpose=purpose,
-    #    change_note=change_note, revision_date=revision_date, intended_status=intended_status)).
-    # 3. made.key is `ISO-1234@A`: the code is made.key.rsplit("@", 1)[-1].
-    # 4. Print `created revision <code> Draft`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db) as uow:
+        row = _document(uow, scope, project, number)
+        made = handle_create_revision(
+            uow,
+            CreateRevision(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                document_id=row.id,
+                code=code,
+                stage=stage,
+                purpose=purpose,
+                change_note=change_note,
+                revision_date=revision_date,
+                intended_status=intended_status,
+            ),
+        )
+    made_code = (made.key or "").rsplit("@", 1)[-1]
+    typer.echo(f"created revision {made_code} Draft")
 
 
 @app.command("issue")
@@ -101,16 +107,29 @@ def issue(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Issue a draft revision (admin). Links pinned to other revisions go stale."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}"; call require_admin(db) first.
-    # 2. `with _service_errors(), open_uow(db) as uow:` rev = _revision(uow, scope, project,
-    #    number, code); result = handle_issue_revision(uow, IssueRevision(actor=actor,
-    #    source="cli", scope=scope, stream_id=rev.id, issue_status=status, issued_on=issued_on,
-    #    date_reason=date_reason)); issued = _revision(uow, scope, project, number, code).
-    # 3. flagged = the number of events of result.events whose event_type is "Link.Flagged".
-    # 4. Print `issued <number>@<code> as <status> on <issued.issued_on>`; when flagged > 0 print
-    #    `flagged <flagged> link(s) stale` using "link" for 1 and "links" otherwise.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    require_admin(db)
+    with _service_errors(), open_uow(db) as uow:
+        rev = _revision(uow, scope, project, number, code)
+        result = handle_issue_revision(
+            uow,
+            IssueRevision(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                stream_id=rev.id,
+                issue_status=status,
+                issued_on=issued_on,
+                date_reason=date_reason,
+            ),
+        )
+        issued = _revision(uow, scope, project, number, code)
+    flagged = sum(1 for event in result.events if event.event_type == "Link.Flagged")
+    typer.echo(f"issued {number}@{code} as {status} on {issued.issued_on}")
+    if flagged > 0:
+        noun = "link" if flagged == 1 else "links"
+        typer.echo(f"flagged {flagged} {noun} stale")
 
 
 @app.command("supersede")
@@ -124,14 +143,24 @@ def supersede(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Mark an issued revision as replaced by another issued one (admin)."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}"; call require_admin(db) first.
-    # 2. `with _service_errors(), open_uow(db) as uow:` old = _revision(uow, scope, project,
-    #    number, code); new = _revision(uow, scope, project, number, by);
-    #    handle_supersede_revision(uow, SupersedeRevision(actor=actor, source="cli",
-    #    scope=scope, stream_id=old.id, superseded_by_id=new.id, reason=reason)).
-    # 3. Print `superseded <number>@<code> by <by>`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    require_admin(db)
+    with _service_errors(), open_uow(db) as uow:
+        old = _revision(uow, scope, project, number, code)
+        new = _revision(uow, scope, project, number, by)
+        handle_supersede_revision(
+            uow,
+            SupersedeRevision(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                stream_id=old.id,
+                superseded_by_id=new.id,
+                reason=reason,
+            ),
+        )
+    typer.echo(f"superseded {number}@{code} by {by}")
 
 
 @app.command("void")
@@ -144,21 +173,30 @@ def void(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Void a draft revision started in error. An issued revision is superseded, never voided."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}".
-    # 2. `with _service_errors(), open_uow(db) as uow:` rev = _revision(uow, scope, project,
-    #    number, code); handle_void_revision(uow, VoidRevision(actor=actor, source="cli",
-    #    scope=scope, stream_id=rev.id, reason=reason)).
-    # 3. Print `voided <number>@<code>`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db) as uow:
+        rev = _revision(uow, scope, project, number, code)
+        handle_void_revision(
+            uow,
+            VoidRevision(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                stream_id=rev.id,
+                reason=reason,
+            ),
+        )
+    typer.echo(f"voided {number}@{code}")
 
 
 @app.command("ls")
 def ls(ctx: typer.Context, number: _Number, project: _Project) -> None:
     """List the revisions of a document, oldest first, one `revision ...` line each."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}".
-    # 2. `with _service_errors(), open_uow(db, readonly=True) as uow:` row = _document(uow,
-    #    scope, project, number); revisions = registry.revisions_of(uow.conn(), row.id).
-    # 3. Print `_revision_line(rev)` for each revision (the helper is final).
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        row = _document(uow, scope, project, number)
+        revisions = registry.revisions_of(uow.conn(), row.id)
+    for rev in revisions:
+        typer.echo(_revision_line(rev))
