@@ -42,6 +42,7 @@ from tl_cli import (
     backup,
     config,
     dev,
+    doc,
     events,
     extypes,
     extypes_quarantine,
@@ -109,6 +110,7 @@ app.add_typer(proposal.app, name="proposal")
 app.add_typer(standards.app, name="standards")
 standards.app.add_typer(standards_class.app, name="class")
 app.add_typer(tag.app, name="tag")
+app.add_typer(doc.app, name="doc")
 tag.app.add_typer(tag_report.app, name="report")
 tag.app.command("import")(tag_import.import_tags)
 app.add_typer(config.app, name="config")
