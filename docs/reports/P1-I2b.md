@@ -10,17 +10,17 @@ Demo path verified: `just demo P1-I2b` passes its seven clauses on SQLite and on
 No implementer ticket was relayed: the pieces share one rule (who may call what) and are a few dozen lines plus tests each, all in auth code that stays supervisor-tier.
 
 ## Tickets
-None (see the plan). Supervisor commits `P1-I2b-S1` to `S10`; the plan lists them.
+None (see the plan). Supervisor commits `P1-I2b-S1` to `S12`; the plan lists them.
 
 ## Gates
 | Gate | Result |
 |---|---|
 | `just check` | clean on the final tree (ruff, format, pyright 0 errors, codegen drift, OpenAPI drift, licences). The S9 tests had three over-long lines that the first check after S9 found; fixed in S10 |
-| `just test` | 7232 passed, 1 skipped, 16 deselected, 3 failed on the tree of S8: three tests of the documents module matched the old refusal wording ("registered by an admin", "only an admin can close it"). Fixed in S9 (test strings only); the whole `packages/tl-modules` suite (653) passes after the fix, and the three files again after the line-length fix of S10. The three were found only by the full run (L-P1-I2b-2) |
+| `just test` | **Final head e0dfc63 (after the review fixes of S11): 7253 passed, 1 skipped, 16 deselected, 0 failed (42 min).** Earlier, on the tree of S8: 7232 passed, 3 failed: three tests of the documents module matched the old refusal wording ("registered by an admin", "only an admin can close it"). Fixed in S9 (test strings only); the whole `packages/tl-modules` suite (653) passes after the fix, and the three files again after the line-length fix of S10. The three were found only by the full run (L-P1-I2b-2) |
 | `just test-tui` | 798 passed, 34 snapshots (six snapshots updated for the new hint line and the form box) |
 | `just test-parity` (run alone, last) | no failure. The run (alone, 2-hour limit) was stopped by that limit at 89% (about 3960 of 4429 tests passed, none failed); the 19 test files from `tests/services/test_module_guards.py` to the end (630 tests, a few of them repeats of the first run) were then run alone with the same markers and `--adapters sqlite,postgres`: 630 passed. The full run takes more than two hours here |
-| `just demo P1-I2b` on SQLite and Postgres | 7 of 7 clauses PASS on each |
-| `just demo P1-I2` on SQLite and Postgres | 9 of 9 clauses PASS on each (its three `expect` lines changed to the new refusal text) |
+| `just demo P1-I2b` on SQLite and Postgres | 7 of 7 clauses PASS on each (rerun on e0dfc63) |
+| `just demo P1-I2` on SQLite and Postgres | 9 of 9 clauses PASS on each (rerun on e0dfc63) (its three `expect` lines changed to the new refusal text) |
 
 ## Security review
 For the orchestrator's fresh-context review (commits that change roles, the authorizer, access levels or CLI gates):
@@ -41,6 +41,9 @@ Points worth a reviewer's time:
 - The embedded TUI client re-checks the account (active, the actor's own string, one of the two roles, not an agent) before `issue_transmittal`; the remote client leaves the decision to the server.
 - `tl doc import --apply` moved from admin to controller; `tl tag import --apply`, `RecordTag`, the registry and link recovery stayed admin (ADR-0013 section 3).
 
+## Review follow-up (S11)
+The fresh-context review of b5b761c passed with four LOW findings, all fixed in `e0dfc63` with tests: (1) tests for the embedded `_controller_gate` (`test_embedded_controller_gate.py`: admin, controller, controller alone, sim controller allowed; user, no account, disabled, agent, folded actor strings refused); (2) `issue_transmittal` refuses a command whose actor is not the client's; (3) `action_for` raises `ValueError` for an unknown `access` value; (4) `accounts.set_roles` takes `expected_roles` and refuses a stale list with 409 `account_state` (API body, admin client, TUI clients and accounts screen pass it), and `tl admin user roles --add/--remove` read the roles inside the write unit of work. ADR-0011 and ADR-0009 tidied; learning L-P1-I2b-6. Parity was not rerun, as agreed (changes are outside the adapters).
+
 ## Decisions
 - **ADR-0013** records them: three roles stored alphabetically; the ten commands and `tl doc import --apply` are the controller's; tag import, `RecordTag`, `AdminFlagLink`, `AdminRetractLink`, the standards commands and all `admin.*` stay the admin's; `document_controller` may stand alone (it then has every `user` right); a `sim` account may hold it, an `agent` account never; only an admin grants it.
 - The explicit list is derived from the typed table (`controller_actions()`), not written by hand in `tl_core`, so core stays module-agnostic and a new `controller` command is open to the role from its declaration.
@@ -56,7 +59,7 @@ Points worth a reviewer's time:
 None needed. The owner request is recorded in ADR-0013 and `docs/reports/APPROVALS.md` (two lines: the role design, and the documentation-only schema change).
 
 ## Learnings
-L-P1-I2b-1 to L-P1-I2b-5 appended: a list that opens a privilege must fail closed (explicit set from the typed table); the CLI refusal tests only refuse on SQLite and a refusal text is pinned in tests and demos (grep before changing it; the full run found three module tests); a one-row TUI hint line cuts text silently, `snapshot_report.html` is tracked and rewritten by snapshot runs, `Ctrl+I` is Tab; `document_controller` was already a Phase 0 simulated person's name; the role list is stored alphabetically so `ROLES` is too.
+L-P1-I2b-1 to L-P1-I2b-6 appended (6: a role toggle needs `expected_roles`, and a gate must compare `cmd.actor`): a list that opens a privilege must fail closed (explicit set from the typed table); the CLI refusal tests only refuse on SQLite and a refusal text is pinned in tests and demos (grep before changing it; the full run found three module tests); a one-row TUI hint line cuts text silently, `snapshot_report.html` is tracked and rewritten by snapshot runs, `Ctrl+I` is Tab; `document_controller` was already a Phase 0 simulated person's name; the role list is stored alphabetically so `ROLES` is too.
 
 ## Docs
 - Created: `docs/adr/0013-document-controller-role.md`, `docs/tickets/P1-I2b/README.md`, this report.

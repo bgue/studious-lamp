@@ -39,6 +39,8 @@ The increment is small and security-sensitive, so the supervisor built all of it
 | S8 | Docs: runbooks (accounts-and-access, documents), module page, package READMEs and AGENTS.md, OpenAPI reference, LEARNINGS, APPROVALS lines | Docs | orchestrator | done |
 | S9 | The documents module tests follow the new refusal wording (found by the full `just test`) | Tests | security review | done |
 | S10 | Report `docs/reports/P1-I2b.md` | Report | orchestrator | done |
+| S11 | Review fixes LOW-1 to LOW-4 (embedded gate tests and actor check, `action_for` fails closed, `expected_roles` against a stale role write) and two ADR tidies | Auth | security review | done |
+| S12 | Report updated with the follow-up and the final gates | Report | orchestrator | done |
 
 ## Tickets
 None. No piece was large and specifiable enough to pay for the ticket overhead: the pieces share one rule (who may call what) and each is a few dozen lines plus tests.
