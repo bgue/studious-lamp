@@ -5,7 +5,7 @@ Adding one is two steps that the module keeps apart: the upload (the file servic
 stores the bytes in the revision's slot of that name) and `AttachRendition` (the module registers
 the available file as the revision's rendition and supersedes an older native or PDF). The commands
 here do both. What a revision accepts depends on its state; the module says so. Replacing a signed
-copy is an admin's act (ADR-0011).
+copy is a controller's act (ADR-0013).
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ from tl_cli.doc import (
     _service_errors,
 )
 from tl_cli.doc_rev import _Code, _Number, _revision
-from tl_cli.session import require_admin
+from tl_cli.session import require_controller
 
 app = typer.Typer(help="Add, replace and list the renditions of a revision.", no_args_is_help=True)
 
@@ -153,10 +153,10 @@ def register_signed(
     content_type: _ContentType = None,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Register the first signed copy of a revision (admin). A correction is `replace-signed`."""
+    """Register the first signed copy of a revision (controller); `replace-signed` corrects it."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_admin(db)
+    require_controller(db)
     with _service_errors(), open_uow(db, readonly=True) as uow:
         rev = _revision(uow, scope, project, number, code)
         preflight_rendition(uow.conn(), scope, rev.id, "signed", "register_signed")
@@ -191,10 +191,10 @@ def replace_signed(
     content_type: _ContentType = None,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Replace the signed copy of a revision by another file (admin). The reason is kept."""
+    """Replace the signed copy of a revision by another file (controller). The reason is kept."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_admin(db)
+    require_controller(db)
     with _service_errors(), open_uow(db, readonly=True) as uow:
         rev = _revision(uow, scope, project, number, code)
         preflight_rendition(uow.conn(), scope, rev.id, "signed", "replace_signed")

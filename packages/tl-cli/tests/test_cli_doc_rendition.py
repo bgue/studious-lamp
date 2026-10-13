@@ -128,11 +128,11 @@ def test_an_issued_revision_takes_no_new_pdf_and_a_refusal_uploads_nothing(
     before = made.scalar("SELECT COUNT(*) FROM cur_files")
     late = add(env, make(tmp_path, "late.pdf", b"%PDF-1.7 late"), "--kind", "pdf", ok=False)
     assert late.stderr.startswith("error: ")
-    # the signed copy is an admin's act: `add` refuses it, before any upload
+    # the signed copy is a controller's act: `add` refuses it, before any upload
     signed = add(
         env, make(tmp_path, "signed.pdf", b"%PDF-1.7 signed"), "--kind", "signed", ok=False
     )
-    assert "registered by an admin with RegisterSignedRendition" in signed.stderr
+    assert "registered by a document controller with RegisterSignedRendition" in signed.stderr
     assert made.scalar("SELECT COUNT(*) FROM cur_files") == before
     assert [row[0] for row in listing(env)] == ["pdf"]
 
@@ -140,7 +140,7 @@ def test_an_issued_revision_takes_no_new_pdf_and_a_refusal_uploads_nothing(
 # --- register-signed and replace-signed -----------------------------------------------------------
 
 
-def test_the_signed_copy_is_registered_once_by_an_admin_and_replaced_by_one(
+def test_the_signed_copy_is_registered_once_by_a_controller_and_replaced_by_one(
     env: dict[str, str], tmp_path: Path
 ) -> None:
     made = world(env, tmp_path)

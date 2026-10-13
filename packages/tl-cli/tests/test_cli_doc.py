@@ -212,7 +212,7 @@ def test_update_needs_a_field_and_a_difference(env: dict[str, str]) -> None:
     assert "differs from the request" in same.stderr
 
 
-def test_supersede_is_for_an_admin_and_needs_an_issued_replacement(
+def test_supersede_is_for_a_controller_and_needs_an_issued_replacement(
     env: dict[str, str], tmp_path: Path
 ) -> None:
     register(env, "ISO-1000")
@@ -273,7 +273,9 @@ def test_supersede_is_for_an_admin_and_needs_an_issued_replacement(
     assert ghost.stderr.strip() == "error: no document 'NOPE-1' in project 'P123'"
 
 
-def test_void_is_for_an_admin_and_voids_the_document(env: dict[str, str], tmp_path: Path) -> None:
+def test_void_is_for_a_controller_and_voids_the_document(
+    env: dict[str, str], tmp_path: Path
+) -> None:
     register(env, "ISO-1234")
     if not is_postgres(as_target(env["TL_DB"])):
         assert bootstrap(env).exit_code == 0
@@ -299,7 +301,7 @@ def test_the_confidentiality_help_says_the_class_is_not_enforced(env: dict[str, 
     assert "recipient emails" in text
 
 
-def test_confidentiality_is_for_an_admin_and_keeps_the_reason(
+def test_confidentiality_is_for_a_controller_and_keeps_the_reason(
     env: dict[str, str], tmp_path: Path
 ) -> None:
     register(env, "ISO-1234")

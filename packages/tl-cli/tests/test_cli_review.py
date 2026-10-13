@@ -142,7 +142,7 @@ def test_a_person_cannot_close_milder_than_the_worst_answer(
     answer(env, "ana", "rejected", "--comment", "wrong line class")
     answer(env, "bo", "approved")
     milder = review(env, "close", CYCLE, "--project", "P123", "--outcome", "approved", ok=False)
-    assert "only an admin can close it as approved" in milder.stderr
+    assert "only a document controller can close it as approved" in milder.stderr
     stricter_still = review(env, "close", CYCLE, "--project", "P123", "--outcome", "rejected")
     assert stricter_still.stdout.strip() == f"closed {CYCLE}: rejected"
 
@@ -171,10 +171,10 @@ def test_only_the_opener_or_the_author_closes_a_cycle(
     assert author.stdout.strip() == f"closed {CYCLE}: approved"
 
 
-# --- the admin's two corrections ------------------------------------------------------------------
+# --- the controller's two corrections -------------------------------------------------------------
 
 
-def test_on_behalf_and_override_are_for_an_admin(
+def test_on_behalf_and_override_are_for_a_controller(
     env: dict[str, str], draft: DocumentsWorld, tmp_path: Path
 ) -> None:
     open_cycle(env)

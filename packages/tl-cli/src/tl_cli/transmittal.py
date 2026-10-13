@@ -4,7 +4,7 @@ A transmittal is one formal exchange of issued revisions with other parties. Eac
 options, makes one call into `tl_mod_documents` (a handler or a read) and prints. The rules (only
 issued revisions, the number pattern, the dates, which state allows what) live in the module.
 Transmittals are named by number; revisions as `NUMBER@CODE` (`ISO-1234@B`); the project comes from
-`--project`. Issuing a transmittal is an admin's act (ADR-0011).
+`--project`. Issuing a transmittal is a controller's act (ADR-0013).
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ from tl_cli.doc import (
     _Reason,
     _service_errors,
 )
-from tl_cli.session import require_admin
+from tl_cli.session import require_controller
 
 app = typer.Typer(help="Draft, issue, answer, close and void transmittals.", no_args_is_help=True)
 
@@ -148,10 +148,10 @@ def issue(
     date_reason: _DateReason = None,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Issue a draft transmittal (admin): it is now the record of what was sent."""
+    """Issue a draft transmittal (controller): it is now the record of what was sent."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_admin(db)
+    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         row = _transmittal(uow, scope, project, number)
         handle_issue_transmittal(

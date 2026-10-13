@@ -3,7 +3,8 @@
 Each subcommand parses options, makes one call into `tl_mod_documents` (a handler or a read) and
 prints. The rules (the revision scheme, one open revision, the status classes, stale pins, dates)
 live in the module. A revision is named by its document number and its code (`ISO-1234 A`); the
-project comes from `--project`. Issuing and superseding a revision are an admin's acts (ADR-0011).
+project comes from `--project`. Issuing and superseding a revision are a controller's acts
+(ADR-0013).
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ from tl_cli.doc import (
     _revision_line,
     _service_errors,
 )
-from tl_cli.session import require_admin
+from tl_cli.session import require_controller
 
 app = typer.Typer(help="Start, issue, supersede, void and list revisions.", no_args_is_help=True)
 
@@ -106,10 +107,10 @@ def issue(
     ] = None,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Issue a draft revision (admin). Links pinned to other revisions go stale."""
+    """Issue a draft revision (controller). Links pinned to other revisions go stale."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_admin(db)
+    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         rev = _revision(uow, scope, project, number, code)
         result = handle_issue_revision(
@@ -142,10 +143,10 @@ def supersede(
     reason: _Reason,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Mark an issued revision as replaced by another issued one (admin)."""
+    """Mark an issued revision as replaced by another issued one (controller)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_admin(db)
+    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         old = _revision(uow, scope, project, number, code)
         new = _revision(uow, scope, project, number, by)

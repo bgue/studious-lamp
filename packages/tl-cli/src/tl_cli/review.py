@@ -6,7 +6,7 @@ rules live in the module: reviewers are people with an account and not only the 
 answers for themselves; a person cannot close milder than the worst answer; only the opener or the
 revision's author closes. A cycle is named by its key (`ISO-1234@A/RC1`, as `tl review open` prints
 it); the project comes from `--project`. Recording an answer on someone's behalf and overriding an
-outcome are an admin's acts (ADR-0011).
+outcome are a controller's acts (ADR-0013).
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ from tl_cli.doc import (
     _Reason,
     _service_errors,
 )
-from tl_cli.session import require_admin
+from tl_cli.session import require_controller
 
 app = typer.Typer(help="Open, answer and close reviews of revisions.", no_args_is_help=True)
 
@@ -137,10 +137,10 @@ def on_behalf(
     comment: Annotated[str, typer.Option("--comment", help="How the answer reached you.")],
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Record a reviewer's answer for them (admin). The comment is required and kept."""
+    """Record a reviewer's answer for them (controller). The comment is required and kept."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_admin(db)
+    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         row = _cycle(uow, scope, project, cycle)
         handle_record_review_outcome_on_behalf(
@@ -205,10 +205,10 @@ def override(
     reason: _Reason,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Close a cycle with a stated outcome, even a milder one than the answers (admin)."""
+    """Close a cycle with a stated outcome, even a milder one than the answers (controller)."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
-    require_admin(db)
+    require_controller(db)
     with _service_errors(), open_uow(db) as uow:
         row = _cycle(uow, scope, project, cycle)
         handle_override_review_outcome(
