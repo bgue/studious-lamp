@@ -6,7 +6,13 @@ Reading, comparing and writing are the module's (`tl_mod_documents.imports`); th
 options and prints. It registers documents only: the old register's revision, status and date are a
 note in the description, and the revisions come with the P1-I8 legacy loaders. It is registered by
 `tl_cli.main` as `tl doc import`.
+
+STUB (P1-I2-T12e): the bodies of _preview and import_documents raise NotImplementedError; their
+signatures, options, docstrings and the helpers are final. Each body has a STEPS comment.
+Implement them, then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -41,14 +47,7 @@ def _preview(plan: ImportPlan) -> None:
     # 2. For each row of plan.new print f"+ {row.number}  {row.doc_type or '-'}  {row.title}".
     # 3. For each number of plan.exists print f"= {number}".
     # 4. For each row of plan.invalid print f"! line {row.line}: {'; '.join(row.problems)}".
-    counts = plan.counts()
-    typer.echo("  ".join(f"{name}={counts[name]}" for name in counts))
-    for row in plan.new:
-        typer.echo(f"+ {row.number}  {row.doc_type or '-'}  {row.title}")
-    for number in plan.exists:
-        typer.echo(f"= {number}")
-    for row in plan.invalid:
-        typer.echo(f"! line {row.line}: {'; '.join(row.problems)}")
+    raise NotImplementedError
 
 
 def import_documents(
@@ -85,26 +84,4 @@ def import_documents(
     #    skip_invalid=skip_invalid).
     # 5. Print f"applied {job}: registered={len(results)}  skipped={len(plan.exists) +
     #    len(plan.invalid)}".
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    job = job or file.stem
-    if apply:
-        require_admin(db)
-    with _service_errors():
-        try:
-            template = load_mapping(mapping)
-            text = read_file_text(file)
-            rows = read_rows(text, template)
-        except MappingError as exc:
-            _fail(str(exc))
-        typer.echo(f"import {template.name} {file.name} into project {project}")
-        with open_uow(db, readonly=not apply) as uow:
-            plan = plan_import(uow.conn(), scope, rows)
-            _preview(plan)
-            if not apply:
-                typer.echo("dry run: nothing written; add --apply to write")
-                return
-            results = apply_plan(uow, scope, plan, actor=actor, job=job, skip_invalid=skip_invalid)
-    typer.echo(
-        f"applied {job}: registered={len(results)}  skipped={len(plan.exists) + len(plan.invalid)}"
-    )
+    raise NotImplementedError

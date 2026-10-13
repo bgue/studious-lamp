@@ -20,6 +20,7 @@ A document controller previews and then applies the import of a legacy DMS regis
 - A failure prints `error: <message>` on stderr and exits 1 with no traceback. `_service_errors()` does that for every service failure.
 - The command makes the calls its STEPS name and prints; the rules are in `tl_mod_documents.imports`. Without `--apply` the unit of work is read-only and nothing is written.
 - `require_admin(db)` is called first when `--apply` is given, before the file is read, exactly as `tl tag import --apply` does (P1-I1). The preview stays open to any signed-in person. The command registers documents only, through `apply_plan`; it never passes `by_module`, never issues a revision and never attaches a rendition (ADR-0011). `--skip-invalid` is not a way round the role: the admin check comes first.
+- The file is read with `read_file_text` (refuses a file over 5 MiB) and `read_rows` (refuses more than 1000 rows), both before a unit of work is opened; a field that would break `RegisterDocument` (a 600-character title) or a control character is already an invalid row in the plan, so the command prints it with `!` and `--skip-invalid` imports the rest.
 
 ## Interfaces (verbatim from the repo at the branch point)
 `packages/tl-cli/src/tl_cli/doc_import.py` (the stub you complete):
@@ -49,7 +50,12 @@ import typer
 from tl_adapters.db import DbTarget, open_uow
 from tl_mod_documents.imports.apply import apply_plan
 from tl_mod_documents.imports.diff import plan_import
-from tl_mod_documents.imports.mapping import MappingError, load_mapping, read_rows
+from tl_mod_documents.imports.mapping import (
+    MappingError,
+    load_mapping,
+    read_file_text,
+    read_rows,
+)
 from tl_mod_documents.imports.model import ImportPlan
 
 from tl_cli.doc import _DEFAULT_ACTOR, _Actor, _fail, _Project, _service_errors
@@ -93,10 +99,11 @@ def import_documents(
     # STEPS
     # 1. db: DbTarget = ctx.obj; scope = f"project:{project}"; job = job or file.stem. When apply
     #    is true call require_admin(db) first (a bulk registration is an admin's decision).
-    # 2. `with _service_errors():` template = load_mapping(mapping); text =
-    #    file.read_text(encoding="utf-8"); rows = read_rows(text, template). A MappingError from
-    #    load_mapping or read_rows is _fail(str(exc)); an OSError or UnicodeDecodeError reading
-    #    the file is _fail(f"{file.name}: cannot read file: {exc}").
+    # 2. `with _service_errors():` `try:` template = load_mapping(mapping); text =
+    #    read_file_text(file); rows = read_rows(text, template); `except MappingError as exc:`
+    #    _fail(str(exc)). read_file_text refuses a file over 5 MiB and words a read error as
+    #    "<name>: cannot read file: ..."; read_rows refuses more than 1000 rows. Both come before
+    #    any unit of work is opened.
     # 3. Print f"import {template.name} {file.name} into project {project}".
     # 4. `with open_uow(db, readonly=not apply) as uow:` plan = plan_import(uow.conn(), scope,
     #    rows); _preview(plan). When not apply: print "dry run: nothing written; add --apply to
@@ -110,6 +117,7 @@ def import_documents(
 `tl_mod_documents.imports` (finished by T12b, T12c, T12d; signatures):
 ```python
 def load_mapping(path: Path) -> DocumentMapping: ...   # raises MappingError
+def read_file_text(path: Path) -> str: ...   # raises MappingError (too large, unreadable, not UTF-8)
 def read_rows(text: str, mapping: DocumentMapping) -> list[ImportRow]: ...   # raises MappingError
 def plan_import(conn: Connection, scope: str, rows: list[ImportRow]) -> ImportPlan: ...
 def apply_plan(uow, scope, plan, *, actor: str, job: str, skip_invalid: bool = False) -> list[CommandResult]: ...
@@ -125,7 +133,7 @@ def require_admin(db: DbTarget) -> Principal: ...
 ## Context (read these, nothing else)
 - `packages/tl-cli/src/tl_cli/doc_import.py` (the file you edit)
 - `packages/tl-cli/src/tl_cli/doc.py` (the helpers you import; do not edit)
-- `packages/tl-cli/src/tl_cli/tag_import.py` or the nearest equivalent (the same command for tags; style)
+- `packages/tl-cli/src/tl_cli/tag_import.py` (the same command for tags; style)
 - `packages/tl-cli/tests/doccli_support.py` (test helpers, already in the tree)
 - `docs/tickets/P1-I2/provided/t12e-test_cli_doc_import.py.txt` (the test)
 may explore: (none)
@@ -163,7 +171,7 @@ uv run pytest packages/tl-cli/tests/test_cli_doc_import.py -q
 TL_PG_URL=postgresql://postgres:postgres@localhost:5432/tl_test uv run pytest packages/tl-cli/tests/test_cli_doc_import.py -q --adapters sqlite,postgres
 uv run pytest packages/tl-cli -q
 ```
-Expected: `just check` clean; 6 test functions pass (on SQLite and again on Postgres); the whole package passes.
+Expected: `just check` clean; 10 test functions pass (on SQLite and again on Postgres); the whole package passes.
 
 ## Tests to add
 None beyond the provided file.

@@ -65,6 +65,7 @@ Then: a rejected document number (`ISO-12`); a review cycle with an overdue revi
 | S15 | Security review closed (LOW-1..4): preflight validates the whole command and the closed-document rule before upload, confidentiality sentence everywhere, only `@` reserved in typed keys (`/` allowed, `{number:path}` read routes), client write methods | Security surface | coordinator (no fourth pass) | done |
 | S16 | Reference of T12a plus the simulator plumbing (`DocumentRegistrarParams`, `DocumentDesk`, recorder, `FakeWorld`) and the end-to-end test (held, restored when T12a merges) | Takeover path; sim contract | — | done |
 | S17 | Reference of T13b, T13c, T13d plus `document_text.py`, the F7 binding, client write methods and the flow test (held, restored when the three merge) | Takeover path; TUI pure text | — | done |
+| S25 | Targeted import-path check, LOW-1..3: the plan checks the `RegisterDocument` model's own limits, the file takes at most 1000 rows and 5 MiB, control characters and line breaks are row problems, every command refuses a NUL (core validator), the tag import reads control characters as row problems; `tl doc import --apply` is admin-only with a test that a user is refused | Security surface (import path) | coordinator (targeted check) | done |
 | S18 | Reference of T12b to T12e plus the DMS template, the sample file (16 rows, 9 valid), `register_problems` and `tl doc import` registration | Takeover path; module seam | — | done |
 
 ## Tickets
@@ -88,8 +89,8 @@ Then: a rejected document number (`ISO-12`); a review cycle with an overdue revi
 | T12a | Simulator: the document registrar actor | H | S16 | merged (wave 1, first attempt) | `08169a1`; the end-to-end test is back in the tree |
 | T12b | Import: mapping template parser and file reader | H | S18 | merged (wave 1, second attempt) | `a72ae50`; blank header cells are ignored again (S22, `test_imports_mapping_headers.py`), a named column twice is still refused |
 | T12c | Import: the plan (new, exists, invalid) | H | T12b | merged (wave 2, first attempt) | `b199530`; a hand-built row with a blank number is invalid (guard + `test_imports_plan_guards.py`) |
-| T12d | Import: apply a plan, all or nothing | H | T12b, T12c | ready (wave 2) | |
-| T12e | `tl doc import`: preview and `--apply` | H | T12b, T12c, T12d | ready (wave 3) | |
+| T12d | Import: apply a plan, all or nothing | H | T12b, T12c | merged (wave 2, first attempt) | `2e73174` |
+| T12e | `tl doc import`: preview and `--apply` (admin), file limits | H | T12b, T12c, T12d | ready (wave 3) | |
 
 Haiku-ability checklist (01-tiers §6) for T12a to T13d: each ticket reads at most six files besides `AGENTS.md` and the ticket (the stub, the final helpers it names, the test); every interface it uses is in the tree; a provided test file decides; the diff is under 400 lines across at most three files; none touches a Sonnet-authored row, `schema/**`, dependencies or a public interface; a reviewer verifies it from the diff and the commands. Dispatch plan: wave 1 is T13b, T13c, T12a, T12b (four in parallel, disjoint paths); wave 2 is T13d, T12c (after T12b), T12d (after T12b and T12c); wave 3 is T12e. The held tests (`provided/s16-*`, `s17-*`) go back into the tree when the tickets they exercise merge.
 
