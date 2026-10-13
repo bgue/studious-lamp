@@ -491,7 +491,7 @@ class AccountStatus(str, Enum):
 
 class AccountRole(str, Enum):
     """
-    The two roles of Phase 1 (ADR-0008 decision 3).
+    The three roles of Phase 1 (ADR-0008 decision 3, amended by ADR-0013).
     """
     admin = "admin"
     """
@@ -499,7 +499,11 @@ class AccountRole(str, Enum):
     """
     user = "user"
     """
-    Everything except `admin.*` actions.
+    Everything except `admin.*` and `control.*` actions.
+    """
+    document_controller = "document_controller"
+    """
+    A user who may also run the controlling acts of document control (`control.*`). Not an admin; never held by an agent.
     """
 
 
@@ -4492,7 +4496,7 @@ class Account(ConfiguredBaseModel):
     username: str = Field(default=..., description="""Normalised (NFKC, lower case) and matching `[a-z0-9][a-z0-9_.@-]{0,63}`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account', 'AccountCreatedPayload']} })
     display_name: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Account', 'AccountCreatedPayload']} })
     kind: AccountKind = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag', 'Hashtag', 'Account', 'AccountCreatedPayload']} })
-    roles: Any = Field(default=..., description="""JSON list of roles, `[\"admin\"]`, `[\"user\"]` or both.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+    roles: Any = Field(default=..., description="""JSON list of roles from `admin`, `user` and `document_controller`, for example `[\"user\", \"document_controller\"]`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['Account', 'AccountCreatedPayload', 'AccountRolesSetPayload']} })
     is_admin: int = Field(default=0, description="""1 when `roles` holds `admin`. Lets the last-admin check count in plain SQL.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['Account'],

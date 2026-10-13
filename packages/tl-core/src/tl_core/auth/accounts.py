@@ -54,6 +54,7 @@ from tl_core.auth.types import (
     AGENT_TOKEN_ISSUED,
     AGENT_TOKEN_REVOKED,
     DEMO_USERNAME,
+    ROLES,
     AccountKind,
     AccountView,
     AgentTokenView,
@@ -65,18 +66,21 @@ from tl_core.util import new_ulid, utcnow
 
 SOURCE = "auth"
 MAX_ACTIVE_TOKENS_PER_AGENT = 20
-ROLES: tuple[Role, ...] = ("admin", "user")
 
 
 def _normalise_roles(kind: AccountKind, roles: Sequence[str]) -> list[Role]:
     unknown = sorted(set(roles) - set(ROLES))
     if unknown:
-        raise InvalidAccountError(f"unknown role {', '.join(unknown)}; roles are admin and user")
+        raise InvalidAccountError(
+            f"unknown role {', '.join(unknown)}; roles are {', '.join(ROLES)}"
+        )
     found: list[Role] = [r for r in ROLES if r in set(roles)]
     if not found:
         raise InvalidAccountError("an account needs at least one role")
     if kind != "person" and "admin" in found:
         raise InvalidAccountError(f"a {kind} account cannot hold the admin role")
+    if kind == "agent" and "document_controller" in found:  # agents stay propose-only (ADR-0013)
+        raise InvalidAccountError("an agent account cannot hold the document_controller role")
     return found
 
 

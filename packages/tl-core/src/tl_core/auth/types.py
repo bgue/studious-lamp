@@ -1,15 +1,18 @@
 """Authentication and authorization contracts for P1-I0 (ADR-0008; replaces the ADR-0005 stub).
 
-Frozen for the increment: change only by orchestrator decision.
+Frozen for the increment: change only by orchestrator decision. Changed once, by the owner's
+request of 2026-10-13 (ADR-0013): a third role, ``document_controller``.
 
 Identity is resolved behind one seam, :class:`IdentityProvider`. Phase 1 ships a username and
 password provider. Microsoft Entra ID (OIDC) replaces it later without changing callers: callers
 only ever see a :class:`Principal`.
 
-Authorization has two roles, ``admin`` and ``user`` (ADR-0008 decision 3):
+Authorization has three roles (ADR-0008 decision 3, amended by ADR-0013):
 
 - ``admin`` may do everything;
-- ``user`` may do everything except ``admin.*`` actions;
+- ``user`` may do everything except ``admin.*`` and ``control.*`` actions;
+- ``document_controller`` is a ``user`` who may also run the ``control.*`` actions (the controlling
+  acts of document control, ADR-0011 as superseded by ADR-0013). It is not an admin: no ``admin.*``;
 - an ``agent:*`` principal keeps the fixed propose-only rule (B15): it never changes a record
   directly, whatever its role.
 
@@ -41,13 +44,20 @@ AGENT_TOKEN_ISSUED = "AgentToken.Issued"
 AGENT_TOKEN_REVOKED = "AgentToken.Revoked"
 # Stream type "core.Account", stream id "account:<account_id>", scope "company".
 
-Role = Literal["admin", "user"]
+Role = Literal["admin", "user", "document_controller"]
+#: Every role, in the order a role list is stored: alphabetical, as the projection keeps it.
+ROLES: tuple[Role, ...] = ("admin", "document_controller", "user")
 AccountKind = Literal["person", "agent", "sim"]
 AccountStatus = Literal["active", "disabled"]
 
 #: Actions only an admin may run. Every other action is open to any authenticated non-agent
 #: principal, and to agents only where the propose-only rule allows it.
 ADMIN_ACTION_PREFIX = "admin."
+
+#: Actions an admin or a document controller may run (ADR-0013). Only the names the API lists as
+#: controller commands are open to a document controller (``RoleAuthorizer.controller_actions``);
+#: any other ``control.*`` action is an admin's, so a typo or a new name fails closed.
+CONTROL_ACTION_PREFIX = "control."
 
 #: The seeded dev/demo account (ADR-0008 decision 4). Never created when ``TL_ENV=prod``, and the
 #: server refuses to start bound to a non-loopback address while it exists and is enabled.
@@ -67,6 +77,13 @@ class Principal(BaseModel):
     @property
     def is_admin(self) -> bool:
         return "admin" in self.roles
+
+    @property
+    def is_controller(self) -> bool:
+        """An admin or a document controller, and never an agent (ADR-0013)."""
+        return self.kind != "agent" and (
+            "admin" in self.roles or "document_controller" in self.roles
+        )
 
 
 class AccountView(BaseModel):
