@@ -19,7 +19,7 @@ A document controller previews and then applies the import of a legacy DMS regis
 - A command takes the ledger from the root `--db` (`ctx.obj`), the project from `--project`, and an actor from `--actor` (do not change the default text).
 - A failure prints `error: <message>` on stderr and exits 1 with no traceback. `_service_errors()` does that for every service failure.
 - The command makes the calls its STEPS name and prints; the rules are in `tl_mod_documents.imports`. Without `--apply` the unit of work is read-only and nothing is written.
-- `require_admin(db)` is called first when `--apply` is given, before the file is read.
+- `require_admin(db)` is called first when `--apply` is given, before the file is read, exactly as `tl tag import --apply` does (P1-I1). The preview stays open to any signed-in person. The command registers documents only, through `apply_plan`; it never passes `by_module`, never issues a revision and never attaches a rendition (ADR-0011). `--skip-invalid` is not a way round the role: the admin check comes first.
 
 ## Interfaces (verbatim from the repo at the branch point)
 `packages/tl-cli/src/tl_cli/doc_import.py` (the stub you complete):
@@ -163,7 +163,7 @@ uv run pytest packages/tl-cli/tests/test_cli_doc_import.py -q
 TL_PG_URL=postgresql://postgres:postgres@localhost:5432/tl_test uv run pytest packages/tl-cli/tests/test_cli_doc_import.py -q --adapters sqlite,postgres
 uv run pytest packages/tl-cli -q
 ```
-Expected: `just check` clean; 5 test functions pass (on SQLite and again on Postgres); the whole package passes.
+Expected: `just check` clean; 6 test functions pass (on SQLite and again on Postgres); the whole package passes.
 
 ## Tests to add
 None beyond the provided file.

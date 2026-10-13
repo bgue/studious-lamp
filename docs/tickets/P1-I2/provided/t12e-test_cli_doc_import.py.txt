@@ -67,6 +67,22 @@ def test_apply_is_for_an_admin_and_refuses_a_file_with_invalid_rows(
     assert register(env) == []
 
 
+def test_a_user_can_preview_but_cannot_apply_and_nothing_is_written(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    """A bulk write into the controlled register is the admin's (ADR-0011), like `tl tag import`."""
+    if not admin_session(env):
+        return  # on Postgres the test session is already an admin: there is no user to refuse
+    user = ordinary_env(env, tmp_path)
+    preview = do_import(user)
+    assert preview.stdout.splitlines()[1] == "new=9  exists=0  invalid=7"
+    for flags in (("--apply",), ("--apply", "--skip-invalid")):  # skip-invalid is no way round
+        refused = do_import(user, *flags, ok=False)
+        assert refused.stderr.startswith("error: ") and "admin" in refused.stderr
+    assert register(env) == []
+    assert "dms-document-register" not in run(env, "doc", "ls", "--project", "P123").stdout
+
+
 def test_skip_invalid_registers_the_valid_rows_and_a_second_run_finds_them(
     env: dict[str, str],
 ) -> None:
