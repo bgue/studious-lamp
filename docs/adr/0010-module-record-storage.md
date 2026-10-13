@@ -95,3 +95,37 @@ record change only through the module's own commands.**
 
 Consequences. Whoever adds a module record type must decide its allow-list; the default is closed. Learning
 L-P1-I1-8: when a module adds record types, check every generic command that can reach `cur_core_record`.
+
+## Addendum 2026-10-13: state guards, the life of a link, reserved keys (P1-I2 security review)
+
+Status: accepted 2026-10-13 by the orchestrator (ADR-0008 decision 6), after the P1-I2 fresh-context security review.
+
+The first addendum decided *which* generic commands may reach a module record. The documents module showed that this is
+not enough: a command can be allowed in one state and wrong in another (a PDF added to an issued revision), and a link
+has a life of its own after it is made.
+
+1. **State guards.** `ModuleSpec.generic_guards` maps `(record type, generic command)` to a function
+   `(conn, record_id, slot) -> None` that raises `UnsupportedRecordTypeError`. `tl_core.modules.require_generic` runs the
+   allow-list and then the guard. It is called from the same places as `require_generic_command`, including the file
+   upload path (`slot` is the file slot of an `AttachFile`, else `None`), so the API, the CLI, MCP and an accepted
+   proposal all inherit it. A guard names a type the module owns and a command in `GENERIC_COMMANDS`, or the spec does not
+   load. Documents: a revision takes native and PDF uploads only as a draft, markup as a draft, in review, issued or
+   superseded, a signed copy only when issued or superseded, nothing once void, and no unslotted attachment; a
+   transmittal takes `AttachFile`, `AddLink` and `SuggestLink` only as a draft.
+2. **`by_module`.** The handlers of `TransitionWorkflow`, `AddLink`, `SuggestLink` and the link-life commands take a
+   Python-only keyword `by_module`. A module's own command passes `True` to skip the allow-list for the record type it
+   owns. It never skips a field of the command and is not a field of any command model: a `by_module` in a request body
+   is rejected as an unknown field (pinned over HTTP in `test_api_documents.py`).
+3. **The life of a link.** `GENERIC_COMMANDS` gains `AcceptLink`, `DeclineLink`, `RepinLink`, `VerifyLink`, `FlagLink` and
+   `RetractLink`. A link belongs to the record it starts at: the handlers resolve that record's type and call
+   `require_generic`. A link a module wrote by rule (`source` rule, from a module record) is flagged or retracted only
+   through the module's commands. The relation `supersedes` onto a module record type is written only by that module
+   (`AddLink` and `SuggestLink` refuse it otherwise). Who owns a link is not checked: Phase 1 has no per-record access
+   lists, so the check is about the record type and the link's origin.
+4. **Reserved key characters.** `CreateRecord` and `UpdateRecord` refuse `@` and `/` in a record key. Module records use
+   them to build keys (`ISO-1234@A`, `ISO-1234@A/RC1`), so a generic record cannot collide with or imitate one.
+5. **The engineering module** allows the six link-life commands on `Tag`; its supersession link is made with
+   `by_module=True`.
+
+Consequences. Whoever adds a module record type decides its allow-list and, if the commands it allows depend on state, its
+guards; the default stays closed. Learning L-P1-I2-8 records the pattern.
