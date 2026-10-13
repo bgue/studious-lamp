@@ -5,14 +5,14 @@
 # The exit clauses, each ending in a PASS line, once on SQLite and once on Postgres:
 #   1  the company standards and the document number pattern load; ISO-1234 is registered and
 #      ISO-12 is refused with every problem;
-#   2  a draft revision takes a PDF; issuing it is the admin's act (a user is refused);
+#   2  a draft revision takes a PDF; issuing it is a controller's act (a user is refused);
 #   3  a tag pinned to revision A goes stale when revision B is issued; the re-pin shows what
 #      changed and only a yes moves the pin;
 #   4  the stale rule is class-aware (ADR-0012): an IFR issued after an IFC leaves the IFC pins
 #      alone, an IFC issued after an IFC flags them;
-#   5  a transmittal lists the current revisions; issuing it is the admin's act;
+#   5  a transmittal lists the current revisions; issuing it is a controller's act;
 #   6  a review cycle with an unanswered reviewer shows up in the overdue report;
-#   7  a legacy DMS register is previewed (7 of 16 rows cannot be imported) and applied (admin only);
+#   7  a legacy DMS register is previewed (7 of 16 rows cannot be imported) and applied (controllers);
 #   8  a user cannot void, issue or claim a system link; no one changes a document generically;
 #   9  the API, the TUI document register (F7) and an agent's MCP tools read the same documents.
 #
@@ -124,19 +124,19 @@ run_backend() {
   expect "ISO-1234" "$out"
   echo "PASS 1: ISO-1234 is registered under the company number pattern; ISO-12 is refused"
 
-  step "[$backend] clause 2: a draft takes a PDF; issuing is the admin's act"
+  step "[$backend] clause 2: a draft takes a PDF; issuing is a controller's act (here the admin)"
   as amy tl doc rev create ISO-1234 --project P123 --purpose "For review" >/dev/null
   printf '%s\n' '%PDF-1.7 sheet A' >"$workdir/sheet-A.pdf"
   printf '%s\n' '%PDF-1.7 sheet B, with the new tie-in' >"$workdir/sheet-B.pdf"
   as amy tl doc rendition add ISO-1234 A "$workdir/sheet-A.pdf" --project P123 --kind pdf --pages 3
   if out="$(as amy tl doc rev issue ISO-1234 A --project P123 --status IFR 2>&1)"; then fail "a user issued a revision"; fi
   echo "$out"
-  expect "needs the admin role" "$out"
+  expect "needs the document_controller or admin role" "$out"
   out="$(as demo tl doc rev issue ISO-1234 A --project P123 --status IFR)"; echo "$out"
   expect "IFR" "$out"
   out="$(as amy tl doc show ISO-1234 --project P123)"; echo "$out"
   expect "current: A" "$out"
-  echo "PASS 2: revision A holds a PDF and was issued as IFR by an admin; a user was refused"
+  echo "PASS 2: revision A holds a PDF and was issued as IFR by an admin (a controller may too, ADR-0013); a user was refused"
 
   step "[$backend] clause 3: a pinned link goes stale; the re-pin shows the diff first"
   as amy tl doc link 47-FV-1001 ISO-1234 --project P123 --pin A
@@ -171,19 +171,19 @@ run_backend() {
   expect "47-FV-1002" "$out"
   echo "PASS 4: IFR C left the IFC pin on B alone; IFC D flagged it"
 
-  step "[$backend] clause 5: a transmittal lists the current revision; issuing it is the admin's act"
+  step "[$backend] clause 5: a transmittal lists the current revision; issuing it is a controller's act"
   out="$(as amy tl transmittal create --project P123 --subject "Isometrics for construction" --purpose for_construction --to "Site Office:Acme Construction:site@example.com" --revision ISO-1234@D)"; echo "$out"
   number="$(echo "$out" | awk '/^(created|drafted)/ {print $NF; exit}')"
   [ -n "$number" ] || number="$(echo "$out" | grep -oE '[A-Z0-9]+-TRN-[0-9]+' | sed -n 1p)"
   [ -n "$number" ] || fail "no transmittal number in the output"
   if out="$(as amy tl transmittal issue "$number" --project P123 2>&1)"; then fail "a user issued a transmittal"; fi
   echo "$out"
-  expect "needs the admin role" "$out"
+  expect "needs the document_controller or admin role" "$out"
   as demo tl transmittal issue "$number" --project P123
   out="$(as amy tl transmittal show "$number" --project P123)"; echo "$out"
   expect "ISO-1234" "$out"
   expect "Issued" "$out"
-  echo "PASS 5: transmittal $number lists ISO-1234@D and was issued by an admin"
+  echo "PASS 5: transmittal $number lists ISO-1234@D and was issued by an admin (a controller may too)"
 
   step "[$backend] clause 6: a review with an unanswered reviewer is overdue"
   as amy tl doc rev create ISO-2000 --project P123 --purpose "First draft" >/dev/null
@@ -199,13 +199,13 @@ run_backend() {
   expect "amy" "$out"
   echo "PASS 6: the overdue report names the reviewers who have not answered, and drops ana after her answer"
 
-  step "[$backend] clause 7: a legacy DMS register is previewed and applied (admin only)"
+  step "[$backend] clause 7: a legacy DMS register is previewed and applied (controllers)"
   out="$(as amy tl doc import "$DMS_FILE" --mapping "$DMS_MAPPING" --project P123)"; echo "$out" | grep -E '^(import|new=|!)' | sed -n 1,6p
   expect "dry run: nothing written" "$out"
   expect "invalid=7" "$out"
   if out="$(as amy tl doc import "$DMS_FILE" --mapping "$DMS_MAPPING" --project P123 --apply --skip-invalid 2>&1)"; then fail "a user applied an import"; fi
   echo "$out"
-  expect "needs the admin role" "$out"
+  expect "needs the document_controller or admin role" "$out"
   out="$(as demo tl doc import "$DMS_FILE" --mapping "$DMS_MAPPING" --project P123 --apply --skip-invalid --job dms-2024)"; echo "$out" | tail -n 2
   expect "applied dms-2024: registered=" "$out"
   out="$(as amy tl doc show ISO-0101 --project P123)"; echo "$out" | sed -n 1,4p
