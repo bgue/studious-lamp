@@ -3,16 +3,24 @@
 A link to a document can pin a revision (``pin`` is the revision code) or float (no pin: it means
 the document's current revision). This module is the one place that decides what a pin means:
 
-* ``resolve_pin`` says which revision a pin names and whether a newer one has been issued;
-* ``flag_stale_on_issue`` is called when a revision is issued: every active link pinned to another
-  revision of the document goes ``stale`` (the core's ``MarkPinsStale``; one ``Link.Flagged`` event
-  per link, which webhook subscribers and the feed see, so the link's owners are told);
+* ``resolve_pin`` says which revision a pin names and whether a newer one has been issued that
+  makes it stale;
+* ``flag_stale_on_issue`` is called when a revision is issued: every active link pinned to an
+  earlier revision that the new one affects goes ``stale`` (one ``Link.Flagged`` event per link,
+  which webhook subscribers and the feed see, so the link's owners are told);
 * ``flag_links_to_document`` is called when a document is voided or superseded: every active link to
   it, pinned or floating, goes ``stale`` (brief 7.3: target voided or superseded);
 * ``revision_diff`` summarises what changed between two revisions, for the re-pin dialog: a person
   sees it before confirming (``RepinDocumentLink``);
 * ``link_to_document`` and ``repin_document_link`` are the commands that check a pin names an
   issued revision before they call the core's link handlers.
+
+**The stale rule is class-aware (ADR-0012).** The status classes are ordered review < construction
+< record (the ``classes`` list of the scheme file). A new revision affects a pin only when it is
+issued in the same class as the pinned revision or in a later one: an IFR issued after an IFC leaves
+the IFC pins healthy; an IFC issued after it, or any record revision, makes them stale. A pin on a
+revision with no status class keeps the old rule: any issue flags it. Voiding or superseding the
+document flags every link, pinned or floating (brief 7.3 health checks).
 
 A link with a floating pin is never stale because of a new revision; it always resolves to the
 current one. A pin that names a revision the document does not have resolves as ``unknown``.
@@ -27,15 +35,13 @@ from pydantic import ConfigDict, Field
 from sqlalchemy import Connection, text
 from tl_core.ledger import Event
 from tl_core.services.commands import Command, CommandResult
-from tl_core.services.errors import NoChangesError, RecordNotFoundError
+from tl_core.services.errors import RecordNotFoundError
 from tl_core.services.links import (
     AddLink,
     FlagLink,
-    MarkPinsStale,
     RepinLink,
     handle_add_link,
     handle_flag_link,
-    handle_mark_pins_stale,
     handle_repin_link,
 )
 from tl_core.uow import UnitOfWork
@@ -45,11 +51,16 @@ from tl_mod_documents.errors import DocumentNotFoundError, InvalidPinError
 from tl_mod_documents.handlers.common import correlated, load_document
 from tl_mod_documents.limits import MAX_NUMBER, MAX_REASON
 from tl_mod_documents.names import DOCUMENT, PIN_RELATION
+from tl_mod_documents.schemes import load_scheme_file
 
 PinState = Literal["current", "stale", "floating", "no_current", "unknown"]
 _LIVE_TO_SQL = text(
     "SELECT link_id, scope, from_id, relation, status, pin, version FROM cur_links "
     "WHERE to_id = :id AND status = 'active' ORDER BY created_at, link_id"
+)
+_PINNED_TO_SQL = text(
+    "SELECT link_id, scope, pin FROM cur_links "
+    "WHERE to_id = :id AND status = 'active' AND pin IS NOT NULL ORDER BY created_at, link_id"
 )
 _LINKS_OF_DOCS_SQL = (
     "SELECT l.link_id, l.scope, l.from_id, l.to_id, l.relation, l.status, l.pin, l.updated_at, "
@@ -114,10 +125,13 @@ def resolve_pin(conn: Connection, document_id: str, pin: str | None) -> PinResol
             resolved_revision_id=None,
             current_code=doc.current_revision_code,
         )
+    config = load_scheme_file()
     newer = [
         r.code
         for r in registry.revisions_of(conn, doc.id, include_void=False)
-        if r.issued and r.ordinal > pinned.ordinal
+        if r.issued
+        and r.ordinal > pinned.ordinal
+        and affects_pin(config.classes, pinned.status_class, r.status_class)
     ]
     return PinResolution(
         document_id=doc.id,
@@ -304,28 +318,54 @@ def revision_diff(conn: Connection, document_id: str, from_code: str, to_code: s
 # --- flagging --------------------------------------------------------------------------------
 
 
-def flag_stale_on_issue(uow: UnitOfWork, cmd: Command, document_id: str, code: str) -> list[Event]:
-    """Flag every active link pinned to another revision than ``code`` as stale; return the events.
+def affects_pin(classes: list[str], pinned_class: str | None, issued_class: str | None) -> bool:
+    """Whether a revision issued in ``issued_class`` makes a pin on a ``pinned_class`` one stale.
 
-    One ``Link.Flagged`` event (stale, reason ``revision <code> issued``) per link, in the same
-    unit of work and correlation as the issue. A floating link is untouched.
+    ADR-0012: only when it is in the same class or a later one (``classes`` is ordered, earliest
+    first). A pinned revision with no class, or a class the scheme file does not list, keeps the
+    old rule: any issue affects it.
     """
-    try:
-        result = handle_mark_pins_stale(
+    if pinned_class is None or pinned_class not in classes:
+        return True
+    if issued_class is None or issued_class not in classes:
+        return True
+    return classes.index(issued_class) >= classes.index(pinned_class)
+
+
+def flag_stale_on_issue(
+    uow: UnitOfWork, cmd: Command, document_id: str, code: str, issued_class: str | None
+) -> list[Event]:
+    """Flag the active links the revision ``code`` (of ``issued_class``) makes stale; the events.
+
+    A link is flagged when it is pinned to another revision and ``affects_pin`` says the new one
+    matters to it (ADR-0012). One ``Link.Flagged`` event (stale, reason ``revision <code>
+    issued``) per link, in the same unit of work and correlation as the issue. A floating link is
+    untouched, and so is a pin the new revision does not affect.
+    """
+    config = load_scheme_file()
+    events: list[Event] = []
+    for row in uow.conn().execute(_PINNED_TO_SQL, {"id": document_id}).all():
+        if row.pin == code:
+            continue
+        pinned = registry.find_revision(uow.conn(), document_id, row.pin)
+        pinned_class = None if pinned is None else pinned.status_class
+        if not affects_pin(config.classes, pinned_class, issued_class):
+            continue
+        events += handle_flag_link(
             uow,
-            MarkPinsStale(
+            FlagLink(
                 actor=cmd.actor,
                 source=cmd.source,
-                scope=cmd.scope,
+                scope=row.scope,
                 correlation_id=cmd.correlation_id,
                 causation_id=cmd.causation_id,
-                record_id=document_id,
-                current_pin=code,
+                link_id=row.link_id,
+                status="stale",
+                reason=f"revision {code} issued",
             ),
-        )
-    except NoChangesError:
-        return []
-    return list(result.events)
+            by_module=True,
+        ).events
+    return events
 
 
 def flag_links_to_document(

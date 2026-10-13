@@ -237,3 +237,84 @@ def test_the_diff_refuses_a_code_that_is_not_an_issued_revision(world: World) ->
         with pytest.raises(DocumentNotFoundError):
             revision_diff(uow.conn(), "nope", "A", "B")
         assert registry.get_document(uow.conn(), doc.id) is not None
+
+
+# --- the stale rule is class-aware (ADR-0012) ---------------------------------------------------
+
+
+def issue_next(world: World, status: str, name: str = "x") -> str:
+    """Start, attach and issue the next revision with ``status``; returns its code."""
+    created = world.create_revision()
+    code = created.key.rsplit("@", 1)[-1]  # type: ignore[union-attr]
+    world.attach("ISO-1234", code, data=f"%PDF-1.7 {name}{code}".encode(), name=f"{name}{code}.pdf")
+    world.issue("ISO-1234", code, status)
+    return code
+
+
+def pinned_to(world: World, code: str, key: str) -> str:
+    return link_to(world, world.tag(key), "ISO-1234", code)
+
+
+def test_an_ifr_issued_after_an_ifc_leaves_the_ifc_pins_healthy(world: World) -> None:
+    world.register()
+    world.create_revision()
+    world.attach("ISO-1234", "A")
+    world.issue("ISO-1234", "A", "IFC")
+    on_a = pinned_to(world, "A", "47-FV-1001")
+    assert issue_next(world, "IFR") == "B"
+    assert world.link_status(on_a) == "active"
+    with open_uow(world.db, readonly=True) as uow:
+        doc = registry.find_document(uow.conn(), "project:P123", "ISO-1234")
+        assert doc is not None
+        resolved = resolve_pin(uow.conn(), doc.id, "A")
+    assert (resolved.state, resolved.newer_codes) == ("current", [])
+
+
+def test_an_ifc_issued_after_an_ifc_flags_the_ifc_pins(world: World) -> None:
+    world.register()
+    world.create_revision()
+    world.attach("ISO-1234", "A")
+    world.issue("ISO-1234", "A", "IFC")
+    on_a = pinned_to(world, "A", "47-FV-1001")
+    issue_next(world, "IFR")  # B: a review revision, no effect on A's pins
+    assert world.link_status(on_a) == "active"
+    issue_next(world, "IFC")  # C: the same class as A
+    assert world.link_status(on_a) == "stale"
+    with open_uow(world.db, readonly=True) as uow:
+        (found,) = links_to_documents(uow.conn(), "project:P123", only_stale=True)
+    assert found.resolution.newer_codes == ["C"]  # B does not count
+
+
+def test_a_record_revision_flags_the_review_and_the_construction_pins(world: World) -> None:
+    world.issued_document("ISO-1234", "IFR")  # A, review
+    on_a = pinned_to(world, "A", "47-FV-1001")
+    issue_next(world, "IFC")  # B: construction, flags A
+    assert world.link_status(on_a) == "stale"
+    on_b = pinned_to(world, "B", "47-FV-1002")
+    repinned = pinned_to(world, "A", "47-FV-1003")
+    run(world, handle_repin_document_link, RepinDocumentLink(**BASE, link_id=on_a, pin="B"))
+    assert world.link_status(on_a) == "active"
+    issue_next(world, "ASB")  # C: record, later than both
+    assert {world.link_status(x) for x in (on_a, on_b, repinned)} == {"stale"}
+
+
+def test_an_older_ifr_pin_goes_stale_on_a_newer_ifr(world: World) -> None:
+    world.issued_document("ISO-1234", "IFR")
+    on_a = pinned_to(world, "A", "47-FV-1001")
+    issue_next(world, "IFR")  # B: the same class
+    assert world.link_status(on_a) == "stale"
+
+
+def test_a_voided_document_still_flags_every_link_pinned_or_floating(world: World) -> None:
+    world.issued_document("ISO-1234", "IFC")
+    issue_next(world, "IFR")
+    pinned = pinned_to(world, "A", "47-FV-1001")
+    floating = pinned_to(world, None, "47-FV-1002")  # type: ignore[arg-type]
+    assert {world.link_status(pinned), world.link_status(floating)} == {"active"}
+    doc = world.document("ISO-1234")
+    run(
+        world,
+        handle_void_document,
+        VoidDocument(**BASE, stream_id=doc.id, reason="registered in error"),
+    )
+    assert {world.link_status(pinned), world.link_status(floating)} == {"stale"}

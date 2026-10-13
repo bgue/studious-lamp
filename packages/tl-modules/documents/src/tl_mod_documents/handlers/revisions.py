@@ -315,7 +315,7 @@ def handle_issue_revision(uow: UnitOfWork, cmd: IssueRevision) -> CommandResult:
     events += sync_current_revision(uow, cmd, doc.id, reason="issued")
     if doc.state != DOC_ISSUED:
         events += transition(uow, cmd, doc.id, "issue").events
-    events += flag_stale_on_issue(uow, cmd, doc.id, rev.code)
+    events += flag_stale_on_issue(uow, cmd, doc.id, rev.code, cls)
     return CommandResult(stream_id=rev.id, key=rev.key, version=done.new_version, events=events)
 
 
