@@ -15,6 +15,7 @@ from tl_core.services.errors import (
     DuplicateKeyError,
     GuardFailedError,
     NoChangesError,
+    ReservedKeyError,
     UnknownPsetError,
 )
 from tl_core.services.psets import SetPsetValues, conformance, handle_set_pset_values
@@ -221,6 +222,15 @@ def test_without_a_registry_pattern_any_number_is_accepted(db: DbTarget) -> None
     row = tag(db, "WHATEVER-1")
     assert (row.pattern_code, row.number_status, row.segments) == (None, "ok", {})
     assert made.version == 2
+
+
+def test_a_typed_tag_number_may_hold_a_slash_but_not_an_at_sign(db: DbTarget) -> None:
+    """Every key a module builds holds ``@``, so a typed number without one cannot collide."""
+    made = create(db, "MP/12/FV-1", class_code=None)
+    assert made.key == "MP/12/FV-1" and tag(db, "MP/12/FV-1").number_status == "ok"
+    with pytest.raises(ReservedKeyError):
+        create(db, "47-FV@1002", class_code=None)
+    assert count(db, "cur_engineering_tag") == 1
 
 
 # --- the class drives the workflow ----------------------------------------------------------------

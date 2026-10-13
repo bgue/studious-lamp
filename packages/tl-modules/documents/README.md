@@ -18,6 +18,9 @@ uv run tl new record-type documents.<Class>
 uv run tl new projector documents.<name>
 ```
 
+## Confidentiality in Phase 1
+In Phase 1 confidentiality is recorded but not enforced: every signed-in person and every agent can read all documents and transmittals of a project, including recipient emails.
+
 ## Configuration
 | Setting or env var | Default | Notes |
 |---|---|---|

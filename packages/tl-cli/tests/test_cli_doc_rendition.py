@@ -203,3 +203,56 @@ def test_a_markup_beyond_the_cap_is_refused_before_it_is_uploaded(
     over = add(env, make(tmp_path, "extra.pdf", b"%PDF extra"), "--kind", "markup", ok=False)
     assert f"already has {MAX_MARKUPS} markups" in over.stderr
     assert made.scalar("SELECT COUNT(*) FROM cur_files") == files
+
+
+# --- the checks that need no file run before the upload -------------------------------------------
+
+
+def test_a_page_count_the_command_refuses_is_refused_before_anything_is_uploaded(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    made = world(env, tmp_path)
+    made.issued_document("ISO-1234", "IFR")
+    admin_session(env)
+    files = made.scalar("SELECT COUNT(*) FROM cur_files")
+    path = make(tmp_path, "big.pdf", b"%PDF-1.7 big")
+    refused = add(env, path, "--kind", "markup", "--pages", "999999999", ok=False)
+    assert refused.stderr.startswith("error: ") and "page_count" in refused.stderr
+    register = ("register-signed", "ISO-1234", "A", str(path), "--project", "P123")
+    refused = rendition(env, *register, "--pages", "999999999", ok=False)
+    assert refused.stderr.startswith("error: ") and "page_count" in refused.stderr
+    made.attach("ISO-1234", "A", slot="signed", data=b"%PDF-1.7 s", name="s.pdf")
+    files += 1
+    replace = ("replace-signed", "ISO-1234", "A", str(path), "--project", "P123")
+    refused = rendition(env, *replace, "--reason", "x", "--pages", "999999999", ok=False)
+    assert refused.stderr.startswith("error: ") and "page_count" in refused.stderr
+    assert made.scalar("SELECT COUNT(*) FROM cur_files") == files  # nothing uploaded
+
+
+def test_a_closed_document_takes_no_rendition_and_nothing_is_uploaded(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    made = world(env, tmp_path)
+    made.register("ISO-1234")
+    made.create_revision("ISO-1234")
+    made.register("ISO-2000")
+    made.create_revision("ISO-2000")
+    admin_session(env)
+    run(env, "doc", "void", "ISO-1234", "--project", "P123", "--reason", "registered in error")
+    made.issued_document("ISO-3000", "IFR")
+    run(
+        env,
+        *("doc", "supersede", "ISO-2000", "--by", "ISO-3000", "--project", "P123"),
+        *("--reason", "replaced"),
+    )
+    files = made.scalar("SELECT COUNT(*) FROM cur_files")
+    for number in ("ISO-1234", "ISO-2000"):
+        path = make(tmp_path, f"{number}.pdf", b"%PDF-1.7 " + number.encode())
+        for args in (
+            ("add", number, "A", str(path), "--project", "P123", "--kind", "pdf"),
+            ("register-signed", number, "A", str(path), "--project", "P123"),
+        ):
+            refused = rendition(env, *args, ok=False)
+            assert refused.stderr.startswith("error: ")
+            assert "takes no more changes" in refused.stderr, (number, args[0], refused.stderr)
+    assert made.scalar("SELECT COUNT(*) FROM cur_files") == files  # nothing uploaded

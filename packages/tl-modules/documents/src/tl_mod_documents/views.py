@@ -9,11 +9,12 @@ from __future__ import annotations
 
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import Connection
 
 from tl_mod_documents import registry, reports, resolver
 from tl_mod_documents.errors import DocumentNotFoundError, TransmittalNotFoundError
+from tl_mod_documents.limits import CONFIDENTIALITY_NOTE
 
 
 class RenditionView(BaseModel):
@@ -31,6 +32,7 @@ class RenditionView(BaseModel):
 
 
 class RevisionView(BaseModel):
+    id: str
     code: str
     state: str  # Draft | In Review | Issued | Superseded | Void
     issue_status: str | None
@@ -69,7 +71,7 @@ class DocumentView(BaseModel):
     doc_type: str | None
     discipline: str | None
     originator: str | None
-    confidentiality: str | None
+    confidentiality: str | None = Field(description=CONFIDENTIALITY_NOTE)
     revision_scheme: str
     pattern_code: str | None
     current_revision_code: str | None
@@ -103,7 +105,7 @@ class TransmittalView(BaseModel):
     response_code: str | None
     response_note: str | None
     responded_on: str | None
-    recipients: list[dict[str, str | None]]
+    recipients: list[dict[str, str | None]] = Field(description=CONFIDENTIALITY_NOTE)
     version: int
     items: list[TransmittalItemView] = []
 
@@ -182,6 +184,7 @@ def document_view(conn: Connection, scope: str, number: str) -> DocumentView:
     codes = {r.id: r.code for r in revisions}
     shown = [
         RevisionView(
+            id=r.id,
             code=r.code,
             state="Void" if r.voided else r.state,
             issue_status=r.issue_status,

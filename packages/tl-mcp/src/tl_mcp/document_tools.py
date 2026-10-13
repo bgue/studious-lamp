@@ -134,6 +134,9 @@ def register_document_tools(server: MCPServer, ctx: McpContext) -> None:
 
         Each row has the document's state and its current revision (code, issue status, class and
         date). A listing has no revisions or links: use `get_document` for those.
+
+        Confidentiality is recorded but not enforced in Phase 1: every signed-in person and every
+        agent can read all documents and transmittals of a project, including recipient emails.
         """
         with guarded(ctx, "list_documents", resource_name("documents", project)):
             return list_documents_impl(
@@ -150,7 +153,12 @@ def register_document_tools(server: MCPServer, ctx: McpContext) -> None:
         """Get one document: its revisions with their renditions, and the links to it.
 
         A link has a `pin` (a revision code, or none when it floats) and a `pin_state`:
-        `current`, `stale` (a later revision was issued), `floating`, `no_current` or `unknown`.
+        `current`, `stale` (a later revision was issued in the pinned revision's status class or a
+        later one, or the document was voided or superseded), `floating`, `no_current` or
+        `unknown`.
+
+        Confidentiality is recorded but not enforced in Phase 1: every signed-in person and every
+        agent can read all documents and transmittals of a project, including recipient emails.
         """
         with guarded(ctx, "get_document", resource_name("document", project, number)):
             return get_document_impl(ctx, project=project, number=number)
@@ -221,6 +229,10 @@ def register_document_tools(server: MCPServer, ctx: McpContext) -> None:
 
     @server.tool(annotations=READ_ONLY)
     def get_transmittal(project: Project, number: Number) -> views.TransmittalView:
-        """Get one transmittal by number: recipients, dates, the answer and its revisions."""
+        """Get one transmittal by number: recipients, dates, the answer and its revisions.
+
+        Confidentiality is recorded but not enforced in Phase 1: every signed-in person and every
+        agent can read all documents and transmittals of a project, including recipient emails.
+        """
         with guarded(ctx, "get_transmittal", resource_name("transmittal", project, number)):
             return get_transmittal_impl(ctx, project=project, number=number)

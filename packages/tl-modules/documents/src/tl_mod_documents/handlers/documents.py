@@ -19,7 +19,7 @@ from tl_core.ledger import Event, NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import NoChangesError
 from tl_core.services.links import AddLink, handle_add_link
-from tl_core.services.records import create_module_record
+from tl_core.services.records import RESERVED_KEY_CHARS, create_module_record
 from tl_core.uow import UnitOfWork
 from tl_mod_engineering import codelists, patterns
 from tl_mod_engineering.errors import UnknownCodeError, UnknownCodeListError
@@ -39,6 +39,7 @@ from tl_mod_documents.handlers.common import (
     transition,
 )
 from tl_mod_documents.limits import (
+    CONFIDENTIALITY_NOTE,
     MAX_DESCRIPTION,
     MAX_NUMBER,
     MAX_REASON,
@@ -78,7 +79,9 @@ class RegisterDocument(Command):
     doc_type: str | None = Field(default=None, max_length=MAX_NUMBER)
     discipline: str | None = Field(default=None, max_length=MAX_NUMBER)
     originator: str | None = Field(default=None, max_length=MAX_TEXT)
-    confidentiality: str | None = Field(default=None, max_length=MAX_NUMBER)
+    confidentiality: str | None = Field(
+        default=None, max_length=MAX_NUMBER, description=CONFIDENTIALITY_NOTE
+    )
     revision_scheme: str | None = Field(default=None, max_length=MAX_NUMBER)
 
     @field_validator("title")
@@ -109,13 +112,19 @@ class UpdateDocument(Command):
 
 
 class SetDocumentConfidentiality(Command):
-    """Set or clear a document's confidentiality class (admin). The reason is kept."""
+    """Set or clear a document's confidentiality class (admin). The reason is kept.
+
+    In Phase 1 confidentiality is recorded but not enforced: every signed-in person and every
+    agent can read all documents and transmittals of a project, including recipient emails.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     stream_id: str
     expected_version: int | None = None
-    confidentiality: str | None = Field(default=None, max_length=MAX_NUMBER)
+    confidentiality: str | None = Field(
+        default=None, max_length=MAX_NUMBER, description=CONFIDENTIALITY_NOTE
+    )
     reason: str = Field(max_length=MAX_REASON)
 
     @field_validator("reason")
@@ -172,6 +181,36 @@ def _check_code(conn: Connection, scope: str, list_name: str, value: str | None,
         raise InvalidDocumentTypeError(f"{what} {value!r} is not a value of {list_name}") from exc
     if not found.usable:
         raise InvalidDocumentTypeError(f"{what} {value!r} of {list_name} is no longer in use")
+
+
+def register_problems(
+    conn: Connection, scope: str, number: str, doc_type: str | None, discipline: str | None
+) -> list[str]:
+    """Why ``RegisterDocument`` would refuse this number, type and discipline (else empty).
+
+    The same checks as the command makes before it writes (reserved characters, the registry
+    pattern, the two code lists), so a plan can say it ahead. It reads only.
+    """
+    problems: list[str] = []
+    if RESERVED_KEY_CHARS & set(number):
+        problems.append(f"number {number!r} holds '@', which the register uses in its own keys")
+    for list_name, value, what in (
+        (DOCUMENT_TYPE_LIST, doc_type, "document type"),
+        (DISCIPLINE_LIST, discipline, "discipline"),
+    ):
+        try:
+            _check_code(conn, scope, list_name, value, what)
+        except InvalidDocumentTypeError as exc:
+            problems.append(str(exc))
+    pattern = patterns.pattern_for(conn, DOCUMENT)
+    if pattern is not None and not problems:
+        parsed = patterns.parse_number(conn, scope, pattern, number)
+        problems.extend(
+            f"number {number!r}: {issue.message}"
+            for issue in parsed.issues
+            if issue.level == "error"
+        )
+    return problems
 
 
 def handle_register_document(uow: UnitOfWork, cmd: RegisterDocument) -> CommandResult:

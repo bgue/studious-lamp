@@ -49,14 +49,7 @@ def list_documents(
         )
 
 
-@router.get("/projects/{project}/documents/{number}", operation_id="get_document")
-def get_document(ctx: Ctx, actor: Reader, project: str, number: str) -> views.DocumentView:
-    """One document with its revisions, renditions and links. 404 `document_not_found`."""
-    with ctx.backend(True) as uow:
-        return views.document_view(uow.conn(), f"project:{project}", number)
-
-
-@router.get("/projects/{project}/documents/{number}/diff", operation_id="get_document_diff")
+@router.get("/projects/{project}/documents/{number:path}/diff", operation_id="get_document_diff")
 def get_document_diff(
     ctx: Ctx,
     actor: Reader,
@@ -70,6 +63,16 @@ def get_document_diff(
         return views.revision_diff_view(
             uow.conn(), f"project:{project}", number, from_code, to_code
         )
+
+
+@router.get("/projects/{project}/documents/{number:path}", operation_id="get_document")
+def get_document(ctx: Ctx, actor: Reader, project: str, number: str) -> views.DocumentView:
+    """One document with its revisions, renditions and links. 404 `document_not_found`.
+
+    The number may hold `/`.
+    """
+    with ctx.backend(True) as uow:
+        return views.document_view(uow.conn(), f"project:{project}", number)
 
 
 @router.get("/projects/{project}/stale-links", operation_id="list_stale_links")
@@ -107,7 +110,7 @@ def list_transmittals(
         )
 
 
-@router.get("/projects/{project}/transmittals/{number}", operation_id="get_transmittal")
+@router.get("/projects/{project}/transmittals/{number:path}", operation_id="get_transmittal")
 def get_transmittal(ctx: Ctx, actor: Reader, project: str, number: str) -> views.TransmittalView:
     """One transmittal with its items. 404 `transmittal_not_found`."""
     with ctx.backend(True) as uow:

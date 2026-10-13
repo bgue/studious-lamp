@@ -45,6 +45,8 @@ app = typer.Typer(help="Add, replace and list the renditions of a revision.", no
 
 KINDS = ("native", "pdf", "markup", "signed")
 _CHUNK = 1024 * 1024
+#: Stands in for the file id while the command is validated, before the upload makes the real one.
+_PENDING = "pending-upload"
 _File = Annotated[Path, typer.Argument(help="The file to add.", exists=True, dir_okay=False)]
 _Pages = Annotated[int | None, typer.Option("--pages", min=0, help="Page count, if known.")]
 _ContentType = Annotated[
@@ -121,19 +123,18 @@ def add(
     with _service_errors(), open_uow(db, readonly=True) as uow:
         rev = _revision(uow, scope, project, number, code)
         preflight_rendition(uow.conn(), scope, rev.id, kind, "attach")  # refuse before uploading
+    with _service_errors():  # every field is checked before a byte goes up
+        command = AttachRendition(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            revision_id=rev.id,
+            file_id=_PENDING,
+            page_count=pages,
+        )
     file_id = _upload(db, scope, actor, rev.id, kind, path, content_type)
     with _service_errors(), open_uow(db) as uow:
-        made = handle_attach_rendition(
-            uow,
-            AttachRendition(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                revision_id=rev.id,
-                file_id=file_id,
-                page_count=pages,
-            ),
-        )
+        made = handle_attach_rendition(uow, command.model_copy(update={"file_id": file_id}))
     typer.echo(f"attached {kind} {path.name} to {number}@{code}")
     typer.echo(f"rendition {made.stream_id}")
 
@@ -159,19 +160,20 @@ def register_signed(
     with _service_errors(), open_uow(db, readonly=True) as uow:
         rev = _revision(uow, scope, project, number, code)
         preflight_rendition(uow.conn(), scope, rev.id, "signed", "register_signed")
+    with _service_errors():  # every field is checked before a byte goes up
+        command = RegisterSignedRendition(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            revision_id=rev.id,
+            file_id=_PENDING,
+            page_count=pages,
+            reason=reason,
+        )
     file_id = _upload(db, scope, actor, rev.id, "signed", path, content_type)
     with _service_errors(), open_uow(db) as uow:
         made = handle_register_signed_rendition(
-            uow,
-            RegisterSignedRendition(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                revision_id=rev.id,
-                file_id=file_id,
-                page_count=pages,
-                reason=reason,
-            ),
+            uow, command.model_copy(update={"file_id": file_id})
         )
     typer.echo(f"registered the signed copy of {number}@{code}: {path.name}")
     typer.echo(f"rendition {made.stream_id}")
@@ -196,20 +198,19 @@ def replace_signed(
     with _service_errors(), open_uow(db, readonly=True) as uow:
         rev = _revision(uow, scope, project, number, code)
         preflight_rendition(uow.conn(), scope, rev.id, "signed", "replace_signed")
+    with _service_errors():  # every field is checked before a byte goes up
+        command = ReplaceSignedRendition(
+            actor=actor,
+            source="cli",
+            scope=scope,
+            revision_id=rev.id,
+            file_id=_PENDING,
+            page_count=pages,
+            reason=reason,
+        )
     file_id = _upload(db, scope, actor, rev.id, "signed", path, content_type)
     with _service_errors(), open_uow(db) as uow:
-        made = handle_replace_signed_rendition(
-            uow,
-            ReplaceSignedRendition(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                revision_id=rev.id,
-                file_id=file_id,
-                page_count=pages,
-                reason=reason,
-            ),
-        )
+        made = handle_replace_signed_rendition(uow, command.model_copy(update={"file_id": file_id}))
     typer.echo(f"replaced the signed copy of {number}@{code} with {path.name}")
     typer.echo(f"rendition {made.stream_id}")
 

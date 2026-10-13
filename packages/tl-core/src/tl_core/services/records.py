@@ -50,10 +50,10 @@ from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
 
 RECORD_TYPE = "core.Record"
-#: Characters a typed-in key of a generic record may not hold: module records use them to build
-#: their own keys (``ISO-1234@A``, ``ISO-1234@A/pdf-1``, ``CL:Area@1.0.0``), and a generic record
-#: must not be able to take such a key first.
-RESERVED_KEY_CHARS = frozenset("@/")
+#: Characters a typed-in key may not hold: every key a module builds holds ``@`` (``ISO-1234@A``,
+#: ``ISO-1234@A/pdf-1``, ``CL:Area@1.0.0``), so a typed key without one can never collide with
+#: such a key. ``/`` is allowed: real tag and document numbers hold it (``MP/12/3``).
+RESERVED_KEY_CHARS = frozenset("@")
 _UPDATABLE_FIELDS = frozenset({"title", "description", "psets"})
 
 _DUPLICATE_KEY_SQL = text("SELECT 1 FROM cur_core_record WHERE scope = :scope AND key = :key")
@@ -115,7 +115,7 @@ def create_record_internal(
         )
     if cmd.key is not None and RESERVED_KEY_CHARS & set(cmd.key):
         raise ReservedKeyError(
-            f"key {cmd.key!r} holds '@' or '/', which module records use in their own keys"
+            f"key {cmd.key!r} holds '@', which module records use in their own keys"
         )
     stream_id = new_ulid()
     correlation_id = cmd.correlation_id or new_ulid()
@@ -219,7 +219,7 @@ def create_module_record(
     event, so the module's projectors see the row ``RecordProjector`` just made. The record has no
     property-set values yet; write them with ``SetPsetValues`` in the same unit of work.
 
-    A key a caller typed in (a document number, a tag number) may not hold ``@`` or ``/``
+    A key a caller typed in (a document number, a tag number) may not hold ``@``
     (``ReservedKeyError``): modules build their own keys with them (``ISO-1234@B``), and a typed
     key would squat one. A module that builds the key itself passes ``composed_key=True``.
     """
@@ -228,9 +228,7 @@ def create_module_record(
             f"record type {record_type!r} is not provided by an installed module"
         )
     if key is not None and not composed_key and RESERVED_KEY_CHARS & set(key):
-        raise ReservedKeyError(
-            f"key {key!r} holds '@' or '/', which module records use in their own keys"
-        )
+        raise ReservedKeyError(f"key {key!r} holds '@', which module records use in their own keys")
     stream_id = new_ulid()
     correlation_id = cmd.correlation_id or new_ulid()
     if key is None:

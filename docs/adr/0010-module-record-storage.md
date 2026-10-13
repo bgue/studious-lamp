@@ -126,11 +126,14 @@ has a life of its own after it is made.
    keyword; otherwise a client could make a link nobody can retract. An admin recovers any link with the core commands
    `AdminFlagLink` and `AdminRetractLink` (reason required; API access `admin`). Who owns a link is not checked: Phase 1
    has no per-record access lists, so the check is about the record type and the link's origin.
-4. **Reserved key characters.** A key a caller types in may not hold `@` or `/`. Module records build their own keys
-   with them (`ISO-1234@A`, `ISO-1234@A/RC1`, `CL:Area@1.0.0`), so a typed key would squat one: `CreateRecord` refuses
-   them, and `create_module_record` refuses them in a key it is given unless the module built that key itself
-   (`composed_key=True`). A document number, a typed transmittal number and a tag number are therefore checked in every
-   module command, whatever the module's own pattern says. `UpdateRecord` cannot change a key, so it needs no check.
+4. **Reserved key character.** A key a caller types in may not hold `@`. Every key a module builds holds it
+   (`ISO-1234@A`, `ISO-1234@A/RC1`, `CL:Area@1.0.0`), so a typed key without `@` can never collide with one. `/` stays
+   allowed, because real tag and document numbers hold it (`MP/12/3`); an earlier draft reserved both, and the owner
+   decided on 2026-10-13 that `@` is enough. `CreateRecord` refuses `@`, and `create_module_record` refuses it in a key
+   it is given unless the module built that key itself (`composed_key=True`). A document number, a typed transmittal
+   number and a tag number are therefore checked in every module command, whatever the module's own pattern says.
+   `UpdateRecord` cannot change a key, so it needs no check. The read routes take the number as a path (`{number:path}`),
+   so a number with `/` can be read over HTTP.
 5. **The engineering module** allows the six link-life commands on `Tag`; its supersession link is made with
    `by_module=True`.
 

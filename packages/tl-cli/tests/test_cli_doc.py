@@ -293,6 +293,12 @@ def test_void_is_for_an_admin_and_voids_the_document(env: dict[str, str], tmp_pa
     assert "takes no more changes" in again.stderr
 
 
+def test_the_confidentiality_help_says_the_class_is_not_enforced(env: dict[str, str]) -> None:
+    text = " ".join(doc(env, "confidentiality", "--help").stdout.split())
+    assert "recorded but not enforced" in text or "recorded but not\nenforced" in text
+    assert "recipient emails" in text
+
+
 def test_confidentiality_is_for_an_admin_and_keeps_the_reason(
     env: dict[str, str], tmp_path: Path
 ) -> None:

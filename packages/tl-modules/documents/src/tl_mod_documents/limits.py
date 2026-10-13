@@ -17,3 +17,9 @@ MAX_RECIPIENTS = 100  # recipients of one transmittal
 MAX_REVIEWERS = 50  # reviewers of one review cycle
 MAX_PAGES = 100_000  # the page count a rendition may state
 MAX_MARKUPS = 20  # current markup renditions of one revision (markup is additive)
+
+#: Said wherever confidentiality is set or shown, so nobody takes the class for access control.
+CONFIDENTIALITY_NOTE = (
+    "In Phase 1 confidentiality is recorded but not enforced: every signed-in person and every "
+    "agent can read all documents and transmittals of a project, including recipient emails."
+)

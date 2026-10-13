@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,6 +16,7 @@ from tl_core.auth.password import prepare_password
 from tl_mod_documents.errors import (
     DocumentNotFoundError,
     InvalidPinError,
+    InvalidTransmittalError,
     TransmittalNotFoundError,
 )
 from tl_mod_documents.handlers.transmittals import (
@@ -26,6 +28,7 @@ from tl_mod_documents.testing import BASE, DocumentsWorld
 
 PASSWORD = "correct horse battery"
 P = "/projects/P123"
+BASE_FOR_CLIENT: dict[str, Any] = {"actor": "user:bob", "source": "test", "scope": "project:P123"}
 
 
 class Readers:
@@ -154,3 +157,47 @@ def test_the_client_returns_the_models_and_rebuilds_the_errors(
         client.get_transmittal("P123", "NOPE-1")
     with pytest.raises(InvalidPinError):
         client.document_diff("P123", "ISO-1234", "A", "Z")
+
+
+def test_the_client_repins_a_link_and_drafts_a_transmittal(
+    harness: Harness, readers: Readers, world: DocumentsWorld
+) -> None:
+    from tl_mod_documents.handlers.transmittals import CreateTransmittal, Recipient
+    from tl_mod_documents.resolver import RepinDocumentLink
+
+    client = ApiClient("http://testserver", readers.bob_token, http=readers.bob)
+    (link,) = client.get_document("P123", "ISO-1234").links
+    assert link.link_status == "stale"
+    client.repin_document_link(RepinDocumentLink(**BASE_FOR_CLIENT, link_id=link.link_id))
+    after = client.get_document("P123", "ISO-1234")
+    assert (after.links[0].pin, after.links[0].link_status) == ("B", "active")
+    b = next(r for r in after.revisions if r.code == "B")
+    made = client.create_transmittal(
+        CreateTransmittal(
+            **BASE_FOR_CLIENT,
+            subject="To site",
+            purpose="for_review",
+            recipients=[Recipient(name="Site")],
+            revision_ids=[b.id],
+        )
+    )
+    assert client.get_transmittal("P123", made.key or "").state == "Draft"
+    world.create_revision("ISO-2000")  # a draft revision cannot be sent
+    draft = world.revision("ISO-2000", "A")
+    with pytest.raises(InvalidTransmittalError):
+        client.create_transmittal(
+            CreateTransmittal(
+                **BASE_FOR_CLIENT,
+                subject="x",
+                purpose="for_review",
+                recipients=[Recipient(name="Site")],
+                revision_ids=[draft.id],
+            )
+        )
+
+
+def test_the_openapi_document_says_confidentiality_is_not_enforced() -> None:
+    from tl_api import openapi
+
+    schemas = openapi.render()
+    assert schemas.count("recorded but not enforced") >= 3  # view, register and set commands

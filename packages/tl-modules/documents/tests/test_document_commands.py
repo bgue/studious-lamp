@@ -322,8 +322,18 @@ def test_confidentiality_changes_only_through_its_own_command(world: World) -> N
         SetDocumentConfidentiality(**BASE, stream_id=doc.id, confidentiality="x", reason=" ")
 
 
+def test_a_document_number_with_a_slash_is_accepted_and_its_revision_keys_work(
+    world: World,
+) -> None:
+    """Real numbers hold ``/``; only ``@`` is the module's, so a typed number cannot collide."""
+    world.register("MP/12/3")
+    world.create_revision("MP/12/3")
+    assert world.revision("MP/12/3", "A").key == "MP/12/3@A"
+    assert world.document("MP/12/3").number == "MP/12/3"
+
+
 def test_a_document_number_cannot_squat_a_key_the_module_builds(world: World) -> None:
-    for number in ("ISO-1234@B", "ISO-1234/pdf-1", "ISO@1", "A/B"):
+    for number in ("ISO-1234@B", "ISO-1234@A/pdf-1", "ISO@1"):
         with open_uow(world.db) as uow, pytest.raises(ReservedKeyError):
             handle_register_document(
                 uow, RegisterDocument(**BASE, number=number, title="x", doc_type="ISO")

@@ -301,7 +301,11 @@ def confidentiality(
     clear: Annotated[bool, typer.Option("--clear", help="Remove the class.")] = False,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Set or clear a document's confidentiality class (admin). The reason is kept."""
+    """Set or clear a document's confidentiality class (admin). The reason is kept.
+
+    In Phase 1 the class is recorded but not enforced: every signed-in person and every agent can
+    read all documents and transmittals of a project, including recipient emails.
+    """
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
     if (value is None) == (not clear):

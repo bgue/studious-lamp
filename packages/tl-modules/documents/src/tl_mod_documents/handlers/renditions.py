@@ -51,6 +51,7 @@ from tl_core.uow import UnitOfWork
 
 from tl_mod_documents import registry
 from tl_mod_documents.errors import (
+    DocumentClosedError,
     FileNotAvailableError,
     RenditionNotAllowedError,
     RevisionNotFoundError,
@@ -136,11 +137,15 @@ def check_rendition(
 ) -> list[registry.RenditionRow]:
     """Refuse a rendition of ``kind`` the revision cannot take; else its current ones of that kind.
 
-    The checks that need no file: the revision's state takes the kind; ``signed`` goes through
+    The checks that need no file: the document still takes changes (not superseded or void), the
+    revision's state takes the kind; ``signed`` goes through
     ``RegisterSignedRendition`` and ``ReplaceSignedRendition`` only, and a replacement needs a
     copy to replace; a revision has at most ``MAX_MARKUPS`` markups. The CLI runs this before it
     uploads, so a refused command leaves no file behind.
     """
+    doc = registry.get_document(conn, rev.document_id)
+    if doc is not None and doc.closed:
+        raise DocumentClosedError(f"document {doc.number} is {doc.state} and takes no more changes")
     state = "Void" if rev.voided else rev.state
     allowed = ALLOWED_KINDS.get(state, ())
     if kind not in allowed:

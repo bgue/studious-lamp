@@ -2623,6 +2623,7 @@
                 "type": "null"
               }
             ],
+            "description": "In Phase 1 confidentiality is recorded but not enforced: every signed-in person and every agent can read all documents and transmittals of a project, including recipient emails.",
             "title": "Confidentiality"
           },
           "conformance": {
@@ -6462,6 +6463,7 @@
                 "type": "null"
               }
             ],
+            "description": "In Phase 1 confidentiality is recorded but not enforced: every signed-in person and every agent can read all documents and transmittals of a project, including recipient emails.",
             "title": "Confidentiality"
           },
           "correlation_id": {
@@ -7954,6 +7956,10 @@
             "title": "Code",
             "type": "string"
           },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
           "intended_status": {
             "anyOf": [
               {
@@ -8049,6 +8055,7 @@
           }
         },
         "required": [
+          "id",
           "code",
           "state",
           "issue_status",
@@ -8245,6 +8252,7 @@
                 "type": "null"
               }
             ],
+            "description": "In Phase 1 confidentiality is recorded but not enforced: every signed-in person and every agent can read all documents and transmittals of a project, including recipient emails.",
             "title": "Confidentiality"
           },
           "correlation_id": {
@@ -10051,6 +10059,7 @@
             "type": "string"
           },
           "recipients": {
+            "description": "In Phase 1 confidentiality is recorded but not enforced: every signed-in person and every agent can read all documents and transmittals of a project, including recipient emails.",
             "items": {
               "additionalProperties": {
                 "anyOf": [
@@ -17512,7 +17521,7 @@
     },
     "/commands/SetDocumentConfidentiality": {
       "post": {
-        "description": "Set or clear a document's confidentiality class (admin). The reason is kept.",
+        "description": "Set or clear a document's confidentiality class (admin). The reason is kept.\n\nIn Phase 1 confidentiality is recorded but not enforced: every signed-in person and every\nagent can read all documents and transmittals of a project, including recipient emails.",
         "operationId": "command_SetDocumentConfidentiality",
         "parameters": [
           {
@@ -20250,7 +20259,7 @@
     },
     "/projects/{project}/documents/{number}": {
       "get": {
-        "description": "One document with its revisions, renditions and links. 404 `document_not_found`.",
+        "description": "One document with its revisions, renditions and links. 404 `document_not_found`.\n\nThe number may hold `/`.",
         "operationId": "get_document",
         "parameters": [
           {

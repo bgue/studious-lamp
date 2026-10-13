@@ -256,12 +256,14 @@ def test_an_upload_into_a_revision_follows_its_state_over_http(
             assert response.json()["error"] == "unsupported_record_type", slot
 
 
-def test_a_key_with_an_at_sign_or_a_slash_cannot_be_taken_by_a_generic_record(
+def test_a_key_with_an_at_sign_cannot_be_taken_by_a_generic_record_but_a_slash_can(
     people: People,
 ) -> None:
     for key in ("ISO-1234@A", "ISO-1234@A/pdf-1"):
         refused = run(people.bob, "CreateRecord", record_type="core.Record", title="t", key=key)
         assert refused.status_code == 422 and refused.json()["error"] == "reserved_key"
+    taken = run(people.bob, "CreateRecord", record_type="core.Record", title="t", key="MP/12/3")
+    assert taken.status_code == 200, taken.text
 
 
 def test_a_person_cannot_make_a_link_nobody_can_retract(
@@ -308,10 +310,22 @@ def test_the_admin_recovery_commands_reach_any_link_and_a_person_cannot_use_them
 def test_a_document_number_that_squats_a_module_key_is_a_422(
     people: People, world: DocumentsWorld
 ) -> None:
-    for number in ("ISO-1234@B", "ISO-1234/pdf-1"):
+    for number in ("ISO-1234@B", "ISO-1234@A/pdf-1"):
         refused = run(people.bob, "RegisterDocument", number=number, title="x", doc_type="ISO")
         assert refused.status_code == 422 and refused.json()["error"] == "reserved_key", number
     assert world.scalar("SELECT COUNT(*) FROM cur_documents_document") == 0
+
+
+def test_a_document_number_with_a_slash_is_registered_and_read_over_http(
+    people: People, world: DocumentsWorld
+) -> None:
+    made = run(people.bob, "RegisterDocument", number="MP/12/3", title="x", doc_type="ISO")
+    assert made.status_code == 200, made.text
+    for path in ("MP%2F12%2F3", "MP/12/3"):
+        got = people.bob.get(f"/projects/P123/documents/{path}")
+        assert got.status_code == 200, got.text
+        assert got.json()["number"] == "MP/12/3"
+    assert people.bob.get("/projects/P123/documents/MP%2F12%2F9").status_code == 404
 
 
 def test_a_stranger_cannot_close_someone_elses_review(

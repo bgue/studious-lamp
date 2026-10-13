@@ -251,7 +251,7 @@ def list_tags(
     return [TagOut.of(row) for row in rows]
 
 
-@router.get("/projects/{project}/tags/{number}", operation_id="get_tag")
+@router.get("/projects/{project}/tags/{number:path}", operation_id="get_tag")
 def get_tag(ctx: Ctx, actor: TagReader, project: str, number: str) -> TagDetail:
     """One tag by number with its conformance issues. 404 `tag_not_found` when there is none."""
     with ctx.backend(True) as uow:

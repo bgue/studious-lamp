@@ -177,6 +177,7 @@ def test_one_tag_comes_with_its_segments_and_what_it_lacks(world: Harness) -> No
     legacy = get(world, "/projects/P123/tags/LEGACY-1")
     assert legacy["number_status"] == "violation" and legacy["violations"]
     missing(world, "/projects/P123/tags/47-FV-9999", "tag_not_found")
+    missing(world, "/projects/P123/tags/MP%2F12%2FFV-1", "tag_not_found")  # a number may hold `/`
 
 
 def test_an_agent_token_may_read_all_of_it(world: Harness) -> None:

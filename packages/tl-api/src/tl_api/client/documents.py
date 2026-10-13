@@ -10,7 +10,12 @@ from __future__ import annotations
 from datetime import date
 
 from pydantic import TypeAdapter
+from tl_core.services.commands import CommandResult
 from tl_mod_documents import reports, views
+from tl_mod_documents.handlers.documents import RegisterDocument
+from tl_mod_documents.handlers.revisions import CreateRevision
+from tl_mod_documents.handlers.transmittals import CreateTransmittal
+from tl_mod_documents.resolver import RepinDocumentLink
 
 from tl_api.client.base import ApiClientBase, quote
 
@@ -84,3 +89,19 @@ class DocumentsApi(ApiClientBase):
         """One transmittal with its items (``GET /projects/{project}/transmittals/{n}``)."""
         data = self._get_json(f"/projects/{quote(project)}/transmittals/{quote(number)}")
         return self._model(views.TransmittalView, data)
+
+    def repin_document_link(self, cmd: RepinDocumentLink) -> CommandResult:
+        """Move a link to another revision (``POST /commands/RepinDocumentLink``)."""
+        return self._command("RepinDocumentLink", cmd)
+
+    def create_transmittal(self, cmd: CreateTransmittal) -> CommandResult:
+        """Draft a transmittal (``POST /commands/CreateTransmittal``); the token's actor is used."""
+        return self._command("CreateTransmittal", cmd)
+
+    def register_document(self, cmd: RegisterDocument) -> CommandResult:
+        """Register a document under its number (``POST /commands/RegisterDocument``)."""
+        return self._command("RegisterDocument", cmd)
+
+    def create_revision(self, cmd: CreateRevision) -> CommandResult:
+        """Start the next revision, as a draft (``POST /commands/CreateRevision``)."""
+        return self._command("CreateRevision", cmd)

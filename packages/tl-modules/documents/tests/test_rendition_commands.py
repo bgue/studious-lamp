@@ -290,3 +290,9 @@ def test_the_preflight_refuses_what_the_command_would_before_a_file_is_uploaded(
     with pytest.raises(RevisionNotFoundError):
         with open_uow(world.db, readonly=True) as uow:
             preflight_rendition(uow.conn(), "project:P999", rev.id, "markup", "attach")
+    doc = world.document("ISO-1234")
+    with open_uow(world.db) as uow:
+        handle_void_document(uow, VoidDocument(**BASE, stream_id=doc.id, reason="x"))
+    for kind, mode in (("markup", "attach"), ("signed", "register_signed")):
+        with pytest.raises(DocumentClosedError, match="takes no more changes"):
+            check(kind, mode)
