@@ -2,7 +2,7 @@
 
 The documents module (M1): documents, revisions, renditions, pinned links that go stale, transmittals, review cycles and
 the legacy register import, with the projectors, commands, reads and reports that serve them (§9 M1, §7.3, §29.6).
-Decisions: ADR-0010, ADR-0011, ADR-0012.
+Decisions: ADR-0010, ADR-0011 (superseded in part), ADR-0012, ADR-0013.
 
 ## Public interface
 | Symbol | Kind | Purpose |
@@ -21,7 +21,7 @@ Decisions: ADR-0010, ADR-0011, ADR-0012.
 | `tl_mod_documents.guards` | module | The state guards of the generic commands (uploads into a revision, a draft transmittal) |
 | `tl_mod_documents.views` | module | `DocumentView`, `RevisionView`, `DocumentLinkView`, `TransmittalView`, `RevisionDiffView` and their readers: what the API, the TUI and the MCP tools return |
 | `tl_mod_documents.reports` | module | Register, history, overdue reviews, transmittal log, stale pins |
-| `tl_mod_documents.commands` | module | `API_COMMANDS`: the 24 commands the API offers, each with its `access` (`user`, `admin`) |
+| `tl_mod_documents.commands` | module | `API_COMMANDS`: the 24 commands the API offers, each with its `access` (`user` or `controller`: an admin or a document controller, action `control.command.<Name>`) |
 | `tl_mod_documents.imports` | package | Legacy register import: `mapping` (template, `read_file_text`, `read_rows`), `diff` (`plan_import`), `apply` (`apply_plan`, all or nothing, source `import:<job>`), `model` |
 | `tl_mod_documents.limits` | module | Size limits of commands and of an import file; `CONFIDENTIALITY_NOTE` |
 | `tl_mod_documents.testing` | module | `DocumentsWorld`: documents, revisions, files and links in a ledger, for tests of other packages |

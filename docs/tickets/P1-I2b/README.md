@@ -34,9 +34,10 @@ The increment is small and security-sensitive, so the supervisor built all of it
 | S3 | API: `controller` access level and `control.command.<Name>` action, `controller_actions()` into `create_app`, the ten documents commands, role list size in the admin routes; refusal wording in the module; tests (EXPECTED_ACCESS, HTTP matrix, admin routes, agent walk) | Auth and permission | security review | done |
 | S4 | CLI: `require_controller` at eleven sites, `tl admin user roles --add/--remove`; tests for each site on both adapters | Auth and permission | security review | done |
 | S5 | TUI: role key and form box, `is_controller` through the app, `Ctrl+T` draft and issue, embedded `_controller_gate`, `issue_transmittal` on the clients; tests and snapshots | Auth and permission (embedded gate) | security review | done |
-| S6 | Demo `dev/demos/P1-I2b.sh` and its driver; P1-I2 demo text | Demo | orchestrator | done |
-| S7 | Docs: runbooks (accounts-and-access, documents), module page, package READMEs and AGENTS.md, OpenAPI reference, LEARNINGS, APPROVALS line | Docs | orchestrator | done |
-| S8 | Report `docs/reports/P1-I2b.md` | Report | orchestrator | done |
+| S6 | HTTP matrix of the role on both adapters (`test_api_document_controller.py`) | Auth tests | security review | done |
+| S7 | Demo `dev/demos/P1-I2b.sh` and its driver; the P1-I2 demo text | Demo | orchestrator | done |
+| S8 | Docs: runbooks (accounts-and-access, documents), module page, package READMEs and AGENTS.md, OpenAPI reference, LEARNINGS, APPROVALS lines | Docs | orchestrator | done |
+| S9 | Report `docs/reports/P1-I2b.md` | Report | orchestrator | done |
 
 ## Tickets
 None. No piece was large and specifiable enough to pay for the ticket overhead: the pieces share one rule (who may call what) and each is a few dozen lines plus tests.
