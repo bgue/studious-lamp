@@ -84,10 +84,10 @@ Then: a rejected document number (`ISO-12`); a review cycle with an overdue revi
 | T10b | MCP read tools for documents (seven tools, each an explicit `MCP_ACTIONS` entry) | H | S10 | merged (batch 3, first attempt) | `08ba56a`; the confidentiality and recipient-email sentence is in three tool descriptions (S15) |
 | T13b | TUI: the document register (F7) with revision history and status class | H | S17 | merged (wave 1, first attempt) | `db4e06a` |
 | T13c | TUI: the re-pin dialog (diff, then confirm) | H | S17 | merged (wave 1, first attempt) | `6a75586` (impl `6d19ab3`) |
-| T13d | TUI: the transmittal composer | H | S17 | ready (wave 2) | |
+| T13d | TUI: the transmittal composer | H | S17 | merged (wave 2, first attempt) | `78cc953`; the document flow test is back in the tree |
 | T12a | Simulator: the document registrar actor | H | S16 | merged (wave 1, first attempt) | `08169a1`; the end-to-end test is back in the tree |
 | T12b | Import: mapping template parser and file reader | H | S18 | merged (wave 1, second attempt) | `a72ae50`; blank header cells are ignored again (S22, `test_imports_mapping_headers.py`), a named column twice is still refused |
-| T12c | Import: the plan (new, exists, invalid) | H | T12b | ready (wave 2) | |
+| T12c | Import: the plan (new, exists, invalid) | H | T12b | merged (wave 2, first attempt) | `b199530`; a hand-built row with a blank number is invalid (guard + `test_imports_plan_guards.py`) |
 | T12d | Import: apply a plan, all or nothing | H | T12b, T12c | ready (wave 2) | |
 | T12e | `tl doc import`: preview and `--apply` | H | T12b, T12c, T12d | ready (wave 3) | |
 
