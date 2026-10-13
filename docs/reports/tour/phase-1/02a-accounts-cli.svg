@@ -1,0 +1,110 @@
+<svg class="rich-terminal" viewBox="0 0 1458 464.79999999999995" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    
+    
+
+    .terminal-382278027-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-382278027-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-382278027-r1 { fill: #98a84b;font-weight: bold }
+.terminal-382278027-r2 { fill: #c5c8c6;font-weight: bold }
+.terminal-382278027-r3 { fill: #c5c8c6 }
+    </style>
+
+    <defs>
+    <clipPath id="terminal-382278027-clip-terminal">
+      <rect x="0" y="0" width="1438.6" height="413.79999999999995" />
+    </clipPath>
+    <clipPath id="terminal-382278027-line-0">
+    <rect x="0" y="1.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-1">
+    <rect x="0" y="25.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-2">
+    <rect x="0" y="50.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-3">
+    <rect x="0" y="74.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-4">
+    <rect x="0" y="99.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-5">
+    <rect x="0" y="123.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-6">
+    <rect x="0" y="147.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-7">
+    <rect x="0" y="172.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-8">
+    <rect x="0" y="196.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-9">
+    <rect x="0" y="221.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-10">
+    <rect x="0" y="245.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-11">
+    <rect x="0" y="269.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-12">
+    <rect x="0" y="294.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-13">
+    <rect x="0" y="318.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-14">
+    <rect x="0" y="343.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-382278027-line-15">
+    <rect x="0" y="367.5" width="1439.6" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="462.8" rx="8"/><text class="terminal-382278027-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">Accounts&#160;and&#160;agent&#160;tokens,&#160;as&#160;an&#160;admin</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-382278027-clip-terminal)">
+    
+    <g class="terminal-382278027-matrix">
+    <text class="terminal-382278027-r1" x="0" y="20" textLength="73.2" clip-path="url(#terminal-382278027-line-0)">demo$&#160;</text><text class="terminal-382278027-r2" x="73.2" y="20" textLength="744.2" clip-path="url(#terminal-382278027-line-0)">tl&#160;admin&#160;user&#160;add&#160;ben&#160;--display-name&#160;&#x27;Ben&#160;C&#x27;&#160;--password-stdin</text><text class="terminal-382278027-r3" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-382278027-line-0)">
+</text><text class="terminal-382278027-r3" x="0" y="44.4" textLength="402.6" clip-path="url(#terminal-382278027-line-1)">created&#160;ben&#160;&#160;person&#160;&#160;user&#160;&#160;active</text><text class="terminal-382278027-r3" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-382278027-line-1)">
+</text><text class="terminal-382278027-r1" x="0" y="68.8" textLength="73.2" clip-path="url(#terminal-382278027-line-2)">demo$&#160;</text><text class="terminal-382278027-r2" x="73.2" y="68.8" textLength="451.4" clip-path="url(#terminal-382278027-line-2)">tl&#160;admin&#160;user&#160;add&#160;triage&#160;--kind&#160;agent</text><text class="terminal-382278027-r3" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-382278027-line-2)">
+</text><text class="terminal-382278027-r3" x="0" y="93.2" textLength="427" clip-path="url(#terminal-382278027-line-3)">created&#160;triage&#160;&#160;agent&#160;&#160;user&#160;&#160;active</text><text class="terminal-382278027-r3" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-382278027-line-3)">
+</text><text class="terminal-382278027-r3" x="0" y="117.6" textLength="707.6" clip-path="url(#terminal-382278027-line-4)">next:&#160;tl&#160;admin&#160;token&#160;issue&#160;triage&#160;--label&#160;&lt;what&#160;it&#160;is&#160;for&gt;</text><text class="terminal-382278027-r3" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-382278027-line-4)">
+</text><text class="terminal-382278027-r1" x="0" y="142" textLength="73.2" clip-path="url(#terminal-382278027-line-5)">demo$&#160;</text><text class="terminal-382278027-r2" x="73.2" y="142" textLength="658.8" clip-path="url(#terminal-382278027-line-5)">tl&#160;admin&#160;token&#160;issue&#160;triage&#160;--label&#160;&#x27;triage&#160;assistant&#x27;</text><text class="terminal-382278027-r3" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-382278027-line-5)">
+</text><text class="terminal-382278027-r3" x="0" y="166.4" textLength="85.4" clip-path="url(#terminal-382278027-line-6)">tla_...</text><text class="terminal-382278027-r3" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-382278027-line-6)">
+</text><text class="terminal-382278027-r3" x="0" y="190.8" textLength="1427.4" clip-path="url(#terminal-382278027-line-7)">issued&#160;token&#160;01M4QNS660000000000000000M&#160;for&#160;agent:triage,&#160;expires&#160;2027-01-10T09:06:00.000000Z;&#160;this&#160;is&#160;the&#160;only&#160;time&#160;</text><text class="terminal-382278027-r3" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-382278027-line-7)">
+</text><text class="terminal-382278027-r3" x="0" y="215.2" textLength="134.2" clip-path="url(#terminal-382278027-line-8)">it&#160;is&#160;shown</text><text class="terminal-382278027-r3" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-382278027-line-8)">
+</text><text class="terminal-382278027-r1" x="0" y="239.6" textLength="73.2" clip-path="url(#terminal-382278027-line-9)">demo$&#160;</text><text class="terminal-382278027-r2" x="73.2" y="239.6" textLength="207.4" clip-path="url(#terminal-382278027-line-9)">tl&#160;admin&#160;token&#160;ls</text><text class="terminal-382278027-r3" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-382278027-line-9)">
+</text><text class="terminal-382278027-r3" x="0" y="264" textLength="1085.8" clip-path="url(#terminal-382278027-line-10)">01M4QNS660000000000000000M&#160;&#160;triage&#160;&#160;triage&#160;assistant&#160;&#160;2027-01-10T09:06:00.000000Z&#160;&#160;active</text><text class="terminal-382278027-r3" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-382278027-line-10)">
+</text><text class="terminal-382278027-r1" x="0" y="288.4" textLength="73.2" clip-path="url(#terminal-382278027-line-11)">demo$&#160;</text><text class="terminal-382278027-r2" x="73.2" y="288.4" textLength="195.2" clip-path="url(#terminal-382278027-line-11)">tl&#160;admin&#160;user&#160;ls</text><text class="terminal-382278027-r3" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-382278027-line-11)">
+</text><text class="terminal-382278027-r3" x="0" y="312.8" textLength="329.4" clip-path="url(#terminal-382278027-line-12)">demo&#160;&#160;person&#160;&#160;admin&#160;&#160;active</text><text class="terminal-382278027-r3" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-382278027-line-12)">
+</text><text class="terminal-382278027-r3" x="0" y="337.2" textLength="305" clip-path="url(#terminal-382278027-line-13)">amy&#160;&#160;person&#160;&#160;user&#160;&#160;active</text><text class="terminal-382278027-r3" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-382278027-line-13)">
+</text><text class="terminal-382278027-r3" x="0" y="361.6" textLength="305" clip-path="url(#terminal-382278027-line-14)">ana&#160;&#160;person&#160;&#160;user&#160;&#160;active</text><text class="terminal-382278027-r3" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-382278027-line-14)">
+</text><text class="terminal-382278027-r3" x="0" y="386" textLength="305" clip-path="url(#terminal-382278027-line-15)">ben&#160;&#160;person&#160;&#160;user&#160;&#160;active</text><text class="terminal-382278027-r3" x="1439.6" y="386" textLength="12.2" clip-path="url(#terminal-382278027-line-15)">
+</text><text class="terminal-382278027-r3" x="0" y="410.4" textLength="329.4" clip-path="url(#terminal-382278027-line-16)">triage&#160;&#160;agent&#160;&#160;user&#160;&#160;active</text><text class="terminal-382278027-r3" x="1439.6" y="410.4" textLength="12.2" clip-path="url(#terminal-382278027-line-16)">
+</text>
+    </g>
+    </g>
+</svg>

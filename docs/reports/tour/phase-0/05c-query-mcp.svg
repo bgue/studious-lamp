@@ -1,0 +1,75 @@
+<svg class="rich-terminal" viewBox="0 0 1482 245.2" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    
+    
+
+    .terminal-3531161881-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-3531161881-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-3531161881-r1 { fill: #9a9b99;font-style: italic; }
+.terminal-3531161881-r2 { fill: #c5c8c6 }
+.terminal-3531161881-r3 { fill: #98a84b;font-weight: bold }
+.terminal-3531161881-r4 { fill: #c5c8c6;font-weight: bold }
+    </style>
+
+    <defs>
+    <clipPath id="terminal-3531161881-clip-terminal">
+      <rect x="0" y="0" width="1463.0" height="194.2" />
+    </clipPath>
+    <clipPath id="terminal-3531161881-line-0">
+    <rect x="0" y="1.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3531161881-line-1">
+    <rect x="0" y="25.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3531161881-line-2">
+    <rect x="0" y="50.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3531161881-line-3">
+    <rect x="0" y="74.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3531161881-line-4">
+    <rect x="0" y="99.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3531161881-line-5">
+    <rect x="0" y="123.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3531161881-line-6">
+    <rect x="0" y="147.9" width="1464" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="243.2" rx="8"/><text class="terminal-3531161881-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">The&#160;same&#160;query&#160;through&#160;MCP:&#160;the&#160;read&#160;tool&#160;search_records</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-3531161881-clip-terminal)">
+    
+    <g class="terminal-3531161881-matrix">
+    <text class="terminal-3531161881-r1" x="0" y="20" textLength="793" clip-path="url(#terminal-3531161881-line-0)">#&#160;the&#160;agent&#160;acts&#160;through&#160;its&#160;own&#160;token;&#160;reading&#160;needs&#160;no&#160;proposal</text><text class="terminal-3531161881-r2" x="1464" y="20" textLength="12.2" clip-path="url(#terminal-3531161881-line-0)">
+</text><text class="terminal-3531161881-r3" x="0" y="44.4" textLength="24.4" clip-path="url(#terminal-3531161881-line-1)">$&#160;</text><text class="terminal-3531161881-r4" x="24.4" y="44.4" textLength="1329.8" clip-path="url(#terminal-3531161881-line-1)">mcp&#160;tools/call&#160;search_records&#160;{scope:&#160;&quot;project:P123&quot;,&#160;q:&#160;&quot;(conformance:warning&#160;OR&#160;conformance:nonconformant)&#160;</text><text class="terminal-3531161881-r2" x="1464" y="44.4" textLength="12.2" clip-path="url(#terminal-3531161881-line-1)">
+</text><text class="terminal-3531161881-r4" x="0" y="68.8" textLength="353.8" clip-path="url(#terminal-3531161881-line-2)">psets.valve_data.size_in&gt;=3&quot;}</text><text class="terminal-3531161881-r2" x="1464" y="68.8" textLength="12.2" clip-path="url(#terminal-3531161881-line-2)">
+</text><text class="terminal-3531161881-r2" x="0" y="93.2" textLength="85.4" clip-path="url(#terminal-3531161881-line-3)">total&#160;2</text><text class="terminal-3531161881-r2" x="1464" y="93.2" textLength="12.2" clip-path="url(#terminal-3531161881-line-3)">
+</text><text class="terminal-3531161881-r2" x="0" y="117.6" textLength="866.2" clip-path="url(#terminal-3531161881-line-4)">&#160;&#160;FV-1002&#160;&#160;&#160;Reflux&#160;valve&#160;&#160;&#160;&#160;&#160;&#160;&#160;size_in=6&#160;&#160;conformance=nonconformant&#160;&#160;v2</text><text class="terminal-3531161881-r2" x="1464" y="117.6" textLength="12.2" clip-path="url(#terminal-3531161881-line-4)">
+</text><text class="terminal-3531161881-r2" x="0" y="142" textLength="793" clip-path="url(#terminal-3531161881-line-5)">&#160;&#160;PSV-4001&#160;&#160;Relief&#160;valve&#160;&#160;&#160;&#160;&#160;&#160;&#160;size_in=3&#160;&#160;conformance=warning&#160;&#160;v2</text><text class="terminal-3531161881-r2" x="1464" y="142" textLength="12.2" clip-path="url(#terminal-3531161881-line-5)">
+</text><text class="terminal-3531161881-r2" x="1464" y="166.4" textLength="12.2" clip-path="url(#terminal-3531161881-line-6)">
+</text><text class="terminal-3531161881-r1" x="0" y="190.8" textLength="976" clip-path="url(#terminal-3531161881-line-7)">#&#160;the&#160;TUI&#160;filter&#160;bar,&#160;the&#160;REST&#160;API&#160;and&#160;this&#160;tool&#160;are&#160;one&#160;parser&#160;and&#160;one&#160;executor</text><text class="terminal-3531161881-r2" x="1464" y="190.8" textLength="12.2" clip-path="url(#terminal-3531161881-line-7)">
+</text>
+    </g>
+    </g>
+</svg>

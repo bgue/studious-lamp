@@ -1,0 +1,115 @@
+<svg class="rich-terminal" viewBox="0 0 1458 489.2" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    
+    
+
+    .terminal-1957678654-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-1957678654-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-1957678654-r1 { fill: #98a84b;font-weight: bold }
+.terminal-1957678654-r2 { fill: #c5c8c6;font-weight: bold }
+.terminal-1957678654-r3 { fill: #c5c8c6 }
+.terminal-1957678654-r4 { fill: #cc555a }
+    </style>
+
+    <defs>
+    <clipPath id="terminal-1957678654-clip-terminal">
+      <rect x="0" y="0" width="1438.6" height="438.2" />
+    </clipPath>
+    <clipPath id="terminal-1957678654-line-0">
+    <rect x="0" y="1.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-1">
+    <rect x="0" y="25.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-2">
+    <rect x="0" y="50.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-3">
+    <rect x="0" y="74.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-4">
+    <rect x="0" y="99.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-5">
+    <rect x="0" y="123.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-6">
+    <rect x="0" y="147.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-7">
+    <rect x="0" y="172.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-8">
+    <rect x="0" y="196.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-9">
+    <rect x="0" y="221.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-10">
+    <rect x="0" y="245.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-11">
+    <rect x="0" y="269.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-12">
+    <rect x="0" y="294.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-13">
+    <rect x="0" y="318.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-14">
+    <rect x="0" y="343.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-15">
+    <rect x="0" y="367.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1957678654-line-16">
+    <rect x="0" y="391.9" width="1439.6" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="487.2" rx="8"/><text class="terminal-1957678654-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">Documents:&#160;a&#160;number&#160;pattern,&#160;revisions,&#160;a&#160;status&#160;class&#160;per&#160;revision</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-1957678654-clip-terminal)">
+    
+    <g class="terminal-1957678654-matrix">
+    <text class="terminal-1957678654-r1" x="0" y="20" textLength="61" clip-path="url(#terminal-1957678654-line-0)">amy$&#160;</text><text class="terminal-1957678654-r2" x="61" y="20" textLength="1037" clip-path="url(#terminal-1957678654-line-0)">tl&#160;doc&#160;register&#160;ISO-12&#160;--project&#160;P123&#160;--title&#160;&#x27;Too&#160;short&#x27;&#160;--type&#160;ISO&#160;--discipline&#160;PIP</text><text class="terminal-1957678654-r3" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-1957678654-line-0)">
+</text><text class="terminal-1957678654-r4" x="0" y="44.4" textLength="1110.2" clip-path="url(#terminal-1957678654-line-1)">error:&#160;document&#160;number&#160;&#x27;ISO-12&#x27;:&#160;the&#160;sequence&#160;&#x27;12&#x27;&#160;must&#160;be&#160;written&#160;with&#160;4&#160;digits,&#160;like&#160;0001</text><text class="terminal-1957678654-r3" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-1957678654-line-1)">
+</text><text class="terminal-1957678654-r4" x="0" y="68.8" textLength="915" clip-path="url(#terminal-1957678654-line-2)">&#160;&#160;-&#160;seq:&#160;the&#160;sequence&#160;&#x27;12&#x27;&#160;must&#160;be&#160;written&#160;with&#160;4&#160;digits,&#160;like&#160;0001&#160;(error)</text><text class="terminal-1957678654-r3" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-1957678654-line-2)">
+</text><text class="terminal-1957678654-r1" x="0" y="93.2" textLength="61" clip-path="url(#terminal-1957678654-line-3)">amy$&#160;</text><text class="terminal-1957678654-r2" x="61" y="93.2" textLength="1256.6" clip-path="url(#terminal-1957678654-line-3)">tl&#160;doc&#160;register&#160;ISO-1234&#160;--project&#160;P123&#160;--title&#160;&#x27;Isometric,&#160;line&#160;47-P-101&#x27;&#160;--type&#160;ISO&#160;--discipline&#160;PIP&#160;</text><text class="terminal-1957678654-r3" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-1957678654-line-3)">
+</text><text class="terminal-1957678654-r2" x="0" y="117.6" textLength="317.2" clip-path="url(#terminal-1957678654-line-4)">--originator&#160;&#x27;Acme&#160;Piping&#x27;</text><text class="terminal-1957678654-r3" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-1957678654-line-4)">
+</text><text class="terminal-1957678654-r3" x="0" y="142" textLength="451.4" clip-path="url(#terminal-1957678654-line-5)">registered&#160;01M4QW4E3000000000000000CV</text><text class="terminal-1957678654-r3" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-1957678654-line-5)">
+</text><text class="terminal-1957678654-r3" x="0" y="166.4" textLength="207.4" clip-path="url(#terminal-1957678654-line-6)">document&#160;ISO-1234</text><text class="terminal-1957678654-r3" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-1957678654-line-6)">
+</text><text class="terminal-1957678654-r3" x="0" y="190.8" textLength="195.2" clip-path="url(#terminal-1957678654-line-7)">state&#160;Registered</text><text class="terminal-1957678654-r3" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-1957678654-line-7)">
+</text><text class="terminal-1957678654-r3" x="0" y="215.2" textLength="146.4" clip-path="url(#terminal-1957678654-line-8)">scheme&#160;alpha</text><text class="terminal-1957678654-r3" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-1957678654-line-8)">
+</text><text class="terminal-1957678654-r1" x="0" y="239.6" textLength="61" clip-path="url(#terminal-1957678654-line-9)">amy$&#160;</text><text class="terminal-1957678654-r2" x="61" y="239.6" textLength="780.8" clip-path="url(#terminal-1957678654-line-9)">tl&#160;doc&#160;rev&#160;create&#160;ISO-1234&#160;--project&#160;P123&#160;--purpose&#160;&#x27;For&#160;review&#x27;</text><text class="terminal-1957678654-r3" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-1957678654-line-9)">
+</text><text class="terminal-1957678654-r3" x="0" y="264" textLength="292.8" clip-path="url(#terminal-1957678654-line-10)">created&#160;revision&#160;A&#160;Draft</text><text class="terminal-1957678654-r3" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-1957678654-line-10)">
+</text><text class="terminal-1957678654-r1" x="0" y="288.4" textLength="61" clip-path="url(#terminal-1957678654-line-11)">amy$&#160;</text><text class="terminal-1957678654-r2" x="61" y="288.4" textLength="963.8" clip-path="url(#terminal-1957678654-line-11)">tl&#160;doc&#160;rendition&#160;add&#160;ISO-1234&#160;A&#160;sheet-A.pdf&#160;--project&#160;P123&#160;--kind&#160;pdf&#160;--pages&#160;3</text><text class="terminal-1957678654-r3" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-1957678654-line-11)">
+</text><text class="terminal-1957678654-r3" x="0" y="312.8" textLength="463.6" clip-path="url(#terminal-1957678654-line-12)">attached&#160;pdf&#160;sheet-A.pdf&#160;to&#160;ISO-1234@A</text><text class="terminal-1957678654-r3" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-1957678654-line-12)">
+</text><text class="terminal-1957678654-r3" x="0" y="337.2" textLength="439.2" clip-path="url(#terminal-1957678654-line-13)">rendition&#160;01M4QWMXE000000000000000DE</text><text class="terminal-1957678654-r3" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-1957678654-line-13)">
+</text><text class="terminal-1957678654-r1" x="0" y="361.6" textLength="61" clip-path="url(#terminal-1957678654-line-14)">amy$&#160;</text><text class="terminal-1957678654-r2" x="61" y="361.6" textLength="671" clip-path="url(#terminal-1957678654-line-14)">tl&#160;doc&#160;rev&#160;issue&#160;ISO-1234&#160;A&#160;--project&#160;P123&#160;--status&#160;IFR</text><text class="terminal-1957678654-r3" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-1957678654-line-14)">
+</text><text class="terminal-1957678654-r4" x="0" y="386" textLength="622.2" clip-path="url(#terminal-1957678654-line-15)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-1957678654-r3" x="1439.6" y="386" textLength="12.2" clip-path="url(#terminal-1957678654-line-15)">
+</text><text class="terminal-1957678654-r1" x="0" y="410.4" textLength="73.2" clip-path="url(#terminal-1957678654-line-16)">demo$&#160;</text><text class="terminal-1957678654-r2" x="73.2" y="410.4" textLength="671" clip-path="url(#terminal-1957678654-line-16)">tl&#160;doc&#160;rev&#160;issue&#160;ISO-1234&#160;A&#160;--project&#160;P123&#160;--status&#160;IFR</text><text class="terminal-1957678654-r3" x="1439.6" y="410.4" textLength="12.2" clip-path="url(#terminal-1957678654-line-16)">
+</text><text class="terminal-1957678654-r3" x="0" y="434.8" textLength="463.6" clip-path="url(#terminal-1957678654-line-17)">issued&#160;ISO-1234@A&#160;as&#160;IFR&#160;on&#160;2026-10-12</text><text class="terminal-1957678654-r3" x="1439.6" y="434.8" textLength="12.2" clip-path="url(#terminal-1957678654-line-17)">
+</text>
+    </g>
+    </g>
+</svg>

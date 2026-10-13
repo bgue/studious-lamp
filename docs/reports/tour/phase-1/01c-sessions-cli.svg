@@ -1,0 +1,96 @@
+<svg class="rich-terminal" viewBox="0 0 1458 367.2" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    
+    
+
+    .terminal-1937937097-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-1937937097-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-1937937097-r1 { fill: #9a9b99;font-style: italic; }
+.terminal-1937937097-r2 { fill: #c5c8c6 }
+.terminal-1937937097-r3 { fill: #98a84b;font-weight: bold }
+.terminal-1937937097-r4 { fill: #c5c8c6;font-weight: bold }
+.terminal-1937937097-r5 { fill: #cc555a }
+    </style>
+
+    <defs>
+    <clipPath id="terminal-1937937097-clip-terminal">
+      <rect x="0" y="0" width="1438.6" height="316.2" />
+    </clipPath>
+    <clipPath id="terminal-1937937097-line-0">
+    <rect x="0" y="1.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1937937097-line-1">
+    <rect x="0" y="25.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1937937097-line-2">
+    <rect x="0" y="50.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1937937097-line-3">
+    <rect x="0" y="74.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1937937097-line-4">
+    <rect x="0" y="99.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1937937097-line-5">
+    <rect x="0" y="123.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1937937097-line-6">
+    <rect x="0" y="147.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1937937097-line-7">
+    <rect x="0" y="172.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1937937097-line-8">
+    <rect x="0" y="196.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1937937097-line-9">
+    <rect x="0" y="221.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1937937097-line-10">
+    <rect x="0" y="245.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1937937097-line-11">
+    <rect x="0" y="269.9" width="1439.6" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="365.2" rx="8"/><text class="terminal-1937937097-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">Sessions:&#160;who&#160;you&#160;are,&#160;and&#160;what&#160;that&#160;allows</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-1937937097-clip-terminal)">
+    
+    <g class="terminal-1937937097-matrix">
+    <text class="terminal-1937937097-r1" x="0" y="20" textLength="793" clip-path="url(#terminal-1937937097-line-0)">#&#160;each&#160;person&#160;has&#160;their&#160;own&#160;session&#160;file,&#160;as&#160;on&#160;their&#160;own&#160;machine</text><text class="terminal-1937937097-r2" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-1937937097-line-0)">
+</text><text class="terminal-1937937097-r3" x="0" y="44.4" textLength="61" clip-path="url(#terminal-1937937097-line-1)">amy$&#160;</text><text class="terminal-1937937097-r4" x="61" y="44.4" textLength="109.8" clip-path="url(#terminal-1937937097-line-1)">tl&#160;whoami</text><text class="terminal-1937937097-r2" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-1937937097-line-1)">
+</text><text class="terminal-1937937097-r2" x="0" y="68.8" textLength="97.6" clip-path="url(#terminal-1937937097-line-2)">user:amy</text><text class="terminal-1937937097-r2" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-1937937097-line-2)">
+</text><text class="terminal-1937937097-r2" x="0" y="93.2" textLength="134.2" clip-path="url(#terminal-1937937097-line-3)">roles:&#160;user</text><text class="terminal-1937937097-r2" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-1937937097-line-3)">
+</text><text class="terminal-1937937097-r3" x="0" y="117.6" textLength="61" clip-path="url(#terminal-1937937097-line-4)">amy$&#160;</text><text class="terminal-1937937097-r4" x="61" y="117.6" textLength="195.2" clip-path="url(#terminal-1937937097-line-4)">tl&#160;admin&#160;user&#160;ls</text><text class="terminal-1937937097-r2" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-1937937097-line-4)">
+</text><text class="terminal-1937937097-r5" x="0" y="142" textLength="622.2" clip-path="url(#terminal-1937937097-line-5)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-1937937097-r2" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-1937937097-line-5)">
+</text><text class="terminal-1937937097-r3" x="0" y="166.4" textLength="73.2" clip-path="url(#terminal-1937937097-line-6)">demo$&#160;</text><text class="terminal-1937937097-r4" x="73.2" y="166.4" textLength="109.8" clip-path="url(#terminal-1937937097-line-6)">tl&#160;whoami</text><text class="terminal-1937937097-r2" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-1937937097-line-6)">
+</text><text class="terminal-1937937097-r2" x="0" y="190.8" textLength="109.8" clip-path="url(#terminal-1937937097-line-7)">user:demo</text><text class="terminal-1937937097-r2" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-1937937097-line-7)">
+</text><text class="terminal-1937937097-r2" x="0" y="215.2" textLength="146.4" clip-path="url(#terminal-1937937097-line-8)">roles:&#160;admin</text><text class="terminal-1937937097-r2" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-1937937097-line-8)">
+</text><text class="terminal-1937937097-r3" x="0" y="239.6" textLength="73.2" clip-path="url(#terminal-1937937097-line-9)">demo$&#160;</text><text class="terminal-1937937097-r4" x="73.2" y="239.6" textLength="195.2" clip-path="url(#terminal-1937937097-line-9)">tl&#160;admin&#160;user&#160;ls</text><text class="terminal-1937937097-r2" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-1937937097-line-9)">
+</text><text class="terminal-1937937097-r2" x="0" y="264" textLength="329.4" clip-path="url(#terminal-1937937097-line-10)">demo&#160;&#160;person&#160;&#160;admin&#160;&#160;active</text><text class="terminal-1937937097-r2" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-1937937097-line-10)">
+</text><text class="terminal-1937937097-r2" x="0" y="288.4" textLength="305" clip-path="url(#terminal-1937937097-line-11)">amy&#160;&#160;person&#160;&#160;user&#160;&#160;active</text><text class="terminal-1937937097-r2" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-1937937097-line-11)">
+</text><text class="terminal-1937937097-r2" x="0" y="312.8" textLength="305" clip-path="url(#terminal-1937937097-line-12)">ana&#160;&#160;person&#160;&#160;user&#160;&#160;active</text><text class="terminal-1937937097-r2" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-1937937097-line-12)">
+</text>
+    </g>
+    </g>
+</svg>

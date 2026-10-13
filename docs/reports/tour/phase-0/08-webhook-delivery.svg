@@ -1,0 +1,191 @@
+<svg class="rich-terminal" viewBox="0 0 1482 952.8" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    
+    
+
+    .terminal-706034051-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-706034051-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-706034051-r1 { fill: #9a9b99;font-style: italic; }
+.terminal-706034051-r2 { fill: #c5c8c6 }
+.terminal-706034051-r3 { fill: #98a84b;font-weight: bold }
+.terminal-706034051-r4 { fill: #c5c8c6;font-weight: bold }
+    </style>
+
+    <defs>
+    <clipPath id="terminal-706034051-clip-terminal">
+      <rect x="0" y="0" width="1463.0" height="901.8" />
+    </clipPath>
+    <clipPath id="terminal-706034051-line-0">
+    <rect x="0" y="1.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-1">
+    <rect x="0" y="25.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-2">
+    <rect x="0" y="50.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-3">
+    <rect x="0" y="74.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-4">
+    <rect x="0" y="99.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-5">
+    <rect x="0" y="123.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-6">
+    <rect x="0" y="147.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-7">
+    <rect x="0" y="172.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-8">
+    <rect x="0" y="196.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-9">
+    <rect x="0" y="221.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-10">
+    <rect x="0" y="245.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-11">
+    <rect x="0" y="269.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-12">
+    <rect x="0" y="294.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-13">
+    <rect x="0" y="318.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-14">
+    <rect x="0" y="343.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-15">
+    <rect x="0" y="367.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-16">
+    <rect x="0" y="391.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-17">
+    <rect x="0" y="416.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-18">
+    <rect x="0" y="440.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-19">
+    <rect x="0" y="465.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-20">
+    <rect x="0" y="489.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-21">
+    <rect x="0" y="513.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-22">
+    <rect x="0" y="538.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-23">
+    <rect x="0" y="562.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-24">
+    <rect x="0" y="587.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-25">
+    <rect x="0" y="611.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-26">
+    <rect x="0" y="635.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-27">
+    <rect x="0" y="660.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-28">
+    <rect x="0" y="684.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-29">
+    <rect x="0" y="709.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-30">
+    <rect x="0" y="733.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-31">
+    <rect x="0" y="757.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-32">
+    <rect x="0" y="782.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-33">
+    <rect x="0" y="806.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-34">
+    <rect x="0" y="831.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-706034051-line-35">
+    <rect x="0" y="855.5" width="1464" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="950.8" rx="8"/><text class="terminal-706034051-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">A&#160;signed&#160;webhook&#160;to&#160;an&#160;external&#160;receiver&#160;(loopback)</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-706034051-clip-terminal)">
+    
+    <g class="terminal-706034051-matrix">
+    <text class="terminal-706034051-r1" x="0" y="20" textLength="841.8" clip-path="url(#terminal-706034051-line-0)">#&#160;the&#160;receiver&#160;is&#160;a&#160;few&#160;lines&#160;of&#160;standard-library&#160;Python&#160;on&#160;127.0.0.1</text><text class="terminal-706034051-r2" x="1464" y="20" textLength="12.2" clip-path="url(#terminal-706034051-line-0)">
+</text><text class="terminal-706034051-r3" x="0" y="44.4" textLength="24.4" clip-path="url(#terminal-706034051-line-1)">$&#160;</text><text class="terminal-706034051-r4" x="24.4" y="44.4" textLength="1366.4" clip-path="url(#terminal-706034051-line-1)">tl&#160;webhook&#160;add&#160;--name&#160;&#x27;Site&#160;system&#x27;&#160;--url&#160;http://127.0.0.1:18099/hook&#160;--project&#160;P123&#160;--event-type&#160;Pset.ValuesSet</text><text class="terminal-706034051-r2" x="1464" y="44.4" textLength="12.2" clip-path="url(#terminal-706034051-line-1)">
+</text><text class="terminal-706034051-r2" x="0" y="68.8" textLength="475.8" clip-path="url(#terminal-706034051-line-2)">subscription&#160;01M4QWRJM0000000000000002J</text><text class="terminal-706034051-r2" x="1464" y="68.8" textLength="12.2" clip-path="url(#terminal-706034051-line-2)">
+</text><text class="terminal-706034051-r2" x="0" y="93.2" textLength="439.2" clip-path="url(#terminal-706034051-line-3)">secret_id&#160;01M4QWRJM0000000000000002K</text><text class="terminal-706034051-r2" x="1464" y="93.2" textLength="12.2" clip-path="url(#terminal-706034051-line-3)">
+</text><text class="terminal-706034051-r2" x="0" y="117.6" textLength="317.2" clip-path="url(#terminal-706034051-line-4)">secret&#160;...(not&#160;shown&#160;here)</text><text class="terminal-706034051-r2" x="1464" y="117.6" textLength="12.2" clip-path="url(#terminal-706034051-line-4)">
+</text><text class="terminal-706034051-r2" x="0" y="142" textLength="463.6" clip-path="url(#terminal-706034051-line-5)">keep&#160;the&#160;secret:&#160;it&#160;is&#160;not&#160;shown&#160;again</text><text class="terminal-706034051-r2" x="1464" y="142" textLength="12.2" clip-path="url(#terminal-706034051-line-5)">
+</text><text class="terminal-706034051-r3" x="0" y="166.4" textLength="24.4" clip-path="url(#terminal-706034051-line-6)">$&#160;</text><text class="terminal-706034051-r4" x="24.4" y="166.4" textLength="902.8" clip-path="url(#terminal-706034051-line-6)">tl&#160;pset&#160;set&#160;--project&#160;P123&#160;FV-1002&#160;valve_data&#160;size_in=6.5&#160;--actor&#160;user:amy</text><text class="terminal-706034051-r2" x="1464" y="166.4" textLength="12.2" clip-path="url(#terminal-706034051-line-6)">
+</text><text class="terminal-706034051-r2" x="0" y="190.8" textLength="366" clip-path="url(#terminal-706034051-line-7)">set&#160;01M4QM0DS0000000000000000G</text><text class="terminal-706034051-r2" x="1464" y="190.8" textLength="12.2" clip-path="url(#terminal-706034051-line-7)">
+</text><text class="terminal-706034051-r2" x="0" y="215.2" textLength="109.8" clip-path="url(#terminal-706034051-line-8)">version&#160;4</text><text class="terminal-706034051-r2" x="1464" y="215.2" textLength="12.2" clip-path="url(#terminal-706034051-line-8)">
+</text><text class="terminal-706034051-r2" x="0" y="239.6" textLength="170.8" clip-path="url(#terminal-706034051-line-9)">conformance&#160;ok</text><text class="terminal-706034051-r2" x="1464" y="239.6" textLength="12.2" clip-path="url(#terminal-706034051-line-9)">
+</text><text class="terminal-706034051-r3" x="0" y="264" textLength="24.4" clip-path="url(#terminal-706034051-line-10)">$&#160;</text><text class="terminal-706034051-r4" x="24.4" y="264" textLength="1037" clip-path="url(#terminal-706034051-line-10)">tl&#160;record&#160;create&#160;--project&#160;P123&#160;--key&#160;FV-1003&#160;--title&#160;&#x27;Bypass&#160;valve&#x27;&#160;--actor&#160;user:amy</text><text class="terminal-706034051-r2" x="1464" y="264" textLength="12.2" clip-path="url(#terminal-706034051-line-10)">
+</text><text class="terminal-706034051-r2" x="0" y="288.4" textLength="414.8" clip-path="url(#terminal-706034051-line-11)">created&#160;01M4QX3J60000000000000002R</text><text class="terminal-706034051-r2" x="1464" y="288.4" textLength="12.2" clip-path="url(#terminal-706034051-line-11)">
+</text><text class="terminal-706034051-r2" x="0" y="312.8" textLength="134.2" clip-path="url(#terminal-706034051-line-12)">key&#160;FV-1003</text><text class="terminal-706034051-r2" x="1464" y="312.8" textLength="12.2" clip-path="url(#terminal-706034051-line-12)">
+</text><text class="terminal-706034051-r2" x="0" y="337.2" textLength="109.8" clip-path="url(#terminal-706034051-line-13)">version&#160;1</text><text class="terminal-706034051-r2" x="1464" y="337.2" textLength="12.2" clip-path="url(#terminal-706034051-line-13)">
+</text><text class="terminal-706034051-r3" x="0" y="361.6" textLength="24.4" clip-path="url(#terminal-706034051-line-14)">$&#160;</text><text class="terminal-706034051-r4" x="24.4" y="361.6" textLength="878.4" clip-path="url(#terminal-706034051-line-14)">tl&#160;pset&#160;set&#160;--project&#160;P123&#160;FV-1003&#160;valve_data&#160;size_in=2&#160;--actor&#160;user:amy</text><text class="terminal-706034051-r2" x="1464" y="361.6" textLength="12.2" clip-path="url(#terminal-706034051-line-14)">
+</text><text class="terminal-706034051-r2" x="0" y="386" textLength="366" clip-path="url(#terminal-706034051-line-15)">set&#160;01M4QX3J60000000000000002R</text><text class="terminal-706034051-r2" x="1464" y="386" textLength="12.2" clip-path="url(#terminal-706034051-line-15)">
+</text><text class="terminal-706034051-r2" x="0" y="410.4" textLength="109.8" clip-path="url(#terminal-706034051-line-16)">version&#160;2</text><text class="terminal-706034051-r2" x="1464" y="410.4" textLength="12.2" clip-path="url(#terminal-706034051-line-16)">
+</text><text class="terminal-706034051-r2" x="0" y="434.8" textLength="231.8" clip-path="url(#terminal-706034051-line-17)">conformance&#160;warning</text><text class="terminal-706034051-r2" x="1464" y="434.8" textLength="12.2" clip-path="url(#terminal-706034051-line-17)">
+</text><text class="terminal-706034051-r3" x="0" y="459.2" textLength="24.4" clip-path="url(#terminal-706034051-line-18)">$&#160;</text><text class="terminal-706034051-r4" x="24.4" y="459.2" textLength="1000.4" clip-path="url(#terminal-706034051-line-18)">tl&#160;feed&#160;post&#160;--project&#160;P123&#160;&#x27;Bypass&#160;valve&#160;FV-1003&#160;added&#160;#FV-1003&#x27;&#160;--actor&#160;user:amy</text><text class="terminal-706034051-r2" x="1464" y="459.2" textLength="12.2" clip-path="url(#terminal-706034051-line-18)">
+</text><text class="terminal-706034051-r2" x="0" y="483.6" textLength="402.6" clip-path="url(#terminal-706034051-line-19)">posted&#160;01M4QXEHR0000000000000002X</text><text class="terminal-706034051-r2" x="1464" y="483.6" textLength="12.2" clip-path="url(#terminal-706034051-line-19)">
+</text><text class="terminal-706034051-r2" x="0" y="508" textLength="256.2" clip-path="url(#terminal-706034051-line-20)">tags&#160;#FV-1003&#160;(topic)</text><text class="terminal-706034051-r2" x="1464" y="508" textLength="12.2" clip-path="url(#terminal-706034051-line-20)">
+</text><text class="terminal-706034051-r3" x="0" y="532.4" textLength="24.4" clip-path="url(#terminal-706034051-line-21)">$&#160;</text><text class="terminal-706034051-r4" x="24.4" y="532.4" textLength="536.8" clip-path="url(#terminal-706034051-line-21)">tl&#160;webhook&#160;run&#160;--once&#160;--allow-host&#160;127.0.0.1</text><text class="terminal-706034051-r2" x="1464" y="532.4" textLength="12.2" clip-path="url(#terminal-706034051-line-21)">
+</text><text class="terminal-706034051-r2" x="0" y="556.8" textLength="146.4" clip-path="url(#terminal-706034051-line-22)">dispatched&#160;2</text><text class="terminal-706034051-r2" x="1464" y="556.8" textLength="12.2" clip-path="url(#terminal-706034051-line-22)">
+</text><text class="terminal-706034051-r2" x="0" y="581.2" textLength="109.8" clip-path="url(#terminal-706034051-line-23)">claimed&#160;2</text><text class="terminal-706034051-r2" x="1464" y="581.2" textLength="12.2" clip-path="url(#terminal-706034051-line-23)">
+</text><text class="terminal-706034051-r2" x="0" y="605.6" textLength="134.2" clip-path="url(#terminal-706034051-line-24)">delivered&#160;2</text><text class="terminal-706034051-r2" x="1464" y="605.6" textLength="12.2" clip-path="url(#terminal-706034051-line-24)">
+</text><text class="terminal-706034051-r2" x="0" y="630" textLength="109.8" clip-path="url(#terminal-706034051-line-25)">retried&#160;0</text><text class="terminal-706034051-r2" x="1464" y="630" textLength="12.2" clip-path="url(#terminal-706034051-line-25)">
+</text><text class="terminal-706034051-r2" x="0" y="654.4" textLength="73.2" clip-path="url(#terminal-706034051-line-26)">dead&#160;0</text><text class="terminal-706034051-r2" x="1464" y="654.4" textLength="12.2" clip-path="url(#terminal-706034051-line-26)">
+</text><text class="terminal-706034051-r2" x="0" y="678.8" textLength="122" clip-path="url(#terminal-706034051-line-27)">disabled&#160;0</text><text class="terminal-706034051-r2" x="1464" y="678.8" textLength="12.2" clip-path="url(#terminal-706034051-line-27)">
+</text><text class="terminal-706034051-r3" x="0" y="703.2" textLength="24.4" clip-path="url(#terminal-706034051-line-28)">$&#160;</text><text class="terminal-706034051-r4" x="24.4" y="703.2" textLength="341.6" clip-path="url(#terminal-706034051-line-28)">tl&#160;webhook&#160;ls&#160;--project&#160;P123</text><text class="terminal-706034051-r2" x="1464" y="703.2" textLength="12.2" clip-path="url(#terminal-706034051-line-28)">
+</text><text class="terminal-706034051-r2" x="0" y="727.6" textLength="1378.6" clip-path="url(#terminal-706034051-line-29)">01M4QWRJM0000000000000002J&#160;&#160;&#160;&#160;&#160;&#160;active&#160;&#160;thin&#160;&#160;&#160;&#160;Site&#160;system&#160;&#160;&#160;&#160;&#160;http://127.0.0.1:18099/hook&#160;&#160;&#160;&#160;&#160;2&#160;&#160;&#160;&#160;&#160;&#160;&#160;0&#160;&#160;&#160;&#160;&#160;&#160;&#160;0</text><text class="terminal-706034051-r2" x="1464" y="727.6" textLength="12.2" clip-path="url(#terminal-706034051-line-29)">
+</text><text class="terminal-706034051-r2" x="1464" y="752" textLength="12.2" clip-path="url(#terminal-706034051-line-30)">
+</text><text class="terminal-706034051-r1" x="0" y="776.4" textLength="963.8" clip-path="url(#terminal-706034051-line-31)">#&#160;what&#160;the&#160;receiver&#160;saw:&#160;it&#160;recomputed&#160;each&#160;HMAC-SHA256&#160;itself&#160;and&#160;they&#160;matched</text><text class="terminal-706034051-r2" x="1464" y="776.4" textLength="12.2" clip-path="url(#terminal-706034051-line-31)">
+</text><text class="terminal-706034051-r2" x="0" y="800.8" textLength="695.4" clip-path="url(#terminal-706034051-line-32)">webhook-id&#160;01M4QWY2D0000000000000002Q&#160;&#160;signature&#160;verified</text><text class="terminal-706034051-r2" x="1464" y="800.8" textLength="12.2" clip-path="url(#terminal-706034051-line-32)">
+</text><text class="terminal-706034051-r2" x="0" y="825.2" textLength="1256.6" clip-path="url(#terminal-706034051-line-33)">&#160;&#160;type&#160;tl.core.Pset.ValuesSet.v1&#160;&#160;tlseq&#160;35&#160;&#160;tlactor&#160;user:amy&#160;&#160;subject&#160;urn:tl:01M4QM0DS0000000000000000G</text><text class="terminal-706034051-r2" x="1464" y="825.2" textLength="12.2" clip-path="url(#terminal-706034051-line-33)">
+</text><text class="terminal-706034051-r2" x="0" y="849.6" textLength="695.4" clip-path="url(#terminal-706034051-line-34)">webhook-id&#160;01M4QX91Z0000000000000002W&#160;&#160;signature&#160;verified</text><text class="terminal-706034051-r2" x="1464" y="849.6" textLength="12.2" clip-path="url(#terminal-706034051-line-34)">
+</text><text class="terminal-706034051-r2" x="0" y="874" textLength="1256.6" clip-path="url(#terminal-706034051-line-35)">&#160;&#160;type&#160;tl.core.Pset.ValuesSet.v1&#160;&#160;tlseq&#160;37&#160;&#160;tlactor&#160;user:amy&#160;&#160;subject&#160;urn:tl:01M4QX3J60000000000000002R</text><text class="terminal-706034051-r2" x="1464" y="874" textLength="12.2" clip-path="url(#terminal-706034051-line-35)">
+</text><text class="terminal-706034051-r2" x="0" y="898.4" textLength="1024.8" clip-path="url(#terminal-706034051-line-36)">not&#160;delivered:&#160;Record.Created&#160;and&#160;the&#160;feed&#160;post&#160;(they&#160;do&#160;not&#160;match&#160;the&#160;subscription)</text><text class="terminal-706034051-r2" x="1464" y="898.4" textLength="12.2" clip-path="url(#terminal-706034051-line-36)">
+</text>
+    </g>
+    </g>
+</svg>
