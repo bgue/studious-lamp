@@ -36,7 +36,9 @@ PASSWORDS = {  # made-up dev passwords for made-up people
     "amy": "a long passphrase for amy",
     "ana": "a long passphrase for ana",
     "ben": "a long passphrase for ben",
+    "dora": "a long passphrase for dora",
 }
+NEEDS = "needs the document_controller or admin role"
 STANDARDS = "standards/co.acme.standards@1.0.0.yaml"
 DOC_STANDARDS = "standards/co.acme.documents@1.0.0.yaml"
 TAG_MAPPING = "templates/tag-list-instrument-index.yaml"
@@ -94,10 +96,14 @@ def setup(ws: Workspace) -> None:
     tk.CLOCK.advance(minutes=30)
 
 
-def build_app(ws: Workspace, *, admin: bool = False) -> Any:
+def build_app(
+    ws: Workspace, *, admin: bool = False, actor: str = "user:demo", controller: bool = False
+) -> Any:
     from tl_tui.main import build_app as make
 
-    return make(ws.db, PROJECT, live=False, actor="user:demo", is_admin=admin)
+    return make(
+        ws.db, PROJECT, live=False, actor=actor, is_admin=admin, is_controller=controller or admin
+    )
 
 
 # --- 01 sign-in ------------------------------------------------------------------------------
@@ -685,7 +691,8 @@ def section_dms_import(ws: Workspace) -> None:
 def section_refused(ws: Workspace) -> None:
     sh = Shell(ws, "What a plain user (amy) is refused", 118)
     sh.note("amy has the role `user`: she registers, edits, links and drafts;")
-    sh.note("controlling acts (issue, load standards, apply imports) are admin work")
+    sh.note("controlling acts need the document_controller or admin role (section 14);")
+    sh.note("loading standards and managing accounts stay with admins")
     refused = (
         ("standards", "load", STANDARDS),
         ("doc", "rev", "issue", "ISO-1234", "D", *P, "--status", "IFC"),
@@ -698,6 +705,225 @@ def section_refused(ws: Workspace) -> None:
     sh.note("the API refuses the same acts with 403, and no one, admin or not, can void a document")
     sh.note("through a generic command (tests/auth and the P1-I2 demo, clause 8)")
     ws.save("13-refused-acts", sh.transcript.svg())
+
+
+# --- 14 the document controller role (P1-I2b) ------------------------------------------------
+
+
+def section_controller(ws: Workspace) -> None:
+    """An admin grants the role; the controller issues; the controller stops at accounts."""
+    sh = Shell(ws, "A plain user is refused; an admin grants the document controller role", 118)
+    sh.run(
+        "admin",
+        "user",
+        "add",
+        "dora",
+        "--display-name",
+        "Dora C",
+        "--password-stdin",
+        stdin=password("dora"),
+        who="demo",
+        show="tl admin user add dora --display-name 'Dora C' --password-stdin",
+    )
+    sign_in(ws, "dora")
+    sh.note("amy, a plain user, registers ISO-3000, drafts revision A and attaches its PDF")
+    sh.run(
+        "doc",
+        "register",
+        "ISO-3000",
+        *P,
+        "--title",
+        "Isometric, line 47-P-103",
+        "--type",
+        "ISO",
+        "--discipline",
+        "PIP",
+        who="amy",
+    )
+    sh.run("doc", "rev", "create", "ISO-3000", *P, "--purpose", "For construction", who="amy")
+    sh.run(
+        "doc",
+        "rendition",
+        "add",
+        "ISO-3000",
+        "A",
+        "sheet-A.pdf",
+        *P,
+        "--kind",
+        "pdf",
+        "--pages",
+        "3",
+        who="amy",
+    )
+    sh.note("dora has the role `user`, so issuing is refused, with the roles that would allow it")
+    sh.run("admin", "user", "show", "dora", who="demo", tail=6)
+    refused = sh.run(
+        "doc", "rev", "issue", "ISO-3000", "A", *P, "--status", "IFC", who="dora", ok=False
+    )
+    expect(NEEDS in refused, f"unexpected refusal: {refused}")
+    sh.note("an admin grants the role, with a reason that goes into the history")
+    sh.run(
+        "admin",
+        "user",
+        "roles",
+        "dora",
+        "--add",
+        "document_controller",
+        "--reason",
+        "takes over document control",
+        who="demo",
+    )
+    sh.run("admin", "user", "show", "dora", who="demo", tail=6)
+    ws.save("14a-grant-the-role", sh.transcript.svg())
+
+    app = build_app(ws, admin=True)
+
+    async def accounts(pilot: Pilot[Any]) -> None:
+        from textual.widgets import DataTable
+
+        await tk.until(pilot, lambda: len(app.query("RecordGrid")) > 0, "the shell")
+        await pilot.press("f10")
+        await tk.until(pilot, lambda: "dora" in tk.screen_text(app), "the accounts screen")
+        table = app.screen.query_one("#admin-accounts", DataTable)
+        names = [str(table.get_row_at(i)[0]) for i in range(table.row_count)]
+        table.move_cursor(row=names.index("ana"))
+        await tk.settle(pilot, 3)
+        await pilot.press("c")
+        await tk.until(pilot, lambda: "Make document controller ana" in tk.screen_text(app), "form")
+        tk.shot_tui(
+            ws,
+            app,
+            "14b-admin-grants-the-role",
+            "F10, c: the accounts screen offers the role; the reason goes into the history",
+            "document_controller",
+            "Make document controller ana",
+        )
+        await pilot.press("escape")  # nothing is changed
+        await tk.settle(pilot, 3)
+
+    tk.run_tui(ws, app, accounts)
+
+    sh = Shell(ws, "The controller issues a revision and a transmittal; no admin is involved", 118)
+    sh.run("doc", "rev", "issue", "ISO-3000", "A", *P, "--status", "IFC", who="dora")
+    created = sh.run(
+        "transmittal",
+        "create",
+        *P,
+        "--subject",
+        "Isometrics for construction",
+        "--purpose",
+        "for_construction",
+        "--to",
+        "Site Office:Acme Construction:site@example.com",
+        "--revision",
+        "ISO-3000@A",
+        who="amy",
+    )
+    number = next(
+        line.split()[-1] for line in created.splitlines() if line.startswith("created transmittal")
+    )
+    sh.note("amy drafted it; issuing it is a controlling act")
+    sh.run("transmittal", "issue", number, *P, who="amy", ok=False)
+    sh.run("transmittal", "issue", number, *P, who="dora")
+    sh.run("transmittal", "show", number, *P, who="amy")
+    sh.run("doc", "show", "ISO-3000", *P, who="amy", tail=6)
+    ws.save("14c-controller-issues", sh.transcript.svg())
+
+    ws.tl("doc", "rev", "create", "ISO-3000", *P, "--purpose", "Re-issued", who="amy")
+    (ws.root / "sheet-E.pdf").write_text("%PDF-1.7 sheet E\n")
+    ws.tl("doc", "rendition", "add", "ISO-3000", "B", "sheet-E.pdf", *P, "--kind", "pdf", who="amy")
+    ws.tl("doc", "rev", "issue", "ISO-3000", "B", *P, "--status", "IFC", who="dora")
+    controller_app = build_app(ws, actor="user:dora", controller=True)
+
+    async def composer(pilot: Pilot[Any]) -> None:
+        from textual.widgets import DataTable
+
+        await tk.until(pilot, lambda: len(controller_app.query("RecordGrid")) > 0, "the shell")
+        await pilot.press("f7")
+        await tk.until(pilot, lambda: "ISO-3000" in tk.screen_text(controller_app), "the register")
+        table = controller_app.screen.query_one("#docs-table", DataTable)
+        shown = [v.number for v in controller_app.screen.shown]  # type: ignore[attr-defined]
+        table.move_cursor(row=shown.index("ISO-3000"))
+        await tk.settle(pilot, 4)
+        await pilot.press("t")
+        await tk.until(pilot, lambda: "New transmittal" in tk.screen_text(controller_app), "form")
+        form = controller_app.screen
+        form.query_one("#tc-subject", Input).value = "Isometrics for construction, rev B"
+        form.query_one("#tc-to", Input).value = "Site Office:Acme Construction:site@example.com"
+        await tk.settle(pilot, 4)
+        expect(len(form.query_one("#tc-revisions", SelectionList).selected) >= 1, "no revision")
+        tk.shot_tui(
+            ws,
+            controller_app,
+            "14d-composer-draft-and-issue",
+            "dora, F7, t: the composer offers Ctrl+T, draft and issue in one step",
+            "New transmittal",
+            "Ctrl+T draft and issue",
+        )
+        await pilot.press("ctrl+t")
+        await tk.until(
+            pilot, lambda: "Drafted and issued" in tk.screen_text(controller_app), "issue"
+        )
+        tk.shot_tui(
+            ws,
+            controller_app,
+            "14e-composer-issued",
+            "The register says what happened",
+            "Drafted and issued transmittal",
+        )
+
+    tk.run_tui(ws, controller_app, composer, size=(160, 48))
+    expect("Issued" in ws.tl("transmittal", "show", "P123-TRN-0003", *P, who="amy"), "not issued")
+
+    sh = Shell(ws, "The controller stops where document control stops", 118)
+    for argv in (
+        ("admin", "user", "ls"),
+        ("admin", "token", "ls"),
+        ("admin", "user", "roles", "dora", "--add", "admin"),
+        ("admin", "user", "roles", "amy", "--add", "document_controller"),
+    ):
+        sh.run(*argv, who="dora", ok=False)
+    sh.run(
+        "admin",
+        "user",
+        "add",
+        "eve",
+        "--password-stdin",
+        stdin="a long passphrase for eve\n",
+        who="dora",
+        ok=False,
+        show="tl admin user add eve --password-stdin",
+    )
+    sh.note("an agent account cannot hold the role either")
+    sh.run(
+        "admin",
+        "user",
+        "add",
+        "bot",
+        "--kind",
+        "agent",
+        "--role",
+        "document_controller",
+        who="demo",
+        ok=False,
+    )
+    sh.note("taking the role away closes the same commands again")
+    sh.run(
+        "admin",
+        "user",
+        "roles",
+        "dora",
+        "--remove",
+        "document_controller",
+        "--reason",
+        "moved to site",
+        who="demo",
+    )
+    ws.tl("doc", "rev", "create", "ISO-3000", *P, "--purpose", "Issued for review", who="amy")
+    (ws.root / "sheet-F.pdf").write_text("%PDF-1.7 sheet F\n")
+    ws.tl("doc", "rendition", "add", "ISO-3000", "C", "sheet-F.pdf", *P, "--kind", "pdf", who="amy")
+    sh.run("doc", "rev", "issue", "ISO-3000", "C", *P, "--status", "IFR", who="dora", ok=False)
+    ws.save("14f-controller-limits", sh.transcript.svg())
 
 
 # --- the tour --------------------------------------------------------------------------------
@@ -733,6 +959,8 @@ def main(argv: list[str] | None = None) -> int:
         section_register_tui(ws)
         section_dms_import(ws)
         section_refused(ws)
+        print("P1-I2b: the document controller role", flush=True)
+        section_controller(ws)
     finally:
         ws.close()
     print(f"wrote {len(ws.written)} screenshots to {out}")
