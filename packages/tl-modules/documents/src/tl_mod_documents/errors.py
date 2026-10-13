@@ -1,0 +1,107 @@
+"""The expected failures of the documents module (brief 5.1). Each takes a readable message.
+
+They subclass ``ServiceError``, so every entry point that turns a service failure into an error line
+or an HTTP status handles them; ``tl_api.errors`` maps each to a status and a stable code.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from tl_core.services.errors import ServiceError
+
+
+class DocumentsError(ServiceError):
+    """Base of the module's expected failures."""
+
+
+class ProjectScopeError(DocumentsError):
+    """Documents, revisions and transmittals belong to a project scope."""
+
+
+class DocumentNotFoundError(DocumentsError):
+    """No document with that id or number in the scope."""
+
+
+class DocumentClosedError(DocumentsError):
+    """The document is void or superseded and takes no more changes."""
+
+
+class InvalidDocumentNumberError(DocumentsError):
+    """The document number does not fit the numbering pattern. ``issues`` lists each problem."""
+
+    def __init__(self, message: str, issues: list[dict[str, Any]] | None = None) -> None:
+        super().__init__(message)
+        self.issues: list[dict[str, Any]] = issues if issues is not None else []
+
+
+class InvalidDocumentTypeError(DocumentsError):
+    """The document type or discipline is not a usable value of its code list."""
+
+
+class UnknownSchemeError(DocumentsError):
+    """No revision scheme with that code, or the scheme file cannot be used."""
+
+
+class InvalidRevisionCodeError(DocumentsError):
+    """The revision code does not belong to the document's scheme, or is not after the last one."""
+
+
+class RevisionNotFoundError(DocumentsError):
+    """No revision with that id or code on the document."""
+
+
+class OpenRevisionError(DocumentsError):
+    """The document already has a revision that is being prepared or reviewed."""
+
+
+class RevisionStateError(DocumentsError):
+    """The revision is not in a state that allows the change."""
+
+
+class RevisionSequenceError(DocumentsError):
+    """A later revision of the document is already issued, so this one cannot be."""
+
+
+class InvalidIssueStatusError(DocumentsError):
+    """The issue status is not one of the scheme file's statuses."""
+
+
+class NoRenditionError(DocumentsError):
+    """A revision needs a PDF or native rendition before it can be issued."""
+
+
+class RenditionNotAllowedError(DocumentsError):
+    """The rendition cannot be added to the revision in its state."""
+
+
+class FileNotAvailableError(DocumentsError):
+    """The file is unknown, not on this revision, not in a rendition slot, or not yet scanned."""
+
+
+class InvalidPinError(DocumentsError):
+    """A link's pin names no issued revision of the document."""
+
+
+class TransmittalNotFoundError(DocumentsError):
+    """No transmittal with that id or number in the scope."""
+
+
+class TransmittalStateError(DocumentsError):
+    """The transmittal is not in a state that allows the change."""
+
+
+class InvalidTransmittalError(DocumentsError):
+    """The transmittal as written cannot be used (a revision that is not issued, a repeated one)."""
+
+
+class ReviewNotFoundError(DocumentsError):
+    """No review cycle with that id on the revision."""
+
+
+class ReviewStateError(DocumentsError):
+    """The review cycle is not in a state that allows the change."""
+
+
+class InvalidReviewError(DocumentsError):
+    """The review as written cannot be used (a repeated or unknown reviewer, an unknown outcome)."""

@@ -37,6 +37,7 @@ tl-cli = { workspace = true }
 tl-sim = { workspace = true }
 tl-lake = { workspace = true }
 tl-mod-engineering = { workspace = true }
+tl-mod-documents = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -70,6 +71,7 @@ extraPaths = [
   "tests/bench",
   "tests/auth",
   "packages/tl-modules/engineering/tests",
+  "packages/tl-modules/documents/tests",
 ]
 typeCheckingMode = "standard"
 strict = [

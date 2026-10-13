@@ -42,6 +42,23 @@ MODULE_STREAMS = (
     ("engineering.CodeValue", "CodeValue.Defined", ("CodeValue.Closed",)),
     ("engineering.TagClass", "TagClass.Defined", ("TagClass.Revised", "TagClass.Closed")),
     ("engineering.Tag", "Tag.Defined", ("Tag.Reclassified", "Tag.Superseded")),
+    (
+        "documents.Document",
+        "Document.Defined",
+        ("Document.Updated", "Document.CurrentRevisionChanged", "Document.Superseded"),
+    ),
+    ("documents.Revision", "Revision.Defined", ("Revision.Issued", "Revision.Superseded")),
+    ("documents.Rendition", "Rendition.Defined", ("Rendition.Superseded",)),
+    (
+        "documents.Transmittal",
+        "Transmittal.Defined",
+        ("Transmittal.Issued", "Transmittal.ResponseRecorded"),
+    ),
+    (
+        "documents.ReviewCycle",
+        "ReviewCycle.Defined",
+        ("ReviewCycle.OutcomeRecorded", "ReviewCycle.Closed"),
+    ),
 )
 
 

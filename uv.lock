@@ -15,6 +15,7 @@ members = [
     "tl-core",
     "tl-lake",
     "tl-mcp",
+    "tl-mod-documents",
     "tl-mod-engineering",
     "tl-schema",
     "tl-sim",
@@ -2693,6 +2694,31 @@ requires-dist = [
     { name = "tl-lake", editable = "packages/tl-lake" },
     { name = "tl-schema", editable = "packages/tl-schema" },
     { name = "tl-tui", editable = "packages/tl-tui" },
+]
+
+[[package]]
+name = "tl-mod-documents"
+version = "0.0.1"
+source = { editable = "packages/tl-modules/documents" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "sqlalchemy" },
+    { name = "tl-adapters" },
+    { name = "tl-core" },
+    { name = "tl-mod-engineering" },
+    { name = "tl-schema" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "pyyaml", specifier = ">=6" },
+    { name = "sqlalchemy", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 
 [[package]]

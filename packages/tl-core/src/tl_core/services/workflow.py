@@ -144,15 +144,23 @@ def workflow_status(
     )
 
 
-def handle_transition_workflow(uow: UnitOfWork, cmd: TransitionWorkflow) -> CommandResult:
+def handle_transition_workflow(
+    uow: UnitOfWork, cmd: TransitionWorkflow, *, by_module: bool = False
+) -> CommandResult:
     """Run one transition if its guards pass; otherwise raise and write nothing.
+
+    ``by_module`` is for the module that owns the record type: its own command moves the record
+    and has already checked its rules, so the type's generic-command allow-list (ADR-0010
+    addendum) does not apply. It is a Python argument, not a field of the command, so no client
+    can set it; the guards still run.
 
     Raises ``RecordNotFoundError``, ``RecordVoidedError``, ``NoWorkflowError``,
     ``InvalidStateError``, ``UnknownTransitionError`` (no such transition, or not from the current
     state) and ``GuardFailedError`` (its ``results`` list every guard, passed or not).
     """
     row = _load(uow, cmd.stream_id, cmd.scope)
-    require_generic_command(row.type, "TransitionWorkflow")
+    if not by_module:
+        require_generic_command(row.type, "TransitionWorkflow")
     if row.voided:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot change state")
     definition = _definition(row, f"record {row.key or cmd.stream_id}")

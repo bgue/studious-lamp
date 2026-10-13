@@ -138,12 +138,14 @@ def test_the_installed_modules_are_the_override_inside_the_block() -> None:
     assert is_module_record_type(THING) and not is_module_record_type("core.Record")
 
 
-def test_the_engineering_module_is_found_through_its_entry_point() -> None:
+def test_the_installed_modules_are_found_through_their_entry_points() -> None:
     from tl_core import modules
 
     found = modules._discover()  # pyright: ignore[reportPrivateUsage]
-    assert [m.name for m in found] == ["engineering"]
-    assert "engineering.Tag" in found[0].record_types
+    assert [m.name for m in found] == ["documents", "engineering"]
+    by_name = {m.name: m for m in found}
+    assert "engineering.Tag" in by_name["engineering"].record_types
+    assert "documents.Document" in by_name["documents"].record_types
 
 
 def test_a_record_type_must_start_with_the_module_name() -> None:
