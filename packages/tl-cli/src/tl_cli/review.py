@@ -7,13 +7,7 @@ answers for themselves; a person cannot close milder than the worst answer; only
 revision's author closes. A cycle is named by its key (`ISO-1234@A/RC1`, as `tl review open` prints
 it); the project comes from `--project`. Recording an answer on someone's behalf and overriding an
 outcome are an admin's acts (ADR-0011).
-
-STUB (P1-I2-T09f): the bodies of the six commands raise NotImplementedError; their signatures,
-options, docstrings and the helpers are final. Each body has a STEPS comment. Implement them,
-then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -80,16 +74,27 @@ def open_cycle(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Open a review round on a draft revision. The revision moves to In Review."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}".
-    # 2. `with _service_errors(), open_uow(db) as uow:` doc = _document(uow, scope, project,
-    #    number); rev = registry.find_revision(uow.conn(), doc.id, code); if it is None,
-    #    _fail(f"no revision {code!r} of {number}"). made = handle_open_review_cycle(uow,
-    #    OpenReviewCycle(actor=actor, source="cli", scope=scope, revision_id=rev.id,
-    #    reviewers=[ReviewerRequest(reviewer=r) for r in reviewers], due_date=due)).
-    # 3. Print `opened <made.key> round <n>` where n is the number after "RC" in made.key, and
-    #    then `reviewers <len(reviewers)>`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db) as uow:
+        doc = _document(uow, scope, project, number)
+        rev = registry.find_revision(uow.conn(), doc.id, code)
+        if rev is None:
+            _fail(f"no revision {code!r} of {number}")
+        made = handle_open_review_cycle(
+            uow,
+            OpenReviewCycle(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                revision_id=rev.id,
+                reviewers=[ReviewerRequest(reviewer=r) for r in reviewers],
+                due_date=due,
+            ),
+        )
+    key = made.key or ""
+    typer.echo(f"opened {key} round {key.rsplit('RC', 1)[-1]}")
+    typer.echo(f"reviewers {len(reviewers)}")
 
 
 @app.command("answer")
@@ -102,15 +107,24 @@ def answer(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Record your own answer to a review: approved, approved with comments, or rejected."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}".
-    # 2. `with _service_errors(), open_uow(db) as uow:` row = _cycle(uow, scope, project, cycle);
-    #    handle_record_review_outcome(uow, RecordReviewOutcome.model_validate({"actor": actor,
-    #    "source": "cli", "scope": scope, "review_cycle_id": row.id, "outcome": outcome,
-    #    "comment": comment})). The answer is the caller's own: do not pass a reviewer. A bad
-    #    `--outcome` is reported by _service_errors as `error: outcome: ...`.
-    # 3. Print `answered <cycle>: <outcome> by <actor>`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db) as uow:
+        row = _cycle(uow, scope, project, cycle)
+        handle_record_review_outcome(
+            uow,
+            RecordReviewOutcome.model_validate(
+                {
+                    "actor": actor,
+                    "source": "cli",
+                    "scope": scope,
+                    "review_cycle_id": row.id,
+                    "outcome": outcome,
+                    "comment": comment,
+                }
+            ),
+        )
+    typer.echo(f"answered {cycle}: {outcome} by {actor}")
 
 
 @app.command("on-behalf")
@@ -124,14 +138,26 @@ def on_behalf(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Record a reviewer's answer for them (admin). The comment is required and kept."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}"; call require_admin(db) first.
-    # 2. `with _service_errors(), open_uow(db) as uow:` row = _cycle(uow, scope, project, cycle);
-    #    handle_record_review_outcome_on_behalf(uow, RecordReviewOutcomeOnBehalf.model_validate(
-    #    {"actor": actor, "source": "cli", "scope": scope, "review_cycle_id": row.id,
-    #    "reviewer": reviewer, "outcome": outcome, "comment": comment})).
-    # 3. Print `recorded <cycle>: <outcome> for <reviewer> by <actor>`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    require_admin(db)
+    with _service_errors(), open_uow(db) as uow:
+        row = _cycle(uow, scope, project, cycle)
+        handle_record_review_outcome_on_behalf(
+            uow,
+            RecordReviewOutcomeOnBehalf.model_validate(
+                {
+                    "actor": actor,
+                    "source": "cli",
+                    "scope": scope,
+                    "review_cycle_id": row.id,
+                    "reviewer": reviewer,
+                    "outcome": outcome,
+                    "comment": comment,
+                }
+            ),
+        )
+    typer.echo(f"recorded {cycle}: {outcome} for {reviewer} by {actor}")
 
 
 @app.command("close")
@@ -149,14 +175,25 @@ def close(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Close a review cycle (its opener or the revision's author). The revision returns to Draft."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}".
-    # 2. `with _service_errors(), open_uow(db) as uow:` row = _cycle(uow, scope, project, cycle);
-    #    handle_close_review_cycle(uow, CloseReviewCycle.model_validate({"actor": actor,
-    #    "source": "cli", "scope": scope, "review_cycle_id": row.id, "outcome": outcome,
-    #    "reason": reason})); after = _cycle(uow, scope, project, cycle).
-    # 3. Print `closed <cycle>: <after.outcome>`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db) as uow:
+        row = _cycle(uow, scope, project, cycle)
+        handle_close_review_cycle(
+            uow,
+            CloseReviewCycle.model_validate(
+                {
+                    "actor": actor,
+                    "source": "cli",
+                    "scope": scope,
+                    "review_cycle_id": row.id,
+                    "outcome": outcome,
+                    "reason": reason,
+                }
+            ),
+        )
+        after = _cycle(uow, scope, project, cycle)
+    typer.echo(f"closed {cycle}: {after.outcome}")
 
 
 @app.command("override")
@@ -169,14 +206,25 @@ def override(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Close a cycle with a stated outcome, even a milder one than the answers (admin)."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}"; call require_admin(db) first.
-    # 2. `with _service_errors(), open_uow(db) as uow:` row = _cycle(uow, scope, project, cycle);
-    #    handle_override_review_outcome(uow, OverrideReviewOutcome.model_validate({"actor": actor,
-    #    "source": "cli", "scope": scope, "review_cycle_id": row.id, "outcome": outcome,
-    #    "reason": reason})).
-    # 3. Print `closed <cycle>: <outcome> (overridden)`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    require_admin(db)
+    with _service_errors(), open_uow(db) as uow:
+        row = _cycle(uow, scope, project, cycle)
+        handle_override_review_outcome(
+            uow,
+            OverrideReviewOutcome.model_validate(
+                {
+                    "actor": actor,
+                    "source": "cli",
+                    "scope": scope,
+                    "review_cycle_id": row.id,
+                    "outcome": outcome,
+                    "reason": reason,
+                }
+            ),
+        )
+    typer.echo(f"closed {cycle}: {outcome} (overridden)")
 
 
 @app.command("ls")
@@ -187,15 +235,31 @@ def ls(
     project: _Project,
 ) -> None:
     """List the review cycles of a revision, each followed by its reviewers."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}".
-    # 2. `with _service_errors(), open_uow(db, readonly=True) as uow:` doc = _document(uow,
-    #    scope, project, number); rev = registry.find_revision(uow.conn(), doc.id, code) (exit
-    #    `error: no revision 'X' of N` when it is None); cycles =
-    #    registry.review_cycles_of(uow.conn(), rev.id); and for each cycle its reviewers =
-    #    registry.reviewers_of(uow.conn(), cycle.id).
-    # 3. For each cycle print, joined by two spaces: cycle.key, f"round={round}", state,
-    #    f"due={due_date or '-'}", f"outcome={outcome or '-'}". Under it one line per reviewer:
-    #    two spaces, then joined by two spaces: reviewer, outcome or "pending", responded_on or
-    #    "-", comment or "-".
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        doc = _document(uow, scope, project, number)
+        rev = registry.find_revision(uow.conn(), doc.id, code)
+        if rev is None:
+            _fail(f"no revision {code!r} of {number}")
+        listed = [
+            (rc, registry.reviewers_of(uow.conn(), rc.id))
+            for rc in registry.review_cycles_of(uow.conn(), rev.id)
+        ]
+    for rc, people in listed:
+        fields = [
+            rc.key,
+            f"round={rc.round}",
+            rc.state,
+            f"due={rc.due_date or '-'}",
+            f"outcome={rc.outcome or '-'}",
+        ]
+        typer.echo("  ".join(fields))
+        for person in people:
+            detail = [
+                person.reviewer,
+                person.outcome or "pending",
+                person.responded_on or "-",
+                person.comment or "-",
+            ]
+            typer.echo("  " + "  ".join(detail))
