@@ -7,7 +7,14 @@ through the client. The two changes a person makes from here are their own dialo
 the first stale link of the highlighted document (after showing what changed) and ``t`` drafts a
 transmittal. The filter keys narrow the list on the screen (state, type, text); ``a`` asks the
 client for the void documents too.
+
+STUB (P1-I2-T13b): the bodies of the reload, _fill, _describe, action_repin and action_transmittal
+methods raise NotImplementedError; their signatures, options, docstrings and the helpers are
+final. Each body has a STEPS comment. Implement them, then delete this paragraph, the STEPS
+comments and the `ruff: noqa` line.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -104,15 +111,7 @@ class DocumentRegisterScreen(ModalScreen[None]):
         #    include_void=self.include_void, limit=MAX_DOCUMENTS). On CLIENT_ERRORS call
         #    self._say(describe_error(exc), error=True) and return.
         # 2. self._fill(keep).
-        keep = self._number()
-        try:
-            self.views = self.client.list_documents(
-                self.project, include_void=self.include_void, limit=MAX_DOCUMENTS
-            )
-        except CLIENT_ERRORS as exc:
-            self._say(describe_error(exc), error=True)
-            return
-        self._fill(keep)
+        raise NotImplementedError
 
     def _fill(self, keep: str | None = None) -> None:
         """Apply the screen's filters to ``self.views`` and fill the table."""
@@ -128,32 +127,7 @@ class DocumentRegisterScreen(ModalScreen[None]):
         # 4. Update #docs-status with summary_line(len(self.shown), len(self.views),
         #    state=self.state, doc_type=self.doc_type, include_void=self.include_void,
         #    text=self.text). Then call self._describe().
-        needle = self.text.strip().lower()
-        self.shown = [
-            v
-            for v in self.views
-            if (self.state is None or v.state == self.state)
-            and (self.doc_type is None or v.doc_type == self.doc_type)
-            and (not needle or needle in v.number.lower() or needle in v.title.lower())
-        ]
-        table = self.query_one("#docs-table", DataTable)
-        table.clear()
-        for view in self.shown:
-            table.add_row(*(Text(cell) for cell in row_cells(view)), key=view.number)
-        if self.shown:
-            numbers = [v.number for v in self.shown]
-            table.move_cursor(row=numbers.index(keep) if keep in numbers else 0)
-        self.query_one("#docs-status", Static).update(
-            summary_line(
-                len(self.shown),
-                len(self.views),
-                state=self.state,
-                doc_type=self.doc_type,
-                include_void=self.include_void,
-                text=self.text,
-            )
-        )
-        self._describe()
+        raise NotImplementedError
 
     def _number(self) -> str | None:
         view = self.current()
@@ -174,19 +148,7 @@ class DocumentRegisterScreen(ModalScreen[None]):
         #    full = view (the listing's copy: no revisions) and call self._say(describe_error(exc),
         #    error=True).
         # 3. self.detail = full; detail.update("\n".join(detail_lines(full))).
-        detail = self.query_one("#docs-detail", Static)
-        view = self.current()
-        if view is None:
-            self.detail = None
-            detail.update("No document matches.")
-            return
-        try:
-            full = self.client.get_document(self.project, view.number)
-        except CLIENT_ERRORS as exc:
-            full = view
-            self._say(describe_error(exc), error=True)
-        self.detail = full
-        detail.update("\n".join(detail_lines(full)))
+        raise NotImplementedError
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#docs-status", Static).update(("! " if error else "") + text)
@@ -240,19 +202,7 @@ class DocumentRegisterScreen(ModalScreen[None]):
         #    re-pin." and return.
         # 3. self.app.push_screen(RepinScreen(self.client, self.project, self.detail.number,
         #    found[0], self.actor), self._repinned).
-        if isinstance(self.focused, Input):
-            return
-        if self.detail is None:
-            self._say("No document is highlighted.")
-            return
-        found = stale_links(self.detail)
-        if not found:
-            self._say(f"{self.detail.number} has no stale link to re-pin.")
-            return
-        self.app.push_screen(
-            RepinScreen(self.client, self.project, self.detail.number, found[0], self.actor),
-            self._repinned,
-        )
+        raise NotImplementedError
 
     def _repinned(self, moved: bool | None) -> None:
         """The re-pin dialog closed: read again when a link was moved."""
@@ -266,14 +216,7 @@ class DocumentRegisterScreen(ModalScreen[None]):
         # 1. Do nothing when the focus is an Input (the key is text).
         # 2. number = self._number(). self.app.push_screen(TransmittalComposerScreen(self.client,
         #    self.project, self.actor, document=number), self._drafted).
-        if isinstance(self.focused, Input):
-            return
-        self.app.push_screen(
-            TransmittalComposerScreen(
-                self.client, self.project, self.actor, document=self._number()
-            ),
-            self._drafted,
-        )
+        raise NotImplementedError
 
     def _drafted(self, number: str | None) -> None:
         """The composer closed: say which transmittal was drafted."""

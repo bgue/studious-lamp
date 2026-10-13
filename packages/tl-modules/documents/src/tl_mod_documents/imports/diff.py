@@ -4,7 +4,13 @@
 pattern, the type and discipline against their code lists) and against the register, and says what
 would happen: register it, skip it because the project already has the number, or refuse it with
 the reasons. It reads and writes nothing.
+
+STUB (P1-I2-T12c): the bodies of plan_import raise NotImplementedError; their signatures, options,
+docstrings and the helpers are final. Each body has a STEPS comment. Implement them, then delete
+this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -38,25 +44,4 @@ def plan_import(conn: Connection, scope: str, rows: list[ImportRow]) -> ImportPl
     #    (no repeats: the second occurrence of a number was already refused above). Else
     #    plan.new.append(row).
     # 4. Return plan.
-    plan = ImportPlan()
-    first_line: dict[str, int] = {}
-    for row in rows:
-        problems = list(row.problems)
-        if row.number:
-            if row.number in first_line:
-                problems.append(f"the number appears again; first on line {first_line[row.number]}")
-            else:
-                first_line[row.number] = row.line
-        if row.title is None:
-            problems.append("the title is blank")
-        if not problems and row.number:
-            problems.extend(
-                register_problems(conn, scope, row.number, row.doc_type, row.discipline)
-            )
-        if problems:
-            plan.invalid.append(replace(row, problems=problems))
-        elif registry.find_document(conn, scope, row.number) is not None:
-            plan.exists.append(row.number)
-        else:
-            plan.new.append(row)
-    return plan
+    raise NotImplementedError

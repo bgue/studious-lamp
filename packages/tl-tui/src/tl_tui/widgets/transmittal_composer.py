@@ -7,7 +7,13 @@ date. ``Ctrl+S`` drafts the transmittal with ``CreateTransmittal`` and closes wi
 cancels. A refusal stays on screen and the composer stays open. A draft is only a draft: issuing it
 is an admin's command (ADR-0011) and has no key here. The composer decides nothing: which revisions
 may be sent, the numbering and the dates are the module's rules.
+
+STUB (P1-I2-T13d): the bodies of on_mount and action_create raise NotImplementedError; their
+signatures, options, docstrings and the helpers are final. Each body has a STEPS comment.
+Implement them, then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -100,27 +106,7 @@ class TransmittalComposerScreen(ModalScreen[str | None]):
         #    current one of the document named self.document. Find that id from the full document:
         #    the revision with is_current and the code self.document's current_revision_code.
         # 4. Focus #tc-revisions.
-        selection = self.query_one("#tc-revisions", SelectionList)
-        try:
-            documents = self.client.list_documents(self.project, limit=MAX_DOCUMENTS)
-        except CLIENT_ERRORS as exc:
-            self.query_one("#tc-status", Static).update(describe_error(exc))
-            return
-        ticked: set[str] = set()
-        for listed in documents:
-            if listed.state not in ("Issued", "Superseded"):
-                continue
-            try:
-                full = self.client.get_document(self.project, listed.number)
-            except CLIENT_ERRORS as exc:
-                self.query_one("#tc-status", Static).update(describe_error(exc))
-                continue
-            self.choices.extend(issued_choices(full))
-            if listed.number == self.document:
-                ticked.update(r.id for r in full.revisions if r.is_current)
-        for label, revision_id in self.choices:
-            selection.add_option((label, revision_id, revision_id in ticked))
-        selection.focus()
+        raise NotImplementedError
 
     def action_create(self) -> None:
         """Draft the transmittal with the ticked revisions."""
@@ -137,33 +123,7 @@ class TransmittalComposerScreen(ModalScreen[str | None]):
         #    recipients, a blank subject and a bad purpose or date are refused by the model and
         #    arrive as a ValidationError, which is in CLIENT_ERRORS).
         # 3. Otherwise self.dismiss(result.key).
-        subject = self.query_one("#tc-subject", Input).value.strip()
-        purpose = self.query_one("#tc-purpose", Input).value.strip()
-        due = self.query_one("#tc-due", Input).value.strip() or None
-        ids = list(self.query_one("#tc-revisions", SelectionList).selected)
-        recipients = [
-            Recipient(name=name, organisation=org, email=email)
-            for name, org, email in parse_recipients(self.query_one("#tc-to", Input).value)
-        ]
-        try:
-            result = self.client.create_transmittal(
-                CreateTransmittal.model_validate(
-                    {
-                        "actor": self.actor,
-                        "source": "tui",
-                        "scope": f"project:{self.project}",
-                        "subject": subject,
-                        "purpose": purpose,
-                        "due_date": due,
-                        "recipients": recipients,
-                        "revision_ids": ids,
-                    }
-                )
-            )
-        except CLIENT_ERRORS as exc:
-            self.query_one("#tc-status", Static).update(describe_error(exc))
-            return
-        self.dismiss(result.key)
+        raise NotImplementedError
 
     def action_cancel(self) -> None:
         self.dismiss(None)

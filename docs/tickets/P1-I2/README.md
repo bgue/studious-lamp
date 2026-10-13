@@ -60,6 +60,12 @@ Then: a rejected document number (`ISO-12`); a review cycle with an overdue revi
 | S10 | Document read models (`tl_mod_documents.views`), seven GET routes (`document.read`, open to agents), the API client, the `ClientInterface` reads with the embedded client and the in-memory fake, `tl doc confidentiality` (admin) | Security surface (a read action for agents); the client interface | orchestrator | done |
 | S11 | Reference implementations of T09e, T09f and T10b, kept in the history for a takeover | Takeover path | — | done |
 | S5 | Reference implementations of T08a, T08b, T09a, T11a, kept in the history of `p1/i2` (`1734486`; the T11a reference was refreshed at `5abf509`) for a takeover; the tree holds stubs until each ticket merges | Takeover path | — | done |
+| S13 | Merge adaptation after batch 2: `rendition add --kind signed` refused, preflight before any upload | Security surface | — | done |
+| S14 | ADR-0012 class-aware stale pins in `resolver.py` (`affects_pin`, per-link flagging), five tests on both adapters, plan D6 | Owner decision; module rule, no core interface change | orchestrator (owner decision recorded) | done |
+| S15 | Security review closed (LOW-1..4): preflight validates the whole command and the closed-document rule before upload, confidentiality sentence everywhere, only `@` reserved in typed keys (`/` allowed, `{number:path}` read routes), client write methods | Security surface | coordinator (no fourth pass) | done |
+| S16 | Reference of T12a plus the simulator plumbing (`DocumentRegistrarParams`, `DocumentDesk`, recorder, `FakeWorld`) and the end-to-end test (held, restored when T12a merges) | Takeover path; sim contract | — | done |
+| S17 | Reference of T13b, T13c, T13d plus `document_text.py`, the F7 binding, client write methods and the flow test (held, restored when the three merge) | Takeover path; TUI pure text | — | done |
+| S18 | Reference of T12b to T12e plus the DMS template, the sample file (16 rows, 9 valid), `register_problems` and `tl doc import` registration | Takeover path; module seam | — | done |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
@@ -73,9 +79,19 @@ Then: a rejected document number (`ISO-12`); a review cycle with an overdue revi
 | T09c | `tl doc rendition`: add, replace-signed (admin), ls | H | S3, S6 | merged (batch 2, first attempt) | `3f3bfe9`; adapted after the merge (S13): `add --kind signed` is refused before any upload, `register-signed` (admin) is new, the provided test changed |
 | T09d | `tl doc link`, `stale`, `diff`, `repin` | H | S3, S6 | merged (batch 2, first attempt) | `9a067ca, report 5de129d` |
 | T11b | `tl doc report`: register, history, overdue, transmittals, stale | H | T11a | merged (batch 2, first attempt) | `6393e4d` |
-| T09e | `tl transmittal`: create, issue (admin), answer, close, void, ls, show | H | S3, S6, T08a | ready (batch 3) | |
-| T09f | `tl review`: open, answer, on-behalf (admin), close, override (admin), ls | H | S3, S6, T08b | ready (batch 3) | |
-| T10b | MCP read tools for documents (seven tools, each an explicit `MCP_ACTIONS` entry) | H | S10 | ready (batch 3) | |
+| T09e | `tl transmittal`: create, issue (admin), answer, close, void, ls, show | H | S3, S6, T08a | merged (batch 3, first attempt) | `a3e4f1c`; `create` validates with `CreateTransmittal.model_validate` (pyright rejects the Literal fields in keyword form) |
+| T09f | `tl review`: open, answer, on-behalf (admin), close, override (admin), ls | H | S3, S6, T08b | merged (batch 3, first attempt) | `90f962e` |
+| T10b | MCP read tools for documents (seven tools, each an explicit `MCP_ACTIONS` entry) | H | S10 | merged (batch 3, first attempt) | `08ba56a`; the confidentiality and recipient-email sentence is in three tool descriptions (S15) |
+| T13b | TUI: the document register (F7) with revision history and status class | H | S17 | ready (wave 1) | |
+| T13c | TUI: the re-pin dialog (diff, then confirm) | H | S17 | ready (wave 1) | |
+| T13d | TUI: the transmittal composer | H | S17 | ready (wave 2) | |
+| T12a | Simulator: the document registrar actor | H | S16 | ready (wave 1) | |
+| T12b | Import: mapping template parser and file reader | H | S18 | ready (wave 1) | |
+| T12c | Import: the plan (new, exists, invalid) | H | T12b | ready (wave 2) | |
+| T12d | Import: apply a plan, all or nothing | H | T12b, T12c | ready (wave 2) | |
+| T12e | `tl doc import`: preview and `--apply` | H | T12b, T12c, T12d | ready (wave 3) | |
+
+Haiku-ability checklist (01-tiers §6) for T12a to T13d: each ticket reads at most six files besides `AGENTS.md` and the ticket (the stub, the final helpers it names, the test); every interface it uses is in the tree; a provided test file decides; the diff is under 400 lines across at most three files; none touches a Sonnet-authored row, `schema/**`, dependencies or a public interface; a reviewer verifies it from the diff and the commands. Dispatch plan: wave 1 is T13b, T13c, T12a, T12b (four in parallel, disjoint paths); wave 2 is T13d, T12c (after T12b), T12d (after T12b and T12c); wave 3 is T12e. The held tests (`provided/s16-*`, `s17-*`) go back into the tree when the tickets they exercise merge.
 
 Merge adaptation after batch 2 (S13, because the third security pass changed the rules under the running tickets): T09c's `add --kind signed` is refused (the first signed copy is `RegisterSignedRendition`, an admin's). The module has a file-free `check_rendition` / `preflight_rendition`, and the CLI runs it before it uploads, so a refused `rendition add`, `register-signed` or `replace-signed` leaves no orphan file; `tl doc rendition register-signed` (admin) is new.
 
@@ -114,8 +130,8 @@ Later batches, written as their bases merge: `tl transmittal` and `tl review` (T
 | TUI screens, forms, API, MCP, webhooks | batch 2/3; webhooks by the catalog |
 | Merge policies, settings keys, expected links | none declared (merge policies are Phase 3); no settings; no expected links |
 | Base reports | T11a, T11b |
-| Simulation actors | document controller actor (batch 3) |
-| Legacy mapping template | DMS export template (batch 3) |
+| Simulation actors | document registrar actor (T12a; a simulated person is never an admin, so it registers and drafts, it does not issue) |
+| Legacy mapping template | DMS export template, `tl doc import` (T12b to T12e) |
 | Parity, contract, snapshot, permission and restore tests | every module test uses the parity fixtures; webhook scenario covers the new events; snapshots with the TUI tickets; permission: `test_generic_commands.py` and API tests; restore: `test_rebuild.py` |
 
 ## Risks and escalation triggers

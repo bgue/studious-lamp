@@ -27,7 +27,13 @@ and the document number pattern. One working day (``act``), in this order, drawi
 
 No revision is issued: issuing is an admin's act (ADR-0011) and a simulated person is never an
 admin, so no pin goes stale in a simulation. The link is floating.
+
+STUB (P1-I2-T12a): the bodies of DocumentRegistrar.act raise NotImplementedError; their
+signatures, options, docstrings and the helpers are final. Each body has a STEPS comment.
+Implement them, then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -80,23 +86,4 @@ class DocumentRegistrar(BaseActor):
         # 4. roll = ctx.rng.random() (always). If roll < self.params.link_rate and tags and
         #    created: tag = ctx.rng.choice(tags); document = ctx.rng.choice(created);
         #    rec.link(tag, document, "references").
-        existing: list[Rec] = rec.records(DOCUMENT_QUERY)
-        revised = {r.key.split("@")[0] for r in rec.records(REVISION_QUERY)}
-        tags = rec.records(TAG_QUERY)
-        known = [d.key for d in existing]
-        created: list[Rec] = []
-        for _ in range(draw(self.params.documents_per_day, ctx.rng)):
-            doc_type, discipline, noun = ctx.rng.choice(KINDS)
-            number = next_number(known, doc_type)
-            created.append(rec.register_document(number, f"{noun} {number}", doc_type, discipline))
-            known.append(number)
-        roll = ctx.rng.random()
-        if roll < self.params.revision_rate:
-            candidates = sorted(
-                (d for d in [*existing, *created] if d.key not in revised), key=lambda d: d.key
-            )
-            if candidates:
-                rec.start_revision(ctx.rng.choice(candidates), "First draft")
-        roll = ctx.rng.random()
-        if roll < self.params.link_rate and tags and created:
-            rec.link(ctx.rng.choice(tags), ctx.rng.choice(created), "references")
+        raise NotImplementedError

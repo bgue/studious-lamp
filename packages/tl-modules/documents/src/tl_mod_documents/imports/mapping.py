@@ -6,7 +6,13 @@ translate its codes (``ISOMETRIC`` in the file is ``ISO`` here). It is a YAML fi
 ``dev/seed/templates/document-register-dms-export.yaml``. ``read_rows`` applies one to the text of
 a CSV file and returns an ``ImportRow`` per data row. A cell that cannot be read does not stop the
 file: the row carries the problem and the plan reports it.
+
+STUB (P1-I2-T12b): the bodies of parse_mapping and read_rows raise NotImplementedError; their
+signatures, options, docstrings and the helpers are final. Each body has a STEPS comment.
+Implement them, then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -94,20 +100,7 @@ def parse_mapping(text: str, *, source: str = "<string>") -> DocumentMapping:
     # 3. Return DocumentMapping.model_validate(data). A ValidationError becomes one MappingError
     #    whose message has one line per error, f"{source}: {location}: {message}", where location
     #    is the dotted `loc` of the error or "(document)" when it is empty.
-    try:
-        data = yaml.safe_load(text)
-    except yaml.YAMLError as exc:
-        raise MappingError(f"{source}: invalid YAML: {exc}") from exc
-    if not isinstance(data, dict):
-        raise MappingError(f"{source}: a mapping template must be a YAML mapping")
-    try:
-        return DocumentMapping.model_validate(data)
-    except ValidationError as exc:
-        lines = []
-        for error in exc.errors():
-            location = ".".join(str(part) for part in error["loc"]) or "(document)"
-            lines.append(f"{source}: {location}: {error['msg']}")
-        raise MappingError("\n".join(lines)) from exc
+    raise NotImplementedError
 
 
 def load_mapping(path: Path) -> DocumentMapping:
@@ -153,59 +146,4 @@ def read_rows(text: str, mapping: DocumentMapping) -> list[ImportRow]:
     # 6. Append ImportRow(line=line, number=number or "", title=..., doc_type=..., discipline=...,
     #    originator=..., legacy_revision=..., legacy_status=..., legacy_date=..., problems=...,
     #    raw=raw).
-    reader = csv.reader(
-        io.StringIO(text.removeprefix("﻿")), delimiter=mapping.delimiter, strict=True
-    )
-    try:
-        header = [cell.strip() for cell in next(reader)]
-    except StopIteration as exc:
-        raise MappingError("the file has no header row") from exc
-    except csv.Error as exc:
-        raise MappingError(f"the file is not readable as CSV: {exc}") from exc
-    twice = sorted({name for name in header if name and header.count(name) > 1})
-    if twice:
-        raise MappingError("the file has a column twice: " + ", ".join(twice))
-    missing = [column.column for column in mapping.columns if column.column not in header]
-    if missing:
-        raise MappingError("the file lacks the column(s): " + ", ".join(missing))
-    try:
-        records = list(enumerate(reader, start=2))
-    except csv.Error as exc:
-        raise MappingError(f"the file is not readable as CSV: {exc}") from exc
-
-    rows: list[ImportRow] = []
-    for line, cells in records:
-        stripped = [cell.strip() for cell in cells]
-        if not any(stripped):
-            continue
-        raw = {name: (stripped[i] if i < len(stripped) else "") for i, name in enumerate(header)}
-        fields: dict[str, str] = {}
-        problems: list[str] = []
-        for column in mapping.columns:
-            cell = raw[column.column]
-            if not cell:
-                if column.to == "number":
-                    problems.append("the document number is blank")
-                continue
-            if column.values:
-                if cell not in column.values:
-                    problems.append(f"{column.column}: {cell!r} is not one of the mapped values")
-                    continue
-                cell = column.values[cell]
-            fields[column.to] = cell
-        rows.append(
-            ImportRow(
-                line=line,
-                number=fields.get("number", ""),
-                title=fields.get("title"),
-                doc_type=fields.get("type"),
-                discipline=fields.get("discipline"),
-                originator=fields.get("originator"),
-                legacy_revision=fields.get("revision"),
-                legacy_status=fields.get("status"),
-                legacy_date=fields.get("date"),
-                problems=problems,
-                raw=raw,
-            )
-        )
-    return rows
+    raise NotImplementedError
