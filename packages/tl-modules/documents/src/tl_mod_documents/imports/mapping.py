@@ -121,7 +121,8 @@ def read_rows(text: str, mapping: DocumentMapping) -> list[ImportRow]:
     mapping does not mention.
 
     Raises ``MappingError`` when the file has no header row, lacks a column the mapping names (the
-    message lists every missing column), has a column twice or is not valid CSV.
+    message lists every missing column), has a named column twice (unnamed columns are ignored)
+    or is not valid CSV.
     """
     reader = csv.reader(
         io.StringIO(text.removeprefix("﻿")), delimiter=mapping.delimiter, strict=True
@@ -132,7 +133,9 @@ def read_rows(text: str, mapping: DocumentMapping) -> list[ImportRow]:
         raise MappingError("the file has no header row") from exc
     except csv.Error as exc:
         raise MappingError(f"the file is not readable as CSV: {exc}") from exc
-    twice = sorted({name for name in header if header.count(name) > 1})
+    # A blank header cell is an unnamed column (trailing commas are common in exports): nobody
+    # can map it, so two of them are not a duplicate.
+    twice = sorted({name for name in header if name and header.count(name) > 1})
     if twice:
         raise MappingError("the file has a column twice: " + ", ".join(twice))
     missing = [column.column for column in mapping.columns if column.column not in header]

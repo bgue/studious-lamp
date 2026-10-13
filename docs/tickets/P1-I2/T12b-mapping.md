@@ -176,7 +176,9 @@ def read_rows(text: str, mapping: DocumentMapping) -> list[ImportRow]:
 
 `packages/tl-modules/documents/src/tl_mod_documents/imports/model.py` (final; read-only):
 ```python
-import annotationsfrom dataclasses import dataclass, field
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -284,7 +286,7 @@ PID-0002,P&ID flare header,P&ID,PROCESS,Acme Process,A,IFR,2024-03-02,\\dms\p123
 - `packages/tl-modules/documents/src/tl_mod_documents/imports/mapping.py` (the file you edit)
 - `packages/tl-modules/documents/src/tl_mod_documents/imports/model.py` (final)
 - `dev/seed/templates/document-register-dms-export.yaml` and `dev/seed/legacy/dms-document-register.csv`
-- `packages/tl-modules/engineering/src/tl_mod_engineering/import_/mapping.py` or the nearest equivalent (the same job for tags; style)
+- `packages/tl-modules/engineering/src/tl_mod_engineering/imports/mapping.py` (the same job for tags; style)
 - `docs/tickets/P1-I2/provided/t12b-test_imports_mapping.py.txt` (the test)
 may explore: (none)
 
