@@ -7,7 +7,7 @@ Depends on: S3 and S4 on `p1/i2`; no other ticket
 Branch: `p1/i2-t11a-doc-reports`
 
 ## Goal
-The five base reports of document control are functions of `tl_mod_documents.reports` that read the flat views and return frozen lines. `packages/tl-modules/documents/src/tl_mod_documents/reports.py` has the line dataclasses and the five signatures final; the five bodies raise `NotImplementedError`. You implement the bodies. One provided test file (8 test functions) must pass on SQLite and on Postgres.
+The five base reports of document control are functions of `tl_mod_documents.reports` that read the flat views and return frozen lines. `packages/tl-modules/documents/src/tl_mod_documents/reports.py` has the line dataclasses and the five signatures final; the five bodies raise `NotImplementedError`. You implement the bodies. One provided test file (9 test functions) must pass on SQLite and on Postgres.
 
 ## Brief references (pasted)
 > **Brief 15 (base reports).** Document Control: Document register; revision history; overdue reviews; transmittal log; documents by status/discipline; derived-document validation status; stale pinned revisions.
@@ -20,7 +20,7 @@ The five base reports of document control are functions of `tl_mod_documents.rep
 - Booleans: SQLite returns 0/1 and Postgres returns booleans; `NOT c.voided` works in both. `NULL` sorts first on SQLite and last on Postgres, so every `ORDER BY` here is on columns that are never NULL.
 - Dates are ISO text (`YYYY-MM-DD`), compared as text. "Today" is the `on` argument, so a report is repeatable.
 - Use SQLAlchemy `text()` with named parameters (`conn.execute(text(sql), params)`); never format a user value into SQL. Fixed names (view and table constants) may be formatted in.
-- Nothing here writes. A void document or transmittal is left out of the lists.
+- Nothing here writes. A void document or transmittal is left out of the lists, and so are the reviewers of a void or superseded document (nobody waits for them).
 
 ## Interfaces (verbatim from the repo at the branch point)
 `packages/tl-modules/documents/src/tl_mod_documents/reports.py` (the stub you complete):
@@ -200,15 +200,17 @@ def overdue_reviews(conn: Connection, scope: str, *, on: date | None = None) -> 
     """Reviewers of open review cycles who have not answered and whose due date has passed.
 
     A reviewer with no date of their own is due on the cycle's date; one with no date at all is
-    never overdue. Ordered by due date, then cycle key, then reviewer.
+    never overdue. The reviewers of a void or superseded document are left out: nobody is waiting
+    for them. Ordered by due date, then cycle key, then reviewer.
     """
     # STEPS
     # 1. day = (on or date.today()).isoformat().
     # 2. SELECT c.key AS cycle_key, r.reviewer, r.due_date, rv.document_number, rv.code FROM
     #    REVIEWER_TABLE r JOIN REVIEW_CYCLE_VIEW c ON c.id = r.review_cycle_id JOIN
-    #    REVISION_VIEW rv ON rv.id = r.revision_id WHERE r.scope = :scope AND c.state = 'open'
-    #    AND r.outcome IS NULL AND r.due_date IS NOT NULL AND r.due_date < :day AND NOT c.voided
-    #    ORDER BY r.due_date, c.key, r.reviewer.
+    #    REVISION_VIEW rv ON rv.id = r.revision_id JOIN DOCUMENT_VIEW d ON d.id = r.document_id
+    #    WHERE r.scope = :scope AND c.state = 'open' AND r.outcome IS NULL AND r.due_date IS NOT
+    #    NULL AND r.due_date < :day AND NOT c.voided AND NOT d.voided AND COALESCE(d.status,
+    #    'Draft') NOT IN ('Void', 'Superseded') ORDER BY r.due_date, c.key, r.reviewer.
     # 3. One OverdueLine per row; days_overdue = (date.fromisoformat(day) -
     #    date.fromisoformat(row.due_date)).days.
     raise NotImplementedError
@@ -518,7 +520,7 @@ uv run pytest packages/tl-modules/documents/tests/test_reports.py -q
 TL_PG_URL=postgresql://postgres:postgres@localhost:5432/tl_test uv run pytest packages/tl-modules/documents/tests/test_reports.py -q --adapters sqlite,postgres
 uv run pytest packages/tl-modules/documents -q
 ```
-Expected: `just check` clean; 8 passed on SQLite; 16 passed with both adapters; the whole `documents` package passes.
+Expected: `just check` clean; 9 passed on SQLite; 18 passed with both adapters; the whole `documents` package passes.
 
 ## Tests to add
 None beyond the provided file.

@@ -263,6 +263,31 @@ def test_overdue_reviews_are_open_unanswered_and_past_their_date(busy: World) ->
     assert early == [] and other == []  # due today is not yet overdue
 
 
+def test_the_reviewers_of_a_void_document_are_not_overdue(busy: World) -> None:
+    from tl_mod_documents.handlers.documents import VoidDocument, handle_void_document
+
+    a = busy.revision("ISO-1234", "A")
+    doc = busy.document("ISO-1234")
+    forge(
+        busy,
+        "RC1",
+        "documents.ReviewCycle",
+        "ISO-1234@A/RC1",
+        review_events(a.id, doc.id, [{"reviewer": "user:ana", "due_date": "2026-10-01"}], None),
+    )
+    with conn_of(busy) as uow:
+        assert len(reports.overdue_reviews(uow.conn(), SCOPE, on=TODAY)) == 1
+    with open_uow(busy.db) as uow:
+        handle_void_document(
+            uow,
+            VoidDocument(
+                actor="user:u", source="test", scope=SCOPE, stream_id=doc.id, reason="in error"
+            ),
+        )
+    with conn_of(busy) as uow:
+        assert reports.overdue_reviews(uow.conn(), SCOPE, on=TODAY) == []
+
+
 def test_the_transmittal_log_marks_the_issued_ones_that_wait_past_their_date(busy: World) -> None:
     a = busy.revision("ISO-1234", "A")
     doc = busy.document("ISO-1234")
