@@ -25,6 +25,8 @@ from tl_core.services.feed import PostToFeed
 from tl_core.services.links import AddLink
 from tl_core.services.psets import SetPsetValues
 from tl_core.services.workflow import TransitionWorkflow
+from tl_mod_documents.handlers.documents import RegisterDocument
+from tl_mod_documents.handlers.revisions import CreateRevision
 from tl_mod_engineering.handlers.tags import CreateTag, RenameTag
 
 from tl_sim.clock import SimClock
@@ -55,6 +57,8 @@ class ApiLike(Protocol):
     def feed_post(self, cmd: PostToFeed) -> CommandResult: ...
     def create_tag(self, cmd: CreateTag) -> CommandResult: ...
     def rename_tag(self, cmd: RenameTag) -> CommandResult: ...
+    def register_document(self, cmd: RegisterDocument) -> CommandResult: ...
+    def create_revision(self, cmd: CreateRevision) -> CommandResult: ...
     def get_record_by_id(self, record_id: str) -> dict[str, Any] | None: ...
     def query_records(
         self, scope: str, q: str, *, limit: int = 500, offset: int = 0
@@ -86,6 +90,16 @@ class TagDesk(Protocol):
 
     def create_tag(self, number: str, class_code: str, service: str) -> dict[str, Any]: ...
     def rename_tag(self, record_id: str, new_number: str, reason: str) -> dict[str, Any]: ...
+
+
+@runtime_checkable
+class DocumentDesk(Protocol):
+    """What a person who keeps the document register needs besides ``SimClient``."""
+
+    def register_document(
+        self, number: str, title: str, doc_type: str, discipline: str
+    ) -> dict[str, Any]: ...
+    def start_revision(self, document_id: str, purpose: str) -> dict[str, Any]: ...
 
 
 class Keys:
@@ -233,6 +247,26 @@ class HttpSimClient:
         self._clock.tick()
         cmd = RenameTag(**self._common(), stream_id=record_id, new_number=new_number, reason=reason)
         result = self._api.rename_tag(cmd)
+        return {"id": result.stream_id, "key": result.key, "version": result.version}
+
+    # --- the document register, for the person who keeps it (``DocumentDesk``) ------------------
+
+    def register_document(
+        self, number: str, title: str, doc_type: str, discipline: str
+    ) -> dict[str, Any]:
+        """Register a document. The registry checks the number against the numbering pattern."""
+        self._clock.tick()
+        cmd = RegisterDocument(
+            **self._common(), number=number, title=title, doc_type=doc_type, discipline=discipline
+        )
+        result = self._api.register_document(cmd)
+        return {"id": result.stream_id, "key": result.key, "version": result.version}
+
+    def start_revision(self, document_id: str, purpose: str) -> dict[str, Any]:
+        """Start the next revision of a document, as a draft; the answer is the revision."""
+        self._clock.tick()
+        cmd = CreateRevision(**self._common(), document_id=document_id, purpose=purpose)
+        result = self._api.create_revision(cmd)
         return {"id": result.stream_id, "key": result.key, "version": result.version}
 
     # --- the review queue, for the person who works it (``ProposalDesk``) -----------------------

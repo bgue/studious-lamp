@@ -18,7 +18,7 @@ from typing import Any
 from tl_core.services.errors import GuardFailedError, InvalidStateError, UnknownTransitionError
 
 from tl_sim import groundtruth as gt
-from tl_sim.client import ProposalDesk, ProposeUnavailableError, TagDesk
+from tl_sim.client import DocumentDesk, ProposalDesk, ProposeUnavailableError, TagDesk
 from tl_sim.mcp_caller import ProposalRefusedError
 from tl_sim.types import GroundTruth, SimContext
 
@@ -26,6 +26,8 @@ RECORD_TYPE = "core.Record"
 INITIAL_STATE = "Draft"  # the state of a record whose status is empty (schema/fixtures/workflows)
 REFUSALS = (GuardFailedError, InvalidStateError, UnknownTransitionError)
 TAG_TYPE = "engineering.Tag"
+DOCUMENT_TYPE = "documents.Document"
+REVISION_TYPE = "documents.Revision"
 SUPERSEDED = "Superseded"  # the state of a tag that a rename replaced
 MAX_RECORDS = 5000  # the API's page limit; a Phase 0 simulation stays far below it
 
@@ -132,6 +134,40 @@ class Recorder:
             gt.WORKFLOW_TRANSITIONED, old.key, {"status": SUPERSEDED, "transition": "supersede"}
         )
         return new
+
+    def _document_desk(self) -> DocumentDesk:
+        client = self.ctx.client
+        if not isinstance(client, DocumentDesk):
+            raise ProposeUnavailableError("this client cannot keep the document register")
+        return client
+
+    def register_document(self, number: str, title: str, doc_type: str, discipline: str) -> Rec:
+        """Register a document; its key is its number."""
+        made = self._document_desk().register_document(number, title, doc_type, discipline)
+        rec = Rec(id=str(made["id"]), key=number, title=title)
+        self._note(
+            gt.RECORD_CREATED,
+            rec.key,
+            {"title": title, "record_type": DOCUMENT_TYPE, "voided": False},
+        )
+        return rec
+
+    def start_revision(self, document: Rec, purpose: str) -> Rec:
+        """Start the next revision of ``document``; its key is ``<number>@<code>``.
+
+        The code is the registry's: the revision scheme of the document's type decides it (``A``
+        for most types, ``0`` for a specification), so the key is read from the answer.
+        """
+        made = self._document_desk().start_revision(document.id, purpose)
+        key = str(made["key"])
+        title = f"{document.key} rev {key.rsplit('@', 1)[-1]}"
+        rec = Rec(id=str(made["id"]), key=key, title=title)
+        self._note(
+            gt.RECORD_CREATED,
+            rec.key,
+            {"title": title, "record_type": REVISION_TYPE, "voided": False},
+        )
+        return rec
 
     def set_psets(self, rec: Rec, values: dict[str, dict[str, Any]]) -> None:
         """``values`` is ``{pset: {property: value}}``, e.g. ``{"valve_data": {"size_in": 6}}``."""
