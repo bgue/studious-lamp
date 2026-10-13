@@ -69,15 +69,15 @@ Then: a rejected document number (`ISO-12`); a review cycle with an overdue revi
 | T08b | Review cycle commands | H | S3 | merged (batch 1, first attempt) | `63f116f`; the reviewer-is-caller rule, the on-behalf and override commands, account and author checks were added after the merge (S6), with changes to the provided tests |
 | T09a | `tl doc`: register, show, ls, update, supersede, void | H | S3 | merged (batch 1, first attempt) | `a016649`; `supersede` is admin and `update` lost `--confidentiality` after the merge (S6) |
 | T11a | Base reports (module functions) | H | S3 | merged (batch 1, first attempt) | `d568e36`; the test dates changed to past dates with a reason (S6) |
-| T09b | `tl doc rev`: create, issue (admin), supersede (admin), void, ls | H | S3, S6 | ready (batch 2) | |
-| T09c | `tl doc rendition`: add, replace-signed (admin), ls | H | S3, S6 | ready (batch 2) | |
-| T09d | `tl doc link`, `stale`, `diff`, `repin` | H | S3, S6 | ready (batch 2) | |
-| T11b | `tl doc report`: register, history, overdue, transmittals, stale | H | T11a | ready (batch 2) | |
+| T09b | `tl doc rev`: create, issue (admin), supersede (admin), void, ls | H | S3, S6 | merged (batch 2, first attempt) | `7238790` |
+| T09c | `tl doc rendition`: add, replace-signed (admin), ls | H | S3, S6 | merged (batch 2, first attempt) | `3f3bfe9`; adapted after the merge (S13): `add --kind signed` is refused before any upload, `register-signed` (admin) is new, the provided test changed |
+| T09d | `tl doc link`, `stale`, `diff`, `repin` | H | S3, S6 | merged (batch 2, first attempt) | `9a067ca, report 5de129d` |
+| T11b | `tl doc report`: register, history, overdue, transmittals, stale | H | T11a | merged (batch 2, first attempt) | `6393e4d` |
 | T09e | `tl transmittal`: create, issue (admin), answer, close, void, ls, show | H | S3, S6, T08a | ready (batch 3) | |
 | T09f | `tl review`: open, answer, on-behalf (admin), close, override (admin), ls | H | S3, S6, T08b | ready (batch 3) | |
 | T10b | MCP read tools for documents (seven tools, each an explicit `MCP_ACTIONS` entry) | H | S10 | ready (batch 3) | |
 
-Merge adaptations after batch 2 (supervisor, because the third security pass changed the rules under the running tickets): T09c's `add --kind signed` now fails (the first signed copy is `RegisterSignedRendition`, an admin's), so its provided test is updated and a `tl doc rendition register-signed` command (admin) is added at the merge.
+Merge adaptation after batch 2 (S13, because the third security pass changed the rules under the running tickets): T09c's `add --kind signed` is refused (the first signed copy is `RegisterSignedRendition`, an admin's). The module has a file-free `check_rendition` / `preflight_rendition`, and the CLI runs it before it uploads, so a refused `rendition add`, `register-signed` or `replace-signed` leaves no orphan file; `tl doc rendition register-signed` (admin) is new.
 
 The `doc_rev`, `doc_rendition`, `doc_link` and `doc_report` modules are wired in `tl_cli/main.py` by the supervisor so the four tickets have disjoint paths; each ticket's stub has its reference in the history (the commit before the stub commit).
 

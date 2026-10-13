@@ -1,4 +1,4 @@
-"""`tl doc rendition add|replace-signed|ls` on a temporary ledger (P1-I2-T09c).
+"""`tl doc rendition add|register-signed|replace-signed|ls` on a temporary ledger (P1-I2-T09c).
 
 Documents and revisions are made with the module's own test world (`doccli_support.world`); the
 files are uploaded and registered by the commands under test.
@@ -120,34 +120,54 @@ def test_a_bad_kind_a_missing_revision_and_a_repeated_file_are_errors(
     assert len(listing(draft, "--all")) == 1
 
 
-def test_an_issued_revision_takes_no_new_pdf_but_takes_a_signed_copy(
+def test_an_issued_revision_takes_no_new_pdf_and_a_refusal_uploads_nothing(
     env: dict[str, str], tmp_path: Path
 ) -> None:
     made = world(env, tmp_path)
     made.issued_document("ISO-1234", "IFR")
+    before = made.scalar("SELECT COUNT(*) FROM cur_files")
     late = add(env, make(tmp_path, "late.pdf", b"%PDF-1.7 late"), "--kind", "pdf", ok=False)
     assert late.stderr.startswith("error: ")
+    # the signed copy is an admin's act: `add` refuses it, before any upload
+    signed = add(
+        env, make(tmp_path, "signed.pdf", b"%PDF-1.7 signed"), "--kind", "signed", ok=False
+    )
+    assert "registered by an admin with RegisterSignedRendition" in signed.stderr
+    assert made.scalar("SELECT COUNT(*) FROM cur_files") == before
     assert [row[0] for row in listing(env)] == ["pdf"]
-    add(env, make(tmp_path, "signed.pdf", b"%PDF-1.7 signed"), "--kind", "signed")
-    assert [row[0] for row in listing(env)] == ["pdf", "signed"]
 
 
-# --- replace-signed -------------------------------------------------------------------------------
+# --- register-signed and replace-signed -----------------------------------------------------------
 
 
-def test_the_signed_copy_is_written_once_and_an_admin_replaces_it(
+def test_the_signed_copy_is_registered_once_by_an_admin_and_replaced_by_one(
     env: dict[str, str], tmp_path: Path
 ) -> None:
     made = world(env, tmp_path)
     made.issued_document("ISO-1234", "IFR")
     first, second = b"%PDF-1.7 signed one", b"%PDF-1.7 signed two"
-    add(env, make(tmp_path, "s1.pdf", first), "--kind", "signed")
-    again = add(env, make(tmp_path, "s2.pdf", second), "--kind", "signed", ok=False)
+    register = ("register-signed", "ISO-1234", "A", str(make(tmp_path, "s1.pdf", first)))
+    register += ("--project", "P123")
+    amy = ordinary_env(env, tmp_path) if admin_session(env) else None
+    if amy is not None:
+        refused = rendition(amy, *register, ok=False)
+        assert refused.stderr.startswith("error: ") and "admin" in refused.stderr
+        assert [row[0] for row in listing(env)] == ["pdf"]
+    done = rendition(env, *register)
+    assert done.stdout.splitlines()[0] == "registered the signed copy of ISO-1234@A: s1.pdf"
+    files = made.scalar("SELECT COUNT(*) FROM cur_files")
+    again = rendition(
+        env,
+        *("register-signed", "ISO-1234", "A", str(make(tmp_path, "s2.pdf", second))),
+        *("--project", "P123"),
+        ok=False,
+    )
     assert "already has a signed copy" in again.stderr
+    assert made.scalar("SELECT COUNT(*) FROM cur_files") == files  # nothing uploaded
     args = ("replace-signed", "ISO-1234", "A", str(make(tmp_path, "s2.pdf", second)))
     args += ("--project", "P123", "--reason", "the first scan was cut off")
-    if admin_session(env):
-        refused = rendition(ordinary_env(env, tmp_path), *args, ok=False)
+    if amy is not None:
+        refused = rendition(amy, *args, ok=False)
         assert refused.stderr.startswith("error: ") and "admin" in refused.stderr
     done = rendition(env, *args)
     assert done.stdout.splitlines()[0] == "replaced the signed copy of ISO-1234@A with s2.pdf"
@@ -155,12 +175,31 @@ def test_the_signed_copy_is_written_once_and_an_admin_replaces_it(
     assert [(row[1], row[5]) for row in signed] == [("s1.pdf", "replaced"), ("s2.pdf", "current")]
 
 
-def test_replace_signed_needs_a_signed_copy_to_replace(env: dict[str, str], tmp_path: Path) -> None:
+def test_replace_signed_needs_a_signed_copy_to_replace_and_uploads_nothing_when_refused(
+    env: dict[str, str], tmp_path: Path
+) -> None:
     made = world(env, tmp_path)
     made.issued_document("ISO-1234", "IFR")
     admin_session(env)
+    files = made.scalar("SELECT COUNT(*) FROM cur_files")
     path = make(tmp_path, "s.pdf", b"%PDF-1.7 s")
     args = ("replace-signed", "ISO-1234", "A", str(path), "--project", "P123", "--reason", "x")
     result = rendition(env, *args, ok=False)
-    assert result.stderr.startswith("error: ")
+    assert "has no signed copy to replace" in result.stderr
+    assert made.scalar("SELECT COUNT(*) FROM cur_files") == files
     assert [row[0] for row in listing(env)] == ["pdf"]
+
+
+def test_a_markup_beyond_the_cap_is_refused_before_it_is_uploaded(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    from tl_mod_documents.limits import MAX_MARKUPS
+
+    made = world(env, tmp_path)
+    made.issued_document("ISO-1234", "IFR")
+    for n in range(MAX_MARKUPS):
+        made.attach("ISO-1234", "A", slot="markup", data=f"%PDF m{n}".encode(), name=f"m{n}.pdf")
+    files = made.scalar("SELECT COUNT(*) FROM cur_files")
+    over = add(env, make(tmp_path, "extra.pdf", b"%PDF extra"), "--kind", "markup", ok=False)
+    assert f"already has {MAX_MARKUPS} markups" in over.stderr
+    assert made.scalar("SELECT COUNT(*) FROM cur_files") == files

@@ -263,3 +263,30 @@ def test_page_count_is_bounded(world: World) -> None:
         AttachRendition(**BASE, revision_id="r", file_id="f", page_count=-1)
     with pytest.raises(ValidationError):
         AttachRendition(**BASE, revision_id="r", file_id="f", page_count=10**9)
+
+
+def test_the_preflight_refuses_what_the_command_would_before_a_file_is_uploaded(
+    world: World,
+) -> None:
+    from tl_mod_documents.handlers.renditions import preflight_rendition
+
+    world.issued_document()
+    rev = world.revision("ISO-1234", "A")
+
+    def check(kind: str, mode: str) -> None:
+        with open_uow(world.db, readonly=True) as uow:
+            preflight_rendition(uow.conn(), "project:P123", rev.id, kind, mode)  # type: ignore[arg-type]
+
+    check("markup", "attach")
+    check("signed", "register_signed")
+    with pytest.raises(RenditionNotAllowedError, match="registered by an admin"):
+        check("signed", "attach")
+    with pytest.raises(RenditionNotAllowedError, match="no signed copy to replace"):
+        check("signed", "replace_signed")
+    with pytest.raises(RenditionNotAllowedError, match="it accepts markup, signed"):
+        check("pdf", "attach")
+    with pytest.raises(RenditionNotAllowedError, match="only a signed copy"):
+        check("markup", "register_signed")
+    with pytest.raises(RevisionNotFoundError):
+        with open_uow(world.db, readonly=True) as uow:
+            preflight_rendition(uow.conn(), "project:P999", rev.id, "markup", "attach")

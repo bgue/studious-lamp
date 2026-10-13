@@ -22,9 +22,12 @@ from tl_core.files.service import CompleteUpload, FileService, RegisterUpload
 from tl_mod_documents import registry
 from tl_mod_documents.handlers.renditions import (
     AttachRendition,
+    RegisterSignedRendition,
     ReplaceSignedRendition,
     handle_attach_rendition,
+    handle_register_signed_rendition,
     handle_replace_signed_rendition,
+    preflight_rendition,
 )
 
 from tl_cli.doc import (
@@ -117,6 +120,7 @@ def add(
         _fail(f"kind must be one of {', '.join(KINDS)}")
     with _service_errors(), open_uow(db, readonly=True) as uow:
         rev = _revision(uow, scope, project, number, code)
+        preflight_rendition(uow.conn(), scope, rev.id, kind, "attach")  # refuse before uploading
     file_id = _upload(db, scope, actor, rev.id, kind, path, content_type)
     with _service_errors(), open_uow(db) as uow:
         made = handle_attach_rendition(
@@ -131,6 +135,45 @@ def add(
             ),
         )
     typer.echo(f"attached {kind} {path.name} to {number}@{code}")
+    typer.echo(f"rendition {made.stream_id}")
+
+
+@app.command("register-signed")
+def register_signed(
+    ctx: typer.Context,
+    number: _Number,
+    code: _Code,
+    path: _File,
+    project: _Project,
+    reason: Annotated[
+        str | None, typer.Option("--reason", help="Why (kept in the history).")
+    ] = None,
+    pages: _Pages = None,
+    content_type: _ContentType = None,
+    actor: _Actor = _DEFAULT_ACTOR,
+) -> None:
+    """Register the first signed copy of a revision (admin). A correction is `replace-signed`."""
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    require_admin(db)
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        rev = _revision(uow, scope, project, number, code)
+        preflight_rendition(uow.conn(), scope, rev.id, "signed", "register_signed")
+    file_id = _upload(db, scope, actor, rev.id, "signed", path, content_type)
+    with _service_errors(), open_uow(db) as uow:
+        made = handle_register_signed_rendition(
+            uow,
+            RegisterSignedRendition(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                revision_id=rev.id,
+                file_id=file_id,
+                page_count=pages,
+                reason=reason,
+            ),
+        )
+    typer.echo(f"registered the signed copy of {number}@{code}: {path.name}")
     typer.echo(f"rendition {made.stream_id}")
 
 
@@ -152,6 +195,7 @@ def replace_signed(
     require_admin(db)
     with _service_errors(), open_uow(db, readonly=True) as uow:
         rev = _revision(uow, scope, project, number, code)
+        preflight_rendition(uow.conn(), scope, rev.id, "signed", "replace_signed")
     file_id = _upload(db, scope, actor, rev.id, "signed", path, content_type)
     with _service_errors(), open_uow(db) as uow:
         made = handle_replace_signed_rendition(

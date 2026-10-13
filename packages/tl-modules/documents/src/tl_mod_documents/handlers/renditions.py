@@ -38,7 +38,10 @@ SQLite a write unit of work takes the ledger's single writer lock before its fir
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import ConfigDict, Field, field_validator
+from sqlalchemy import Connection
 from tl_core.files.queries import get_file
 from tl_core.ledger import Event, NewEvent
 from tl_core.services.commands import Command, CommandResult
@@ -47,7 +50,11 @@ from tl_core.services.records import create_module_record
 from tl_core.uow import UnitOfWork
 
 from tl_mod_documents import registry
-from tl_mod_documents.errors import FileNotAvailableError, RenditionNotAllowedError
+from tl_mod_documents.errors import (
+    FileNotAvailableError,
+    RenditionNotAllowedError,
+    RevisionNotFoundError,
+)
 from tl_mod_documents.guards import UPLOAD_KINDS
 from tl_mod_documents.handlers.common import (
     append,
@@ -121,6 +128,62 @@ class ReplaceSignedRendition(Command):
         return value
 
 
+Mode = Literal["attach", "register_signed", "replace_signed"]
+
+
+def check_rendition(
+    conn: Connection, rev: registry.RevisionRow, kind: str, mode: Mode
+) -> list[registry.RenditionRow]:
+    """Refuse a rendition of ``kind`` the revision cannot take; else its current ones of that kind.
+
+    The checks that need no file: the revision's state takes the kind; ``signed`` goes through
+    ``RegisterSignedRendition`` and ``ReplaceSignedRendition`` only, and a replacement needs a
+    copy to replace; a revision has at most ``MAX_MARKUPS`` markups. The CLI runs this before it
+    uploads, so a refused command leaves no file behind.
+    """
+    state = "Void" if rev.voided else rev.state
+    allowed = ALLOWED_KINDS.get(state, ())
+    if kind not in allowed:
+        raise RenditionNotAllowedError(
+            f"revision {rev.code} of {rev.document_number} is {state}; "
+            + (f"it accepts {', '.join(allowed)}" if allowed else "it accepts no renditions")
+        )
+    if mode != "attach" and kind != "signed":
+        raise RenditionNotAllowedError("only a signed copy is registered this way")
+    current = [r for r in registry.renditions_of(conn, rev.id, kind=kind) if r.is_current]
+    if kind == "signed":
+        if mode == "attach":
+            raise RenditionNotAllowedError(
+                "the signed copy is registered by an admin with RegisterSignedRendition "
+                "(ReplaceSignedRendition to correct it)"
+            )
+        if current and mode == "register_signed":
+            raise RenditionNotAllowedError(
+                f"revision {rev.code} of {rev.document_number} already has a signed copy, which "
+                "is final; an admin replaces it with ReplaceSignedRendition and a reason"
+            )
+        if not current and mode == "replace_signed":
+            raise RenditionNotAllowedError(
+                f"revision {rev.code} of {rev.document_number} has no signed copy to replace; "
+                "register the first one with RegisterSignedRendition"
+            )
+    if kind == "markup" and len(current) >= MAX_MARKUPS:
+        raise RenditionNotAllowedError(
+            f"revision {rev.code} of {rev.document_number} already has {MAX_MARKUPS} markups"
+        )
+    return current
+
+
+def preflight_rendition(
+    conn: Connection, scope: str, revision_id: str, kind: str, mode: Mode
+) -> None:
+    """``check_rendition`` for a revision by id (``RevisionNotFoundError`` when unknown)."""
+    rev = registry.get_revision(conn, revision_id)
+    if rev is None or rev.scope != scope:
+        raise RevisionNotFoundError(f"no revision {revision_id!r} in scope {scope!r}")
+    check_rendition(conn, rev, kind, mode)
+
+
 def _register(
     uow: UnitOfWork,
     cmd: AttachRendition | RegisterSignedRendition | ReplaceSignedRendition,
@@ -132,7 +195,6 @@ def _register(
     cmd = correlated(cmd)
     rev = load_revision(uow, cmd, cmd.revision_id)
     open_document(uow, cmd, rev.document_id)
-    state = "Void" if rev.voided else rev.state
     try:
         info = get_file(uow, cmd.scope, cmd.file_id)
     except UnknownFileError as exc:
@@ -150,39 +212,13 @@ def _register(
             + "; only an available file can become a rendition"
         )
     kind = info.slot
-    allowed = ALLOWED_KINDS.get(state, ())
-    if kind not in allowed:
-        raise RenditionNotAllowedError(
-            f"revision {rev.code} of {rev.document_number} is {state}; "
-            + (f"it accepts {', '.join(allowed)}" if allowed else "it accepts no renditions")
-        )
-    conn = uow.conn()
-    existing = registry.renditions_of(conn, rev.id, kind=kind)
-    current = [r for r in existing if r.is_current]
+    mode: Mode = (
+        "replace_signed" if replacing else ("register_signed" if signed_command else "attach")
+    )
+    existing = registry.renditions_of(uow.conn(), rev.id, kind=kind)
+    current = check_rendition(uow.conn(), rev, kind, mode)
     if any(r.file_id == info.file_id for r in current):
         raise NoChangesError(f"file {info.filename!r} is already a {kind} rendition")
-    if (replacing or signed_command) and kind != "signed":
-        raise RenditionNotAllowedError("only a signed copy is registered this way")
-    if kind == "signed":
-        if not (replacing or signed_command):
-            raise RenditionNotAllowedError(
-                "the signed copy is registered by an admin with RegisterSignedRendition "
-                "(ReplaceSignedRendition to correct it)"
-            )
-        if current and not replacing:
-            raise RenditionNotAllowedError(
-                f"revision {rev.code} of {rev.document_number} already has a signed copy, which "
-                "is final; an admin replaces it with ReplaceSignedRendition and a reason"
-            )
-        if replacing and not current:
-            raise RenditionNotAllowedError(
-                f"revision {rev.code} of {rev.document_number} has no signed copy to replace; "
-                "register the first one with RegisterSignedRendition"
-            )
-    if kind == "markup" and len(current) >= MAX_MARKUPS:
-        raise RenditionNotAllowedError(
-            f"revision {rev.code} of {rev.document_number} already has {MAX_MARKUPS} markups"
-        )
     older = current if kind in REPLACING_KINDS or replacing else []
     made = create_module_record(
         uow,
