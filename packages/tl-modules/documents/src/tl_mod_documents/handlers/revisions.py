@@ -90,7 +90,7 @@ class CreateRevision(Command):
 
 
 class IssueRevision(Command):
-    """Issue a draft revision with an issue status (IFR, IFC, AFC, ASB). Admin only."""
+    """Issue a draft revision with an issue status (IFR, IFC, AFC, ASB). Controller only."""
 
     model_config = ConfigDict(extra="forbid")
 

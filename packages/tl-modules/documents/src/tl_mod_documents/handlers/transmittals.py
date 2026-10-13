@@ -130,7 +130,7 @@ class CreateTransmittal(Command):
 
 
 class IssueTransmittal(Command):
-    """Issue a draft transmittal: it is now the record of what was sent (an admin's act).
+    """Issue a draft transmittal: it is now the record of what was sent (a controller's act).
 
     ``issued_on`` defaults to today and is never in the future; an earlier date needs
     ``date_reason``, which the event keeps.

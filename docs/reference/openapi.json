@@ -144,7 +144,8 @@
             "items": {
               "enum": [
                 "admin",
-                "user"
+                "user",
+                "document_controller"
               ],
               "type": "string"
             },
@@ -1710,11 +1711,12 @@
             "items": {
               "enum": [
                 "admin",
-                "user"
+                "user",
+                "document_controller"
               ],
               "type": "string"
             },
-            "maxItems": 2,
+            "maxItems": 3,
             "minItems": 1,
             "title": "Roles",
             "type": "array"
@@ -5281,7 +5283,8 @@
             "items": {
               "enum": [
                 "admin",
-                "user"
+                "user",
+                "document_controller"
               ],
               "type": "string"
             },
@@ -8091,11 +8094,12 @@
             "items": {
               "enum": [
                 "admin",
-                "user"
+                "user",
+                "document_controller"
               ],
               "type": "string"
             },
-            "maxItems": 2,
+            "maxItems": 3,
             "minItems": 1,
             "title": "Roles",
             "type": "array"
@@ -13455,7 +13459,7 @@
     },
     "/commands/CloseReviewCycle": {
       "post": {
-        "description": "Close a cycle. The outcome is the worst answer unless the command states a stricter one.\n\nOnly the person who opened the cycle or the revision's author may close it (an admin closes\nany cycle with ``OverrideReviewOutcome``). A person cannot close with an outcome milder than\nthe worst answer. If a reviewer has not answered, ``reason`` is required (why the cycle closes\nearly). If nobody has answered, the round is ``withdrawn``: that is the only outcome, and the\ndefault.",
+        "description": "Close a cycle. The outcome is the worst answer unless the command states a stricter one.\n\nOnly the person who opened the cycle or the revision's author may close it (a controller closes\nany cycle with ``OverrideReviewOutcome``). A person cannot close with an outcome milder than\nthe worst answer. If a reviewer has not answered, ``reason`` is required (why the cycle closes\nearly). If nobody has answered, the round is ``withdrawn``: that is the only outcome, and the\ndefault.",
         "operationId": "command_CloseReviewCycle",
         "parameters": [
           {
@@ -14846,7 +14850,7 @@
     },
     "/commands/IssueRevision": {
       "post": {
-        "description": "Issue a draft revision with an issue status (IFR, IFC, AFC, ASB). Admin only.",
+        "description": "Issue a draft revision with an issue status (IFR, IFC, AFC, ASB). Controller only.",
         "operationId": "command_IssueRevision",
         "parameters": [
           {
@@ -14953,7 +14957,7 @@
     },
     "/commands/IssueTransmittal": {
       "post": {
-        "description": "Issue a draft transmittal: it is now the record of what was sent (an admin's act).\n\n``issued_on`` defaults to today and is never in the future; an earlier date needs\n``date_reason``, which the event keeps.",
+        "description": "Issue a draft transmittal: it is now the record of what was sent (a controller's act).\n\n``issued_on`` defaults to today and is never in the future; an earlier date needs\n``date_reason``, which the event keeps.",
         "operationId": "command_IssueTransmittal",
         "parameters": [
           {
@@ -15381,7 +15385,7 @@
     },
     "/commands/OverrideReviewOutcome": {
       "post": {
-        "description": "Admin: close a cycle with a stated outcome, even a milder one than the answers given.\n\n``reason`` is required; the event keeps the worst recorded answer (``worst_answer``) so the\nrecord shows what was overruled.",
+        "description": "Controller: close a cycle with a stated outcome, even a milder one than the answers given.\n\n``reason`` is required; the event keeps the worst recorded answer (``worst_answer``) so the\nrecord shows what was overruled.",
         "operationId": "command_OverrideReviewOutcome",
         "parameters": [
           {
@@ -15809,7 +15813,7 @@
     },
     "/commands/RecordReviewOutcome": {
       "post": {
-        "description": "A reviewer's own answer: approved, approved with comments, or rejected. Given once.\n\n``reviewer`` may be left out (it is the caller); if given it must be the caller. To record an\nanswer for someone else an admin uses ``RecordReviewOutcomeOnBehalf``.",
+        "description": "A reviewer's own answer: approved, approved with comments, or rejected. Given once.\n\n``reviewer`` may be left out (it is the caller); if given it must be the caller. To record an\nanswer for someone else a controller uses ``RecordReviewOutcomeOnBehalf``.",
         "operationId": "command_RecordReviewOutcome",
         "parameters": [
           {
@@ -15916,7 +15920,7 @@
     },
     "/commands/RecordReviewOutcomeOnBehalf": {
       "post": {
-        "description": "Admin: record a reviewer's answer for them (they replied by mail, say). A comment says how.\n\nThe event keeps who recorded it (``recorded_by``) next to the reviewer it is for.",
+        "description": "Controller: record a reviewer's answer for them (say, by mail). A comment says how.\n\nThe event keeps who recorded it (``recorded_by``) next to the reviewer it is for.",
         "operationId": "command_RecordReviewOutcomeOnBehalf",
         "parameters": [
           {
@@ -16665,7 +16669,7 @@
     },
     "/commands/RegisterSignedRendition": {
       "post": {
-        "description": "Register the first signed copy of a revision (admin). The reason is optional.\n\nThe signed copy is evidence, so registering it is not open to everyone (ADR-0011). Once a\nrevision has one, a correction is ``ReplaceSignedRendition``.",
+        "description": "Register the first signed copy of a revision (controller). The reason is optional.\n\nThe signed copy is evidence, so registering it is not open to everyone (ADR-0011). Once a\nrevision has one, a correction is ``ReplaceSignedRendition``.",
         "operationId": "command_RegisterSignedRendition",
         "parameters": [
           {
@@ -17093,7 +17097,7 @@
     },
     "/commands/ReplaceSignedRendition": {
       "post": {
-        "description": "Replace the signed copy of a revision by another file, with a reason (admin).\n\nThe signed copy is write-once for everyone else: a correction is an admin's decision and the\nreason is kept in the event.",
+        "description": "Replace the signed copy of a revision by another file, with a reason (controller).\n\nThe signed copy is write-once for everyone else: a correction is a controller's decision and the\nreason is kept in the event.",
         "operationId": "command_ReplaceSignedRendition",
         "parameters": [
           {
@@ -17521,7 +17525,7 @@
     },
     "/commands/SetDocumentConfidentiality": {
       "post": {
-        "description": "Set or clear a document's confidentiality class (admin). The reason is kept.\n\nIn Phase 1 confidentiality is recorded but not enforced: every signed-in person and every\nagent can read all documents and transmittals of a project, including recipient emails.",
+        "description": "Set or clear a document's confidentiality class (controller). The reason is kept.\n\nIn Phase 1 confidentiality is recorded but not enforced: every signed-in person and every\nagent can read all documents and transmittals of a project, including recipient emails.",
         "operationId": "command_SetDocumentConfidentiality",
         "parameters": [
           {
@@ -17842,7 +17846,7 @@
     },
     "/commands/SupersedeDocument": {
       "post": {
-        "description": "Replace a document by another one: the old is Superseded and its links go stale (admin).\n\nThe replacement must be a live document that has a current issued revision; a reason is\nrequired. Its document type may differ (an isometric can be replaced by a general arrangement),\nso the type is not compared.",
+        "description": "Replace a document by another one: the old is Superseded and its links go stale (controller).\n\nThe replacement must be a live document that has a current issued revision; a reason is\nrequired. Its document type may differ (an isometric can be replaced by a general arrangement),\nso the type is not compared.",
         "operationId": "command_SupersedeDocument",
         "parameters": [
           {
@@ -18163,7 +18167,7 @@
     },
     "/commands/UpdateDocument": {
       "post": {
-        "description": "Change a document's title, description or register fields (not its number, its scheme or\nits confidentiality, which an admin sets with ``SetDocumentConfidentiality``).",
+        "description": "Change a document's title, description or register fields (not its number, its scheme or\nits confidentiality, which a document controller sets with ``SetDocumentConfidentiality``).",
         "operationId": "command_UpdateDocument",
         "parameters": [
           {
@@ -18484,7 +18488,7 @@
     },
     "/commands/VoidDocument": {
       "post": {
-        "description": "Void a document that was registered in error. Its links go stale. Admin only.",
+        "description": "Void a document that was registered in error. Its links go stale. Controller only.",
         "operationId": "command_VoidDocument",
         "parameters": [
           {

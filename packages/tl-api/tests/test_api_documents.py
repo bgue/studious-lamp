@@ -1,7 +1,8 @@
 """The documents commands over HTTP: who may run them, and the generic routes that must stay shut.
 
-Access is pinned here (ADR-0011): the controlling acts are the admin's, preparing work is open to
-any signed-in person, and an agent runs none of them.
+Access is pinned here (ADR-0013, which replaced ADR-0011's interim table): the controlling acts
+are the document controller's (an admin runs them too), preparing work is open to any signed-in
+person, and an agent runs none of them.
 """
 
 from __future__ import annotations
@@ -21,47 +22,52 @@ from tl_mod_documents.testing import DocumentsWorld
 PASSWORD = "correct horse battery"
 SCOPE = "project:P123"
 
-#: Command to the access it needs. A change here is a decision (ADR-0011), not a refactor.
+#: Command to the access it needs. A change here is a decision (ADR-0013), not a refactor.
 EXPECTED_ACCESS = {
     "RegisterDocument": "user",
     "UpdateDocument": "user",
-    "SetDocumentConfidentiality": "admin",
-    "SupersedeDocument": "admin",
-    "VoidDocument": "admin",
+    "SetDocumentConfidentiality": "controller",
+    "SupersedeDocument": "controller",
+    "VoidDocument": "controller",
     "CreateRevision": "user",
-    "IssueRevision": "admin",
-    "SupersedeRevision": "admin",
+    "IssueRevision": "controller",
+    "SupersedeRevision": "controller",
     "VoidRevision": "user",
     "AttachRendition": "user",
-    "RegisterSignedRendition": "admin",
-    "ReplaceSignedRendition": "admin",
+    "RegisterSignedRendition": "controller",
+    "ReplaceSignedRendition": "controller",
     "LinkToDocument": "user",
     "RepinDocumentLink": "user",
     "CreateTransmittal": "user",
-    "IssueTransmittal": "admin",
+    "IssueTransmittal": "controller",
     "RecordTransmittalResponse": "user",
     "CloseTransmittal": "user",
     "VoidTransmittal": "user",
     "OpenReviewCycle": "user",
     "RecordReviewOutcome": "user",
     "CloseReviewCycle": "user",
-    "RecordReviewOutcomeOnBehalf": "admin",
-    "OverrideReviewOutcome": "admin",
+    "RecordReviewOutcomeOnBehalf": "controller",
+    "OverrideReviewOutcome": "controller",
 }
 
 
 class People:
-    """An admin (`boss`) and an ordinary person (`bob`), each with a session on the harness."""
+    """An admin (`boss`), a document controller (`dora`) and an ordinary person (`bob`)."""
 
     def __init__(self, harness: Harness) -> None:
         with harness.backend() as uow:
-            for name, roles in (("boss", ["admin"]), ("bob", ["user"])):
+            for name, roles in (
+                ("boss", ["admin"]),
+                ("dora", ["user", "document_controller"]),
+                ("bob", ["user"]),
+            ):
                 accounts.create_account(
                     uow, username=name, display_name=name, kind="person", roles=roles,
                     password=prepare_password(PASSWORD), by="svc:test",
                 )  # fmt: skip
         self.boss = self._client(harness, "boss")
         self.bob = self._client(harness, "bob")
+        self.dora = self._client(harness, "dora")
         self.agent = TestClient(harness.app, raise_server_exceptions=False)
         token = add_token(harness.settings.tokens_path, "agent:triage")
         self.agent.headers.update({"Authorization": f"Bearer {token}"})
@@ -92,18 +98,37 @@ def test_every_documents_command_has_the_access_pinned_here() -> None:
     assert {c.model.__name__: c.access for c in API_COMMANDS} == EXPECTED_ACCESS
 
 
-def test_an_admin_command_is_refused_to_a_person_and_a_user_command_is_not(
-    people: People,
-) -> None:
+def test_the_access_matrix_user_controller_admin(people: People) -> None:
+    """A controlling act: a user is refused, a document controller and an admin are not."""
     for name, access in EXPECTED_ACCESS.items():
         refused = run(people.bob, name)  # an empty body: never the access check that fails first
-        if access == "admin":
+        if access == "controller":
             assert refused.status_code == 403, name
             assert refused.json()["error"] == "forbidden", name
-            assert f"admin.command.{name}" in refused.json()["message"], name
+            assert f"control.command.{name}" in refused.json()["message"], name
         else:
             assert refused.status_code != 403, (name, refused.text)
-        assert run(people.boss, name).status_code != 403, name
+        for who in (people.dora, people.boss):
+            assert run(who, name).status_code != 403, name
+
+
+def test_the_controller_is_not_an_admin_over_http(people: People) -> None:
+    """The role opens the controlling acts and nothing under `admin.*` (ADR-0013)."""
+    for who in (people.dora, people.bob):
+        assert who.get("/admin/accounts").status_code == 403
+        body = {"username": "eve", "display_name": "Eve", "roles": ["document_controller"]}
+        assert who.post("/admin/accounts", json=body).status_code == 403
+        assert who.post("/admin/tokens", json={"account_id": "x", "label": "x"}).status_code == 403
+    # the two link recovery commands stay the admin's (ADR-0013)
+    ours = {"link_id": "x", "status": "broken", "reason": "wrong target"}
+    assert run(people.dora, "AdminFlagLink", **ours).status_code == 403
+    assert run(people.dora, "AdminRetractLink", link_id="x", reason="x").status_code == 403
+    # a controller cannot give itself the admin role, nor reach the role route
+    me = people.dora.get("/auth/me").json()
+    roles = people.dora.put(
+        f"/admin/accounts/{me['account_id']}/roles", json={"roles": ["admin", "user"]}
+    )
+    assert roles.status_code == 403
 
 
 def test_an_agent_runs_none_of_them(people: People) -> None:
@@ -113,7 +138,7 @@ def test_an_agent_runs_none_of_them(people: People) -> None:
         assert refused.json()["error"] == "agent_must_propose", name
 
 
-def test_a_person_prepares_and_an_admin_controls_over_http(
+def test_a_person_prepares_and_a_controller_controls_over_http(
     people: People, world: DocumentsWorld
 ) -> None:
     made = run(people.bob, "RegisterDocument", number="ISO-1234", title="Isometric", doc_type="ISO")
@@ -124,8 +149,10 @@ def test_a_person_prepares_and_an_admin_controls_over_http(
     rev_id = revision.json()["stream_id"]
     world.attach("ISO-1234", "A")
     refused = run(people.bob, "IssueRevision", stream_id=rev_id, issue_status="IFR")
-    assert refused.status_code == 403 and "admin.command.IssueRevision" in refused.json()["message"]
-    issued = run(people.boss, "IssueRevision", stream_id=rev_id, issue_status="IFR")
+    assert (
+        refused.status_code == 403 and "control.command.IssueRevision" in refused.json()["message"]
+    )
+    issued = run(people.dora, "IssueRevision", stream_id=rev_id, issue_status="IFR")
     assert issued.status_code == 200, issued.text
     # the same person may not void or supersede, nor set the confidentiality
     for name, body in (
@@ -138,7 +165,7 @@ def test_a_person_prepares_and_an_admin_controls_over_http(
         assert run(people.bob, name, **body).status_code == 403, name
     assert (
         run(
-            people.boss,
+            people.dora,
             "SetDocumentConfidentiality",
             stream_id=doc_id,
             confidentiality="internal",

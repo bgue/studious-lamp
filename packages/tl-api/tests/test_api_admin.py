@@ -18,13 +18,14 @@ WRONG = "this is not the password"
 
 
 class Cast:
-    """An admin (boss), a user (bob) and an agent (triage) with a token, on the harness ledger."""
+    """An admin (boss), a user (bob), a document controller (dora) and an agent (triage)."""
 
     def __init__(self, harness: Harness) -> None:
         self.harness = harness
         with harness.backend() as uow:
             self.boss = self._person(uow, "boss", ["admin"])
             self.bob = self._person(uow, "bob", ["user"])
+            self.dora = self._person(uow, "dora", ["document_controller", "user"])
             bot = accounts.create_account(
                 uow, username="triage", display_name="Triage", kind="agent", roles=["user"],
                 password=None, by="svc:test",
@@ -90,6 +91,7 @@ def test_every_admin_route_refuses_everyone_who_is_not_an_admin(cast: Cast) -> N
     assert len(routes) >= 10
     credentials = {
         "user": cast.bearer("bob"),
+        "document controller": cast.bearer("dora"),
         "agent": {"Authorization": f"Bearer {cast.agent_token}"},
         "dev token": cast.harness.headers("user:alice"),
     }
@@ -106,8 +108,9 @@ def test_listing_shows_every_account_and_no_secret(cast: Cast) -> None:
     response = cast.client.get("/admin/accounts", headers=cast.admin)
     assert response.status_code == 200
     rows = response.json()
-    assert [r["username"] for r in rows] == ["boss", "bob", "triage"]
-    assert rows[0]["roles"] == ["admin"] and rows[2]["kind"] == "agent"
+    assert [r["username"] for r in rows] == ["boss", "bob", "dora", "triage"]
+    assert rows[0]["roles"] == ["admin"] and rows[3]["kind"] == "agent"
+    assert rows[2]["roles"] == ["document_controller", "user"]
     assert all(r["locked_until"] is None for r in rows)
     assert "scrypt" not in response.text and PASSWORD not in response.text
 
@@ -516,3 +519,80 @@ def test_no_password_is_hashed_while_a_write_transaction_is_open(
     )
     assert reset.status_code == 200
     assert watch.hashes >= 2
+
+
+def test_the_document_controller_role_is_granted_and_revoked_over_http(cast: Cast) -> None:
+    bob = cast.bearer("bob")
+    assert cast.client.get("/auth/me", headers=bob).json()["roles"] == ["user"]
+    granted = cast.client.put(
+        f"/admin/accounts/{cast.bob}/roles",
+        json={"roles": ["user", "document_controller"], "reason": "takes over document control"},
+        headers=cast.admin,
+    )
+    assert granted.status_code == 200, granted.text
+    assert granted.json()["roles"] == ["document_controller", "user"]
+    me = cast.client.get("/auth/me", headers=bob).json()
+    assert me["roles"] == ["document_controller", "user"]
+    # a controller is not an admin: the admin routes stay shut
+    assert cast.client.get("/admin/accounts", headers=bob).status_code == 403
+    revoked = cast.client.put(
+        f"/admin/accounts/{cast.bob}/roles", json={"roles": ["user"]}, headers=cast.admin
+    )
+    assert revoked.status_code == 200 and revoked.json()["roles"] == ["user"]
+    sets = [e for e in cast.events() if e[0] == "Account.RolesSet"]
+    assert len(sets) == 2 and all(actor == "user:boss" for _, actor, _ in sets)
+    assert "document_controller" in sets[0][2]
+
+
+def test_a_document_controller_cannot_hand_out_roles_not_even_to_itself(cast: Cast) -> None:
+    dora = cast.bearer("dora")
+    for target in (cast.dora, cast.bob):
+        for roles in (["admin", "user"], ["user", "document_controller"], ["user"]):
+            refused = cast.client.put(
+                f"/admin/accounts/{target}/roles", json={"roles": roles}, headers=dora
+            )
+            assert refused.status_code == 403 and refused.json()["error"] == "forbidden"
+    created = cast.client.post(
+        "/admin/accounts",
+        json={"username": "eve", "display_name": "Eve", "roles": ["document_controller"]},
+        headers=dora,
+    )
+    assert created.status_code == 403
+    assert cast.client.get("/auth/me", headers=dora).json()["roles"] == [
+        "document_controller",
+        "user",
+    ]
+
+
+def test_an_agent_account_is_refused_the_role_and_nothing_is_written(cast: Cast) -> None:
+    before = len(cast.events())
+    for roles in (["document_controller"], ["user", "document_controller"]):
+        refused = cast.client.put(
+            f"/admin/accounts/{cast.bot}/roles", json={"roles": roles}, headers=cast.admin
+        )
+        assert refused.status_code == 422 and refused.json()["error"] == "invalid_account"
+        made = cast.client.post(
+            "/admin/accounts",
+            json={"username": "bot2", "display_name": "B", "kind": "agent", "roles": roles},
+            headers=cast.admin,
+        )
+        assert made.status_code == 422 and made.json()["error"] == "invalid_account"
+    assert len(cast.events()) == before
+
+
+def test_a_sim_account_may_be_made_a_document_controller_over_http(cast: Cast) -> None:
+    made = cast.client.post(
+        "/admin/accounts",
+        json={"username": "sim-dc", "display_name": "Sim DC", "kind": "sim",
+              "roles": ["user", "document_controller"]},
+        headers=cast.admin,
+    )  # fmt: skip
+    assert made.status_code == 201, made.text
+    assert made.json()["roles"] == ["document_controller", "user"]
+
+
+def test_an_unknown_role_is_a_422_before_the_service(cast: Cast) -> None:
+    refused = cast.client.put(
+        f"/admin/accounts/{cast.bob}/roles", json={"roles": ["controller"]}, headers=cast.admin
+    )
+    assert refused.status_code == 422

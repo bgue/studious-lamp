@@ -22,9 +22,9 @@ How a new rendition treats the old ones depends on the kind (P1-I2 security revi
 
 * ``native`` and ``pdf``: the newest is the copy; the older one is superseded.
 * ``markup``: additive. Every reviewer's markup stays current; one never replaces another's.
-* ``signed``: an admin's act from the first copy (ADR-0011). ``AttachRendition`` refuses it for
-  everyone; the admin command ``RegisterSignedRendition`` registers the first signed copy, and the
-  write-once rule keeps it: a correction is ``ReplaceSignedRendition`` with a reason, which
+* ``signed``: a controller's act from the first copy (ADR-0013). ``AttachRendition`` refuses it for
+  everyone; the controller command ``RegisterSignedRendition`` registers the first signed copy,
+  and the write-once rule keeps it: a correction is ``ReplaceSignedRendition`` with a reason, which
   supersedes it.
 
 ``markup`` is capped (``limits.MAX_MARKUPS`` current ones per revision), so a loop cannot fill a
@@ -93,7 +93,7 @@ class AttachRendition(Command):
 
 
 class RegisterSignedRendition(Command):
-    """Register the first signed copy of a revision (admin). The reason is optional.
+    """Register the first signed copy of a revision (controller). The reason is optional.
 
     The signed copy is evidence, so registering it is not open to everyone (ADR-0011). Once a
     revision has one, a correction is ``ReplaceSignedRendition``.
@@ -108,9 +108,9 @@ class RegisterSignedRendition(Command):
 
 
 class ReplaceSignedRendition(Command):
-    """Replace the signed copy of a revision by another file, with a reason (admin).
+    """Replace the signed copy of a revision by another file, with a reason (controller).
 
-    The signed copy is write-once for everyone else: a correction is an admin's decision and the
+    The signed copy is write-once for everyone else: a correction is a controller's decision and the
     reason is kept in the event.
     """
 
@@ -159,13 +159,14 @@ def check_rendition(
     if kind == "signed":
         if mode == "attach":
             raise RenditionNotAllowedError(
-                "the signed copy is registered by an admin with RegisterSignedRendition "
-                "(ReplaceSignedRendition to correct it)"
+                "the signed copy is registered by a document controller with "
+                "RegisterSignedRendition (ReplaceSignedRendition to correct it)"
             )
         if current and mode == "register_signed":
             raise RenditionNotAllowedError(
                 f"revision {rev.code} of {rev.document_number} already has a signed copy, which "
-                "is final; an admin replaces it with ReplaceSignedRendition and a reason"
+                "is final; a document controller replaces it with ReplaceSignedRendition "
+                "and a reason"
             )
         if not current and mode == "replace_signed":
             raise RenditionNotAllowedError(
@@ -280,7 +281,7 @@ def handle_attach_rendition(uow: UnitOfWork, cmd: AttachRendition) -> CommandRes
 def handle_register_signed_rendition(
     uow: UnitOfWork, cmd: RegisterSignedRendition
 ) -> CommandResult:
-    """Register the file as the revision's first signed copy. Admin only.
+    """Register the file as the revision's first signed copy. Controller only.
 
     Raises as ``handle_attach_rendition`` does, and ``RenditionNotAllowedError`` when the file is
     not in the signed slot or the revision already has a signed copy.
@@ -289,7 +290,7 @@ def handle_register_signed_rendition(
 
 
 def handle_replace_signed_rendition(uow: UnitOfWork, cmd: ReplaceSignedRendition) -> CommandResult:
-    """Register the file as the signed copy and supersede the current one. Admin only.
+    """Register the file as the signed copy and supersede the current one. Controller only.
 
     Raises as ``handle_attach_rendition`` does, and ``RenditionNotAllowedError`` when the revision
     has no signed copy to replace.

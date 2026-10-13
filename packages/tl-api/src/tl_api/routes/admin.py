@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
 from tl_core.auth import accounts, queries
 from tl_core.auth.password import prepare_password
-from tl_core.auth.types import AccountKind, AccountView, AgentTokenView, Role
+from tl_core.auth.types import ROLES, AccountKind, AccountView, AgentTokenView, Role
 from tl_core.util import utcnow
 
 from tl_api.auth import guard
@@ -49,7 +49,7 @@ class CreateAccountBody(BaseModel):
     username: Annotated[str, Field(min_length=1, max_length=256)]
     display_name: Annotated[str, Field(min_length=1, max_length=256)]
     kind: AccountKind = "person"
-    roles: list[Role] = Field(default_factory=lambda: ["user"], min_length=1, max_length=2)
+    roles: list[Role] = Field(default_factory=lambda: ["user"], min_length=1, max_length=len(ROLES))
     password: Annotated[str, Field(min_length=1, max_length=MAX_SECRET)] | None = Field(
         default=None, description="Never for an `agent` account; it gets a token instead."
     )
@@ -60,7 +60,7 @@ class RolesBody(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    roles: list[Role] = Field(min_length=1, max_length=2)
+    roles: list[Role] = Field(min_length=1, max_length=len(ROLES))
     reason: Reason = None
 
 

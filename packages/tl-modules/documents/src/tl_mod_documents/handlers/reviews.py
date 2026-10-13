@@ -2,9 +2,9 @@
 
 A review cycle (``documents.ReviewCycle``) asks named reviewers to review one revision by a date
 and collects an outcome from each. Reviewers are people with an account, and at least one of them is
-not the revision's author. A reviewer records their own answer; an admin can record one on their
-behalf (with a comment), and only an admin can close a cycle with an outcome milder than the worst
-answer given (P1-I2 security review, ADR-0011).
+not the revision's author. A reviewer records their own answer; a controller can record one on their
+behalf (with a comment), and only a controller can close a cycle with an outcome milder than the
+worst answer given (P1-I2 security review, ADR-0011, ADR-0013).
 
 While a cycle is open the revision is In Review: its native and PDF renditions are frozen
 (reviewers add markups), and it cannot be issued. Closing the cycle returns the revision to Draft,
@@ -113,7 +113,7 @@ class RecordReviewOutcome(Command):
     """A reviewer's own answer: approved, approved with comments, or rejected. Given once.
 
     ``reviewer`` may be left out (it is the caller); if given it must be the caller. To record an
-    answer for someone else an admin uses ``RecordReviewOutcomeOnBehalf``.
+    answer for someone else a controller uses ``RecordReviewOutcomeOnBehalf``.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -126,7 +126,7 @@ class RecordReviewOutcome(Command):
 
 
 class RecordReviewOutcomeOnBehalf(Command):
-    """Admin: record a reviewer's answer for them (they replied by mail, say). A comment says how.
+    """Controller: record a reviewer's answer for them (say, by mail). A comment says how.
 
     The event keeps who recorded it (``recorded_by``) next to the reviewer it is for.
     """
@@ -148,7 +148,7 @@ class RecordReviewOutcomeOnBehalf(Command):
 class CloseReviewCycle(Command):
     """Close a cycle. The outcome is the worst answer unless the command states a stricter one.
 
-    Only the person who opened the cycle or the revision's author may close it (an admin closes
+    Only the person who opened the cycle or the revision's author may close it (a controller closes
     any cycle with ``OverrideReviewOutcome``). A person cannot close with an outcome milder than
     the worst answer. If a reviewer has not answered, ``reason`` is required (why the cycle closes
     early). If nobody has answered, the round is ``withdrawn``: that is the only outcome, and the
@@ -164,7 +164,7 @@ class CloseReviewCycle(Command):
 
 
 class OverrideReviewOutcome(Command):
-    """Admin: close a cycle with a stated outcome, even a milder one than the answers given.
+    """Controller: close a cycle with a stated outcome, even a milder one than the answers given.
 
     ``reason`` is required; the event keeps the worst recorded answer (``worst_answer``) so the
     record shows what was overruled.
@@ -320,7 +320,8 @@ def handle_record_review_outcome(uow: UnitOfWork, cmd: RecordReviewOutcome) -> C
     reviewer = (cmd.reviewer or cmd.actor).strip()
     if reviewer != cmd.actor:
         raise NotYourReviewError(
-            f"{cmd.actor} cannot answer for {reviewer}; an admin can record it on their behalf"
+            f"{cmd.actor} cannot answer for {reviewer}; a document controller can record it "
+            "on their behalf"
         )
     return _record(
         uow,
@@ -337,7 +338,7 @@ def handle_record_review_outcome(uow: UnitOfWork, cmd: RecordReviewOutcome) -> C
 def handle_record_review_outcome_on_behalf(
     uow: UnitOfWork, cmd: RecordReviewOutcomeOnBehalf
 ) -> CommandResult:
-    """Append ``ReviewCycle.OutcomeRecorded`` for another reviewer; the event names the admin.
+    """Append ``ReviewCycle.OutcomeRecorded`` for another reviewer; the event names the controller.
 
     Raises what ``handle_record_review_outcome`` raises, bar ``NotYourReviewError``.
     """
@@ -412,7 +413,7 @@ def handle_close_review_cycle(uow: UnitOfWork, cmd: CloseReviewCycle) -> Command
     if cmd.actor not in (opener, _author_of(uow, cycle.revision_id)):
         raise NotYourReviewError(
             f"{cmd.actor} neither opened {cycle.key} nor wrote the revision; "
-            "an admin closes it with OverrideReviewOutcome"
+            "a document controller closes it with OverrideReviewOutcome"
         )
     reviewers = registry.reviewers_of(uow.conn(), cycle.id)
     answered = [r.outcome for r in reviewers if r.outcome is not None]
@@ -428,21 +429,21 @@ def handle_close_review_cycle(uow: UnitOfWork, cmd: CloseReviewCycle) -> Command
             raise InvalidReviewError(f"{cycle.key} has answers; it cannot be withdrawn")
         if _SEVERITY[outcome] < _SEVERITY[worst]:
             raise InvalidReviewError(
-                f"{cycle.key} has a {worst} answer; only an admin can close it as {outcome} "
-                "(OverrideReviewOutcome)"
+                f"{cycle.key} has a {worst} answer; only a document controller can close it as "
+                f"{outcome} (OverrideReviewOutcome)"
             )
     else:
         outcome = cmd.outcome or "withdrawn"
         if outcome != "withdrawn":
             raise InvalidReviewError(
                 f"nobody has answered {cycle.key}; it is closed as withdrawn, "
-                "or by an admin with OverrideReviewOutcome"
+                "or by a document controller with OverrideReviewOutcome"
             )
     return _close(uow, cmd, cycle, outcome, cmd.reason, None, cmd.expected_version)
 
 
 def handle_override_review_outcome(uow: UnitOfWork, cmd: OverrideReviewOutcome) -> CommandResult:
-    """Append ``ReviewCycle.Closed`` with the outcome the admin states and why.
+    """Append ``ReviewCycle.Closed`` with the outcome the controller states and why.
 
     Raises ``ReviewNotFoundError`` and ``ReviewStateError`` (already closed).
     """

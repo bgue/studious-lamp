@@ -210,7 +210,9 @@ def create_app(
         feed=feed,
         settings=cfg,
         identity=provider,
-        authorizer=authorizer if authorizer is not None else RoleAuthorizer(),
+        authorizer=authorizer
+        if authorizer is not None
+        else RoleAuthorizer(controller_actions=commands.controller_actions()),
         resolver=resolver,
         files=files_service,
         objects=object_store,

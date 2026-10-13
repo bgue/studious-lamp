@@ -14,7 +14,7 @@ from tl_core.services.commands import CommandResult
 from tl_mod_documents import reports, views
 from tl_mod_documents.handlers.documents import RegisterDocument
 from tl_mod_documents.handlers.revisions import CreateRevision
-from tl_mod_documents.handlers.transmittals import CreateTransmittal
+from tl_mod_documents.handlers.transmittals import CreateTransmittal, IssueTransmittal
 from tl_mod_documents.resolver import RepinDocumentLink
 
 from tl_api.client.base import ApiClientBase, quote
@@ -97,6 +97,10 @@ class DocumentsApi(ApiClientBase):
     def create_transmittal(self, cmd: CreateTransmittal) -> CommandResult:
         """Draft a transmittal (``POST /commands/CreateTransmittal``); the token's actor is used."""
         return self._command("CreateTransmittal", cmd)
+
+    def issue_transmittal(self, cmd: IssueTransmittal) -> CommandResult:
+        """Issue a draft transmittal (``POST /commands/IssueTransmittal``): a controller's act."""
+        return self._command("IssueTransmittal", cmd)
 
     def register_document(self, cmd: RegisterDocument) -> CommandResult:
         """Register a document under its number (``POST /commands/RegisterDocument``)."""
