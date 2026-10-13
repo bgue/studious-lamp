@@ -1,0 +1,104 @@
+<svg class="rich-terminal" viewBox="0 0 1458 416.0" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    
+    
+
+    .terminal-2158109258-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-2158109258-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-2158109258-r1 { fill: #9a9b99;font-style: italic; }
+.terminal-2158109258-r2 { fill: #c5c8c6 }
+.terminal-2158109258-r3 { fill: #98a84b;font-weight: bold }
+.terminal-2158109258-r4 { fill: #c5c8c6;font-weight: bold }
+.terminal-2158109258-r5 { fill: #cc555a }
+    </style>
+
+    <defs>
+    <clipPath id="terminal-2158109258-clip-terminal">
+      <rect x="0" y="0" width="1438.6" height="365.0" />
+    </clipPath>
+    <clipPath id="terminal-2158109258-line-0">
+    <rect x="0" y="1.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2158109258-line-1">
+    <rect x="0" y="25.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2158109258-line-2">
+    <rect x="0" y="50.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2158109258-line-3">
+    <rect x="0" y="74.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2158109258-line-4">
+    <rect x="0" y="99.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2158109258-line-5">
+    <rect x="0" y="123.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2158109258-line-6">
+    <rect x="0" y="147.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2158109258-line-7">
+    <rect x="0" y="172.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2158109258-line-8">
+    <rect x="0" y="196.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2158109258-line-9">
+    <rect x="0" y="221.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2158109258-line-10">
+    <rect x="0" y="245.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2158109258-line-11">
+    <rect x="0" y="269.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2158109258-line-12">
+    <rect x="0" y="294.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2158109258-line-13">
+    <rect x="0" y="318.7" width="1439.6" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="414" rx="8"/><text class="terminal-2158109258-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">What&#160;a&#160;plain&#160;user&#160;(amy)&#160;is&#160;refused</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-2158109258-clip-terminal)">
+    
+    <g class="terminal-2158109258-matrix">
+    <text class="terminal-2158109258-r1" x="0" y="20" textLength="805.2" clip-path="url(#terminal-2158109258-line-0)">#&#160;amy&#160;has&#160;the&#160;role&#160;`user`:&#160;she&#160;registers,&#160;edits,&#160;links&#160;and&#160;drafts;</text><text class="terminal-2158109258-r2" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-2158109258-line-0)">
+</text><text class="terminal-2158109258-r1" x="0" y="44.4" textLength="878.4" clip-path="url(#terminal-2158109258-line-1)">#&#160;controlling&#160;acts&#160;(issue,&#160;load&#160;standards,&#160;apply&#160;imports)&#160;are&#160;admin&#160;work</text><text class="terminal-2158109258-r2" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-2158109258-line-1)">
+</text><text class="terminal-2158109258-r3" x="0" y="68.8" textLength="61" clip-path="url(#terminal-2158109258-line-2)">amy$&#160;</text><text class="terminal-2158109258-r4" x="61" y="68.8" textLength="683.2" clip-path="url(#terminal-2158109258-line-2)">tl&#160;standards&#160;load&#160;standards/co.acme.standards@1.0.0.yaml</text><text class="terminal-2158109258-r2" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-2158109258-line-2)">
+</text><text class="terminal-2158109258-r5" x="0" y="93.2" textLength="622.2" clip-path="url(#terminal-2158109258-line-3)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-2158109258-r2" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-2158109258-line-3)">
+</text><text class="terminal-2158109258-r3" x="0" y="117.6" textLength="61" clip-path="url(#terminal-2158109258-line-4)">amy$&#160;</text><text class="terminal-2158109258-r4" x="61" y="117.6" textLength="671" clip-path="url(#terminal-2158109258-line-4)">tl&#160;doc&#160;rev&#160;issue&#160;ISO-1234&#160;D&#160;--project&#160;P123&#160;--status&#160;IFC</text><text class="terminal-2158109258-r2" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-2158109258-line-4)">
+</text><text class="terminal-2158109258-r5" x="0" y="142" textLength="622.2" clip-path="url(#terminal-2158109258-line-5)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-2158109258-r2" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-2158109258-line-5)">
+</text><text class="terminal-2158109258-r3" x="0" y="166.4" textLength="61" clip-path="url(#terminal-2158109258-line-6)">amy$&#160;</text><text class="terminal-2158109258-r4" x="61" y="166.4" textLength="597.8" clip-path="url(#terminal-2158109258-line-6)">tl&#160;transmittal&#160;issue&#160;P123-TRN-0001&#160;--project&#160;P123</text><text class="terminal-2158109258-r2" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-2158109258-line-6)">
+</text><text class="terminal-2158109258-r5" x="0" y="190.8" textLength="622.2" clip-path="url(#terminal-2158109258-line-7)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-2158109258-r2" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-2158109258-line-7)">
+</text><text class="terminal-2158109258-r3" x="0" y="215.2" textLength="61" clip-path="url(#terminal-2158109258-line-8)">amy$&#160;</text><text class="terminal-2158109258-r4" x="61" y="215.2" textLength="1317.6" clip-path="url(#terminal-2158109258-line-8)">tl&#160;tag&#160;import&#160;legacy/instrument-index.csv&#160;--mapping&#160;templates/tag-list-instrument-index.yaml&#160;--project&#160;P123&#160;</text><text class="terminal-2158109258-r2" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-2158109258-line-8)">
+</text><text class="terminal-2158109258-r4" x="0" y="239.6" textLength="85.4" clip-path="url(#terminal-2158109258-line-9)">--apply</text><text class="terminal-2158109258-r2" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-2158109258-line-9)">
+</text><text class="terminal-2158109258-r5" x="0" y="264" textLength="622.2" clip-path="url(#terminal-2158109258-line-10)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-2158109258-r2" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-2158109258-line-10)">
+</text><text class="terminal-2158109258-r3" x="0" y="288.4" textLength="61" clip-path="url(#terminal-2158109258-line-11)">amy$&#160;</text><text class="terminal-2158109258-r4" x="61" y="288.4" textLength="207.4" clip-path="url(#terminal-2158109258-line-11)">tl&#160;admin&#160;token&#160;ls</text><text class="terminal-2158109258-r2" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-2158109258-line-11)">
+</text><text class="terminal-2158109258-r5" x="0" y="312.8" textLength="622.2" clip-path="url(#terminal-2158109258-line-12)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-2158109258-r2" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-2158109258-line-12)">
+</text><text class="terminal-2158109258-r1" x="0" y="337.2" textLength="1061.4" clip-path="url(#terminal-2158109258-line-13)">#&#160;the&#160;API&#160;refuses&#160;the&#160;same&#160;acts&#160;with&#160;403,&#160;and&#160;no&#160;one,&#160;admin&#160;or&#160;not,&#160;can&#160;void&#160;a&#160;document</text><text class="terminal-2158109258-r2" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-2158109258-line-13)">
+</text><text class="terminal-2158109258-r1" x="0" y="361.6" textLength="841.8" clip-path="url(#terminal-2158109258-line-14)">#&#160;through&#160;a&#160;generic&#160;command&#160;(tests/auth&#160;and&#160;the&#160;P1-I2&#160;demo,&#160;clause&#160;8)</text><text class="terminal-2158109258-r2" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-2158109258-line-14)">
+</text>
+    </g>
+    </g>
+</svg>

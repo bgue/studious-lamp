@@ -1,0 +1,208 @@
+<svg class="rich-terminal" viewBox="0 0 1458 1050.4" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    
+    
+
+    .terminal-1286051787-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-1286051787-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-1286051787-r1 { fill: #98a84b;font-weight: bold }
+.terminal-1286051787-r2 { fill: #c5c8c6;font-weight: bold }
+.terminal-1286051787-r3 { fill: #c5c8c6 }
+.terminal-1286051787-r4 { fill: #cc555a }
+.terminal-1286051787-r5 { fill: #9a9b99;font-style: italic; }
+    </style>
+
+    <defs>
+    <clipPath id="terminal-1286051787-clip-terminal">
+      <rect x="0" y="0" width="1438.6" height="999.4" />
+    </clipPath>
+    <clipPath id="terminal-1286051787-line-0">
+    <rect x="0" y="1.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-1">
+    <rect x="0" y="25.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-2">
+    <rect x="0" y="50.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-3">
+    <rect x="0" y="74.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-4">
+    <rect x="0" y="99.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-5">
+    <rect x="0" y="123.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-6">
+    <rect x="0" y="147.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-7">
+    <rect x="0" y="172.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-8">
+    <rect x="0" y="196.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-9">
+    <rect x="0" y="221.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-10">
+    <rect x="0" y="245.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-11">
+    <rect x="0" y="269.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-12">
+    <rect x="0" y="294.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-13">
+    <rect x="0" y="318.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-14">
+    <rect x="0" y="343.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-15">
+    <rect x="0" y="367.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-16">
+    <rect x="0" y="391.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-17">
+    <rect x="0" y="416.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-18">
+    <rect x="0" y="440.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-19">
+    <rect x="0" y="465.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-20">
+    <rect x="0" y="489.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-21">
+    <rect x="0" y="513.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-22">
+    <rect x="0" y="538.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-23">
+    <rect x="0" y="562.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-24">
+    <rect x="0" y="587.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-25">
+    <rect x="0" y="611.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-26">
+    <rect x="0" y="635.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-27">
+    <rect x="0" y="660.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-28">
+    <rect x="0" y="684.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-29">
+    <rect x="0" y="709.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-30">
+    <rect x="0" y="733.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-31">
+    <rect x="0" y="757.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-32">
+    <rect x="0" y="782.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-33">
+    <rect x="0" y="806.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-34">
+    <rect x="0" y="831.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-35">
+    <rect x="0" y="855.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-36">
+    <rect x="0" y="879.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-37">
+    <rect x="0" y="904.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-38">
+    <rect x="0" y="928.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1286051787-line-39">
+    <rect x="0" y="953.1" width="1439.6" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="1048.4" rx="8"/><text class="terminal-1286051787-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">An&#160;engineering&#160;tag:&#160;parsed,&#160;checked&#160;against&#160;its&#160;class,&#160;renamed&#160;by&#160;supersession</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-1286051787-clip-terminal)">
+    
+    <g class="terminal-1286051787-matrix">
+    <text class="terminal-1286051787-r1" x="0" y="20" textLength="73.2" clip-path="url(#terminal-1286051787-line-0)">demo$&#160;</text><text class="terminal-1286051787-r2" x="73.2" y="20" textLength="1146.8" clip-path="url(#terminal-1286051787-line-0)">tl&#160;tag&#160;create&#160;47-FV-2001&#160;--class&#160;ControlValve&#160;--service&#160;&#x27;Feed&#160;gas&#160;flow&#160;control&#x27;&#160;--project&#160;P123</text><text class="terminal-1286051787-r3" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-1286051787-line-0)">
+</text><text class="terminal-1286051787-r3" x="0" y="44.4" textLength="414.8" clip-path="url(#terminal-1286051787-line-1)">created&#160;01M4QT2GQ000000000000000B1</text><text class="terminal-1286051787-r3" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-1286051787-line-1)">
+</text><text class="terminal-1286051787-r3" x="0" y="68.8" textLength="170.8" clip-path="url(#terminal-1286051787-line-2)">tag&#160;47-FV-2001</text><text class="terminal-1286051787-r3" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-1286051787-line-2)">
+</text><text class="terminal-1286051787-r3" x="0" y="93.2" textLength="219.6" clip-path="url(#terminal-1286051787-line-3)">class&#160;ControlValve</text><text class="terminal-1286051787-r3" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-1286051787-line-3)">
+</text><text class="terminal-1286051787-r3" x="0" y="117.6" textLength="451.4" clip-path="url(#terminal-1286051787-line-4)">segments&#160;area=47&#160;mnemonic=FV&#160;seq=2001</text><text class="terminal-1286051787-r3" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-1286051787-line-4)">
+</text><text class="terminal-1286051787-r3" x="0" y="142" textLength="195.2" clip-path="url(#terminal-1286051787-line-5)">number_status&#160;ok</text><text class="terminal-1286051787-r3" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-1286051787-line-5)">
+</text><text class="terminal-1286051787-r3" x="0" y="166.4" textLength="305" clip-path="url(#terminal-1286051787-line-6)">conformance&#160;nonconformant</text><text class="terminal-1286051787-r3" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-1286051787-line-6)">
+</text><text class="terminal-1286051787-r3" x="0" y="190.8" textLength="1403" clip-path="url(#terminal-1286051787-line-7)">issue&#160;nonconformant&#160;psets.valve_data&#160;class_required:&#160;Valve&#160;data&#160;is&#160;required&#160;by&#160;the&#160;record&#x27;s&#160;class&#160;and&#160;has&#160;no&#160;values</text><text class="terminal-1286051787-r3" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-1286051787-line-7)">
+</text><text class="terminal-1286051787-r3" x="0" y="215.2" textLength="1061.4" clip-path="url(#terminal-1286051787-line-8)">issue&#160;warning&#160;psets.valve_data.manufacturer&#160;required_in_state:&#160;Manufacturer&#160;is&#160;required</text><text class="terminal-1286051787-r3" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-1286051787-line-8)">
+</text><text class="terminal-1286051787-r1" x="0" y="239.6" textLength="73.2" clip-path="url(#terminal-1286051787-line-9)">demo$&#160;</text><text class="terminal-1286051787-r2" x="73.2" y="239.6" textLength="439.2" clip-path="url(#terminal-1286051787-line-9)">tl&#160;tag&#160;create&#160;47-XX-1&#160;--project&#160;P123</text><text class="terminal-1286051787-r3" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-1286051787-line-9)">
+</text><text class="terminal-1286051787-r4" x="0" y="264" textLength="1378.6" clip-path="url(#terminal-1286051787-line-10)">error:&#160;tag&#160;number&#160;&#x27;47-XX-1&#x27;:&#160;the&#160;sequence&#160;&#x27;1&#x27;&#160;must&#160;be&#160;written&#160;with&#160;4&#160;digits,&#160;like&#160;0001;&#160;&#x27;XX&#x27;&#160;is&#160;not&#160;a&#160;registered&#160;</text><text class="terminal-1286051787-r3" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-1286051787-line-10)">
+</text><text class="terminal-1286051787-r4" x="0" y="288.4" textLength="97.6" clip-path="url(#terminal-1286051787-line-11)">mnemonic</text><text class="terminal-1286051787-r3" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-1286051787-line-11)">
+</text><text class="terminal-1286051787-r4" x="0" y="312.8" textLength="902.8" clip-path="url(#terminal-1286051787-line-12)">&#160;&#160;-&#160;seq:&#160;the&#160;sequence&#160;&#x27;1&#x27;&#160;must&#160;be&#160;written&#160;with&#160;4&#160;digits,&#160;like&#160;0001&#160;(error)</text><text class="terminal-1286051787-r3" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-1286051787-line-12)">
+</text><text class="terminal-1286051787-r4" x="0" y="337.2" textLength="671" clip-path="url(#terminal-1286051787-line-13)">&#160;&#160;-&#160;mnemonic:&#160;&#x27;XX&#x27;&#160;is&#160;not&#160;a&#160;registered&#160;mnemonic&#160;(error)</text><text class="terminal-1286051787-r3" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-1286051787-line-13)">
+</text><text class="terminal-1286051787-r5" x="0" y="361.6" textLength="854" clip-path="url(#terminal-1286051787-line-14)">#&#160;filling&#160;in&#160;the&#160;property&#160;set&#160;the&#160;class&#160;requires&#160;makes&#160;the&#160;tag&#160;conform</text><text class="terminal-1286051787-r3" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-1286051787-line-14)">
+</text><text class="terminal-1286051787-r1" x="0" y="386" textLength="73.2" clip-path="url(#terminal-1286051787-line-15)">demo$&#160;</text><text class="terminal-1286051787-r2" x="73.2" y="386" textLength="927.2" clip-path="url(#terminal-1286051787-line-15)">tl&#160;pset&#160;set&#160;--project&#160;P123&#160;47-FV-2001&#160;valve_data&#160;manufacturer=Acme&#160;size_in=4</text><text class="terminal-1286051787-r3" x="1439.6" y="386" textLength="12.2" clip-path="url(#terminal-1286051787-line-15)">
+</text><text class="terminal-1286051787-r3" x="0" y="410.4" textLength="366" clip-path="url(#terminal-1286051787-line-16)">set&#160;01M4QT2GQ000000000000000B1</text><text class="terminal-1286051787-r3" x="1439.6" y="410.4" textLength="12.2" clip-path="url(#terminal-1286051787-line-16)">
+</text><text class="terminal-1286051787-r3" x="0" y="434.8" textLength="109.8" clip-path="url(#terminal-1286051787-line-17)">version&#160;3</text><text class="terminal-1286051787-r3" x="1439.6" y="434.8" textLength="12.2" clip-path="url(#terminal-1286051787-line-17)">
+</text><text class="terminal-1286051787-r3" x="0" y="459.2" textLength="170.8" clip-path="url(#terminal-1286051787-line-18)">conformance&#160;ok</text><text class="terminal-1286051787-r3" x="1439.6" y="459.2" textLength="12.2" clip-path="url(#terminal-1286051787-line-18)">
+</text><text class="terminal-1286051787-r1" x="0" y="483.6" textLength="73.2" clip-path="url(#terminal-1286051787-line-19)">demo$&#160;</text><text class="terminal-1286051787-r2" x="73.2" y="483.6" textLength="451.4" clip-path="url(#terminal-1286051787-line-19)">tl&#160;tag&#160;show&#160;47-FV-2001&#160;--project&#160;P123</text><text class="terminal-1286051787-r3" x="1439.6" y="483.6" textLength="12.2" clip-path="url(#terminal-1286051787-line-19)">
+</text><text class="terminal-1286051787-r3" x="0" y="508" textLength="366" clip-path="url(#terminal-1286051787-line-20)">id:&#160;01M4QT2GQ000000000000000B1</text><text class="terminal-1286051787-r3" x="1439.6" y="508" textLength="12.2" clip-path="url(#terminal-1286051787-line-20)">
+</text><text class="terminal-1286051787-r3" x="0" y="532.4" textLength="219.6" clip-path="url(#terminal-1286051787-line-21)">number:&#160;47-FV-2001</text><text class="terminal-1286051787-r3" x="1439.6" y="532.4" textLength="12.2" clip-path="url(#terminal-1286051787-line-21)">
+</text><text class="terminal-1286051787-r3" x="0" y="556.8" textLength="341.6" clip-path="url(#terminal-1286051787-line-22)">title:&#160;Feed&#160;gas&#160;flow&#160;control</text><text class="terminal-1286051787-r3" x="1439.6" y="556.8" textLength="12.2" clip-path="url(#terminal-1286051787-line-22)">
+</text><text class="terminal-1286051787-r3" x="0" y="581.2" textLength="231.8" clip-path="url(#terminal-1286051787-line-23)">class:&#160;ControlValve</text><text class="terminal-1286051787-r3" x="1439.6" y="581.2" textLength="12.2" clip-path="url(#terminal-1286051787-line-23)">
+</text><text class="terminal-1286051787-r3" x="0" y="605.6" textLength="109.8" clip-path="url(#terminal-1286051787-line-24)">status:&#160;-</text><text class="terminal-1286051787-r3" x="1439.6" y="605.6" textLength="12.2" clip-path="url(#terminal-1286051787-line-24)">
+</text><text class="terminal-1286051787-r3" x="0" y="630" textLength="97.6" clip-path="url(#terminal-1286051787-line-25)">area:&#160;47</text><text class="terminal-1286051787-r3" x="1439.6" y="630" textLength="12.2" clip-path="url(#terminal-1286051787-line-25)">
+</text><text class="terminal-1286051787-r3" x="0" y="654.4" textLength="146.4" clip-path="url(#terminal-1286051787-line-26)">mnemonic:&#160;FV</text><text class="terminal-1286051787-r3" x="1439.6" y="654.4" textLength="12.2" clip-path="url(#terminal-1286051787-line-26)">
+</text><text class="terminal-1286051787-r3" x="0" y="678.8" textLength="170.8" clip-path="url(#terminal-1286051787-line-27)">sequence:&#160;2001</text><text class="terminal-1286051787-r3" x="1439.6" y="678.8" textLength="12.2" clip-path="url(#terminal-1286051787-line-27)">
+</text><text class="terminal-1286051787-r3" x="0" y="703.2" textLength="146.4" clip-path="url(#terminal-1286051787-line-28)">pattern:&#160;tag</text><text class="terminal-1286051787-r3" x="1439.6" y="703.2" textLength="12.2" clip-path="url(#terminal-1286051787-line-28)">
+</text><text class="terminal-1286051787-r3" x="0" y="727.6" textLength="207.4" clip-path="url(#terminal-1286051787-line-29)">number_status:&#160;ok</text><text class="terminal-1286051787-r3" x="1439.6" y="727.6" textLength="12.2" clip-path="url(#terminal-1286051787-line-29)">
+</text><text class="terminal-1286051787-r3" x="0" y="752" textLength="183" clip-path="url(#terminal-1286051787-line-30)">origin:&#160;created</text><text class="terminal-1286051787-r3" x="1439.6" y="752" textLength="12.2" clip-path="url(#terminal-1286051787-line-30)">
+</text><text class="terminal-1286051787-r3" x="0" y="776.4" textLength="183" clip-path="url(#terminal-1286051787-line-31)">conformance:&#160;ok</text><text class="terminal-1286051787-r3" x="1439.6" y="776.4" textLength="12.2" clip-path="url(#terminal-1286051787-line-31)">
+</text><text class="terminal-1286051787-r3" x="0" y="800.8" textLength="122" clip-path="url(#terminal-1286051787-line-32)">version:&#160;3</text><text class="terminal-1286051787-r3" x="1439.6" y="800.8" textLength="12.2" clip-path="url(#terminal-1286051787-line-32)">
+</text><text class="terminal-1286051787-r3" x="0" y="825.2" textLength="463.6" clip-path="url(#terminal-1286051787-line-33)">segments:&#160;area=47&#160;mnemonic=FV&#160;seq=2001</text><text class="terminal-1286051787-r3" x="1439.6" y="825.2" textLength="12.2" clip-path="url(#terminal-1286051787-line-33)">
+</text><text class="terminal-1286051787-r3" x="0" y="849.6" textLength="695.4" clip-path="url(#terminal-1286051787-line-34)">psets:&#160;{&quot;valve_data&quot;:{&quot;manufacturer&quot;:&quot;Acme&quot;,&quot;size_in&quot;:4}}</text><text class="terminal-1286051787-r3" x="1439.6" y="849.6" textLength="12.2" clip-path="url(#terminal-1286051787-line-34)">
+</text><text class="terminal-1286051787-r1" x="0" y="874" textLength="73.2" clip-path="url(#terminal-1286051787-line-35)">demo$&#160;</text><text class="terminal-1286051787-r2" x="73.2" y="874" textLength="1134.6" clip-path="url(#terminal-1286051787-line-35)">tl&#160;tag&#160;rename&#160;47-FV-2001&#160;47-FV-2002&#160;--reason&#160;&#x27;renumbered&#160;by&#160;the&#160;design&#160;office&#x27;&#160;--project&#160;P123</text><text class="terminal-1286051787-r3" x="1439.6" y="874" textLength="12.2" clip-path="url(#terminal-1286051787-line-35)">
+</text><text class="terminal-1286051787-r3" x="0" y="898.4" textLength="390.4" clip-path="url(#terminal-1286051787-line-36)">renamed&#160;47-FV-2001&#160;-&gt;&#160;47-FV-2002</text><text class="terminal-1286051787-r3" x="1439.6" y="898.4" textLength="12.2" clip-path="url(#terminal-1286051787-line-36)">
+</text><text class="terminal-1286051787-r3" x="0" y="922.8" textLength="414.8" clip-path="url(#terminal-1286051787-line-37)">created&#160;01M4QTRFV000000000000000B8</text><text class="terminal-1286051787-r3" x="1439.6" y="922.8" textLength="12.2" clip-path="url(#terminal-1286051787-line-37)">
+</text><text class="terminal-1286051787-r1" x="0" y="947.2" textLength="73.2" clip-path="url(#terminal-1286051787-line-38)">demo$&#160;</text><text class="terminal-1286051787-r2" x="73.2" y="947.2" textLength="366" clip-path="url(#terminal-1286051787-line-38)">tl&#160;tag&#160;ls&#160;--project&#160;P123&#160;--all</text><text class="terminal-1286051787-r3" x="1439.6" y="947.2" textLength="12.2" clip-path="url(#terminal-1286051787-line-38)">
+</text><text class="terminal-1286051787-r3" x="0" y="971.6" textLength="768.6" clip-path="url(#terminal-1286051787-line-39)">47-FV-2001&#160;&#160;ControlValve&#160;&#160;Superseded&#160;&#160;ok&#160;&#160;Feed&#160;gas&#160;flow&#160;control</text><text class="terminal-1286051787-r3" x="1439.6" y="971.6" textLength="12.2" clip-path="url(#terminal-1286051787-line-39)">
+</text><text class="terminal-1286051787-r3" x="0" y="996" textLength="658.8" clip-path="url(#terminal-1286051787-line-40)">47-FV-2002&#160;&#160;ControlValve&#160;&#160;-&#160;&#160;ok&#160;&#160;Feed&#160;gas&#160;flow&#160;control</text><text class="terminal-1286051787-r3" x="1439.6" y="996" textLength="12.2" clip-path="url(#terminal-1286051787-line-40)">
+</text>
+    </g>
+    </g>
+</svg>
