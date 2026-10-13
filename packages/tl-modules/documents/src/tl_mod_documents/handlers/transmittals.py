@@ -18,7 +18,14 @@ Void       drafted in error                                       none
 Each handler runs inside an entered unit of work, appends through it and never commits. A failed
 check raises a ``ServiceError`` before anything is appended. All events of one command share one
 correlation id.
+
+STUB (P1-I2-T08a): the bodies of the five `handle_*` functions raise NotImplementedError; the
+command classes, `_load`, `_require_state`, `_check_revisions` and every signature are final. Each
+body has a STEPS comment. Implement them, then delete this paragraph, the STEPS comments and the
+`ruff: noqa` line.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -216,52 +223,26 @@ def handle_create_transmittal(uow: UnitOfWork, cmd: CreateTransmittal) -> Comman
     scope), ``InvalidTransmittalError`` (a revision is repeated, or is not issued),
     ``NoNumberingPatternError`` (no number given and no pattern) and ``DuplicateKeyError``.
     """
-    require_project(cmd)
-    cmd = correlated(cmd)
-    if len(set(cmd.revision_ids)) != len(cmd.revision_ids):
-        raise InvalidTransmittalError("a revision can be on a transmittal only once")
-    revisions = [load_revision(uow, cmd, revision_id) for revision_id in cmd.revision_ids]
-    _check_revisions(revisions)
-    items = [
-        {
-            "revision_id": r.id,
-            "document_id": r.document_id,
-            "document_number": r.document_number,
-            "revision_code": r.code,
-            "issue_status": r.issue_status,
-        }
-        for r in revisions
-    ]
-    # The number is known only after the allocator ran (when none was typed in), so the typed event
-    # follows the envelope event in a second append of the same stream.
-    made = create_module_record(
-        uow, cmd, record_type=TRANSMITTAL, title=cmd.subject, description=cmd.notes, key=cmd.number
-    )
-    done = append(
-        uow,
-        cmd,
-        made.stream_id,
-        TRANSMITTAL,
-        [
-            NewEvent(
-                event_type=TRANSMITTAL_DEFINED,
-                payload={
-                    "number": made.key,
-                    "direction": cmd.direction,
-                    "purpose": cmd.purpose,
-                    "due_date": cmd.due_date,
-                    "recipients": [r.model_dump() for r in cmd.recipients],
-                    "items": items,
-                },
-            )
-        ],
-    )
-    return CommandResult(
-        stream_id=made.stream_id,
-        key=made.key,
-        version=done.new_version,
-        events=[*made.events, *done.events],
-    )
+    # STEPS
+    # 1. require_project(cmd); cmd = correlated(cmd).
+    # 2. If cmd.revision_ids has a repeated id raise InvalidTransmittalError("a revision can be
+    #    on a transmittal only once").
+    # 3. revisions = [load_revision(uow, cmd, rid) for rid in cmd.revision_ids] (it raises
+    #    RevisionNotFoundError for an unknown id or another scope); then
+    #    _check_revisions(revisions).
+    # 4. items = one dict per revision, in the order given, with exactly the keys revision_id
+    #    (r.id), document_id, document_number, revision_code (r.code) and issue_status.
+    # 5. made = create_module_record(uow, cmd, record_type=TRANSMITTAL, title=cmd.subject,
+    #    description=cmd.notes, key=cmd.number). A key of None lets the numbering allocator
+    #    number it.
+    # 6. The number is known only now, so the typed event is a second append on the same stream:
+    #    done = append(uow, cmd, made.stream_id, TRANSMITTAL,
+    #    [NewEvent(event_type=TRANSMITTAL_DEFINED, payload={"number": made.key, "direction":
+    #    cmd.direction, "purpose": cmd.purpose, "due_date": cmd.due_date, "recipients":
+    #    [r.model_dump() for r in cmd.recipients], "items": items})]).
+    # 7. Return CommandResult(stream_id=made.stream_id, key=made.key, version=done.new_version,
+    #    events=[*made.events, *done.events]).
+    raise NotImplementedError
 
 
 def handle_issue_transmittal(uow: UnitOfWork, cmd: IssueTransmittal) -> CommandResult:
@@ -270,30 +251,19 @@ def handle_issue_transmittal(uow: UnitOfWork, cmd: IssueTransmittal) -> CommandR
     Raises ``TransmittalNotFoundError``, ``TransmittalStateError`` (not a draft) and
     ``InvalidTransmittalError`` (a revision on it has been voided since it was drafted).
     """
-    cmd = correlated(cmd)
-    row = _load(uow, cmd, cmd.stream_id)
-    _require_state(row, "Draft", doing="issued")
-    items = registry.transmittal_items(uow.conn(), row.id)
-    revisions: list[registry.RevisionRow] = []
-    for item in items:
-        found = registry.get_revision(uow.conn(), item.revision_id)
-        if found is None:
-            raise RevisionNotFoundError(f"revision {item.revision_id!r} is gone")
-        revisions.append(found)
-    _check_revisions(revisions)
-    events: list[Event] = []
-    done = append(
-        uow,
-        cmd,
-        row.id,
-        TRANSMITTAL,
-        [NewEvent(event_type=TRANSMITTAL_ISSUED, payload={"issued_on": cmd.issued_on or today()})],
-        expected=cmd.expected_version,
-    )
-    events += done.events
-    moved = transition(uow, cmd, row.id, "issue")
-    events += moved.events
-    return CommandResult(stream_id=row.id, key=row.number, version=moved.version, events=events)
+    # STEPS
+    # 1. cmd = correlated(cmd); row = _load(uow, cmd, cmd.stream_id); _require_state(row,
+    #    "Draft", doing="issued").
+    # 2. For each item of registry.transmittal_items(uow.conn(), row.id) read the revision with
+    #    registry.get_revision(uow.conn(), item.revision_id) (None: raise RevisionNotFoundError(
+    #    f"revision {item.revision_id!r} is gone")); then _check_revisions(the list of
+    #    revisions).
+    # 3. done = append(uow, cmd, row.id, TRANSMITTAL, [NewEvent(event_type=TRANSMITTAL_ISSUED,
+    #    payload={"issued_on": cmd.issued_on or today()})], expected=cmd.expected_version).
+    # 4. moved = transition(uow, cmd, row.id, "issue").
+    # 5. Return CommandResult(stream_id=row.id, key=row.number, version=moved.version,
+    #    events=[*done.events, *moved.events]).
+    raise NotImplementedError
 
 
 def handle_record_transmittal_response(
@@ -303,31 +273,16 @@ def handle_record_transmittal_response(
 
     Raises ``TransmittalNotFoundError`` and ``TransmittalStateError`` (not issued).
     """
-    cmd = correlated(cmd)
-    row = _load(uow, cmd, cmd.stream_id)
-    _require_state(row, "Issued", doing="answered")
-    events: list[Event] = []
-    done = append(
-        uow,
-        cmd,
-        row.id,
-        TRANSMITTAL,
-        [
-            NewEvent(
-                event_type=TRANSMITTAL_RESPONSE,
-                payload={
-                    "response_code": cmd.response_code,
-                    "response_note": cmd.response_note,
-                    "responded_on": cmd.responded_on or today(),
-                },
-            )
-        ],
-        expected=cmd.expected_version,
-    )
-    events += done.events
-    moved = transition(uow, cmd, row.id, "acknowledge")
-    events += moved.events
-    return CommandResult(stream_id=row.id, key=row.number, version=moved.version, events=events)
+    # STEPS
+    # 1. cmd = correlated(cmd); row = _load(uow, cmd, cmd.stream_id); _require_state(row,
+    #    "Issued", doing="answered").
+    # 2. done = append(uow, cmd, row.id, TRANSMITTAL, [NewEvent(event_type=TRANSMITTAL_RESPONSE,
+    #    payload={"response_code": cmd.response_code, "response_note": cmd.response_note,
+    #    "responded_on": cmd.responded_on or today()})], expected=cmd.expected_version).
+    # 3. moved = transition(uow, cmd, row.id, "acknowledge").
+    # 4. Return CommandResult(stream_id=row.id, key=row.number, version=moved.version,
+    #    events=[*done.events, *moved.events]).
+    raise NotImplementedError
 
 
 def handle_close_transmittal(uow: UnitOfWork, cmd: CloseTransmittal) -> CommandResult:
@@ -335,12 +290,12 @@ def handle_close_transmittal(uow: UnitOfWork, cmd: CloseTransmittal) -> CommandR
 
     Raises ``TransmittalNotFoundError`` and ``TransmittalStateError``.
     """
-    cmd = correlated(cmd)
-    row = _load(uow, cmd, cmd.stream_id)
-    _require_state(row, "Issued", "Acknowledged", doing="closed")
-    return transition(
-        uow, cmd, row.id, "close", reason=cmd.reason, expected=cmd.expected_version
-    ).model_copy(update={"key": row.number})
+    # STEPS
+    # 1. cmd = correlated(cmd); row = _load(uow, cmd, cmd.stream_id); _require_state(row,
+    #    "Issued", "Acknowledged", doing="closed").
+    # 2. Return transition(uow, cmd, row.id, "close", reason=cmd.reason,
+    #    expected=cmd.expected_version).model_copy(update={"key": row.number}).
+    raise NotImplementedError
 
 
 def handle_void_transmittal(uow: UnitOfWork, cmd: VoidTransmittal) -> CommandResult:
@@ -349,20 +304,13 @@ def handle_void_transmittal(uow: UnitOfWork, cmd: VoidTransmittal) -> CommandRes
     Emits ``Workflow.Transitioned`` and ``Record.Voided``. Raises ``TransmittalNotFoundError`` and
     ``TransmittalStateError`` (not a draft).
     """
-    cmd = correlated(cmd)
-    row = _load(uow, cmd, cmd.stream_id)
-    _require_state(row, "Draft", doing="voided")
-    moved = transition(uow, cmd, row.id, "void", reason=cmd.reason, expected=cmd.expected_version)
-    voided = append(
-        uow,
-        cmd,
-        row.id,
-        TRANSMITTAL,
-        [NewEvent(event_type="Record.Voided", payload={"reason": cmd.reason})],
-    )
-    return CommandResult(
-        stream_id=row.id,
-        key=row.number,
-        version=voided.new_version,
-        events=[*moved.events, *voided.events],
-    )
+    # STEPS
+    # 1. cmd = correlated(cmd); row = _load(uow, cmd, cmd.stream_id); _require_state(row,
+    #    "Draft", doing="voided").
+    # 2. moved = transition(uow, cmd, row.id, "void", reason=cmd.reason,
+    #    expected=cmd.expected_version).
+    # 3. voided = append(uow, cmd, row.id, TRANSMITTAL, [NewEvent(event_type="Record.Voided",
+    #    payload={"reason": cmd.reason})]).
+    # 4. Return CommandResult(stream_id=row.id, key=row.number, version=voided.new_version,
+    #    events=[*moved.events, *voided.events]).
+    raise NotImplementedError

@@ -6,7 +6,13 @@ elsewhere) and a project scope, reads the flat views (``v_documents_<class>``) a
 transmittal tables, and returns frozen lines in a stable order. Nothing here writes. A void record
 is left out. Dates are ISO text (``YYYY-MM-DD``); "today" is a parameter (``on``) so a report is
 repeatable.
+
+STUB (P1-I2-T11a): the bodies of the five report functions raise NotImplementedError; the line
+dataclasses and every signature are final. Each body has a STEPS comment. Implement them, then
+delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -125,45 +131,22 @@ def document_register(
     ``state`` is a document state (Registered, In Review, Issued, Superseded). A void document is
     left out.
     """
-    sql = (
-        "SELECT d.key, d.title, d.doc_type, d.discipline, d.status, d.current_revision_code, "
-        "d.current_revision_status, d.current_revision_class, d.current_revision_issued_on, "
-        f"(SELECT COUNT(*) FROM {REVISION_VIEW} r WHERE r.document_id = d.id "
-        "AND COALESCE(r.status, 'Draft') <> 'Void') AS revisions, "
-        f"(SELECT MAX(r.code) FROM {REVISION_VIEW} r WHERE r.document_id = d.id "
-        "AND COALESCE(r.status, 'Draft') IN ('Draft', 'In Review')) AS open_code, "
-        "(SELECT COUNT(*) FROM cur_links l WHERE l.to_id = d.id AND l.status = 'stale') "
-        f"AS stale_links FROM {DOCUMENT_VIEW} d WHERE d.scope = :scope "
-        "AND COALESCE(d.status, 'Draft') <> 'Void'"
-    )
-    params: dict[str, Any] = {"scope": scope, "limit": limit}
-    if doc_type is not None:
-        sql += " AND d.doc_type = :doc_type"
-        params["doc_type"] = doc_type
-    if discipline is not None:
-        sql += " AND d.discipline = :discipline"
-        params["discipline"] = discipline
-    if state is not None:
-        sql += " AND COALESCE(d.status, 'Draft') = :state"
-        params["state"] = state
-    sql += " ORDER BY d.key LIMIT :limit"
-    return [
-        RegisterLine(
-            number=r.key,
-            title=r.title,
-            doc_type=r.doc_type,
-            discipline=r.discipline,
-            state=r.status or "Draft",
-            current_code=r.current_revision_code,
-            current_status=r.current_revision_status,
-            current_class=r.current_revision_class,
-            current_issued_on=r.current_revision_issued_on,
-            revisions=int(r.revisions),
-            open_code=r.open_code,
-            stale_links=int(r.stale_links),
-        )
-        for r in conn.execute(text(sql), params).all()
-    ]
+    # STEPS
+    # 1. Build one SELECT over the view v_documents_document (DOCUMENT_VIEW, alias d) with the
+    #    columns key, title, doc_type, discipline, status, current_revision_code,
+    #    current_revision_status, current_revision_class, current_revision_issued_on and three
+    #    scalar subqueries: `revisions` = COUNT of the document's rows in REVISION_VIEW (alias
+    #    r, r.document_id = d.id) whose COALESCE(r.status, 'Draft') <> 'Void'; `open_code` =
+    #    MAX(r.code) over its revisions whose COALESCE(r.status, 'Draft') IN ('Draft', 'In
+    #    Review'); `stale_links` = COUNT of rows of cur_links l with l.to_id = d.id AND l.status
+    #    = 'stale'.
+    # 2. WHERE d.scope = :scope AND COALESCE(d.status, 'Draft') <> 'Void'; add `AND d.doc_type =
+    #    :doc_type`, `AND d.discipline = :discipline`, `AND COALESCE(d.status, 'Draft') =
+    #    :state` only for the arguments that are not None. ORDER BY d.key LIMIT :limit. Run it
+    #    with conn.execute(text(sql), params).
+    # 3. One RegisterLine per row: number = row.key, state = row.status or "Draft", the revision
+    #    counts as int(...), the rest as read.
+    raise NotImplementedError
 
 
 def revision_history(conn: Connection, scope: str, number: str) -> list[HistoryLine]:
@@ -171,32 +154,19 @@ def revision_history(conn: Connection, scope: str, number: str) -> list[HistoryL
 
     Raises ``DocumentNotFoundError``. Void revisions are kept in the history and shown as Void.
     """
-    doc = registry.find_document(conn, scope, number)
-    if doc is None:
-        raise DocumentNotFoundError(f"no document {number!r} in scope {scope!r}")
-    revisions = registry.revisions_of(conn, doc.id)
-    codes = {r.id: r.code for r in revisions}
-    lines: list[HistoryLine] = []
-    for rev in revisions:
-        cycles = [c for c in registry.review_cycles_of(conn, rev.id) if c.state == "closed"]
-        lines.append(
-            HistoryLine(
-                code=rev.code,
-                ordinal=rev.ordinal,
-                state="Void" if rev.voided else rev.state,
-                issue_status=rev.issue_status,
-                status_class=rev.status_class,
-                issued_on=rev.issued_on,
-                is_current=rev.is_current,
-                purpose=rev.purpose,
-                change_note=rev.change_note,
-                renditions=len(registry.renditions_of(conn, rev.id, current_only=True)),
-                transmittals=[t.number for t in registry.transmittals_of_revision(conn, rev.id)],
-                review_outcome=cycles[-1].outcome if cycles else None,
-                superseded_by=codes.get(rev.superseded_by) if rev.superseded_by else None,
-            )
-        )
-    return lines
+    # STEPS
+    # 1. doc = registry.find_document(conn, scope, number); None: raise
+    #    DocumentNotFoundError(f"no document {number!r} in scope {scope!r}").
+    # 2. revisions = registry.revisions_of(conn, doc.id) (void ones included, oldest first);
+    #    codes = {r.id: r.code for r in revisions}.
+    # 3. For each revision: closed = [c for c in registry.review_cycles_of(conn, rev.id) if
+    #    c.state == "closed"]; one HistoryLine with state = "Void" if rev.voided else rev.state;
+    #    renditions = len(registry.renditions_of(conn, rev.id, current_only=True)); transmittals
+    #    = [t.number for t in registry.transmittals_of_revision(conn, rev.id)]; review_outcome =
+    #    closed[-1].outcome if closed else None; superseded_by = codes.get(rev.superseded_by) if
+    #    rev.superseded_by else None; the other fields come straight from the row (code,
+    #    ordinal, issue_status, status_class, issued_on, is_current, purpose, change_note).
+    raise NotImplementedError
 
 
 def overdue_reviews(conn: Connection, scope: str, *, on: date | None = None) -> list[OverdueLine]:
@@ -205,30 +175,16 @@ def overdue_reviews(conn: Connection, scope: str, *, on: date | None = None) -> 
     A reviewer with no date of their own is due on the cycle's date; one with no date at all is
     never overdue. Ordered by due date, then cycle key, then reviewer.
     """
-    day = (on or date.today()).isoformat()
-    rows = conn.execute(
-        text(
-            "SELECT c.key AS cycle_key, r.reviewer, r.due_date, rv.document_number, rv.code "
-            f"FROM {REVIEWER_TABLE} r JOIN {REVIEW_CYCLE_VIEW} c ON c.id = r.review_cycle_id "
-            f"JOIN {REVISION_VIEW} rv ON rv.id = r.revision_id "
-            "WHERE r.scope = :scope AND c.state = 'open' AND r.outcome IS NULL "
-            "AND r.due_date IS NOT NULL AND r.due_date < :day AND NOT c.voided "
-            "ORDER BY r.due_date, c.key, r.reviewer"
-        ),
-        {"scope": scope, "day": day},
-    ).all()
-    today = date.fromisoformat(day)
-    return [
-        OverdueLine(
-            document_number=r.document_number,
-            revision_code=r.code,
-            cycle_key=r.cycle_key,
-            reviewer=r.reviewer,
-            due_date=r.due_date,
-            days_overdue=(today - date.fromisoformat(r.due_date)).days,
-        )
-        for r in rows
-    ]
+    # STEPS
+    # 1. day = (on or date.today()).isoformat().
+    # 2. SELECT c.key AS cycle_key, r.reviewer, r.due_date, rv.document_number, rv.code FROM
+    #    REVIEWER_TABLE r JOIN REVIEW_CYCLE_VIEW c ON c.id = r.review_cycle_id JOIN
+    #    REVISION_VIEW rv ON rv.id = r.revision_id WHERE r.scope = :scope AND c.state = 'open'
+    #    AND r.outcome IS NULL AND r.due_date IS NOT NULL AND r.due_date < :day AND NOT c.voided
+    #    ORDER BY r.due_date, c.key, r.reviewer.
+    # 3. One OverdueLine per row; days_overdue = (date.fromisoformat(day) -
+    #    date.fromisoformat(row.due_date)).days.
+    raise NotImplementedError
 
 
 def transmittal_log(
@@ -243,42 +199,17 @@ def transmittal_log(
 
     ``overdue`` is true for an issued transmittal that has no answer and whose due date has passed.
     """
-    day = (on or date.today()).isoformat()
-    sql = (
-        "SELECT t.key, t.title, t.direction, t.purpose, t.status, t.issued_on, t.due_date, "
-        "t.response_code, t.responded_on, "
-        f"(SELECT COUNT(*) FROM {TRANSMITTAL_ITEM_TABLE} i WHERE i.transmittal_id = t.id) AS items "
-        f"FROM {TRANSMITTAL_VIEW} t WHERE t.scope = :scope"
-    )
-    params: dict[str, Any] = {"scope": scope}
-    if state is not None:
-        sql += " AND COALESCE(t.status, 'Draft') = :state"
-        params["state"] = state
-    else:
-        sql += " AND COALESCE(t.status, 'Draft') <> 'Void'"
-    if direction is not None:
-        sql += " AND t.direction = :direction"
-        params["direction"] = direction
-    sql += " ORDER BY t.key"
-    lines: list[TransmittalLine] = []
-    for r in conn.execute(text(sql), params).all():
-        current = r.status or "Draft"
-        lines.append(
-            TransmittalLine(
-                number=r.key,
-                title=r.title,
-                direction=r.direction,
-                purpose=r.purpose,
-                state=current,
-                issued_on=r.issued_on,
-                due_date=r.due_date,
-                response_code=r.response_code,
-                responded_on=r.responded_on,
-                items=int(r.items),
-                overdue=current == "Issued" and r.due_date is not None and r.due_date < day,
-            )
-        )
-    return lines
+    # STEPS
+    # 1. day = (on or date.today()).isoformat().
+    # 2. SELECT t.key, t.title, t.direction, t.purpose, t.status, t.issued_on, t.due_date,
+    #    t.response_code, t.responded_on and `items` = (SELECT COUNT(*) FROM
+    #    TRANSMITTAL_ITEM_TABLE i WHERE i.transmittal_id = t.id) FROM TRANSMITTAL_VIEW t WHERE
+    #    t.scope = :scope. With `state` add AND COALESCE(t.status, 'Draft') = :state; without it
+    #    AND COALESCE(t.status, 'Draft') <> 'Void'. With `direction` add AND t.direction =
+    #    :direction. ORDER BY t.key.
+    # 3. One TransmittalLine per row: state = row.status or "Draft"; overdue is True exactly
+    #    when that state is "Issued" and row.due_date is not None and row.due_date < day.
+    raise NotImplementedError
 
 
 def stale_pins(conn: Connection, scope: str) -> list[StalePinLine]:
@@ -286,21 +217,13 @@ def stale_pins(conn: Connection, scope: str) -> list[StalePinLine]:
 
     Ordered by document number, then the key of the record that links.
     """
-    lines: list[StalePinLine] = []
-    for link in links_to_documents(conn, scope, only_stale=True):
-        current = registry.get_document(conn, link.document_id)
-        lines.append(
-            StalePinLine(
-                document_number=link.document_number,
-                document_title=link.document_title,
-                pinned_code=link.pin,
-                current_code=link.resolution.current_code,
-                current_status=None if current is None else current.current_revision_status,
-                linked_key=link.from_key,
-                linked_type=link.from_type,
-                link_id=link.link_id,
-                link_status=link.link_status,
-                newer_codes=list(link.resolution.newer_codes),
-            )
-        )
-    return lines
+    # STEPS
+    # 1. For each link in links_to_documents(conn, scope, only_stale=True) (from
+    #    tl_mod_documents.resolver) read current = registry.get_document(conn,
+    #    link.document_id).
+    # 2. One StalePinLine per link: document_number, document_title, pinned_code = link.pin,
+    #    current_code = link.resolution.current_code, current_status = the document's
+    #    current_revision_status (None when current is None), linked_key = link.from_key,
+    #    linked_type = link.from_type, link_id, link_status = link.link_status, newer_codes =
+    #    list(link.resolution.newer_codes). Keep the order the function returns.
+    raise NotImplementedError

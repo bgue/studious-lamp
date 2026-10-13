@@ -5,7 +5,14 @@ prints. The rules (the number pattern, the code lists, the revision scheme, what
 does to its links) live in the module. Documents are named by number; the project comes from
 `--project`. Revisions, renditions, links and reports are the groups `tl doc rev`, `tl doc
 rendition`, `tl doc link` and `tl doc report`.
+
+STUB (P1-I2-T09a): the bodies of the six commands raise NotImplementedError; their signatures,
+options, docstrings and the helpers (`_fail`, `_service_errors`, `_document`, `_current_text`,
+`_revision_line`) are final. Each body has a STEPS comment. Implement them, then delete this
+paragraph, the STEPS comments and the `ruff: noqa` line.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -128,43 +135,20 @@ def register(
 ) -> None:
     """Register a document under its number. The number must fit the registry pattern."""
     # STEPS
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    common: dict[str, Any] = {"actor": actor, "source": "cli", "scope": scope}
-    with _service_errors(), open_uow(db) as uow:
-        made = handle_register_document(
-            uow,
-            RegisterDocument(
-                **common,
-                number=number,
-                title=title,
-                description=description,
-                doc_type=doc_type,
-                discipline=discipline,
-                originator=originator,
-                confidentiality=confidentiality,
-                revision_scheme=scheme,
-            ),
-        )
-        revision = None
-        if first_revision:
-            started = handle_create_revision(
-                uow,
-                CreateRevision(
-                    **common,
-                    document_id=made.stream_id,
-                    purpose=purpose,
-                    correlation_id=made.events[0].correlation_id,
-                ),
-            )
-            revision = started.key
-        row = _document(uow, scope, project, number)
-    typer.echo(f"registered {made.stream_id}")
-    typer.echo(f"document {row.number}")
-    typer.echo(f"state {row.state}")
-    typer.echo(f"scheme {row.revision_scheme}")
-    if revision is not None:
-        typer.echo(f"revision {revision.rpartition('@')[2]} Draft")
+    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}"; common = {"actor": actor,
+    #    "source": "cli", "scope": scope}.
+    # 2. Inside `with _service_errors(), open_uow(db) as uow:` made =
+    #    handle_register_document(uow, RegisterDocument(**common, number=number, title=title,
+    #    description=description, doc_type=doc_type, discipline=discipline,
+    #    originator=originator, confidentiality=confidentiality, revision_scheme=scheme)).
+    # 3. With --first-revision, still inside the block: started = handle_create_revision(uow,
+    #    CreateRevision(**common, document_id=made.stream_id, purpose=purpose,
+    #    correlation_id=made.events[0].correlation_id)); revision = started.key.
+    # 4. Still inside the block: row = _document(uow, scope, project, number).
+    # 5. After the block print f"registered {made.stream_id}", f"document {row.number}", f"state
+    #    {row.state}", f"scheme {row.revision_scheme}" and, when a revision was started,
+    #    f"revision {code} Draft" where code is the part of the revision key after the last "@".
+    raise NotImplementedError
 
 
 @app.command("show")
@@ -174,32 +158,19 @@ def show(
     project: _Project,
 ) -> None:
     """Show a document: its register fields, its current revision, its revisions, its links."""
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    with _service_errors(), open_uow(db, readonly=True) as uow:
-        row = _document(uow, scope, project, number)
-        revisions = registry.revisions_of(uow.conn(), row.id)
-        links = uow.conn().execute(_LINKS_SQL, {"id": row.id}).one()
-        replaced_by = (
-            registry.get_document(uow.conn(), row.superseded_by) if row.superseded_by else None
-        )
-    typer.echo(f"id: {row.id}")
-    typer.echo(f"number: {row.number}")
-    typer.echo(f"title: {row.title}")
-    typer.echo(f"state: {row.state}")
-    typer.echo(f"type: {row.doc_type or '-'}")
-    typer.echo(f"discipline: {row.discipline or '-'}")
-    typer.echo(f"originator: {row.originator or '-'}")
-    typer.echo(f"confidentiality: {row.confidentiality or '-'}")
-    typer.echo(f"scheme: {row.revision_scheme}")
-    typer.echo(f"pattern: {row.pattern_code or '-'}")
-    typer.echo(f"current: {_current_text(row)}")
-    typer.echo(f"superseded_by: {replaced_by.number if replaced_by else '-'}")
-    typer.echo(f"conformance: {row.conformance}")
-    typer.echo(f"version: {row.version}")
-    for rev in revisions:
-        typer.echo(_revision_line(rev))
-    typer.echo(f"links: {int(links.total)} ({int(links.stale)} stale)")
+    # STEPS
+    # 1. Inside `with _service_errors(), open_uow(db, readonly=True) as uow:` row =
+    #    _document(uow, scope, project, number); revisions = registry.revisions_of(uow.conn(),
+    #    row.id); links = uow.conn().execute(_LINKS_SQL, {"id": row.id}).one(); replaced_by =
+    #    registry.get_document( uow.conn(), row.superseded_by) when row.superseded_by is set,
+    #    else None.
+    # 2. After the block print `name: value` lines in this order: id, number, title, state, type
+    #    (doc_type or "-"), discipline ("-"), originator ("-"), confidentiality ("-"), scheme
+    #    (revision_scheme), pattern (pattern_code or "-"), current (_current_text(row)),
+    #    superseded_by (replaced_by.number or "-"), conformance, version.
+    # 3. Then one `_revision_line(rev)` per revision, then f"links: {int(links.total)}
+    #    ({int(links.stale)} stale)".
+    raise NotImplementedError
 
 
 @app.command("ls")
@@ -213,33 +184,14 @@ def ls(
     limit: Annotated[int, typer.Option("--limit", min=1, max=5000)] = 1000,
 ) -> None:
     """List a project's documents by number: number, state, current, type, discipline, title."""
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    with _service_errors(), open_uow(db, readonly=True) as uow:
-        rows = registry.list_documents(
-            uow.conn(),
-            scope,
-            doc_type=doc_type,
-            discipline=discipline,
-            state=state,
-            limit=limit,
-            include_void=include_void,
-        )
-    for row in rows:
-        current = (
-            "-"
-            if row.current_revision_code is None
-            else f"{row.current_revision_code}({row.current_revision_status})"
-        )
-        fields = [
-            row.number,
-            row.state,
-            current,
-            row.doc_type or "-",
-            row.discipline or "-",
-            row.title,
-        ]
-        typer.echo("  ".join(fields))
+    # STEPS
+    # 1. Inside `with _service_errors(), open_uow(db, readonly=True) as uow:` rows =
+    #    registry.list_documents( uow.conn(), f"project:{project}", doc_type=doc_type,
+    #    discipline=discipline, state=state, limit=limit, include_void=include_void).
+    # 2. One line per row: number, state, current, doc_type or "-", discipline or "-", title
+    #    joined with two spaces, where current is "-" when row.current_revision_code is None,
+    #    else f"{row.current_revision_code}({row.current_revision_status})".
+    raise NotImplementedError
 
 
 @app.command("update")
@@ -257,28 +209,17 @@ def update(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Change a document's title or register fields. An empty value ('') clears a field."""
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    given: dict[str, str | None] = {
-        "title": title,
-        "description": description,
-        "doc_type": doc_type,
-        "discipline": discipline,
-        "originator": originator,
-        "confidentiality": confidentiality,
-    }
-    fields: dict[str, Any] = {k: (v or None) for k, v in given.items() if v is not None}
-    if not fields:
-        _fail("give at least one field to change (--title, --type, --discipline, ...)")
-    with _service_errors(), open_uow(db) as uow:
-        row = _document(uow, scope, project, number)
-        handle_update_document(
-            uow,
-            UpdateDocument(
-                actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason, **fields
-            ),
-        )
-    typer.echo(f"updated {number}")
+    # STEPS
+    # 1. given = the six options as a dict by field name (title, description, doc_type,
+    #    discipline, originator, confidentiality). fields = {name: (value or None) for each
+    #    option that is not None}: an empty string clears a field. No field given: _fail("give
+    #    at least one field to change (--title, --type, --discipline, ...)") (type the dict as
+    #    dict[str, Any]).
+    # 2. Inside `with _service_errors(), open_uow(db) as uow:` row = _document(uow, scope,
+    #    project, number); handle_update_document(uow, UpdateDocument(actor=actor, source="cli",
+    #    scope=scope, stream_id=row.id, reason=reason, **fields)).
+    # 3. After the block print f"updated {number}".
+    raise NotImplementedError
 
 
 @app.command("supersede")
@@ -291,23 +232,13 @@ def supersede(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Replace a document by another one. Every link to the old one goes stale."""
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    with _service_errors(), open_uow(db) as uow:
-        old = _document(uow, scope, project, number)
-        new = _document(uow, scope, project, by)
-        handle_supersede_document(
-            uow,
-            SupersedeDocument(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=old.id,
-                superseded_by_id=new.id,
-                reason=reason,
-            ),
-        )
-    typer.echo(f"superseded {number} by {by}")
+    # STEPS
+    # 1. Inside `with _service_errors(), open_uow(db) as uow:` old = _document(uow, scope,
+    #    project, number); new = _document(uow, scope, project, by);
+    #    handle_supersede_document(uow, SupersedeDocument(actor=actor, source="cli",
+    #    scope=scope, stream_id=old.id, superseded_by_id=new.id, reason=reason)).
+    # 2. After the block print f"superseded {number} by {by}".
+    raise NotImplementedError
 
 
 @app.command("void")
@@ -319,13 +250,10 @@ def void(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Void a document registered in error (admin). Every link to it goes stale."""
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    require_admin(db)
-    with _service_errors(), open_uow(db) as uow:
-        row = _document(uow, scope, project, number)
-        handle_void_document(
-            uow,
-            VoidDocument(actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason),
-        )
-    typer.echo(f"voided {number}")
+    # STEPS
+    # 1. require_admin(db) first (it exits with an error line for anyone who is not an admin).
+    # 2. Inside `with _service_errors(), open_uow(db) as uow:` row = _document(...);
+    #    handle_void_document(uow, VoidDocument(actor=actor, source="cli", scope=scope,
+    #    stream_id=row.id, reason=reason)).
+    # 3. After the block print f"voided {number}".
+    raise NotImplementedError
