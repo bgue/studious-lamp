@@ -1,6 +1,6 @@
 # Increment plan — P1-I1 M2 Standards registry, numbering patterns, Tag/TagClass
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-12
 Brief sections: §6.4 (standards registry), §6.3 (value lists, enforcement), §8 (numbering), §9 M2, §27.3 and §27.5 (effective schema, change classes), §29.6 and §29.8 (legacy loads, module definition of done), §5.4 (current state), §7 (links)
 Branch: `p1/i1` (base: the trunk merge of P1-I0, `d6e3afc`)
@@ -53,7 +53,7 @@ the tag register and the reports show the tags by class, status and missing prop
 | T05 | Pattern engine: segment-level parse and diagnosis, registry patterns, allocator wiring | Numbering (01-tiers §3) | orchestrator | done |
 | T06 | Tag commands: create, reclassify, rename, split, merge; the `engineering.tag` workflow | Invariants across several streams | reviewer | done |
 | T08 | The engineering `bound_psets` hook; conformance on tag events | Conformance semantics | orchestrator | done |
-| S13 | Demo `dev/demos/P1-I1.sh`, module spec pages, runbook, package READMEs, report | Closing | — | planned |
+| S13 | Demo `dev/demos/P1-I1.sh`, module spec pages, runbook, package READMEs, report | Closing | — | done |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
