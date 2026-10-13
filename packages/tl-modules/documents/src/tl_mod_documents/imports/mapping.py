@@ -132,8 +132,7 @@ def read_rows(text: str, mapping: DocumentMapping) -> list[ImportRow]:
         raise MappingError("the file has no header row") from exc
     except csv.Error as exc:
         raise MappingError(f"the file is not readable as CSV: {exc}") from exc
-    # A blank header cell names no column (a trailing comma in an export), so it never counts.
-    twice = sorted({name for name in header if name and header.count(name) > 1})
+    twice = sorted({name for name in header if header.count(name) > 1})
     if twice:
         raise MappingError("the file has a column twice: " + ", ".join(twice))
     missing = [column.column for column in mapping.columns if column.column not in header]
