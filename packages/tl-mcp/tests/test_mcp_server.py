@@ -24,7 +24,8 @@ PROPOSE_TOOLS = {
     "propose_setting_change",
 }
 TYPE_TOOLS = {"list_record_types", "get_record_type", "get_record_body"}
-TOOLS = READ_TOOLS | TYPE_TOOLS | PROPOSE_TOOLS | {"post_feed"}
+ENGINEERING_TOOLS = {"list_code_values", "list_tag_classes", "get_tag"}
+TOOLS = READ_TOOLS | TYPE_TOOLS | ENGINEERING_TOOLS | PROPOSE_TOOLS | {"post_feed"}
 
 
 def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
@@ -35,7 +36,9 @@ def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
     for tool in tools:
         assert tool.annotations is not None
         assert tool.annotations.destructive_hint is False
-        assert (tool.annotations.read_only_hint is True) == (tool.name in READ_TOOLS | TYPE_TOOLS)
+        assert (tool.annotations.read_only_hint is True) == (
+            tool.name in READ_TOOLS | TYPE_TOOLS | ENGINEERING_TOOLS
+        )
         assert tool.description
     by_name = {t.name: t for t in tools}
     search = by_name["search_records"].input_schema

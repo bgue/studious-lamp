@@ -38,6 +38,7 @@ from tl_core.services.psets import SetPsetValues
 from tl_core.services.workflow import TransitionWorkflow, WorkflowStatus
 from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView
+from tl_mod_engineering.views import TagView
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 
@@ -250,6 +251,28 @@ class ClientInterface(Protocol):
         self, scope: str, sigil: Literal["#", "@"], prefix: str, *, limit: int = 8
     ) -> list[Completion]:
         """Composer candidates after ``#`` (keys, signal tags, codes, topics) or ``@`` (people)."""
+        ...
+
+    # --- engineering tags (P1-I1; brief 9 M2) ------------------------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient`` (the remote client passes them
+    # through). ``project`` is the project id (scope ``project:<id>``).
+
+    def list_tags(
+        self,
+        project: str,
+        *,
+        class_code: str | None = None,
+        status: str | None = None,
+        number_status: str | None = None,
+        include_ended: bool = False,
+        limit: int = 1000,
+    ) -> list[TagView]:
+        """A project's tags by number; ``issues`` is empty in a listing."""
+        ...
+
+    def get_tag(self, project: str, number: str) -> TagView:
+        """One tag with its conformance issues. Raises ``TagNotFoundError`` when unknown."""
         ...
 
     # --- settings (P0-I8; brief 30) -----------------------------------------------------------

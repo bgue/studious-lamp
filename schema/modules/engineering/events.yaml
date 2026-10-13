@@ -1,0 +1,320 @@
+id: https://example.org/throughline/modules/engineering/events
+name: tl_mod_engineering_events
+title: Engineering module events
+description: >-
+  The ledger events of the engineering module (brief 18.3), one class per event type, in the same form
+  as `schema/core/events.yaml`. A registry entry, a code value, a tag class or a tag is created by
+  `Record.Created` (the envelope) followed in the same append by its `*.Defined` event (the typed
+  fields). The catalog generator reads these classes together with the core ones.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+default_range: string
+annotations:
+  tl:module: engineering
+
+classes:
+  StandardDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A registry entry (a code list, a mnemonic or a numbering pattern) was defined.
+    annotations:
+      tl:event_type: Standard.Defined
+      tl:event_version: "1"
+    attributes:
+      kind:
+        description: "code_list, mnemonic or numbering_pattern."
+        required: true
+      code:
+        description: "The entry's code within its kind."
+        required: true
+      label:
+        description: "Display name or meaning."
+        required: true
+      definition:
+        description: "What the entry means or governs."
+      edition:
+        description: "The standards edition that supplied it."
+        required: true
+      owner:
+        description: "Steward of the entry."
+      adoption:
+        description: "mandatory, default or optional."
+      value_list_policy:
+        description: "Code lists only: closed, extensible or project_defined."
+      effective_from:
+        description: "ISO date from which the entry applies."
+      effective_to:
+        description: "ISO date after which it no longer applies."
+      data:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Kind-specific content."
+    examples:
+      - value: "{\"adoption\": \"mandatory\", \"code\": \"FV\", \"data\": {\"class_hint\": \"ControlValve\"}, \"definition\": null, \"edition\": \"co.acme.standards@1.0.0\", \"effective_from\": null, \"effective_to\": null, \"kind\": \"mnemonic\", \"label\": \"Flow control valve\", \"owner\": \"role:standards-steward\", \"value_list_policy\": null}"
+  StandardClosedPayload:
+    is_a: EventPayload
+    description: >-
+      A registry entry was superseded by another or retired; it stays resolvable for history.
+    annotations:
+      tl:event_type: Standard.Closed
+      tl:event_version: "1"
+    attributes:
+      lifecycle:
+        description: "superseded or retired."
+        required: true
+      superseded_by:
+        description: "Record id of the entry that replaced this one."
+      effective_to:
+        description: "ISO date the entry stops applying."
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"effective_to\": \"2027-01-01\", \"lifecycle\": \"superseded\", \"reason\": \"Edition 2 replaces the pattern\", \"superseded_by\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+  CodeValueDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A value was added to a code list.
+    annotations:
+      tl:event_type: CodeValue.Defined
+      tl:event_version: "1"
+    attributes:
+      code_list:
+        description: "Code of the list."
+        required: true
+      code:
+        description: "The value's code."
+        required: true
+      label:
+        description: "Display text."
+        required: true
+      meaning:
+        description: "IRI that says what the value means."
+      crosswalk:
+        description: "The company code a project-added value maps to."
+      origin:
+        description: "company or project."
+        required: true
+      sort_order:
+        description: "Position in the list."
+        range: integer
+      effective_from:
+        description: "ISO date from which the value applies."
+      effective_to:
+        description: "ISO date after which it no longer applies."
+      attributes:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "List-specific content."
+      edition:
+        description: "The standards edition that supplied the value."
+        required: true
+    examples:
+      - value: "{\"attributes\": {}, \"code\": \"PIP\", \"code_list\": \"Discipline\", \"crosswalk\": null, \"edition\": \"co.acme.standards@1.0.0\", \"effective_from\": null, \"effective_to\": null, \"label\": \"Piping\", \"meaning\": null, \"origin\": \"company\", \"sort_order\": 10}"
+  CodeValueClosedPayload:
+    is_a: EventPayload
+    description: >-
+      A code value was superseded by another or retired; it still resolves for old records.
+    annotations:
+      tl:event_type: CodeValue.Closed
+      tl:event_version: "1"
+    attributes:
+      lifecycle:
+        description: "superseded or retired."
+        required: true
+      superseded_by:
+        description: "Record id of the value that replaced this one."
+      effective_to:
+        description: "ISO date the value stops applying."
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"effective_to\": null, \"lifecycle\": \"retired\", \"reason\": \"No longer used on site\", \"superseded_by\": null}"
+  TagClassDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A tag class was defined.
+    annotations:
+      tl:event_type: TagClass.Defined
+      tl:event_version: "1"
+    attributes:
+      code:
+        description: "The class code."
+        required: true
+      label:
+        description: "Display name."
+        required: true
+      family:
+        description: "instrument, valve, pump, line, equipment, cable or other."
+        required: true
+      required_psets:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Pset names a tag of this class must carry."
+      itr_templates:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "ITR template references."
+      mnemonics:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Mnemonic codes that normally identify this class."
+      edition:
+        description: "The standards edition that supplied the class."
+        required: true
+    examples:
+      - value: "{\"code\": \"ControlValve\", \"edition\": \"co.acme.standards@1.0.0\", \"family\": \"valve\", \"itr_templates\": [\"ITR-VALVE-01\"], \"label\": \"Control valve\", \"mnemonics\": [\"FV\"], \"required_psets\": [\"valve_data\"]}"
+  TagClassRevisedPayload:
+    is_a: EventPayload
+    description: >-
+      A tag class changed. Adding a required pset is a constraining change: existing tags are flagged, not rewritten.
+    annotations:
+      tl:event_type: TagClass.Revised
+      tl:event_version: "1"
+      tl:sample_changes: "{\"required_psets\": [[\"valve_data\"], [\"valve_data\", \"safety_data\"]]}"
+    attributes:
+      changes:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "Object of field name to [old, new]."
+      reason:
+        description: "Why it changed."
+        required: true
+    examples:
+      - value: "{\"changes\": {\"required_psets\": [[\"valve_data\"], [\"valve_data\", \"safety_data\"]]}, \"reason\": \"SIS valves need safety data\"}"
+  TagClassClosedPayload:
+    is_a: EventPayload
+    description: >-
+      A tag class was retired; tags already of that class keep it.
+    annotations:
+      tl:event_type: TagClass.Closed
+      tl:event_version: "1"
+    attributes:
+      lifecycle:
+        description: "superseded or retired."
+        required: true
+      superseded_by:
+        description: "Record id of the class that replaced this one."
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"lifecycle\": \"retired\", \"reason\": \"Merged into ControlValve\", \"superseded_by\": null}"
+  TagDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A tag was created, with its number parsed into segments and its class.
+    annotations:
+      tl:event_type: Tag.Defined
+      tl:event_version: "1"
+    attributes:
+      number:
+        description: "The tag number."
+        required: true
+      class_code:
+        description: "Code of the tag's class; null until classified."
+      area:
+        description: "The area or unit segment."
+      mnemonic:
+        description: "The mnemonic segment."
+      sequence:
+        description: "The sequence segment."
+        range: integer
+      segments:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Every parsed segment by name."
+      pattern_code:
+        description: "Code of the numbering pattern the number was checked against."
+      number_status:
+        description: "ok or violation."
+        required: true
+      violations:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "The problems found in the number."
+      origin:
+        description: "created, import, rename, split or merge."
+        required: true
+      supersedes:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Record ids of the tags this one replaces."
+      bound_psets:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Pset names the class binds to the tag."
+      conformance:
+        description: "Conformance of the new tag: ok, warning, nonconformant or waived."
+      effective_schema_hash:
+        description: "Hash of the effective schema in force."
+    examples:
+      - value: "{\"area\": \"47\", \"bound_psets\": [\"valve_data\"], \"class_code\": \"ControlValve\", \"conformance\": \"nonconformant\", \"effective_schema_hash\": \"9f2c\", \"mnemonic\": \"FV\", \"number\": \"47-FV-1001\", \"number_status\": \"ok\", \"origin\": \"created\", \"pattern_code\": \"tag\", \"segments\": {\"area\": \"47\", \"mnemonic\": \"FV\", \"seq\": \"1001\"}, \"sequence\": 1001, \"supersedes\": [], \"violations\": []}"
+  TagReclassifiedPayload:
+    is_a: EventPayload
+    description: >-
+      A tag moved to another class; the new class may bind other property sets.
+    annotations:
+      tl:event_type: Tag.Reclassified
+      tl:event_version: "1"
+      tl:sample_changes: "{\"class_code\": [\"ManualValve\", \"ControlValve\"]}"
+    attributes:
+      from_class:
+        description: "The previous class code; null when the tag had none."
+      to_class:
+        description: "The new class code."
+        required: true
+      reason:
+        description: "Why."
+      bound_psets:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Pset names the new class binds."
+      conformance:
+        description: "Conformance after the change."
+      effective_schema_hash:
+        description: "Hash of the effective schema in force."
+    examples:
+      - value: "{\"bound_psets\": [\"valve_data\"], \"conformance\": \"nonconformant\", \"effective_schema_hash\": \"9f2c\", \"from_class\": \"ManualValve\", \"reason\": \"Actuator added\", \"to_class\": \"ControlValve\"}"
+  TagSupersededPayload:
+    is_a: EventPayload
+    description: >-
+      A tag was replaced by one or more others (a rename, a split or a merge); it stays in the ledger as history.
+    annotations:
+      tl:event_type: Tag.Superseded
+      tl:event_version: "1"
+    attributes:
+      operation:
+        description: "rename, split or merge."
+        required: true
+      superseded_by:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "Record ids of the tags that replace this one."
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"operation\": \"rename\", \"reason\": \"P&ID revision 3 renumbers the loop\", \"superseded_by\": [\"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"]}"

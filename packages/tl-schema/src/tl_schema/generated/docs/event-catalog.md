@@ -13,6 +13,8 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Account.RolesSet`](#accountrolesset) | `tl.core.Account.RolesSet.v1` | The roles of an account were replaced. |
 | [`AgentToken.Issued`](#agenttokenissued) | `tl.core.AgentToken.Issued.v1` | An agent token was issued. |
 | [`AgentToken.Revoked`](#agenttokenrevoked) | `tl.core.AgentToken.Revoked.v1` | An agent token was revoked and no longer authenticates. |
+| [`CodeValue.Closed`](#codevalueclosed) | `tl.core.CodeValue.Closed.v1` | A code value was superseded by another or retired; it still resolves for old records. |
+| [`CodeValue.Defined`](#codevaluedefined) | `tl.core.CodeValue.Defined.v1` | A value was added to a code list. |
 | [`Feed.Edited`](#feededited) | `tl.core.Feed.Edited.v1` | A post was edited. |
 | [`Feed.Posted`](#feedposted) | `tl.core.Feed.Posted.v1` | A post was made in a project feed. |
 | [`Feed.Reacted`](#feedreacted) | `tl.core.Feed.Reacted.v1` | A reaction was set or cleared on a post. |
@@ -43,6 +45,14 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`SchemaPackage.Published`](#schemapackagepublished) | `tl.core.SchemaPackage.Published.v1` | A schema package version was published. |
 | [`Setting.Changed`](#settingchanged) | `tl.core.Setting.Changed.v1` | One key was set, or reset to what the layer above gives, at one layer. |
 | [`Setting.Locked`](#settinglocked) | `tl.core.Setting.Locked.v1` | The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to. |
+| [`Standard.Closed`](#standardclosed) | `tl.core.Standard.Closed.v1` | A registry entry was superseded by another or retired; it stays resolvable for history. |
+| [`Standard.Defined`](#standarddefined) | `tl.core.Standard.Defined.v1` | A registry entry (a code list, a mnemonic or a numbering pattern) was defined. |
+| [`Tag.Defined`](#tagdefined) | `tl.core.Tag.Defined.v1` | A tag was created, with its number parsed into segments and its class. |
+| [`Tag.Reclassified`](#tagreclassified) | `tl.core.Tag.Reclassified.v1` | A tag moved to another class; the new class may bind other property sets. |
+| [`Tag.Superseded`](#tagsuperseded) | `tl.core.Tag.Superseded.v1` | A tag was replaced by one or more others (a rename, a split or a merge); it stays in the ledger as history. |
+| [`TagClass.Closed`](#tagclassclosed) | `tl.core.TagClass.Closed.v1` | A tag class was retired; tags already of that class keep it. |
+| [`TagClass.Defined`](#tagclassdefined) | `tl.core.TagClass.Defined.v1` | A tag class was defined. |
+| [`TagClass.Revised`](#tagclassrevised) | `tl.core.TagClass.Revised.v1` | A tag class changed. |
 | [`TypeRegistration.Deprecated`](#typeregistrationdeprecated) | `tl.core.TypeRegistration.Deprecated.v1` | The owner retired a version. |
 | [`TypeRegistration.Quarantined`](#typeregistrationquarantined) | `tl.core.TypeRegistration.Quarantined.v1` | A type package failed validation, or its files changed under a version that is already registered. |
 | [`TypeRegistration.Registered`](#typeregistrationregistered) | `tl.core.TypeRegistration.Registered.v1` | A type package validated and was registered. |
@@ -421,6 +431,128 @@ An agent token was revoked and no longer authenticates. Internal: never delivere
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.AgentToken.Revoked.v1"
+}
+```
+
+## CodeValue.Closed
+
+A code value was superseded by another or retired; it still resolves for old records.
+
+- CloudEvents type: `tl.core.CodeValue.Closed.v1`
+- Ledger payload class: `CodeValueClosedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `effective_to` | string or null | no | ISO date the value stops applying. |
+| `lifecycle` | string | yes | superseded or retired. |
+| `reason` | string | yes | Why. |
+| `superseded_by` | string or null | no | Record id of the value that replaced this one. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "effective_to": null,
+      "lifecycle": "retired",
+      "reason": "No longer used on site",
+      "superseded_by": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CodeValue.Closed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CodeValue.Closed.v1"
+}
+```
+
+## CodeValue.Defined
+
+A value was added to a code list.
+
+- CloudEvents type: `tl.core.CodeValue.Defined.v1`
+- Ledger payload class: `CodeValueDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `attributes` | any | no | List-specific content. |
+| `code` | string | yes | The value's code. |
+| `code_list` | string | yes | Code of the list. |
+| `crosswalk` | string or null | no | The company code a project-added value maps to. |
+| `edition` | string | yes | The standards edition that supplied the value. |
+| `effective_from` | string or null | no | ISO date from which the value applies. |
+| `effective_to` | string or null | no | ISO date after which it no longer applies. |
+| `label` | string | yes | Display text. |
+| `meaning` | string or null | no | IRI that says what the value means. |
+| `origin` | string | yes | company or project. |
+| `sort_order` | integer or null | no | Position in the list. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "attributes": {},
+      "code": "PIP",
+      "code_list": "Discipline",
+      "crosswalk": null,
+      "edition": "co.acme.standards@1.0.0",
+      "effective_from": null,
+      "effective_to": null,
+      "label": "Piping",
+      "meaning": null,
+      "origin": "company",
+      "sort_order": 10
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CodeValue.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CodeValue.Defined.v1"
 }
 ```
 
@@ -2111,6 +2243,517 @@ The company locked a key for its projects, unlocked it, or changed the bounds pr
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Setting.Locked.v1"
+}
+```
+
+## Standard.Closed
+
+A registry entry was superseded by another or retired; it stays resolvable for history.
+
+- CloudEvents type: `tl.core.Standard.Closed.v1`
+- Ledger payload class: `StandardClosedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `effective_to` | string or null | no | ISO date the entry stops applying. |
+| `lifecycle` | string | yes | superseded or retired. |
+| `reason` | string | yes | Why. |
+| `superseded_by` | string or null | no | Record id of the entry that replaced this one. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "effective_to": "2027-01-01",
+      "lifecycle": "superseded",
+      "reason": "Edition 2 replaces the pattern",
+      "superseded_by": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Standard.Closed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Standard.Closed.v1"
+}
+```
+
+## Standard.Defined
+
+A registry entry (a code list, a mnemonic or a numbering pattern) was defined.
+
+- CloudEvents type: `tl.core.Standard.Defined.v1`
+- Ledger payload class: `StandardDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `adoption` | string or null | no | mandatory, default or optional. |
+| `code` | string | yes | The entry's code within its kind. |
+| `data` | any | no | Kind-specific content. |
+| `definition` | string or null | no | What the entry means or governs. |
+| `edition` | string | yes | The standards edition that supplied it. |
+| `effective_from` | string or null | no | ISO date from which the entry applies. |
+| `effective_to` | string or null | no | ISO date after which it no longer applies. |
+| `kind` | string | yes | code_list, mnemonic or numbering_pattern. |
+| `label` | string | yes | Display name or meaning. |
+| `owner` | string or null | no | Steward of the entry. |
+| `value_list_policy` | string or null | no | Code lists only: closed, extensible or project_defined. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "adoption": "mandatory",
+      "code": "FV",
+      "data": {
+        "class_hint": "ControlValve"
+      },
+      "definition": null,
+      "edition": "co.acme.standards@1.0.0",
+      "effective_from": null,
+      "effective_to": null,
+      "kind": "mnemonic",
+      "label": "Flow control valve",
+      "owner": "role:standards-steward",
+      "value_list_policy": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Standard.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Standard.Defined.v1"
+}
+```
+
+## Tag.Defined
+
+A tag was created, with its number parsed into segments and its class.
+
+- CloudEvents type: `tl.core.Tag.Defined.v1`
+- Ledger payload class: `TagDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `area` | string or null | no | The area or unit segment. |
+| `bound_psets` | any | no | Pset names the class binds to the tag. |
+| `class_code` | string or null | no | Code of the tag's class; null until classified. |
+| `conformance` | string or null | no | Conformance of the new tag: ok, warning, nonconformant or waived. |
+| `effective_schema_hash` | string or null | no | Hash of the effective schema in force. |
+| `mnemonic` | string or null | no | The mnemonic segment. |
+| `number` | string | yes | The tag number. |
+| `number_status` | string | yes | ok or violation. |
+| `origin` | string | yes | created, import, rename, split or merge. |
+| `pattern_code` | string or null | no | Code of the numbering pattern the number was checked against. |
+| `segments` | any | no | Every parsed segment by name. |
+| `sequence` | integer or null | no | The sequence segment. |
+| `supersedes` | any | no | Record ids of the tags this one replaces. |
+| `violations` | any | no | The problems found in the number. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "area": "47",
+      "bound_psets": [
+        "valve_data"
+      ],
+      "class_code": "ControlValve",
+      "conformance": "nonconformant",
+      "effective_schema_hash": "9f2c",
+      "mnemonic": "FV",
+      "number": "47-FV-1001",
+      "number_status": "ok",
+      "origin": "created",
+      "pattern_code": "tag",
+      "segments": {
+        "area": "47",
+        "mnemonic": "FV",
+        "seq": "1001"
+      },
+      "sequence": 1001,
+      "supersedes": [],
+      "violations": []
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Tag.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Tag.Defined.v1"
+}
+```
+
+## Tag.Reclassified
+
+A tag moved to another class; the new class may bind other property sets.
+
+- CloudEvents type: `tl.core.Tag.Reclassified.v1`
+- Ledger payload class: `TagReclassifiedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `bound_psets` | any | no | Pset names the new class binds. |
+| `conformance` | string or null | no | Conformance after the change. |
+| `effective_schema_hash` | string or null | no | Hash of the effective schema in force. |
+| `from_class` | string or null | no | The previous class code; null when the tag had none. |
+| `reason` | string or null | no | Why. |
+| `to_class` | string | yes | The new class code. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {
+      "class_code": [
+        "ManualValve",
+        "ControlValve"
+      ]
+    },
+    "detail": {
+      "bound_psets": [
+        "valve_data"
+      ],
+      "conformance": "nonconformant",
+      "effective_schema_hash": "9f2c",
+      "from_class": "ManualValve",
+      "reason": "Actuator added",
+      "to_class": "ControlValve"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Tag.Reclassified/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Tag.Reclassified.v1"
+}
+```
+
+## Tag.Superseded
+
+A tag was replaced by one or more others (a rename, a split or a merge); it stays in the ledger as history.
+
+- CloudEvents type: `tl.core.Tag.Superseded.v1`
+- Ledger payload class: `TagSupersededPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `operation` | string | yes | rename, split or merge. |
+| `reason` | string | yes | Why. |
+| `superseded_by` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "operation": "rename",
+      "reason": "P&ID revision 3 renumbers the loop",
+      "superseded_by": [
+        "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+      ]
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Tag.Superseded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Tag.Superseded.v1"
+}
+```
+
+## TagClass.Closed
+
+A tag class was retired; tags already of that class keep it.
+
+- CloudEvents type: `tl.core.TagClass.Closed.v1`
+- Ledger payload class: `TagClassClosedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `lifecycle` | string | yes | superseded or retired. |
+| `reason` | string | yes | Why. |
+| `superseded_by` | string or null | no | Record id of the class that replaced this one. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "lifecycle": "retired",
+      "reason": "Merged into ControlValve",
+      "superseded_by": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/TagClass.Closed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.TagClass.Closed.v1"
+}
+```
+
+## TagClass.Defined
+
+A tag class was defined.
+
+- CloudEvents type: `tl.core.TagClass.Defined.v1`
+- Ledger payload class: `TagClassDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `code` | string | yes | The class code. |
+| `edition` | string | yes | The standards edition that supplied the class. |
+| `family` | string | yes | instrument, valve, pump, line, equipment, cable or other. |
+| `itr_templates` | any | no | ITR template references. |
+| `label` | string | yes | Display name. |
+| `mnemonics` | any | no | Mnemonic codes that normally identify this class. |
+| `required_psets` | any | no | Pset names a tag of this class must carry. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "code": "ControlValve",
+      "edition": "co.acme.standards@1.0.0",
+      "family": "valve",
+      "itr_templates": [
+        "ITR-VALVE-01"
+      ],
+      "label": "Control valve",
+      "mnemonics": [
+        "FV"
+      ],
+      "required_psets": [
+        "valve_data"
+      ]
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/TagClass.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.TagClass.Defined.v1"
+}
+```
+
+## TagClass.Revised
+
+A tag class changed. Adding a required pset is a constraining change: existing tags are flagged, not rewritten.
+
+- CloudEvents type: `tl.core.TagClass.Revised.v1`
+- Ledger payload class: `TagClassRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+| `reason` | string | yes | Why it changed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {
+      "required_psets": [
+        [
+          "valve_data"
+        ],
+        [
+          "valve_data",
+          "safety_data"
+        ]
+      ]
+    },
+    "detail": {
+      "changes": {
+        "required_psets": [
+          [
+            "valve_data"
+          ],
+          [
+            "valve_data",
+            "safety_data"
+          ]
+        ]
+      },
+      "reason": "SIS valves need safety data"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/TagClass.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.TagClass.Revised.v1"
 }
 ```
 

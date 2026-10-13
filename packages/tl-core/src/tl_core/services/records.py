@@ -8,11 +8,16 @@ its initial values as psets; an object-backed one is created with its body by
 Each handler runs inside an already-entered unit of work and never commits. A failed check raises
 a ServiceError (or the ledger's ConcurrencyError) before anything is appended, so nothing is
 written.
+
+A record of a module type (``tl_core.modules``, ADR-0010) is created by the module's own command
+through ``create_module_record``: the same envelope event and the same key checks, plus the
+module's typed events in the same append.
 """
 
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -20,9 +25,16 @@ from sqlalchemy import text
 
 from tl_core.extypes.service import prepare_create, refuse_index_write
 from tl_core.ledger import NewEvent
+from tl_core.modules import is_module_record_type, require_generic_command
 from tl_core.numbering.allocator import allocate_key, segment_values
-from tl_core.numbering.config import get_numbering
-from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord, VoidRecord
+from tl_core.numbering.config import numbering_for
+from tl_core.services.commands import (
+    Command,
+    CommandResult,
+    CreateRecord,
+    UpdateRecord,
+    VoidRecord,
+)
 from tl_core.services.errors import (
     AlreadyVoidedError,
     DuplicateKeyError,
@@ -31,6 +43,7 @@ from tl_core.services.errors import (
     RecordNotFoundError,
     RecordVoidedError,
     UnsupportedFieldError,
+    UnsupportedRecordTypeError,
 )
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
@@ -99,7 +112,7 @@ def create_record_internal(
     correlation_id = cmd.correlation_id or new_ulid()
     key = cmd.key
     if key is None:
-        pattern = get_numbering().find(cmd.scope, cmd.record_type)
+        pattern = numbering_for(uow.conn()).find(cmd.scope, cmd.record_type)
         if pattern is None:
             raise NoNumberingPatternError(
                 f"no key given and no numbering pattern for {cmd.record_type!r} in scope "
@@ -176,8 +189,85 @@ def create_record_internal(
     )
 
 
+def create_module_record(
+    uow: UnitOfWork,
+    cmd: Command,
+    *,
+    record_type: str,
+    title: str,
+    key: str | None,
+    description: str | None = None,
+    extra_events: Sequence[NewEvent] = (),
+    numbering: dict[str, str] | None = None,
+) -> CommandResult:
+    """Create a record of a module type: ``Record.Created`` then the module's own events.
+
+    ``record_type`` must be provided by an installed module (``UnsupportedRecordTypeError``
+    otherwise). The key is checked like any record's (``DuplicateKeyError``); with no key the
+    numbering service allocates one from the pattern for the type and ``numbering`` supplies the
+    pattern's other fields. ``extra_events`` are appended in the same append, after the envelope
+    event, so the module's projectors see the row ``RecordProjector`` just made. The record has no
+    property-set values yet; write them with ``SetPsetValues`` in the same unit of work.
+    """
+    if not is_module_record_type(record_type):
+        raise UnsupportedRecordTypeError(
+            f"record type {record_type!r} is not provided by an installed module"
+        )
+    stream_id = new_ulid()
+    correlation_id = cmd.correlation_id or new_ulid()
+    if key is None:
+        pattern = numbering_for(uow.conn()).find(cmd.scope, record_type)
+        if pattern is None:
+            raise NoNumberingPatternError(
+                f"no key given and no numbering pattern for {record_type!r} in scope "
+                f"{cmd.scope!r}; give a key"
+            )
+        key = allocate_key(
+            uow,
+            pattern=pattern,
+            scope=cmd.scope,
+            values=segment_values(pattern, cmd.scope, numbering),
+            record_id=stream_id,
+            record_type=record_type,
+            actor=cmd.actor,
+            source=cmd.source,
+            correlation_id=correlation_id,
+            causation_id=cmd.causation_id,
+            is_taken=lambda candidate: _key_taken(uow, cmd.scope, candidate),
+        ).key
+    elif _key_taken(uow, cmd.scope, key):
+        raise DuplicateKeyError(f"key {key!r} is already used in scope {cmd.scope!r}")
+    result = uow.append(
+        stream_id=stream_id,
+        stream_type=record_type,
+        scope=cmd.scope,
+        expected_version=0,
+        events=[
+            NewEvent(
+                event_type="Record.Created",
+                payload={
+                    "record_type": record_type,
+                    "key": key,
+                    "title": title,
+                    "description": description,
+                    "psets": {},
+                },
+            ),
+            *extra_events,
+        ],
+        actor=cmd.actor,
+        source=cmd.source,
+        correlation_id=correlation_id,
+        causation_id=cmd.causation_id,
+    )
+    return CommandResult(
+        stream_id=stream_id, key=key, version=result.new_version, events=result.events
+    )
+
+
 def handle_update_record(uow: UnitOfWork, cmd: UpdateRecord) -> CommandResult:
     stored = _load_record(uow, cmd.scope, cmd.stream_id)
+    require_generic_command(stored.type, "UpdateRecord")
     if stored.voided:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot be updated")
     if "psets" in cmd.changes:
@@ -223,6 +313,7 @@ def handle_update_record(uow: UnitOfWork, cmd: UpdateRecord) -> CommandResult:
 
 def handle_void_record(uow: UnitOfWork, cmd: VoidRecord) -> CommandResult:
     stored = _load_record(uow, cmd.scope, cmd.stream_id)
+    require_generic_command(stored.type, "VoidRecord")
     if stored.voided:
         raise AlreadyVoidedError(f"record {cmd.stream_id!r} is already voided")
 

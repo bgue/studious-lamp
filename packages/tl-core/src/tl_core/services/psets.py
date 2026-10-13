@@ -18,6 +18,7 @@ from tl_schema.validation import validate_psets
 
 from tl_core.extypes.service import refuse_index_write
 from tl_core.ledger import NewEvent
+from tl_core.modules import bound_psets, require_generic_command
 from tl_core.projection.promoted import ensure_promoted_columns
 from tl_core.projection.pset import apply_values
 from tl_core.schema_provider import get_provider
@@ -82,6 +83,7 @@ def apply_index_values(uow: UnitOfWork, cmd: SetPsetValues) -> CommandResult:
 
 def _set_pset_values(uow: UnitOfWork, cmd: SetPsetValues, *, from_body: bool) -> CommandResult:
     row = load_row(uow, cmd.stream_id, cmd.scope)
+    require_generic_command(row.type, "SetPsetValues")
     if row.voided:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot be updated")
     if not from_body:
@@ -90,10 +92,11 @@ def _set_pset_values(uow: UnitOfWork, cmd: SetPsetValues, *, from_body: bool) ->
 
     if cmd.pset.split(".")[0] in READ_ONLY_ROOTS:
         raise LayerError(f"{cmd.pset} is in an enrichment or source layer and is not writable")
+    bound = bound_psets(uow.conn(), row.type, row.id)
     pset = schema.find_pset(cmd.pset)
     if pset is None:
         raise UnknownPsetError(f"pset {cmd.pset!r} is not in the effective schema")
-    if row.type not in pset.applies_to:
+    if row.type not in pset.applies_to and cmd.pset not in bound:
         raise UnknownPsetError(f"pset {cmd.pset!r} does not apply to {row.type!r}")
     if not cmd.values:
         raise NoChangesError(f"no values given for {cmd.pset}")
@@ -120,7 +123,7 @@ def _set_pset_values(uow: UnitOfWork, cmd: SetPsetValues, *, from_body: bool) ->
     # event as the ledgered clear.
     incoming: dict[str, Any] = {}
     apply_values(incoming, cmd.pset, {k: v for k, v in cmd.values.items() if v is not None})
-    issues = validate_psets(schema, row.type, incoming)
+    issues = validate_psets(schema, row.type, incoming, bound)
     kept = [issue for issue in issues if issue.keyword in BLOCKING_KEYWORDS]
     if kept:
         raise PsetValidationError(
@@ -135,7 +138,7 @@ def _set_pset_values(uow: UnitOfWork, cmd: SetPsetValues, *, from_body: bool) ->
         raise NoChangesError(f"no value of {cmd.pset} differs from the record")
 
     ensure_promoted_columns(uow.conn(), schema)
-    report = evaluate(schema, row.type, merged, state=row.status, on=utcnow().date())
+    report = evaluate(schema, row.type, merged, state=row.status, on=utcnow().date(), bound=bound)
 
     units: dict[str, str] = {}
     for key, value in cmd.values.items():
@@ -174,11 +177,18 @@ def _set_pset_values(uow: UnitOfWork, cmd: SetPsetValues, *, from_body: bool) ->
     )
 
 
-def form_metadata(uow: UnitOfWork, scope: str, record_type: str) -> FormMetadata:
-    """Form and grid metadata for a record type under the scope's effective schema."""
+def form_metadata(
+    uow: UnitOfWork, scope: str, record_type: str, record_id: str | None = None
+) -> FormMetadata:
+    """Form and grid metadata for a record type under the scope's effective schema.
+
+    With ``record_id`` the form also lists the psets the record's class binds to it (ADR-0010).
+    """
     schema = get_provider().effective(scope)
+    bound = bound_psets(uow.conn(), record_type, record_id) if record_id is not None else ()
+    key = f"form:{record_type}" + (f"+{'|'.join(sorted(bound))}" if bound else "")
     built = _CACHE.get_or_build(
-        schema, f"form:{record_type}", lambda: build_form_metadata(schema, record_type)
+        schema, key, lambda: build_form_metadata(schema, record_type, bound)
     )
     return built.model_copy(deep=True)
 
@@ -190,4 +200,11 @@ def conformance(uow: UnitOfWork, record_id: str) -> ConformanceReport:
         raise RecordNotFoundError(f"no record {record_id!r}")
     schema = get_provider().effective(row.scope)
     psets: dict[str, Any] = json.loads(row.psets_json)
-    return evaluate(schema, row.type, psets, state=row.status, on=utcnow().date())
+    return evaluate(
+        schema,
+        row.type,
+        psets,
+        state=row.status,
+        on=utcnow().date(),
+        bound=bound_psets(uow.conn(), row.type, row.id),
+    )

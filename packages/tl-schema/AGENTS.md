@@ -14,3 +14,4 @@ Read the root `AGENTS.md` first. These rules add to it.
 - `required_in_states` containing `*` means every state. Use `states_cover` and `required_in`, never plain list comparisons.
 - Tests share fixtures through `tests/conftest.py` fixtures (`build_docs`, `effective`, `fixture_dir`), not imports.
 - Indexes beyond `tl:indexed` come from class annotations `tl:ix_<name>` (see `schema/core/annotations.yaml`); the generator refuses names over 63 characters and unknown slots. An index on `empty_last(col)` must match the expression the query compiler orders by, or the planner ignores it.
+- Module schemas (`schema/modules/<m>/`, ADR-0010): a module root imports core files, so a generator keeps only the classes whose own schema carries the module's `tl:module` annotation. `EffectiveSchema.psets_for(record_type, bound)` is the one way to ask which psets apply to a record; do not call `for_record_type` for a record that may have a class.

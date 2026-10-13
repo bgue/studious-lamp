@@ -20,6 +20,7 @@ from fakes_feed import FakeFeedSupport
 from fakes_links import FakeLinkSupport
 from fakes_query import FakeQuerySupport
 from fakes_settings import FakeSettingsSupport
+from fakes_tags import FakeTagSupport
 from fakes_types import FakeTypeSupport
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
@@ -212,6 +213,7 @@ class FakeClient(
     FakeSettingsSupport,
     FakeTypeSupport,
     FakeAdminSupport,
+    FakeTagSupport,
 ):
     """Implements `tl_tui.client.ClientInterface` in memory."""
 
@@ -231,6 +233,7 @@ class FakeClient(
         self._init_settings()
         self._init_admin()
         self._init_types()
+        self._init_tags()
 
     # --- seeding -----------------------------------------------------------------------------
 

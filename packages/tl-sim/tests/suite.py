@@ -21,6 +21,13 @@ from tl_api.tokens import TokenStore, add_token
 from tl_sim.client import HttpSimClient, Keys, install_stamp
 from tl_sim.clock import SimClock
 
+ACME = (
+    Path(__file__).resolve().parents[3]
+    / "schema"
+    / "fixtures"
+    / "standards"
+    / "co.acme.standards@1.0.0.yaml"
+)
 RUN_ID = "rt1"
 SCOPE = f"project:sim-{RUN_ID}"
 START = datetime(2026, 11, 2, 7, 0, tzinfo=UTC)
@@ -29,6 +36,7 @@ IDENTITIES = [
     "user:sim-document_controller",
     "user:sim-planner",
     "user:sim-crew",
+    "user:sim-tag_clerk",
     "user:sim-approver",
     "agent:sim-assistant",
     "user:alice",
@@ -63,7 +71,7 @@ class Suite:
         )
 
 
-def build_suite(tmp_path: Path) -> Suite:
+def build_suite(tmp_path: Path, *, standards: bool = False) -> Suite:
     tmp_path.mkdir(parents=True, exist_ok=True)
     db = tmp_path / "tl.db"
     create_schema(db)
@@ -71,6 +79,12 @@ def build_suite(tmp_path: Path) -> Suite:
     tokens_path = tmp_path / "tokens.json"
     tokens = {who: add_token(tokens_path, who) for who in IDENTITIES}
     settings = ApiSettings(db_path=db, tokens_path=tokens_path, poll_interval_s=0.05)
+    if standards:  # the company standards, as `tl standards load` leaves them
+        from tl_mod_engineering.document import load_standards_file
+        from tl_mod_engineering.loader import load_standards
+
+        with backend(False) as uow:
+            load_standards(uow, load_standards_file(ACME), actor="user:seed", source="test")
     app = create_app(backend, settings=settings, tokens=TokenStore(tokens_path))
     return Suite(tokens, backend, TestClient(app), Keys(RUN_ID, {}), [])
 

@@ -14,6 +14,9 @@ description: >-
     comma-separated list of terms: a slot name, `<slot> desc`, or `empty_last(<slot>)`, the expression
     `(col IS NULL OR col = '')` that the record queries order by first so empty text sorts last (an index on that exact
     expression lets the planner read a sorted page). Both dialects get the same text. Added for the P0-I8 performance pass.
+  - `tl:record_types` (string, comma-separated): the record types whose typed columns the current-state table of this class
+    holds. Written on module classes (ADR-0010: a module record is a row of `cur_core_record` and a row of the module's own
+    table, joined on `id`). No generator reads it; a test of the module checks that it matches the record types the module registers.
   Operational tables: a few classes (the `wh_*` webhook delivery state in outbox.yaml) are not projections of events. They use
   `tl:current_state` and `tl:table` only to get one DDL for both dialects; the schema file's description says so.
   - `tl:history` (boolean): also generate a `hist_<module>_<class>` table (not used before Phase 3).

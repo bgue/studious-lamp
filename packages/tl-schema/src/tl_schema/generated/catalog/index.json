@@ -64,6 +64,24 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.CodeValue.Closed.v1",
+      "event_type": "CodeValue.Closed",
+      "payload_class": "CodeValueClosedPayload",
+      "sample": "samples/CodeValue.Closed.v1.json",
+      "schema": "schemas/CodeValue.Closed.v1.json",
+      "title": "A code value was superseded by another or retired; it still resolves for old records.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CodeValue.Defined.v1",
+      "event_type": "CodeValue.Defined",
+      "payload_class": "CodeValueDefinedPayload",
+      "sample": "samples/CodeValue.Defined.v1.json",
+      "schema": "schemas/CodeValue.Defined.v1.json",
+      "title": "A value was added to a code list.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Feed.Edited.v1",
       "event_type": "Feed.Edited",
       "payload_class": "FeedEditedPayload",
@@ -331,6 +349,78 @@
       "sample": "samples/Setting.Locked.v1.json",
       "schema": "schemas/Setting.Locked.v1.json",
       "title": "The company locked a key for its projects, unlocked it, or changed the bounds projects must keep to.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Standard.Closed.v1",
+      "event_type": "Standard.Closed",
+      "payload_class": "StandardClosedPayload",
+      "sample": "samples/Standard.Closed.v1.json",
+      "schema": "schemas/Standard.Closed.v1.json",
+      "title": "A registry entry was superseded by another or retired; it stays resolvable for history.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Standard.Defined.v1",
+      "event_type": "Standard.Defined",
+      "payload_class": "StandardDefinedPayload",
+      "sample": "samples/Standard.Defined.v1.json",
+      "schema": "schemas/Standard.Defined.v1.json",
+      "title": "A registry entry (a code list, a mnemonic or a numbering pattern) was defined.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Tag.Defined.v1",
+      "event_type": "Tag.Defined",
+      "payload_class": "TagDefinedPayload",
+      "sample": "samples/Tag.Defined.v1.json",
+      "schema": "schemas/Tag.Defined.v1.json",
+      "title": "A tag was created, with its number parsed into segments and its class.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Tag.Reclassified.v1",
+      "event_type": "Tag.Reclassified",
+      "payload_class": "TagReclassifiedPayload",
+      "sample": "samples/Tag.Reclassified.v1.json",
+      "schema": "schemas/Tag.Reclassified.v1.json",
+      "title": "A tag moved to another class; the new class may bind other property sets.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Tag.Superseded.v1",
+      "event_type": "Tag.Superseded",
+      "payload_class": "TagSupersededPayload",
+      "sample": "samples/Tag.Superseded.v1.json",
+      "schema": "schemas/Tag.Superseded.v1.json",
+      "title": "A tag was replaced by one or more others (a rename, a split or a merge); it stays in the ledger as history.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.TagClass.Closed.v1",
+      "event_type": "TagClass.Closed",
+      "payload_class": "TagClassClosedPayload",
+      "sample": "samples/TagClass.Closed.v1.json",
+      "schema": "schemas/TagClass.Closed.v1.json",
+      "title": "A tag class was retired; tags already of that class keep it.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.TagClass.Defined.v1",
+      "event_type": "TagClass.Defined",
+      "payload_class": "TagClassDefinedPayload",
+      "sample": "samples/TagClass.Defined.v1.json",
+      "schema": "schemas/TagClass.Defined.v1.json",
+      "title": "A tag class was defined.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.TagClass.Revised.v1",
+      "event_type": "TagClass.Revised",
+      "payload_class": "TagClassRevisedPayload",
+      "sample": "samples/TagClass.Revised.v1.json",
+      "schema": "schemas/TagClass.Revised.v1.json",
+      "title": "A tag class changed.",
       "version": 1
     },
     {

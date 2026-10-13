@@ -66,6 +66,13 @@ KEYMAP: tuple[KeyEntry, ...] = (
     ),
     KeyEntry("App", "F", "Activity feed of the open record, or of the project", "TlApp", "F"),
     KeyEntry("App", "p", "Post to the feed (composer)", "TlApp", "p"),
+    KeyEntry(
+        "App",
+        "F8",
+        "Tag register: the project's tags, their class and what they lack",
+        "TlApp",
+        "f8",
+    ),
     KeyEntry("App", "F9", "about:config: the settings of this project", "TlApp", "f9"),
     KeyEntry("App", "F10", "Accounts and agent tokens (admins only)", "TlApp", "f10"),
     KeyEntry("App", "Ctrl+Q", "Quit"),

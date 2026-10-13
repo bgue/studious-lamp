@@ -1,9 +1,11 @@
 # pyright: basic
 """Event catalog generator (brief 18.3): from LinkML event classes to schemas, samples and docs.
 
-Input: the classes in ``schema/core/events.yaml`` that carry the annotation
-``tl:event_type`` (``tl:event_version``, ``tl:sample_changes`` and ``tl:sample_links`` are
-optional). Output, all deterministic and committed under ``generated/``:
+Input: the classes in ``schema/core/events.yaml`` and in each module's schema
+(``schema/modules/<m>/``, ADR-0010) that carry the annotation ``tl:event_type``
+(``tl:event_version``, ``tl:sample_changes`` and ``tl:sample_links`` are optional). A module's
+event types use the same ``tl.core.`` CloudEvents prefix as the core ones. Output, all
+deterministic and committed under ``generated/``:
 
 * ``catalog/schemas/<Type>.v<N>.json``: JSON Schema (2020-12) of the CloudEvent a subscriber
   receives for that event type: ``type`` fixed to ``tl.core.<Type>.v<N>``, ``data.detail``
@@ -34,6 +36,7 @@ from linkml_runtime.utils.schemaview import SchemaView
 from tl_schema.catalog_asyncapi import asyncapi_document
 from tl_schema.catalog_markdown import render_catalog_markdown
 from tl_schema.catalog_types import EventTypeInfo
+from tl_schema.modules import module_roots
 
 ROOT_SCHEMA = "core.yaml"
 DRAFT = "https://json-schema.org/draft/2020-12/schema"
@@ -110,43 +113,79 @@ def _open(schema: dict[str, Any]) -> dict[str, Any]:
     return schema
 
 
+def _owner_module(view: SchemaView, class_name: str) -> str | None:
+    """The ``tl:module`` of the schema file that defines the class (``None`` when it has none)."""
+    definition: Any = view.get_class(class_name)
+    for schema in (view.schema_map or {}).values():
+        if schema.id == definition.from_schema:
+            annotations: Any = schema.annotations
+            return str(annotations["tl:module"].value) if annotations else None
+    return None
+
+
+def _events_of(
+    view: SchemaView,
+    defs: dict[str, Any],
+    envelope_defs: dict[str, Any],
+    module: str | None,
+) -> list[EventTypeInfo]:
+    """The catalog entries of the event classes in ``view``.
+
+    ``module`` limits them to the classes the module itself defines (a module root imports core
+    files, whose events belong to the core root); ``None`` takes every class. Payload schemas
+    come from ``defs``, the CloudEvent wrapper from ``envelope_defs`` (always the core root's).
+    """
+    found: list[EventTypeInfo] = []
+    for class_name in sorted(view.all_classes()):
+        if module is not None and _owner_module(view, class_name) != module:
+            continue
+        definition: Any = view.get_class(class_name)
+        event_type = _annotation(definition, "tl:event_type")
+        if event_type is None:
+            continue
+        version = int(_annotation(definition, "tl:event_version") or "1")
+        examples: Any = definition.examples
+        if not examples:
+            raise CatalogError(f"{class_name}: an event class needs an `examples` sample")
+        sample_payload = json.loads(examples[0].value)
+        payload_schema = _open(_resolve(defs, class_name))
+        title = _first_sentence(str(definition.description))
+        changes = json.loads(_annotation(definition, "tl:sample_changes") or "{}")
+        links = json.loads(_annotation(definition, "tl:sample_links") or "[]")
+        envelope_schema = _envelope_schema(envelope_defs, event_type, version, payload_schema)
+        found.append(
+            EventTypeInfo(
+                event_type=event_type,
+                version=version,
+                ce_type=ce_type(event_type, version),
+                title=title,
+                description=" ".join(str(definition.description).split()),
+                payload_class=class_name,
+                payload_schema=payload_schema,
+                envelope_schema=envelope_schema,
+                sample_payload=sample_payload,
+                sample_envelope=_sample_envelope(
+                    event_type, version, sample_payload, changes, links
+                ),
+            )
+        )
+    return found
+
+
 def build_events(schema_dir: Path) -> list[EventTypeInfo]:
-    """The catalog entries, sorted by event type. Runs inside ``schema_dir``."""
+    """The catalog entries, sorted by event type: the core events, then each module's.
+
+    Runs inside ``schema_dir`` for the core root and inside each module's directory for its root.
+    """
     with chdir(schema_dir):
         view = SchemaView(ROOT_SCHEMA)
-        defs = json.loads(JsonSchemaGenerator(ROOT_SCHEMA).serialize())["$defs"]
-        found: list[EventTypeInfo] = []
-        for class_name in sorted(view.all_classes()):
-            definition: Any = view.get_class(class_name)
-            event_type = _annotation(definition, "tl:event_type")
-            if event_type is None:
-                continue
-            version = int(_annotation(definition, "tl:event_version") or "1")
-            examples: Any = definition.examples
-            if not examples:
-                raise CatalogError(f"{class_name}: an event class needs an `examples` sample")
-            sample_payload = json.loads(examples[0].value)
-            payload_schema = _open(_resolve(defs, class_name))
-            title = _first_sentence(str(definition.description))
-            changes = json.loads(_annotation(definition, "tl:sample_changes") or "{}")
-            links = json.loads(_annotation(definition, "tl:sample_links") or "[]")
-            envelope_schema = _envelope_schema(defs, event_type, version, payload_schema)
-            found.append(
-                EventTypeInfo(
-                    event_type=event_type,
-                    version=version,
-                    ce_type=ce_type(event_type, version),
-                    title=title,
-                    description=" ".join(str(definition.description).split()),
-                    payload_class=class_name,
-                    payload_schema=payload_schema,
-                    envelope_schema=envelope_schema,
-                    sample_payload=sample_payload,
-                    sample_envelope=_sample_envelope(
-                        event_type, version, sample_payload, changes, links
-                    ),
-                )
-            )
+        core_defs = json.loads(JsonSchemaGenerator(ROOT_SCHEMA).serialize())["$defs"]
+        found = _events_of(view, core_defs, core_defs, None)
+    for root in module_roots(schema_dir):
+        with chdir(root.directory):
+            module_view = SchemaView(root.file)
+            module_defs = json.loads(JsonSchemaGenerator(root.file).serialize())["$defs"]
+            found += _events_of(module_view, module_defs, core_defs, root.name)
     names = [e.event_type for e in found]
     if len(set(names)) != len(names):
         raise CatalogError("two event classes declare the same tl:event_type")

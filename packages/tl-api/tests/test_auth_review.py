@@ -350,6 +350,8 @@ AGENT_MAY = {
     "record.read",
     "reference.read",
     "setting.read",
+    "standards.read",
+    "tag.read",
     "type.read",
 }
 AGENT_MAY_NOT = {
@@ -365,6 +367,15 @@ AGENT_MAY_NOT = {
     "admin.tokens.list",
     "admin.tokens.issue",
     "admin.tokens.revoke",
+    # the engineering registry commands (P1-I1): one action per admin-only command
+    "admin.command.RegisterCodeList",
+    "admin.command.RegisterMnemonic",
+    "admin.command.RegisterNumberingPattern",
+    "admin.command.CloseStandard",
+    "admin.command.DefineTagClass",
+    "admin.command.ReviseTagClass",
+    "admin.command.CloseTagClass",
+    "admin.command.RecordTag",
 }
 FEED_COMMANDS = {"PostToFeed", "EditPost", "RetractPost", "ReactToPost"}
 

@@ -238,6 +238,50 @@ class FakeClient:
         self._write("Feed.Posted", post_id, {"body": body})
         return {"post_id": post_id, "version": 1}
 
+    def create_tag(self, number: str, class_code: str, service: str) -> dict[str, Any]:
+        """The ``TagDesk`` call: a tag is a record of type ``engineering.Tag``, keyed by number."""
+        self.calls.append(("create_tag", (number,)))
+        return self._new_tag(number, service)
+
+    def rename_tag(self, record_id: str, new_number: str, reason: str) -> dict[str, Any]:
+        """The ``TagDesk`` call: a new tag that supersedes the old one, which leaves service."""
+        self.calls.append(("rename_tag", (record_id, new_number)))
+        old = self.world.record(record_id)
+        made = self._new_tag(new_number, old["title"])
+        link_id = f"link-{len(self.world.link_rows) + 1}"
+        self.world.link_rows.append(
+            {
+                "from_id": made["id"],
+                "to_id": old["id"],
+                "from_key": new_number,
+                "to_key": old["key"],
+                "view": {"link_id": link_id, "relation": "supersedes", "status": "active"},
+            }
+        )
+        self._write("Link.Added", link_id)
+        old["status"] = "Superseded"
+        old["version"] += 1
+        self._write("Workflow.Transitioned", record_id)
+        return made
+
+    def _new_tag(self, number: str, title: str) -> dict[str, Any]:
+        if any(r["key"] == number for r in self.world.record_rows):
+            raise ValueError(f"tag number {number!r} is already used")
+        record = {
+            "id": f"id-{number}",
+            "key": number,
+            "type": "engineering.Tag",
+            "scope": self.world.scope,
+            "title": title,
+            "status": None,
+            "psets": {},
+            "voided": False,
+            "version": 1,
+        }
+        self.world.record_rows.append(record)
+        self._write("Record.Created", record["id"])
+        return {"id": record["id"], "key": number, "version": 1}
+
     def propose(self, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
         self.calls.append(("propose", (tool,)))
         if not self.can_propose:
@@ -339,6 +383,9 @@ class FakeClient:
             elif term.startswith("id:"):
                 wanted = term.removeprefix("id:")
                 found = [r for r in found if r["id"] == wanted]
+            elif term.startswith("type:"):
+                kind = term.removeprefix("type:")
+                found = [r for r in found if r["type"] == kind]
             elif term.startswith("status:"):
                 want = term.removeprefix("status:")
                 found = [r for r in found if (r["status"] or "null") == want]

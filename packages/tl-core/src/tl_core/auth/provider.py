@@ -54,6 +54,8 @@ AGENT_ACTIONS = frozenset(
         "record.read",
         "reference.read",
         "setting.read",
+        "standards.read",
+        "tag.read",
         "type.read",
         "command.PostToFeed",
         "command.EditPost",

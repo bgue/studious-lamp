@@ -58,6 +58,7 @@ class RecordFacts(BaseModel):
     type: str
     scope: str
     psets: dict[str, Any]
+    bound: list[str] = []  # psets the record's class binds to it (tl_core.modules.bound_psets)
 
 
 def evaluate_guards(
@@ -77,7 +78,7 @@ def conformance_in_state(
 ) -> tuple[str, str, list[dict[str, str]]]:
     """``(status, effective_schema_hash, issues)`` of the record evaluated as if in ``state``."""
     schema = get_provider().effective(record.scope)
-    report = evaluate(schema, record.type, record.psets, state=state, on=today)
+    report = evaluate(schema, record.type, record.psets, state=state, on=today, bound=record.bound)
     issues = [
         {"path": i.path, "level": i.level, "rule": i.rule, "message": i.message}
         for i in report.issues

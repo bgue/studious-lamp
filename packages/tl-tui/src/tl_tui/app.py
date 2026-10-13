@@ -90,6 +90,7 @@ class TlApp(App[None]):
         Binding("t", "trace", "Trace", show=False),
         Binding("F", "feed", "Feed", show=False),
         Binding("p", "post", "Post", show=False),
+        Binding("f8", "tags", "Tags", show=False),
         Binding("f9", "settings", "Settings", show=False),
         Binding("f10", "admin", "Accounts", show=False),
         Binding("alt+left", "back", "Back", show=False),
@@ -524,6 +525,20 @@ class TlApp(App[None]):
 
     def action_toggle_context(self) -> None:
         self.action_toggle_panel("context")
+
+    def action_tags(self) -> None:
+        """The tag register of this project: class, state, conformance, what each tag lacks."""
+        if self._modal_open():
+            return
+        from tl_core.settings.layers import project_of_scope
+
+        from tl_tui.widgets.tag_register import TagRegisterScreen
+
+        project = project_of_scope(self.scope)
+        if project is None:
+            self.notify("The tag register needs a project.", severity="warning")
+            return
+        self.push_screen(TagRegisterScreen(self.client, project))
 
     def action_settings(self) -> None:
         """about:config: the settings of this project, with their origin and history."""

@@ -36,6 +36,31 @@ def payload_of(event_type: str, **override: Any) -> dict[str, Any]:
     return {**catalog.sample(event_type)["payload"], **override}
 
 
+#: Record type, the event that defines it, and the events that follow on the same stream (ADR-0010).
+MODULE_STREAMS = (
+    ("engineering.CodeList", "Standard.Defined", ("Standard.Closed",)),
+    ("engineering.CodeValue", "CodeValue.Defined", ("CodeValue.Closed",)),
+    ("engineering.TagClass", "TagClass.Defined", ("TagClass.Revised", "TagClass.Closed")),
+    ("engineering.Tag", "Tag.Defined", ("Tag.Reclassified", "Tag.Superseded")),
+)
+
+
+def append_module_events(world: World) -> None:
+    """One stream per module record type: the envelope event, then the module's own events."""
+    for index, (record_type, defined, followers) in enumerate(MODULE_STREAMS, start=1):
+        stream = f"01J9Z6Q4W3X2Y1V0T9S8R7Q6M{index}"
+        created = {
+            "record_type": record_type,
+            "key": f"MOD-{index}",
+            "title": record_type,
+            "description": None,
+            "psets": {},
+        }
+        world.append("Record.Created", created, stream_id=stream, stream_type=record_type)
+        for kind in (defined, *followers):
+            world.append(kind, payload_of(kind), stream_id=stream, stream_type=record_type)
+
+
 def run_scenario(world: World) -> dict[str, list[dict[str, Any]]]:
     """Subscribe in all three modes, produce every catalog event type, deliver everything.
 
@@ -115,6 +140,7 @@ def run_scenario(world: World) -> dict[str, list[dict[str, Any]]]:
         stream_id="schema-package:co.acme.engineering",
         stream_type="schema-package",
     )
+    append_module_events(world)
     sid = modes["delta"].subscription_id
     with world.factory() as uow:
         update_subscription(

@@ -92,6 +92,7 @@ from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView, get_view, list_views, view_at
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
+from tl_mod_engineering.views import TagView, tag_view, tag_views
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 from tl_tui.client import RelationInfo
@@ -565,6 +566,33 @@ class EmbeddedClient:
     ) -> list[Completion]:
         with self._uow(True) as uow:
             return feed_completion.complete_tags(uow, scope, sigil, prefix, limit=limit)
+
+    # --- engineering tags (P1-I1) -------------------------------------------------------------
+
+    def list_tags(
+        self,
+        project: str,
+        *,
+        class_code: str | None = None,
+        status: str | None = None,
+        number_status: str | None = None,
+        include_ended: bool = False,
+        limit: int = 1000,
+    ) -> list[TagView]:
+        with self._uow(True) as uow:
+            return tag_views(
+                uow.conn(),
+                f"project:{project}",
+                class_code=class_code,
+                status=status,
+                number_status=number_status,
+                include_ended=include_ended,
+                limit=limit,
+            )
+
+    def get_tag(self, project: str, number: str) -> TagView:
+        with self._uow(True) as uow:
+            return tag_view(uow, f"project:{project}", number)
 
     # --- settings (P0-I8) ---------------------------------------------------------------------
 

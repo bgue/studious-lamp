@@ -1,0 +1,141 @@
+id: https://example.org/throughline/modules/engineering/standard
+name: tl_mod_engineering_standard
+title: Standards registry entries (brief 6.4)
+description: >-
+  The entries of the company standards registry that are not the values of a code list: the code
+  lists themselves, the mnemonics (tag prefixes such as `FV`) and the numbering patterns. They are
+  records of `company` scope, created by the registry commands of the engineering module, and each
+  row of `cur_engineering_standard` belongs to one of the three record types named below. The
+  values of a code list are `CodeValue` rows. Spec: docs/modules/engineering/standards.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: engineering
+
+enums:
+  StandardKind:
+    description: Which kind of registry entry a `Standard` row is.
+    permissible_values:
+      code_list:
+        description: A named list of coded values (`Discipline`, `NdeMethod`). Record type `engineering.CodeList`.
+      mnemonic:
+        description: A tag-prefix abbreviation with its meaning (`FV`). Record type `engineering.Mnemonic`.
+      numbering_pattern:
+        description: A parseable key convention (the tag number). Record type `engineering.NumberingPattern`.
+  RegistryAdoption:
+    description: Whether projects get the entry (brief 6.3, `adoption`).
+    permissible_values:
+      mandatory:
+      default:
+      optional:
+  RegistryValuePolicy:
+    description: Who may change the values of a code list (brief 6.3, `value_list_policy`).
+    permissible_values:
+      closed:
+        description: Company values only.
+      extensible:
+        description: Projects may add values; each must crosswalk to a company value.
+      project_defined:
+        description: Projects own the list; a crosswalk is optional.
+  RegistryLifecycle:
+    description: Where a registry entry or value is in its life.
+    permissible_values:
+      active:
+      superseded:
+        description: Replaced by another entry (`superseded_by`); still resolvable for history.
+      retired:
+        description: No longer to be used; kept so old records still resolve.
+
+classes:
+  Standard:
+    description: >-
+      One registry entry (a code list, a mnemonic or a numbering pattern) of a scope. The stream is the
+      record (`id`); the envelope fields (key, title, voided, version) are in `cur_core_record`. `data`
+      holds what only one kind has: for a mnemonic `{"class_hint": ..., "discipline": ...}`; for a
+      numbering pattern `{"template": ..., "record_type": ..., "segments": {...}, "allocate": ...}`.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "engineering.CodeList,engineering.Mnemonic,engineering.NumberingPattern"
+      tl:ix_scope_kind_code: "scope, kind, code"
+    unique_keys:
+      scope_kind_code_edition:
+        description: An entry is named once per scope, kind and edition.
+        unique_key_slots:
+          - scope
+          - kind
+          - code
+          - edition
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: "`company` for the company registry; a project scope for a project's own entries."
+      kind:
+        range: StandardKind
+        required: true
+        description: Which kind of entry this is.
+      code:
+        required: true
+        description: The entry's code within its kind (`Discipline`, `FV`, `tag`).
+      label:
+        required: true
+        description: Display name or meaning.
+      definition:
+        description: What the entry means or governs, in a sentence or two.
+      edition:
+        required: true
+        description: The standards edition that supplied the entry, for example `co.acme.standards@1.0.0`.
+      owner:
+        description: Steward of the entry (a role or a person's actor).
+      adoption:
+        range: RegistryAdoption
+        required: true
+        ifabsent: string(default)
+        description: Whether projects get the entry automatically.
+      value_list_policy:
+        range: RegistryValuePolicy
+        description: Code lists only; null for the other kinds.
+      effective_from:
+        description: ISO date (YYYY-MM-DD) from which the entry applies; null means always.
+      effective_to:
+        description: ISO date (YYYY-MM-DD) after which it no longer applies; null means open.
+      lifecycle:
+        range: RegistryLifecycle
+        required: true
+        ifabsent: string(active)
+        description: Active, superseded or retired.
+      superseded_by:
+        range: Ulid
+        description: The entry that replaced this one, when superseded.
+      data:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: Kind-specific content, a JSON object.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
+
+  CodeList:
+    is_a: Standard
+    description: A registry entry of kind `code_list`. Record type `engineering.CodeList`.
+  Mnemonic:
+    is_a: Standard
+    description: A registry entry of kind `mnemonic`. Record type `engineering.Mnemonic`.
+  NumberingPattern:
+    is_a: Standard
+    description: A registry entry of kind `numbering_pattern`. Record type `engineering.NumberingPattern`.

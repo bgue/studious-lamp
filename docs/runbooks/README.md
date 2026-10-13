@@ -23,3 +23,4 @@ Operational procedures, one file per alert or recovery path (§24.6). Template: 
 - `postgres-local-setup.md` — start Postgres, run the parity suite, clean up after a killed run (P0-I5).
 - `performance-benches.md` — seed 100k records, run the §15 benches on SQLite and Postgres, read the numbers (P0-I8).
 - `accounts-and-access.md` — accounts, roles, sign-in, agent tokens, the demo account, recovery from a locked-out or restored system, and the release gates for authentication (P1-I0).
+- `engineering-standards-and-tags.md` — load the company standards, change a tag class, preview and apply a tag-list import, read the tag reports (P1-I1).

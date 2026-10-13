@@ -18,19 +18,25 @@ from typing import Any
 from tl_core.services.errors import GuardFailedError, InvalidStateError, UnknownTransitionError
 
 from tl_sim import groundtruth as gt
-from tl_sim.client import ProposalDesk, ProposeUnavailableError
+from tl_sim.client import ProposalDesk, ProposeUnavailableError, TagDesk
 from tl_sim.mcp_caller import ProposalRefusedError
 from tl_sim.types import GroundTruth, SimContext
 
 RECORD_TYPE = "core.Record"
 INITIAL_STATE = "Draft"  # the state of a record whose status is empty (schema/fixtures/workflows)
 REFUSALS = (GuardFailedError, InvalidStateError, UnknownTransitionError)
+TAG_TYPE = "engineering.Tag"
+SUPERSEDED = "Superseded"  # the state of a tag that a rename replaced
 MAX_RECORDS = 5000  # the API's page limit; a Phase 0 simulation stays far below it
 
 
 def plural(count: int, one: str, many: str | None = None) -> str:
     """``1 valve``, ``2 valves``, ``0 valves``: the count and the right form of the noun."""
     return f"{count} {one if count == 1 else (many or one + 's')}"
+
+
+def _tag_expect(title: str) -> dict[str, Any]:
+    return {"title": title, "record_type": TAG_TYPE, "voided": False}
 
 
 @dataclass(frozen=True)
@@ -98,6 +104,34 @@ class Recorder:
             {"title": title, "record_type": RECORD_TYPE, "voided": False},
         )
         return rec
+
+    def _tag_desk(self) -> TagDesk:
+        client = self.ctx.client
+        if not isinstance(client, TagDesk):
+            raise ProposeUnavailableError("this client cannot keep the tag list")
+        return client
+
+    def create_tag(self, number: str, class_code: str, service: str) -> Rec:
+        """Register a tag; the title of the record is the service description."""
+        made = self._tag_desk().create_tag(number, class_code, service)
+        rec = Rec(id=str(made["id"]), key=number, title=service)
+        self._note(gt.RECORD_CREATED, rec.key, _tag_expect(service))
+        return rec
+
+    def rename_tag(self, old: Rec, new_number: str, reason: str) -> Rec:
+        """Replace ``old`` by a tag numbered ``new_number``: three things the log names."""
+        made = self._tag_desk().rename_tag(old.id, new_number, reason)
+        new = Rec(id=str(made["id"]), key=new_number, title=old.title)
+        self._note(gt.RECORD_CREATED, new.key, _tag_expect(old.title))
+        self._note(
+            gt.LINK_ADDED,
+            f"{new.key} supersedes {old.key}",
+            {"from": new.key, "to": old.key, "relation": "supersedes"},
+        )
+        self._note(
+            gt.WORKFLOW_TRANSITIONED, old.key, {"status": SUPERSEDED, "transition": "supersede"}
+        )
+        return new
 
     def set_psets(self, rec: Rec, values: dict[str, dict[str, Any]]) -> None:
         """``values`` is ``{pset: {property: value}}``, e.g. ``{"valve_data": {"size_in": 6}}``."""

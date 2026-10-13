@@ -109,6 +109,15 @@ A company adds a record type with a package of files (brief 31, 27.3). Runbook: 
 | `settings_link.refresh`, `refresh_from_ledger`, `clash_issues` | functions | The `settings.yaml` keys of the newest verified version of each usable type, registered in `tl_core.settings.registry` under the type name; a key another owner defines quarantines the package at sync |
 | `errors` | exceptions | `UnknownTypeError`, `TypeNotActiveError`, `Body*Error` (all `ServiceError`) |
 
+## Modules (`tl_core.modules`, P1-I1; ADR-0010)
+| Symbol | Kind | Purpose |
+|---|---|---|
+| `ModuleSpec`, `load_modules`, `use_modules` | class, functions | What a module package gives the core: its record types, a factory for its projectors and two optional hooks. Modules are found through the entry point group `throughline.modules`; `use_modules` installs fakes in tests |
+| `GENERIC_COMMANDS`, `require_generic_command` | constant, function | The generic commands that reach a record whatever its type, and the check every one of their handlers makes: a module record type allows only the commands its `ModuleSpec.generic_commands` lists (ADR-0010 addendum) |
+| `module_projectors`, `module_record_types`, `bound_psets`, `ledger_numbering_patterns` | functions | What the core asks the loaded modules. `default_registry()` registers the module projectors after the core ones and before the outbox |
+| `tl_core.services.records.create_module_record` | function | `Record.Created` plus the module's own events in one append, for a record type a module provides |
+| `tl_core.numbering.config.numbering_for(conn)` | function | The file patterns plus the numbering patterns modules hold in the ledger; record creation and key detection in posts use it |
+
 ## Depends on / used by
 - Depends on: `tl_schema` (generated DDL, effective schema, conformance), `sqlalchemy` (Core only), `pydantic`, `python-ulid`, `duckdb==1.5.5` (MIT; writes the archive Parquet, imported lazily), `cryptography` (Apache-2.0/BSD; Ed25519).
 - Used by: `tl_adapters`, `tl_cli`, `tl_tui` (embedded client), later `tl_api`, `tl_mcp`.

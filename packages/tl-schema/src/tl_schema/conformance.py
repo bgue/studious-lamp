@@ -18,9 +18,12 @@ JSON Schema keyword    conformance ``rule``
 =====================  ===============================================================
 
 Missing values: a pset is *engaged* for a record when it applies to the record type and the record
-has any value in it, or when it is ``mandatory`` and has no ``class_filter``. For every property of
-an engaged pset with no value, a ``required_in_state`` issue arises when the property's
-``required_in_states`` contains ``"*"`` or the record's state.
+has any value in it, or when it is ``mandatory`` and has no ``class_filter``, or when the record's
+class binds it (``bound``, ADR-0010). For every property of an engaged pset with no value, a
+``required_in_state`` issue arises when the property's ``required_in_states`` contains ``"*"`` or
+the record's state. A bound pset the record holds no values in at all is one more issue, rule
+``class_required``, at the path of the pset, with the pset's own enforcement: the class says the
+record must carry it.
 
 Level: an issue on a property takes the property's enforcement (``advisory`` gives ``warning``;
 ``required`` and ``locked`` give ``nonconformant``); an issue with no property takes its pset's
@@ -38,7 +41,7 @@ the crosswalk is for cross-project reporting.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import date
 from typing import Any, Literal, cast
 
@@ -92,8 +95,8 @@ def _has_values(psets: Mapping[str, Any], pset: EffectivePset) -> bool:
     return isinstance(node, dict) and len(cast(dict[str, Any], node)) > 0
 
 
-def _engaged(psets: Mapping[str, Any], pset: EffectivePset) -> bool:
-    if _has_values(psets, pset):
+def _engaged(psets: Mapping[str, Any], pset: EffectivePset, bound: frozenset[str]) -> bool:
+    if _has_values(psets, pset) or pset.name in bound:
         return True
     return pset.adoption == "mandatory" and pset.class_filter is None
 
@@ -124,13 +127,26 @@ def _value_issue(schema: EffectiveSchema, issue: ValueIssue) -> tuple[str, str, 
 
 
 def _missing_issues(
-    schema: EffectiveSchema, record_type: str, psets: Mapping[str, Any], state: str | None
+    schema: EffectiveSchema,
+    record_type: str,
+    psets: Mapping[str, Any],
+    state: str | None,
+    bound: frozenset[str],
 ) -> list[tuple[str, str, str, str]]:
     """``(path, rule, enforcement, message)`` for each required property without a value."""
     found: list[tuple[str, str, str, str]] = []
-    for pset in schema.for_record_type(record_type):
-        if not _engaged(psets, pset):
+    for pset in schema.psets_for(record_type, sorted(bound)):
+        if not _engaged(psets, pset, bound):
             continue
+        if pset.name in bound and not _has_values(psets, pset):
+            found.append(
+                (
+                    f"psets.{pset.name}",
+                    "class_required",
+                    pset.enforcement,
+                    f"{pset.label} is required by the record's class and has no values",
+                )
+            )
         for prop in pset.all_properties():
             if _lookup(psets, pset.name, prop.relative_key()) is not None:
                 continue
@@ -155,8 +171,12 @@ def evaluate(
     *,
     state: str | None = None,
     on: date,
+    bound: Sequence[str] = (),
 ) -> ConformanceReport:
-    """Conformance of ``psets`` (the record's ``psets`` object) in ``state`` on date ``on``."""
+    """Conformance of ``psets`` (the record's ``psets`` object) in ``state`` on date ``on``.
+
+    ``bound`` names the psets the record's class binds to it (ADR-0010); see the module docstring.
+    """
     settings = schema.conformance
     lenient = settings.mode == "lenient" and (
         settings.lenient_until is None or on <= settings.lenient_until
@@ -169,10 +189,11 @@ def evaluate(
 
     clean = _strip_none(dict(psets))
     raw: list[tuple[str, str, str, str]] = []
-    for issue in validate_psets(schema, record_type, clean):
+    bound_names = frozenset(bound)
+    for issue in validate_psets(schema, record_type, clean, sorted(bound_names)):
         rule, enforcement, message = _value_issue(schema, issue)
         raw.append((issue.path, rule, enforcement, message))
-    raw.extend(_missing_issues(schema, record_type, clean, state))
+    raw.extend(_missing_issues(schema, record_type, clean, state, bound_names))
 
     issues: list[ConformanceIssue] = []
     suppressed = 0

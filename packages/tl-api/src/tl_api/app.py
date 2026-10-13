@@ -28,6 +28,7 @@ from tl_core.files.types import ObjectStore
 
 from tl_api import commands
 from tl_api.auth import (
+    BODY_LIMITS,
     AuthenticationMiddleware,
     Authorizer,
     BodyLimitMiddleware,
@@ -45,6 +46,7 @@ from tl_api.ratelimit import RateLimitMiddleware, SourceLimiter
 from tl_api.routes import (
     admin,
     auth,
+    engineering,
     events,
     extypes,
     files,
@@ -214,7 +216,10 @@ def create_app(
     )
     install_error_handlers(app)
     app.add_middleware(AuthenticationMiddleware, resolver=resolver)
-    app.add_middleware(BodyLimitMiddleware)  # the limit applies before anything reads
+    app.add_middleware(  # the limit applies before anything reads
+        BodyLimitMiddleware,
+        limits=(*BODY_LIMITS, ("/commands/", cfg.max_command_bytes)),
+    )
     app.add_middleware(  # outermost: a limited source costs no hash, no body read, no query
         RateLimitMiddleware,
         limiter=source_limiter
@@ -255,6 +260,7 @@ def create_app(
         proposals,
         extypes,
         settings_routes,
+        engineering,
     ):
         app.include_router(module.router)
     app.include_router(commands.router)

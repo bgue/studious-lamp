@@ -1,0 +1,36 @@
+# Mapping template: the instrument index export of the incumbent system (brief 9 M2, 29.6).
+# Read by tl_mod_engineering.imports.mapping (`tl tag import FILE --mapping THIS --project P123`).
+# `dev/seed/legacy/instrument-index.csv` is a sample file in this form. This file is not a project
+# template of the simulator; it sits beside them because it is seed data of the same kind.
+name: instrument-index
+description: >-
+  The instrument index export of the incumbent system, one row per tag: its number, the service,
+  a three-letter type code, and the valve data the export carries.
+delimiter: ","
+columns:
+  - {column: "TAG NO", to: number}
+  - {column: "SERVICE", to: service}
+  - column: "TYPE"
+    to: class
+    values:
+      CV: ControlValve
+      HV: ManualValve
+      PSV: SafetyValve
+      XMTR: Transmitter
+      CTRL: Controller
+      PMP: Pump
+      VSL: Vessel
+      HX: HeatExchanger
+  - {column: "SIZE (IN)", to: psets.valve_data.size_in, type: decimal}
+  - column: "MATERIAL"
+    to: psets.valve_data.body_material
+    values:
+      CS: CS
+      "316": SS316L
+      "304": SS304
+      DPX: DUPLEX
+  - {column: "MFR", to: psets.valve_data.manufacturer}
+  - {column: "FAIL", to: psets.valve_data.fail_action}
+  - {column: "FAT WITNESS", to: psets.valve_data.x.fat_witness_by}
+# Columns the file has that the import does not want.
+ignore: ["P&ID", "REMARKS", "ISSUED"]

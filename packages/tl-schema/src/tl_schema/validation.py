@@ -7,7 +7,7 @@ uses the issues returned here.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -93,11 +93,13 @@ def _pset_schema(pset: EffectivePset) -> dict[str, Any]:
     }
 
 
-def _build_document(schema: EffectiveSchema, record_type: str) -> dict[str, Any]:
+def _build_document(
+    schema: EffectiveSchema, record_type: str, bound: Sequence[str]
+) -> dict[str, Any]:
     """The uncached document: standard psets at the root, project psets under ``prj``."""
     properties: dict[str, Any] = {}
     project: dict[str, Any] = {}
-    for pset in schema.for_record_type(record_type):
+    for pset in schema.psets_for(record_type, bound):
         if pset.layer == "standard":
             properties[pset.name] = _pset_schema(pset)
         else:
@@ -118,28 +120,44 @@ def _build_document(schema: EffectiveSchema, record_type: str) -> dict[str, Any]
     }
 
 
-def record_json_schema(schema: EffectiveSchema, record_type: str) -> dict[str, Any]:
+def _cache_key(prefix: str, record_type: str, bound: Sequence[str]) -> str:
+    """``json:core.Record`` for an unbound record; the bound pset names follow otherwise."""
+    suffix = "|".join(sorted(set(bound)))
+    return f"{prefix}:{record_type}" + (f"+{suffix}" if suffix else "")
+
+
+def record_json_schema(
+    schema: EffectiveSchema, record_type: str, bound: Sequence[str] = ()
+) -> dict[str, Any]:
     """JSON Schema (draft 2020-12) of the ``psets`` object of ``record_type``.
 
-    Built only from ``schema``; cached by ``schema.hash`` and ``record_type``; the returned
+    ``bound`` names psets the record's class binds to it (``EffectiveSchema.psets_for``). Built
+    only from ``schema``; cached by ``schema.hash``, ``record_type`` and ``bound``; the returned
     dict must not be mutated by callers. See the ticket for the exact shape.
     """
     return _CACHE.get_or_build(
-        schema, f"json:{record_type}", lambda: _build_document(schema, record_type)
+        schema,
+        _cache_key("json", record_type, bound),
+        lambda: _build_document(schema, record_type, bound),
     )
 
 
 def validate_psets(
-    schema: EffectiveSchema, record_type: str, psets: Mapping[str, Any]
+    schema: EffectiveSchema,
+    record_type: str,
+    psets: Mapping[str, Any],
+    bound: Sequence[str] = (),
 ) -> list[ValueIssue]:
     """Every violation of ``psets`` against ``record_json_schema``, sorted by ``(path, keyword)``.
 
     An ``additionalProperties`` violation yields one issue per unknown key, with that key at the
     end of ``path``. An empty list means the object is valid.
     """
-    document = record_json_schema(schema, record_type)
+    document = record_json_schema(schema, record_type, bound)
     validator: Any = _CACHE.get_or_build(
-        schema, f"validator:{record_type}", lambda: Draft202012Validator(document)
+        schema,
+        _cache_key("validator", record_type, bound),
+        lambda: Draft202012Validator(document),
     )
     errors: list[Any] = list(validator.iter_errors(dict(psets)))
     found: set[ValueIssue] = set()

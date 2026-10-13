@@ -10,6 +10,7 @@ See ``tl_api.client.base`` for how errors map back to exceptions.
 from tl_api.client.admin import AdminApi
 from tl_api.client.auth import AuthApi
 from tl_api.client.base import ApiClientBase
+from tl_api.client.engineering import EngineeringApi
 from tl_api.client.events import EventsApi
 from tl_api.client.feed import FeedApi
 from tl_api.client.files import FilesApi
@@ -29,6 +30,7 @@ class ApiClient(
     ProposalsApi,
     SettingsApi,
     TypesApi,
+    EngineeringApi,
     AuthApi,
     AdminApi,
 ):

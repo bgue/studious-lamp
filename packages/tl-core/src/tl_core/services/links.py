@@ -21,6 +21,7 @@ from tl_core.ledger import Event, NewEvent
 from tl_core.links.lifecycle import next_status
 from tl_core.links.provider import get_vocabulary
 from tl_core.links.vocabulary import LinkSource, default_relation
+from tl_core.modules import require_generic_command
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import (
     CrossScopeLinkError,
@@ -150,6 +151,9 @@ def _record(uow: UnitOfWork, record_id: str, *, allow_post: bool = False) -> Any
 def _create(uow: UnitOfWork, cmd: AddLink, event_type: str, extra: dict[str, Any]) -> CommandResult:
     """Shared body of ``handle_add_link`` and ``handle_suggest_link``."""
     source = _record(uow, cmd.from_id, allow_post=True)
+    require_generic_command(
+        source.type, "SuggestLink" if event_type == "Link.Suggested" else "AddLink"
+    )
     if source.type == POST_RECORD_TYPE and cmd.relation != "references":
         raise UnknownRelationError(
             f"a feed post can only reference records; relation {cmd.relation or 'default'!r} "

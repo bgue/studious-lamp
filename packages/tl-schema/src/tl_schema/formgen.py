@@ -6,6 +6,8 @@ same schema and record type always give the same metadata (and the same hash).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from tl_schema.effective import ALWAYS, EffectiveProperty, EffectivePset, EffectiveSchema
 from tl_schema.forms import EnumValue, FieldKind, FieldMeta, FormMetadata, PsetGroupMeta
 
@@ -119,15 +121,17 @@ def _group(pset: EffectivePset) -> PsetGroupMeta:
     )
 
 
-def form_metadata(schema: EffectiveSchema, record_type: str) -> FormMetadata:
+def form_metadata(
+    schema: EffectiveSchema, record_type: str, bound: Sequence[str] = ()
+) -> FormMetadata:
     """Metadata a client needs to render and edit ``record_type`` under ``schema``.
 
     ``core_fields`` are the four envelope fields, then ``psets`` lists the psets that apply to the
-    record type, standard psets first and then project psets, each by name. See the ticket for
-    the exact mapping.
+    record type (and the ones its class binds, ``bound``), standard psets first and then project
+    psets, each by name. See the ticket for the exact mapping.
     """
     psets = sorted(
-        schema.for_record_type(record_type),
+        schema.psets_for(record_type, bound),
         key=lambda p: (p.layer != "standard", p.name),
     )
     return FormMetadata(

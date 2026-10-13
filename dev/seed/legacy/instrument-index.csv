@@ -1,0 +1,15 @@
+TAG NO,SERVICE,TYPE,SIZE (IN),MATERIAL,MFR,FAIL,FAT WITNESS,P&ID,REMARKS,ISSUED
+47-FV-1001,Feed gas flow control,CV,4,316,Acme Valves,FC,J. Okafor,PID-4701,,2024-03-01
+47-FV-1002,Fuel gas flow control,CV,6,CS,Acme Valves,FO,,PID-4701,Replaces FV-0902,2024-03-01
+47-PV-1003,Flare header pressure control,CV,8,316,Borealis,FO,,PID-4702,,2024-03-04
+47-HV-1004,Feed gas isolation,HV,4,CS,Borealis,,,PID-4701,,2024-03-04
+47-PSV-1005,Separator relief,PSV,3,316,Borealis,,,PID-4703,Set 18 barg,2024-03-07
+47-FT-1006,Feed gas flow transmitter,XMTR,,,,,,PID-4701,,2024-03-07
+47-LIC-1007,Separator level controller,CTRL,,,,,,PID-4703,,2024-03-07
+47-P-1008,Condensate pump,PMP,,,,,,PID-4704,,2024-03-11
+FV1009,Old numbering still in the system,CV,2,CS,Acme Valves,FC,,PID-4705,Pre-merger number,2023-11-20
+47-XX-1010,Unknown prefix,,,,,,,PID-4705,,2024-03-11
+,Row with no number,HV,2,CS,,,,PID-4705,,2024-03-11
+47-FV-1002,Duplicate of the second row,CV,6,CS,Acme Valves,FO,,PID-4701,,2024-03-12
+47-HV-1011,Bypass isolation,ZZ,2,CS,,,,PID-4701,,2024-03-12
+10-V-0101,Feed surge drum,VSL,,,,,,PID-1001,,2024-03-12

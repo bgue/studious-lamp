@@ -182,6 +182,154 @@
         "title": "AccountView",
         "type": "object"
       },
+      "AddCodeValueBody": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "additionalProperties": true,
+            "default": {},
+            "maxProperties": 200,
+            "title": "Attributes",
+            "type": "object"
+          },
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "code": {
+            "maxLength": 128,
+            "title": "Code",
+            "type": "string"
+          },
+          "code_list": {
+            "maxLength": 128,
+            "title": "Code List",
+            "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "crosswalk": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crosswalk"
+          },
+          "edition": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edition"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "meaning": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meaning"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "code_list",
+          "code",
+          "label"
+        ],
+        "title": "AddCodeValueBody",
+        "type": "object"
+      },
       "AddLinkBody": {
         "additionalProperties": false,
         "properties": {
@@ -601,6 +749,369 @@
         "title": "ChangeSettingBody",
         "type": "object"
       },
+      "CloseCodeValueBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "lifecycle": {
+            "default": "retired",
+            "enum": [
+              "superseded",
+              "retired"
+            ],
+            "title": "Lifecycle",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "stream_id": {
+            "title": "Stream Id",
+            "type": "string"
+          },
+          "superseded_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By"
+          }
+        },
+        "required": [
+          "scope",
+          "stream_id",
+          "reason"
+        ],
+        "title": "CloseCodeValueBody",
+        "type": "object"
+      },
+      "CloseStandardBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "lifecycle": {
+            "default": "retired",
+            "enum": [
+              "superseded",
+              "retired"
+            ],
+            "title": "Lifecycle",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "stream_id": {
+            "title": "Stream Id",
+            "type": "string"
+          },
+          "superseded_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By"
+          }
+        },
+        "required": [
+          "scope",
+          "stream_id",
+          "reason"
+        ],
+        "title": "CloseStandardBody",
+        "type": "object"
+      },
+      "CloseTagClassBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "lifecycle": {
+            "default": "retired",
+            "enum": [
+              "superseded",
+              "retired"
+            ],
+            "title": "Lifecycle",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "stream_id": {
+            "title": "Stream Id",
+            "type": "string"
+          },
+          "superseded_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By"
+          }
+        },
+        "required": [
+          "scope",
+          "stream_id",
+          "reason"
+        ],
+        "title": "CloseTagClassBody",
+        "type": "object"
+      },
+      "CodeValueOut": {
+        "description": "A value of a code list as a scope sees it.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "code_list": {
+            "title": "Code List",
+            "type": "string"
+          },
+          "company_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Code"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "lifecycle": {
+            "title": "Lifecycle",
+            "type": "string"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "usable": {
+            "title": "Usable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code_list",
+          "code",
+          "label",
+          "scope",
+          "origin",
+          "company_code",
+          "lifecycle",
+          "usable"
+        ],
+        "title": "CodeValueOut",
+        "type": "object"
+      },
       "CommandResult": {
         "properties": {
           "events": {
@@ -981,6 +1492,112 @@
         "title": "CreateRecordBody",
         "type": "object"
       },
+      "CreateTagBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "class_code": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Code"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "number": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "psets": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "default": {},
+            "maxProperties": 50,
+            "title": "Psets",
+            "type": "object"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "number"
+        ],
+        "title": "CreateTagBody",
+        "type": "object"
+      },
       "DeclineLinkBody": {
         "additionalProperties": false,
         "properties": {
@@ -1072,6 +1689,132 @@
           "relation"
         ],
         "title": "DefaultRelationOut",
+        "type": "object"
+      },
+      "DefineTagClassBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "code": {
+            "maxLength": 128,
+            "title": "Code",
+            "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition"
+          },
+          "edition": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Edition",
+            "type": "string"
+          },
+          "family": {
+            "enum": [
+              "instrument",
+              "valve",
+              "pump",
+              "line",
+              "equipment",
+              "cable",
+              "other"
+            ],
+            "title": "Family",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "itr_templates": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Itr Templates",
+            "type": "array"
+          },
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "mnemonics": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Mnemonics",
+            "type": "array"
+          },
+          "required_psets": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Required Psets",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "code",
+          "label",
+          "family",
+          "edition"
+        ],
+        "title": "DefineTagClassBody",
         "type": "object"
       },
       "DetectKeysBody": {
@@ -2809,6 +3552,82 @@
         "title": "LockBody",
         "type": "object"
       },
+      "MergeTagsBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "new_number": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "New Number",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "stream_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 2,
+            "title": "Stream Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scope",
+          "stream_ids",
+          "new_number",
+          "reason"
+        ],
+        "title": "MergeTagsBody",
+        "type": "object"
+      },
       "MissingLink": {
         "description": "An expectation that is not met: how many matching links exist and how many are needed.",
         "properties": {
@@ -3384,6 +4203,87 @@
         "title": "ReasonBody",
         "type": "object"
       },
+      "ReclassifyTagBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "class_code": {
+            "maxLength": 128,
+            "title": "Class Code",
+            "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "stream_id": {
+            "title": "Stream Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "stream_id",
+          "class_code",
+          "reason"
+        ],
+        "title": "ReclassifyTagBody",
+        "type": "object"
+      },
       "RecordOut": {
         "description": "A record envelope (brief 6.2): the dict ``tl_core.services.queries`` returns.",
         "properties": {
@@ -3495,6 +4395,581 @@
           "updated_at"
         ],
         "title": "RecordOut",
+        "type": "object"
+      },
+      "RecordTagBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "class_code": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Code"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "number": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "psets": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "default": {},
+            "maxProperties": 50,
+            "title": "Psets",
+            "type": "object"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "number"
+        ],
+        "title": "RecordTagBody",
+        "type": "object"
+      },
+      "RegisterCodeListBody": {
+        "additionalProperties": false,
+        "properties": {
+          "adoption": {
+            "default": "default",
+            "enum": [
+              "mandatory",
+              "default",
+              "optional"
+            ],
+            "title": "Adoption",
+            "type": "string"
+          },
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "code": {
+            "maxLength": 128,
+            "title": "Code",
+            "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition"
+          },
+          "edition": {
+            "maxLength": 128,
+            "title": "Edition",
+            "type": "string"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "value_list_policy": {
+            "default": "closed",
+            "enum": [
+              "closed",
+              "extensible",
+              "project_defined"
+            ],
+            "title": "Value List Policy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "code",
+          "label",
+          "edition"
+        ],
+        "title": "RegisterCodeListBody",
+        "type": "object"
+      },
+      "RegisterMnemonicBody": {
+        "additionalProperties": false,
+        "properties": {
+          "adoption": {
+            "default": "default",
+            "enum": [
+              "mandatory",
+              "default",
+              "optional"
+            ],
+            "title": "Adoption",
+            "type": "string"
+          },
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "class_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Hint"
+          },
+          "code": {
+            "maxLength": 128,
+            "title": "Code",
+            "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition"
+          },
+          "discipline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discipline"
+          },
+          "edition": {
+            "maxLength": 128,
+            "title": "Edition",
+            "type": "string"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "code",
+          "label",
+          "edition"
+        ],
+        "title": "RegisterMnemonicBody",
+        "type": "object"
+      },
+      "RegisterNumberingPatternBody": {
+        "additionalProperties": false,
+        "properties": {
+          "adoption": {
+            "default": "default",
+            "enum": [
+              "mandatory",
+              "default",
+              "optional"
+            ],
+            "title": "Adoption",
+            "type": "string"
+          },
+          "allocate": {
+            "default": false,
+            "title": "Allocate",
+            "type": "boolean"
+          },
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "code": {
+            "maxLength": 128,
+            "title": "Code",
+            "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition"
+          },
+          "edition": {
+            "maxLength": 128,
+            "title": "Edition",
+            "type": "string"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "gap_free": {
+            "default": true,
+            "title": "Gap Free",
+            "type": "boolean"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          },
+          "reserved": {
+            "default": [],
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 500,
+            "title": "Reserved",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "scope_selector": {
+            "default": "project:*",
+            "title": "Scope Selector",
+            "type": "string"
+          },
+          "segments": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SegmentDef"
+            },
+            "maxProperties": 20,
+            "title": "Segments",
+            "type": "object"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "template": {
+            "title": "Template",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "code",
+          "label",
+          "edition",
+          "record_type",
+          "template",
+          "segments"
+        ],
+        "title": "RegisterNumberingPatternBody",
         "type": "object"
       },
       "RegisterUploadBody": {
@@ -3633,6 +5108,88 @@
           "inverse_label"
         ],
         "title": "RelationOut",
+        "type": "object"
+      },
+      "RenameTagBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "new_number": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "New Number",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "stream_id": {
+            "title": "Stream Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "stream_id",
+          "new_number",
+          "reason"
+        ],
+        "title": "RenameTagBody",
         "type": "object"
       },
       "RepinLinkBody": {
@@ -3973,6 +5530,88 @@
         "title": "RevertBody",
         "type": "object"
       },
+      "ReviseTagClassBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "changes": {
+            "additionalProperties": true,
+            "maxProperties": 5,
+            "title": "Changes",
+            "type": "object"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "stream_id": {
+            "title": "Stream Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "stream_id",
+          "changes",
+          "reason"
+        ],
+        "title": "ReviseTagClassBody",
+        "type": "object"
+      },
       "RolesBody": {
         "additionalProperties": false,
         "description": "Body of ``PUT /admin/accounts/{account_id}/roles``.",
@@ -4029,6 +5668,50 @@
           "seq"
         ],
         "title": "ScheduledChange",
+        "type": "object"
+      },
+      "SegmentDef": {
+        "additionalProperties": false,
+        "description": "What one segment of a numbering pattern is and where its values come from.",
+        "properties": {
+          "list": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "List"
+          },
+          "registry": {
+            "anyOf": [
+              {
+                "const": "mnemonic",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registry"
+          },
+          "role": {
+            "enum": [
+              "area",
+              "mnemonic",
+              "sequence",
+              "other"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "SegmentDef",
         "type": "object"
       },
       "SetBody": {
@@ -4569,6 +6252,150 @@
         "title": "SignInOut",
         "type": "object"
       },
+      "StandardOut": {
+        "description": "A code list, mnemonic or numbering pattern (``data`` holds the kind's own fields).",
+        "properties": {
+          "adoption": {
+            "title": "Adoption",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition"
+          },
+          "edition": {
+            "title": "Edition",
+            "type": "string"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "kind": {
+            "enum": [
+              "code_list",
+              "mnemonic",
+              "numbering_pattern"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "lifecycle": {
+            "title": "Lifecycle",
+            "type": "string"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "superseded_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By"
+          },
+          "value_list_policy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value List Policy"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "code",
+          "label",
+          "definition",
+          "edition",
+          "owner",
+          "adoption",
+          "value_list_policy",
+          "effective_from",
+          "effective_to",
+          "lifecycle",
+          "superseded_by",
+          "key",
+          "version",
+          "data"
+        ],
+        "title": "StandardOut",
+        "type": "object"
+      },
       "SuggestLinkBody": {
         "additionalProperties": false,
         "properties": {
@@ -4693,6 +6520,394 @@
           "to_id"
         ],
         "title": "SuggestLinkBody",
+        "type": "object"
+      },
+      "TagClassOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "edition": {
+            "title": "Edition",
+            "type": "string"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "itr_templates": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Itr Templates",
+            "type": "array"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "lifecycle": {
+            "title": "Lifecycle",
+            "type": "string"
+          },
+          "mnemonics": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Mnemonics",
+            "type": "array"
+          },
+          "required_psets": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Psets",
+            "type": "array"
+          },
+          "superseded_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "label",
+          "description",
+          "family",
+          "required_psets",
+          "itr_templates",
+          "mnemonics",
+          "lifecycle",
+          "superseded_by",
+          "edition",
+          "key",
+          "version"
+        ],
+        "title": "TagClassOut",
+        "type": "object"
+      },
+      "TagDetail": {
+        "description": "A tag with what it still lacks: the conformance issues now.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area"
+          },
+          "class_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Code"
+          },
+          "conformance": {
+            "title": "Conformance",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ConformanceIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "mnemonic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mnemonic"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "number_status": {
+            "title": "Number Status",
+            "type": "string"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "pattern_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern Code"
+          },
+          "psets": {
+            "additionalProperties": true,
+            "title": "Psets",
+            "type": "object"
+          },
+          "segments": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Segments",
+            "type": "object"
+          },
+          "sequence": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sequence"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "violations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "title",
+          "class_code",
+          "status",
+          "area",
+          "mnemonic",
+          "sequence",
+          "segments",
+          "pattern_code",
+          "number_status",
+          "violations",
+          "origin",
+          "conformance",
+          "version",
+          "psets",
+          "issues"
+        ],
+        "title": "TagDetail",
+        "type": "object"
+      },
+      "TagOut": {
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area"
+          },
+          "class_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Code"
+          },
+          "conformance": {
+            "title": "Conformance",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "mnemonic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mnemonic"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "number_status": {
+            "title": "Number Status",
+            "type": "string"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "pattern_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern Code"
+          },
+          "psets": {
+            "additionalProperties": true,
+            "title": "Psets",
+            "type": "object"
+          },
+          "segments": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Segments",
+            "type": "object"
+          },
+          "sequence": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sequence"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "violations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "title",
+          "class_code",
+          "status",
+          "area",
+          "mnemonic",
+          "sequence",
+          "segments",
+          "pattern_code",
+          "number_status",
+          "violations",
+          "origin",
+          "conformance",
+          "version",
+          "psets"
+        ],
+        "title": "TagOut",
         "type": "object"
       },
       "TraceNode": {
@@ -6919,6 +9134,128 @@
         ]
       }
     },
+    "/code-lists/{name}/values": {
+      "get": {
+        "description": "The values of a code list as a scope sees them: the company's, then the project's own.",
+        "operationId": "list_code_values",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Also this project's own values.",
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Also this project's own values.",
+              "title": "Project"
+            }
+          },
+          {
+            "description": "Include closed and expired values.",
+            "in": "query",
+            "name": "include_all",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Include closed and expired values.",
+              "title": "Include All",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CodeValueOut"
+                  },
+                  "title": "Response List Code Values",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Code Values",
+        "tags": [
+          "engineering"
+        ]
+      }
+    },
     "/commands/AcceptLink": {
       "post": {
         "description": "Run the AcceptLink command.",
@@ -7021,6 +9358,113 @@
           }
         ],
         "summary": "AcceptLink",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/AddCodeValue": {
+      "post": {
+        "description": "Add a value to a code list in ``scope`` (``company`` or a project).",
+        "operationId": "command_AddCodeValue",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCodeValueBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "AddCodeValue",
         "tags": [
           "commands"
         ]
@@ -7240,6 +9684,327 @@
         ]
       }
     },
+    "/commands/CloseCodeValue": {
+      "post": {
+        "description": "End the life of a code value (in ``company`` or a project scope).",
+        "operationId": "command_CloseCodeValue",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseCodeValueBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "CloseCodeValue",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/CloseStandard": {
+      "post": {
+        "description": "End the life of a code list, mnemonic or numbering pattern.",
+        "operationId": "command_CloseStandard",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseStandardBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "CloseStandard",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/CloseTagClass": {
+      "post": {
+        "description": "End a tag class's life. Tags already of that class keep it.",
+        "operationId": "command_CloseTagClass",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseTagClassBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "CloseTagClass",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/CreateRecord": {
       "post": {
         "description": "Run the CreateRecord command.",
@@ -7347,6 +10112,113 @@
         ]
       }
     },
+    "/commands/CreateTag": {
+      "post": {
+        "description": "Create a tag in a project scope. ``number`` becomes the record key.\n\nThe number must fit the registry numbering pattern. A command has no ``origin`` and no pattern\npolicy: a tag made here is ``created`` and its number is checked. A number that breaks the\npattern is stored only through :class:`RecordTag` (admin) or the import service.",
+        "operationId": "command_CreateTag",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTagBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "CreateTag",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/DeclineLink": {
       "post": {
         "description": "Run the DeclineLink command.",
@@ -7449,6 +10321,113 @@
           }
         ],
         "summary": "DeclineLink",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/DefineTagClass": {
+      "post": {
+        "description": "Create a tag class. ``scope`` must be ``company``.",
+        "operationId": "command_DefineTagClass",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefineTagClassBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "DefineTagClass",
         "tags": [
           "commands"
         ]
@@ -7775,6 +10754,113 @@
         ]
       }
     },
+    "/commands/MergeTags": {
+      "post": {
+        "description": "Replace several tags by one. The new tag takes class, service and values of the first.",
+        "operationId": "command_MergeTags",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeTagsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "MergeTags",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/PostToFeed": {
       "post": {
         "description": "Post ``body`` to the project feed of ``scope`` as ``actor`` (person, agent or service).\n\n``post_id`` lets a caller choose the id (None: a new ULID). ``importance`` is what the author\ndeclares; a signal tag in the body raises the effective level to high.",
@@ -7984,6 +11070,648 @@
           }
         ],
         "summary": "ReactToPost",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/ReclassifyTag": {
+      "post": {
+        "description": "Run the ReclassifyTag command.",
+        "operationId": "command_ReclassifyTag",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReclassifyTagBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "ReclassifyTag",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/RecordTag": {
+      "post": {
+        "description": "Create a tag and keep a number that breaks the pattern, as a violation (admin).\n\nFor legacy numbers that are kept as they are. The violations are stored with the tag and show\nin the reports. The API offers it as an admin command; ``tl tag create --allow-violation``\nneeds the admin role.",
+        "operationId": "command_RecordTag",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordTagBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "RecordTag",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/RegisterCodeList": {
+      "post": {
+        "description": "Create a code list. ``scope`` must be ``company``.",
+        "operationId": "command_RegisterCodeList",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterCodeListBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "RegisterCodeList",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/RegisterMnemonic": {
+      "post": {
+        "description": "Create a mnemonic (a tag prefix). ``scope`` must be ``company``.",
+        "operationId": "command_RegisterMnemonic",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterMnemonicBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "RegisterMnemonic",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/RegisterNumberingPattern": {
+      "post": {
+        "description": "Create a numbering pattern. ``scope`` must be ``company``.",
+        "operationId": "command_RegisterNumberingPattern",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterNumberingPatternBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "RegisterNumberingPattern",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/RenameTag": {
+      "post": {
+        "description": "Replace a tag by a new tag with another number (same class, service and values).",
+        "operationId": "command_RenameTag",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameTagBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "RenameTag",
         "tags": [
           "commands"
         ]
@@ -8305,6 +12033,113 @@
           }
         ],
         "summary": "RetractPost",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/ReviseTagClass": {
+      "post": {
+        "description": "Change fields of a tag class. ``changes`` maps a field in ``REVISABLE`` to its new value.",
+        "operationId": "command_ReviseTagClass",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviseTagClassBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "ReviseTagClass",
         "tags": [
           "commands"
         ]
@@ -10130,6 +13965,314 @@
         "summary": "Search Linkable",
         "tags": [
           "links"
+        ]
+      }
+    },
+    "/projects/{project}/tags": {
+      "get": {
+        "description": "A project's tags by number, with the filters given.",
+        "operationId": "list_tags",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "class",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Class"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mnemonic",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mnemonic"
+            }
+          },
+          {
+            "in": "query",
+            "name": "area",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Area"
+            }
+          },
+          {
+            "in": "query",
+            "name": "number_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "ok",
+                    "violation"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Number Status"
+            }
+          },
+          {
+            "description": "Include superseded and deleted.",
+            "in": "query",
+            "name": "include_ended",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Include superseded and deleted.",
+              "title": "Include Ended",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "maximum": 5000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TagOut"
+                  },
+                  "title": "Response List Tags",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Tags",
+        "tags": [
+          "engineering"
+        ]
+      }
+    },
+    "/projects/{project}/tags/{number}": {
+      "get": {
+        "description": "One tag by number with its conformance issues. 404 `tag_not_found` when there is none.",
+        "operationId": "get_tag",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Tag",
+        "tags": [
+          "engineering"
         ]
       }
     },
@@ -13414,6 +17557,226 @@
         ]
       }
     },
+    "/standards": {
+      "get": {
+        "description": "Registry entries of the company, by kind then code.",
+        "operationId": "list_standards",
+        "parameters": [
+          {
+            "description": "Only this kind.",
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "code_list",
+                    "mnemonic",
+                    "numbering_pattern"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this kind.",
+              "title": "Kind"
+            }
+          },
+          {
+            "description": "Include superseded and retired.",
+            "in": "query",
+            "name": "include_closed",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Include superseded and retired.",
+              "title": "Include Closed",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StandardOut"
+                  },
+                  "title": "Response List Standards",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Standards",
+        "tags": [
+          "engineering"
+        ]
+      }
+    },
+    "/standards/{kind}/{code}": {
+      "get": {
+        "description": "One registry entry (the newest edition). 404 `standard_not_found` when there is none.",
+        "operationId": "get_standard",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "code_list",
+                "mnemonic",
+                "numbering_pattern"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Standard",
+        "tags": [
+          "engineering"
+        ]
+      }
+    },
     "/stream": {
       "get": {
         "description": "Server-sent events: `id` is the ledger `seq`, `event` the event type, `data` the Event.\n\nWithout `Last-Event-ID` or `after` the stream is live only. With one it first replays the\nledger after that `seq`, then continues live without a gap.",
@@ -13590,6 +17953,189 @@
         "summary": "Stream Events",
         "tags": [
           "events"
+        ]
+      }
+    },
+    "/tag-classes": {
+      "get": {
+        "description": "The company's tag classes by code.",
+        "operationId": "list_tag_classes",
+        "parameters": [
+          {
+            "description": "Include superseded and retired.",
+            "in": "query",
+            "name": "include_closed",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Include superseded and retired.",
+              "title": "Include Closed",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TagClassOut"
+                  },
+                  "title": "Response List Tag Classes",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Tag Classes",
+        "tags": [
+          "engineering"
+        ]
+      }
+    },
+    "/tag-classes/{code}": {
+      "get": {
+        "description": "One tag class: the active one if there is one, else the newest. 404 when unknown.",
+        "operationId": "get_tag_class",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagClassOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Tag Class",
+        "tags": [
+          "engineering"
         ]
       }
     },

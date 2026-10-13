@@ -36,6 +36,7 @@ tl-tui = { workspace = true }
 tl-cli = { workspace = true }
 tl-sim = { workspace = true }
 tl-lake = { workspace = true }
+tl-mod-engineering = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -68,6 +69,7 @@ extraPaths = [
   "packages/tl-tui/tests",
   "tests/bench",
   "tests/auth",
+  "packages/tl-modules/engineering/tests",
 ]
 typeCheckingMode = "standard"
 strict = [

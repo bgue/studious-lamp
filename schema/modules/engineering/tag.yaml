@@ -1,0 +1,107 @@
+id: https://example.org/throughline/modules/engineering/tag
+name: tl_mod_engineering_tag
+title: Tags (brief 9, M2)
+description: >-
+  A tag is the project-unique identifier of an engineered item. Its number is its record key; the
+  number is parsed by a registry numbering pattern into segments, and the segments are kept as
+  typed columns so registers, filters and reports can use them. The tag's class (a `TagClass`)
+  decides which property sets it must carry. A rename, split or merge creates new tags that
+  supersede the old ones (explicit events with `supersedes` links). Spec: docs/modules/engineering/tags.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - standard
+default_range: string
+annotations:
+  tl:module: engineering
+
+enums:
+  NumberStatus:
+    description: Whether the tag number fits the numbering pattern.
+    permissible_values:
+      ok:
+        description: Parsed by the pattern and every segment is valid.
+      violation:
+        description: Accepted into the ledger although the number breaks the pattern (a legacy load); `violations` says how.
+  TagOrigin:
+    description: How the tag came to exist.
+    permissible_values:
+      created:
+        description: Entered by a person or an agent.
+      import:
+        description: Brought in by a bulk import.
+      rename:
+        description: Created by renaming another tag.
+      split:
+        description: Created by splitting another tag.
+      merge:
+        description: Created by merging other tags.
+
+classes:
+  Tag:
+    description: >-
+      One tag of a project. Record type `engineering.Tag`. The envelope (key = tag number, title,
+      description = service description, status, psets) is in `cur_core_record`; this table holds the
+      parsed number and the class. `area`, `mnemonic` and `sequence` are the segments of the number
+      that play those roles in the pattern; `segments` holds every segment by name.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "engineering.Tag"
+      tl:ix_scope_class: "scope, class_code"
+      tl:ix_scope_mnemonic_area: "scope, mnemonic, area"
+      tl:ix_scope_number_status: "scope, number_status"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      number:
+        required: true
+        description: The tag number, equal to the record key.
+      class_code:
+        description: Code of the tag's class (a `TagClass`); null until classified.
+      area:
+        description: The area or unit segment of the number; null when the pattern has none.
+      mnemonic:
+        description: The mnemonic segment of the number (`FV`); null when the pattern has none.
+      sequence:
+        range: integer
+        description: The sequence segment of the number; null when the number did not parse.
+      segments:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: JSON object of every parsed segment by name; empty when the number did not parse.
+      pattern_code:
+        description: Code of the registry numbering pattern the number was checked against; null when none applied.
+      number_status:
+        range: NumberStatus
+        required: true
+        ifabsent: string(ok)
+        description: Whether the number fits the pattern.
+      violations:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: JSON list of the problems found in the number; empty when `number_status` is ok.
+      origin:
+        range: TagOrigin
+        required: true
+        ifabsent: string(created)
+        description: How the tag came to exist.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

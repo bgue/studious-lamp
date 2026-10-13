@@ -1,0 +1,104 @@
+id: https://example.org/throughline/modules/engineering/tag_class
+name: tl_mod_engineering_tag_class
+title: Tag classes (brief 9, M2)
+description: >-
+  A tag class says what kind of thing a tag identifies (a control valve, a pump) and, above all,
+  which property sets a tag of that class must carry: the class drives the mandatory psets
+  (brief 9, M2 behaviour). Tag classes are company records; a class change that adds a required
+  pset is a constraining change (brief 27.5): existing tags are flagged non-conformant, not
+  rewritten. Spec: docs/modules/engineering/tags.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - standard
+default_range: string
+annotations:
+  tl:module: engineering
+
+enums:
+  TagFamily:
+    description: The broad family of a tag class (brief 9, M2 key fields).
+    permissible_values:
+      instrument:
+      valve:
+      pump:
+      line:
+      equipment:
+      cable:
+      other:
+
+classes:
+  TagClass:
+    description: >-
+      One tag class of a scope. Record type `engineering.TagClass`. `required_psets` lists the
+      names of property sets (`valve_data`) that a tag of this class must hold values for;
+      `itr_templates` lists the inspection and test record templates that apply (references only,
+      resolved by the quality module in Phase 3); `mnemonics` lists the tag-prefix mnemonics that
+      normally identify this class.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "engineering.TagClass"
+    unique_keys:
+      scope_code:
+        description: A class is named once per scope.
+        unique_key_slots:
+          - scope
+          - code
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: "`company` for the company classes."
+      code:
+        required: true
+        description: The class code, for example `ControlValve`.
+      label:
+        required: true
+        description: Display name.
+      family:
+        range: TagFamily
+        required: true
+        description: The family of the class.
+      required_psets:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: JSON list of pset names a tag of this class must carry.
+      itr_templates:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: JSON list of ITR template references (not resolved in Phase 1).
+      mnemonics:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: JSON list of mnemonic codes that normally identify this class.
+      lifecycle:
+        range: RegistryLifecycle
+        required: true
+        ifabsent: string(active)
+        description: Active, superseded or retired.
+      superseded_by:
+        range: Ulid
+        description: The class that replaced this one, when superseded.
+      edition:
+        required: true
+        description: The standards edition that supplied the class.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
