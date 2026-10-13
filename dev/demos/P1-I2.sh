@@ -174,7 +174,7 @@ run_backend() {
   step "[$backend] clause 5: a transmittal lists the current revision; issuing it is the admin's act"
   out="$(as amy tl transmittal create --project P123 --subject "Isometrics for construction" --purpose for_construction --to "Site Office:Acme Construction:site@example.com" --revision ISO-1234@D)"; echo "$out"
   number="$(echo "$out" | awk '/^(created|drafted)/ {print $NF; exit}')"
-  [ -n "$number" ] || number="$(echo "$out" | grep -oE '[A-Z0-9]+-TRN-[0-9]+' | head -n 1)"
+  [ -n "$number" ] || number="$(echo "$out" | grep -oE '[A-Z0-9]+-TRN-[0-9]+' | sed -n 1p)"
   [ -n "$number" ] || fail "no transmittal number in the output"
   if out="$(as amy tl transmittal issue "$number" --project P123 2>&1)"; then fail "a user issued a transmittal"; fi
   echo "$out"
@@ -200,7 +200,7 @@ run_backend() {
   echo "PASS 6: the overdue report names the reviewers who have not answered, and drops ana after her answer"
 
   step "[$backend] clause 7: a legacy DMS register is previewed and applied (admin only)"
-  out="$(as amy tl doc import "$DMS_FILE" --mapping "$DMS_MAPPING" --project P123)"; echo "$out" | grep -E '^(import|new=|!)' | head -n 6
+  out="$(as amy tl doc import "$DMS_FILE" --mapping "$DMS_MAPPING" --project P123)"; echo "$out" | grep -E '^(import|new=|!)' | sed -n 1,6p
   expect "dry run: nothing written" "$out"
   expect "invalid=7" "$out"
   if out="$(as amy tl doc import "$DMS_FILE" --mapping "$DMS_MAPPING" --project P123 --apply --skip-invalid 2>&1)"; then fail "a user applied an import"; fi
@@ -208,7 +208,8 @@ run_backend() {
   expect "needs the admin role" "$out"
   out="$(as demo tl doc import "$DMS_FILE" --mapping "$DMS_MAPPING" --project P123 --apply --skip-invalid --job dms-2024)"; echo "$out" | tail -n 2
   expect "applied dms-2024: registered=" "$out"
-  as amy tl doc show ISO-0101 --project P123 | head -n 4
+  out="$(as amy tl doc show ISO-0101 --project P123)"; echo "$out" | sed -n 1,4p
+  expect "title: Isometric, line 47-P-101" "$out"
   echo "PASS 7: the old register was previewed, 7 rows refused with reasons, the valid ones imported by an admin"
 
   step "[$backend] clause 8: what a user cannot do"

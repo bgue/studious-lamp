@@ -10,23 +10,16 @@ Decisions: ADR-0008 (Phase 1 owner decisions), ADR-0009 (authentication), ADR-00
 Build the second module, `documents` (M1 document control core), on the seam P1-I1 set. A `Document` is registered under its number; it has `Revision`s whose codes follow a configurable scheme (A/B/C, 0/1/2, P1/C1); a revision has `Rendition`s (native, PDF, markup, signed) that are files in the file service; a document keeps **one current revision per status class**; a link can **pin a revision or float**, a pinned link goes **stale** when a newer revision is issued, and **re-pin** shows what changed between the two revisions before it is confirmed; `Transmittal`s and `ReviewCycle`s record the formal exchange and the review of revisions. The derived-document pipeline (`DerivedDocument`, `DocumentSchema`) is P1-I3, not here.
 
 ## Demo
-`just demo P1-I2` (SQLite and Postgres). The commands a person types:
-```
-tl login demo                                   # password demo
-tl standards load schema/fixtures/standards/co.acme.standards@1.0.0.yaml
-tl standards load schema/fixtures/standards/co.acme.documents@1.0.0.yaml     # the document number pattern
-tl doc register ISO-1234 --project P123 --type ISO --discipline PIP --title "Isometric, line 47-P-101" --first-revision
-tl doc rendition add ISO-1234 A sheet-A.pdf --project P123 --kind pdf --pages 3
-tl doc rev issue ISO-1234 A --project P123 --status IFR
-tl doc link 47-FV-1001 ISO-1234 --project P123 --pin A          # a tag pinned to rev A
-tl doc rev create ISO-1234 --project P123 --purpose "Issued for construction"
-tl doc rendition add ISO-1234 B sheet-B.pdf --project P123 --kind pdf --pages 5
-tl doc rev issue ISO-1234 B --project P123 --status IFC         # the tag's link goes stale
-tl doc stale --project P123                                     # 47-FV-1001 -> ISO-1234 pinned A, current B
-tl doc repin <link> --project P123                              # shows the diff summary; --apply confirms
-tl transmittal create --project P123 ... && tl transmittal issue ...   # the transmittal lists rev B
-```
-Then: a rejected document number (`ISO-12`); a review cycle with an overdue reviewer in the report; a user cannot void a document or change a revision through a generic command; the API, the TUI register and an agent's MCP tools read the same documents.
+`just demo P1-I2` (SQLite and Postgres; `dev/demos/P1-I2.sh`, driver `dev/demos/p1_i2_demo.py`). Nine clauses, each ending in a PASS line:
+1. the company standards and the document number pattern load; `ISO-1234` is registered, `ISO-12` is refused with every problem;
+2. revision A takes a PDF; a user cannot issue it, an admin does (`tl doc rev issue ISO-1234 A --status IFR`);
+3. `tl doc link 47-FV-1001 ISO-1234 --pin A`, then revision B issued as IFC: `tl doc stale` lists the link, `tl doc repin <link>` shows the diff, `--apply` moves the pin;
+4. the class-aware rule (ADR-0012): an IFR issued after an IFC leaves the IFC pin alone, an IFC issued after it flags it;
+5. `tl transmittal create ... --revision ISO-1234@D`; a user cannot issue it, an admin does;
+6. `tl review open ISO-2000 A --reviewer user:ana --reviewer user:amy --due 2026-10-01`: both show in `tl doc report overdue`, and ana drops out after her answer;
+7. `tl doc import` previews a 16-row DMS register (7 rows refused with reasons); a user cannot apply it, an admin does (`--apply --skip-invalid`);
+8. a user cannot void a document, issue a revision, claim a system link source or take a key the module builds; no one changes a document with a generic command;
+9. the API, the TUI document register (`F7`) and an agent's MCP tools read the same documents.
 
 ## Design decisions (supervisor, this increment)
 | ID | Decision | Why | Where |
@@ -90,7 +83,7 @@ Then: a rejected document number (`ISO-12`); a review cycle with an overdue revi
 | T12b | Import: mapping template parser and file reader | H | S18 | merged (wave 1, second attempt) | `a72ae50`; blank header cells are ignored again (S22, `test_imports_mapping_headers.py`), a named column twice is still refused |
 | T12c | Import: the plan (new, exists, invalid) | H | T12b | merged (wave 2, first attempt) | `b199530`; a hand-built row with a blank number is invalid (guard + `test_imports_plan_guards.py`) |
 | T12d | Import: apply a plan, all or nothing | H | T12b, T12c | merged (wave 2, first attempt) | `2e73174` |
-| T12e | `tl doc import`: preview and `--apply` (admin), file limits | H | T12b, T12c, T12d | ready (wave 3) | |
+| T12e | `tl doc import`: preview and `--apply` (admin), file limits | H | T12b, T12c, T12d | merged (wave 3, first attempt) | `795e18b`; the reference (S27) and the stub carry the 1000-row and 5 MiB limits and the admin-only apply test |
 
 Haiku-ability checklist (01-tiers §6) for T12a to T13d: each ticket reads at most six files besides `AGENTS.md` and the ticket (the stub, the final helpers it names, the test); every interface it uses is in the tree; a provided test file decides; the diff is under 400 lines across at most three files; none touches a Sonnet-authored row, `schema/**`, dependencies or a public interface; a reviewer verifies it from the diff and the commands. Dispatch plan: wave 1 is T13b, T13c, T12a, T12b (four in parallel, disjoint paths); wave 2 is T13d, T12c (after T12b), T12d (after T12b and T12c); wave 3 is T12e. The held tests (`provided/s16-*`, `s17-*`) go back into the tree when the tickets they exercise merge.
 
@@ -98,12 +91,13 @@ Merge adaptation after batch 2 (S13, because the third security pass changed the
 
 The `doc_rev`, `doc_rendition`, `doc_link` and `doc_report` modules are wired in `tl_cli/main.py` by the supervisor so the four tickets have disjoint paths; each ticket's stub has its reference in the history (the commit before the stub commit).
 
-Later batches, written as their bases merge: `tl transmittal` and `tl review` (T09e, T09f; the review commands record the caller's own answer, with `on-behalf` and `override` as admin commands), API read models and client (T10a), MCP read tools as explicit `MCP_ACTIONS` entries (T10b), the TUI register and record views, the re-pin dialog and the transmittal composer, the simulator actor and the legacy DMS mapping template, and `tl doc confidentiality` (admin).
+All later batches are merged (see the table above); the references of the stubbed tickets stay in the history for a takeover.
 
 ## Order of work
 1. Round 1: S1, T02, S3, S4, S5 built and green; batch 1 dispatched (T08a, T08b, T09a, T11a).
 2. Round 2: merge batch 1; build the client interface and API read models; batch 2.
-3. Later rounds: the remaining entry points, the simulator actor and mapping template, the demo, the gates, the report.
+3. Rounds 3 and 4: batch 3 (CLI transmittal and review, MCP tools), the TUI register, re-pin dialog and composer, the simulator actor, the DMS import, three security review passes and the import-path check, ADR-0012.
+4. Closing round: the demo, the documents module page, package READMEs and AGENTS.md, the runbook, the gates and the report (`docs/reports/P1-I2.md`).
 
 ## Brief coverage map (L-P0-I8E-3)
 | Brief item | Where |
