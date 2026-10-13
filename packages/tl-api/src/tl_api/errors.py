@@ -24,6 +24,7 @@ from tl_core.services import errors as svc
 from tl_core.webhooks import subscriptions as wh
 from tl_core.workflow.engine import GuardResult
 from tl_mod_documents import errors as doc
+from tl_mod_documents.imports.apply import ImportRefusedError
 from tl_mod_engineering import errors as eng
 
 
@@ -190,6 +191,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(doc.ReviewNotFoundError, "review_not_found", 404),
         s(doc.ReviewStateError, "review_state", 409),
         s(doc.InvalidReviewError, "invalid_review", 422),
+        s(ImportRefusedError, "import_refused", 422),  # `tl doc import`; no route offers it yet
         s(doc.NotYourReviewError, "not_your_review", 403),
     )
 
