@@ -6,13 +6,7 @@ revision the link is pinned to and the document's current one, shows it, and onl
 confirms; Esc or ``n`` leaves the link as it is. A refusal stays on screen and the dialog stays
 open. The dialog decides nothing: the diff is the module's words and the move is the module's
 command (any signed-in person may re-pin; ADR-0011).
-
-STUB (P1-I2-T13c): the bodies of on_mount and action_confirm raise NotImplementedError; their
-signatures, options, docstrings and the helpers are final. Each body has a STEPS comment.
-Implement them, then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -84,29 +78,47 @@ class RepinScreen(ModalScreen[bool]):
 
     def on_mount(self) -> None:
         """Read the diff the link would move through and show it."""
-        # STEPS
-        # 1. link = self.link. If link.pin is None, or link.current_code is None, or the two are
-        #    the same code, show the reason in #repin-body ("This link floats; nothing to
-        #    re-pin.", "<number> has no issued revision to move to." or "The link already points
-        #    to <code>.") and return. self.target stays None.
-        # 2. Otherwise self.target = link.current_code, and try self.diff =
-        #    self.client.document_diff(self.project, self.number, link.pin, self.target).
-        #    On CLIENT_ERRORS show describe_error(exc) in #repin-status, set self.target = None
-        #    and return.
-        # 3. Show "\n".join(repin_lines(link, diff)) in #repin-body.
-        raise NotImplementedError
+        link = self.link
+        body = self.query_one("#repin-body", Static)
+        if link.pin is None:
+            body.update("This link floats; nothing to re-pin.")
+            return
+        if link.current_code is None:
+            body.update(f"{self.number} has no issued revision to move to.")
+            return
+        if link.pin == link.current_code:
+            body.update(f"The link already points to {link.current_code}.")
+            return
+        self.target = link.current_code
+        try:
+            diff = self.client.document_diff(self.project, self.number, link.pin, self.target)
+        except CLIENT_ERRORS as exc:
+            self.query_one("#repin-status", Static).update(describe_error(exc))
+            self.target = None
+            return
+        self.diff = diff
+        body.update("\n".join(repin_lines(link, diff)))
 
     def action_confirm(self) -> None:
         """Move the link to the current revision, or say why it cannot be moved."""
-        # STEPS
-        # 1. With self.target None there is nothing to confirm: set #repin-status to "Nothing to
-        #    re-pin." and return.
-        # 2. Send self.client.repin_document_link(RepinDocumentLink(actor=self.actor,
-        #    source="tui", scope=f"project:{self.project}", link_id=self.link.link_id,
-        #    pin=self.target)). On CLIENT_ERRORS show describe_error(exc) in #repin-status and
-        #    stay open.
-        # 3. Otherwise self.dismiss(True).
-        raise NotImplementedError
+        status = self.query_one("#repin-status", Static)
+        if self.target is None:
+            status.update("Nothing to re-pin.")
+            return
+        try:
+            self.client.repin_document_link(
+                RepinDocumentLink(
+                    actor=self.actor,
+                    source="tui",
+                    scope=f"project:{self.project}",
+                    link_id=self.link.link_id,
+                    pin=self.target,
+                )
+            )
+        except CLIENT_ERRORS as exc:
+            status.update(describe_error(exc))
+            return
+        self.dismiss(True)
 
     def action_cancel(self) -> None:
         self.dismiss(False)
