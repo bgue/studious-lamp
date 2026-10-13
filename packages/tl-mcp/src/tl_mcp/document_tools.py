@@ -6,13 +6,7 @@ for an answer; these answer from the register. Changing any of it stays a person
 superseding and voiding are an admin's acts, ADR-0011, and an agent only proposes): none of these
 tools writes. The response models are the module's (``tl_mod_documents.views`` and ``reports``),
 so an agent, the API and a screen see the same fields.
-
-STUB (P1-I2-T10b): the bodies of the seven functions raise NotImplementedError; their signatures,
-options, docstrings and the helpers are final. Each body has a STEPS comment. Implement them,
-then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -49,68 +43,63 @@ def list_documents_impl(
     include_void: bool,
 ) -> list[views.DocumentView]:
     """The project's documents by number, without revisions or links."""
-    # STEPS
-    # 1. `with ctx.factory(True) as uow:` (a read-only unit of work).
-    # 2. Return views.document_views(uow.conn(), f"project:{project}", doc_type=doc_type,
-    #    discipline=discipline, state=state, include_void=include_void, limit=500).
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.document_views(
+            uow.conn(),
+            f"project:{project}",
+            doc_type=doc_type,
+            discipline=discipline,
+            state=state,
+            include_void=include_void,
+            limit=500,
+        )
 
 
 def get_document_impl(ctx: McpContext, *, project: str, number: str) -> views.DocumentView:
     """One document with its revisions, renditions and the links to it."""
-    # STEPS
-    # 1. `with ctx.factory(True) as uow:` and return views.document_view(uow.conn(),
-    #    f"project:{project}", number). An unknown number raises DocumentNotFoundError, which
-    #    `guarded` turns into the tool error.
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.document_view(uow.conn(), f"project:{project}", number)
 
 
 def get_document_diff_impl(
     ctx: McpContext, *, project: str, number: str, from_code: str, to_code: str
 ) -> views.RevisionDiffView:
     """What changed between two issued revisions of a document."""
-    # STEPS
-    # 1. `with ctx.factory(True) as uow:` and return views.revision_diff_view(uow.conn(),
-    #    f"project:{project}", number, from_code, to_code).
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.revision_diff_view(
+            uow.conn(), f"project:{project}", number, from_code, to_code
+        )
 
 
 def list_stale_links_impl(ctx: McpContext, *, project: str) -> list[reports.StalePinLine]:
     """Links to documents whose pin is behind or whose document was voided or superseded."""
-    # STEPS
-    # 1. `with ctx.factory(True) as uow:` and return views.stale_links(uow.conn(),
-    #    f"project:{project}").
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.stale_links(uow.conn(), f"project:{project}")
 
 
 def list_overdue_reviews_impl(
     ctx: McpContext, *, project: str, on: str | None
 ) -> list[reports.OverdueLine]:
     """Open reviews with a reviewer who has not answered by their date."""
-    # STEPS
-    # 1. day = date.fromisoformat(on) when `on` is given, else None; a bad date raises ValueError,
-    #    which `guarded` turns into the tool error.
-    # 2. `with ctx.factory(True) as uow:` and return views.overdue_reviews(uow.conn(),
-    #    f"project:{project}", on=day).
-    raise NotImplementedError
+    day = date.fromisoformat(on) if on is not None else None
+    with ctx.factory(True) as uow:
+        return views.overdue_reviews(uow.conn(), f"project:{project}", on=day)
 
 
 def list_transmittals_impl(
     ctx: McpContext, *, project: str, state: str | None, direction: str | None
 ) -> list[views.TransmittalView]:
     """The project's transmittals by number, without items."""
-    # STEPS
-    # 1. `with ctx.factory(True) as uow:` and return views.transmittal_views(uow.conn(),
-    #    f"project:{project}", state=state, direction=direction, limit=500).
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.transmittal_views(
+            uow.conn(), f"project:{project}", state=state, direction=direction, limit=500
+        )
 
 
 def get_transmittal_impl(ctx: McpContext, *, project: str, number: str) -> views.TransmittalView:
     """One transmittal with its items."""
-    # STEPS
-    # 1. `with ctx.factory(True) as uow:` and return views.transmittal_view(uow.conn(),
-    #    f"project:{project}", number).
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.transmittal_view(uow.conn(), f"project:{project}", number)
 
 
 def register_document_tools(server: MCPServer, ctx: McpContext) -> None:
