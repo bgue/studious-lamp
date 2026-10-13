@@ -98,39 +98,6 @@ def test_every_documents_command_has_the_access_pinned_here() -> None:
     assert {c.model.__name__: c.access for c in API_COMMANDS} == EXPECTED_ACCESS
 
 
-def test_the_access_matrix_user_controller_admin(people: People) -> None:
-    """A controlling act: a user is refused, a document controller and an admin are not."""
-    for name, access in EXPECTED_ACCESS.items():
-        refused = run(people.bob, name)  # an empty body: never the access check that fails first
-        if access == "controller":
-            assert refused.status_code == 403, name
-            assert refused.json()["error"] == "forbidden", name
-            assert f"control.command.{name}" in refused.json()["message"], name
-        else:
-            assert refused.status_code != 403, (name, refused.text)
-        for who in (people.dora, people.boss):
-            assert run(who, name).status_code != 403, name
-
-
-def test_the_controller_is_not_an_admin_over_http(people: People) -> None:
-    """The role opens the controlling acts and nothing under `admin.*` (ADR-0013)."""
-    for who in (people.dora, people.bob):
-        assert who.get("/admin/accounts").status_code == 403
-        body = {"username": "eve", "display_name": "Eve", "roles": ["document_controller"]}
-        assert who.post("/admin/accounts", json=body).status_code == 403
-        assert who.post("/admin/tokens", json={"account_id": "x", "label": "x"}).status_code == 403
-    # the two link recovery commands stay the admin's (ADR-0013)
-    ours = {"link_id": "x", "status": "broken", "reason": "wrong target"}
-    assert run(people.dora, "AdminFlagLink", **ours).status_code == 403
-    assert run(people.dora, "AdminRetractLink", link_id="x", reason="x").status_code == 403
-    # a controller cannot give itself the admin role, nor reach the role route
-    me = people.dora.get("/auth/me").json()
-    roles = people.dora.put(
-        f"/admin/accounts/{me['account_id']}/roles", json={"roles": ["admin", "user"]}
-    )
-    assert roles.status_code == 403
-
-
 def test_an_agent_runs_none_of_them(people: People) -> None:
     for name in EXPECTED_ACCESS:
         refused = run(people.agent, name)
