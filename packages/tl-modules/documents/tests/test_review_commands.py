@@ -368,11 +368,15 @@ def test_a_controller_records_an_answer_on_behalf_with_a_comment_and_the_event_s
     assert own.events[0].payload["recorded_by"] is None
 
 
-def test_only_a_controller_closes_with_an_outcome_milder_than_the_worst_answer(draft: World) -> None:
+def test_only_a_controller_closes_with_an_outcome_milder_than_the_worst_answer(
+    draft: World,
+) -> None:
     cycle = open_review(draft).stream_id
     answer(draft, cycle, "user:ana", "rejected", "Wrong line class")
     answer(draft, cycle, "user:bo", "approved")
-    with pytest.raises(InvalidReviewError, match="only a document controller can close it as approved"):
+    with pytest.raises(
+        InvalidReviewError, match="only a document controller can close it as approved"
+    ):
         close(draft, cycle, outcome="approved")
     with pytest.raises(ValidationError):
         OverrideReviewOutcome(**BASE, review_cycle_id=cycle, outcome="approved", reason=" ")

@@ -96,7 +96,9 @@ def test_markups_are_additive_one_never_replaces_another(world: World) -> None:
     ]
 
 
-def test_the_signed_copy_is_registered_and_replaced_by_controller_commands_only(world: World) -> None:
+def test_the_signed_copy_is_registered_and_replaced_by_controller_commands_only(
+    world: World,
+) -> None:
     from tl_mod_documents.handlers.renditions import (
         RegisterSignedRendition,
         ReplaceSignedRendition,
