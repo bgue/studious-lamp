@@ -1,6 +1,6 @@
 # ADR-0011 — Document control permissions in Phase 1
 
-Status: accepted 2026-10-13 by the orchestrator (interim decision, ADR-0008 decision 6)
+Status: accepted 2026-10-13 by the orchestrator (interim decision, ADR-0008 decision 6); confirmation pending the security re-review of 05fa38e, 0229814, 3b2823f and d6dd50f
 Date: 2026-10-13
 Deciders: orchestrator, after the fresh-context security review of P1-I2 round 1 (7 MEDIUM, 6 LOW); drafted by the P1-I2 supervisor
 Brief sections: §9 (M1), §25.2, §27
@@ -27,6 +27,8 @@ signed-in person. An agent never runs either kind: its call is a proposal.
 | `ReplaceSignedRendition` | `LinkToDocument`, `RepinDocumentLink` |
 | `IssueTransmittal` | `CreateTransmittal`, `RecordTransmittalResponse`, `CloseTransmittal`, `VoidTransmittal` (a draft) |
 | `RecordReviewOutcomeOnBehalf`, `OverrideReviewOutcome` | `OpenReviewCycle`, `RecordReviewOutcome` (one's own answer), `CloseReviewCycle` (not milder than the worst answer) |
+
+`SupersedeDocument` does not require the replacement to have the same document type: a document may be replaced by one of another type (a sketch by a general arrangement drawing), and the admin who supersedes states the reason, which the event keeps.
 
 The class of a new document is set when it is registered; changing it afterwards is the admin's. `tests/` pins the table
 (`packages/tl-api/tests/test_api_documents.py`, `EXPECTED_ACCESS`): a change to it is a decision recorded here, not a
