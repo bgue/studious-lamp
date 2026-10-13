@@ -27,13 +27,7 @@ and the document number pattern. One working day (``act``), in this order, drawi
 
 No revision is issued: issuing is an admin's act (ADR-0011) and a simulated person is never an
 admin, so no pin goes stale in a simulation. The link is floating.
-
-STUB (P1-I2-T12a): the bodies of DocumentRegistrar.act raise NotImplementedError; their
-signatures, options, docstrings and the helpers are final. Each body has a STEPS comment.
-Implement them, then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -71,19 +65,28 @@ class DocumentRegistrar(BaseActor):
     params: DocumentRegistrarParams
 
     def act(self, ctx: SimContext, rec: Recorder) -> None:
-        # STEPS
-        # 1. existing = rec.records(DOCUMENT_QUERY); revised = the set of the part before "@" of
-        #    each key of rec.records(REVISION_QUERY); tags = rec.records(TAG_QUERY);
-        #    known = [d.key for d in existing]; created: list[Rec] = [].
-        # 2. For _ in range(draw(self.params.documents_per_day, ctx.rng)): doc_type, discipline,
-        #    noun = ctx.rng.choice(KINDS); number = next_number(known, doc_type); made =
-        #    rec.register_document(number, f"{noun} {number}", doc_type, discipline);
-        #    known.append(number); created.append(made).
-        # 3. roll = ctx.rng.random() (always). If roll < self.params.revision_rate: candidates =
-        #    the documents of existing + created whose key is not in `revised`, sorted by key;
-        #    if there are any: victim = ctx.rng.choice(candidates);
-        #    rec.start_revision(victim, "First draft").
-        # 4. roll = ctx.rng.random() (always). If roll < self.params.link_rate and tags and
-        #    created: tag = ctx.rng.choice(tags); document = ctx.rng.choice(created);
-        #    rec.link(tag, document, "references").
-        raise NotImplementedError
+        existing: list[Rec] = rec.records(DOCUMENT_QUERY)
+        revised = {revision.key.split("@", 1)[0] for revision in rec.records(REVISION_QUERY)}
+        tags: list[Rec] = rec.records(TAG_QUERY)
+        known = [doc.key for doc in existing]
+        created: list[Rec] = []
+        for _ in range(draw(self.params.documents_per_day, ctx.rng)):
+            doc_type, discipline, noun = ctx.rng.choice(KINDS)
+            number = next_number(known, doc_type)
+            made = rec.register_document(number, f"{noun} {number}", doc_type, discipline)
+            known.append(number)
+            created.append(made)
+        roll = ctx.rng.random()
+        if roll < self.params.revision_rate:
+            candidates = sorted(
+                (doc for doc in [*existing, *created] if doc.key not in revised),
+                key=lambda doc: doc.key,
+            )
+            if candidates:
+                victim = ctx.rng.choice(candidates)
+                rec.start_revision(victim, "First draft")
+        roll = ctx.rng.random()
+        if roll < self.params.link_rate and tags and created:
+            tag = ctx.rng.choice(tags)
+            document = ctx.rng.choice(created)
+            rec.link(tag, document, "references")
