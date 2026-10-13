@@ -12,7 +12,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
@@ -92,6 +92,10 @@ from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView, get_view, list_views, view_at
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
+from tl_mod_documents import reports as document_reports
+from tl_mod_documents import views as document_views
+from tl_mod_documents.handlers.transmittals import CreateTransmittal, handle_create_transmittal
+from tl_mod_documents.resolver import RepinDocumentLink, handle_repin_document_link
 from tl_mod_engineering.views import TagView, tag_view, tag_views
 from tl_schema.forms import ConformanceReport, FormMetadata
 
@@ -593,6 +597,76 @@ class EmbeddedClient:
     def get_tag(self, project: str, number: str) -> TagView:
         with self._uow(True) as uow:
             return tag_view(uow, f"project:{project}", number)
+
+    # --- documents (P1-I2) --------------------------------------------------------------------
+
+    def list_documents(
+        self,
+        project: str,
+        *,
+        doc_type: str | None = None,
+        discipline: str | None = None,
+        state: str | None = None,
+        include_void: bool = False,
+        limit: int = 1000,
+    ) -> list[document_views.DocumentView]:
+        with self._uow(True) as uow:
+            return document_views.document_views(
+                uow.conn(),
+                f"project:{project}",
+                doc_type=doc_type,
+                discipline=discipline,
+                state=state,
+                include_void=include_void,
+                limit=limit,
+            )
+
+    def get_document(self, project: str, number: str) -> document_views.DocumentView:
+        with self._uow(True) as uow:
+            return document_views.document_view(uow.conn(), f"project:{project}", number)
+
+    def document_diff(
+        self, project: str, number: str, from_code: str, to_code: str
+    ) -> document_views.RevisionDiffView:
+        with self._uow(True) as uow:
+            return document_views.revision_diff_view(
+                uow.conn(), f"project:{project}", number, from_code, to_code
+            )
+
+    def list_stale_links(self, project: str) -> list[document_reports.StalePinLine]:
+        with self._uow(True) as uow:
+            return document_views.stale_links(uow.conn(), f"project:{project}")
+
+    def list_overdue_reviews(
+        self, project: str, *, on: date | None = None
+    ) -> list[document_reports.OverdueLine]:
+        with self._uow(True) as uow:
+            return document_views.overdue_reviews(uow.conn(), f"project:{project}", on=on)
+
+    def list_transmittals(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        direction: str | None = None,
+        limit: int = 500,
+    ) -> list[document_views.TransmittalView]:
+        with self._uow(True) as uow:
+            return document_views.transmittal_views(
+                uow.conn(), f"project:{project}", state=state, direction=direction, limit=limit
+            )
+
+    def get_transmittal(self, project: str, number: str) -> document_views.TransmittalView:
+        with self._uow(True) as uow:
+            return document_views.transmittal_view(uow.conn(), f"project:{project}", number)
+
+    def repin_document_link(self, cmd: RepinDocumentLink) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_repin_document_link(uow, cmd))
+
+    def create_transmittal(self, cmd: CreateTransmittal) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_create_transmittal(uow, cmd))
 
     # --- settings (P0-I8) ---------------------------------------------------------------------
 

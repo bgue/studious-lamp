@@ -24,7 +24,22 @@ from tl_mod_engineering.projectors import (
 #: lists, values, mnemonics, patterns, tag classes) allow none: they change through the registry
 #: commands, which are admin-only. ``EditRecord`` is the title and psets, so it needs the first two.
 TAG_GENERIC_COMMANDS = frozenset(
-    {"UpdateRecord", "SetPsetValues", "TransitionWorkflow", "AddLink", "SuggestLink", "AttachFile"}
+    {
+        "UpdateRecord",
+        "SetPsetValues",
+        "TransitionWorkflow",
+        "AddLink",
+        "SuggestLink",
+        "AttachFile",
+        # the life of a link that starts at a tag (ADR-0010 addendum, P1-I2); a link the module
+        # wrote by rule (a rename's `supersedes`) still changes only through the module
+        "AcceptLink",
+        "DeclineLink",
+        "RepinLink",
+        "VerifyLink",
+        "FlagLink",
+        "RetractLink",
+    }
 )
 
 

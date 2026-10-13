@@ -12,7 +12,12 @@ from typing import Any
 from sqlalchemy import Connection, text
 from tl_core.ledger import Event
 
-from tl_mod_engineering.names import STANDARD_CLOSED, STANDARD_DEFINED, STANDARD_TABLE
+from tl_mod_engineering.names import (
+    STANDARD_CLOSED,
+    STANDARD_DEFINED,
+    STANDARD_TABLE,
+    STANDARD_VIEW,
+)
 from tl_mod_engineering.projectors._common import ddl_for, json_text, touch_record
 
 _INSERT_SQL = text(
@@ -33,7 +38,7 @@ class StandardProjector:
     handles = frozenset({STANDARD_DEFINED, STANDARD_CLOSED})
 
     def ddl(self, dialect: str) -> list[str]:
-        return ddl_for(STANDARD_TABLE, dialect)
+        return ddl_for(STANDARD_TABLE, dialect) + ddl_for(STANDARD_VIEW, dialect)
 
     def apply(self, conn: Connection, event: Event) -> None:
         payload: dict[str, Any] = event.payload

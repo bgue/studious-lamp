@@ -1,0 +1,32 @@
+# Workflow of a transmittal (brief 9 M1, M10 Document-control domain). A transmittal is drafted with its
+# revisions and recipients, issued once, answered (Acknowledged) and closed. Only a draft can be voided: an
+# issued transmittal is a record of what was sent. The moves are made by the documents module's commands
+# (IssueTransmittal, RecordTransmittalResponse, CloseTransmittal, VoidTransmittal).
+id: documents.transmittal
+version: 1
+record_type: documents.Transmittal
+scope: company
+initial_state: Draft
+states:
+  - name: Draft
+  - name: Issued
+  - name: Acknowledged
+  - name: Closed
+  - name: Void
+transitions:
+  - name: issue
+    label: Issue the transmittal
+    from: [Draft]
+    to: Issued
+  - name: acknowledge
+    label: Record the answer
+    from: [Issued]
+    to: Acknowledged
+  - name: close
+    label: Close the transmittal
+    from: [Issued, Acknowledged]
+    to: Closed
+  - name: void
+    label: Void the draft
+    from: [Draft]
+    to: Void

@@ -9,6 +9,7 @@ from tl_sim.actors.assistant import Assistant
 from tl_sim.actors.base import BaseActor
 from tl_sim.actors.crew import Crew
 from tl_sim.actors.document_controller import DocumentController
+from tl_sim.actors.document_registrar import DocumentRegistrar
 from tl_sim.actors.planner import Planner
 from tl_sim.actors.tag_clerk import TagClerk
 from tl_sim.scenario import Scenario
@@ -18,6 +19,7 @@ ACTOR_CLASSES: dict[str, type[BaseActor]] = {
     "planner": Planner,
     "crew": Crew,
     "tag_clerk": TagClerk,
+    "document_registrar": DocumentRegistrar,
     "assistant": Assistant,
     "approver": Approver,
 }

@@ -153,6 +153,7 @@ def handle_define_tag_class(uow: UnitOfWork, cmd: DefineTagClass) -> CommandResu
         title=cmd.label,
         description=cmd.definition,
         key=f"TC:{cmd.code}",
+        composed_key=True,
         extra_events=[NewEvent(event_type=TAG_CLASS_DEFINED, payload=payload)],
     )
 

@@ -27,6 +27,7 @@ ROLE_NAMES = (
     "planner",
     "crew",
     "tag_clerk",
+    "document_registrar",
 )  # the project team, people (user:sim-*)
 ACTOR_NAMES = (*ROLE_NAMES, "assistant", "approver")  # the order they act in each day
 
@@ -110,6 +111,18 @@ class TagClerkParams(Strict):
     rename_rate: float = Field(default=0.2, ge=0, le=1)  # chance per day of renumbering one tag
 
 
+class DocumentRegistrarParams(Strict):
+    """Keeps the document register: registers documents under the company's numbering, starts the
+    first revision of some, and links tags to documents (floating). Needs the document standards
+    loaded in the ledger. Issuing a revision is an admin's act (ADR-0011) and no simulated person
+    is an admin, so no revision is issued and no pin goes stale.
+    """
+
+    documents_per_day: Count = CountRange(min=1, max=3)
+    revision_rate: float = Field(default=0.5, ge=0, le=1)  # chance per day of starting a revision
+    link_rate: float = Field(default=0.5, ge=0, le=1)  # chance per day of linking a tag
+
+
 class AssistantParams(Strict):
     """The one simulated agent: proposes cross-references over MCP, changes no record itself."""
 
@@ -129,6 +142,7 @@ class ActorsConfig(Strict):
     planner: PlannerParams | None = PlannerParams()
     crew: CrewParams | None = CrewParams()
     tag_clerk: TagClerkParams | None = None  # off unless named: needs the standards loaded
+    document_registrar: DocumentRegistrarParams | None = None  # off unless named: needs them too
     assistant: AssistantParams | None = None  # off unless the scenario names it: needs MCP
     approver: ApproverParams | None = None
 

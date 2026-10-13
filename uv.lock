@@ -15,6 +15,7 @@ members = [
     "tl-core",
     "tl-lake",
     "tl-mcp",
+    "tl-mod-documents",
     "tl-mod-engineering",
     "tl-schema",
     "tl-sim",
@@ -2566,6 +2567,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "tl-adapters" },
     { name = "tl-core" },
+    { name = "tl-mod-documents" },
     { name = "tl-mod-engineering" },
     { name = "tl-schema" },
     { name = "uvicorn" },
@@ -2578,6 +2580,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2" },
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-schema", editable = "packages/tl-schema" },
     { name = "uvicorn" },
@@ -2594,6 +2597,7 @@ dependencies = [
     { name = "tl-api" },
     { name = "tl-core" },
     { name = "tl-lake" },
+    { name = "tl-mod-documents" },
     { name = "tl-mod-engineering" },
     { name = "tl-schema" },
     { name = "tl-sim" },
@@ -2609,6 +2613,7 @@ requires-dist = [
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-lake", editable = "packages/tl-lake" },
+    { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-schema", editable = "packages/tl-schema" },
     { name = "tl-sim", editable = "packages/tl-sim" },
@@ -2696,6 +2701,31 @@ requires-dist = [
 ]
 
 [[package]]
+name = "tl-mod-documents"
+version = "0.0.1"
+source = { editable = "packages/tl-modules/documents" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "sqlalchemy" },
+    { name = "tl-adapters" },
+    { name = "tl-core" },
+    { name = "tl-mod-engineering" },
+    { name = "tl-schema" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "pyyaml", specifier = ">=6" },
+    { name = "sqlalchemy", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
+]
+
+[[package]]
 name = "tl-mod-engineering"
 version = "0.0.1"
 source = { editable = "packages/tl-modules/engineering" }
@@ -2780,6 +2810,7 @@ dependencies = [
     { name = "tl-adapters" },
     { name = "tl-api" },
     { name = "tl-core" },
+    { name = "tl-mod-documents" },
     { name = "tl-mod-engineering" },
     { name = "tl-schema" },
 ]
@@ -2793,6 +2824,7 @@ requires-dist = [
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-schema", editable = "packages/tl-schema" },
 ]

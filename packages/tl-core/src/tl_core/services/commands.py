@@ -3,13 +3,37 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from collections.abc import Iterable
+from typing import Any, cast
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from tl_core.ledger import Event
 
 _SCOPE_PATTERN = re.compile(r"(?:company|project:[A-Za-z0-9_.-]+)")
+
+
+def contains_nul(value: Any) -> bool:
+    """Whether a string, or any string inside a list, tuple, dict or model, holds a NUL.
+
+    A NUL cannot be stored in a Postgres text parameter: the driver raises an error that carries the
+    statement and its values. A command refuses it first, as a validation error.
+    """
+    stack: list[Any] = [value]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, str):
+            if "\x00" in item:
+                return True
+        elif isinstance(item, dict):
+            mapping = cast("dict[Any, Any]", item)
+            stack.extend(mapping.keys())
+            stack.extend(mapping.values())
+        elif isinstance(item, list | tuple | set | frozenset):
+            stack.extend(cast("Iterable[Any]", item))
+        elif isinstance(item, BaseModel):
+            stack.extend(item.__dict__.values())
+    return False
 
 
 class Command(BaseModel):
@@ -26,6 +50,13 @@ class Command(BaseModel):
         if _SCOPE_PATTERN.fullmatch(value) is None:
             raise ValueError(f"scope must be 'company' or 'project:<id>', got {value!r}")
         return value
+
+    @model_validator(mode="after")
+    def _no_nul(self) -> Command:
+        """No text of any command may hold a NUL (it would crash a Postgres write)."""
+        if contains_nul(self.__dict__):
+            raise ValueError("text must not contain NUL characters")
+        return self
 
 
 class CreateRecord(Command):

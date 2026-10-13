@@ -28,6 +28,7 @@ ACME = (
     / "standards"
     / "co.acme.standards@1.0.0.yaml"
 )
+ACME_DOCUMENTS = ACME.with_name("co.acme.documents@1.0.0.yaml")
 RUN_ID = "rt1"
 SCOPE = f"project:sim-{RUN_ID}"
 START = datetime(2026, 11, 2, 7, 0, tzinfo=UTC)
@@ -37,6 +38,7 @@ IDENTITIES = [
     "user:sim-planner",
     "user:sim-crew",
     "user:sim-tag_clerk",
+    "user:sim-document_registrar",
     "user:sim-approver",
     "agent:sim-assistant",
     "user:alice",
@@ -79,12 +81,15 @@ def build_suite(tmp_path: Path, *, standards: bool = False) -> Suite:
     tokens_path = tmp_path / "tokens.json"
     tokens = {who: add_token(tokens_path, who) for who in IDENTITIES}
     settings = ApiSettings(db_path=db, tokens_path=tokens_path, poll_interval_s=0.05)
-    if standards:  # the company standards, as `tl standards load` leaves them
+    if standards:  # the company and the document standards, as `tl standards load` leaves them
         from tl_mod_engineering.document import load_standards_file
         from tl_mod_engineering.loader import load_standards
 
         with backend(False) as uow:
             load_standards(uow, load_standards_file(ACME), actor="user:seed", source="test")
+            load_standards(
+                uow, load_standards_file(ACME_DOCUMENTS), actor="user:seed", source="test"
+            )
     app = create_app(backend, settings=settings, tokens=TokenStore(tokens_path))
     return Suite(tokens, backend, TestClient(app), Keys(RUN_ID, {}), [])
 

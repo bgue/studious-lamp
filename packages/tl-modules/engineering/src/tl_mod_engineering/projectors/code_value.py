@@ -11,7 +11,12 @@ from typing import Any
 from sqlalchemy import Connection, text
 from tl_core.ledger import Event
 
-from tl_mod_engineering.names import CODE_VALUE_CLOSED, CODE_VALUE_DEFINED, CODE_VALUE_TABLE
+from tl_mod_engineering.names import (
+    CODE_VALUE_CLOSED,
+    CODE_VALUE_DEFINED,
+    CODE_VALUE_TABLE,
+    CODE_VALUE_VIEW,
+)
 from tl_mod_engineering.projectors._common import ddl_for, json_text, touch_record
 
 _INSERT_SQL = text(
@@ -32,7 +37,7 @@ class CodeValueProjector:
     handles = frozenset({CODE_VALUE_DEFINED, CODE_VALUE_CLOSED})
 
     def ddl(self, dialect: str) -> list[str]:
-        return ddl_for(CODE_VALUE_TABLE, dialect)
+        return ddl_for(CODE_VALUE_TABLE, dialect) + ddl_for(CODE_VALUE_VIEW, dialect)
 
     def apply(self, conn: Connection, event: Event) -> None:
         payload: dict[str, Any] = event.payload

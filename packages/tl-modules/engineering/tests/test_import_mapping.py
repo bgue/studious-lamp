@@ -165,6 +165,20 @@ def test_a_blank_tag_number_is_a_problem() -> None:
     assert row.service == "service only"
 
 
+@pytest.mark.parametrize("char", ["\x00", "\x01", "\x1b", "\x7f"])
+def test_a_control_character_is_a_problem_of_its_row_and_the_cell_is_dropped(char: str) -> None:
+    """A NUL in a number or a service crashed a Postgres write; it never leaves the file now."""
+    text = f"{HEADER}\n47-FV-10{char}01,Feed gas,CV,,,,,,,\n47-FV-1002,Fe{char}ed,CV,,,,,,,\n"
+    first, second = read_rows(text, mapping())
+    assert first.number == "" and first.problems == ["TAG NO: holds a control character"]
+    assert second.service is None and second.problems == ["SERVICE: holds a control character"]
+
+
+def test_a_tab_and_a_line_break_inside_a_cell_are_kept() -> None:
+    (row,) = read_rows(f'{HEADER}\n47-FV-1001,"Feed\ngas\tmain",CV,,,,,,,\n', mapping())
+    assert row.service == "Feed\ngas\tmain" and row.problems == []
+
+
 @pytest.mark.parametrize("cell", ["inf", "nan", "1e999", "-Infinity"])
 def test_a_decimal_that_is_not_a_finite_number_is_a_problem(cell: str) -> None:
     (row,) = read_rows(f"{HEADER}\nT-1,,,{cell},,,,,,\n", mapping())

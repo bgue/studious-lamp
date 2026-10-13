@@ -1,0 +1,32 @@
+id: https://example.org/throughline/modules/documents
+name: tl_mod_documents
+title: "The documents module (M1, document control core)"
+description: >-
+  Document control (brief 9, M1): a `Document` is registered once under its number; it has
+  `Revision`s (A, B, C or 0, 1, 2 or P1, C1 by the document's revision scheme), each revision has
+  `Rendition`s (the native file, the PDF, a markup, a signed copy), and formal exchanges are
+  `Transmittal`s and `ReviewCycle`s. A document keeps one current revision per status class; a link
+  can pin a revision, and a pinned link goes stale when a newer revision is issued (brief 7.3).
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` (so links,
+  property sets, workflow, the query language and the feed work on it) and also a row of the
+  module's own current-state table, joined on `id`, which holds the typed columns. The tables are
+  generated from the classes below that carry `tl:current_state`; the projectors in
+  `packages/tl-modules/documents` write them. The flat per-type views `v_documents_<class>` join the
+  two and are generated too. Module spec: docs/modules/documents/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - document
+  - revision
+  - transmittal
+  - review_cycle
+  - events
+default_range: string
+annotations:
+  tl:module: documents

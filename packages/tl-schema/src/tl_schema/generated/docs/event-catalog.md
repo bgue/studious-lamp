@@ -15,6 +15,10 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`AgentToken.Revoked`](#agenttokenrevoked) | `tl.core.AgentToken.Revoked.v1` | An agent token was revoked and no longer authenticates. |
 | [`CodeValue.Closed`](#codevalueclosed) | `tl.core.CodeValue.Closed.v1` | A code value was superseded by another or retired; it still resolves for old records. |
 | [`CodeValue.Defined`](#codevaluedefined) | `tl.core.CodeValue.Defined.v1` | A value was added to a code list. |
+| [`Document.CurrentRevisionChanged`](#documentcurrentrevisionchanged) | `tl.core.Document.CurrentRevisionChanged.v1` | The revision in force for a document changed (an issue, a supersession or a void). |
+| [`Document.Defined`](#documentdefined) | `tl.core.Document.Defined.v1` | A document was registered under its number. |
+| [`Document.Superseded`](#documentsuperseded) | `tl.core.Document.Superseded.v1` | A document was replaced by another document; it stays in the ledger and its links go stale. |
+| [`Document.Updated`](#documentupdated) | `tl.core.Document.Updated.v1` | The register fields of a document changed (the title changes through the core `Record.Updated`). |
 | [`Feed.Edited`](#feededited) | `tl.core.Feed.Edited.v1` | A post was edited. |
 | [`Feed.Posted`](#feedposted) | `tl.core.Feed.Posted.v1` | A post was made in a project feed. |
 | [`Feed.Reacted`](#feedreacted) | `tl.core.Feed.Reacted.v1` | A reaction was set or cleared on a post. |
@@ -41,6 +45,14 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Record.Created`](#recordcreated) | `tl.core.Record.Created.v1` | A record was created. |
 | [`Record.Updated`](#recordupdated) | `tl.core.Record.Updated.v1` | One or more fields of a record changed. |
 | [`Record.Voided`](#recordvoided) | `tl.core.Record.Voided.v1` | A record was voided. |
+| [`Rendition.Defined`](#renditiondefined) | `tl.core.Rendition.Defined.v1` | A file was registered as a rendition of a revision. |
+| [`Rendition.Superseded`](#renditionsuperseded) | `tl.core.Rendition.Superseded.v1` | A rendition was replaced by a newer one of the same kind on the same revision. |
+| [`ReviewCycle.Closed`](#reviewcycleclosed) | `tl.core.ReviewCycle.Closed.v1` | A review cycle was closed with an overall outcome. |
+| [`ReviewCycle.Defined`](#reviewcycledefined) | `tl.core.ReviewCycle.Defined.v1` | A review of a revision was opened with its reviewers. |
+| [`ReviewCycle.OutcomeRecorded`](#reviewcycleoutcomerecorded) | `tl.core.ReviewCycle.OutcomeRecorded.v1` | A reviewer answered. |
+| [`Revision.Defined`](#revisiondefined) | `tl.core.Revision.Defined.v1` | A revision of a document was created, as a draft. |
+| [`Revision.Issued`](#revisionissued) | `tl.core.Revision.Issued.v1` | A revision was issued with an issue status; it is now current for its status class. |
+| [`Revision.Superseded`](#revisionsuperseded) | `tl.core.Revision.Superseded.v1` | An issued revision stopped being current because a later one replaced it. |
 | [`Schema.EffectiveChanged`](#schemaeffectivechanged) | `tl.core.Schema.EffectiveChanged.v1` | The effective schema of a scope changed. |
 | [`SchemaPackage.Published`](#schemapackagepublished) | `tl.core.SchemaPackage.Published.v1` | A schema package version was published. |
 | [`Setting.Changed`](#settingchanged) | `tl.core.Setting.Changed.v1` | One key was set, or reset to what the layer above gives, at one layer. |
@@ -53,6 +65,9 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`TagClass.Closed`](#tagclassclosed) | `tl.core.TagClass.Closed.v1` | A tag class was retired; tags already of that class keep it. |
 | [`TagClass.Defined`](#tagclassdefined) | `tl.core.TagClass.Defined.v1` | A tag class was defined. |
 | [`TagClass.Revised`](#tagclassrevised) | `tl.core.TagClass.Revised.v1` | A tag class changed. |
+| [`Transmittal.Defined`](#transmittaldefined) | `tl.core.Transmittal.Defined.v1` | A transmittal was drafted with the revisions it carries and its recipients. |
+| [`Transmittal.Issued`](#transmittalissued) | `tl.core.Transmittal.Issued.v1` | A transmittal was issued to its recipients. |
+| [`Transmittal.ResponseRecorded`](#transmittalresponserecorded) | `tl.core.Transmittal.ResponseRecorded.v1` | The recipients answered a transmittal. |
 | [`TypeRegistration.Deprecated`](#typeregistrationdeprecated) | `tl.core.TypeRegistration.Deprecated.v1` | The owner retired a version. |
 | [`TypeRegistration.Quarantined`](#typeregistrationquarantined) | `tl.core.TypeRegistration.Quarantined.v1` | A type package failed validation, or its files changed under a version that is already registered. |
 | [`TypeRegistration.Registered`](#typeregistrationregistered) | `tl.core.TypeRegistration.Registered.v1` | A type package validated and was registered. |
@@ -553,6 +568,236 @@ A value was added to a code list.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.CodeValue.Defined.v1"
+}
+```
+
+## Document.CurrentRevisionChanged
+
+The revision in force for a document changed (an issue, a supersession or a void). Carries the new denormalised values; all null when no revision is current.
+
+- CloudEvents type: `tl.core.Document.CurrentRevisionChanged.v1`
+- Ledger payload class: `DocumentCurrentRevisionChangedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `current_revision_class` | string or null | no | Its status class. |
+| `current_revision_code` | string or null | no | Its revision code. |
+| `current_revision_id` | string or null | no | Record id of the new current revision; null when none. |
+| `current_revision_issued_on` | string or null | no | ISO date it was issued. |
+| `current_revision_status` | string or null | no | Its issue status. |
+| `previous_revision_id` | string or null | no | Record id of the revision that was current before. |
+| `reason` | string | yes | Why: issued, superseded, voided. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "current_revision_class": "construction",
+      "current_revision_code": "B",
+      "current_revision_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "current_revision_issued_on": "2026-10-13",
+      "current_revision_status": "IFC",
+      "previous_revision_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "reason": "issued"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Document.CurrentRevisionChanged/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Document.CurrentRevisionChanged.v1"
+}
+```
+
+## Document.Defined
+
+A document was registered under its number.
+
+- CloudEvents type: `tl.core.Document.Defined.v1`
+- Ledger payload class: `DocumentDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `confidentiality` | string or null | no | Confidentiality class label. |
+| `discipline` | string or null | no | Discipline code. |
+| `doc_type` | string or null | no | Document type code. |
+| `number` | string | yes | The document number. |
+| `originator` | string or null | no | Who produced the document. |
+| `pattern_code` | string or null | no | Code of the numbering pattern the number was checked against. |
+| `revision_scheme` | string | yes | Code of the revision scheme. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "confidentiality": "internal",
+      "discipline": "PIP",
+      "doc_type": "ISO",
+      "number": "ISO-1234",
+      "originator": "Acme Engineering",
+      "pattern_code": "document",
+      "revision_scheme": "alpha"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Document.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Document.Defined.v1"
+}
+```
+
+## Document.Superseded
+
+A document was replaced by another document; it stays in the ledger and its links go stale.
+
+- CloudEvents type: `tl.core.Document.Superseded.v1`
+- Ledger payload class: `DocumentSupersededPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why. |
+| `superseded_by` | string | yes | Record id of the document that replaces this one. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Merged into the new isometric set",
+      "superseded_by": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Document.Superseded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Document.Superseded.v1"
+}
+```
+
+## Document.Updated
+
+The register fields of a document changed (the title changes through the core `Record.Updated`).
+
+- CloudEvents type: `tl.core.Document.Updated.v1`
+- Ledger payload class: `DocumentUpdatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+| `reason` | string or null | no | Why it changed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {
+      "discipline": [
+        "MEC",
+        "PIP"
+      ]
+    },
+    "detail": {
+      "changes": {
+        "discipline": [
+          "MEC",
+          "PIP"
+        ]
+      },
+      "reason": "Moved to the piping group"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Document.Updated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Document.Updated.v1"
 }
 ```
 
@@ -2020,6 +2265,465 @@ A record was voided. The record stays in the ledger.
 }
 ```
 
+## Rendition.Defined
+
+A file was registered as a rendition of a revision.
+
+- CloudEvents type: `tl.core.Rendition.Defined.v1`
+- Ledger payload class: `RenditionDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `content_type` | string | yes | Media type. |
+| `document_id` | string | yes | Record id of the document. |
+| `file_id` | string | yes | File id in the file service. |
+| `filename` | string | yes | File name. |
+| `kind` | string | yes | native, pdf, markup or signed. |
+| `page_count` | integer or null | no | Number of pages, when known. |
+| `replace_reason` | string or null | no | The admin's reason when a signed copy was registered or replaced; null for every other rendition. |
+| `revision_id` | string | yes | Record id of the revision. |
+| `sha256` | string | yes | Hex SHA-256 of the bytes. |
+| `size` | integer | yes | Size in bytes. |
+| `supersedes` | any | no | Record ids of the renditions of the same kind this one replaces. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "content_type": "application/pdf",
+      "document_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+      "filename": "ISO-1234-A.pdf",
+      "kind": "pdf",
+      "page_count": 3,
+      "revision_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "size": 48213,
+      "supersedes": []
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Rendition.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Rendition.Defined.v1"
+}
+```
+
+## Rendition.Superseded
+
+A rendition was replaced by a newer one of the same kind on the same revision.
+
+- CloudEvents type: `tl.core.Rendition.Superseded.v1`
+- Ledger payload class: `RenditionSupersededPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `superseded_by` | string | yes | Record id of the newer rendition. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "superseded_by": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Rendition.Superseded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Rendition.Superseded.v1"
+}
+```
+
+## ReviewCycle.Closed
+
+A review cycle was closed with an overall outcome.
+
+- CloudEvents type: `tl.core.ReviewCycle.Closed.v1`
+- Ledger payload class: `ReviewCycleClosedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `closed_on` | string | yes | ISO date it was closed. |
+| `outcome` | string | yes | approved, approved_with_comments or rejected; withdrawn when nobody answered. |
+| `reason` | string or null | no | Why it was closed, when not every reviewer answered or the outcome was stated. |
+| `worst_answer` | string or null | no | The worst recorded answer when an admin closed with a milder outcome; null otherwise. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "closed_on": "2026-10-16",
+      "outcome": "approved_with_comments",
+      "reason": null,
+      "worst_answer": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ReviewCycle.Closed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ReviewCycle.Closed.v1"
+}
+```
+
+## ReviewCycle.Defined
+
+A review of a revision was opened with its reviewers.
+
+- CloudEvents type: `tl.core.ReviewCycle.Defined.v1`
+- Ledger payload class: `ReviewCycleDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `document_id` | string | yes | Record id of the document. |
+| `due_date` | string or null | no | ISO date by which every reviewer should answer. |
+| `opened_on` | string | yes | ISO date the cycle was opened. |
+| `reviewers` | any | yes |  |
+| `revision_id` | string | yes | Record id of the revision under review. |
+| `round` | integer | yes | Review round of the revision, from 1. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "document_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "due_date": "2026-10-20",
+      "opened_on": "2026-10-13",
+      "reviewers": [
+        {
+          "due_date": null,
+          "reviewer": "user:ana"
+        }
+      ],
+      "revision_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "round": 1
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ReviewCycle.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ReviewCycle.Defined.v1"
+}
+```
+
+## ReviewCycle.OutcomeRecorded
+
+A reviewer answered.
+
+- CloudEvents type: `tl.core.ReviewCycle.OutcomeRecorded.v1`
+- Ledger payload class: `ReviewCycleOutcomeRecordedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `comment` | string or null | no | The reviewer's comment. |
+| `outcome` | string | yes | approved, approved_with_comments or rejected. |
+| `recorded_by` | string or null | no | The actor who recorded the answer when it was not the reviewer (admin); null otherwise. |
+| `responded_on` | string | yes | ISO date of the answer. |
+| `reviewer` | string | yes | The reviewer who answered. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "comment": "Check the weld map",
+      "outcome": "approved_with_comments",
+      "recorded_by": null,
+      "responded_on": "2026-10-15",
+      "reviewer": "user:ana"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ReviewCycle.OutcomeRecorded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ReviewCycle.OutcomeRecorded.v1"
+}
+```
+
+## Revision.Defined
+
+A revision of a document was created, as a draft.
+
+- CloudEvents type: `tl.core.Revision.Defined.v1`
+- Ledger payload class: `RevisionDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `change_note` | string or null | no | What changed since the previous revision. |
+| `code` | string | yes | The revision code. |
+| `document_id` | string | yes | Record id of the document. |
+| `document_number` | string | yes | The document number. |
+| `intended_status` | string or null | no | The issue status it is meant to be issued with. |
+| `ordinal` | integer | yes | Position among the document's revisions, from 1. |
+| `previous_revision_id` | string or null | no | Record id of the previous revision. |
+| `purpose` | string or null | no | Purpose or issue reason. |
+| `revision_date` | string or null | no | ISO date of the revision. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "change_note": null,
+      "code": "A",
+      "document_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "document_number": "ISO-1234",
+      "intended_status": "IFR",
+      "ordinal": 1,
+      "previous_revision_id": null,
+      "purpose": "First issue for review",
+      "revision_date": "2026-10-13"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Revision.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Revision.Defined.v1"
+}
+```
+
+## Revision.Issued
+
+A revision was issued with an issue status; it is now current for its status class.
+
+- CloudEvents type: `tl.core.Revision.Issued.v1`
+- Ledger payload class: `RevisionIssuedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `date_reason` | string or null | no | Why the date is before the day it was recorded; null when it is that day. |
+| `issue_status` | string | yes | The issue status (IFR, IFC, AFC, ASB). |
+| `issued_on` | string | yes | ISO date of the issue. |
+| `status_class` | string | yes | Its status class (review, construction, record). |
+| `superseded_revision_ids` | any | no | Record ids of the revisions that stopped being current because of this issue. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "issue_status": "IFC",
+      "issued_on": "2026-10-13",
+      "status_class": "construction",
+      "superseded_revision_ids": []
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Revision.Issued/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Revision.Issued.v1"
+}
+```
+
+## Revision.Superseded
+
+An issued revision stopped being current because a later one replaced it. It stays visible as superseded.
+
+- CloudEvents type: `tl.core.Revision.Superseded.v1`
+- Ledger payload class: `RevisionSupersededPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string or null | no | Why. |
+| `status_class` | string or null | no | The status class it was current in. |
+| `superseded_by` | string | yes | Record id of the revision that replaces it. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Revision B issued",
+      "status_class": "review",
+      "superseded_by": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Revision.Superseded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Revision.Superseded.v1"
+}
+```
+
 ## Schema.EffectiveChanged
 
 The effective schema of a scope changed.
@@ -2754,6 +3458,182 @@ A tag class changed. Adding a required pset is a constraining change: existing t
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.TagClass.Revised.v1"
+}
+```
+
+## Transmittal.Defined
+
+A transmittal was drafted with the revisions it carries and its recipients.
+
+- CloudEvents type: `tl.core.Transmittal.Defined.v1`
+- Ledger payload class: `TransmittalDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `direction` | string | yes | outgoing or incoming. |
+| `due_date` | string or null | no | ISO date an answer is due. |
+| `items` | any | yes |  |
+| `number` | string | yes | The transmittal number. |
+| `purpose` | string | yes | Why it is sent. |
+| `recipients` | any | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "direction": "outgoing",
+      "due_date": "2026-10-27",
+      "items": [
+        {
+          "document_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+          "document_number": "ISO-1234",
+          "issue_status": "IFC",
+          "revision_code": "B",
+          "revision_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+        }
+      ],
+      "number": "TRN-0001",
+      "purpose": "for_construction",
+      "recipients": [
+        {
+          "email": null,
+          "name": "Site document control",
+          "organisation": "Acme Construction"
+        }
+      ]
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Transmittal.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Transmittal.Defined.v1"
+}
+```
+
+## Transmittal.Issued
+
+A transmittal was issued to its recipients.
+
+- CloudEvents type: `tl.core.Transmittal.Issued.v1`
+- Ledger payload class: `TransmittalIssuedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `date_reason` | string or null | no | Why the date is before the day it was recorded; null when it is that day. |
+| `issued_on` | string | yes | ISO date of the issue. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "date_reason": null,
+      "issued_on": "2026-10-13"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Transmittal.Issued/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Transmittal.Issued.v1"
+}
+```
+
+## Transmittal.ResponseRecorded
+
+The recipients answered a transmittal.
+
+- CloudEvents type: `tl.core.Transmittal.ResponseRecorded.v1`
+- Ledger payload class: `TransmittalResponseRecordedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `date_reason` | string or null | no | Why the date is before the day it was recorded; null when it is that day. |
+| `responded_on` | string | yes | ISO date of the answer. |
+| `response_code` | string | yes | approved, approved_with_comments, rejected or noted. |
+| `response_note` | string or null | no | Free text that came with the answer. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "date_reason": null,
+      "responded_on": "2026-10-20",
+      "response_code": "approved",
+      "response_note": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Transmittal.ResponseRecorded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Transmittal.ResponseRecorded.v1"
 }
 ```
 

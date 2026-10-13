@@ -1,0 +1,126 @@
+id: https://example.org/throughline/modules/documents/transmittal
+name: tl_mod_documents_transmittal
+title: Transmittals (brief 9, M1)
+description: >-
+  A transmittal is one formal exchange of document revisions with other parties (brief 9, M1; the
+  Document-control domain of M10). It lists the revisions it carries, who receives it, why, and when
+  an answer is due; it is issued once, answered with a response code, and closed. The items are a
+  second table so a revision's transmittal history is a query. Spec: docs/modules/documents/transmittals.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: documents
+
+classes:
+  Transmittal:
+    description: >-
+      One transmittal. Record type `documents.Transmittal`; its key is the transmittal number and the title
+      is the subject. The workflow state (Draft, Issued, Acknowledged, Closed, Void) is the envelope `status`.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "documents.Transmittal"
+      tl:ix_scope_direction: "scope, direction"
+      tl:ix_scope_due: "scope, due_date"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      number:
+        required: true
+        description: The transmittal number, equal to the record key.
+      direction:
+        required: true
+        description: "outgoing (we send) or incoming (we receive)."
+      purpose:
+        required: true
+        description: "Why it is sent: for_review, for_information, for_construction, for_approval, as_built or for_record."
+      due_date:
+        description: ISO date (YYYY-MM-DD) by which an answer is due; null when none is asked.
+      issued_on:
+        description: ISO date (YYYY-MM-DD) on which it was issued; null while a draft.
+      response_code:
+        description: "The answer: approved, approved_with_comments, rejected or noted; null until answered."
+      response_note:
+        description: Free text that came with the answer.
+      responded_on:
+        description: ISO date (YYYY-MM-DD) of the answer.
+      recipients:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: "JSON list of recipients, each `{name, organisation, email}` (name required)."
+      item_count:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Number of revisions on the transmittal.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
+
+  TransmittalItem:
+    description: >-
+      One revision on a transmittal. Not a record: a row of the transmittal's table of contents, written when
+      the transmittal is defined and never changed.
+    annotations:
+      tl:current_state: true
+      tl:ix_transmittal_position: "transmittal_id, position"
+      tl:ix_revision: "revision_id"
+    unique_keys:
+      transmittal_revision:
+        description: A revision is listed once per transmittal.
+        unique_key_slots:
+          - transmittal_id
+          - revision_id
+    attributes:
+      item_id:
+        identifier: true
+        required: true
+        description: "`<transmittal id>:<position, three digits>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      transmittal_id:
+        range: Ulid
+        required: true
+        description: The transmittal.
+      position:
+        range: integer
+        required: true
+        description: Position on the transmittal, from 1.
+      revision_id:
+        range: Ulid
+        required: true
+        description: The revision sent.
+      document_id:
+        range: Ulid
+        required: true
+        description: Its document.
+      document_number:
+        required: true
+        description: The document number at the time.
+      revision_code:
+        required: true
+        description: The revision code at the time.
+      issue_status:
+        description: The revision's issue status at the time.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the event that wrote the row.

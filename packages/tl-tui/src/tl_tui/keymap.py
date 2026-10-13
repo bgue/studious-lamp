@@ -68,6 +68,13 @@ KEYMAP: tuple[KeyEntry, ...] = (
     KeyEntry("App", "p", "Post to the feed (composer)", "TlApp", "p"),
     KeyEntry(
         "App",
+        "F7",
+        "Document register: revisions, stale links, re-pin, transmittals",
+        "TlApp",
+        "f7",
+    ),
+    KeyEntry(
+        "App",
         "F8",
         "Tag register: the project's tags, their class and what they lack",
         "TlApp",

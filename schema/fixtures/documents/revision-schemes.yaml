@@ -1,0 +1,51 @@
+# Revision schemes, issue statuses and which scheme numbers which documents (brief 9 M1: "Revision schemes are
+# configurable per project and document type"). Data only: read by tl_mod_documents.schemes.
+#
+# schemes: how a revision code follows the one before it.
+#   kind alpha   A, B, C ... Z, AA, AB ...  (`skip` letters are never used)
+#   kind numeric 0, 1, 2 ...                (`start` is the first number)
+#   kind staged  P1, P2 ... then C1, C2 ... (the stages in order; a new stage starts at its `start`)
+# statuses: the issue statuses and the status class of each. A document has one current revision per class.
+# assignment: the scheme of a document is the first of: this project and the document type, this project's
+#   default, the document type, the company default (`default_scheme`).
+default_scheme: alpha
+
+schemes:
+  alpha:
+    label: Letters (A, B, C)
+    kind: alpha
+    skip: [I, O]
+    start: A
+  numeric:
+    label: Numbers (0, 1, 2)
+    kind: numeric
+    start: 0
+  staged:
+    label: Preliminary then construction (P1, P2, C1, C2)
+    kind: staged
+    stages:
+      - {prefix: P, start: 1}
+      - {prefix: C, start: 1}
+
+statuses:
+  IFR: {label: Issued for review, class: review}
+  IFA: {label: Issued for approval, class: review}
+  IFC: {label: Issued for construction, class: construction}
+  AFC: {label: Approved for construction, class: construction}
+  ASB: {label: As-built, class: record}
+
+classes: [review, construction, record]
+
+assignment:
+  by_document_type:
+    SPC: numeric
+    PRC: numeric
+    CAL: numeric
+    DS: staged
+  by_project:
+    "project:P123":
+      by_document_type:
+        ITR: numeric
+        DRW: staged
+    "project:P200":
+      default: numeric

@@ -25,7 +25,7 @@ from sqlalchemy import text
 
 from tl_core.extypes.service import prepare_create, refuse_index_write
 from tl_core.ledger import NewEvent
-from tl_core.modules import is_module_record_type, require_generic_command
+from tl_core.modules import is_module_record_type, require_generic
 from tl_core.numbering.allocator import allocate_key, segment_values
 from tl_core.numbering.config import numbering_for
 from tl_core.services.commands import (
@@ -42,6 +42,7 @@ from tl_core.services.errors import (
     NoNumberingPatternError,
     RecordNotFoundError,
     RecordVoidedError,
+    ReservedKeyError,
     UnsupportedFieldError,
     UnsupportedRecordTypeError,
 )
@@ -49,6 +50,10 @@ from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
 
 RECORD_TYPE = "core.Record"
+#: Characters a typed-in key may not hold: every key a module builds holds ``@`` (``ISO-1234@A``,
+#: ``ISO-1234@A/pdf-1``, ``CL:Area@1.0.0``), so a typed key without one can never collide with
+#: such a key. ``/`` is allowed: real tag and document numbers hold it (``MP/12/3``).
+RESERVED_KEY_CHARS = frozenset("@")
 _UPDATABLE_FIELDS = frozenset({"title", "description", "psets"})
 
 _DUPLICATE_KEY_SQL = text("SELECT 1 FROM cur_core_record WHERE scope = :scope AND key = :key")
@@ -107,6 +112,10 @@ def create_record_internal(
             scope=cmd.scope,
             psets=cmd.psets,
             allow_object_backed=allow_object_backed,
+        )
+    if cmd.key is not None and RESERVED_KEY_CHARS & set(cmd.key):
+        raise ReservedKeyError(
+            f"key {cmd.key!r} holds '@', which module records use in their own keys"
         )
     stream_id = new_ulid()
     correlation_id = cmd.correlation_id or new_ulid()
@@ -199,6 +208,7 @@ def create_module_record(
     description: str | None = None,
     extra_events: Sequence[NewEvent] = (),
     numbering: dict[str, str] | None = None,
+    composed_key: bool = False,
 ) -> CommandResult:
     """Create a record of a module type: ``Record.Created`` then the module's own events.
 
@@ -208,11 +218,17 @@ def create_module_record(
     pattern's other fields. ``extra_events`` are appended in the same append, after the envelope
     event, so the module's projectors see the row ``RecordProjector`` just made. The record has no
     property-set values yet; write them with ``SetPsetValues`` in the same unit of work.
+
+    A key a caller typed in (a document number, a tag number) may not hold ``@``
+    (``ReservedKeyError``): modules build their own keys with them (``ISO-1234@B``), and a typed
+    key would squat one. A module that builds the key itself passes ``composed_key=True``.
     """
     if not is_module_record_type(record_type):
         raise UnsupportedRecordTypeError(
             f"record type {record_type!r} is not provided by an installed module"
         )
+    if key is not None and not composed_key and RESERVED_KEY_CHARS & set(key):
+        raise ReservedKeyError(f"key {key!r} holds '@', which module records use in their own keys")
     stream_id = new_ulid()
     correlation_id = cmd.correlation_id or new_ulid()
     if key is None:
@@ -267,7 +283,7 @@ def create_module_record(
 
 def handle_update_record(uow: UnitOfWork, cmd: UpdateRecord) -> CommandResult:
     stored = _load_record(uow, cmd.scope, cmd.stream_id)
-    require_generic_command(stored.type, "UpdateRecord")
+    require_generic(uow.conn(), stored.type, "UpdateRecord", cmd.stream_id)
     if stored.voided:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot be updated")
     if "psets" in cmd.changes:
@@ -313,7 +329,7 @@ def handle_update_record(uow: UnitOfWork, cmd: UpdateRecord) -> CommandResult:
 
 def handle_void_record(uow: UnitOfWork, cmd: VoidRecord) -> CommandResult:
     stored = _load_record(uow, cmd.scope, cmd.stream_id)
-    require_generic_command(stored.type, "VoidRecord")
+    require_generic(uow.conn(), stored.type, "VoidRecord", cmd.stream_id)
     if stored.voided:
         raise AlreadyVoidedError(f"record {cmd.stream_id!r} is already voided")
 

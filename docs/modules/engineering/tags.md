@@ -4,7 +4,7 @@ Status: accepted. Brief §9 M2, §27.5. Spec of the records and of the commands,
 
 ## Tag
 A tag is the project-unique identifier of an engineered item. Its number is its record key (`47-FV-1001`); its title is the
-service description. The number is checked against the registry numbering pattern for `engineering.Tag`:
+service description. A typed number may hold `/` (real numbers do) but not `@`, which every key a module builds holds (ADR-0010 second addendum, item 4). The number is checked against the registry numbering pattern for `engineering.Tag`:
 - it must fit the pattern (`{area}-{mnemonic}-{seq:4}`: the sequence is written with four digits);
 - the area must be a value of the `Area` list (company, or the project's own);
 - the mnemonic must be a registered, active mnemonic.

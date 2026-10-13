@@ -56,8 +56,20 @@ GENERIC_COMMANDS = frozenset(
         "AddLink",
         "SuggestLink",
         "AttachFile",
+        # The life of a link (ADR-0010 addendum, P1-I2): checked at the end the link starts at.
+        "AcceptLink",
+        "DeclineLink",
+        "RepinLink",
+        "VerifyLink",
+        "FlagLink",
+        "RetractLink",
     }
 )
+
+#: ``(conn, record_id, slot)``: raise ``UnsupportedRecordTypeError`` when the record's *state* does
+#: not allow the generic command (ADR-0010 addendum, P1-I2). ``slot`` is the file slot of an
+#: ``AttachFile`` (``None`` for an unslotted attachment and for every other command).
+GenericGuard = Callable[[Connection, str, "str | None"], None]
 
 ProjectorFactory = Callable[[], Sequence[Projector]]
 #: ``(conn, record_type, record_id)`` to the names of the psets the record's class binds, in order.
@@ -74,6 +86,10 @@ def _no_commands() -> dict[str, frozenset[str]]:
     return {}
 
 
+def _no_guards() -> dict[tuple[str, str], GenericGuard]:
+    return {}
+
+
 @dataclass(frozen=True)
 class ModuleSpec:
     name: str  # ``engineering``; equal to the directory under ``schema/modules`` and the tl:module
@@ -85,6 +101,11 @@ class ModuleSpec:
     #: that is not a key allows none. These commands are open to every signed-in person: a change
     #: that needs a role is a command of the module, not an entry here.
     generic_commands: Mapping[str, frozenset[str]] = field(default_factory=_no_commands)
+    #: Per ``(record type, generic command)``, a state check run after the allow-list: a command
+    #: that is allowed for a type may still be refused by what the record is now (a revision that
+    #: was issued takes no new PDF). Called by ``require_generic`` from the same places as the
+    #: allow-list, including the file upload path, so every entry point inherits it.
+    generic_guards: Mapping[tuple[str, str], GenericGuard] = field(default_factory=_no_guards)
 
     def __post_init__(self) -> None:
         for record_type, commands in self.generic_commands.items():
@@ -97,6 +118,12 @@ class ModuleSpec:
             if unknown:
                 raise ModuleLoadError(
                     f"module {self.name!r}: {', '.join(unknown)} is not a generic command"
+                )
+        for (record_type, command), _guard in self.generic_guards.items():
+            if record_type not in self.record_types or command not in GENERIC_COMMANDS:
+                raise ModuleLoadError(
+                    f"module {self.name!r}: generic_guards names ({record_type!r}, {command!r}), "
+                    "which is not one of its record types and a generic command"
                 )
         for record_type in self.record_types:
             if not record_type.startswith(f"{self.name}."):
@@ -190,6 +217,26 @@ def require_generic_command(record_type: str, command: str) -> None:
                 f"{command} cannot change a {record_type} record: it changes through the "
                 f"{spec.name} module's own commands"
             )
+
+
+def require_generic(
+    conn: Connection,
+    record_type: str,
+    command: str,
+    record_id: str,
+    *,
+    slot: str | None = None,
+) -> None:
+    """``require_generic_command`` and then the module's state guard for ``(type, command)``.
+
+    The guard (``ModuleSpec.generic_guards``) sees the record as it is now: the same command may be
+    allowed in one state and refused in another. A core or extension type passes.
+    """
+    require_generic_command(record_type, command)
+    for spec in load_modules():
+        guard = spec.generic_guards.get((record_type, command))
+        if guard is not None:
+            guard(conn, record_id, slot)
 
 
 def module_record_types() -> frozenset[str]:

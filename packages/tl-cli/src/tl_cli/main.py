@@ -42,6 +42,12 @@ from tl_cli import (
     backup,
     config,
     dev,
+    doc,
+    doc_import,
+    doc_link,
+    doc_rendition,
+    doc_report,
+    doc_rev,
     events,
     extypes,
     extypes_quarantine,
@@ -56,6 +62,7 @@ from tl_cli import (
     pset,
     record,
     restore,
+    review,
     schema,
     serve,
     sim_agent,
@@ -64,6 +71,7 @@ from tl_cli import (
     tag,
     tag_import,
     tag_report,
+    transmittal,
     tui,
     webhook,
     wf,
@@ -109,6 +117,17 @@ app.add_typer(proposal.app, name="proposal")
 app.add_typer(standards.app, name="standards")
 standards.app.add_typer(standards_class.app, name="class")
 app.add_typer(tag.app, name="tag")
+app.add_typer(doc.app, name="doc")
+app.add_typer(transmittal.app, name="transmittal")
+app.add_typer(review.app, name="review")
+doc.app.add_typer(doc_rev.app, name="rev")
+doc.app.add_typer(doc_rendition.app, name="rendition")
+doc.app.add_typer(doc_report.app, name="report")
+doc.app.command("link")(doc_link.link)
+doc.app.command("stale")(doc_link.stale)
+doc.app.command("diff")(doc_link.diff)
+doc.app.command("repin")(doc_link.repin)
+doc.app.command("import")(doc_import.import_documents)
 tag.app.add_typer(tag_report.app, name="report")
 tag.app.command("import")(tag_import.import_tags)
 app.add_typer(config.app, name="config")

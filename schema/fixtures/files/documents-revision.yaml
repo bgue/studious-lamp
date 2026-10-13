@@ -1,0 +1,49 @@
+# File slots of a document revision (brief 9 M1, 20.1): the native file, the PDF, a markup and a signed copy.
+# A file in a slot is an upload; it becomes a controlled rendition of the revision when AttachRendition
+# registers it. The slots keep every upload (cardinality many); the rendition records which one is current.
+id: https://example.org/throughline/fixtures/files/documents-revision
+name: tl_fixture_documents_revision_files
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+default_range: string
+annotations:
+  tl:module: documents
+
+classes:
+  Revision:
+    annotations:
+      tl:file_slots:
+        - name: native
+          label: Native file
+          cardinality: many
+          max_size: 1073741824
+          retention_class: project
+        - name: pdf
+          label: PDF
+          cardinality: many
+          accepted_types:
+            - application/pdf
+          max_size: 524288000
+          capture_hint: scan
+          processing:
+            - thumbnail
+          retention_class: project
+        - name: markup
+          label: Markup
+          cardinality: many
+          accepted_types:
+            - application/pdf
+            - image/*
+          max_size: 524288000
+          retention_class: project
+        - name: signed
+          label: Signed copy
+          cardinality: many
+          accepted_types:
+            - application/pdf
+          max_size: 524288000
+          retention_class: project

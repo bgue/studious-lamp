@@ -1,0 +1,156 @@
+id: https://example.org/throughline/modules/documents/revision
+name: tl_mod_documents_revision
+title: Revisions and renditions (brief 9, M1)
+description: >-
+  A revision is one issue of a document under a revision code from the document's scheme (A, B, C;
+  0, 1, 2; P1, C1). Its `ordinal` orders the revisions of a document whatever the scheme. A revision
+  is issued with an issue status (IFR, IFC, AFC, ASB) that belongs to a status class; only one
+  revision per document and status class is current, and an issue supersedes the previous current
+  revision of its class. A rendition is one file of a revision (native, pdf, markup, signed): the file
+  itself is in the file service (`cur_files`), the rendition record is the controlled statement that
+  this file is that revision's copy. Spec: docs/modules/documents/documents.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: documents
+
+classes:
+  Revision:
+    description: >-
+      One revision of a document. Record type `documents.Revision`; its key is `<number>@<code>`.
+      The workflow state (Draft, In Review, Issued, Superseded, Void) is the envelope `status`.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "documents.Revision"
+      tl:ix_document_ordinal: "document_id, ordinal"
+      tl:ix_scope_issue_status: "scope, issue_status"
+      tl:ix_document_current: "document_id, is_current"
+    unique_keys:
+      document_code:
+        description: A revision code is used once per document.
+        unique_key_slots:
+          - document_id
+          - code
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      document_id:
+        range: Ulid
+        required: true
+        description: The document this is a revision of.
+      document_number:
+        required: true
+        description: The document number, copied so a revision register needs no join.
+      code:
+        required: true
+        description: The revision code (`A`, `0`, `P1`).
+      ordinal:
+        range: integer
+        required: true
+        description: Position of the revision among the document's revisions, from 1; orders revisions whatever the scheme.
+      previous_revision_id:
+        range: Ulid
+        description: The revision with the next lower ordinal; null for the first.
+      purpose:
+        description: Purpose or issue reason of the revision.
+      change_note:
+        description: What changed since the previous revision, in the author's words.
+      revision_date:
+        description: ISO date (YYYY-MM-DD) of the revision (when it was prepared).
+      intended_status:
+        description: The issue status the revision is meant to be issued with.
+      issue_status:
+        description: Issue status it was issued with (`IFR`, `IFC`, `AFC`, `ASB`); null until issued.
+      status_class:
+        description: Status class of `issue_status` (`review`, `construction`, `record`); null until issued.
+      issued_on:
+        description: ISO date (YYYY-MM-DD) on which it was issued; null until issued.
+      is_current:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: True while this revision is the one in force for its status class.
+      superseded_by:
+        range: Ulid
+        description: The revision that replaced this one as current in its class.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
+
+  Rendition:
+    description: >-
+      One file of a revision. Record type `documents.Rendition`; its key is `<number>@<code>/<kind>-<n>`.
+      A newer rendition of the same kind supersedes the older one (`is_current` false).
+    annotations:
+      tl:current_state: true
+      tl:record_types: "documents.Rendition"
+      tl:ix_revision_kind: "revision_id, kind, is_current"
+      tl:ix_document_kind: "document_id, kind"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      revision_id:
+        range: Ulid
+        required: true
+        description: The revision this is a copy of.
+      document_id:
+        range: Ulid
+        required: true
+        description: The document, copied so a rendition list needs no join.
+      kind:
+        required: true
+        description: "native, pdf, markup or signed."
+      file_id:
+        range: Ulid
+        required: true
+        description: The file in the file service (`cur_files.file_id`).
+      filename:
+        required: true
+        description: File name as uploaded.
+      content_type:
+        required: true
+        description: Media type of the file.
+      size:
+        range: integer
+        required: true
+        description: Size in bytes.
+      sha256:
+        required: true
+        description: Hex SHA-256 of the bytes (the object key).
+      page_count:
+        range: integer
+        description: Number of pages, when known (a PDF); filled by the person or, later, by an extractor.
+      is_current:
+        range: boolean
+        required: true
+        ifabsent: "true"
+        description: True for the newest rendition of its kind on the revision.
+      superseded_by:
+        range: Ulid
+        description: The rendition that replaced this one.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

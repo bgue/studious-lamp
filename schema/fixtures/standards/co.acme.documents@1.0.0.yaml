@@ -1,0 +1,40 @@
+# Acme document control standards, first edition (brief 6.4, 9 M1). Data only: read by tl_mod_engineering.document.
+# One numbering pattern for controlled documents: the document type code, a hyphen and a four-digit sequence
+# (ISO-1234). It names the code list DocumentType, which the engineering edition co.acme.standards@1.0.0 also
+# defines; the list is repeated here so that this file is a complete edition on its own. Loading both is safe:
+# an entry whose code the registry already holds is skipped, so the list is registered once.
+standards: co.acme.documents
+version: "1.0.0"
+title: Acme document control standards
+description: "The document number pattern of the sample company Acme, for the documents module."
+owner: "role:standards-steward"
+effective_from: "2026-01-01"
+
+code_lists:
+  DocumentType:
+    label: Document type
+    definition: "The kind of engineering document, as its number and register show."
+    value_list_policy: extensible
+    values:
+      - {code: ISO, label: Isometric drawing}
+      - {code: PID, label: Piping and instrument diagram}
+      - {code: GA, label: General arrangement}
+      - {code: DS, label: Datasheet}
+      - {code: LD, label: Loop diagram}
+      - {code: SPC, label: Specification}
+      - {code: PRC, label: Procedure}
+      - {code: CAL, label: Calculation}
+      - {code: MTO, label: Material take-off}
+      - {code: ITR, label: Inspection and test record}
+      - {code: WPS, label: Welding procedure specification}
+      - {code: DRW, label: General drawing}
+
+numbering_patterns:
+  - code: document
+    label: Document number
+    definition: "Document type code and a four-digit sequence, separated by a hyphen, for example ISO-1234."
+    record_type: documents.Document
+    template: "{doctype}-{seq:4}"
+    segments:
+      doctype: {role: other, list: DocumentType}
+      seq: {role: sequence}

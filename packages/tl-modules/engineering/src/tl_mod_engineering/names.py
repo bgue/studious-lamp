@@ -34,6 +34,12 @@ CODE_VALUE_TABLE: Final = "cur_engineering_code_value"
 TAG_CLASS_TABLE: Final = "cur_engineering_tag_class"
 TAG_TABLE: Final = "cur_engineering_tag"
 
+# The flat views of the tables (generated; they join the table to its cur_core_record row).
+STANDARD_VIEW: Final = "v_engineering_standard"
+CODE_VALUE_VIEW: Final = "v_engineering_code_value"
+TAG_CLASS_VIEW: Final = "v_engineering_tag_class"
+TAG_VIEW: Final = "v_engineering_tag"
+
 # Event types. The *Defined event follows Record.Created in the same append.
 STANDARD_DEFINED: Final = "Standard.Defined"
 STANDARD_CLOSED: Final = "Standard.Closed"

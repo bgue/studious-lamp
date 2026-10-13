@@ -437,6 +437,7 @@ def _supersede(
                     link_source="rule",
                     note=reason,
                 ),
+                by_module=True,
             )
         current = registry.get_tag(uow.conn(), old.id)
         assert current is not None

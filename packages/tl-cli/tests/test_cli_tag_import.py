@@ -251,3 +251,16 @@ def test_a_number_a_superseded_tag_holds_is_refused_in_the_preview(
     assert refused.stderr.splitlines()[1] == (
         "  - line 2: key '47-FV-1001' is already used by a superseded tag"
     )
+
+
+def test_a_nul_in_a_cell_is_an_invalid_row_in_the_preview_and_never_a_crash(
+    env: dict[str, str], mapping: Path, tmp_path: Path
+) -> None:
+    body = HEADER + "47-FV-10\x0001,Feed gas,CV,4,Acme\n47-FV-1002,Fuel gas,CV,6,\n"
+    lines = ok(imp(env, write(tmp_path, body), mapping))
+    assert lines[1] == "new=1  changed=0  unchanged=0  removed=0  invalid=1"
+    assert not any("\x00" in line for line in lines)
+    assert any("holds a control character" in line for line in lines)
+    skipped = ok(imp(env, write(tmp_path, body), mapping, "--apply", "--skip-invalid"))
+    assert skipped[-1].startswith("applied tags: created=1")
+    assert len(listed(env)) == 1 and "47-FV-1002" in listed(env)[0]

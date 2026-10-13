@@ -14,6 +14,7 @@ dependencies = [
   "tl-sim",
   "tl-tui",
   "tl-mod-engineering",
+  "tl-mod-documents",
 ]
 
 [project.scripts]

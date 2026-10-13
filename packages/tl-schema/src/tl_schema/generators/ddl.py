@@ -30,6 +30,15 @@ Rules (brief 5.4, build spec 03 section 9):
 * Module schemas (``schema/modules/<m>/module.yaml``, ADR-0010) are generated like the core one,
   from their own root. A module root imports core files, so only the classes whose own schema
   carries the module's ``tl:module`` annotation are tables of that module.
+* A module class annotated ``tl:record_types`` (its rows are the typed half of records of
+  ``cur_core_record``) also gets the flat view ``v_<module>_<class>`` (ADR-0010 condition): the
+  envelope columns of ``cur_core_record`` (``id``, ``key``, ``record_type``, ``scope``, ``title``,
+  ``description``, ``status``, ``voided``, ``version``, ``conformance``, ``psets_json``,
+  ``created_at``, ``updated_at``) followed by the typed columns of the table, except ``id``,
+  ``scope`` and ``last_seq`` which the envelope already has. A typed column that shares a name with
+  an envelope column is a ``DdlError``. SQLite spells it ``CREATE VIEW IF NOT EXISTS``, Postgres
+  ``CREATE OR REPLACE VIEW``; both are safe to apply twice. Reports, grids and lake marts read the
+  view instead of writing the join by hand.
 """
 
 from __future__ import annotations
@@ -216,6 +225,59 @@ def table_ddl(view: SchemaView, class_name: str, dialect: Dialect) -> str:
     return "\n\n".join(statements) + "\n"
 
 
+#: Envelope columns of ``cur_core_record`` that a view carries, as ``(expression, column)``.
+VIEW_ENVELOPE: tuple[tuple[str, str], ...] = (
+    ("r.id", "id"),
+    ("r.key", "key"),
+    ("r.type", "record_type"),
+    ("r.scope", "scope"),
+    ("r.title", "title"),
+    ("r.description", "description"),
+    ("r.status", "status"),
+    ("r.voided", "voided"),
+    ("r.version", "version"),
+    ("r.conformance", "conformance"),
+    ("r.psets_json", "psets_json"),
+    ("r.created_at", "created_at"),
+    ("r.updated_at", "updated_at"),
+)
+#: Typed columns the envelope already supplies.
+_VIEW_SKIPPED = frozenset({"id", "scope", "last_seq"})
+
+
+def view_name(view: SchemaView, class_name: str) -> str | None:
+    """``v_<module>_<class>`` for a class annotated ``tl:record_types``, else ``None``."""
+    definition = view.get_class(class_name)
+    if definition is None or not _annotation(definition, "tl:record_types"):
+        return None
+    return f"v_{_module_of(view, class_name)}_{snake_case(class_name)}"
+
+
+def view_ddl(view: SchemaView, class_name: str, dialect: Dialect) -> str:
+    """The ``CREATE VIEW`` joining the class's table to ``cur_core_record`` on ``id``."""
+    name = view_name(view, class_name)
+    if name is None:
+        raise DdlError(f"class {class_name}: no tl:record_types, so no view")
+    table = table_name(view, class_name)
+    envelope = {column for _, column in VIEW_ENVELOPE}
+    selected = [f"{expression} AS {column}" for expression, column in VIEW_ENVELOPE]
+    for slot in view.class_induced_slots(class_name):
+        column = _column(view, slot, dialect)[0]
+        if column in _VIEW_SKIPPED:
+            continue
+        if column in envelope:
+            raise DdlError(
+                f"class {class_name}: column {column!r} clashes with the envelope in {name}"
+            )
+        selected.append(f"t.{column} AS {column}")
+    head = "CREATE VIEW IF NOT EXISTS" if dialect == "sqlite" else "CREATE OR REPLACE VIEW"
+    body = ",\n".join(f"  {item}" for item in selected)
+    return (
+        f"{head} {name} AS\nSELECT\n{body}\n"
+        f"FROM {table} AS t\nJOIN cur_core_record AS r ON r.id = t.id;\n"
+    )
+
+
 def current_state_classes(view: SchemaView, module: str | None = None) -> list[str]:
     """Classes annotated ``tl:current_state``; with ``module``, only that module's own classes."""
     found = [c for c in view.all_classes() if _annotation(view.get_class(c), "tl:current_state")]
@@ -232,6 +294,9 @@ def generate_from(schema_path: Path, module: str | None = None) -> dict[str, str
         table = table_name(view, class_name)
         for dialect in DIALECTS:
             files[f"ddl/{dialect}/{table}.sql"] = table_ddl(view, class_name, dialect)
+        if module is not None and (name := view_name(view, class_name)) is not None:
+            for dialect in DIALECTS:
+                files[f"ddl/{dialect}/{name}.sql"] = view_ddl(view, class_name, dialect)
     return files
 
 

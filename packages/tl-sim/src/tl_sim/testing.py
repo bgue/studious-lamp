@@ -264,6 +264,50 @@ class FakeClient:
         self._write("Workflow.Transitioned", record_id)
         return made
 
+    def register_document(
+        self, number: str, title: str, doc_type: str, discipline: str
+    ) -> dict[str, Any]:
+        """The ``DocumentDesk`` call: a document is a record of type ``documents.Document``."""
+        self.calls.append(("register_document", (number,)))
+        if any(r["key"] == number for r in self.world.record_rows):
+            raise ValueError(f"document number {number!r} is already used")
+        return self._new_record(number, "documents.Document", title, status="Registered")
+
+    def start_revision(self, document_id: str, purpose: str) -> dict[str, Any]:
+        """The ``DocumentDesk`` call: the next code after the document's revisions, as a draft."""
+        self.calls.append(("start_revision", (document_id,)))
+        document = self.world.record(document_id)
+        made = [
+            r
+            for r in self.world.record_rows
+            if r["type"] == "documents.Revision" and r["key"].startswith(f"{document['key']}@")
+        ]
+        code = chr(ord("A") + len(made))
+        return self._new_record(
+            f"{document['key']}@{code}",
+            "documents.Revision",
+            f"{document['key']} rev {code}",
+            status="Draft",
+        )
+
+    def _new_record(
+        self, key: str, record_type: str, title: str, *, status: str | None
+    ) -> dict[str, Any]:
+        record = {
+            "id": f"id-{key}",
+            "key": key,
+            "type": record_type,
+            "scope": self.world.scope,
+            "title": title,
+            "status": status,
+            "psets": {},
+            "voided": False,
+            "version": 1,
+        }
+        self.world.record_rows.append(record)
+        self._write("Record.Created", record["id"])
+        return {"id": record["id"], "key": key, "version": 1}
+
     def _new_tag(self, number: str, title: str) -> dict[str, Any]:
         if any(r["key"] == number for r in self.world.record_rows):
             raise ValueError(f"tag number {number!r} is already used")

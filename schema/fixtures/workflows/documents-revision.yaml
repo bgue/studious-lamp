@@ -1,0 +1,37 @@
+# Workflow of a revision (brief 9 M1). A revision is Draft while it is prepared, In Review while a review
+# cycle is open, Issued once it has an issue status, Superseded when a later revision replaces it as the
+# current one of its status class, Void when it was created in error before it was issued. The moves are
+# made by the documents module's commands (CreateRevision, StartReview, IssueRevision, SupersedeRevision,
+# VoidRevision); people cannot run them directly.
+id: documents.revision
+version: 1
+record_type: documents.Revision
+scope: company
+initial_state: Draft
+states:
+  - name: Draft
+  - name: In Review
+  - name: Issued
+  - name: Superseded
+  - name: Void
+transitions:
+  - name: start_review
+    label: Start a review
+    from: [Draft]
+    to: In Review
+  - name: return_to_draft
+    label: Return to draft
+    from: [In Review]
+    to: Draft
+  - name: issue
+    label: Issue the revision
+    from: [Draft, In Review]
+    to: Issued
+  - name: supersede
+    label: Mark as superseded
+    from: [Issued]
+    to: Superseded
+  - name: void
+    label: Void the revision
+    from: [Draft, In Review]
+    to: Void

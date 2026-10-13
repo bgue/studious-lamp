@@ -21,7 +21,7 @@ from tl_core.ledger import Event, NewEvent
 from tl_core.links.lifecycle import next_status
 from tl_core.links.provider import get_vocabulary
 from tl_core.links.vocabulary import LinkSource, default_relation
-from tl_core.modules import require_generic_command
+from tl_core.modules import is_module_record_type, require_generic
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import (
     CrossScopeLinkError,
@@ -30,9 +30,11 @@ from tl_core.services.errors import (
     NoChangesError,
     RecordNotFoundError,
     RecordVoidedError,
+    ReservedLinkSourceError,
     SelfLinkError,
     SuggestionDeclinedError,
     UnknownRelationError,
+    UnsupportedRecordTypeError,
 )
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
@@ -99,6 +101,14 @@ class RetractLink(_OnLink):
         return value
 
 
+class AdminFlagLink(FlagLink):
+    """Admin: flag any link stale or broken, including one a module wrote by rule (recovery)."""
+
+
+class AdminRetractLink(RetractLink):
+    """Admin: retract any link, including one a module wrote by rule (recovery)."""
+
+
 class MarkPinsStale(Command):
     """A new revision of ``record_id`` was issued: flag active links pinned to another revision."""
 
@@ -112,8 +122,26 @@ _POST_SQL = text(
     "WHERE item_id = :id AND item_type = 'post'"
 )
 _LINK_SQL = text(
-    "SELECT link_id, scope, status, pin, version, from_id, to_id FROM cur_links WHERE link_id = :id"
+    "SELECT link_id, scope, status, pin, version, from_id, to_id, source "
+    "FROM cur_links WHERE link_id = :id"
 )
+_TYPE_SQL = text("SELECT type FROM cur_core_record WHERE id = :id")
+#: The generic command that makes each link event (ADR-0010 addendum: the life of a link).
+_COMMAND_OF = {
+    "Link.Accepted": "AcceptLink",
+    "Link.Declined": "DeclineLink",
+    "Link.Repinned": "RepinLink",
+    "Link.Verified": "VerifyLink",
+    "Link.Flagged": "FlagLink",
+    "Link.Retracted": "RetractLink",
+}
+#: A relation only a module may write onto a module record: the module's own commands say
+#: "this replaces that"; a person cannot claim it with a generic link.
+RESERVED_RELATION = "supersedes"
+#: Link sources only the system may claim: a rule, an enricher, an import and a mapping write
+#: links no person made, and a link of such a source is kept by the module that wrote it. A client
+#: that could claim one would make a link nobody can retract (P1-I2 security review).
+SYSTEM_LINK_SOURCES = frozenset({"rule", "enricher", "import", "mapping"})
 _SAME_ENDS_SQL = text(
     "SELECT link_id, status, declined FROM cur_links "
     "WHERE from_id = :from_id AND to_id = :to_id AND relation = :relation"
@@ -148,12 +176,28 @@ def _record(uow: UnitOfWork, record_id: str, *, allow_post: bool = False) -> Any
     return row
 
 
-def _create(uow: UnitOfWork, cmd: AddLink, event_type: str, extra: dict[str, Any]) -> CommandResult:
+def _create(
+    uow: UnitOfWork,
+    cmd: AddLink,
+    event_type: str,
+    extra: dict[str, Any],
+    *,
+    by_module: bool = False,
+) -> CommandResult:
     """Shared body of ``handle_add_link`` and ``handle_suggest_link``."""
+    if cmd.link_source in SYSTEM_LINK_SOURCES and not by_module:
+        raise ReservedLinkSourceError(
+            f"link source {cmd.link_source!r} is for links the system writes; "
+            "a person's or an agent's link is manual"
+        )
     source = _record(uow, cmd.from_id, allow_post=True)
-    require_generic_command(
-        source.type, "SuggestLink" if event_type == "Link.Suggested" else "AddLink"
-    )
+    if not by_module:
+        require_generic(
+            uow.conn(),
+            source.type,
+            "SuggestLink" if event_type == "Link.Suggested" else "AddLink",
+            source.id,
+        )
     if source.type == POST_RECORD_TYPE and cmd.relation != "references":
         raise UnknownRelationError(
             f"a feed post can only reference records; relation {cmd.relation or 'default'!r} "
@@ -175,6 +219,11 @@ def _create(uow: UnitOfWork, cmd: AddLink, event_type: str, extra: dict[str, Any
 
     relation = cmd.relation or default_relation(source.type, target.type)
     get_vocabulary().get(relation)  # raises UnknownRelationError for an unknown or inverse code
+    if relation == RESERVED_RELATION and not by_module and is_module_record_type(target.type):
+        raise UnsupportedRecordTypeError(
+            f"a {relation} link to a {target.type} record is made by that module's own "
+            "commands (a rename, a split, a merge, a supersession), not by a generic link"
+        )
 
     link_id = new_ulid()
     same_ends = (
@@ -234,11 +283,14 @@ def _act(
     *,
     flag: str | None = None,
     same_pin_is_noop: bool = False,
+    by_module: bool = False,
 ) -> CommandResult:
     """Shared body of the six lifecycle handlers."""
     link = uow.conn().execute(_LINK_SQL, {"id": cmd.link_id}).first()
     if link is None or link.scope != cmd.scope:
         raise LinkNotFoundError(f"no link {cmd.link_id!r} in scope {cmd.scope!r}")
+    if not by_module:
+        _require_owner_allows(uow, link, event_type)
     next_status(link.status, event_type, flag=flag)  # raises InvalidLinkTransitionError
     if same_pin_is_noop and link.status == "active" and link.pin == payload["pin"]:
         raise NoChangesError(f"link {cmd.link_id} already has that pin")
@@ -263,43 +315,82 @@ def _act(
     )
 
 
-def handle_add_link(uow: UnitOfWork, cmd: AddLink) -> CommandResult:
-    """Create an active link. Emits ``Link.Added``."""
-    return _create(uow, cmd, "Link.Added", {})
+def _require_owner_allows(uow: UnitOfWork, link: Any, event_type: str) -> None:
+    """The record a link starts at must allow the generic command, and a rule's link is kept.
+
+    A link belongs to the record it starts at (ADR-0010 addendum). Phase 1 has no per-record
+    access lists, so this is about the record *type* and the link's origin, not about who owns it.
+    A link a module wrote by rule (``source`` rule, from a module record) is flagged or retracted
+    only by that module's commands.
+    """
+    owner = uow.conn().execute(_TYPE_SQL, {"id": link.from_id}).scalar_one_or_none()
+    if owner is None:  # a feed post is the start of a reference, not a module record
+        return
+    require_generic(uow.conn(), owner, _COMMAND_OF[event_type], link.from_id)
+    if (
+        link.source == "rule"
+        and event_type in ("Link.Flagged", "Link.Retracted")
+        and is_module_record_type(owner)
+    ):
+        raise UnsupportedRecordTypeError(
+            f"this link was written by a rule of the module that owns {owner}; "
+            "it changes through that module's commands"
+        )
 
 
-def handle_suggest_link(uow: UnitOfWork, cmd: SuggestLink) -> CommandResult:
+def handle_add_link(uow: UnitOfWork, cmd: AddLink, *, by_module: bool = False) -> CommandResult:
+    """Create an active link. Emits ``Link.Added``.
+
+    ``by_module`` is for a module or service path: its own command makes the link, so the type's
+    generic-command allow-list, the reserved ``supersedes`` relation and the system link sources
+    (``rule``, ``enricher``, ``import``, ``mapping``) do not apply. It is a Python argument, not a
+    field of the command, so no client can set it.
+    """
+    return _create(uow, cmd, "Link.Added", {}, by_module=by_module)
+
+
+def handle_suggest_link(
+    uow: UnitOfWork, cmd: SuggestLink, *, by_module: bool = False
+) -> CommandResult:
     """Create a suggested link that waits for accept or decline. Emits ``Link.Suggested``.
 
     Raises ``SuggestionDeclinedError`` when a person declined the same suggestion before.
     """
-    return _create(uow, cmd, "Link.Suggested", {"confidence": cmd.confidence})
+    return _create(uow, cmd, "Link.Suggested", {"confidence": cmd.confidence}, by_module=by_module)
 
 
-def handle_accept_link(uow: UnitOfWork, cmd: AcceptLink) -> CommandResult:
+def handle_accept_link(
+    uow: UnitOfWork, cmd: AcceptLink, *, by_module: bool = False
+) -> CommandResult:
     """Suggested to active. Emits ``Link.Accepted``."""
-    return _act(uow, cmd, "Link.Accepted", {"note": cmd.note})
+    return _act(uow, cmd, "Link.Accepted", {"note": cmd.note}, by_module=by_module)
 
 
-def handle_decline_link(uow: UnitOfWork, cmd: DeclineLink) -> CommandResult:
+def handle_decline_link(
+    uow: UnitOfWork, cmd: DeclineLink, *, by_module: bool = False
+) -> CommandResult:
     """Suggested to retracted, remembered as declined. Emits ``Link.Declined``."""
-    return _act(uow, cmd, "Link.Declined", {"reason": cmd.reason})
+    return _act(uow, cmd, "Link.Declined", {"reason": cmd.reason}, by_module=by_module)
 
 
-def handle_repin_link(uow: UnitOfWork, cmd: RepinLink) -> CommandResult:
+def handle_repin_link(uow: UnitOfWork, cmd: RepinLink, *, by_module: bool = False) -> CommandResult:
     """Set the pin and bring a stale link back to active. Emits ``Link.Repinned``.
 
     Raises ``NoChangesError`` for an active link that already has that pin.
     """
-    return _act(uow, cmd, "Link.Repinned", {"pin": cmd.pin}, same_pin_is_noop=True)
+    return _act(
+        uow, cmd, "Link.Repinned", {"pin": cmd.pin}, same_pin_is_noop=True, by_module=by_module
+    )
 
 
-def handle_verify_link(uow: UnitOfWork, cmd: VerifyLink) -> CommandResult:
+def handle_verify_link(
+    uow: UnitOfWork, cmd: VerifyLink, *, by_module: bool = False
+) -> CommandResult:
     """Mark an active link verified by the actor. Emits ``Link.Verified``."""
-    return _act(uow, cmd, "Link.Verified", {"note": cmd.note})
+    return _act(uow, cmd, "Link.Verified", {"note": cmd.note}, by_module=by_module)
 
 
-def handle_flag_link(uow: UnitOfWork, cmd: FlagLink) -> CommandResult:
+def handle_flag_link(uow: UnitOfWork, cmd: FlagLink, *, by_module: bool = False) -> CommandResult:
     """Flag a link stale or broken with a reason. Emits ``Link.Flagged``."""
     return _act(
         uow,
@@ -307,12 +398,25 @@ def handle_flag_link(uow: UnitOfWork, cmd: FlagLink) -> CommandResult:
         "Link.Flagged",
         {"status": cmd.status, "reason": cmd.reason},
         flag=cmd.status,
+        by_module=by_module,
     )
 
 
-def handle_retract_link(uow: UnitOfWork, cmd: RetractLink) -> CommandResult:
+def handle_retract_link(
+    uow: UnitOfWork, cmd: RetractLink, *, by_module: bool = False
+) -> CommandResult:
     """End a link's life with a reason. The row and history stay. Emits ``Link.Retracted``."""
-    return _act(uow, cmd, "Link.Retracted", {"reason": cmd.reason})
+    return _act(uow, cmd, "Link.Retracted", {"reason": cmd.reason}, by_module=by_module)
+
+
+def handle_admin_flag_link(uow: UnitOfWork, cmd: AdminFlagLink) -> CommandResult:
+    """Flag a link whatever its source or owner. The API gates it to an admin (ADR-0011)."""
+    return handle_flag_link(uow, cmd, by_module=True)
+
+
+def handle_admin_retract_link(uow: UnitOfWork, cmd: AdminRetractLink) -> CommandResult:
+    """Retract a link whatever its source or owner. The API gates it to an admin (ADR-0011)."""
+    return handle_retract_link(uow, cmd, by_module=True)
 
 
 def handle_mark_pins_stale(uow: UnitOfWork, cmd: MarkPinsStale) -> CommandResult:

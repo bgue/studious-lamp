@@ -25,7 +25,16 @@ PROPOSE_TOOLS = {
 }
 TYPE_TOOLS = {"list_record_types", "get_record_type", "get_record_body"}
 ENGINEERING_TOOLS = {"list_code_values", "list_tag_classes", "get_tag"}
-TOOLS = READ_TOOLS | TYPE_TOOLS | ENGINEERING_TOOLS | PROPOSE_TOOLS | {"post_feed"}
+DOCUMENT_TOOLS = {
+    "list_documents",
+    "get_document",
+    "get_document_diff",
+    "list_stale_links",
+    "list_overdue_reviews",
+    "list_transmittals",
+    "get_transmittal",
+}
+TOOLS = READ_TOOLS | TYPE_TOOLS | ENGINEERING_TOOLS | DOCUMENT_TOOLS | PROPOSE_TOOLS | {"post_feed"}
 
 
 def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
@@ -37,7 +46,7 @@ def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
         assert tool.annotations is not None
         assert tool.annotations.destructive_hint is False
         assert (tool.annotations.read_only_hint is True) == (
-            tool.name in READ_TOOLS | TYPE_TOOLS | ENGINEERING_TOOLS
+            tool.name in READ_TOOLS | TYPE_TOOLS | ENGINEERING_TOOLS | DOCUMENT_TOOLS
         )
         assert tool.description
     by_name = {t.name: t for t in tools}
@@ -47,6 +56,15 @@ def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
     assert search["properties"]["limit"]["maximum"] == 500
     assert "linked:NCR" in (by_name["search_records"].description or "")
     assert by_name["trace"].input_schema["properties"]["direction"]["enum"] == ["out", "in", "both"]
+
+
+def test_the_tools_that_show_documents_say_confidentiality_is_not_enforced(
+    env: McpHarness,
+) -> None:
+    by_name = {t.name: t for t in asyncio.run(env.server.list_tools())}
+    for name in ("list_documents", "get_document", "get_transmittal"):
+        text = " ".join((by_name[name].description or "").split())
+        assert "recorded but not enforced" in text and "recipient emails" in text, name
 
 
 def test_the_resources_are_registered(env: McpHarness) -> None:
