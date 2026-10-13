@@ -40,6 +40,7 @@ AGENT_ACTIONS = frozenset(
     {
         "auth.me",
         "auth.sign_out",
+        "document.read",
         "events.read",
         "events.stream",
         "feed.read",

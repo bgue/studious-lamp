@@ -291,3 +291,28 @@ def test_void_is_for_an_admin_and_voids_the_document(env: dict[str, str], tmp_pa
     assert doc(env, "ls", "--project", "P123", "--all").stdout.startswith("ISO-1234  Void")
     again = doc(env, "void", "ISO-1234", "--project", "P123", "--reason", "again", ok=False)
     assert "takes no more changes" in again.stderr
+
+
+def test_confidentiality_is_for_an_admin_and_keeps_the_reason(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    register(env, "ISO-1234")
+    args = ("confidentiality", "ISO-1234", "--project", "P123", "--class", "restricted")
+    args += ("--reason", "client request")
+    if not is_postgres(as_target(env["TL_DB"])):
+        assert bootstrap(env).exit_code == 0
+        sign_in(env)
+        refused = doc(ordinary_env(env, tmp_path), *args, ok=False)
+        assert refused.stderr.startswith("error: ") and "admin" in refused.stderr
+        assert show(env)["confidentiality"] == "-"
+    done = doc(env, *args)
+    assert done.stdout.strip() == "confidentiality of ISO-1234: - -> restricted"
+    assert show(env)["confidentiality"] == "restricted"
+    same = doc(env, *args, ok=False)
+    assert "already has that confidentiality" in same.stderr
+    cleared = doc(
+        env, "confidentiality", "ISO-1234", "--project", "P123", "--clear", "--reason", "lifted"
+    )
+    assert cleared.stdout.strip() == "confidentiality of ISO-1234: restricted -> -"
+    both = doc(env, "confidentiality", "ISO-1234", "--project", "P123", "--reason", "x", ok=False)
+    assert both.stderr.strip() == "error: give the new class with --class, or --clear to remove it"

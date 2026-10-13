@@ -24,10 +24,12 @@ from tl_mod_documents import registry
 from tl_mod_documents.errors import InvalidDocumentNumberError
 from tl_mod_documents.handlers.documents import (
     RegisterDocument,
+    SetDocumentConfidentiality,
     SupersedeDocument,
     UpdateDocument,
     VoidDocument,
     handle_register_document,
+    handle_set_document_confidentiality,
     handle_supersede_document,
     handle_update_document,
     handle_void_document,
@@ -284,6 +286,41 @@ def update(
             ),
         )
     typer.echo(f"updated {number}")
+
+
+@app.command("confidentiality")
+def confidentiality(
+    ctx: typer.Context,
+    number: Annotated[str, typer.Argument(help="The document number.")],
+    project: _Project,
+    reason: _Reason,
+    value: Annotated[
+        str | None,
+        typer.Option("--class", help="The new confidentiality class. Omit it with --clear."),
+    ] = None,
+    clear: Annotated[bool, typer.Option("--clear", help="Remove the class.")] = False,
+    actor: _Actor = _DEFAULT_ACTOR,
+) -> None:
+    """Set or clear a document's confidentiality class (admin). The reason is kept."""
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    if (value is None) == (not clear):
+        _fail("give the new class with --class, or --clear to remove it")
+    require_admin(db)
+    with _service_errors(), open_uow(db) as uow:
+        row = _document(uow, scope, project, number)
+        handle_set_document_confidentiality(
+            uow,
+            SetDocumentConfidentiality(
+                actor=actor,
+                source="cli",
+                scope=scope,
+                stream_id=row.id,
+                confidentiality=value,
+                reason=reason,
+            ),
+        )
+    typer.echo(f"confidentiality of {number}: {row.confidentiality or '-'} -> {value or '-'}")
 
 
 @app.command("supersede")

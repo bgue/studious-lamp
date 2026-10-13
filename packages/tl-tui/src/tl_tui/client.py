@@ -7,7 +7,7 @@ process; the remote implementation (P0-I4) calls the API. Same methods, same ret
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
@@ -38,6 +38,8 @@ from tl_core.services.psets import SetPsetValues
 from tl_core.services.workflow import TransitionWorkflow, WorkflowStatus
 from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView
+from tl_mod_documents import reports as document_reports
+from tl_mod_documents import views as document_views
 from tl_mod_engineering.views import TagView
 from tl_schema.forms import ConformanceReport, FormMetadata
 
@@ -273,6 +275,61 @@ class ClientInterface(Protocol):
 
     def get_tag(self, project: str, number: str) -> TagView:
         """One tag with its conformance issues. Raises ``TagNotFoundError`` when unknown."""
+        ...
+
+    # --- documents (P1-I2; brief 9 M1) -------------------------------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. ``project`` is the project id.
+    # Unknown numbers raise ``DocumentNotFoundError`` / ``TransmittalNotFoundError``; a diff of a
+    # code that is not an issued revision raises ``InvalidPinError``. Changes are the module's
+    # commands (``tl_mod_documents.commands``), not methods here.
+
+    def list_documents(
+        self,
+        project: str,
+        *,
+        doc_type: str | None = None,
+        discipline: str | None = None,
+        state: str | None = None,
+        include_void: bool = False,
+        limit: int = 1000,
+    ) -> list[document_views.DocumentView]:
+        """A project's documents by number; no revisions or links in a listing."""
+        ...
+
+    def get_document(self, project: str, number: str) -> document_views.DocumentView:
+        """One document with its revisions, renditions and links."""
+        ...
+
+    def document_diff(
+        self, project: str, number: str, from_code: str, to_code: str
+    ) -> document_views.RevisionDiffView:
+        """What changed between two issued revisions of a document."""
+        ...
+
+    def list_stale_links(self, project: str) -> list[document_reports.StalePinLine]:
+        """Links to documents that are stale, with what replaced the pinned revision."""
+        ...
+
+    def list_overdue_reviews(
+        self, project: str, *, on: date | None = None
+    ) -> list[document_reports.OverdueLine]:
+        """Open reviews with a reviewer who has not answered by their date."""
+        ...
+
+    def list_transmittals(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        direction: str | None = None,
+        limit: int = 500,
+    ) -> list[document_views.TransmittalView]:
+        """A project's transmittals by number; no items in a listing."""
+        ...
+
+    def get_transmittal(self, project: str, number: str) -> document_views.TransmittalView:
+        """One transmittal with its items."""
         ...
 
     # --- settings (P0-I8; brief 30) -----------------------------------------------------------
