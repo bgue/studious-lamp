@@ -94,6 +94,8 @@ from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
 from tl_mod_documents import reports as document_reports
 from tl_mod_documents import views as document_views
+from tl_mod_documents.handlers.transmittals import CreateTransmittal, handle_create_transmittal
+from tl_mod_documents.resolver import RepinDocumentLink, handle_repin_document_link
 from tl_mod_engineering.views import TagView, tag_view, tag_views
 from tl_schema.forms import ConformanceReport, FormMetadata
 
@@ -657,6 +659,14 @@ class EmbeddedClient:
     def get_transmittal(self, project: str, number: str) -> document_views.TransmittalView:
         with self._uow(True) as uow:
             return document_views.transmittal_view(uow.conn(), f"project:{project}", number)
+
+    def repin_document_link(self, cmd: RepinDocumentLink) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_repin_document_link(uow, cmd))
+
+    def create_transmittal(self, cmd: CreateTransmittal) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_create_transmittal(uow, cmd))
 
     # --- settings (P0-I8) ---------------------------------------------------------------------
 

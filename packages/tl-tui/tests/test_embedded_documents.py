@@ -15,6 +15,7 @@ from tl_core.schema_provider import DirectorySchemaProvider, use_provider
 from tl_mod_documents.errors import (
     DocumentNotFoundError,
     InvalidPinError,
+    RevisionNotFoundError,
     TransmittalNotFoundError,
 )
 from tl_mod_documents.handlers.transmittals import (
@@ -118,3 +119,43 @@ def test_one_document_comes_with_revisions_and_links_and_unknowns_are_the_module
     assert embedded.document_diff("P123", "ISO-1234", "A", "B") == fake.document_diff(
         "P123", "ISO-1234", "A", "B"
     )
+
+
+def test_a_repin_and_a_new_transmittal_change_what_both_clients_read(
+    both: tuple[ClientInterface, ClientInterface],
+) -> None:
+    from tl_mod_documents.handlers.transmittals import CreateTransmittal, Recipient
+    from tl_mod_documents.resolver import RepinDocumentLink
+
+    common: dict[str, Any] = {"actor": "user:kim", "source": "tui", "scope": "project:P123"}
+    for client in both:
+        (link,) = client.get_document("P123", "ISO-1234").links
+        assert (link.pin, link.link_status) == ("A", "stale")
+        client.repin_document_link(RepinDocumentLink(**common, link_id=link.link_id))
+        (moved,) = client.get_document("P123", "ISO-1234").links
+        assert (moved.pin, moved.pin_state, moved.link_status) == ("B", "current", "active")
+        assert client.list_stale_links("P123") == []
+        b = next(r for r in client.get_document("P123", "ISO-1234").revisions if r.code == "B")
+        made = client.create_transmittal(
+            CreateTransmittal(
+                **common,
+                subject="To site",
+                purpose="for_review",
+                recipients=[Recipient(name="Site")],
+                revision_ids=[b.id],
+            )
+        )
+        sent = client.get_transmittal("P123", made.key or "")
+        assert (sent.state, sent.title) == ("Draft", "To site")
+        assert [(i.document_number, i.revision_code) for i in sent.items] == [("ISO-1234", "B")]
+        with pytest.raises(RevisionNotFoundError):
+            draft_id = client.get_document("P123", "ISO-2000").id  # not a revision at all
+            client.create_transmittal(
+                CreateTransmittal(
+                    **common,
+                    subject="x",
+                    purpose="for_review",
+                    recipients=[Recipient(name="Site")],
+                    revision_ids=[draft_id],
+                )
+            )

@@ -40,6 +40,8 @@ from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView
 from tl_mod_documents import reports as document_reports
 from tl_mod_documents import views as document_views
+from tl_mod_documents.handlers.transmittals import CreateTransmittal
+from tl_mod_documents.resolver import RepinDocumentLink
 from tl_mod_engineering.views import TagView
 from tl_schema.forms import ConformanceReport, FormMetadata
 
@@ -330,6 +332,18 @@ class ClientInterface(Protocol):
 
     def get_transmittal(self, project: str, number: str) -> document_views.TransmittalView:
         """One transmittal with its items."""
+        ...
+
+    # Two changes a person makes from the document screens. Both are open to any signed-in person
+    # (ADR-0011); issuing the transmittal, like issuing a revision, is an admin's command that has
+    # no method here.
+
+    def repin_document_link(self, cmd: RepinDocumentLink) -> CommandResult:
+        """Move a link to another revision of its document (``pin`` ``current`` for the latest)."""
+        ...
+
+    def create_transmittal(self, cmd: CreateTransmittal) -> CommandResult:
+        """Draft a transmittal of issued revisions to named recipients."""
         ...
 
     # --- settings (P0-I8; brief 30) -----------------------------------------------------------

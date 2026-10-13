@@ -90,6 +90,7 @@ class TlApp(App[None]):
         Binding("t", "trace", "Trace", show=False),
         Binding("F", "feed", "Feed", show=False),
         Binding("p", "post", "Post", show=False),
+        Binding("f7", "documents", "Documents", show=False),
         Binding("f8", "tags", "Tags", show=False),
         Binding("f9", "settings", "Settings", show=False),
         Binding("f10", "admin", "Accounts", show=False),
@@ -525,6 +526,20 @@ class TlApp(App[None]):
 
     def action_toggle_context(self) -> None:
         self.action_toggle_panel("context")
+
+    def action_documents(self) -> None:
+        """The document register of this project: revisions, stale links, re-pin, transmittals."""
+        if self._modal_open():
+            return
+        from tl_core.settings.layers import project_of_scope
+
+        from tl_tui.widgets.document_register import DocumentRegisterScreen
+
+        project = project_of_scope(self.scope)
+        if project is None:
+            self.notify("The document register needs a project.", severity="warning")
+            return
+        self.push_screen(DocumentRegisterScreen(self.client, project, self.actor))
 
     def action_tags(self) -> None:
         """The tag register of this project: class, state, conformance, what each tag lacks."""
