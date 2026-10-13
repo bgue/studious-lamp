@@ -1,6 +1,6 @@
 # ADR-0011 — Document control permissions in Phase 1
 
-Status: accepted 2026-10-13 by the orchestrator (interim decision, ADR-0008 decision 6); confirmation pending the security re-review of 05fa38e, 0229814, 3b2823f and d6dd50f
+Status: accepted 2026-10-13 by the orchestrator (interim decision, ADR-0008 decision 6); confirmation pending the security re-review of 05fa38e, 0229814, 3b2823f and d6dd50f. **Superseded in part by ADR-0013** (2026-10-13): the controlling acts below are the document controller's, and an admin keeps them; the table's left column reads "controller" and the sentence "until a document controller role exists" no longer applies. Everything else here stands
 Date: 2026-10-13
 Deciders: orchestrator, after the fresh-context security review of P1-I2 round 1 (7 MEDIUM, 6 LOW); drafted by the P1-I2 supervisor
 Brief sections: §9 (M1), §25.2, §27
@@ -15,6 +15,9 @@ record a review answer in another reviewer's name.
 A document controller role does not exist yet (Entra groups arrive with SSO, brief §27).
 
 ## Decision
+*ADR-0013 replaced this opening: the controlling acts are the document controller's (an admin may run them too), each a
+command gated by `control.command.<Name>` in the API and `require_controller` in the CLI. The text below is the original.*
+
 Until a document controller role exists, **the controlling acts are the admin's**, each a command gated by
 `admin.command.<Name>` in the API and `require_admin` in the CLI. Everything that prepares work stays with any
 signed-in person. An agent never runs either kind: its call is a proposal.
