@@ -252,7 +252,6 @@ def update(
     doc_type: Annotated[str | None, typer.Option("--type")] = None,
     discipline: Annotated[str | None, typer.Option("--discipline")] = None,
     originator: Annotated[str | None, typer.Option("--originator")] = None,
-    confidentiality: Annotated[str | None, typer.Option("--confidentiality")] = None,
     reason: Annotated[str | None, typer.Option("--reason")] = None,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
@@ -265,7 +264,6 @@ def update(
         "doc_type": doc_type,
         "discipline": discipline,
         "originator": originator,
-        "confidentiality": confidentiality,
     }
     fields: dict[str, Any] = {
         name: (value or None) for name, value in given.items() if value is not None
@@ -297,9 +295,10 @@ def supersede(
     reason: _Reason,
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
-    """Replace a document by another one. Every link to the old one goes stale."""
+    """Replace a document by another one (admin). Every link to the old one goes stale."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
+    require_admin(db)
     with _service_errors(), open_uow(db) as uow:
         old = _document(uow, scope, project, number)
         new = _document(uow, scope, project, by)

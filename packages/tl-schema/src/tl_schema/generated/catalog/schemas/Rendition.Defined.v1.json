@@ -42,6 +42,13 @@
                 "null"
               ]
             },
+            "replace_reason": {
+              "description": "Why a signed copy was replaced (admin); null for every other rendition.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "revision_id": {
               "description": "Record id of the revision.",
               "type": "string"

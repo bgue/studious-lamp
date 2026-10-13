@@ -42,6 +42,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         # --- records and psets ---------------------------------------------------------------
         s(svc.KeyRequiredError, "key_required", 422),
         s(svc.DuplicateKeyError, "duplicate_key", 409),
+        s(svc.ReservedKeyError, "reserved_key", 422),
         s(svc.UnsupportedRecordTypeError, "unsupported_record_type", 422),
         s(svc.RecordNotFoundError, "record_not_found", 404),
         s(svc.RecordVoidedError, "record_voided", 409),
@@ -166,6 +167,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         # --- documents module (P1-I2): documents, revisions, renditions, transmittals, reviews --
         s(doc.DocumentsError, "documents_error", 422),
         s(doc.ProjectScopeError, "project_scope", 422),
+        s(doc.BackdatedError, "backdated", 422),
         s(doc.DocumentNotFoundError, "document_not_found", 404),
         s(doc.DocumentClosedError, "document_closed", 409),
         s(doc.InvalidDocumentNumberError, "invalid_document_number", 422),
@@ -187,6 +189,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(doc.ReviewNotFoundError, "review_not_found", 404),
         s(doc.ReviewStateError, "review_state", 409),
         s(doc.InvalidReviewError, "invalid_review", 422),
+        s(doc.NotYourReviewError, "not_your_review", 403),
     )
 
 

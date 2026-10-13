@@ -3,6 +3,7 @@
     "data": {
       "changes": {},
       "detail": {
+        "date_reason": null,
         "issued_on": "2026-10-13"
       },
       "links": [],
@@ -29,6 +30,7 @@
     "type": "tl.core.Transmittal.Issued.v1"
   },
   "payload": {
+    "date_reason": null,
     "issued_on": "2026-10-13"
   }
 }

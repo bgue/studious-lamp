@@ -10,7 +10,8 @@ handlers. An empty list means sound.
    current), and copies its code, status, class and issue date.
 4. Revision ordinals run 1, 2, 3 ... without a gap, and codes are unique.
 5. At most one revision is being prepared or reviewed (Draft or In Review, not void).
-6. At most one rendition per revision and kind is current.
+6. At most one native, pdf or signed rendition per revision is current (markups are additive: every
+   markup stays current).
 """
 
 from __future__ import annotations
@@ -64,6 +65,6 @@ def check_document(conn: Connection, document_id: str) -> list[str]:
         for rendition in registry.renditions_of(conn, rev.id, current_only=True):
             kinds[rendition.kind] = kinds.get(rendition.kind, 0) + 1
         for kind, count in sorted(kinds.items()):
-            if count > 1:
+            if count > 1 and kind != "markup":
                 problems.append(f"revision {rev.code} has {count} current {kind} renditions")
     return problems

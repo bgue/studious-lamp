@@ -208,3 +208,15 @@ def test_the_committed_file_is_sound(config: SchemeFile) -> None:
     assert config.problems() == []
     assert set(config.schemes) == {"alpha", "numeric", "staged"}
     assert {s.status_class for s in config.statuses.values()} == set(config.classes)
+
+
+def test_an_unreadable_scheme_file_is_reported_by_name_and_never_by_path(tmp_path: object) -> None:
+    from pathlib import Path
+
+    from tl_mod_documents.schemes import load_scheme_file as load
+
+    missing = Path(str(tmp_path)) / "private-dir" / "revision-schemes.yaml"
+    with pytest.raises(UnknownSchemeError) as raised:
+        load(missing)
+    assert "revision-schemes.yaml" in str(raised.value)
+    assert "private-dir" not in str(raised.value) and str(tmp_path) not in str(raised.value)

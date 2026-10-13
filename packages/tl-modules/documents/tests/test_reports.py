@@ -65,7 +65,9 @@ def busy(world: World) -> World:
     world.issued_document("ISO-1234", "IFR")
     world.create_revision("ISO-1234", purpose="Construction issue", change_note="Weld map added")
     world.attach("ISO-1234", "B", data=b"%PDF-1.7 b", name="b.pdf")
-    world.issue("ISO-1234", "B", "IFC", issued_on="2026-10-14")
+    world.issue(
+        "ISO-1234", "B", "IFC", issued_on="2026-10-12", date_reason="issued the day before entry"
+    )
     world.register("SPC-0001", doc_type="SPC", discipline="MEC", title="Piping specification")
     world.register("PID-0001", doc_type="PID", title="P&ID, unit 47")
     from tl_mod_documents.handlers.documents import VoidDocument, handle_void_document
@@ -97,7 +99,7 @@ def test_the_register_lists_documents_by_number_without_the_void_ones(busy: Worl
         "construction",
     )
     assert iso.revisions == 2 and iso.open_code is None and iso.doc_type == "ISO"
-    assert iso.discipline == "PIP" and iso.current_issued_on == "2026-10-14"
+    assert iso.discipline == "PIP" and iso.current_issued_on == "2026-10-12"
     assert (spc.state, spc.current_code, spc.revisions) == ("Registered", None, 0)
 
 

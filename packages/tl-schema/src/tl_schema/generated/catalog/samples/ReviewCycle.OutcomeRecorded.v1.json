@@ -5,6 +5,7 @@
       "detail": {
         "comment": "Check the weld map",
         "outcome": "approved_with_comments",
+        "recorded_by": null,
         "responded_on": "2026-10-15",
         "reviewer": "user:ana"
       },
@@ -34,6 +35,7 @@
   "payload": {
     "comment": "Check the weld map",
     "outcome": "approved_with_comments",
+    "recorded_by": null,
     "responded_on": "2026-10-15",
     "reviewer": "user:ana"
   }

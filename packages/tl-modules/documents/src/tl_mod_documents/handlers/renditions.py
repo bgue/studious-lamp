@@ -3,10 +3,10 @@
 The file service holds the bytes (``cur_files``). A person uploads a file into one of the four slots
 of a revision (``native``, ``pdf``, ``markup``, ``signed``); that upload is only a file until
 ``AttachRendition`` registers it: the rendition record is the controlled statement that this file
-is that revision's copy of that kind. A newer rendition of the same kind supersedes the older one.
+is that revision's copy of that kind.
 
 What a revision accepts depends on its state, because the content of a revision is frozen once it is
-reviewed or issued:
+reviewed or issued (the same table guards the upload itself, ``guards.UPLOAD_KINDS``):
 
 =============  ==========================================
 State          Kinds that may be added
@@ -17,11 +17,18 @@ Issued         markup, signed
 Superseded     markup, signed
 Void           none
 =============  ==========================================
+
+How a new rendition treats the old ones depends on the kind (P1-I2 security review):
+
+* ``native`` and ``pdf``: the newest is the copy; the older one is superseded.
+* ``markup``: additive. Every reviewer's markup stays current; one never replaces another's.
+* ``signed``: write-once. A signed copy is evidence; once a revision has one, a correction is the
+  admin command ``ReplaceSignedRendition`` with a reason, which supersedes it.
 """
 
 from __future__ import annotations
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, field_validator
 from tl_core.files.queries import get_file
 from tl_core.ledger import Event, NewEvent
 from tl_core.services.commands import Command, CommandResult
@@ -31,6 +38,7 @@ from tl_core.uow import UnitOfWork
 
 from tl_mod_documents import registry
 from tl_mod_documents.errors import FileNotAvailableError, RenditionNotAllowedError
+from tl_mod_documents.guards import UPLOAD_KINDS
 from tl_mod_documents.handlers.common import (
     append,
     correlated,
@@ -38,7 +46,7 @@ from tl_mod_documents.handlers.common import (
     open_document,
     require_project,
 )
-from tl_mod_documents.limits import MAX_NUMBER, MAX_PAGES
+from tl_mod_documents.limits import MAX_NUMBER, MAX_PAGES, MAX_REASON
 from tl_mod_documents.names import (
     RENDITION,
     RENDITION_DEFINED,
@@ -46,14 +54,10 @@ from tl_mod_documents.names import (
     RENDITION_SUPERSEDED,
 )
 
-#: Kinds a revision accepts in each state.
-ALLOWED_KINDS: dict[str, tuple[str, ...]] = {
-    "Draft": ("native", "pdf", "markup"),
-    "In Review": ("markup",),
-    "Issued": ("markup", "signed"),
-    "Superseded": ("markup", "signed"),
-    "Void": (),
-}
+#: Kinds a revision accepts in each state (the table above; shared with the upload guard).
+ALLOWED_KINDS = UPLOAD_KINDS
+#: Kinds where the newest rendition replaces the older one.
+REPLACING_KINDS = ("native", "pdf")
 
 
 class AttachRendition(Command):
@@ -70,14 +74,34 @@ class AttachRendition(Command):
     page_count: int | None = Field(default=None, ge=0, le=MAX_PAGES)
 
 
-def handle_attach_rendition(uow: UnitOfWork, cmd: AttachRendition) -> CommandResult:
-    """Append ``Record.Created`` and ``Rendition.Defined``; supersede the previous of the kind.
+class ReplaceSignedRendition(Command):
+    """Replace the signed copy of a revision by another file, with a reason (admin).
 
-    Raises ``ProjectScopeError``, ``RevisionNotFoundError``, ``DocumentClosedError``,
-    ``FileNotAvailableError`` (unknown file, not on this revision, not in a rendition slot, still in
-    quarantine or rejected), ``RenditionNotAllowedError`` (the revision's state does not take that
-    kind) and ``NoChangesError`` (the file is already a current rendition).
+    The signed copy is write-once for everyone else: a correction is an admin's decision and the
+    reason is kept in the event.
     """
+
+    model_config = ConfigDict(extra="forbid")
+
+    revision_id: str
+    file_id: str = Field(min_length=1, max_length=MAX_NUMBER)
+    page_count: int | None = Field(default=None, ge=0, le=MAX_PAGES)
+    reason: str = Field(max_length=MAX_REASON)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("must not be blank")
+        return value
+
+
+def _register(
+    uow: UnitOfWork,
+    cmd: AttachRendition | ReplaceSignedRendition,
+    *,
+    replacing: bool,
+) -> CommandResult:
     require_project(cmd)
     cmd = correlated(cmd)
     rev = load_revision(uow, cmd, cmd.revision_id)
@@ -108,9 +132,22 @@ def handle_attach_rendition(uow: UnitOfWork, cmd: AttachRendition) -> CommandRes
         )
     conn = uow.conn()
     existing = registry.renditions_of(conn, rev.id, kind=kind)
-    if any(r.file_id == info.file_id and r.is_current for r in existing):
-        raise NoChangesError(f"file {info.filename!r} is already the {kind} rendition")
-    older = [r for r in existing if r.is_current]
+    current = [r for r in existing if r.is_current]
+    if any(r.file_id == info.file_id for r in current):
+        raise NoChangesError(f"file {info.filename!r} is already a {kind} rendition")
+    if replacing and kind != "signed":
+        raise RenditionNotAllowedError("only a signed copy is replaced this way")
+    if kind == "signed":
+        if current and not replacing:
+            raise RenditionNotAllowedError(
+                f"revision {rev.code} of {rev.document_number} already has a signed copy, which "
+                "is final; an admin replaces it with ReplaceSignedRendition and a reason"
+            )
+        if replacing and not current:
+            raise RenditionNotAllowedError(
+                f"revision {rev.code} of {rev.document_number} has no signed copy to replace"
+            )
+    older = current if kind in REPLACING_KINDS or replacing else []
     made = create_module_record(
         uow,
         cmd,
@@ -131,6 +168,9 @@ def handle_attach_rendition(uow: UnitOfWork, cmd: AttachRendition) -> CommandRes
                     "sha256": info.sha256,
                     "page_count": cmd.page_count,
                     "supersedes": [r.id for r in older],
+                    "replace_reason": cmd.reason
+                    if isinstance(cmd, ReplaceSignedRendition)
+                    else None,
                 },
             )
         ],
@@ -147,3 +187,24 @@ def handle_attach_rendition(uow: UnitOfWork, cmd: AttachRendition) -> CommandRes
     return CommandResult(
         stream_id=made.stream_id, key=made.key, version=made.version, events=events
     )
+
+
+def handle_attach_rendition(uow: UnitOfWork, cmd: AttachRendition) -> CommandResult:
+    """Append ``Record.Created`` and ``Rendition.Defined``; supersede the previous native or PDF.
+
+    Raises ``ProjectScopeError``, ``RevisionNotFoundError``, ``DocumentClosedError``,
+    ``FileNotAvailableError`` (unknown file, not on this revision, not in a rendition slot, still in
+    quarantine or rejected), ``RenditionNotAllowedError`` (the revision's state does not take that
+    kind, or it already has a signed copy) and ``NoChangesError`` (the file is already a current
+    rendition).
+    """
+    return _register(uow, cmd, replacing=False)
+
+
+def handle_replace_signed_rendition(uow: UnitOfWork, cmd: ReplaceSignedRendition) -> CommandResult:
+    """Register the file as the signed copy and supersede the current one. Admin only.
+
+    Raises as ``handle_attach_rendition`` does, and ``RenditionNotAllowedError`` when the revision
+    has no signed copy to replace.
+    """
+    return _register(uow, cmd, replacing=True)

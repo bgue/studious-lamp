@@ -56,3 +56,21 @@ def test_every_document_event_type_is_handled_by_exactly_one_projector() -> None
 
         catalogued = set(re.findall(r"tl:event_type: (\S+)", path.read_text(encoding="utf-8")))
     assert catalogued == set(owners)
+
+
+def test_no_runtime_module_imports_the_test_world() -> None:
+    """``tl_mod_documents.testing`` (``forge``, ``DocumentsWorld``) is for tests only."""
+    src = ROOT / "packages" / "tl-modules" / "documents" / "src" / "tl_mod_documents"
+    offenders = [
+        path.name
+        for path in src.rglob("*.py")
+        if path.name != "testing.py"
+        and (
+            "tl_mod_documents.testing" in path.read_text(encoding="utf-8")
+            or "from tl_mod_documents import testing" in path.read_text(encoding="utf-8")
+        )
+    ]
+    assert offenders == []
+    for other in ("tl-api", "tl-cli", "tl-mcp", "tl-tui", "tl-sim", "tl-core"):
+        for path in (ROOT / "packages" / other / "src").rglob("*.py"):
+            assert "tl_mod_documents.testing" not in path.read_text(encoding="utf-8"), path

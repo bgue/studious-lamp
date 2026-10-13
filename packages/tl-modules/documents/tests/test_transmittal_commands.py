@@ -12,12 +12,14 @@ from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import DuplicateKeyError, NoNumberingPatternError
 from tl_mod_documents import registry
 from tl_mod_documents.errors import (
+    BackdatedError,
     InvalidTransmittalError,
     ProjectScopeError,
     RevisionNotFoundError,
     TransmittalNotFoundError,
     TransmittalStateError,
 )
+from tl_mod_documents.handlers.common import today
 from tl_mod_documents.handlers.transmittals import (
     CloseTransmittal,
     CreateTransmittal,
@@ -41,7 +43,7 @@ def run(world: World, handler: Any, command: Any) -> Any:
 
 def create(world: World, revisions: list[str], **more: Any) -> Any:
     fields: dict[str, Any] = {
-        "number": "TRN-0001",
+        "number": "P123-TRN-0001",
         "subject": "Isometrics for construction",
         "purpose": "for_construction",
         "recipients": [SITE],
@@ -51,14 +53,14 @@ def create(world: World, revisions: list[str], **more: Any) -> Any:
     return run(world, handle_create_transmittal, CreateTransmittal(**{**BASE, **fields}))
 
 
-def transmittal(world: World, number: str = "TRN-0001") -> registry.TransmittalRow:
+def transmittal(world: World, number: str = "P123-TRN-0001") -> registry.TransmittalRow:
     with open_uow(world.db, readonly=True) as uow:
         found = registry.find_transmittal(uow.conn(), "project:P123", number)
     assert found is not None
     return found
 
 
-def items(world: World, number: str = "TRN-0001") -> list[registry.TransmittalItemRow]:
+def items(world: World, number: str = "P123-TRN-0001") -> list[registry.TransmittalItemRow]:
     row = transmittal(world, number)
     with open_uow(world.db, readonly=True) as uow:
         return registry.transmittal_items(uow.conn(), row.id)
@@ -83,7 +85,7 @@ def test_a_draft_transmittal_lists_its_revisions_and_recipients(issued: World) -
         due_date="2026-10-27",
         notes="Please acknowledge",
     )
-    assert made.key == "TRN-0001"
+    assert made.key == "P123-TRN-0001"
     assert [e.event_type for e in made.events] == ["Record.Created", "Transmittal.Defined"]
     row = transmittal(issued)
     assert (
@@ -181,11 +183,19 @@ def test_issuing_a_draft_moves_it_to_issued_and_records_the_date(issued: World) 
     result = run(
         issued,
         handle_issue_transmittal,
-        IssueTransmittal(**BASE, stream_id=made.stream_id, issued_on="2026-10-14"),
+        IssueTransmittal(
+            **BASE,
+            stream_id=made.stream_id,
+            issued_on="2026-10-12",
+            date_reason="sent by courier the day before it was entered",
+        ),
     )
     assert [e.event_type for e in result.events] == ["Transmittal.Issued", "Workflow.Transitioned"]
+    assert (
+        result.events[0].payload["date_reason"] == "sent by courier the day before it was entered"
+    )
     row = transmittal(issued)
-    assert row.state == "Issued" and row.issued_on == "2026-10-14"
+    assert row.state == "Issued" and row.issued_on == "2026-10-12"
     with pytest.raises(TransmittalStateError, match="only be issued while Draft"):
         run(issued, handle_issue_transmittal, IssueTransmittal(**BASE, stream_id=made.stream_id))
 
@@ -230,7 +240,7 @@ def test_the_answer_acknowledges_an_issued_transmittal(issued: World) -> None:
 
 def test_an_issued_or_answered_transmittal_can_be_closed(issued: World) -> None:
     first = create(issued, [rev_id(issued, "ISO-1234")])
-    second = create(issued, [rev_id(issued, "PID-0001")], number="TRN-0002")
+    second = create(issued, [rev_id(issued, "PID-0001")], number="P123-TRN-0002")
     for made in (first, second):
         run(issued, handle_issue_transmittal, IssueTransmittal(**BASE, stream_id=made.stream_id))
     run(
@@ -238,7 +248,7 @@ def test_an_issued_or_answered_transmittal_can_be_closed(issued: World) -> None:
         handle_record_transmittal_response,
         RecordTransmittalResponse(**BASE, stream_id=second.stream_id, response_code="approved"),
     )
-    for made, number in ((first, "TRN-0001"), (second, "TRN-0002")):
+    for made, number in ((first, "P123-TRN-0001"), (second, "P123-TRN-0002")):
         result = run(
             issued,
             handle_close_transmittal,
@@ -286,7 +296,7 @@ def test_a_draft_can_be_voided_and_then_takes_no_more(issued: World) -> None:
         assert registry.list_transmittals(uow.conn(), "project:P123") == []  # a void one is hidden
         assert [
             t.number for t in registry.list_transmittals(uow.conn(), "project:P123", state="Void")
-        ] == ["TRN-0001"]
+        ] == ["P123-TRN-0001"]
 
 
 def test_a_transmittal_of_another_scope_or_unknown_is_not_found(issued: World) -> None:
@@ -328,3 +338,52 @@ def test_without_a_number_or_pattern_the_creation_is_refused(issued: World) -> N
     with use_numbering(NumberingRegistry([])):
         with pytest.raises(NoNumberingPatternError):
             create(issued, [rev_id(issued, "ISO-1234")], number=None)
+
+
+def test_an_issue_or_answer_date_is_today_unless_a_reason_backs_an_earlier_one(
+    issued: World,
+) -> None:
+    made = create(issued, [rev_id(issued, "ISO-1234")])
+    for day in ("2999-01-01", "2026-10-12"):  # the future; an earlier day without a reason
+        with pytest.raises(BackdatedError):
+            run(
+                issued,
+                handle_issue_transmittal,
+                IssueTransmittal(**BASE, stream_id=made.stream_id, issued_on=day),
+            )
+    assert transmittal(issued).state == "Draft"
+    run(
+        issued,
+        handle_issue_transmittal,
+        IssueTransmittal(**BASE, stream_id=made.stream_id, issued_on=today()),
+    )
+    for day in ("2999-01-01", "2026-10-12"):
+        with pytest.raises(BackdatedError):
+            run(
+                issued,
+                handle_record_transmittal_response,
+                RecordTransmittalResponse(
+                    **BASE, stream_id=made.stream_id, response_code="noted", responded_on=day
+                ),
+            )
+    result = run(
+        issued,
+        handle_record_transmittal_response,
+        RecordTransmittalResponse(
+            **BASE,
+            stream_id=made.stream_id,
+            response_code="noted",
+            responded_on="2026-10-12",
+            date_reason="phoned through, entered next day",
+        ),
+    )
+    assert result.events[0].payload["date_reason"] == "phoned through, entered next day"
+    assert transmittal(issued).responded_on == "2026-10-12"
+
+
+def test_a_typed_number_must_fit_the_projects_transmittal_pattern(issued: World) -> None:
+    a = rev_id(issued, "ISO-1234")
+    for number in ("TRN-0001", "P999-TRN-0001", "P123-DWG-0001", "P123-TRN-1", "P123-TRN-00001"):
+        with pytest.raises(InvalidTransmittalError, match="does not fit"):
+            create(issued, [a], number=number)
+    assert create(issued, [a], number="P123-TRN-0007").key == "P123-TRN-0007"

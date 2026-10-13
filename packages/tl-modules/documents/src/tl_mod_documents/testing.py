@@ -138,6 +138,22 @@ class DocumentsWorld:
                 uow, IssueRevision(**{**BASE, "stream_id": rev.id, "issue_status": status, **more})
             )
 
+    def people(self, *usernames: str) -> None:
+        """Person accounts (role user, no password) for the actors a test names as reviewers."""
+        from tl_core.auth import accounts
+
+        for name in usernames:
+            with open_uow(self.db) as uow:
+                accounts.create_account(
+                    uow,
+                    username=name,
+                    display_name=name.title(),
+                    kind="person",
+                    roles=["user"],
+                    password=None,
+                    by="system:test",
+                )
+
     def issued_document(self, number: str = "ISO-1234", status: str = "IFR") -> None:
         """A registered document with revision A attached, issued."""
         self.register(number)
@@ -164,6 +180,35 @@ class DocumentsWorld:
                 AddLink(**BASE, from_id=from_id, to_id=doc.id, relation="references", pin=pin),
             )
         return made.stream_id
+
+    def link_from(self, from_id: str, to_id: str, *, relation: str = "references") -> str:
+        """A link between any two records, made as the module would (the generic rules skipped)."""
+        with open_uow(self.db) as uow:
+            made = handle_add_link(
+                uow,
+                AddLink(**BASE, from_id=from_id, to_id=to_id, relation=relation),
+                by_module=True,
+            )
+        return made.stream_id
+
+    def move(self, record_id: str, transition_name: str) -> None:
+        """Run a workflow transition on a record of this module, as the module's commands do."""
+        from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
+
+        with open_uow(self.db) as uow:
+            version = uow.conn().execute(
+                text("SELECT version FROM cur_core_record WHERE id = :i"), {"i": record_id}
+            )
+            handle_transition_workflow(
+                uow,
+                TransitionWorkflow(
+                    **BASE,
+                    stream_id=record_id,
+                    expected_version=int(version.scalar_one()),
+                    transition=transition_name,
+                ),
+                by_module=True,
+            )
 
     def link_status(self, link_id: str) -> str:
         return str(self.scalar("SELECT status FROM cur_links WHERE link_id = :i", i=link_id))

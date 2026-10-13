@@ -150,8 +150,9 @@ def load_scheme_file(path: Path | None = None) -> SchemeFile:
     try:
         text = target.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
+        # the error text of the OS holds the full path; name the file and the kind of failure only
         raise UnknownSchemeError(
-            f"cannot read the revision scheme file {target.name}: {exc}"
+            f"cannot read the revision scheme file {target.name} ({type(exc).__name__})"
         ) from exc
     return parse_scheme_file(text, source=target.name)
 

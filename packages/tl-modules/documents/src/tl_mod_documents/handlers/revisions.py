@@ -39,6 +39,7 @@ from tl_mod_documents.handlers.common import (
     load_revision,
     open_document,
     require_project,
+    resolve_date,
     today,
     transition,
     version_of,
@@ -88,14 +89,16 @@ class CreateRevision(Command):
 
 
 class IssueRevision(Command):
-    """Issue a draft revision with an issue status (IFR, IFC, AFC, ASB)."""
+    """Issue a draft revision with an issue status (IFR, IFC, AFC, ASB). Admin only."""
 
     model_config = ConfigDict(extra="forbid")
 
     stream_id: str
     expected_version: int | None = None
     issue_status: str = Field(min_length=1, max_length=MAX_NUMBER)
+    #: Defaults to today. Never in the future; a date before today needs ``date_reason``.
     issued_on: str | None = None
+    date_reason: str | None = Field(default=None, max_length=MAX_REASON)
 
     @field_validator("issued_on")
     @classmethod
@@ -264,7 +267,7 @@ def handle_issue_revision(uow: UnitOfWork, cmd: IssueRevision) -> CommandResult:
         raise NoRenditionError(
             f"revision {rev.code} of {doc.number} has no PDF or native rendition; attach one first"
         )
-    issued_on = cmd.issued_on or today()
+    issued_on, date_reason = resolve_date(cmd.issued_on, cmd.date_reason, "the issue date")
     replaced = [r for r in registry.current_revisions(conn, doc.id) if r.status_class == cls]
     events: list[Event] = []
 
@@ -280,6 +283,7 @@ def handle_issue_revision(uow: UnitOfWork, cmd: IssueRevision) -> CommandResult:
                     "issue_status": cmd.issue_status,
                     "status_class": cls,
                     "issued_on": issued_on,
+                    "date_reason": date_reason,
                     "superseded_revision_ids": [r.id for r in replaced],
                 },
             )

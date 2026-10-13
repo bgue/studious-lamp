@@ -15,6 +15,13 @@
           "additionalProperties": true,
           "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
           "properties": {
+            "date_reason": {
+              "description": "Why the date is before the day it was recorded; null when it is that day.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "responded_on": {
               "description": "ISO date of the answer.",
               "type": "string"

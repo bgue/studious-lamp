@@ -11311,6 +11311,13 @@
                         "null"
                       ]
                     },
+                    "replace_reason": {
+                      "description": "Why a signed copy was replaced (admin); null for every other rendition.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "revision_id": {
                       "description": "Record id of the revision.",
                       "type": "string"
@@ -11779,7 +11786,8 @@
                 "detail": {
                   "closed_on": "2026-10-16",
                   "outcome": "approved_with_comments",
-                  "reason": null
+                  "reason": null,
+                  "worst_answer": null
                 },
                 "links": [],
                 "origin": {
@@ -11834,7 +11842,14 @@
                       "type": "string"
                     },
                     "reason": {
-                      "description": "Why it was closed, when not every reviewer answered.",
+                      "description": "Why it was closed, when not every reviewer answered or the outcome was stated.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "worst_answer": {
+                      "description": "The worst recorded answer when an admin closed with a milder outcome; null otherwise.",
                       "type": [
                         "string",
                         "null"
@@ -12321,6 +12336,7 @@
                 "detail": {
                   "comment": "Check the weld map",
                   "outcome": "approved_with_comments",
+                  "recorded_by": null,
                   "responded_on": "2026-10-15",
                   "reviewer": "user:ana"
                 },
@@ -12378,6 +12394,13 @@
                     "outcome": {
                       "description": "approved, approved_with_comments or rejected.",
                       "type": "string"
+                    },
+                    "recorded_by": {
+                      "description": "The actor who recorded the answer when it was not the reviewer (admin); null otherwise.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "responded_on": {
                       "description": "ISO date of the answer.",
@@ -12940,6 +12963,13 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "date_reason": {
+                      "description": "Why the date is before the day it was recorded; null when it is that day.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "issue_status": {
                       "description": "The issue status (IFR, IFC, AFC, ASB).",
                       "type": "string"
@@ -17087,6 +17117,7 @@
               "data": {
                 "changes": {},
                 "detail": {
+                  "date_reason": null,
                   "issued_on": "2026-10-13"
                 },
                 "links": [],
@@ -17133,6 +17164,13 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "date_reason": {
+                      "description": "Why the date is before the day it was recorded; null when it is that day.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "issued_on": {
                       "description": "ISO date of the issue.",
                       "type": "string"
@@ -17334,6 +17372,7 @@
               "data": {
                 "changes": {},
                 "detail": {
+                  "date_reason": null,
                   "responded_on": "2026-10-20",
                   "response_code": "approved",
                   "response_note": null
@@ -17382,6 +17421,13 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
+                    "date_reason": {
+                      "description": "Why the date is before the day it was recorded; null when it is that day.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
                     "responded_on": {
                       "description": "ISO date of the answer.",
                       "type": "string"

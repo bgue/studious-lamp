@@ -5,7 +5,8 @@
       "detail": {
         "closed_on": "2026-10-16",
         "outcome": "approved_with_comments",
-        "reason": null
+        "reason": null,
+        "worst_answer": null
       },
       "links": [],
       "origin": {
@@ -33,6 +34,7 @@
   "payload": {
     "closed_on": "2026-10-16",
     "outcome": "approved_with_comments",
-    "reason": null
+    "reason": null,
+    "worst_answer": null
   }
 }

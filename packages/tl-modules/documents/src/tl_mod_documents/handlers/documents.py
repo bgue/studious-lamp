@@ -88,7 +88,8 @@ class RegisterDocument(Command):
 
 
 class UpdateDocument(Command):
-    """Change a document's title, description or register fields (not its number or scheme)."""
+    """Change a document's title, description or register fields (not its number, its scheme or
+    its confidentiality, which an admin sets with ``SetDocumentConfidentiality``)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -99,7 +100,6 @@ class UpdateDocument(Command):
     doc_type: str | None = Field(default=None, max_length=MAX_NUMBER)
     discipline: str | None = Field(default=None, max_length=MAX_NUMBER)
     originator: str | None = Field(default=None, max_length=MAX_TEXT)
-    confidentiality: str | None = Field(default=None, max_length=MAX_NUMBER)
     reason: str | None = Field(default=None, max_length=MAX_REASON)
 
     @field_validator("title")
@@ -108,8 +108,29 @@ class UpdateDocument(Command):
         return None if value is None else _non_blank(value)
 
 
+class SetDocumentConfidentiality(Command):
+    """Set or clear a document's confidentiality class (admin). The reason is kept."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    stream_id: str
+    expected_version: int | None = None
+    confidentiality: str | None = Field(default=None, max_length=MAX_NUMBER)
+    reason: str = Field(max_length=MAX_REASON)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str) -> str:
+        return _non_blank(value)
+
+
 class SupersedeDocument(Command):
-    """Replace a document by another one: the old is Superseded and its links go stale."""
+    """Replace a document by another one: the old is Superseded and its links go stale (admin).
+
+    The replacement must be a live document that has a current issued revision; a reason is
+    required. Its document type may differ (an isometric can be replaced by a general arrangement),
+    so the type is not compared.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -231,7 +252,6 @@ def handle_update_document(uow: UnitOfWork, cmd: UpdateDocument) -> CommandResul
         "doc_type": doc.doc_type,
         "discipline": doc.discipline,
         "originator": doc.originator,
-        "confidentiality": doc.confidentiality,
     }
     register_new = {k: getattr(cmd, k) for k in register_old if k in given}
     if register_new.get("doc_type", doc.doc_type) != doc.doc_type:
@@ -274,6 +294,10 @@ def handle_supersede_document(uow: UnitOfWork, cmd: SupersedeDocument) -> Comman
         raise DocumentClosedError(
             f"document {new.number} is {new.state} and cannot replace another"
         )
+    if new.current_revision_id is None:
+        raise NoChangesError(
+            f"document {new.number} has no issued revision yet, so it cannot replace {old.number}"
+        )
     events: list[Event] = []
     done = append(
         uow,
@@ -307,6 +331,7 @@ def handle_supersede_document(uow: UnitOfWork, cmd: SupersedeDocument) -> Comman
             link_source="rule",
             note=cmd.reason,
         ),
+        by_module=True,
     )
     events += linked.events
     return CommandResult(stream_id=old.id, key=old.number, version=moved.version, events=events)
@@ -334,4 +359,31 @@ def handle_void_document(uow: UnitOfWork, cmd: VoidDocument) -> CommandResult:
         key=doc.number,
         version=voided.new_version,
         events=[*moved.events, *voided.events, *flagged],
+    )
+
+
+def handle_set_document_confidentiality(
+    uow: UnitOfWork, cmd: SetDocumentConfidentiality
+) -> CommandResult:
+    """Append ``Document.Updated`` with the new confidentiality class and the reason (admin).
+
+    Raises ``DocumentNotFoundError``, ``DocumentClosedError`` and ``NoChangesError``.
+    """
+    cmd = correlated(cmd)
+    doc = open_document(uow, cmd, cmd.stream_id)
+    changes = changes_of(
+        {"confidentiality": doc.confidentiality}, {"confidentiality": cmd.confidentiality or None}
+    )
+    if not changes:
+        raise NoChangesError(f"document {doc.number} already has that confidentiality")
+    done = append(
+        uow,
+        cmd,
+        doc.id,
+        DOCUMENT,
+        [NewEvent(event_type=DOCUMENT_UPDATED, payload={"changes": changes, "reason": cmd.reason})],
+        expected=cmd.expected_version or doc.version,
+    )
+    return CommandResult(
+        stream_id=doc.id, key=doc.number, version=done.new_version, events=list(done.events)
     )

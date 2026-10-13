@@ -64,7 +64,7 @@ def test_the_same_file_is_not_registered_twice(world: World) -> None:
     rev = world.revision("ISO-1234", "A")
     uploaded = world.upload(rev.id)
     attach_file(world, rev.id, uploaded.file_id)
-    with pytest.raises(NoChangesError, match="already the pdf rendition"):
+    with pytest.raises(NoChangesError, match="already a pdf rendition"):
         attach_file(world, rev.id, uploaded.file_id)
 
 
@@ -72,21 +72,83 @@ def test_kinds_by_state(world: World) -> None:
     world.register()
     world.create_revision()
     rev = world.revision("ISO-1234", "A")
-    world.attach(
-        "ISO-1234", "A", slot="markup", data=b"%PDF markup", name="m.pdf"
-    )  # draft: all but signed
-    # Draft refuses `signed` as a rendition even though the slot takes the upload
-    uploaded = world.upload(rev.id, "signed", b"%PDF signed", "s.pdf")
-    with pytest.raises(RenditionNotAllowedError, match="Draft; it accepts native, pdf, markup"):
-        attach_file(world, rev.id, uploaded.file_id)
+    world.attach("ISO-1234", "A", slot="markup", data=b"%PDF markup", name="m.pdf")
     world.attach("ISO-1234", "A")
+    early = world.upload(rev.id, "pdf", b"%PDF-1.7 early", "early.pdf")  # uploaded in Draft
     world.issue("ISO-1234", "A")
-    # Issued: a signed copy and a markup are accepted, a new pdf is not
-    attach_file(world, rev.id, uploaded.file_id)
-    world.attach("ISO-1234", "A", slot="markup", data=b"%PDF markup 2", name="m2.pdf")
-    late = world.upload(rev.id, "pdf", b"%PDF-1.7 late", "late.pdf")
+    # Issued: the earlier upload cannot become a rendition now, a markup and a signed copy can
     with pytest.raises(RenditionNotAllowedError, match="Issued; it accepts markup, signed"):
-        attach_file(world, rev.id, late.file_id)
+        attach_file(world, rev.id, early.file_id)
+    world.attach("ISO-1234", "A", slot="markup", data=b"%PDF markup 2", name="m2.pdf")
+    world.attach("ISO-1234", "A", slot="signed", data=b"%PDF signed", name="s.pdf")
+
+
+def test_markups_are_additive_one_never_replaces_another(world: World) -> None:
+    world.register()
+    world.create_revision()
+    world.attach("ISO-1234", "A", slot="markup", data=b"%PDF ana", name="ana.pdf")
+    second = world.attach("ISO-1234", "A", slot="markup", data=b"%PDF bo", name="bo.pdf")
+    assert [e.event_type for e in second.events] == ["Record.Created", "Rendition.Defined"]
+    rows = renditions(world, "ISO-1234", "A")
+    assert [(r.kind, r.is_current, r.superseded_by) for r in rows] == [
+        ("markup", True, None),
+        ("markup", True, None),
+    ]
+
+
+def test_a_signed_copy_is_write_once_and_an_admin_command_replaces_it(world: World) -> None:
+    from tl_mod_documents.handlers.renditions import (
+        ReplaceSignedRendition,
+        handle_replace_signed_rendition,
+    )
+
+    world.issued_document()
+    first = world.attach("ISO-1234", "A", slot="signed", data=b"%PDF signed 1", name="s1.pdf")
+    rev = world.revision("ISO-1234", "A")
+    again = world.upload(rev.id, "signed", b"%PDF signed 2", "s2.pdf")
+    with pytest.raises(RenditionNotAllowedError, match="already has a signed copy.*final"):
+        attach_file(world, rev.id, again.file_id)
+
+    def replace(file_id: str, reason: str = "re-signed after a stamp error") -> object:
+        with open_uow(world.db) as uow:
+            return handle_replace_signed_rendition(
+                uow,
+                ReplaceSignedRendition(**BASE, revision_id=rev.id, file_id=file_id, reason=reason),
+            )
+
+    made = replace(again.file_id)
+    old, new = [r for r in renditions(world, "ISO-1234", "A") if r.kind == "signed"]
+    assert not old.is_current and old.superseded_by == new.id and new.is_current
+    assert old.id == first.stream_id
+    events = [e for e in made.events]  # type: ignore[attr-defined]
+    assert events[1].payload["replace_reason"] == "re-signed after a stamp error"
+    assert [e.event_type for e in events] == [
+        "Record.Created",
+        "Rendition.Defined",
+        "Rendition.Superseded",
+    ]
+    with pytest.raises(ValidationError):
+        ReplaceSignedRendition(**BASE, revision_id=rev.id, file_id="f", reason="  ")
+
+
+def test_replacing_needs_a_signed_copy_and_only_replaces_signed_ones(world: World) -> None:
+    from tl_mod_documents.handlers.renditions import (
+        ReplaceSignedRendition,
+        handle_replace_signed_rendition,
+    )
+
+    world.issued_document()
+    rev = world.revision("ISO-1234", "A")
+    signed = world.upload(rev.id, "signed", b"%PDF signed", "s.pdf")
+    markup = world.upload(rev.id, "markup", b"%PDF markup", "m.pdf")
+    for file_id, message in (
+        (signed.file_id, "has no signed copy to replace"),
+        (markup.file_id, "only a signed copy is replaced this way"),
+    ):
+        with open_uow(world.db) as uow, pytest.raises(RenditionNotAllowedError, match=message):
+            handle_replace_signed_rendition(
+                uow, ReplaceSignedRendition(**BASE, revision_id=rev.id, file_id=file_id, reason="x")
+            )
 
 
 def test_a_superseded_revision_still_takes_markups_and_signed_copies(world: World) -> None:
@@ -115,11 +177,12 @@ def test_a_file_must_belong_to_the_revision_and_a_rendition_slot_and_be_availabl
         attach_file(world, a.id, elsewhere.file_id)
 
 
-def test_a_file_with_no_slot_is_not_a_rendition(world: World) -> None:
+def test_a_revision_takes_no_file_without_a_slot(world: World) -> None:
     import hashlib
     import io
 
-    from tl_core.files.service import CompleteUpload, RegisterUpload
+    from tl_core.files.service import RegisterUpload
+    from tl_core.services.errors import UnsupportedRecordTypeError
 
     world.register()
     world.create_revision()
@@ -134,14 +197,9 @@ def test_a_file_with_no_slot_is_not_a_rendition(world: World) -> None:
         size=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
     )
-    with open_uow(world.db) as uow:
-        ticket = world.files.register_upload(uow, declared)
-    with open_uow(world.db) as uow:
-        done = world.files.complete_upload(
-            uow, CompleteUpload(**BASE, upload_id=ticket.upload_id), io.BytesIO(data)
-        )
-    with pytest.raises(FileNotAvailableError, match="not in a rendition slot"):
-        attach_file(world, a.id, done.file_id)
+    with open_uow(world.db) as uow, pytest.raises(UnsupportedRecordTypeError, match="no slot"):
+        world.files.register_upload(uow, declared)
+    assert io.BytesIO(data).read() == data
 
 
 def test_a_void_revision_and_a_closed_document_take_no_renditions(world: World) -> None:

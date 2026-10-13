@@ -26,6 +26,13 @@
               "description": "approved, approved_with_comments or rejected.",
               "type": "string"
             },
+            "recorded_by": {
+              "description": "The actor who recorded the answer when it was not the reviewer (admin); null otherwise.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "responded_on": {
               "description": "ISO date of the answer.",
               "type": "string"

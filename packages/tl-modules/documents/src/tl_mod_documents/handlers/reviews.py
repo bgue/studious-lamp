@@ -1,10 +1,14 @@
 """Review cycle commands: open, record an outcome, close (brief 9 M1; P1-I2).
 
 A review cycle (``documents.ReviewCycle``) asks named reviewers to review one revision by a date
-and collects an outcome from each. While a cycle is open the revision is In Review: its native and
-PDF renditions are frozen (reviewers add markups), and it cannot be issued. Closing the cycle
-returns the revision to Draft, with the overall outcome on the cycle; the author revises (a new
-cycle, round 2) or issues.
+and collects an outcome from each. Reviewers are people with an account, and at least one of them is
+not the revision's author. A reviewer records their own answer; an admin can record one on their
+behalf (with a comment), and only an admin can close a cycle with an outcome milder than the worst
+answer given (P1-I2 security review, ADR-0011).
+
+While a cycle is open the revision is In Review: its native and PDF renditions are frozen
+(reviewers add markups), and it cannot be issued. Closing the cycle returns the revision to Draft,
+with the overall outcome on the cycle; the author revises (a new cycle, round 2) or issues.
 
 The document follows the first review: a Registered document with no issued revision is In Review
 while a cycle is open and Registered again when the last one closes. Once a revision is issued the
@@ -19,6 +23,7 @@ from __future__ import annotations
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from tl_core.auth.queries import find_account
 from tl_core.ledger import Event, NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.records import create_module_record
@@ -27,6 +32,7 @@ from tl_core.uow import UnitOfWork
 from tl_mod_documents import registry
 from tl_mod_documents.errors import (
     InvalidReviewError,
+    NotYourReviewError,
     ReviewNotFoundError,
     ReviewStateError,
     RevisionStateError,
@@ -102,7 +108,26 @@ class OpenReviewCycle(Command):
 
 
 class RecordReviewOutcome(Command):
-    """A reviewer's answer: approved, approved with comments, or rejected. Given once."""
+    """A reviewer's own answer: approved, approved with comments, or rejected. Given once.
+
+    ``reviewer`` may be left out (it is the caller); if given it must be the caller. To record an
+    answer for someone else an admin uses ``RecordReviewOutcomeOnBehalf``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    review_cycle_id: str
+    expected_version: int | None = None
+    reviewer: str | None = Field(default=None, min_length=1, max_length=MAX_TEXT)
+    outcome: Outcome
+    comment: str | None = Field(default=None, max_length=MAX_DESCRIPTION)
+
+
+class RecordReviewOutcomeOnBehalf(Command):
+    """Admin: record a reviewer's answer for them (they replied by mail, say). A comment says how.
+
+    The event keeps who recorded it (``recorded_by``) next to the reviewer it is for.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -110,14 +135,21 @@ class RecordReviewOutcome(Command):
     expected_version: int | None = None
     reviewer: str = Field(min_length=1, max_length=MAX_TEXT)
     outcome: Outcome
-    comment: str | None = Field(default=None, max_length=MAX_DESCRIPTION)
+    comment: str = Field(min_length=1, max_length=MAX_DESCRIPTION)
+
+    @field_validator("comment")
+    @classmethod
+    def _comment(cls, value: str) -> str:
+        return _non_blank(value)
 
 
 class CloseReviewCycle(Command):
-    """Close a cycle. The overall outcome is the worst answer unless the command states one.
+    """Close a cycle. The outcome is the worst answer unless the command states a stricter one.
 
-    If a reviewer has not answered, ``reason`` is required (why the cycle closes early); if nobody
-    has, ``outcome`` is required too.
+    A person cannot close with an outcome milder than the worst answer: that is
+    ``OverrideReviewOutcome``, an admin's. If a reviewer has not answered, ``reason`` is required
+    (why the cycle closes early). If nobody has answered, the only outcome a person may give is
+    ``rejected`` (the round is withdrawn).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -128,6 +160,26 @@ class CloseReviewCycle(Command):
     reason: str | None = Field(default=None, max_length=MAX_REASON)
 
 
+class OverrideReviewOutcome(Command):
+    """Admin: close a cycle with a stated outcome, even a milder one than the answers given.
+
+    ``reason`` is required; the event keeps the worst recorded answer (``worst_answer``) so the
+    record shows what was overruled.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    review_cycle_id: str
+    expected_version: int | None = None
+    outcome: Outcome
+    reason: str = Field(min_length=1, max_length=MAX_REASON)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str) -> str:
+        return _non_blank(value)
+
+
 def _load_cycle(uow: UnitOfWork, cmd: Command, cycle_id: str) -> registry.ReviewCycleRow:
     found = registry.get_review_cycle(uow.conn(), cycle_id)
     if found is None or found.scope != cmd.scope:
@@ -135,11 +187,29 @@ def _load_cycle(uow: UnitOfWork, cmd: Command, cycle_id: str) -> registry.Review
     return found
 
 
+def _person(uow: UnitOfWork, raw: str) -> str:
+    """``user:<username>`` of the active person ``raw`` names, else ``InvalidReviewError``."""
+    name = raw.strip()
+    found = find_account(uow.conn(), username=name[5:]) if name.startswith("user:") else None
+    if found is None or found.kind != "person" or found.status != "active":
+        raise InvalidReviewError(
+            f"{name!r} is not an active person account; write a reviewer as user:<username>"
+        )
+    return f"user:{found.username}"
+
+
+def _author_of(uow: UnitOfWork, revision_id: str) -> str | None:
+    """Who created the revision: the actor of its first event."""
+    history = uow.ledger.read_stream(revision_id)
+    return history[0].actor if history else None
+
+
 def handle_open_review_cycle(uow: UnitOfWork, cmd: OpenReviewCycle) -> CommandResult:
     """Append ``Record.Created`` and ``ReviewCycle.Defined``; the revision (and document) move.
 
     Raises ``ProjectScopeError``, ``RevisionNotFoundError``, ``DocumentClosedError``,
-    ``RevisionStateError`` (not a draft), ``InvalidReviewError`` (a reviewer listed twice).
+    ``RevisionStateError`` (not a draft), ``InvalidReviewError`` (a reviewer listed twice, not an
+    active person account, or only the revision's author).
     """
     require_project(cmd)
     cmd = correlated(cmd)
@@ -150,9 +220,14 @@ def handle_open_review_cycle(uow: UnitOfWork, cmd: OpenReviewCycle) -> CommandRe
             f"revision {rev.code} of {doc.number} is {rev.state}; "
             "only a draft can be sent for review"
         )
-    names = [r.reviewer.strip() for r in cmd.reviewers]
+    names = [_person(uow, r.reviewer) for r in cmd.reviewers]
     if len(set(names)) != len(names):
         raise InvalidReviewError("a reviewer can be listed only once")
+    author = _author_of(uow, rev.id)
+    if all(name == author for name in names):
+        raise InvalidReviewError(
+            f"{author} wrote revision {rev.code}; a review needs at least one other reviewer"
+        )
     round_number = len(registry.review_cycles_of(uow.conn(), rev.id)) + 1
     made = create_module_record(
         uow,
@@ -186,17 +261,21 @@ def handle_open_review_cycle(uow: UnitOfWork, cmd: OpenReviewCycle) -> CommandRe
     )
 
 
-def handle_record_review_outcome(uow: UnitOfWork, cmd: RecordReviewOutcome) -> CommandResult:
-    """Append ``ReviewCycle.OutcomeRecorded`` for one reviewer.
-
-    Raises ``ReviewNotFoundError``, ``ReviewStateError`` (the cycle is closed, or this reviewer
-    already answered) and ``InvalidReviewError`` (not a reviewer of the cycle).
-    """
-    cmd = correlated(cmd)
-    cycle = _load_cycle(uow, cmd, cmd.review_cycle_id)
+def _record(
+    uow: UnitOfWork,
+    cmd: Command,
+    cycle_id: str,
+    reviewer_raw: str,
+    outcome: str,
+    comment: str | None,
+    expected: int | None,
+    *,
+    recorded_by: str | None,
+) -> CommandResult:
+    cycle = _load_cycle(uow, cmd, cycle_id)
     if cycle.state != "open":
         raise ReviewStateError(f"review cycle {cycle.key} is closed")
-    reviewer = cmd.reviewer.strip()
+    reviewer = reviewer_raw.strip()
     mine = [r for r in registry.reviewers_of(uow.conn(), cycle.id) if r.reviewer == reviewer]
     if not mine:
         raise InvalidReviewError(f"{reviewer!r} is not a reviewer of {cycle.key}")
@@ -212,43 +291,74 @@ def handle_record_review_outcome(uow: UnitOfWork, cmd: RecordReviewOutcome) -> C
                 event_type=REVIEW_OUTCOME,
                 payload={
                     "reviewer": reviewer,
-                    "outcome": cmd.outcome,
-                    "comment": cmd.comment,
+                    "outcome": outcome,
+                    "comment": comment,
                     "responded_on": today(),
+                    "recorded_by": recorded_by,
                 },
             )
         ],
-        expected=cmd.expected_version,
+        expected=expected,
     )
     return CommandResult(
         stream_id=cycle.id, key=cycle.key, version=done.new_version, events=list(done.events)
     )
 
 
-def handle_close_review_cycle(uow: UnitOfWork, cmd: CloseReviewCycle) -> CommandResult:
-    """Append ``ReviewCycle.Closed``; the revision returns to Draft; the document may leave review.
+def handle_record_review_outcome(uow: UnitOfWork, cmd: RecordReviewOutcome) -> CommandResult:
+    """Append ``ReviewCycle.OutcomeRecorded`` for the caller, who must be a reviewer of the cycle.
 
-    Raises ``ReviewNotFoundError``, ``ReviewStateError`` (already closed) and
-    ``InvalidReviewError`` (a reviewer is missing and no reason is given; nobody answered and no
-    outcome is given).
+    Raises ``NotYourReviewError`` (``reviewer`` names someone else), ``ReviewNotFoundError``,
+    ``ReviewStateError`` (the cycle is closed, or this reviewer already answered) and
+    ``InvalidReviewError`` (the caller is not a reviewer of the cycle).
     """
     cmd = correlated(cmd)
-    cycle = _load_cycle(uow, cmd, cmd.review_cycle_id)
-    if cycle.state != "open":
-        raise ReviewStateError(f"review cycle {cycle.key} is already closed")
-    reviewers = registry.reviewers_of(uow.conn(), cycle.id)
-    answered = [r.outcome for r in reviewers if r.outcome is not None]
-    if any(r.outcome is None for r in reviewers) and not (cmd.reason or "").strip():
-        missing = ", ".join(r.reviewer for r in reviewers if r.outcome is None)
-        raise InvalidReviewError(
-            f"{missing} have not answered; give a reason to close {cycle.key} early"
+    reviewer = (cmd.reviewer or cmd.actor).strip()
+    if reviewer != cmd.actor:
+        raise NotYourReviewError(
+            f"{cmd.actor} cannot answer for {reviewer}; an admin can record it on their behalf"
         )
-    if cmd.outcome is not None:
-        outcome = cmd.outcome
-    elif answered:
-        outcome = max(answered, key=lambda o: _SEVERITY[o])
-    else:
-        raise InvalidReviewError(f"nobody has answered {cycle.key}; give the outcome to close it")
+    return _record(
+        uow,
+        cmd,
+        cmd.review_cycle_id,
+        reviewer,
+        cmd.outcome,
+        cmd.comment,
+        cmd.expected_version,
+        recorded_by=None,
+    )
+
+
+def handle_record_review_outcome_on_behalf(
+    uow: UnitOfWork, cmd: RecordReviewOutcomeOnBehalf
+) -> CommandResult:
+    """Append ``ReviewCycle.OutcomeRecorded`` for another reviewer; the event names the admin.
+
+    Raises what ``handle_record_review_outcome`` raises, bar ``NotYourReviewError``.
+    """
+    cmd = correlated(cmd)
+    return _record(
+        uow,
+        cmd,
+        cmd.review_cycle_id,
+        cmd.reviewer,
+        cmd.outcome,
+        cmd.comment,
+        cmd.expected_version,
+        recorded_by=cmd.actor,
+    )
+
+
+def _close(
+    uow: UnitOfWork,
+    cmd: Command,
+    cycle: registry.ReviewCycleRow,
+    outcome: str,
+    reason: str | None,
+    worst: str | None,
+    expected: int | None,
+) -> CommandResult:
     done = append(
         uow,
         cmd,
@@ -257,10 +367,15 @@ def handle_close_review_cycle(uow: UnitOfWork, cmd: CloseReviewCycle) -> Command
         [
             NewEvent(
                 event_type=REVIEW_CLOSED,
-                payload={"outcome": outcome, "closed_on": today(), "reason": cmd.reason},
+                payload={
+                    "outcome": outcome,
+                    "closed_on": today(),
+                    "reason": reason,
+                    "worst_answer": worst,
+                },
             )
         ],
-        expected=cmd.expected_version,
+        expected=expected,
     )
     events: list[Event] = list(done.events)
     rev = registry.get_revision(uow.conn(), cycle.revision_id)
@@ -270,3 +385,59 @@ def handle_close_review_cycle(uow: UnitOfWork, cmd: CloseReviewCycle) -> Command
     if doc is not None and doc.state == DOC_IN_REVIEW and doc.current_revision_id is None:
         events += transition(uow, cmd, doc.id, "end_review").events
     return CommandResult(stream_id=cycle.id, key=cycle.key, version=done.new_version, events=events)
+
+
+def _open_cycle(uow: UnitOfWork, cmd: Command, cycle_id: str) -> registry.ReviewCycleRow:
+    cycle = _load_cycle(uow, cmd, cycle_id)
+    if cycle.state != "open":
+        raise ReviewStateError(f"review cycle {cycle.key} is already closed")
+    return cycle
+
+
+def handle_close_review_cycle(uow: UnitOfWork, cmd: CloseReviewCycle) -> CommandResult:
+    """Append ``ReviewCycle.Closed``; the revision returns to Draft; the document may leave review.
+
+    Raises ``ReviewNotFoundError``, ``ReviewStateError`` (already closed) and
+    ``InvalidReviewError`` (a reviewer is missing and no reason is given; the outcome is milder
+    than the worst answer, or nobody answered and the outcome is not ``rejected``).
+    """
+    cmd = correlated(cmd)
+    cycle = _open_cycle(uow, cmd, cmd.review_cycle_id)
+    reviewers = registry.reviewers_of(uow.conn(), cycle.id)
+    answered = [r.outcome for r in reviewers if r.outcome is not None]
+    if any(r.outcome is None for r in reviewers) and not (cmd.reason or "").strip():
+        missing = ", ".join(r.reviewer for r in reviewers if r.outcome is None)
+        raise InvalidReviewError(
+            f"{missing} have not answered; give a reason to close {cycle.key} early"
+        )
+    if answered:
+        worst = max(answered, key=lambda o: _SEVERITY[o])
+        outcome = cmd.outcome or worst
+        if _SEVERITY[outcome] < _SEVERITY[worst]:
+            raise InvalidReviewError(
+                f"{cycle.key} has a {worst} answer; only an admin can close it as {outcome} "
+                "(OverrideReviewOutcome)"
+            )
+    else:
+        outcome = cmd.outcome or "rejected"
+        if outcome != "rejected":
+            raise InvalidReviewError(
+                f"nobody has answered {cycle.key}; it can be closed as rejected (withdrawn), "
+                "or by an admin with OverrideReviewOutcome"
+            )
+    return _close(uow, cmd, cycle, outcome, cmd.reason, None, cmd.expected_version)
+
+
+def handle_override_review_outcome(uow: UnitOfWork, cmd: OverrideReviewOutcome) -> CommandResult:
+    """Append ``ReviewCycle.Closed`` with the outcome the admin states and why.
+
+    Raises ``ReviewNotFoundError`` and ``ReviewStateError`` (already closed).
+    """
+    cmd = correlated(cmd)
+    cycle = _open_cycle(uow, cmd, cmd.review_cycle_id)
+    answered = [
+        r.outcome for r in registry.reviewers_of(uow.conn(), cycle.id) if r.outcome is not None
+    ]
+    worst = max(answered, key=lambda o: _SEVERITY[o]) if answered else None
+    milder = worst if worst is not None and _SEVERITY[cmd.outcome] < _SEVERITY[worst] else None
+    return _close(uow, cmd, cycle, cmd.outcome, cmd.reason, milder, cmd.expected_version)

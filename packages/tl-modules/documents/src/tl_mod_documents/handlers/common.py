@@ -21,6 +21,7 @@ from tl_core.util import new_ulid, utcnow
 
 from tl_mod_documents import registry
 from tl_mod_documents.errors import (
+    BackdatedError,
     DocumentClosedError,
     DocumentNotFoundError,
     ProjectScopeError,
@@ -58,6 +59,24 @@ def check_date(value: str | None, what: str) -> str | None:
     except ValueError as exc:
         raise ValueError(f"{what} is not a calendar date: {value!r}") from exc
     return value
+
+
+def resolve_date(value: str | None, reason: str | None, what: str) -> tuple[str, str | None]:
+    """``(date, reason)`` for an issue or answer date: today by default, never in the future.
+
+    A date before today is a back-dated entry and needs a non-blank ``reason``, which the event
+    keeps (P1-I2 security review): the controlled record says when something really happened.
+    """
+    now = today()
+    if value is None:
+        return now, None
+    if value > now:
+        raise BackdatedError(f"{what} {value} is in the future; today is {now}")
+    if value < now and not (reason and reason.strip()):
+        raise BackdatedError(
+            f"{what} {value} is before today ({now}); give the reason for the date"
+        )
+    return value, (reason.strip() if value < now and reason else None)
 
 
 def version_of(uow: UnitOfWork, record_id: str) -> int:

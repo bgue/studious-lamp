@@ -202,7 +202,7 @@ def test_void_ends_the_document_and_flags_every_link_to_it(world: World) -> None
 
 def test_supersede_links_the_new_document_and_flags_the_old_ones_links(world: World) -> None:
     world.issued_document("ISO-1234")
-    world.register("ISO-2000", title="Replacement isometric")
+    world.issued_document("ISO-2000")
     old, new = world.document("ISO-1234"), world.document("ISO-2000")
     tag = world.tag()
     link = world.link(tag, "ISO-1234", "A")
@@ -261,3 +261,57 @@ def test_a_record_of_another_scope_is_not_found(world: World) -> None:
         )
     assert RecordNotFoundError  # the generic error type stays importable for callers
     assert PROJECT == "project:P123"
+
+
+def test_a_replacement_must_have_an_issued_revision(world: World) -> None:
+    world.register("ISO-1")
+    world.register("ISO-2")
+    a, b = world.document("ISO-1"), world.document("ISO-2")
+    with pytest.raises(NoChangesError, match="no issued revision yet"):
+        run(
+            world,
+            handle_supersede_document,
+            SupersedeDocument(**BASE, stream_id=a.id, superseded_by_id=b.id, reason="x"),
+        )
+    with pytest.raises(ValidationError):
+        SupersedeDocument(**BASE, stream_id=a.id, superseded_by_id=b.id, reason="  ")
+
+
+def test_confidentiality_changes_only_through_its_own_command(world: World) -> None:
+    from tl_mod_documents.handlers.documents import (
+        SetDocumentConfidentiality,
+        handle_set_document_confidentiality,
+    )
+
+    world.register(confidentiality="internal")
+    doc = world.document("ISO-1234")
+    with pytest.raises(ValidationError):  # the update command no longer has the field
+        UpdateDocument(**BASE, stream_id=doc.id, confidentiality="public")  # type: ignore[call-arg]
+    result = run(
+        world,
+        handle_set_document_confidentiality,
+        SetDocumentConfidentiality(
+            **BASE, stream_id=doc.id, confidentiality="restricted", reason="client request"
+        ),
+    )
+    assert result.events[0].payload["reason"] == "client request"
+    assert result.events[0].payload["changes"] == {"confidentiality": ["internal", "restricted"]}
+    assert world.document("ISO-1234").confidentiality == "restricted"
+    with pytest.raises(NoChangesError):
+        run(
+            world,
+            handle_set_document_confidentiality,
+            SetDocumentConfidentiality(
+                **BASE, stream_id=doc.id, confidentiality="restricted", reason="again"
+            ),
+        )
+    run(
+        world,
+        handle_set_document_confidentiality,
+        SetDocumentConfidentiality(
+            **BASE, stream_id=doc.id, confidentiality=None, reason="cleared"
+        ),
+    )
+    assert world.document("ISO-1234").confidentiality is None
+    with pytest.raises(ValidationError):
+        SetDocumentConfidentiality(**BASE, stream_id=doc.id, confidentiality="x", reason=" ")

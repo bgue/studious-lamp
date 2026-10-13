@@ -129,7 +129,9 @@ def test_issuing_makes_the_revision_current_and_the_document_follows(world: Worl
     world.register()
     world.create_revision()
     world.attach("ISO-1234", "A")
-    result = world.issue("ISO-1234", "A", "IFR", issued_on="2026-10-14")
+    result = world.issue(
+        "ISO-1234", "A", "IFR", issued_on="2026-10-10", date_reason="issued by post on the 10th"
+    )
     assert [e.event_type for e in result.events] == [
         "Revision.Issued",
         "Workflow.Transitioned",
@@ -138,11 +140,11 @@ def test_issuing_makes_the_revision_current_and_the_document_follows(world: Worl
     ]
     rev = world.revision("ISO-1234", "A")
     assert rev.state == "Issued" and rev.is_current and rev.issue_status == "IFR"
-    assert rev.status_class == "review" and rev.issued_on == "2026-10-14"
+    assert rev.status_class == "review" and rev.issued_on == "2026-10-10"
     doc = world.document("ISO-1234")
     assert doc.state == "Issued"
     assert (doc.current_revision_code, doc.current_revision_status) == ("A", "IFR")
-    assert doc.current_revision_class == "review" and doc.current_revision_issued_on == "2026-10-14"
+    assert doc.current_revision_class == "review" and doc.current_revision_issued_on == "2026-10-10"
     sound(world)
 
 
@@ -287,3 +289,26 @@ def test_the_invariant_holds_after_any_sequence_of_commands(world: World) -> Non
             world.issue("ISO-1234", rev.code, rng.choice(statuses))
         sound(world)
     assert made >= 3
+
+
+def test_the_issue_date_is_today_never_future_and_a_past_date_needs_a_reason(world: World) -> None:
+    from datetime import date, timedelta
+
+    from tl_mod_documents.errors import BackdatedError
+
+    today = date.today().isoformat()
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    world.register()
+    world.create_revision()
+    world.attach("ISO-1234", "A")
+    with pytest.raises(BackdatedError, match="in the future"):
+        world.issue("ISO-1234", "A", "IFR", issued_on=tomorrow)
+    with pytest.raises(BackdatedError, match="give the reason for the date"):
+        world.issue("ISO-1234", "A", "IFR", issued_on=yesterday)
+    with pytest.raises(BackdatedError, match="give the reason"):
+        world.issue("ISO-1234", "A", "IFR", issued_on=yesterday, date_reason="   ")
+    assert world.revision("ISO-1234", "A").state == "Draft"
+    result = world.issue("ISO-1234", "A", "IFR", issued_on=today)  # today needs no reason
+    issued = result.events[0].payload
+    assert issued["issued_on"] == today and issued["date_reason"] is None

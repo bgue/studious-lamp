@@ -3,6 +3,7 @@
     "data": {
       "changes": {},
       "detail": {
+        "date_reason": null,
         "responded_on": "2026-10-20",
         "response_code": "approved",
         "response_note": null
@@ -31,6 +32,7 @@
     "type": "tl.core.Transmittal.ResponseRecorded.v1"
   },
   "payload": {
+    "date_reason": null,
     "responded_on": "2026-10-20",
     "response_code": "approved",
     "response_note": null

@@ -347,6 +347,7 @@ def flag_links_to_document(
                 status="stale",
                 reason=reason,
             ),
+            by_module=True,
         )
         events += flagged.events
     return events

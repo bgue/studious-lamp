@@ -376,8 +376,16 @@ AGENT_MAY_NOT = {
     "admin.command.ReviseTagClass",
     "admin.command.CloseTagClass",
     "admin.command.RecordTag",
-    # the documents module (P1-I2): voiding a whole document is the one admin command
+    # the documents module (P1-I2, ADR-0011): the controlling acts are the admin's
+    "admin.command.SetDocumentConfidentiality",
+    "admin.command.SupersedeDocument",
     "admin.command.VoidDocument",
+    "admin.command.IssueRevision",
+    "admin.command.SupersedeRevision",
+    "admin.command.ReplaceSignedRendition",
+    "admin.command.IssueTransmittal",
+    "admin.command.RecordReviewOutcomeOnBehalf",
+    "admin.command.OverrideReviewOutcome",
 }
 FEED_COMMANDS = {"PostToFeed", "EditPost", "RetractPost", "ReactToPost"}
 

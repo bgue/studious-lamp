@@ -79,6 +79,10 @@ class FileNotAvailableError(DocumentsError):
     """The file is unknown, not on this revision, not in a rendition slot, or not yet scanned."""
 
 
+class BackdatedError(DocumentsError):
+    """An issue or answer date that is in the future, or before today without a reason."""
+
+
 class InvalidPinError(DocumentsError):
     """A link's pin names no issued revision of the document."""
 
@@ -105,3 +109,7 @@ class ReviewStateError(DocumentsError):
 
 class InvalidReviewError(DocumentsError):
     """The review as written cannot be used (a repeated or unknown reviewer, an unknown outcome)."""
+
+
+class NotYourReviewError(DocumentsError):
+    """Only the reviewer records their own answer; an admin records one on their behalf."""

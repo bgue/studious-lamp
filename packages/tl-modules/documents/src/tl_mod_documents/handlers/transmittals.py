@@ -26,6 +26,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from tl_core.ledger import NewEvent
+from tl_core.numbering.allocator import segment_values
+from tl_core.numbering.config import numbering_for
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.records import create_module_record
 from tl_core.uow import UnitOfWork
@@ -43,7 +45,7 @@ from tl_mod_documents.handlers.common import (
     correlated,
     load_revision,
     require_project,
-    today,
+    resolve_date,
     transition,
 )
 from tl_mod_documents.limits import (
@@ -100,7 +102,8 @@ class CreateTransmittal(Command):
     """Draft a transmittal of issued revisions to named recipients.
 
     ``number`` is typed in; without it the project's numbering pattern for transmittals allocates
-    one (``P123-TRN-0001``). ``subject`` is the title.
+    one (``P123-TRN-0001``). A typed number must fit that pattern for this project. ``subject`` is
+    the title.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -126,13 +129,18 @@ class CreateTransmittal(Command):
 
 
 class IssueTransmittal(Command):
-    """Issue a draft transmittal: it is now the record of what was sent."""
+    """Issue a draft transmittal: it is now the record of what was sent (an admin's act).
+
+    ``issued_on`` defaults to today and is never in the future; an earlier date needs
+    ``date_reason``, which the event keeps.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     stream_id: str
     expected_version: int | None = None
     issued_on: str | None = None
+    date_reason: str | None = Field(default=None, max_length=MAX_REASON)
 
     @field_validator("issued_on")
     @classmethod
@@ -141,7 +149,10 @@ class IssueTransmittal(Command):
 
 
 class RecordTransmittalResponse(Command):
-    """Record the recipients' answer to an issued transmittal."""
+    """Record the recipients' answer to an issued transmittal.
+
+    ``responded_on`` follows the same rule as ``IssueTransmittal.issued_on``.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -150,6 +161,7 @@ class RecordTransmittalResponse(Command):
     response_code: ResponseCode
     response_note: str | None = Field(default=None, max_length=MAX_DESCRIPTION)
     responded_on: str | None = None
+    date_reason: str | None = Field(default=None, max_length=MAX_REASON)
 
     @field_validator("responded_on")
     @classmethod
@@ -209,12 +221,28 @@ def _check_revisions(rows: list[registry.RevisionRow]) -> None:
         )
 
 
+def _check_number(uow: UnitOfWork, cmd: CreateTransmittal) -> None:
+    """A typed number fits the project's transmittal pattern (when there is one)."""
+    if cmd.number is None:
+        return
+    pattern = numbering_for(uow.conn()).find(cmd.scope, TRANSMITTAL)
+    if pattern is None:
+        return
+    parsed = pattern.compiled().parse(cmd.number)
+    if parsed is None or parsed.fields != segment_values(pattern, cmd.scope):
+        raise InvalidTransmittalError(
+            f"transmittal number {cmd.number!r} does not fit {pattern.template} for "
+            f"{cmd.scope}; leave it out to have one allocated"
+        )
+
+
 def handle_create_transmittal(uow: UnitOfWork, cmd: CreateTransmittal) -> CommandResult:
     """Append ``Record.Created`` and ``Transmittal.Defined``: a draft with its items.
 
     Raises ``ProjectScopeError``, ``RevisionNotFoundError`` (an item is unknown or in another
     scope), ``InvalidTransmittalError`` (a revision is repeated, or is not issued),
     ``NoNumberingPatternError`` (no number given and no pattern) and ``DuplicateKeyError``.
+    A typed number that breaks the pattern raises ``InvalidTransmittalError``.
     """
     require_project(cmd)
     cmd = correlated(cmd)
@@ -222,6 +250,7 @@ def handle_create_transmittal(uow: UnitOfWork, cmd: CreateTransmittal) -> Comman
         raise InvalidTransmittalError("a revision can be on a transmittal only once")
     revisions = [load_revision(uow, cmd, rid) for rid in cmd.revision_ids]
     _check_revisions(revisions)
+    _check_number(uow, cmd)
     items = [
         {
             "revision_id": r.id,
@@ -271,7 +300,8 @@ def handle_issue_transmittal(uow: UnitOfWork, cmd: IssueTransmittal) -> CommandR
     """Append ``Transmittal.Issued`` and move the transmittal to Issued.
 
     Raises ``TransmittalNotFoundError``, ``TransmittalStateError`` (not a draft) and
-    ``InvalidTransmittalError`` (a revision on it has been voided since it was drafted).
+    ``InvalidTransmittalError`` (a revision on it has been voided since it was drafted) and
+    ``BackdatedError`` (a future date, or an earlier one without a reason).
     """
     cmd = correlated(cmd)
     row = _load(uow, cmd, cmd.stream_id)
@@ -283,6 +313,7 @@ def handle_issue_transmittal(uow: UnitOfWork, cmd: IssueTransmittal) -> CommandR
             raise RevisionNotFoundError(f"revision {item.revision_id!r} is gone")
         revisions.append(rev)
     _check_revisions(revisions)
+    issued_on, date_reason = resolve_date(cmd.issued_on, cmd.date_reason, "the issue date")
     done = append(
         uow,
         cmd,
@@ -291,7 +322,7 @@ def handle_issue_transmittal(uow: UnitOfWork, cmd: IssueTransmittal) -> CommandR
         [
             NewEvent(
                 event_type=TRANSMITTAL_ISSUED,
-                payload={"issued_on": cmd.issued_on or today()},
+                payload={"issued_on": issued_on, "date_reason": date_reason},
             )
         ],
         expected=cmd.expected_version,
@@ -310,11 +341,13 @@ def handle_record_transmittal_response(
 ) -> CommandResult:
     """Append ``Transmittal.ResponseRecorded`` and move the transmittal to Acknowledged.
 
-    Raises ``TransmittalNotFoundError`` and ``TransmittalStateError`` (not issued).
+    Raises ``TransmittalNotFoundError``, ``TransmittalStateError`` (not issued) and
+    ``BackdatedError``.
     """
     cmd = correlated(cmd)
     row = _load(uow, cmd, cmd.stream_id)
     _require_state(row, "Issued", doing="answered")
+    responded_on, date_reason = resolve_date(cmd.responded_on, cmd.date_reason, "the answer date")
     done = append(
         uow,
         cmd,
@@ -326,7 +359,8 @@ def handle_record_transmittal_response(
                 payload={
                     "response_code": cmd.response_code,
                     "response_note": cmd.response_note,
-                    "responded_on": cmd.responded_on or today(),
+                    "responded_on": responded_on,
+                    "date_reason": date_reason,
                 },
             )
         ],

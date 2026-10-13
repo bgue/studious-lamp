@@ -158,6 +158,8 @@ classes:
       issued_on:
         description: "ISO date of the issue."
         required: true
+      date_reason:
+        description: "Why the date is before the day it was recorded; null when it is that day."
       superseded_revision_ids:
         range: Any
         annotations:
@@ -223,6 +225,8 @@ classes:
         annotations:
           tl:json: true
         description: "Record ids of the renditions of the same kind this one replaces."
+      replace_reason:
+        description: "Why a signed copy was replaced (admin); null for every other rendition."
     examples:
       - value: "{\"content_type\": \"application/pdf\", \"document_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"filename\": \"ISO-1234-A.pdf\", \"kind\": \"pdf\", \"page_count\": 3, \"revision_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"sha256\": \"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\", \"size\": 48213, \"supersedes\": []}"
   RenditionSupersededPayload:
@@ -282,8 +286,10 @@ classes:
       issued_on:
         description: "ISO date of the issue."
         required: true
+      date_reason:
+        description: "Why the date is before the day it was recorded; null when it is that day."
     examples:
-      - value: "{\"issued_on\": \"2026-10-13\"}"
+      - value: "{\"date_reason\": null, \"issued_on\": \"2026-10-13\"}"
   TransmittalResponseRecordedPayload:
     is_a: EventPayload
     description: >-
@@ -300,8 +306,10 @@ classes:
       responded_on:
         description: "ISO date of the answer."
         required: true
+      date_reason:
+        description: "Why the date is before the day it was recorded; null when it is that day."
     examples:
-      - value: "{\"responded_on\": \"2026-10-20\", \"response_code\": \"approved\", \"response_note\": null}"
+      - value: "{\"date_reason\": null, \"responded_on\": \"2026-10-20\", \"response_code\": \"approved\", \"response_note\": null}"
   ReviewCycleDefinedPayload:
     is_a: EventPayload
     description: >-
@@ -352,8 +360,10 @@ classes:
       responded_on:
         description: "ISO date of the answer."
         required: true
+      recorded_by:
+        description: "The actor who recorded the answer when it was not the reviewer (admin); null otherwise."
     examples:
-      - value: "{\"comment\": \"Check the weld map\", \"outcome\": \"approved_with_comments\", \"responded_on\": \"2026-10-15\", \"reviewer\": \"user:ana\"}"
+      - value: "{\"comment\": \"Check the weld map\", \"outcome\": \"approved_with_comments\", \"recorded_by\": null, \"responded_on\": \"2026-10-15\", \"reviewer\": \"user:ana\"}"
   ReviewCycleClosedPayload:
     is_a: EventPayload
     description: >-
@@ -369,6 +379,8 @@ classes:
         description: "ISO date it was closed."
         required: true
       reason:
-        description: "Why it was closed, when not every reviewer answered."
+        description: "Why it was closed, when not every reviewer answered or the outcome was stated."
+      worst_answer:
+        description: "The worst recorded answer when an admin closed with a milder outcome; null otherwise."
     examples:
-      - value: "{\"closed_on\": \"2026-10-16\", \"outcome\": \"approved_with_comments\", \"reason\": null}"
+      - value: "{\"closed_on\": \"2026-10-16\", \"outcome\": \"approved_with_comments\", \"reason\": null, \"worst_answer\": null}"

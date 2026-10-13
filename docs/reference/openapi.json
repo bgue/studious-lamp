@@ -3648,6 +3648,18 @@
             ],
             "title": "Correlation Id"
           },
+          "date_reason": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Reason"
+          },
           "expected_version": {
             "anyOf": [
               {
@@ -3773,6 +3785,18 @@
               }
             ],
             "title": "Correlation Id"
+          },
+          "date_reason": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Reason"
           },
           "expected_version": {
             "anyOf": [
@@ -4512,6 +4536,92 @@
           "reviewers"
         ],
         "title": "OpenReviewCycleBody",
+        "type": "object"
+      },
+      "OverrideReviewOutcomeBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "outcome": {
+            "enum": [
+              "approved",
+              "approved_with_comments",
+              "rejected"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "review_cycle_id": {
+            "title": "Review Cycle Id",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "review_cycle_id",
+          "outcome",
+          "reason"
+        ],
+        "title": "OverrideReviewOutcomeBody",
         "type": "object"
       },
       "ParsedTag": {
@@ -5374,6 +5484,104 @@
             "type": "string"
           },
           "reviewer": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "review_cycle_id",
+          "outcome"
+        ],
+        "title": "RecordReviewOutcomeBody",
+        "type": "object"
+      },
+      "RecordReviewOutcomeOnBehalfBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "comment": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Comment",
+            "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "outcome": {
+            "enum": [
+              "approved",
+              "approved_with_comments",
+              "rejected"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "review_cycle_id": {
+            "title": "Review Cycle Id",
+            "type": "string"
+          },
+          "reviewer": {
             "maxLength": 500,
             "minLength": 1,
             "title": "Reviewer",
@@ -5394,9 +5602,10 @@
           "scope",
           "review_cycle_id",
           "reviewer",
-          "outcome"
+          "outcome",
+          "comment"
         ],
-        "title": "RecordReviewOutcomeBody",
+        "title": "RecordReviewOutcomeOnBehalfBody",
         "type": "object"
       },
       "RecordTagBody": {
@@ -5529,6 +5738,18 @@
               }
             ],
             "title": "Correlation Id"
+          },
+          "date_reason": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Reason"
           },
           "expected_version": {
             "anyOf": [
@@ -6598,6 +6819,90 @@
         "title": "RepinLinkBody",
         "type": "object"
       },
+      "ReplaceSignedRenditionBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "file_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "File Id",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "page_count": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Count"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "title": "Reason",
+            "type": "string"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "revision_id",
+          "file_id",
+          "reason"
+        ],
+        "title": "ReplaceSignedRenditionBody",
+        "type": "object"
+      },
       "ResetBody": {
         "additionalProperties": false,
         "description": "Body of ``POST /settings/{key}/reset``.",
@@ -7121,6 +7426,93 @@
           "value"
         ],
         "title": "SetBody",
+        "type": "object"
+      },
+      "SetDocumentConfidentialityBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "confidentiality": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidentiality"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "expected_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "stream_id": {
+            "title": "Stream Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "stream_id",
+          "reason"
+        ],
+        "title": "SetDocumentConfidentialityBody",
         "type": "object"
       },
       "SetPsetValuesBody": {
@@ -9143,18 +9535,6 @@
               }
             ],
             "title": "Causation Id"
-          },
-          "confidentiality": {
-            "anyOf": [
-              {
-                "maxLength": 128,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Confidentiality"
           },
           "correlation_id": {
             "anyOf": [
@@ -11793,7 +12173,7 @@
     },
     "/commands/CloseReviewCycle": {
       "post": {
-        "description": "Close a cycle. The overall outcome is the worst answer unless the command states one.\n\nIf a reviewer has not answered, ``reason`` is required (why the cycle closes early); if nobody\nhas, ``outcome`` is required too.",
+        "description": "Close a cycle. The outcome is the worst answer unless the command states a stricter one.\n\nA person cannot close with an outcome milder than the worst answer: that is\n``OverrideReviewOutcome``, an admin's. If a reviewer has not answered, ``reason`` is required\n(why the cycle closes early). If nobody has answered, the only outcome a person may give is\n``rejected`` (the round is withdrawn).",
         "operationId": "command_CloseReviewCycle",
         "parameters": [
           {
@@ -12542,7 +12922,7 @@
     },
     "/commands/CreateTransmittal": {
       "post": {
-        "description": "Draft a transmittal of issued revisions to named recipients.\n\n``number`` is typed in; without it the project's numbering pattern for transmittals allocates\none (``P123-TRN-0001``). ``subject`` is the title.",
+        "description": "Draft a transmittal of issued revisions to named recipients.\n\n``number`` is typed in; without it the project's numbering pattern for transmittals allocates\none (``P123-TRN-0001``). A typed number must fit that pattern for this project. ``subject`` is\nthe title.",
         "operationId": "command_CreateTransmittal",
         "parameters": [
           {
@@ -13184,7 +13564,7 @@
     },
     "/commands/IssueRevision": {
       "post": {
-        "description": "Issue a draft revision with an issue status (IFR, IFC, AFC, ASB).",
+        "description": "Issue a draft revision with an issue status (IFR, IFC, AFC, ASB). Admin only.",
         "operationId": "command_IssueRevision",
         "parameters": [
           {
@@ -13291,7 +13671,7 @@
     },
     "/commands/IssueTransmittal": {
       "post": {
-        "description": "Issue a draft transmittal: it is now the record of what was sent.",
+        "description": "Issue a draft transmittal: it is now the record of what was sent (an admin's act).\n\n``issued_on`` defaults to today and is never in the future; an earlier date needs\n``date_reason``, which the event keeps.",
         "operationId": "command_IssueTransmittal",
         "parameters": [
           {
@@ -13717,6 +14097,113 @@
         ]
       }
     },
+    "/commands/OverrideReviewOutcome": {
+      "post": {
+        "description": "Admin: close a cycle with a stated outcome, even a milder one than the answers given.\n\n``reason`` is required; the event keeps the worst recorded answer (``worst_answer``) so the\nrecord shows what was overruled.",
+        "operationId": "command_OverrideReviewOutcome",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OverrideReviewOutcomeBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "OverrideReviewOutcome",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/PostToFeed": {
       "post": {
         "description": "Post ``body`` to the project feed of ``scope`` as ``actor`` (person, agent or service).\n\n``post_id`` lets a caller choose the id (None: a new ULID). ``importance`` is what the author\ndeclares; a signal tag in the body raises the effective level to high.",
@@ -14040,7 +14527,7 @@
     },
     "/commands/RecordReviewOutcome": {
       "post": {
-        "description": "A reviewer's answer: approved, approved with comments, or rejected. Given once.",
+        "description": "A reviewer's own answer: approved, approved with comments, or rejected. Given once.\n\n``reviewer`` may be left out (it is the caller); if given it must be the caller. To record an\nanswer for someone else an admin uses ``RecordReviewOutcomeOnBehalf``.",
         "operationId": "command_RecordReviewOutcome",
         "parameters": [
           {
@@ -14140,6 +14627,113 @@
           }
         ],
         "summary": "RecordReviewOutcome",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/RecordReviewOutcomeOnBehalf": {
+      "post": {
+        "description": "Admin: record a reviewer's answer for them (they replied by mail, say). A comment says how.\n\nThe event keeps who recorded it (``recorded_by``) next to the reviewer it is for.",
+        "operationId": "command_RecordReviewOutcomeOnBehalf",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordReviewOutcomeOnBehalfBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "RecordReviewOutcomeOnBehalf",
         "tags": [
           "commands"
         ]
@@ -14254,7 +14848,7 @@
     },
     "/commands/RecordTransmittalResponse": {
       "post": {
-        "description": "Record the recipients' answer to an issued transmittal.",
+        "description": "Record the recipients' answer to an issued transmittal.\n\n``responded_on`` follows the same rule as ``IssueTransmittal.issued_on``.",
         "operationId": "command_RecordTransmittalResponse",
         "parameters": [
           {
@@ -15108,6 +15702,113 @@
         ]
       }
     },
+    "/commands/ReplaceSignedRendition": {
+      "post": {
+        "description": "Replace the signed copy of a revision by another file, with a reason (admin).\n\nThe signed copy is write-once for everyone else: a correction is an admin's decision and the\nreason is kept in the event.",
+        "operationId": "command_ReplaceSignedRendition",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceSignedRenditionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "ReplaceSignedRendition",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/RetractLink": {
       "post": {
         "description": "Run the RetractLink command.",
@@ -15429,6 +16130,113 @@
         ]
       }
     },
+    "/commands/SetDocumentConfidentiality": {
+      "post": {
+        "description": "Set or clear a document's confidentiality class (admin). The reason is kept.",
+        "operationId": "command_SetDocumentConfidentiality",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetDocumentConfidentialityBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "SetDocumentConfidentiality",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/SetPsetValues": {
       "post": {
         "description": "Run the SetPsetValues command.",
@@ -15645,7 +16453,7 @@
     },
     "/commands/SupersedeDocument": {
       "post": {
-        "description": "Replace a document by another one: the old is Superseded and its links go stale.",
+        "description": "Replace a document by another one: the old is Superseded and its links go stale (admin).\n\nThe replacement must be a live document that has a current issued revision; a reason is\nrequired. Its document type may differ (an isometric can be replaced by a general arrangement),\nso the type is not compared.",
         "operationId": "command_SupersedeDocument",
         "parameters": [
           {
@@ -15966,7 +16774,7 @@
     },
     "/commands/UpdateDocument": {
       "post": {
-        "description": "Change a document's title, description or register fields (not its number or scheme).",
+        "description": "Change a document's title, description or register fields (not its number, its scheme or\nits confidentiality, which an admin sets with ``SetDocumentConfidentiality``).",
         "operationId": "command_UpdateDocument",
         "parameters": [
           {

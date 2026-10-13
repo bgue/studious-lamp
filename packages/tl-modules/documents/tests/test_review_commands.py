@@ -9,11 +9,13 @@ from docworld import BASE, World
 from pydantic import ValidationError
 from tl_adapters.db import open_uow
 from tl_core.ledger import ConcurrencyError
+from tl_core.services.errors import UnsupportedRecordTypeError
 from tl_mod_documents import registry
 from tl_mod_documents.errors import (
     DocumentClosedError,
     InvalidReviewError,
     NoRenditionError,
+    NotYourReviewError,
     RenditionNotAllowedError,
     ReviewNotFoundError,
     ReviewStateError,
@@ -23,11 +25,15 @@ from tl_mod_documents.errors import (
 from tl_mod_documents.handlers.reviews import (
     CloseReviewCycle,
     OpenReviewCycle,
+    OverrideReviewOutcome,
     RecordReviewOutcome,
+    RecordReviewOutcomeOnBehalf,
     ReviewerRequest,
     handle_close_review_cycle,
     handle_open_review_cycle,
+    handle_override_review_outcome,
     handle_record_review_outcome,
+    handle_record_review_outcome_on_behalf,
 )
 from tl_mod_documents.handlers.revisions import VoidRevision, handle_void_revision
 
@@ -54,7 +60,7 @@ def answer(
         world,
         handle_record_review_outcome,
         RecordReviewOutcome(
-            **BASE, review_cycle_id=cycle, reviewer=reviewer, outcome=outcome, comment=comment
+            **{**BASE, "actor": reviewer}, review_cycle_id=cycle, outcome=outcome, comment=comment
         ),
     )
 
@@ -81,6 +87,7 @@ def reviewers(world: World, cycle_id: str) -> list[registry.ReviewerRow]:
 @pytest.fixture
 def draft(world: World) -> World:
     """ISO-1234 registered with draft revision A and a PDF."""
+    world.people("u", "ana", "bo", "cy", "zed")
     world.register()
     world.create_revision()
     world.attach("ISO-1234", "A")
@@ -167,15 +174,14 @@ def test_each_reviewer_answers_once(draft: World) -> None:
     with pytest.raises(InvalidReviewError, match="'user:zed' is not a reviewer"):
         answer(draft, cycle, "user:zed", "approved")
     with pytest.raises(ValidationError):
-        RecordReviewOutcome(**BASE, review_cycle_id=cycle, reviewer="user:bo", outcome="shrug")  # type: ignore[arg-type]
+        RecordReviewOutcome(**{**BASE, "actor": "user:bo"}, review_cycle_id=cycle, outcome="shrug")  # type: ignore[arg-type]
     with pytest.raises(ConcurrencyError):
         run(
             draft,
             handle_record_review_outcome,
             RecordReviewOutcome(
-                **BASE,
+                **{**BASE, "actor": "user:bo"},
                 review_cycle_id=cycle,
-                reviewer="user:bo",
                 outcome="approved",
                 expected_version=1,
             ),
@@ -211,13 +217,13 @@ def test_one_rejection_rejects_the_cycle(draft: World) -> None:
     assert cycles(draft)[0].outcome == "rejected"
 
 
-def test_closing_early_needs_a_reason_and_an_outcome_when_nobody_answered(draft: World) -> None:
+def test_closing_early_needs_a_reason_and_an_unanswered_round_is_withdrawn(draft: World) -> None:
     cycle = open_review(draft).stream_id
     with pytest.raises(InvalidReviewError, match="user:ana, user:bo have not answered"):
         close(draft, cycle)
     with pytest.raises(InvalidReviewError, match="nobody has answered"):
-        close(draft, cycle, reason="Review withdrawn")
-    close(draft, cycle, reason="Review withdrawn", outcome="rejected")
+        close(draft, cycle, reason="Review withdrawn", outcome="approved")
+    close(draft, cycle, reason="Review withdrawn")  # withdrawn: counts as rejected
     assert cycles(draft)[0].outcome == "rejected"
 
 
@@ -257,18 +263,20 @@ def test_a_review_of_a_later_revision_leaves_an_issued_document_issued(draft: Wo
 
 
 def test_during_a_review_only_markups_can_be_added(draft: World) -> None:
+    rev = draft.revision("ISO-1234", "A")
+    early = draft.upload(rev.id, "pdf", b"%PDF-1.7 changed", "changed.pdf")  # uploaded in Draft
     open_review(draft)
     draft.attach("ISO-1234", "A", slot="markup", data=b"%PDF markup", name="m.pdf")
-    rev = draft.revision("ISO-1234", "A")
-    late = draft.upload(rev.id, "pdf", b"%PDF-1.7 changed", "changed.pdf")
     from tl_mod_documents.handlers.renditions import AttachRendition, handle_attach_rendition
 
     with pytest.raises(RenditionNotAllowedError, match="In Review; it accepts markup"):
         run(
             draft,
             handle_attach_rendition,
-            AttachRendition(**BASE, revision_id=rev.id, file_id=late.file_id),
+            AttachRendition(**BASE, revision_id=rev.id, file_id=early.file_id),
         )
+    with pytest.raises(UnsupportedRecordTypeError, match="takes markup"):  # and not uploaded either
+        draft.upload(rev.id, "pdf", b"%PDF-1.7 later", "later.pdf")
 
 
 def test_a_revision_in_review_cannot_be_voided(draft: World) -> None:
@@ -290,6 +298,7 @@ def test_a_cycle_of_another_scope_or_unknown_is_not_found(draft: World) -> None:
 
 
 def test_issuing_still_needs_a_rendition_after_a_review(world: World) -> None:
+    world.people("u", "ana", "bo")
     world.register()
     world.create_revision()
     cycle = open_review(world).stream_id
@@ -298,3 +307,95 @@ def test_issuing_still_needs_a_rendition_after_a_review(world: World) -> None:
     close(world, cycle)
     with pytest.raises(NoRenditionError):
         world.issue("ISO-1234", "A")
+
+
+def test_reviewers_are_people_with_an_account_and_not_only_the_author(draft: World) -> None:
+    for name in ("user:nobody", "ana", "agent:ana", "user:"):
+        with pytest.raises(InvalidReviewError, match="not an active person account"):
+            open_review(draft, reviewers=[{"reviewer": name}])
+    with pytest.raises(InvalidReviewError, match="at least one other reviewer"):
+        open_review(draft, reviewers=[{"reviewer": "user:u"}])  # u wrote the revision
+    assert cycles(draft) == []
+    made = open_review(draft, reviewers=[{"reviewer": " user:U "}, {"reviewer": "user:ana"}])
+    assert [r.reviewer for r in reviewers(draft, made.stream_id)] == ["user:u", "user:ana"]
+
+
+def test_a_reviewer_answers_for_themselves_only(draft: World) -> None:
+    cycle = open_review(draft).stream_id
+    with pytest.raises(NotYourReviewError, match="user:u cannot answer for user:ana"):
+        run(
+            draft,
+            handle_record_review_outcome,
+            RecordReviewOutcome(
+                **BASE, review_cycle_id=cycle, reviewer="user:ana", outcome="approved"
+            ),
+        )
+    with pytest.raises(InvalidReviewError, match="'user:u' is not a reviewer"):
+        answer(draft, cycle, "user:u", "approved")  # the caller must be a reviewer of the cycle
+    assert [r.outcome for r in reviewers(draft, cycle)] == [None, None]
+
+
+def test_an_admin_records_an_answer_on_behalf_with_a_comment_and_the_event_says_so(
+    draft: World,
+) -> None:
+    cycle = open_review(draft).stream_id
+    with pytest.raises(ValidationError):
+        RecordReviewOutcomeOnBehalf(
+            **BASE, review_cycle_id=cycle, reviewer="user:ana", outcome="approved", comment=" "
+        )
+    result = run(
+        draft,
+        handle_record_review_outcome_on_behalf,
+        RecordReviewOutcomeOnBehalf(
+            **{**BASE, "actor": "user:boss"},
+            review_cycle_id=cycle,
+            reviewer="user:ana",
+            outcome="approved",
+            comment="Ana replied by mail on the 12th",
+        ),
+    )
+    payload = result.events[0].payload
+    assert (payload["reviewer"], payload["recorded_by"]) == ("user:ana", "user:boss")
+    assert result.events[0].actor == "user:boss"
+    ana, _ = reviewers(draft, cycle)
+    assert ana.outcome == "approved"
+    with pytest.raises(ReviewStateError, match="already answered"):
+        answer(draft, cycle, "user:ana", "rejected")
+    own = answer(draft, cycle, "user:bo", "approved")
+    assert own.events[0].payload["recorded_by"] is None
+
+
+def test_only_an_admin_closes_with_an_outcome_milder_than_the_worst_answer(draft: World) -> None:
+    cycle = open_review(draft).stream_id
+    answer(draft, cycle, "user:ana", "rejected", "Wrong line class")
+    answer(draft, cycle, "user:bo", "approved")
+    with pytest.raises(InvalidReviewError, match="only an admin can close it as approved"):
+        close(draft, cycle, outcome="approved")
+    with pytest.raises(ValidationError):
+        OverrideReviewOutcome(**BASE, review_cycle_id=cycle, outcome="approved", reason=" ")
+    assert cycles(draft)[0].state == "open"
+    result = run(
+        draft,
+        handle_override_review_outcome,
+        OverrideReviewOutcome(
+            **{**BASE, "actor": "user:boss"},
+            review_cycle_id=cycle,
+            outcome="approved_with_comments",
+            reason="Rejection withdrawn after the call on the 12th",
+        ),
+    )
+    closed = result.events[0].payload
+    assert (closed["outcome"], closed["worst_answer"]) == ("approved_with_comments", "rejected")
+    assert closed["reason"] == "Rejection withdrawn after the call on the 12th"
+    assert cycles(draft)[0].outcome == "approved_with_comments"
+    assert draft.revision("ISO-1234", "A").state == "Draft"
+    with pytest.raises(ReviewStateError, match="already closed"):
+        close(draft, cycle, outcome="rejected")
+
+
+def test_a_person_may_close_with_a_stricter_outcome_than_the_answers(draft: World) -> None:
+    cycle = open_review(draft).stream_id
+    answer(draft, cycle, "user:ana", "approved")
+    answer(draft, cycle, "user:bo", "approved")
+    close(draft, cycle, outcome="rejected")
+    assert cycles(draft)[0].outcome == "rejected"

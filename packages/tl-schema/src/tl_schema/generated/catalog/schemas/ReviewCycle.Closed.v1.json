@@ -24,7 +24,14 @@
               "type": "string"
             },
             "reason": {
-              "description": "Why it was closed, when not every reviewer answered.",
+              "description": "Why it was closed, when not every reviewer answered or the outcome was stated.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "worst_answer": {
+              "description": "The worst recorded answer when an admin closed with a milder outcome; null otherwise.",
               "type": [
                 "string",
                 "null"

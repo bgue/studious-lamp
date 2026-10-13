@@ -10,6 +10,7 @@ from tl_core.modules import ModuleSpec
 from tl_core.projection.types import Projector
 
 from tl_mod_documents import MODULE
+from tl_mod_documents.guards import revision_upload, transmittal_draft_only
 from tl_mod_documents.names import DOCUMENT, RECORD_TYPES, REVISION, TRANSMITTAL
 from tl_mod_documents.projectors import (
     DocumentProjector,
@@ -30,9 +31,15 @@ from tl_mod_documents.projectors import (
 #:   the review commands.
 #:
 #: The title, the register fields, the workflow state and a void are never generic.
-DOCUMENT_GENERIC_COMMANDS = frozenset({"SetPsetValues", "AddLink", "SuggestLink"})
-REVISION_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink", "AttachFile"})
-TRANSMITTAL_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink", "AttachFile"})
+#: The life of a link that starts at the record (accept, decline, re-pin, verify, flag, retract) is
+#: allowed too; a link a rule of this module wrote is kept by the module (core refuses a generic
+#: FlagLink or RetractLink on it).
+LINK_LIFE = frozenset(
+    {"AcceptLink", "DeclineLink", "RepinLink", "VerifyLink", "FlagLink", "RetractLink"}
+)
+DOCUMENT_GENERIC_COMMANDS = frozenset({"SetPsetValues", "AddLink", "SuggestLink"}) | LINK_LIFE
+REVISION_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink", "AttachFile"}) | LINK_LIFE
+TRANSMITTAL_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink", "AttachFile"}) | LINK_LIFE
 
 
 def projectors() -> list[Projector]:
@@ -55,5 +62,11 @@ def spec() -> ModuleSpec:
             DOCUMENT: DOCUMENT_GENERIC_COMMANDS,
             REVISION: REVISION_GENERIC_COMMANDS,
             TRANSMITTAL: TRANSMITTAL_GENERIC_COMMANDS,
+        },
+        generic_guards={
+            (REVISION, "AttachFile"): revision_upload,
+            (TRANSMITTAL, "AttachFile"): transmittal_draft_only,
+            (TRANSMITTAL, "AddLink"): transmittal_draft_only,
+            (TRANSMITTAL, "SuggestLink"): transmittal_draft_only,
         },
     )

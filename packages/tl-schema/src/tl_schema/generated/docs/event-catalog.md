@@ -2283,6 +2283,7 @@ A file was registered as a rendition of a revision.
 | `filename` | string | yes | File name. |
 | `kind` | string | yes | native, pdf, markup or signed. |
 | `page_count` | integer or null | no | Number of pages, when known. |
+| `replace_reason` | string or null | no | Why a signed copy was replaced (admin); null for every other rendition. |
 | `revision_id` | string | yes | Record id of the revision. |
 | `sha256` | string | yes | Hex SHA-256 of the bytes. |
 | `size` | integer | yes | Size in bytes. |
@@ -2393,7 +2394,8 @@ A review cycle was closed with an overall outcome.
 |---|---|---|---|
 | `closed_on` | string | yes | ISO date it was closed. |
 | `outcome` | string | yes | approved, approved_with_comments or rejected. |
-| `reason` | string or null | no | Why it was closed, when not every reviewer answered. |
+| `reason` | string or null | no | Why it was closed, when not every reviewer answered or the outcome was stated. |
+| `worst_answer` | string or null | no | The worst recorded answer when an admin closed with a milder outcome; null otherwise. |
 
 ### Sample delivered event
 
@@ -2404,7 +2406,8 @@ A review cycle was closed with an overall outcome.
     "detail": {
       "closed_on": "2026-10-16",
       "outcome": "approved_with_comments",
-      "reason": null
+      "reason": null,
+      "worst_answer": null
     },
     "links": [],
     "origin": {
@@ -2508,6 +2511,7 @@ A reviewer answered.
 |---|---|---|---|
 | `comment` | string or null | no | The reviewer's comment. |
 | `outcome` | string | yes | approved, approved_with_comments or rejected. |
+| `recorded_by` | string or null | no | The actor who recorded the answer when it was not the reviewer (admin); null otherwise. |
 | `responded_on` | string | yes | ISO date of the answer. |
 | `reviewer` | string | yes | The reviewer who answered. |
 
@@ -2520,6 +2524,7 @@ A reviewer answered.
     "detail": {
       "comment": "Check the weld map",
       "outcome": "approved_with_comments",
+      "recorded_by": null,
       "responded_on": "2026-10-15",
       "reviewer": "user:ana"
     },
@@ -2624,6 +2629,7 @@ A revision was issued with an issue status; it is now current for its status cla
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `date_reason` | string or null | no | Why the date is before the day it was recorded; null when it is that day. |
 | `issue_status` | string | yes | The issue status (IFR, IFC, AFC, ASB). |
 | `issued_on` | string | yes | ISO date of the issue. |
 | `status_class` | string | yes | Its status class (review, construction, record). |
@@ -3539,6 +3545,7 @@ A transmittal was issued to its recipients.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `date_reason` | string or null | no | Why the date is before the day it was recorded; null when it is that day. |
 | `issued_on` | string | yes | ISO date of the issue. |
 
 ### Sample delivered event
@@ -3548,6 +3555,7 @@ A transmittal was issued to its recipients.
   "data": {
     "changes": {},
     "detail": {
+      "date_reason": null,
       "issued_on": "2026-10-13"
     },
     "links": [],
@@ -3587,6 +3595,7 @@ The recipients answered a transmittal.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `date_reason` | string or null | no | Why the date is before the day it was recorded; null when it is that day. |
 | `responded_on` | string | yes | ISO date of the answer. |
 | `response_code` | string | yes | approved, approved_with_comments, rejected or noted. |
 | `response_note` | string or null | no | Free text that came with the answer. |
@@ -3598,6 +3607,7 @@ The recipients answered a transmittal.
   "data": {
     "changes": {},
     "detail": {
+      "date_reason": null,
       "responded_on": "2026-10-20",
       "response_code": "approved",
       "response_note": null

@@ -212,9 +212,25 @@ def test_update_needs_a_field_and_a_difference(env: dict[str, str]) -> None:
     assert "differs from the request" in same.stderr
 
 
-def test_supersede_replaces_a_document_and_names_the_new_one(env: dict[str, str]) -> None:
+def test_supersede_is_for_an_admin_and_needs_an_issued_replacement(
+    env: dict[str, str], tmp_path: Path
+) -> None:
     register(env, "ISO-1000")
     register(env, "ISO-2000")
+    args = ("supersede", "ISO-1000", "--by", "ISO-2000", "--project", "P123", "--reason", "x")
+    if not is_postgres(as_target(env["TL_DB"])):
+        assert bootstrap(env).exit_code == 0
+        sign_in(env)
+        amy = ordinary_env(env, tmp_path)
+        refused = doc(amy, *args, ok=False)
+        assert refused.stderr.startswith("error: ") and "admin" in refused.stderr
+        assert show(env, "ISO-1000")["state"] == "Registered"
+    no_issue = doc(env, *args, ok=False)  # the replacement has no issued revision yet
+    assert "no issued revision yet" in no_issue.stderr, no_issue.stderr
+    made = world(env, tmp_path)
+    made.create_revision("ISO-2000")
+    made.attach("ISO-2000", "A")
+    made.issue("ISO-2000", "A", "IFR")
     result = doc(
         env,
         "supersede",
