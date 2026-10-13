@@ -1,4 +1,4 @@
-"""`tl doc import` on a temporary ledger (P1-I2-T12d): preview, apply, refusals."""
+"""`tl doc import` on a temporary ledger (P1-I2-T12e): preview, apply, refusals, limits."""
 
 from __future__ import annotations
 
@@ -118,3 +118,71 @@ def test_the_registered_documents_are_the_modules_own(env: dict[str, str], tmp_p
     made = world(env, tmp_path)
     assert made.document("SPC-0003").doc_type == "SPC"
     assert made.document("SPC-0003").revision_scheme == "numeric"  # the company rule for specs
+
+
+HEAD = (
+    "DOC NO,TITLE,DOC TYPE,DISCIPLINE,ORIGINATOR,REV,STATUS,REV DATE,FILE PATH,CHECKED BY,REMARKS\n"
+)
+
+
+def small_file(tmp_path: Path, *rows: str, name: str = "small.csv") -> str:
+    path = tmp_path / name
+    path.write_text(HEAD + "".join(rows), encoding="utf-8")
+    return str(path)
+
+
+def line(number: str, title: str = "A title") -> str:
+    return f"{number},{title},ISOMETRIC,PIPING,Acme Piping,A,IFR,2024-01-01,,,\n"
+
+
+def test_what_apply_would_refuse_is_invalid_in_the_preview_and_skip_invalid_imports_the_rest(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    admin_session(env)
+    file = small_file(tmp_path, line("ISO-0201", "t" * 600), line("ISO-0202"))
+    out = do_import(env, file=file).stdout.splitlines()
+    assert out[1] == "new=1  exists=0  invalid=1"
+    assert out[-2].startswith("! line 2: title: ") and out[-1].startswith("dry run")
+    assert "+ ISO-0202  ISO  A title" in out
+    done = do_import(env, "--apply", "--skip-invalid", file=file)
+    assert done.stdout.splitlines()[-1].endswith("registered=1  skipped=1")
+    assert [row.split("  ")[0] for row in register(env)] == ["ISO-0202"]
+
+
+def test_a_control_character_is_an_invalid_row_and_never_printed(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    file = small_file(
+        tmp_path, line("ISO-0\x00301"), line("ISO-0302", "Ti\x00tle"), line("ISO-0303")
+    )
+    out = do_import(env, file=file).stdout
+    assert "\x00" not in out
+    lines = out.splitlines()
+    assert lines[1] == "new=1  exists=0  invalid=2"
+    assert "! line 2: DOC NO: holds a control character" in lines
+    assert "! line 3: TITLE: holds a control character; the title is blank" in lines
+
+
+def test_a_file_with_more_than_a_thousand_rows_is_refused_and_nothing_is_written(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    admin_session(env)
+    rows = [line(f"ISO-{n:04d}") for n in range(1001)]
+    file = small_file(tmp_path, *rows, name="many.csv")
+    for flags in ((), ("--apply",)):
+        refused = do_import(env, *flags, file=file, ok=False)
+        assert refused.stderr.strip() == (
+            "error: the file has more than 1000 rows; an import takes at most 1000, so split it"
+        )
+    assert register(env) == []
+
+
+def test_a_file_over_five_mebibytes_is_refused_before_it_is_read(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    big = tmp_path / "big.csv"
+    with big.open("wb") as handle:
+        handle.truncate(5 * 1024 * 1024 + 1)
+    refused = do_import(env, file=str(big), ok=False)
+    assert refused.stderr.startswith("error: big.csv: the file is 5242881 bytes; an import takes")
+    assert "at most 5 MiB" in refused.stderr
