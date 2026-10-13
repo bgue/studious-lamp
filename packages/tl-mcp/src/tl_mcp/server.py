@@ -33,6 +33,7 @@ from tl_lake.guard import MAX_SQL_CHARS
 
 from tl_mcp import resources, tools
 from tl_mcp.context import Authorizer, McpContext, UowFactory
+from tl_mcp.document_tools import register_document_tools
 from tl_mcp.engineering_tools import register_engineering_tools
 from tl_mcp.errors import MAX_PART, guarded, resource_name
 from tl_mcp.models import LakeQueryOutput, SearchResult
@@ -124,6 +125,7 @@ def build_server(
     register_write_tools(server, ctx, modes)
     register_type_tools(server, ctx)
     register_engineering_tools(server, ctx)
+    register_document_tools(server, ctx)
 
     @server.tool(annotations=READ_ONLY)
     def search_records(
