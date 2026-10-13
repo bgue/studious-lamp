@@ -94,7 +94,12 @@ from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
 from tl_mod_documents import reports as document_reports
 from tl_mod_documents import views as document_views
-from tl_mod_documents.handlers.transmittals import CreateTransmittal, handle_create_transmittal
+from tl_mod_documents.handlers.transmittals import (
+    CreateTransmittal,
+    IssueTransmittal,
+    handle_create_transmittal,
+    handle_issue_transmittal,
+)
 from tl_mod_documents.resolver import RepinDocumentLink, handle_repin_document_link
 from tl_mod_engineering.views import TagView, tag_view, tag_views
 from tl_schema.forms import ConformanceReport, FormMetadata
@@ -668,6 +673,11 @@ class EmbeddedClient:
         with self._uow(False) as uow:
             return self.own_writes.note(handle_create_transmittal(uow, cmd))
 
+    def issue_transmittal(self, cmd: IssueTransmittal) -> CommandResult:
+        with self._uow(False) as uow:
+            self._controller_gate(uow)
+            return self.own_writes.note(handle_issue_transmittal(uow, cmd))
+
     # --- settings (P0-I8) ---------------------------------------------------------------------
 
     def list_settings(
@@ -800,6 +810,19 @@ class EmbeddedClient:
             or "admin" not in found.roles
         ):
             raise ForbiddenError("this action needs the admin role")
+
+    def _controller_gate(self, uow: UnitOfWork) -> None:
+        """Only an active admin or document controller may run a controlling act (ADR-0013)."""
+        name = self.actor.partition(":")[2]
+        found = account_queries.find_account(uow.conn(), username=name)
+        if (
+            found is None
+            or account_queries.actor_of(found) != self.actor
+            or found.status != "active"
+            or found.kind == "agent"
+            or not ({"admin", "document_controller"} & set(found.roles))
+        ):
+            raise ForbiddenError("this action needs the document_controller or admin role")
 
     def list_accounts(self) -> list[AccountView]:
         with self._uow(True) as uow:

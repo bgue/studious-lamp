@@ -35,6 +35,11 @@ class SignedIn:
     def is_admin(self) -> bool:
         return "admin" in self.roles
 
+    @property
+    def is_controller(self) -> bool:
+        """An admin or a document controller: the controlling acts of document control."""
+        return "admin" in self.roles or "document_controller" in self.roles
+
 
 class Authenticator(Protocol):
     """Checks a username and password. Raises a ``ServiceError`` or ``ApiError`` on failure."""

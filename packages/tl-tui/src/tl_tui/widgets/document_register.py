@@ -66,11 +66,14 @@ class DocumentRegisterScreen(ModalScreen[None]):
     DocumentRegisterScreen #docs-hints { height: 1; color: $text-muted; }
     """
 
-    def __init__(self, client: ClientInterface, project: str, actor: str) -> None:
+    def __init__(
+        self, client: ClientInterface, project: str, actor: str, *, is_controller: bool = False
+    ) -> None:
         super().__init__()
         self.client = client
         self.project = project
         self.actor = actor
+        self.is_controller = is_controller  # an admin or a document controller (ADR-0013)
         self.state: str | None = None
         self.doc_type: str | None = None
         self.include_void = False
@@ -235,14 +238,28 @@ class DocumentRegisterScreen(ModalScreen[None]):
         if isinstance(self.focused, Input):
             return  # the key is text
         number = self._number()
-        self.app.push_screen(
-            TransmittalComposerScreen(self.client, self.project, self.actor, document=number),
-            self._drafted,
+        composer = TransmittalComposerScreen(
+            self.client,
+            self.project,
+            self.actor,
+            document=number,
+            is_controller=self.is_controller,
         )
 
-    def _drafted(self, number: str | None) -> None:
-        """The composer closed: say which transmittal was drafted."""
-        if number:
+        def closed(made: str | None) -> None:
+            self._drafted(made, composer)
+
+        self.app.push_screen(composer, closed)
+
+    def _drafted(self, number: str | None, composer: TransmittalComposerScreen) -> None:
+        """The composer closed: say which transmittal was drafted, and whether it was issued."""
+        if not number:
+            return
+        if composer.issued:
+            self._say(f"Drafted and issued transmittal {number}.")
+        elif composer.issue_error:
+            self._say(f"Drafted transmittal {number}; issuing it failed: {composer.issue_error}")
+        else:
             self._say(f"Drafted transmittal {number}.")
 
     def action_filter(self) -> None:

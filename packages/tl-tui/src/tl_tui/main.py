@@ -41,12 +41,14 @@ def build_app(
     actor: str = DEFAULT_ACTOR,
     record_type: str = DEFAULT_TYPE,
     is_admin: bool = False,
+    is_controller: bool = False,
 ) -> TlApp:
     """The app over the ledger ``db`` (SQLite file or Postgres URL), showing ``project`` (embedded).
 
     ``actor`` is shown in the header and recorded on the settings the screens change.
     ``record_type`` is the record type the grid lists: ``core.Record`` or an extension type.
-    ``is_admin`` opens the accounts screen (F10) to the person using the app.
+    ``is_admin`` opens the accounts screen (F10) to the person using the app; ``is_controller``
+    (an admin or a document controller) offers the controlling acts of the document screens.
     """
     scope = f"project:{project}"
     client = EmbeddedClient.for_target(db, actor=actor)
@@ -56,6 +58,7 @@ def build_app(
         record_type=record_type,
         actor=actor,
         is_admin=is_admin,
+        is_controller=is_controller,
         feed=client.change_feed(scope) if live else None,
     )
 
@@ -69,6 +72,7 @@ def build_remote_app(
     live: bool = True,
     record_type: str = DEFAULT_TYPE,
     is_admin: bool = False,
+    is_controller: bool = False,
 ) -> TlApp:
     """The app over the API server at ``url`` using the bearer ``token`` (remote).
 
@@ -84,6 +88,7 @@ def build_remote_app(
         mode="remote",
         actor=actor,
         is_admin=is_admin,
+        is_controller=is_controller,
         feed=client.change_feed(scope) if live else None,
     )
 
@@ -110,6 +115,7 @@ def make_app(
     rtype = record_type or os.environ.get("TL_TYPE") or DEFAULT_TYPE
     who = signed_in.actor if signed_in is not None else actor or DEFAULT_ACTOR
     admin = signed_in is not None and signed_in.is_admin
+    controller = signed_in is not None and signed_in.is_controller
     if url is None:
         return build_app(
             db or os.environ.get("TL_DB", DEFAULT_DB),
@@ -117,6 +123,7 @@ def make_app(
             actor=who,
             record_type=rtype,
             is_admin=admin,
+            is_controller=controller,
         )
     secret = (signed_in.token if signed_in is not None else None) or token
     secret = secret or os.environ.get("TL_TOKEN")
@@ -124,7 +131,9 @@ def make_app(
         raise ValueError("remote mode needs a token: sign in, pass --token or set TL_TOKEN")
     if not url.startswith(("http://", "https://")):
         raise ValueError(f"--remote must be an http(s) URL, got {url!r}")
-    return build_remote_app(url, secret, proj, actor=who, record_type=rtype, is_admin=admin)
+    return build_remote_app(
+        url, secret, proj, actor=who, record_type=rtype, is_admin=admin, is_controller=controller
+    )
 
 
 def plain_http_warning(url: str) -> str | None:

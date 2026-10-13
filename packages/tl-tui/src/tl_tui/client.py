@@ -40,7 +40,7 @@ from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView
 from tl_mod_documents import reports as document_reports
 from tl_mod_documents import views as document_views
-from tl_mod_documents.handlers.transmittals import CreateTransmittal
+from tl_mod_documents.handlers.transmittals import CreateTransmittal, IssueTransmittal
 from tl_mod_documents.resolver import RepinDocumentLink
 from tl_mod_engineering.views import TagView
 from tl_schema.forms import ConformanceReport, FormMetadata
@@ -334,9 +334,9 @@ class ClientInterface(Protocol):
         """One transmittal with its items."""
         ...
 
-    # Two changes a person makes from the document screens. Both are open to any signed-in person
-    # (ADR-0011); issuing the transmittal, like issuing a revision, is an admin's command that has
-    # no method here.
+    # Two changes a person makes from the document screens are open to any signed-in person
+    # (ADR-0011, ADR-0013). Issuing the transmittal is a controlling act: the server refuses it to
+    # anyone but a document controller or an admin, and the screens offer it only to them.
 
     def repin_document_link(self, cmd: RepinDocumentLink) -> CommandResult:
         """Move a link to another revision of its document (``pin`` ``current`` for the latest)."""
@@ -344,6 +344,10 @@ class ClientInterface(Protocol):
 
     def create_transmittal(self, cmd: CreateTransmittal) -> CommandResult:
         """Draft a transmittal of issued revisions to named recipients."""
+        ...
+
+    def issue_transmittal(self, cmd: IssueTransmittal) -> CommandResult:
+        """Issue a draft transmittal (a controller's act: ``ForbiddenError`` for anyone else)."""
         ...
 
     # --- settings (P0-I8; brief 30) -----------------------------------------------------------

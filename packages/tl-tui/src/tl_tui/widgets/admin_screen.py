@@ -2,12 +2,13 @@
 
 A full-size modal opened with ``F10`` by an admin (brief 10; ADR-0008). The table lists every
 account; ``t`` switches to the agent tokens. The panel under the table describes the highlighted
-account. ``d`` disables or enables the account, ``r`` gives or takes away the admin role; each asks
-for an optional reason first; ``a`` adds an account, ``p`` sets a person's password, ``i`` issues a
-token for the highlighted agent (shown once) and ``x`` revokes the highlighted token on the tokens
-view (P1-I0-T09b). The service decides what is allowed (the last active admin cannot
-be disabled or demoted): a refusal is shown in the status line and nothing changes. Every change is
-one client call and the lists are read again afterwards; nothing is stored here.
+account. ``d`` disables or enables the account, ``r`` gives or takes away the admin role and ``c``
+the document controller role (ADR-0013); each asks for an optional reason first; ``a`` adds an
+account, ``p`` sets a person's password, ``i`` issues a token for the highlighted agent (shown once)
+and ``x`` revokes the highlighted token on the tokens view (P1-I0-T09b). The service decides what
+is allowed (the last active admin cannot be disabled or demoted, an agent cannot hold the
+controller role): a refusal is shown in the status line and nothing changes. Every change is one
+client call and the lists are read again afterwards; nothing is stored here.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from textual.binding import Binding, BindingType
 from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual.widgets import DataTable, Static
-from tl_core.auth.types import AccountView, AgentTokenView
+from tl_core.auth.types import ROLES, AccountView, AgentTokenView
 from tl_core.util import utcnow
 
 from tl_tui.admin_text import (
@@ -42,11 +43,14 @@ class AdminScreen(ModalScreen[None]):
     """Accounts and agent tokens. ``now`` is the clock used for token expiry (tests fix it)."""
 
     KEY_HINTS: ClassVar[str] = "d disable/enable  r admin role  t tokens  F5 reload  Esc close"
-    KEY_HINTS_MORE: ClassVar[str] = "a add  p password  i issue token  x revoke token"
+    KEY_HINTS_MORE: ClassVar[str] = (
+        "c controller role  a add  p password  i issue token  x revoke token"
+    )
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("d", "toggle_disabled", "Disable/enable", show=False),
         Binding("r", "toggle_admin", "Admin role", show=False),
+        Binding("c", "toggle_controller", "Controller role", show=False),
         Binding("t", "toggle_view", "Tokens", show=False),
         Binding("a", "add", "Add", show=False),
         Binding("p", "password", "Password", show=False),
@@ -205,16 +209,12 @@ class AdminScreen(ModalScreen[None]):
 
         self._ask_reason(f"{verb} {view.username}", apply)
 
-    def action_toggle_admin(self) -> None:
-        view = self.current_account()
-        if view is None or self.showing_tokens:
-            return
-        if view.kind != "person":
-            self._say(f"Only people can be admins; {view.username} is a {view.kind} account.")
-            return
-        taking = "admin" in view.roles
-        roles = ["user"] if taking else ["admin", "user"]
-        verb = "Take the admin role from" if taking else "Make admin"
+    def _toggle_role(self, role: str, view: AccountView, *, verb_give: str, verb_take: str) -> None:
+        """Give or take away ``role``, keeping the account's other roles as they are."""
+        taking = role in view.roles
+        wanted = {r for r in view.roles if r != role} | (set() if taking else {role})
+        roles = [r for r in ROLES if r in wanted] or ["user"]  # an account always has a role
+        verb = verb_take if taking else verb_give
 
         def apply(reason: str | None) -> None:
             try:
@@ -226,6 +226,32 @@ class AdminScreen(ModalScreen[None]):
             self._say(f"{view.username} is now {', '.join(roles)}")
 
         self._ask_reason(f"{verb} {view.username}", apply)
+
+    def action_toggle_admin(self) -> None:
+        view = self.current_account()
+        if view is None or self.showing_tokens:
+            return
+        if view.kind != "person":
+            self._say(f"Only people can be admins; {view.username} is a {view.kind} account.")
+            return
+        self._toggle_role(
+            "admin", view, verb_give="Make admin", verb_take="Take the admin role from"
+        )
+
+    def action_toggle_controller(self) -> None:
+        """Give or take away the document controller role (people and sim accounts, not agents)."""
+        view = self.current_account()
+        if view is None or self.showing_tokens:
+            return
+        if view.kind == "agent":
+            self._say(f"{view.username} is an agent: agents only propose and cannot control.")
+            return
+        self._toggle_role(
+            "document_controller",
+            view,
+            verb_give="Make document controller",
+            verb_take="Take the document controller role from",
+        )
 
     def action_toggle_view(self) -> None:
         self.showing_tokens = not self.showing_tokens

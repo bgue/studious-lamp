@@ -78,3 +78,51 @@ def test_f7_needs_a_project_scope() -> None:
         assert not isinstance(app.screen, DocumentRegisterScreen)
 
     run_pilot(app, go)
+
+
+def test_a_controller_drafts_and_issues_from_the_register() -> None:
+    client = FakeClient()
+    client.seed_documents("P123")
+    app = TlApp(client, scope=SCOPE, actor="user:dora", is_controller=True)
+
+    async def go(pilot: Pilot[None]) -> None:
+        await pilot.press("f7")
+        await pilot.pause()
+        register = app.screen
+        assert isinstance(register, DocumentRegisterScreen) and register.is_controller
+        await pilot.press("t")
+        await pilot.pause()
+        composer = app.screen
+        assert isinstance(composer, TransmittalComposerScreen) and composer.is_controller
+        composer.query_one("#tc-subject", Input).value = "To site"
+        composer.query_one("#tc-to", Input).value = "Site"
+        await pilot.press("ctrl+t")
+        await pilot.pause()
+        assert app.screen is register
+        assert "Drafted and issued transmittal P123-TRN-0001." in screen_text(app)
+
+    run_pilot(app, go)
+
+
+def test_a_plain_user_gets_no_issue_key_in_the_register_flow() -> None:
+    client = FakeClient()
+    client.seed_documents("P123")
+    app = TlApp(client, scope=SCOPE, actor="user:kim")  # not a controller
+
+    async def go(pilot: Pilot[None]) -> None:
+        await pilot.press("f7")
+        await pilot.pause()
+        assert isinstance(app.screen, DocumentRegisterScreen) and not app.screen.is_controller
+        await pilot.press("t")
+        await pilot.pause()
+        composer = app.screen
+        assert isinstance(composer, TransmittalComposerScreen) and not composer.is_controller
+        assert "Ctrl+T" not in screen_text(app)
+
+    run_pilot(app, go)
+
+
+def test_an_admin_app_is_a_controller_app() -> None:
+    app = TlApp(FakeClient(), scope=SCOPE, actor="user:boss", is_admin=True)
+    assert app.is_controller
+    assert not TlApp(FakeClient(), scope=SCOPE, actor="user:kim").is_controller
