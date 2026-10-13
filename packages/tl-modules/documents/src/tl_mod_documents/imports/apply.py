@@ -5,13 +5,7 @@ it, so a failure on one rolls back the lot. The source of each event is ``import
 history says where a document came from. The plan is trusted to have been made against the same
 ledger a moment before: ``RegisterDocument`` checks everything again and a number that appeared
 in between is refused as it would be for anyone.
-
-STUB (P1-I2-T12d): the bodies of apply_plan raise NotImplementedError; their signatures, options,
-docstrings and the helpers are final. Each body has a STEPS comment. Implement them, then delete
-this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -47,15 +41,31 @@ def apply_plan(
     is false. Anything ``RegisterDocument`` raises stops the import and leaves nothing registered
     (the caller's unit of work rolls back).
     """
-    # STEPS
-    # 1. When JOB.fullmatch(job) is None raise ImportRefusedError(f"the job name {job!r} must be 1
-    #    to 64 letters, digits, '_', '.' or '-'").
-    # 2. When plan.invalid and not skip_invalid raise ImportRefusedError(f"{len(plan.invalid)}
-    #    row(s) cannot be imported; fix the file or skip them").
-    # 3. For each row of plan.new, in order, results.append(handle_register_document(uow,
-    #    RegisterDocument(actor=actor, source=f"import:{job}", scope=scope, number=row.number,
-    #    title=row.title, description=row.note, doc_type=row.doc_type, discipline=row.discipline,
-    #    originator=row.originator))). Write `title=row.title or row.number`: a new row always has
-    #    a title, and the fallback only satisfies the type checker.
-    # 4. Return the results.
-    raise NotImplementedError
+    if JOB.fullmatch(job) is None:
+        raise ImportRefusedError(
+            f"the job name {job!r} must be 1 to 64 letters, digits, '_', '.' or '-'"
+        )
+    if plan.invalid and not skip_invalid:
+        raise ImportRefusedError(
+            f"{len(plan.invalid)} row(s) cannot be imported; fix the file or skip them"
+        )
+    results: list[CommandResult] = []
+    for row in plan.new:
+        results.append(
+            handle_register_document(
+                uow,
+                RegisterDocument(
+                    actor=actor,
+                    source=f"import:{job}",
+                    scope=scope,
+                    number=row.number,
+                    # a new row always has a title; the fallback only satisfies the type checker
+                    title=row.title or row.number,
+                    description=row.note,
+                    doc_type=row.doc_type,
+                    discipline=row.discipline,
+                    originator=row.originator,
+                ),
+            )
+        )
+    return results
