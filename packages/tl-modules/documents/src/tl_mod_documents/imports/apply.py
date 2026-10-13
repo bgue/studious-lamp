@@ -49,7 +49,8 @@ def apply_plan(
     # 3. For each row of plan.new, in order, results.append(handle_register_document(uow,
     #    RegisterDocument(actor=actor, source=f"import:{job}", scope=scope, number=row.number,
     #    title=row.title, description=row.note, doc_type=row.doc_type, discipline=row.discipline,
-    #    originator=row.originator))). The title is never None for a new row.
+    #    originator=row.originator))). Write `title=row.title or row.number`: a new row always has
+    #    a title, and the fallback only satisfies the type checker.
     # 4. Return the results.
     if JOB.fullmatch(job) is None:
         raise ImportRefusedError(

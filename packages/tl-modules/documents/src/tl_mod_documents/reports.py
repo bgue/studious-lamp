@@ -97,7 +97,11 @@ class TransmittalLine:
 
 @dataclass(frozen=True)
 class StalePinLine:
-    """A link pinned to a revision that a newer issue has replaced (or flagged stale)."""
+    """A link pinned to a revision that a later revision has replaced (or flagged stale).
+
+    A later revision replaces a pin when it was issued in the pinned revision's status class or a
+    later one (ADR-0012); ``newer_codes`` are the revisions that did.
+    """
 
     document_number: str
     document_title: str
@@ -291,6 +295,9 @@ def transmittal_log(
 
 def stale_pins(conn: Connection, scope: str) -> list[StalePinLine]:
     """Links pinned to a revision that has been replaced, or flagged stale, by document and record.
+
+    Replaced means a later revision of the same status class or a later one (ADR-0012), or a
+    document that was voided or superseded.
 
     Ordered by document number, then the key of the record that links.
     """

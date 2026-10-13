@@ -1,8 +1,10 @@
 """Pinned links of documents: `tl doc link|stale|diff|repin`.
 
 A record can be linked to a document floating (it means whatever revision is current) or pinned to
-an issued revision. When a later revision is issued, a pinned link goes stale; `tl doc stale` lists
-them and `tl doc repin` moves one to another revision after showing what changed between the two
+an issued revision. A pinned link goes stale when a newer revision is issued in the pinned
+revision's status class or a later one (ADR-0012), or when the document is voided or superseded;
+a review issue leaves a construction pin alone. `tl doc stale` lists the stale links and
+`tl doc repin` moves one to another revision after showing what changed between the two
 (`tl doc diff` shows the same without moving anything). The rules live in
 `tl_mod_documents.resolver`; the commands parse options, make one call and print.
 The four functions are registered on the `tl doc` group by `tl_cli.main`.

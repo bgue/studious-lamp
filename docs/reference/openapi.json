@@ -8800,7 +8800,7 @@
         "type": "object"
       },
       "StalePinLine": {
-        "description": "A link pinned to a revision that a newer issue has replaced (or flagged stale).",
+        "description": "A link pinned to a revision that a later revision has replaced (or flagged stale).\n\nA later revision replaces a pin when it was issued in the pinned revision's status class or a\nlater one (ADR-0012); ``newer_codes`` are the revisions that did.",
         "properties": {
           "current_code": {
             "anyOf": [
