@@ -33,13 +33,22 @@ def plan_import(conn: Connection, scope: str, rows: list[ImportRow]) -> ImportPl
             problems.append(f"the number appears again; first on line {first_line[row.number]}")
         elif row.number:
             first_line[row.number] = row.line
-        if not row.number and "the document number is blank" not in problems:
+        if not row.number and not problems:
             problems.append("the document number is blank")  # a hand-built row; read_rows says it
         if row.title is None:
             problems.append("the title is blank")
         if not problems:
             problems.extend(
-                register_problems(conn, scope, row.number, row.doc_type, row.discipline)
+                register_problems(
+                    conn,
+                    scope,
+                    row.number,
+                    row.doc_type,
+                    row.discipline,
+                    title=row.title,
+                    description=row.note,
+                    originator=row.originator,
+                )
             )
         if problems:
             plan.invalid.append(replace(row, problems=problems))

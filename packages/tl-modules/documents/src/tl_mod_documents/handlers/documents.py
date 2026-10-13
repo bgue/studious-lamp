@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy import Connection
 from tl_core.ledger import Event, NewEvent
 from tl_core.services.commands import Command, CommandResult
@@ -88,6 +88,13 @@ class RegisterDocument(Command):
     @classmethod
     def _title(cls, value: str) -> str:
         return _non_blank(value)
+
+    @field_validator("number")
+    @classmethod
+    def _number(cls, value: str) -> str:
+        if has_control_character(value):
+            raise ValueError("must not hold a line break or another control character")
+        return value
 
 
 class UpdateDocument(Command):
@@ -183,15 +190,58 @@ def _check_code(conn: Connection, scope: str, list_name: str, value: str | None,
         raise InvalidDocumentTypeError(f"{what} {value!r} of {list_name} is no longer in use")
 
 
-def register_problems(
-    conn: Connection, scope: str, number: str, doc_type: str | None, discipline: str | None
-) -> list[str]:
-    """Why ``RegisterDocument`` would refuse this number, type and discipline (else empty).
+def has_control_character(text: str) -> bool:
+    """Whether ``text`` holds a character below space or DEL (a tab and a line break included)."""
+    return any(ord(c) < 32 or ord(c) == 127 for c in text)
 
-    The same checks as the command makes before it writes (reserved characters, the registry
-    pattern, the two code lists), so a plan can say it ahead. It reads only.
+
+def field_problems(**fields: str | None) -> list[str]:
+    """Why ``RegisterDocument`` would refuse these field values on their own (else empty).
+
+    It builds the command with them, so the limits and validators are the model's, not copies.
+    A field given as ``None`` is left out. Each problem is ``<field>: <message>``.
     """
-    problems: list[str] = []
+    given = {name: value for name, value in fields.items() if value is not None}
+    try:
+        RegisterDocument.model_validate(
+            {"actor": "user:plan", "source": "plan", "scope": "project:plan", **given}
+        )
+    except ValidationError as exc:
+        return [
+            f"{error['loc'][0]}: {error['msg']}"
+            for error in exc.errors()
+            if error["loc"] and error["loc"][0] in given
+        ]
+    return []
+
+
+def register_problems(
+    conn: Connection,
+    scope: str,
+    number: str,
+    doc_type: str | None,
+    discipline: str | None,
+    *,
+    title: str | None = None,
+    description: str | None = None,
+    originator: str | None = None,
+) -> list[str]:
+    """Why ``RegisterDocument`` would refuse these values (else empty).
+
+    The same checks as the command makes before it writes: the field limits and validators of the
+    model (``field_problems``), the reserved characters, the registry pattern and the two code
+    lists, so a plan can say it ahead. It reads only.
+    """
+    problems = field_problems(
+        number=number,
+        title=title,
+        description=description,
+        doc_type=doc_type,
+        discipline=discipline,
+        originator=originator,
+    )
+    if problems:
+        return problems
     if RESERVED_KEY_CHARS & set(number):
         problems.append(f"number {number!r} holds '@', which the register uses in its own keys")
     for list_name, value, what in (

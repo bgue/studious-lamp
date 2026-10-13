@@ -18,6 +18,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from tl_mod_documents.imports.model import ImportRow
+from tl_mod_documents.limits import MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, MAX_LEGACY_CELL
 
 #: What a column can be: the number is required, once; the rest are optional, once each.
 TARGETS = ("number", "title", "type", "discipline", "originator", "revision", "status", "date")
@@ -111,6 +112,28 @@ def load_mapping(path: Path) -> DocumentMapping:
     return parse_mapping(text, source=path.name)
 
 
+def read_file_text(path: Path) -> str:
+    """The text of an import file, read only when it is small enough (``MAX_IMPORT_BYTES``).
+
+    Raises ``MappingError`` for a file that is too large, cannot be read or is not UTF-8.
+    """
+    try:
+        size = path.stat().st_size
+        if size > MAX_IMPORT_BYTES:
+            raise MappingError(
+                f"{path.name}: the file is {size} bytes; an import takes at most "
+                f"{MAX_IMPORT_BYTES // (1024 * 1024)} MiB, so split it"
+            )
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise MappingError(f"{path.name}: cannot read file: {exc}") from exc
+
+
+def _control_character(cell: str) -> bool:
+    """A control character other than tab, carriage return and line feed."""
+    return any((ord(c) < 32 and c not in "\t\r\n") or ord(c) == 127 for c in cell)
+
+
 def read_rows(text: str, mapping: DocumentMapping) -> list[ImportRow]:
     """The data rows of a CSV file as ``ImportRow`` values, in file order.
 
@@ -121,9 +144,18 @@ def read_rows(text: str, mapping: DocumentMapping) -> list[ImportRow]:
     mapping does not mention.
 
     Raises ``MappingError`` when the file has no header row, lacks a column the mapping names (the
-    message lists every missing column), has a named column twice (unnamed columns are ignored)
-    or is not valid CSV.
+    message lists every missing column), has a named column twice (unnamed columns are ignored),
+    is not valid CSV, is larger than ``MAX_IMPORT_BYTES`` or has more than ``MAX_IMPORT_ROWS``
+    data rows.
+
+    A cell with a control character (other than tab, CR and LF) is a problem of its row, as is a
+    document number with a tab or a line break and a legacy revision, status or date longer than
+    ``MAX_LEGACY_CELL``; the field stays unset.
     """
+    if len(text) > MAX_IMPORT_BYTES or len(text.encode("utf-8")) > MAX_IMPORT_BYTES:
+        raise MappingError(
+            f"the file is larger than {MAX_IMPORT_BYTES // (1024 * 1024)} MiB; split it"
+        )
     reader = csv.reader(
         io.StringIO(text.removeprefix("﻿")), delimiter=mapping.delimiter, strict=True
     )
@@ -151,6 +183,11 @@ def read_rows(text: str, mapping: DocumentMapping) -> list[ImportRow]:
         stripped = [cell.strip() for cell in cells]
         if not any(stripped):
             continue
+        if len(rows) >= MAX_IMPORT_ROWS:
+            raise MappingError(
+                f"the file has more than {MAX_IMPORT_ROWS} rows; an import takes at most "
+                f"{MAX_IMPORT_ROWS}, so split it"
+            )
         raw = {name: (stripped[i] if i < len(stripped) else "") for i, name in enumerate(header)}
         number = ""
         title: str | None = None
@@ -166,6 +203,15 @@ def read_rows(text: str, mapping: DocumentMapping) -> list[ImportRow]:
             if not cell:
                 if column.to == "number":
                     problems.append("the document number is blank")
+                continue
+            if _control_character(cell):
+                problems.append(f"{column.column}: holds a control character")
+                continue
+            if column.to == "number" and any(c in cell for c in "\t\r\n"):
+                problems.append(f"{column.column}: a document number must be on one line")
+                continue
+            if column.to in ("revision", "status", "date") and len(cell) > MAX_LEGACY_CELL:
+                problems.append(f"{column.column}: longer than {MAX_LEGACY_CELL} characters")
                 continue
             if column.values and cell not in column.values:
                 problems.append(f"{column.column}: {cell!r} is not one of the mapped values")

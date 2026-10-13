@@ -16,6 +16,9 @@ MAX_ITEMS = 200  # revisions on one transmittal
 MAX_RECIPIENTS = 100  # recipients of one transmittal
 MAX_REVIEWERS = 50  # reviewers of one review cycle
 MAX_PAGES = 100_000  # the page count a rendition may state
+MAX_IMPORT_ROWS = 1000  # data rows of one legacy register file
+MAX_IMPORT_BYTES = 5 * 1024 * 1024  # size of one legacy register file
+MAX_LEGACY_CELL = 64  # a legacy revision, status or date kept in a note
 MAX_MARKUPS = 20  # current markup renditions of one revision (markup is additive)
 
 #: Said wherever confidentiality is set or shown, so nobody takes the class for access control.
