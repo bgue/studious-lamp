@@ -57,6 +57,8 @@ Then: a rejected document number (`ISO-12`); a review cycle with an overdue revi
 | S3 | Package `tl-mod-documents`: projectors, registry reads, scheme engine (T05), document/revision/rendition commands (T04), pin and stale resolver (T07), invariants, API command table, test world | Invariants across streams; resolver semantics (01-tiers §3) | reviewer | done |
 | S4 | API wiring (23 commands, error rows), `by_module` keyword on the transition and link handlers | Security surface | orchestrator | done |
 | S6 | Security fixes after the fresh-context review (ADR-0011, ADR-0010 second addendum): `generic_guards`, link-life commands, reserved keys, signed write-once, supersede checks, review rules, dates and number pattern, access levels | Security surface, core | orchestrator and re-review | in re-review |
+| S10 | Document read models (`tl_mod_documents.views`), seven GET routes (`document.read`, open to agents), the API client, the `ClientInterface` reads with the embedded client and the in-memory fake, `tl doc confidentiality` (admin) | Security surface (a read action for agents); the client interface | orchestrator | done |
+| S11 | Reference implementations of T09e, T09f and T10b, kept in the history for a takeover | Takeover path | — | done |
 | S5 | Reference implementations of T08a, T08b, T09a, T11a, kept in the history of `p1/i2` (`1734486`; the T11a reference was refreshed at `5abf509`) for a takeover; the tree holds stubs until each ticket merges | Takeover path | — | done |
 
 ## Tickets
@@ -71,6 +73,11 @@ Then: a rejected document number (`ISO-12`); a review cycle with an overdue revi
 | T09c | `tl doc rendition`: add, replace-signed (admin), ls | H | S3, S6 | ready (batch 2) | |
 | T09d | `tl doc link`, `stale`, `diff`, `repin` | H | S3, S6 | ready (batch 2) | |
 | T11b | `tl doc report`: register, history, overdue, transmittals, stale | H | T11a | ready (batch 2) | |
+| T09e | `tl transmittal`: create, issue (admin), answer, close, void, ls, show | H | S3, S6, T08a | ready (batch 3) | |
+| T09f | `tl review`: open, answer, on-behalf (admin), close, override (admin), ls | H | S3, S6, T08b | ready (batch 3) | |
+| T10b | MCP read tools for documents (seven tools, each an explicit `MCP_ACTIONS` entry) | H | S10 | ready (batch 3) | |
+
+Merge adaptations after batch 2 (supervisor, because the third security pass changed the rules under the running tickets): T09c's `add --kind signed` now fails (the first signed copy is `RegisterSignedRendition`, an admin's), so its provided test is updated and a `tl doc rendition register-signed` command (admin) is added at the merge.
 
 The `doc_rev`, `doc_rendition`, `doc_link` and `doc_report` modules are wired in `tl_cli/main.py` by the supervisor so the four tickets have disjoint paths; each ticket's stub has its reference in the history (the commit before the stub commit).
 

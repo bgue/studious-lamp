@@ -5,7 +5,13 @@ options, makes one call into `tl_mod_documents` (a handler or a read) and prints
 issued revisions, the number pattern, the dates, which state allows what) live in the module.
 Transmittals are named by number; revisions as `NUMBER@CODE` (`ISO-1234@B`); the project comes from
 `--project`. Issuing a transmittal is an admin's act (ADR-0011).
+
+STUB (P1-I2-T09e): the bodies of the seven commands raise NotImplementedError; their signatures,
+options, docstrings and the helpers are final. Each body has a STEPS comment. Implement them,
+then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -122,30 +128,7 @@ def create(
     #    revision_ids=ids, notes=notes)). `direction` and `purpose` are checked by the model; a
     #    bad value is reported by _service_errors as `error: <field>: <message>`.
     # 3. Print `created transmittal <made.key>` and then `items <len(ids)>`.
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    with _service_errors(), open_uow(db) as uow:
-        ids = _revision_ids(uow, scope, project, revisions)
-        made = handle_create_transmittal(
-            uow,
-            CreateTransmittal.model_validate(
-                {
-                    "actor": actor,
-                    "source": "cli",
-                    "scope": scope,
-                    "number": number,
-                    "subject": subject,
-                    "direction": direction,
-                    "purpose": purpose,
-                    "due_date": due,
-                    "recipients": [_recipient(t) for t in to],
-                    "revision_ids": ids,
-                    "notes": notes,
-                }
-            ),
-        )
-    typer.echo(f"created transmittal {made.key}")
-    typer.echo(f"items {len(ids)}")
+    raise NotImplementedError
 
 
 @app.command("issue")
@@ -165,24 +148,7 @@ def issue(
     #    scope=scope, stream_id=row.id, issued_on=issued_on, date_reason=date_reason));
     #    after = _transmittal(uow, scope, project, number).
     # 3. Print `issued <number> on <after.issued_on>`.
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    require_admin(db)
-    with _service_errors(), open_uow(db) as uow:
-        row = _transmittal(uow, scope, project, number)
-        handle_issue_transmittal(
-            uow,
-            IssueTransmittal(
-                actor=actor,
-                source="cli",
-                scope=scope,
-                stream_id=row.id,
-                issued_on=issued_on,
-                date_reason=date_reason,
-            ),
-        )
-        after = _transmittal(uow, scope, project, number)
-    typer.echo(f"issued {number} on {after.issued_on}")
+    raise NotImplementedError
 
 
 @app.command("answer")
@@ -208,26 +174,7 @@ def answer(
     #    "response_code": code, "response_note": note, "responded_on": responded_on,
     #    "date_reason": date_reason})). A bad `--code` is reported by _service_errors.
     # 3. Print `answered <number>: <code>`.
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    with _service_errors(), open_uow(db) as uow:
-        row = _transmittal(uow, scope, project, number)
-        handle_record_transmittal_response(
-            uow,
-            RecordTransmittalResponse.model_validate(
-                {
-                    "actor": actor,
-                    "source": "cli",
-                    "scope": scope,
-                    "stream_id": row.id,
-                    "response_code": code,
-                    "response_note": note,
-                    "responded_on": responded_on,
-                    "date_reason": date_reason,
-                }
-            ),
-        )
-    typer.echo(f"answered {number}: {code}")
+    raise NotImplementedError
 
 
 @app.command("close")
@@ -245,17 +192,7 @@ def close(
     #    number); handle_close_transmittal(uow, CloseTransmittal(actor=actor, source="cli",
     #    scope=scope, stream_id=row.id, reason=reason)).
     # 3. Print `closed <number>`.
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    with _service_errors(), open_uow(db) as uow:
-        row = _transmittal(uow, scope, project, number)
-        handle_close_transmittal(
-            uow,
-            CloseTransmittal(
-                actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
-            ),
-        )
-    typer.echo(f"closed {number}")
+    raise NotImplementedError
 
 
 @app.command("void")
@@ -273,17 +210,7 @@ def void(
     #    number); handle_void_transmittal(uow, VoidTransmittal(actor=actor, source="cli",
     #    scope=scope, stream_id=row.id, reason=reason)).
     # 3. Print `voided <number>`.
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    with _service_errors(), open_uow(db) as uow:
-        row = _transmittal(uow, scope, project, number)
-        handle_void_transmittal(
-            uow,
-            VoidTransmittal(
-                actor=actor, source="cli", scope=scope, stream_id=row.id, reason=reason
-            ),
-        )
-    typer.echo(f"voided {number}")
+    raise NotImplementedError
 
 
 @app.command("ls")
@@ -301,21 +228,7 @@ def ls(
     #    direction=direction).
     # 3. For each row print, joined by two spaces: number, "Void" if row.voided else row.state,
     #    direction, purpose, f"items={item_count}", title.
-    db: DbTarget = ctx.obj
-    with _service_errors(), open_uow(db, readonly=True) as uow:
-        rows = registry.list_transmittals(
-            uow.conn(), f"project:{project}", state=state, direction=direction
-        )
-    for row in rows:
-        fields = [
-            row.number,
-            "Void" if row.voided else row.state,
-            row.direction,
-            row.purpose,
-            f"items={row.item_count}",
-            row.title,
-        ]
-        typer.echo("  ".join(fields))
+    raise NotImplementedError
 
 
 @app.command("show")
@@ -332,24 +245,4 @@ def show(ctx: typer.Context, number: _Number, project: _Project) -> None:
     # 4. Then one line per recipient, `recipient <name>` plus `, <organisation>` and
     #    ` <<email>>` when given (for example `recipient Site, Acme <site@acme.test>`).
     # 5. Then one line per item, `item <document_number>@<revision_code> <issue_status or ->`.
-    db: DbTarget = ctx.obj
-    with _service_errors(), open_uow(db, readonly=True) as uow:
-        view = views.transmittal_view(uow.conn(), f"project:{project}", number)
-    typer.echo(f"number: {view.number}")
-    typer.echo(f"title: {view.title}")
-    typer.echo(f"state: {view.state}")
-    typer.echo(f"direction: {view.direction}")
-    typer.echo(f"purpose: {view.purpose}")
-    typer.echo(f"issued: {view.issued_on or '-'}")
-    typer.echo(f"due: {view.due_date or '-'}")
-    typer.echo(f"response: {view.response_code or '-'}")
-    typer.echo(f"responded: {view.responded_on or '-'}")
-    for party in view.recipients:
-        line = f"recipient {party['name']}"
-        if party.get("organisation"):
-            line += f", {party['organisation']}"
-        if party.get("email"):
-            line += f" <{party['email']}>"
-        typer.echo(line)
-    for item in view.items:
-        typer.echo(f"item {item.document_number}@{item.revision_code} {item.issue_status or '-'}")
+    raise NotImplementedError
