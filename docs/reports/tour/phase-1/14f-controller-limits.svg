@@ -1,0 +1,116 @@
+<svg class="rich-terminal" viewBox="0 0 1458 489.2" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    
+    
+
+    .terminal-390964939-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-390964939-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-390964939-r1 { fill: #98a84b;font-weight: bold }
+.terminal-390964939-r2 { fill: #c5c8c6;font-weight: bold }
+.terminal-390964939-r3 { fill: #c5c8c6 }
+.terminal-390964939-r4 { fill: #cc555a }
+.terminal-390964939-r5 { fill: #9a9b99;font-style: italic; }
+    </style>
+
+    <defs>
+    <clipPath id="terminal-390964939-clip-terminal">
+      <rect x="0" y="0" width="1438.6" height="438.2" />
+    </clipPath>
+    <clipPath id="terminal-390964939-line-0">
+    <rect x="0" y="1.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-1">
+    <rect x="0" y="25.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-2">
+    <rect x="0" y="50.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-3">
+    <rect x="0" y="74.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-4">
+    <rect x="0" y="99.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-5">
+    <rect x="0" y="123.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-6">
+    <rect x="0" y="147.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-7">
+    <rect x="0" y="172.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-8">
+    <rect x="0" y="196.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-9">
+    <rect x="0" y="221.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-10">
+    <rect x="0" y="245.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-11">
+    <rect x="0" y="269.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-12">
+    <rect x="0" y="294.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-13">
+    <rect x="0" y="318.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-14">
+    <rect x="0" y="343.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-15">
+    <rect x="0" y="367.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-390964939-line-16">
+    <rect x="0" y="391.9" width="1439.6" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="487.2" rx="8"/><text class="terminal-390964939-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">The&#160;controller&#160;stops&#160;where&#160;document&#160;control&#160;stops</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-390964939-clip-terminal)">
+    
+    <g class="terminal-390964939-matrix">
+    <text class="terminal-390964939-r1" x="0" y="20" textLength="73.2" clip-path="url(#terminal-390964939-line-0)">dora$&#160;</text><text class="terminal-390964939-r2" x="73.2" y="20" textLength="195.2" clip-path="url(#terminal-390964939-line-0)">tl&#160;admin&#160;user&#160;ls</text><text class="terminal-390964939-r3" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-390964939-line-0)">
+</text><text class="terminal-390964939-r4" x="0" y="44.4" textLength="622.2" clip-path="url(#terminal-390964939-line-1)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-390964939-r3" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-390964939-line-1)">
+</text><text class="terminal-390964939-r1" x="0" y="68.8" textLength="73.2" clip-path="url(#terminal-390964939-line-2)">dora$&#160;</text><text class="terminal-390964939-r2" x="73.2" y="68.8" textLength="207.4" clip-path="url(#terminal-390964939-line-2)">tl&#160;admin&#160;token&#160;ls</text><text class="terminal-390964939-r3" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-390964939-line-2)">
+</text><text class="terminal-390964939-r4" x="0" y="93.2" textLength="622.2" clip-path="url(#terminal-390964939-line-3)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-390964939-r3" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-390964939-line-3)">
+</text><text class="terminal-390964939-r1" x="0" y="117.6" textLength="73.2" clip-path="url(#terminal-390964939-line-4)">dora$&#160;</text><text class="terminal-390964939-r2" x="73.2" y="117.6" textLength="439.2" clip-path="url(#terminal-390964939-line-4)">tl&#160;admin&#160;user&#160;roles&#160;dora&#160;--add&#160;admin</text><text class="terminal-390964939-r3" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-390964939-line-4)">
+</text><text class="terminal-390964939-r4" x="0" y="142" textLength="622.2" clip-path="url(#terminal-390964939-line-5)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-390964939-r3" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-390964939-line-5)">
+</text><text class="terminal-390964939-r1" x="0" y="166.4" textLength="73.2" clip-path="url(#terminal-390964939-line-6)">dora$&#160;</text><text class="terminal-390964939-r2" x="73.2" y="166.4" textLength="597.8" clip-path="url(#terminal-390964939-line-6)">tl&#160;admin&#160;user&#160;roles&#160;amy&#160;--add&#160;document_controller</text><text class="terminal-390964939-r3" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-390964939-line-6)">
+</text><text class="terminal-390964939-r4" x="0" y="190.8" textLength="622.2" clip-path="url(#terminal-390964939-line-7)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-390964939-r3" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-390964939-line-7)">
+</text><text class="terminal-390964939-r1" x="0" y="215.2" textLength="73.2" clip-path="url(#terminal-390964939-line-8)">dora$&#160;</text><text class="terminal-390964939-r2" x="73.2" y="215.2" textLength="463.6" clip-path="url(#terminal-390964939-line-8)">tl&#160;admin&#160;user&#160;add&#160;eve&#160;--password-stdin</text><text class="terminal-390964939-r3" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-390964939-line-8)">
+</text><text class="terminal-390964939-r4" x="0" y="239.6" textLength="622.2" clip-path="url(#terminal-390964939-line-9)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-390964939-r3" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-390964939-line-9)">
+</text><text class="terminal-390964939-r5" x="0" y="264" textLength="561.2" clip-path="url(#terminal-390964939-line-10)">#&#160;an&#160;agent&#160;account&#160;cannot&#160;hold&#160;the&#160;role&#160;either</text><text class="terminal-390964939-r3" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-390964939-line-10)">
+</text><text class="terminal-390964939-r1" x="0" y="288.4" textLength="73.2" clip-path="url(#terminal-390964939-line-11)">demo$&#160;</text><text class="terminal-390964939-r2" x="73.2" y="288.4" textLength="744.2" clip-path="url(#terminal-390964939-line-11)">tl&#160;admin&#160;user&#160;add&#160;bot&#160;--kind&#160;agent&#160;--role&#160;document_controller</text><text class="terminal-390964939-r3" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-390964939-line-11)">
+</text><text class="terminal-390964939-r4" x="0" y="312.8" textLength="780.8" clip-path="url(#terminal-390964939-line-12)">error:&#160;an&#160;agent&#160;account&#160;cannot&#160;hold&#160;the&#160;document_controller&#160;role</text><text class="terminal-390964939-r3" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-390964939-line-12)">
+</text><text class="terminal-390964939-r5" x="0" y="337.2" textLength="646.6" clip-path="url(#terminal-390964939-line-13)">#&#160;taking&#160;the&#160;role&#160;away&#160;closes&#160;the&#160;same&#160;commands&#160;again</text><text class="terminal-390964939-r3" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-390964939-line-13)">
+</text><text class="terminal-390964939-r1" x="0" y="361.6" textLength="73.2" clip-path="url(#terminal-390964939-line-14)">demo$&#160;</text><text class="terminal-390964939-r2" x="73.2" y="361.6" textLength="951.6" clip-path="url(#terminal-390964939-line-14)">tl&#160;admin&#160;user&#160;roles&#160;dora&#160;--remove&#160;document_controller&#160;--reason&#160;&#x27;moved&#160;to&#160;site&#x27;</text><text class="terminal-390964939-r3" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-390964939-line-14)">
+</text><text class="terminal-390964939-r3" x="0" y="386" textLength="317.2" clip-path="url(#terminal-390964939-line-15)">dora&#160;&#160;person&#160;&#160;user&#160;&#160;active</text><text class="terminal-390964939-r3" x="1439.6" y="386" textLength="12.2" clip-path="url(#terminal-390964939-line-15)">
+</text><text class="terminal-390964939-r1" x="0" y="410.4" textLength="73.2" clip-path="url(#terminal-390964939-line-16)">dora$&#160;</text><text class="terminal-390964939-r2" x="73.2" y="410.4" textLength="671" clip-path="url(#terminal-390964939-line-16)">tl&#160;doc&#160;rev&#160;issue&#160;ISO-3000&#160;C&#160;--project&#160;P123&#160;--status&#160;IFR</text><text class="terminal-390964939-r3" x="1439.6" y="410.4" textLength="12.2" clip-path="url(#terminal-390964939-line-16)">
+</text><text class="terminal-390964939-r4" x="0" y="434.8" textLength="902.8" clip-path="url(#terminal-390964939-line-17)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;document_controller&#160;or&#160;admin&#160;role</text><text class="terminal-390964939-r3" x="1439.6" y="434.8" textLength="12.2" clip-path="url(#terminal-390964939-line-17)">
+</text>
+    </g>
+    </g>
+</svg>

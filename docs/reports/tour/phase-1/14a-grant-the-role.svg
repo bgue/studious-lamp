@@ -1,0 +1,176 @@
+<svg class="rich-terminal" viewBox="0 0 1458 855.1999999999999" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    
+    
+
+    .terminal-1811958103-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-1811958103-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-1811958103-r1 { fill: #98a84b;font-weight: bold }
+.terminal-1811958103-r2 { fill: #c5c8c6;font-weight: bold }
+.terminal-1811958103-r3 { fill: #c5c8c6 }
+.terminal-1811958103-r4 { fill: #9a9b99;font-style: italic; }
+.terminal-1811958103-r5 { fill: #cc555a }
+    </style>
+
+    <defs>
+    <clipPath id="terminal-1811958103-clip-terminal">
+      <rect x="0" y="0" width="1438.6" height="804.1999999999999" />
+    </clipPath>
+    <clipPath id="terminal-1811958103-line-0">
+    <rect x="0" y="1.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-1">
+    <rect x="0" y="25.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-2">
+    <rect x="0" y="50.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-3">
+    <rect x="0" y="74.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-4">
+    <rect x="0" y="99.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-5">
+    <rect x="0" y="123.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-6">
+    <rect x="0" y="147.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-7">
+    <rect x="0" y="172.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-8">
+    <rect x="0" y="196.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-9">
+    <rect x="0" y="221.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-10">
+    <rect x="0" y="245.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-11">
+    <rect x="0" y="269.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-12">
+    <rect x="0" y="294.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-13">
+    <rect x="0" y="318.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-14">
+    <rect x="0" y="343.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-15">
+    <rect x="0" y="367.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-16">
+    <rect x="0" y="391.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-17">
+    <rect x="0" y="416.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-18">
+    <rect x="0" y="440.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-19">
+    <rect x="0" y="465.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-20">
+    <rect x="0" y="489.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-21">
+    <rect x="0" y="513.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-22">
+    <rect x="0" y="538.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-23">
+    <rect x="0" y="562.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-24">
+    <rect x="0" y="587.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-25">
+    <rect x="0" y="611.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-26">
+    <rect x="0" y="635.9" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-27">
+    <rect x="0" y="660.3" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-28">
+    <rect x="0" y="684.7" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-29">
+    <rect x="0" y="709.1" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-30">
+    <rect x="0" y="733.5" width="1439.6" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-1811958103-line-31">
+    <rect x="0" y="757.9" width="1439.6" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="853.2" rx="8"/><text class="terminal-1811958103-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">A&#160;plain&#160;user&#160;is&#160;refused;&#160;an&#160;admin&#160;grants&#160;the&#160;document&#160;controller&#160;role</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-1811958103-clip-terminal)">
+    
+    <g class="terminal-1811958103-matrix">
+    <text class="terminal-1811958103-r1" x="0" y="20" textLength="73.2" clip-path="url(#terminal-1811958103-line-0)">demo$&#160;</text><text class="terminal-1811958103-r2" x="73.2" y="20" textLength="768.6" clip-path="url(#terminal-1811958103-line-0)">tl&#160;admin&#160;user&#160;add&#160;dora&#160;--display-name&#160;&#x27;Dora&#160;C&#x27;&#160;--password-stdin</text><text class="terminal-1811958103-r3" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-1811958103-line-0)">
+</text><text class="terminal-1811958103-r3" x="0" y="44.4" textLength="414.8" clip-path="url(#terminal-1811958103-line-1)">created&#160;dora&#160;&#160;person&#160;&#160;user&#160;&#160;active</text><text class="terminal-1811958103-r3" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-1811958103-line-1)">
+</text><text class="terminal-1811958103-r4" x="0" y="68.8" textLength="963.8" clip-path="url(#terminal-1811958103-line-2)">#&#160;amy,&#160;a&#160;plain&#160;user,&#160;registers&#160;ISO-3000,&#160;drafts&#160;revision&#160;A&#160;and&#160;attaches&#160;its&#160;PDF</text><text class="terminal-1811958103-r3" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-1811958103-line-2)">
+</text><text class="terminal-1811958103-r1" x="0" y="93.2" textLength="61" clip-path="url(#terminal-1811958103-line-3)">amy$&#160;</text><text class="terminal-1811958103-r2" x="61" y="93.2" textLength="1244.4" clip-path="url(#terminal-1811958103-line-3)">tl&#160;doc&#160;register&#160;ISO-3000&#160;--project&#160;P123&#160;--title&#160;&#x27;Isometric,&#160;line&#160;47-P-103&#x27;&#160;--type&#160;ISO&#160;--discipline&#160;PIP</text><text class="terminal-1811958103-r3" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-1811958103-line-3)">
+</text><text class="terminal-1811958103-r3" x="0" y="117.6" textLength="451.4" clip-path="url(#terminal-1811958103-line-4)">registered&#160;01M4R3GMP000000000000000HY</text><text class="terminal-1811958103-r3" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-1811958103-line-4)">
+</text><text class="terminal-1811958103-r3" x="0" y="142" textLength="207.4" clip-path="url(#terminal-1811958103-line-5)">document&#160;ISO-3000</text><text class="terminal-1811958103-r3" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-1811958103-line-5)">
+</text><text class="terminal-1811958103-r3" x="0" y="166.4" textLength="195.2" clip-path="url(#terminal-1811958103-line-6)">state&#160;Registered</text><text class="terminal-1811958103-r3" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-1811958103-line-6)">
+</text><text class="terminal-1811958103-r3" x="0" y="190.8" textLength="146.4" clip-path="url(#terminal-1811958103-line-7)">scheme&#160;alpha</text><text class="terminal-1811958103-r3" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-1811958103-line-7)">
+</text><text class="terminal-1811958103-r1" x="0" y="215.2" textLength="61" clip-path="url(#terminal-1811958103-line-8)">amy$&#160;</text><text class="terminal-1811958103-r2" x="61" y="215.2" textLength="854" clip-path="url(#terminal-1811958103-line-8)">tl&#160;doc&#160;rev&#160;create&#160;ISO-3000&#160;--project&#160;P123&#160;--purpose&#160;&#x27;For&#160;construction&#x27;</text><text class="terminal-1811958103-r3" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-1811958103-line-8)">
+</text><text class="terminal-1811958103-r3" x="0" y="239.6" textLength="292.8" clip-path="url(#terminal-1811958103-line-9)">created&#160;revision&#160;A&#160;Draft</text><text class="terminal-1811958103-r3" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-1811958103-line-9)">
+</text><text class="terminal-1811958103-r1" x="0" y="264" textLength="61" clip-path="url(#terminal-1811958103-line-10)">amy$&#160;</text><text class="terminal-1811958103-r2" x="61" y="264" textLength="963.8" clip-path="url(#terminal-1811958103-line-10)">tl&#160;doc&#160;rendition&#160;add&#160;ISO-3000&#160;A&#160;sheet-A.pdf&#160;--project&#160;P123&#160;--kind&#160;pdf&#160;--pages&#160;3</text><text class="terminal-1811958103-r3" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-1811958103-line-10)">
+</text><text class="terminal-1811958103-r3" x="0" y="288.4" textLength="463.6" clip-path="url(#terminal-1811958103-line-11)">attached&#160;pdf&#160;sheet-A.pdf&#160;to&#160;ISO-3000@A</text><text class="terminal-1811958103-r3" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-1811958103-line-11)">
+</text><text class="terminal-1811958103-r3" x="0" y="312.8" textLength="439.2" clip-path="url(#terminal-1811958103-line-12)">rendition&#160;01M4R3VM8000000000000000JB</text><text class="terminal-1811958103-r3" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-1811958103-line-12)">
+</text><text class="terminal-1811958103-r4" x="0" y="337.2" textLength="1037" clip-path="url(#terminal-1811958103-line-13)">#&#160;dora&#160;has&#160;the&#160;role&#160;`user`,&#160;so&#160;issuing&#160;is&#160;refused,&#160;with&#160;the&#160;roles&#160;that&#160;would&#160;allow&#160;it</text><text class="terminal-1811958103-r3" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-1811958103-line-13)">
+</text><text class="terminal-1811958103-r1" x="0" y="361.6" textLength="73.2" clip-path="url(#terminal-1811958103-line-14)">demo$&#160;</text><text class="terminal-1811958103-r2" x="73.2" y="361.6" textLength="280.6" clip-path="url(#terminal-1811958103-line-14)">tl&#160;admin&#160;user&#160;show&#160;dora</text><text class="terminal-1811958103-r3" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-1811958103-line-14)">
+</text><text class="terminal-1811958103-r3" x="0" y="386" textLength="231.8" clip-path="url(#terminal-1811958103-line-15)">display_name&#160;Dora&#160;C</text><text class="terminal-1811958103-r3" x="1439.6" y="386" textLength="12.2" clip-path="url(#terminal-1811958103-line-15)">
+</text><text class="terminal-1811958103-r3" x="0" y="410.4" textLength="134.2" clip-path="url(#terminal-1811958103-line-16)">kind&#160;person</text><text class="terminal-1811958103-r3" x="1439.6" y="410.4" textLength="12.2" clip-path="url(#terminal-1811958103-line-16)">
+</text><text class="terminal-1811958103-r3" x="0" y="434.8" textLength="122" clip-path="url(#terminal-1811958103-line-17)">roles&#160;user</text><text class="terminal-1811958103-r3" x="1439.6" y="434.8" textLength="12.2" clip-path="url(#terminal-1811958103-line-17)">
+</text><text class="terminal-1811958103-r3" x="0" y="459.2" textLength="158.6" clip-path="url(#terminal-1811958103-line-18)">status&#160;active</text><text class="terminal-1811958103-r3" x="1439.6" y="459.2" textLength="12.2" clip-path="url(#terminal-1811958103-line-18)">
+</text><text class="terminal-1811958103-r3" x="0" y="483.6" textLength="170.8" clip-path="url(#terminal-1811958103-line-19)">locked_until&#160;-</text><text class="terminal-1811958103-r3" x="1439.6" y="483.6" textLength="12.2" clip-path="url(#terminal-1811958103-line-19)">
+</text><text class="terminal-1811958103-r3" x="0" y="508" textLength="463.6" clip-path="url(#terminal-1811958103-line-20)">created_at&#160;2026-10-12T13:00:00.000000Z</text><text class="terminal-1811958103-r3" x="1439.6" y="508" textLength="12.2" clip-path="url(#terminal-1811958103-line-20)">
+</text><text class="terminal-1811958103-r1" x="0" y="532.4" textLength="73.2" clip-path="url(#terminal-1811958103-line-21)">dora$&#160;</text><text class="terminal-1811958103-r2" x="73.2" y="532.4" textLength="671" clip-path="url(#terminal-1811958103-line-21)">tl&#160;doc&#160;rev&#160;issue&#160;ISO-3000&#160;A&#160;--project&#160;P123&#160;--status&#160;IFC</text><text class="terminal-1811958103-r3" x="1439.6" y="532.4" textLength="12.2" clip-path="url(#terminal-1811958103-line-21)">
+</text><text class="terminal-1811958103-r5" x="0" y="556.8" textLength="902.8" clip-path="url(#terminal-1811958103-line-22)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;document_controller&#160;or&#160;admin&#160;role</text><text class="terminal-1811958103-r3" x="1439.6" y="556.8" textLength="12.2" clip-path="url(#terminal-1811958103-line-22)">
+</text><text class="terminal-1811958103-r4" x="0" y="581.2" textLength="829.6" clip-path="url(#terminal-1811958103-line-23)">#&#160;an&#160;admin&#160;grants&#160;the&#160;role,&#160;with&#160;a&#160;reason&#160;that&#160;goes&#160;into&#160;the&#160;history</text><text class="terminal-1811958103-r3" x="1439.6" y="581.2" textLength="12.2" clip-path="url(#terminal-1811958103-line-23)">
+</text><text class="terminal-1811958103-r1" x="0" y="605.6" textLength="73.2" clip-path="url(#terminal-1811958103-line-24)">demo$&#160;</text><text class="terminal-1811958103-r2" x="73.2" y="605.6" textLength="1085.8" clip-path="url(#terminal-1811958103-line-24)">tl&#160;admin&#160;user&#160;roles&#160;dora&#160;--add&#160;document_controller&#160;--reason&#160;&#x27;takes&#160;over&#160;document&#160;control&#x27;</text><text class="terminal-1811958103-r3" x="1439.6" y="605.6" textLength="12.2" clip-path="url(#terminal-1811958103-line-24)">
+</text><text class="terminal-1811958103-r3" x="0" y="630" textLength="561.2" clip-path="url(#terminal-1811958103-line-25)">dora&#160;&#160;person&#160;&#160;document_controller,user&#160;&#160;active</text><text class="terminal-1811958103-r3" x="1439.6" y="630" textLength="12.2" clip-path="url(#terminal-1811958103-line-25)">
+</text><text class="terminal-1811958103-r1" x="0" y="654.4" textLength="73.2" clip-path="url(#terminal-1811958103-line-26)">demo$&#160;</text><text class="terminal-1811958103-r2" x="73.2" y="654.4" textLength="280.6" clip-path="url(#terminal-1811958103-line-26)">tl&#160;admin&#160;user&#160;show&#160;dora</text><text class="terminal-1811958103-r3" x="1439.6" y="654.4" textLength="12.2" clip-path="url(#terminal-1811958103-line-26)">
+</text><text class="terminal-1811958103-r3" x="0" y="678.8" textLength="231.8" clip-path="url(#terminal-1811958103-line-27)">display_name&#160;Dora&#160;C</text><text class="terminal-1811958103-r3" x="1439.6" y="678.8" textLength="12.2" clip-path="url(#terminal-1811958103-line-27)">
+</text><text class="terminal-1811958103-r3" x="0" y="703.2" textLength="134.2" clip-path="url(#terminal-1811958103-line-28)">kind&#160;person</text><text class="terminal-1811958103-r3" x="1439.6" y="703.2" textLength="12.2" clip-path="url(#terminal-1811958103-line-28)">
+</text><text class="terminal-1811958103-r3" x="0" y="727.6" textLength="366" clip-path="url(#terminal-1811958103-line-29)">roles&#160;document_controller,user</text><text class="terminal-1811958103-r3" x="1439.6" y="727.6" textLength="12.2" clip-path="url(#terminal-1811958103-line-29)">
+</text><text class="terminal-1811958103-r3" x="0" y="752" textLength="158.6" clip-path="url(#terminal-1811958103-line-30)">status&#160;active</text><text class="terminal-1811958103-r3" x="1439.6" y="752" textLength="12.2" clip-path="url(#terminal-1811958103-line-30)">
+</text><text class="terminal-1811958103-r3" x="0" y="776.4" textLength="170.8" clip-path="url(#terminal-1811958103-line-31)">locked_until&#160;-</text><text class="terminal-1811958103-r3" x="1439.6" y="776.4" textLength="12.2" clip-path="url(#terminal-1811958103-line-31)">
+</text><text class="terminal-1811958103-r3" x="0" y="800.8" textLength="463.6" clip-path="url(#terminal-1811958103-line-32)">created_at&#160;2026-10-12T13:00:00.000000Z</text><text class="terminal-1811958103-r3" x="1439.6" y="800.8" textLength="12.2" clip-path="url(#terminal-1811958103-line-32)">
+</text>
+    </g>
+    </g>
+</svg>

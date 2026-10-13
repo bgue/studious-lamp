@@ -1,16 +1,16 @@
-# Phase 1 tour (interim): sign-in, standards, tags and document control
+# Phase 1 tour (interim): sign-in, standards, tags, document control and its controller role
 
-**Status: interim.** This tour covers what P1-I0, P1-I1 and P1-I2 added on top of the Phase 0 core. The final Phase 1 tour will extend this file at the Phase 1 exit, as the remaining increments land. Nothing here is a statement that Phase 1 is complete.
+**Status: interim.** This tour covers what P1-I0, P1-I1, P1-I2 and P1-I2b added on top of the Phase 0 core. The final Phase 1 tour will extend this file at the Phase 1 exit, as the remaining increments land. Nothing here is a statement that Phase 1 is complete.
 
-Purpose: show, with real screenshots and a plain account of today's practice, what the first three Phase 1 increments delivered: real accounts and sessions, the company standards registry with engineering tags, and the first document-control module. Every screenshot is generated: `uv run python dev/tour/phase1.py` builds a demo ledger, signs in as named people, drives the real terminal UI headless and runs the real commands, and writes the SVG files under `tour/phase-1/`. Written 2026-10-13. Read [PHASE-0-TOUR.md](PHASE-0-TOUR.md) first for the core these build on.
+Purpose: show, with real screenshots and a plain account of today's practice, what the first Phase 1 increments delivered: real accounts and sessions, the company standards registry with engineering tags, the first document-control module, and the document controller role that lets a person who is not an admin do the controlling acts. Every screenshot is generated: `uv run python dev/tour/phase1.py` builds a demo ledger, signs in as named people, drives the real terminal UI headless and runs the real commands, and writes the SVG files under `tour/phase-1/`. Written 2026-10-13. Read [PHASE-0-TOUR.md](PHASE-0-TOUR.md) first for the core these build on.
 
-## What these three increments added
+## What these increments added
 
-Phase 0 left the platform core without real authentication. **P1-I0** replaced the development identity stub with accounts, two roles (`admin` and `user`), signed-in sessions, agent tokens, an admin screen, and put the API, TUI, MCP server, simulator and every command group on either SQLite or PostgreSQL ([P1-I0 report](P1-I0.md), ADR-0009). **P1-I1** added the first domain module: a company standards registry (code lists, mnemonics, numbering patterns, tag classes) and engineering **tags** parsed and checked against it ([P1-I1 report](P1-I1.md), ADR-0010). **P1-I2** added **document control**: documents with registered numbers, revisions with a status class each, pinned links that go stale, transmittals, reviews and a legacy register import ([P1-I2 report](P1-I2.md), ADR-0011 and ADR-0012).
+Phase 0 left the platform core without real authentication. **P1-I0** replaced the development identity stub with accounts, two roles to begin with (`admin` and `user`; P1-I2b added a third, section 14), signed-in sessions, agent tokens, an admin screen, and put the API, TUI, MCP server, simulator and every command group on either SQLite or PostgreSQL ([P1-I0 report](P1-I0.md), ADR-0009). **P1-I1** added the first domain module: a company standards registry (code lists, mnemonics, numbering patterns, tag classes) and engineering **tags** parsed and checked against it ([P1-I1 report](P1-I1.md), ADR-0010). **P1-I2** added **document control**: documents with registered numbers, revisions with a status class each, pinned links that go stale, transmittals, reviews and a legacy register import ([P1-I2 report](P1-I2.md), ADR-0011 and ADR-0012). **P1-I2b** added the third role, `document_controller`, which holds the controlling acts of document control without holding the keys to accounts or the engineering registry ([P1-I2b report](P1-I2b.md), ADR-0013).
 
-The demo project is made up: project `P123`, three people (`demo`, an admin; `amy` and `ana`, plain users), a locked-out `ben`, and one agent `triage`. Each `tl` command in the transcripts is run as a named person with their own session, and the prompt shows who (`amy$`). The clock is frozen at 2026-10-12, so dates are the same on every run.
+The demo project is made up: project `P123`, five people (`demo`, an admin; `amy`, `ana` and `ben`, plain users, `ben` locked out for a while; and `dora`, who is granted the controller role in section 14) and one agent `triage`. Each `tl` command in the transcripts is run as a named person with their own session, and the prompt shows who (`amy$`). The clock is frozen at 2026-10-12, so dates are the same on every run.
 
-**What is and is not enforced in Phase 1 so far.** There are two roles. Controlling acts (issuing a revision or a transmittal, loading standards, applying an import, managing accounts) need `admin`. Confidentiality is a recorded field (`confidentiality: -` in the screenshots), not an enforced rule, and there are no per-record access lists. A document-controller role that lets a person who is not an admin do the controlling acts is in progress (section 14).
+**What is and is not enforced in Phase 1 so far.** There are three roles: `user`, `document_controller` and `admin`. The controlling acts of document control (issuing, superseding or voiding a revision or a document, issuing a transmittal, applying a document import) need `document_controller` or `admin`. Loading the standards, applying a tag import, the registry commands and everything about accounts, roles and tokens need `admin`. Confidentiality is a recorded field (`confidentiality: -` in the screenshots), not an enforced rule, and there are no per-record access lists.
 
 | # | Increment | Capability | Screenshots |
 |---|---|---|---|
@@ -27,7 +27,7 @@ The demo project is made up: project `P123`, three people (`demo`, an admin; `am
 | 11 | P1-I2 | [Transmittals and review rounds](#11-transmittals-and-review-rounds) | `11a` to `11c` |
 | 12 | P1-I2 | [The legacy DMS register import](#12-the-legacy-dms-register-import) | `12` |
 | 13 | P1-I2 | [What a plain user cannot do](#13-what-a-plain-user-cannot-do) | `13` |
-| 14 | P1-I2b | [Document controller role (P1-I2b, in progress)](#14-document-controller-role-p1-i2b-in-progress) | none yet |
+| 14 | P1-I2b | [The document controller role](#14-the-document-controller-role) | `14a` to `14f` |
 
 ## 1. Sign-in and sessions
 
@@ -43,7 +43,7 @@ The demo project is made up: project `P123`, three people (`demo`, an admin; `am
 
 **Novel approach.** One account store backs every door: the API, the TUI, the `tl` commands and the MCP server. A person signs in with a name and a password (kept as a salted scrypt hash, never in the ledger, a log or an event) and gets a session of twelve hours; the CLI keeps it in an owner-only file per ledger, the TUI holds it in memory. The sign-in screen refuses with one message whatever was wrong, and the actor on every event is the signed-in account. The identity layer is a seam (`IdentityProvider`) that an external provider such as Entra ID can replace (P1-I0, ADR-0009).
 
-**Unique value.** "Who did this" is the answer to a sign-in, not a convention, on every entry point, and the same account works in the terminal, over HTTP and for scripts. Honest limits: this is password sign-in for a handful of accounts; single sign-on, MFA and permission rules finer than two roles are not built. The seeded `demo` account is a development convenience: the server refuses a non-loopback bind while it is enabled, and `tl init --dev` is refused with `TL_ENV=prod`.
+**Unique value.** "Who did this" is the answer to a sign-in, not a convention, on every entry point, and the same account works in the terminal, over HTTP and for scripts. Honest limits: this is password sign-in for a handful of accounts; single sign-on, MFA and permission rules finer than three company-wide roles are not built. The seeded `demo` account is a development convenience: the server refuses a non-loopback bind while it is enabled, and `tl init --dev` is refused with `TL_ENV=prod`.
 
 ## 2. Accounts, roles and agent tokens
 
@@ -59,7 +59,7 @@ The demo project is made up: project `P123`, three people (`demo`, an admin; `am
 
 **Novel approach.** An account is a person, an agent or a simulator, with roles (`admin`, `user`), and sign-ins, failures and locks are written to an authentication audit log (`tl admin audit`). An agent has no password: an admin issues it a token that is shown once, stored only as a SHA-256 hash, has an expiry and a label, can be revoked at once, and is checked again on every call it makes. The accounts screen and the tokens view show who exists, in what state, and what tokens are live, and they are the same service calls the CLI and API use (P1-I0, ADR-0009).
 
-**Unique value.** People and automation are separately named, separately revocable and separately accountable, and the last administrator cannot be removed by accident. Honest limits: two roles only; no groups, no per-project roles and no approval workflow for dangerous settings yet.
+**Unique value.** People and automation are separately named, separately revocable and separately accountable, and the last administrator cannot be removed by accident. Honest limits: three roles (section 14) and no groups, no per-project roles and no approval workflow for dangerous settings yet.
 
 ## 3. Account lockout
 
@@ -139,15 +139,15 @@ The demo project is made up: project `P123`, three people (`demo`, an admin; `am
 
 ## 9. The document register: a status class per revision
 
-![Registering a document: a wrong number is refused; revisions and renditions; issuing is an admin act](tour/phase-1/09a-documents-cli.svg)
+![Registering a document: a wrong number is refused; revisions and renditions; issuing is a controlling act](tour/phase-1/09a-documents-cli.svg)
 
 ![F7: the register, and one current revision per status class](tour/phase-1/09b-document-register.svg)
 
-**Reproduce:** `uv run tl doc register ISO-1234 --project P123 --title "..." --type ISO --discipline PIP`, `tl doc rev create`, `tl doc rendition add`, `tl doc rev issue ISO-1234 A --status IFR` (admin), `tl doc show ISO-1234 --project P123`; in the TUI press `F7`. Runbook: `docs/runbooks/documents.md`.
+**Reproduce:** `uv run tl doc register ISO-1234 --project P123 --title "..." --type ISO --discipline PIP`, `tl doc rev create`, `tl doc rendition add`, `tl doc rev issue ISO-1234 A --status IFR` (a controlling act: admin, or a document controller, section 14), `tl doc show ISO-1234 --project P123`; in the TUI press `F7`. Runbook: `docs/runbooks/documents.md`.
 
 **Standard activity.** A document register is a list in the DMS with one "latest revision" column. A revision issued for review and one issued for construction fight for that column, so the crew either builds from a drawing nobody has approved or from a superseded one.
 
-**Novel approach.** A document number is checked against the company's pattern at registration (`ISO-12` is refused: four digits required). Revisions follow a configurable scheme (alpha here), carry a purpose, a status code with a class (`IFR` is `review`, `IFC` is `construction`) and renditions that are files in the file service. A document keeps one current revision per status class, so in the register `ISO-1234` shows `current D(IFC)` while revision C (`IFR`, for review) is also current in its own class and A and B are superseded. A user drafts; issuing is an admin's act (P1-I2, ADR-0011).
+**Novel approach.** A document number is checked against the company's pattern at registration (`ISO-12` is refused: four digits required). Revisions follow a configurable scheme (alpha here), carry a purpose, a status code with a class (`IFR` is `review`, `IFC` is `construction`) and renditions that are files in the file service. A document keeps one current revision per status class, so in the register `ISO-1234` shows `current D(IFC)` while revision C (`IFR`, for review) is also current in its own class and A and B are superseded. A user drafts; issuing is a controlling act, which was an admin's in P1-I2 (ADR-0011) and is a document controller's or an admin's since P1-I2b (ADR-0013, section 14).
 
 **Unique value.** The builder sees the revision to build from while the reviewers see theirs, and nobody argues over which one is "current". Honest limits: `confidentiality` is a recorded field and nothing enforces it; derived documents and document schemas are later (P1-I3).
 
@@ -159,7 +159,7 @@ The demo project is made up: project `P123`, three people (`demo`, an admin; `am
 
 ![F7, r: the re-pin dialog shows the diff before it asks](tour/phase-1/10c-repin-dialog.svg)
 
-**Reproduce:** `uv run tl doc link 47-FV-1001 ISO-1234 --project P123 --pin A`, issue a later revision as an admin, then `tl doc stale --project P123`, `tl doc repin <link> --project P123` (shows the diff) and `--apply`; in the TUI press `F7`, highlight the document and press `r`.
+**Reproduce:** `uv run tl doc link 47-FV-1001 ISO-1234 --project P123 --pin A`, issue a later revision as an admin or a document controller, then `tl doc stale --project P123`, `tl doc repin <link> --project P123` (shows the diff) and `--apply`; in the TUI press `F7`, highlight the document and press `r`.
 
 **Standard activity.** A tag's data sheet points at "ISO-1234 rev A". When rev B is issued nobody tells the person who depends on A; the crew builds from the old isometric because the issue was not connected to the work that uses it (brief §0.1).
 
@@ -169,25 +169,25 @@ The demo project is made up: project `P123`, three people (`demo`, an admin; `am
 
 ## 11. Transmittals and review rounds
 
-![A transmittal lists the exact issued revisions; issuing it is an admin's act](tour/phase-1/11a-transmittal.svg)
+![A transmittal lists the exact issued revisions; issuing it is a controlling act](tour/phase-1/11a-transmittal.svg)
 
 ![A review round: who has not answered, and how late; the report drops a reviewer once they answer](tour/phase-1/11b-review-overdue.svg)
 
 ![F7, t: a transmittal draft with the current revision ticked](tour/phase-1/11c-transmittal-composer.svg)
 
-**Reproduce:** `uv run tl transmittal create --project P123 --subject "..." --purpose for_construction --to "Site Office:Acme Construction:site@example.com" --revision ISO-1234@D`, `tl transmittal issue P123-TRN-0001` (admin), `tl transmittal show`; `tl review open ISO-2000 A --reviewer user:ana --due 2026-10-01`, `tl review answer ISO-2000@A/RC1 --outcome approved_with_comments`, `tl doc report overdue --on 2026-10-13`.
+**Reproduce:** `uv run tl transmittal create --project P123 --subject "..." --purpose for_construction --to "Site Office:Acme Construction:site@example.com" --revision ISO-1234@D`, `tl transmittal issue P123-TRN-0001` (admin or document controller), `tl transmittal show`; `tl review open ISO-2000 A --reviewer user:ana --due 2026-10-01`, `tl review answer ISO-2000@A/RC1 --outcome approved_with_comments`, `tl doc report overdue --on 2026-10-13`.
 
 **Standard activity.** A transmittal is a form or an email with attachments, and the record of what was sent to whom is the sent folder. A review is a round of emails; who has not answered is found by reading the thread, and the deadline is in someone's calendar.
 
-**Novel approach.** A transmittal's items are exact issued revisions (`ISO-1234@D`, with its status), numbered by the allocator (`P123-TRN-0001`), drafted by anyone and issued by an admin, and the response is recorded on the same record. A review round names its reviewers and a due date; each reviewer answers with an outcome and a comment, and the overdue report lists the reviewers who have not, with the days late (12 days at the report's date), and drops each one when they answer (P1-I2).
+**Novel approach.** A transmittal's items are exact issued revisions (`ISO-1234@D`, with its status), numbered by the allocator (`P123-TRN-0001`), drafted by anyone and issued by an admin or a document controller, and the response is recorded on the same record. A review round names its reviewers and a due date; each reviewer answers with an outcome and a comment, and the overdue report lists the reviewers who have not, with the days late (12 days at the report's date), and drops each one when they answer (P1-I2).
 
 **Unique value.** "Which revision did we send them, and when" and "who still owes us an answer" are answered by a command, not by archaeology. Honest limits: recipients are names and email addresses recorded on the transmittal and the system sends no email (there is no mail sender in the code), and since confidentiality is not enforced a recipient list is not a permission list.
 
 ## 12. The legacy DMS register import
 
-![A legacy register: previewed with every refusal explained, refused to a user, applied by an admin under a named job](tour/phase-1/12-dms-import.svg)
+![A legacy register: previewed with every refusal explained, refused to a user, applied by an admin under a named job (a document controller may do the same since P1-I2b)](tour/phase-1/12-dms-import.svg)
 
-**Reproduce:** `uv run tl doc import dev/seed/legacy/dms-document-register.csv --mapping dev/seed/templates/document-register-dms-export.yaml --project P123` (preview), then `--apply --skip-invalid --job dms-2024` as an admin.
+**Reproduce:** `uv run tl doc import dev/seed/legacy/dms-document-register.csv --mapping dev/seed/templates/document-register-dms-export.yaml --project P123` (preview), then `--apply --skip-invalid --job dms-2024` as an admin or a document controller.
 
 **Standard activity.** The old register is exported to a spreadsheet and loaded by script or by hand; rows with bad numbers or odd statuses are fixed in the spreadsheet, or dropped without anyone noticing, and the load leaves no trace of where the rows came from.
 
@@ -203,22 +203,40 @@ The demo project is made up: project `P123`, three people (`demo`, an admin; `am
 
 **Standard activity.** Who may issue a drawing or apply a bulk load is a convention written in a procedure; the tool lets any editor do it, and an audit finds out afterwards.
 
-**Novel approach.** Every command and API route is checked against the signed-in role before it runs, with closed-by-default rules for agents (a new route or MCP tool is denied until someone allows it). The refusal is one fixed sentence: `forbidden: this command needs the admin role`. The same acts are refused over HTTP, and no one, an admin included, can change a document through the generic record commands: documents change only through the module's own commands (the P1-I2 demo, clause 8; `tests/auth`).
+**Novel approach.** Every command and API route is checked against the signed-in role before it runs, with closed-by-default rules for agents (a new route or MCP tool is denied until someone allows it). The refusal is one fixed sentence that names the roles that would do: `forbidden: this command needs the admin role` for accounts and the registry, `forbidden: this command needs the document_controller or admin role` for the controlling acts of document control. The same acts are refused over HTTP, and no one, an admin included, can change a document through the generic record commands: documents change only through the module's own commands (the P1-I2 demo, clause 8; `tests/auth`).
 
-**Unique value.** The separation between drafting and controlling is enforced by the system, so a procedure is not the only thing standing between a draft and the field. Honest limits: the line is "admin or not" because there are two roles; a person who controls documents but should not manage accounts needs the document-controller role of the next section. Confidentiality (who may read a record) is recorded and not enforced, and there are no per-record access lists in Phase 1.
+**Unique value.** The separation between drafting and controlling is enforced by the system, so a procedure is not the only thing standing between a draft and the field. Honest limits: the lines are `user`, `document_controller` and `admin`, company-wide, with no per-project or per-record grants (section 14 says what the controller role can and cannot do). Confidentiality (who may read a record) is recorded and not enforced, and there are no per-record access lists in Phase 1.
 
-## 14. Document controller role (P1-I2b, in progress)
+## 14. The document controller role
 
-*This section is a placeholder.* A separate supervisor is building a document-controller role on `p1/i2b` (ADR-0011 filed it as a follow-up of P1-I2): a role that lets a person who is not an admin do the controlling acts of section 9 to 12, such as issuing a revision or a transmittal. It will be filled in after that work merges, with screenshots, a reproduce line and the three-part narrative. Until then the tour above is accurate for the two-role model: `admin` and `user`.
+![A plain user is refused; an admin grants the role, with a reason](tour/phase-1/14a-grant-the-role.svg)
+
+![F10, c: the accounts screen offers the role to an admin](tour/phase-1/14b-admin-grants-the-role.svg)
+
+![The controller issues a revision and a transmittal; the plain user who drafted it is refused the issue](tour/phase-1/14c-controller-issues.svg)
+
+![F7, t: the composer offers Ctrl+T to a controller: draft and issue in one step](tour/phase-1/14d-composer-draft-and-issue.svg)
+
+![The register says what happened](tour/phase-1/14e-composer-issued.svg)
+
+![The controller stops where document control stops; taking the role away closes the door again](tour/phase-1/14f-controller-limits.svg)
+
+**Reproduce:** as an admin `uv run tl admin user roles dora --add document_controller --reason "takes over document control"` (or `F10`, highlight the person, `c`), then `tl admin user show dora`; as `dora` `uv run tl doc rev issue ISO-3000 A --project P123 --status IFC` and `tl transmittal issue P123-TRN-0002 --project P123`; in the TUI `F7`, `t`, `Ctrl+T`; `tl admin user roles dora --remove document_controller` takes it away. `just demo P1-I2b` runs the whole clause list on SQLite and PostgreSQL. Runbook: `docs/runbooks/accounts-and-access.md`.
+
+**Standard activity.** A document controller is the person who issues drawings for construction and sends the transmittals. In most systems that means a super-user: the role that can issue is the role that can also create accounts, change permissions and edit the master data, because the product has nothing between "editor" and "administrator". Or the controller is a clerk who prepares everything and waits for an administrator to press the button.
+
+**Novel approach.** The controller is a role of its own, not "make her an admin". An admin grants it (a ledger event with the admin and the reason; it takes effect on her open session at once) and takes it away the same way. The commands it unlocks are an explicit, typed list: issue, supersede or void a revision or document, set confidentiality, register or replace a signed copy, issue a transmittal, record or override a review outcome on someone's behalf, and apply a document import. Anything not on the list is an admin's, so a typo or a command added later closes a door instead of opening one (ADR-0013). The ledger names the person who did it (`user:dora`), not an admin acting for her. A plain user's refusal names the roles that would do: `needs the document_controller or admin role`. The accounts screen offers the role to admins with `c`; a controller's document register offers `Ctrl+T` in the transmittal composer, which drafts and issues in one step, and the TUI only offers it: the same service gate answers. In the screenshots `dora` cannot list accounts or tokens, change any role (her own included), create an account, or load standards; an agent account cannot hold the role at all, and agents have no part in the controlling acts (P1-I2b, [report](P1-I2b.md)).
+
+**Unique value.** The person who controls the documents does not also hold the keys to accounts, tokens and the engineering registry, and "who issued this revision, and were they allowed to" has a ledger answer with a named person. Honest limits, all from ADR-0013: the role is company-wide (there is no per-project assignment, so a controller controls every project of the ledger); there is no separation of duties (a controller may issue a revision she drafted, and may record or override review answers); the simulator does not issue (its people sign in with development tokens that carry the `user` role only); there are no per-record access lists and confidentiality is recorded, not enforced; and the security review of the commits that change roles and access levels was still pending when the report was written.
 
 ## What Phase 1 so far did not do
 
-- **No permission model beyond two roles.** Confidentiality is recorded, not enforced; there are no per-record access lists; recipient emails on transmittals are data only.
+- **No permission model beyond three company-wide roles.** Confidentiality is recorded, not enforced; there are no per-record access lists; recipient emails on transmittals are data only.
 - **No single sign-on or MFA**, and no escalating lockout or lockout alert.
 - **Only two domain modules** (engineering data and document control); quality, piping, work packaging, materials and the rest of the brief's modules are later increments.
 - **No derived documents or document schemas** (P1-I3), and no revisions with files or issue dates in the legacy import (P1-I8).
 - **No "newer revision in review" marker** on a healthy construction pin (ADR-0012, option C).
 - **The tour itself ran on SQLite.** The PostgreSQL evidence in section 5 is stored from the P1-I0 report.
-- **This is an interim tour.** The increments after P1-I2 are not covered, and the final Phase 1 tour will replace this note.
+- **This is an interim tour.** The increments after P1-I2b are not covered, and the final Phase 1 tour will replace this note.
 
-The reports behind each section are [P1-I0](P1-I0.md), [P1-I1](P1-I1.md) and [P1-I2](P1-I2.md); the Phase 0 core they build on is shown in [PHASE-0-TOUR.md](PHASE-0-TOUR.md).
+The reports behind each section are [P1-I0](P1-I0.md), [P1-I1](P1-I1.md), [P1-I2](P1-I2.md) and [P1-I2b](P1-I2b.md); the Phase 0 core they build on is shown in [PHASE-0-TOUR.md](PHASE-0-TOUR.md).
