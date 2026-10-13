@@ -39,10 +39,10 @@ from tl_mod_documents.errors import (
 )
 from tl_mod_documents.handlers.common import (
     append,
-    check_date,
     correlated,
     load_revision,
     open_document,
+    plausible_date,
     require_project,
     today,
     transition,
@@ -63,6 +63,8 @@ from tl_mod_documents.names import (
 )
 
 Outcome = Literal["approved", "approved_with_comments", "rejected"]
+#: What a cycle closes with: an answer's outcome, or ``withdrawn`` when nobody answered.
+CloseOutcome = Literal["approved", "approved_with_comments", "rejected", "withdrawn"]
 #: Worst outcome wins: one rejection rejects, otherwise one comment makes it "with comments".
 _SEVERITY: dict[str, int] = {"approved": 0, "approved_with_comments": 1, "rejected": 2}
 
@@ -89,7 +91,7 @@ class ReviewerRequest(BaseModel):
     @field_validator("due_date")
     @classmethod
     def _due(cls, value: str | None) -> str | None:
-        return check_date(value, "due_date")
+        return plausible_date(value, "due_date")
 
 
 class OpenReviewCycle(Command):
@@ -104,7 +106,7 @@ class OpenReviewCycle(Command):
     @field_validator("due_date")
     @classmethod
     def _due(cls, value: str | None) -> str | None:
-        return check_date(value, "due_date")
+        return plausible_date(value, "due_date")
 
 
 class RecordReviewOutcome(Command):
@@ -146,17 +148,18 @@ class RecordReviewOutcomeOnBehalf(Command):
 class CloseReviewCycle(Command):
     """Close a cycle. The outcome is the worst answer unless the command states a stricter one.
 
-    A person cannot close with an outcome milder than the worst answer: that is
-    ``OverrideReviewOutcome``, an admin's. If a reviewer has not answered, ``reason`` is required
-    (why the cycle closes early). If nobody has answered, the only outcome a person may give is
-    ``rejected`` (the round is withdrawn).
+    Only the person who opened the cycle or the revision's author may close it (an admin closes
+    any cycle with ``OverrideReviewOutcome``). A person cannot close with an outcome milder than
+    the worst answer. If a reviewer has not answered, ``reason`` is required (why the cycle closes
+    early). If nobody has answered, the round is ``withdrawn``: that is the only outcome, and the
+    default.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     review_cycle_id: str
     expected_version: int | None = None
-    outcome: Outcome | None = None
+    outcome: CloseOutcome | None = None
     reason: str | None = Field(default=None, max_length=MAX_REASON)
 
 
@@ -235,6 +238,7 @@ def handle_open_review_cycle(uow: UnitOfWork, cmd: OpenReviewCycle) -> CommandRe
         record_type=REVIEW_CYCLE,
         title=f"Review of {rev.key}, round {round_number}",
         key=f"{rev.key}/RC{round_number}",
+        composed_key=True,
         extra_events=[
             NewEvent(
                 event_type=REVIEW_DEFINED,
@@ -397,12 +401,19 @@ def _open_cycle(uow: UnitOfWork, cmd: Command, cycle_id: str) -> registry.Review
 def handle_close_review_cycle(uow: UnitOfWork, cmd: CloseReviewCycle) -> CommandResult:
     """Append ``ReviewCycle.Closed``; the revision returns to Draft; the document may leave review.
 
-    Raises ``ReviewNotFoundError``, ``ReviewStateError`` (already closed) and
-    ``InvalidReviewError`` (a reviewer is missing and no reason is given; the outcome is milder
-    than the worst answer, or nobody answered and the outcome is not ``rejected``).
+    Raises ``ReviewNotFoundError``, ``ReviewStateError`` (already closed), ``NotYourReviewError``
+    (the caller neither opened the cycle nor wrote the revision) and ``InvalidReviewError`` (a
+    reviewer is missing and no reason is given; the outcome is milder than the worst answer;
+    ``withdrawn`` with answers, or any other outcome with none).
     """
     cmd = correlated(cmd)
     cycle = _open_cycle(uow, cmd, cmd.review_cycle_id)
+    opener = uow.ledger.read_stream(cycle.id)[0].actor
+    if cmd.actor not in (opener, _author_of(uow, cycle.revision_id)):
+        raise NotYourReviewError(
+            f"{cmd.actor} neither opened {cycle.key} nor wrote the revision; "
+            "an admin closes it with OverrideReviewOutcome"
+        )
     reviewers = registry.reviewers_of(uow.conn(), cycle.id)
     answered = [r.outcome for r in reviewers if r.outcome is not None]
     if any(r.outcome is None for r in reviewers) and not (cmd.reason or "").strip():
@@ -413,16 +424,18 @@ def handle_close_review_cycle(uow: UnitOfWork, cmd: CloseReviewCycle) -> Command
     if answered:
         worst = max(answered, key=lambda o: _SEVERITY[o])
         outcome = cmd.outcome or worst
+        if outcome == "withdrawn":
+            raise InvalidReviewError(f"{cycle.key} has answers; it cannot be withdrawn")
         if _SEVERITY[outcome] < _SEVERITY[worst]:
             raise InvalidReviewError(
                 f"{cycle.key} has a {worst} answer; only an admin can close it as {outcome} "
                 "(OverrideReviewOutcome)"
             )
     else:
-        outcome = cmd.outcome or "rejected"
-        if outcome != "rejected":
+        outcome = cmd.outcome or "withdrawn"
+        if outcome != "withdrawn":
             raise InvalidReviewError(
-                f"nobody has answered {cycle.key}; it can be closed as rejected (withdrawn), "
+                f"nobody has answered {cycle.key}; it is closed as withdrawn, "
                 "or by an admin with OverrideReviewOutcome"
             )
     return _close(uow, cmd, cycle, outcome, cmd.reason, None, cmd.expected_version)

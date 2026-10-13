@@ -30,6 +30,7 @@ from tl_core.services.errors import (
     NoChangesError,
     RecordNotFoundError,
     RecordVoidedError,
+    ReservedLinkSourceError,
     SelfLinkError,
     SuggestionDeclinedError,
     UnknownRelationError,
@@ -100,6 +101,14 @@ class RetractLink(_OnLink):
         return value
 
 
+class AdminFlagLink(FlagLink):
+    """Admin: flag any link stale or broken, including one a module wrote by rule (recovery)."""
+
+
+class AdminRetractLink(RetractLink):
+    """Admin: retract any link, including one a module wrote by rule (recovery)."""
+
+
 class MarkPinsStale(Command):
     """A new revision of ``record_id`` was issued: flag active links pinned to another revision."""
 
@@ -129,6 +138,10 @@ _COMMAND_OF = {
 #: A relation only a module may write onto a module record: the module's own commands say
 #: "this replaces that"; a person cannot claim it with a generic link.
 RESERVED_RELATION = "supersedes"
+#: Link sources only the system may claim: a rule, an enricher, an import and a mapping write
+#: links no person made, and a link of such a source is kept by the module that wrote it. A client
+#: that could claim one would make a link nobody can retract (P1-I2 security review).
+SYSTEM_LINK_SOURCES = frozenset({"rule", "enricher", "import", "mapping"})
 _SAME_ENDS_SQL = text(
     "SELECT link_id, status, declined FROM cur_links "
     "WHERE from_id = :from_id AND to_id = :to_id AND relation = :relation"
@@ -172,6 +185,11 @@ def _create(
     by_module: bool = False,
 ) -> CommandResult:
     """Shared body of ``handle_add_link`` and ``handle_suggest_link``."""
+    if cmd.link_source in SYSTEM_LINK_SOURCES and not by_module:
+        raise ReservedLinkSourceError(
+            f"link source {cmd.link_source!r} is for links the system writes; "
+            "a person's or an agent's link is manual"
+        )
     source = _record(uow, cmd.from_id, allow_post=True)
     if not by_module:
         require_generic(
@@ -323,9 +341,10 @@ def _require_owner_allows(uow: UnitOfWork, link: Any, event_type: str) -> None:
 def handle_add_link(uow: UnitOfWork, cmd: AddLink, *, by_module: bool = False) -> CommandResult:
     """Create an active link. Emits ``Link.Added``.
 
-    ``by_module`` is for the module that owns a record type: its own command makes the link, so
-    the type's generic-command allow-list and the reserved ``supersedes`` relation do not apply.
-    It is a Python argument, not a field of the command, so no client can set it.
+    ``by_module`` is for a module or service path: its own command makes the link, so the type's
+    generic-command allow-list, the reserved ``supersedes`` relation and the system link sources
+    (``rule``, ``enricher``, ``import``, ``mapping``) do not apply. It is a Python argument, not a
+    field of the command, so no client can set it.
     """
     return _create(uow, cmd, "Link.Added", {}, by_module=by_module)
 
@@ -388,6 +407,16 @@ def handle_retract_link(
 ) -> CommandResult:
     """End a link's life with a reason. The row and history stay. Emits ``Link.Retracted``."""
     return _act(uow, cmd, "Link.Retracted", {"reason": cmd.reason}, by_module=by_module)
+
+
+def handle_admin_flag_link(uow: UnitOfWork, cmd: AdminFlagLink) -> CommandResult:
+    """Flag a link whatever its source or owner. The API gates it to an admin (ADR-0011)."""
+    return handle_flag_link(uow, cmd, by_module=True)
+
+
+def handle_admin_retract_link(uow: UnitOfWork, cmd: AdminRetractLink) -> CommandResult:
+    """Retract a link whatever its source or owner. The API gates it to an admin (ADR-0011)."""
+    return handle_retract_link(uow, cmd, by_module=True)
 
 
 def handle_mark_pins_stale(uow: UnitOfWork, cmd: MarkPinsStale) -> CommandResult:

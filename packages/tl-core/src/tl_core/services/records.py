@@ -208,6 +208,7 @@ def create_module_record(
     description: str | None = None,
     extra_events: Sequence[NewEvent] = (),
     numbering: dict[str, str] | None = None,
+    composed_key: bool = False,
 ) -> CommandResult:
     """Create a record of a module type: ``Record.Created`` then the module's own events.
 
@@ -217,10 +218,18 @@ def create_module_record(
     pattern's other fields. ``extra_events`` are appended in the same append, after the envelope
     event, so the module's projectors see the row ``RecordProjector`` just made. The record has no
     property-set values yet; write them with ``SetPsetValues`` in the same unit of work.
+
+    A key a caller typed in (a document number, a tag number) may not hold ``@`` or ``/``
+    (``ReservedKeyError``): modules build their own keys with them (``ISO-1234@B``), and a typed
+    key would squat one. A module that builds the key itself passes ``composed_key=True``.
     """
     if not is_module_record_type(record_type):
         raise UnsupportedRecordTypeError(
             f"record type {record_type!r} is not provided by an installed module"
+        )
+    if key is not None and not composed_key and RESERVED_KEY_CHARS & set(key):
+        raise ReservedKeyError(
+            f"key {key!r} holds '@' or '/', which module records use in their own keys"
         )
     stream_id = new_ulid()
     correlation_id = cmd.correlation_id or new_ulid()

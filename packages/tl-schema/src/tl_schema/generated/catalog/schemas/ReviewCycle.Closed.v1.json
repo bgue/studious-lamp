@@ -20,7 +20,7 @@
               "type": "string"
             },
             "outcome": {
-              "description": "approved, approved_with_comments or rejected.",
+              "description": "approved, approved_with_comments or rejected; withdrawn when nobody answered.",
               "type": "string"
             },
             "reason": {

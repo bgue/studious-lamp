@@ -138,6 +138,8 @@ def test_a_reviewer_is_listed_once_and_the_command_checks_its_fields(draft: Worl
         {"reviewers": [{"reviewer": f"r{i}"} for i in range(51)]},
         {"due_date": "soon"},
         {"reviewers": [{"reviewer": "x", "due_date": "2026-13-01"}]},
+        {"reviewers": [{"reviewer": "x", "due_date": "2999-01-01"}]},
+        {"due_date": "1900-01-01"},
     ):
         fields = {"revision_id": rev, "reviewers": [{"reviewer": "user:ana"}], **bad}
         with pytest.raises(ValidationError):
@@ -221,10 +223,11 @@ def test_closing_early_needs_a_reason_and_an_unanswered_round_is_withdrawn(draft
     cycle = open_review(draft).stream_id
     with pytest.raises(InvalidReviewError, match="user:ana, user:bo have not answered"):
         close(draft, cycle)
-    with pytest.raises(InvalidReviewError, match="nobody has answered"):
-        close(draft, cycle, reason="Review withdrawn", outcome="approved")
-    close(draft, cycle, reason="Review withdrawn")  # withdrawn: counts as rejected
-    assert cycles(draft)[0].outcome == "rejected"
+    for outcome in ("approved", "rejected"):
+        with pytest.raises(InvalidReviewError, match="nobody has answered"):
+            close(draft, cycle, reason="Review withdrawn", outcome=outcome)
+    close(draft, cycle, reason="Review withdrawn")  # nobody answered: withdrawn, not rejected
+    assert cycles(draft)[0].outcome == "withdrawn"
 
 
 def test_a_partial_close_takes_the_outcome_of_those_who_answered(draft: World) -> None:
@@ -399,3 +402,31 @@ def test_a_person_may_close_with_a_stricter_outcome_than_the_answers(draft: Worl
     answer(draft, cycle, "user:bo", "approved")
     close(draft, cycle, outcome="rejected")
     assert cycles(draft)[0].outcome == "rejected"
+
+
+def test_withdrawn_is_only_for_a_round_nobody_answered(draft: World) -> None:
+    cycle = open_review(draft).stream_id
+    answer(draft, cycle, "user:ana", "approved")
+    with pytest.raises(InvalidReviewError, match="has answers; it cannot be withdrawn"):
+        close(draft, cycle, reason="Bo is on leave", outcome="withdrawn")
+    assert cycles(draft)[0].state == "open"
+
+
+def test_only_the_opener_or_the_author_closes_a_cycle(draft: World) -> None:
+    cycle = open_review(draft, actor="user:bo").stream_id  # bo opens it; u wrote the revision
+    answer(draft, cycle, "user:ana", "approved")
+    answer(draft, cycle, "user:bo", "approved")
+    for stranger in ("user:ana", "user:cy"):
+        with pytest.raises(NotYourReviewError, match="neither opened"):
+            run(
+                draft,
+                handle_close_review_cycle,
+                CloseReviewCycle(**{**BASE, "actor": stranger}, review_cycle_id=cycle),
+            )
+    assert cycles(draft)[0].state == "open"
+    run(
+        draft,
+        handle_close_review_cycle,
+        CloseReviewCycle(**{**BASE, "actor": "user:u"}, review_cycle_id=cycle),
+    )  # the author
+    assert cycles(draft)[0].outcome == "approved"

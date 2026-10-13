@@ -19,14 +19,19 @@ from tl_core.schema_provider import DirectorySchemaProvider, use_provider
 from tl_core.services.commands import Command, CreateRecord
 from tl_core.services.errors import (
     ReservedKeyError,
+    ReservedLinkSourceError,
     UnsupportedRecordTypeError,
 )
 from tl_core.services.links import (
     AddLink,
+    AdminFlagLink,
+    AdminRetractLink,
     FlagLink,
     RetractLink,
     SuggestLink,
     handle_add_link,
+    handle_admin_flag_link,
+    handle_admin_retract_link,
     handle_flag_link,
     handle_retract_link,
     handle_suggest_link,
@@ -197,7 +202,7 @@ def test_a_link_a_module_wrote_by_rule_is_flagged_and_retracted_only_by_the_modu
 ) -> None:
     with use_modules([spec()]):
         mine = thing(db, "OPEN-1")
-        by_rule = _link(db, mine, plain(db, "P-1"), link_source="rule")
+        by_rule = _link(db, mine, plain(db, "P-1"), by_module=True, link_source="rule")
         by_hand = _link(db, mine, plain(db, "P-2"))
         for command, handler, extra in (
             ("FlagLink", handle_flag_link, {"status": "stale", "reason": "x"}),
@@ -221,7 +226,7 @@ def test_a_link_a_module_wrote_by_rule_is_flagged_and_retracted_only_by_the_modu
 
 def test_a_rule_link_between_core_records_is_not_reserved(db: DbTarget) -> None:
     with use_modules([spec()]):
-        link = _link(db, plain(db, "P-1"), plain(db, "P-2"), link_source="rule")
+        link = _link(db, plain(db, "P-1"), plain(db, "P-2"), by_module=True, link_source="rule")
         with open_uow(db) as uow:
             handle_flag_link(uow, FlagLink(**BASE, link_id=link, status="stale", reason="x"))
 
@@ -257,3 +262,43 @@ def test_a_typed_key_of_a_generic_record_cannot_hold_the_characters_modules_use(
             uow, CreateRecord(**BASE, record_type="core.Record", title="t", key=key)
         )
     plain(db, "ISO-1234-A")  # a hyphen is fine
+
+
+def test_a_person_cannot_claim_a_system_link_source(db: DbTarget) -> None:
+    """A link nobody can retract must not be makeable by a client (P1-I2 security review)."""
+    with use_modules([spec()]):
+        mine, other = thing(db, "OPEN-1"), plain(db, "P-1")
+        for source in ("rule", "enricher", "import", "mapping"):
+            pairs: list[tuple[Any, Any]] = [
+                (AddLink, handle_add_link),
+                (SuggestLink, handle_suggest_link),
+            ]
+            for cls, handler in pairs:
+                with open_uow(db) as uow, pytest.raises(ReservedLinkSourceError):
+                    handler(uow, cls(**BASE, from_id=mine, to_id=other, link_source=source))
+                with (
+                    open_uow(db) as uow,
+                    pytest.raises(ReservedLinkSourceError),
+                ):  # core records too
+                    handler(uow, cls(**BASE, from_id=other, to_id=mine, link_source=source))
+        # the person's own sources are still theirs, and the module path may use a system one
+        for source in ("manual", "tray", "bulk", "model_selection", "thread_dispatch"):
+            _link(db, plain(db, f"X-{source}"), plain(db, f"Y-{source}"), link_source=source)
+        _link(db, mine, other, by_module=True, link_source="mapping")
+
+
+def test_an_admin_command_flags_and_retracts_any_link(db: DbTarget) -> None:
+    """The recovery path for a module's link: ``by_module`` skips the owner's checks."""
+    with use_modules([spec()]):
+        mine = thing(db, "OPEN-1")
+        by_rule = _link(db, mine, plain(db, "P-1"), by_module=True, link_source="rule")
+        with open_uow(db) as uow:
+            flagged = handle_admin_flag_link(
+                uow, AdminFlagLink(**BASE, link_id=by_rule, status="broken", reason="wrong")
+            )
+        assert flagged.events[0].event_type == "Link.Flagged"
+        with open_uow(db) as uow:
+            gone = handle_admin_retract_link(
+                uow, AdminRetractLink(**BASE, link_id=by_rule, reason="made in error")
+            )
+        assert gone.events[0].event_type == "Link.Retracted"

@@ -27,6 +27,9 @@ class DuplicateKeyError(ServiceError): ...  # (scope, key) already exists, voide
 class ReservedKeyError(ServiceError): ...  # a typed-in key holds a character modules reserve
 
 
+class ReservedLinkSourceError(ServiceError): ...  # a link source only the system may claim
+
+
 class UnsupportedRecordTypeError(ServiceError): ...  # record_type other than "core.Record"
 
 

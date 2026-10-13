@@ -11312,7 +11312,7 @@
                       ]
                     },
                     "replace_reason": {
-                      "description": "Why a signed copy was replaced (admin); null for every other rendition.",
+                      "description": "The admin's reason when a signed copy was registered or replaced; null for every other rendition.",
                       "type": [
                         "string",
                         "null"
@@ -11838,7 +11838,7 @@
                       "type": "string"
                     },
                     "outcome": {
-                      "description": "approved, approved_with_comments or rejected.",
+                      "description": "approved, approved_with_comments or rejected; withdrawn when nobody answered.",
                       "type": "string"
                     },
                     "reason": {

@@ -311,3 +311,32 @@ def test_a_transmittal_takes_links_and_attachments_only_as_a_draft(
                 UnsupportedRecordTypeError, match="Issued transmittal takes no more"
             ):
                 attempt(world, command, ids["documents.Transmittal"], "documents.Transmittal")
+
+
+def test_a_link_of_a_transmittal_is_flagged_or_retracted_only_while_it_is_a_draft(
+    world: World, ids: dict[str, str]
+) -> None:
+    transmittal = ids["documents.Transmittal"]
+    target = world.scalar("SELECT id FROM cur_core_record WHERE key = '47-FV-9999'")
+    first = world.link_from(transmittal, target)
+    other = world.tag("47-FV-9998")
+    second = world.link_from(transmittal, other)
+    with open_uow(world.db) as uow:  # a draft: the person may flag
+        handle_flag_link(uow, FlagLink(**BASE, link_id=first, status="stale", reason="x"))
+    world.move(transmittal, "issue")
+    for command, extra in (
+        ("FlagLink", {"status": "stale", "reason": "x"}),
+        ("RetractLink", {"reason": "x"}),
+    ):
+        cls, handler, _ = LINK_LIFE[command]
+        with (
+            open_uow(world.db) as uow,
+            pytest.raises(UnsupportedRecordTypeError, match="Issued transmittal takes no more"),
+        ):
+            handler(uow, cls(**BASE, link_id=second, **extra))
+    # and the admin's recovery command still reaches it
+    from tl_core.services.links import AdminRetractLink, handle_admin_retract_link
+
+    with open_uow(world.db) as uow:
+        handle_admin_retract_link(uow, AdminRetractLink(**BASE, link_id=second, reason="wrong"))
+    assert world.link_status(second) == "retracted"

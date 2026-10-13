@@ -71,6 +71,9 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(links.VerifyLink, links.handle_verify_link),
     CommandSpec(links.FlagLink, links.handle_flag_link),
     CommandSpec(links.RetractLink, links.handle_retract_link),
+    # recovery: any link, whatever its source or owner (ADR-0011)
+    CommandSpec(links.AdminFlagLink, links.handle_admin_flag_link, "admin"),
+    CommandSpec(links.AdminRetractLink, links.handle_admin_retract_link, "admin"),
     CommandSpec(TransitionWorkflow, handle_transition_workflow),
     CommandSpec(PostToFeed, handle_post),
     CommandSpec(EditPost, handle_edit_post),

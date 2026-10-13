@@ -43,7 +43,7 @@
               ]
             },
             "replace_reason": {
-              "description": "Why a signed copy was replaced (admin); null for every other rendition.",
+              "description": "The admin's reason when a signed copy was registered or replaced; null for every other rendition.",
               "type": [
                 "string",
                 "null"

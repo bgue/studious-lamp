@@ -107,6 +107,9 @@ def test_the_command_checks_its_own_fields(world: World) -> None:
         CreateRevision(**BASE, document_id=doc.id, revision_date="13/10/2026")
     with pytest.raises(ValidationError):
         CreateRevision(**BASE, document_id=doc.id, revision_date="2026-02-30")
+    for absurd in ("2999-01-01", "1900-01-01"):
+        with pytest.raises(ValidationError, match="revision_date"):
+            CreateRevision(**BASE, document_id=doc.id, revision_date=absurd)
     with pytest.raises(ValidationError):
         CreateRevision(**BASE, document_id=doc.id, code="X" * 200)
     with pytest.raises(InvalidIssueStatusError):

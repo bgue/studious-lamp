@@ -44,6 +44,7 @@ from tl_mod_documents.handlers.common import (
     check_date,
     correlated,
     load_revision,
+    plausible_date,
     require_project,
     resolve_date,
     transition,
@@ -125,7 +126,7 @@ class CreateTransmittal(Command):
     @field_validator("due_date")
     @classmethod
     def _due(cls, value: str | None) -> str | None:
-        return check_date(value, "due_date")
+        return plausible_date(value, "due_date")
 
 
 class IssueTransmittal(Command):

@@ -96,18 +96,33 @@ def test_markups_are_additive_one_never_replaces_another(world: World) -> None:
     ]
 
 
-def test_a_signed_copy_is_write_once_and_an_admin_command_replaces_it(world: World) -> None:
+def test_the_signed_copy_is_registered_and_replaced_by_admin_commands_only(world: World) -> None:
     from tl_mod_documents.handlers.renditions import (
+        RegisterSignedRendition,
         ReplaceSignedRendition,
+        handle_register_signed_rendition,
         handle_replace_signed_rendition,
     )
 
     world.issued_document()
-    first = world.attach("ISO-1234", "A", slot="signed", data=b"%PDF signed 1", name="s1.pdf")
     rev = world.revision("ISO-1234", "A")
+    first_file = world.upload(rev.id, "signed", b"%PDF signed 1", "s1.pdf")
+    # the ordinary command refuses a signed copy, the first one included
+    with pytest.raises(RenditionNotAllowedError, match="registered by an admin"):
+        attach_file(world, rev.id, first_file.file_id)
+    assert [r for r in renditions(world, "ISO-1234", "A") if r.kind == "signed"] == []
+    with open_uow(world.db) as uow:
+        first = handle_register_signed_rendition(
+            uow,
+            RegisterSignedRendition(**BASE, revision_id=rev.id, file_id=first_file.file_id),
+        )
+    assert first.events[1].payload["replace_reason"] is None
     again = world.upload(rev.id, "signed", b"%PDF signed 2", "s2.pdf")
     with pytest.raises(RenditionNotAllowedError, match="already has a signed copy.*final"):
-        attach_file(world, rev.id, again.file_id)
+        with open_uow(world.db) as uow:
+            handle_register_signed_rendition(
+                uow, RegisterSignedRendition(**BASE, revision_id=rev.id, file_id=again.file_id)
+            )
 
     def replace(file_id: str, reason: str = "re-signed after a stamp error") -> object:
         with open_uow(world.db) as uow:
@@ -131,9 +146,13 @@ def test_a_signed_copy_is_write_once_and_an_admin_command_replaces_it(world: Wor
         ReplaceSignedRendition(**BASE, revision_id=rev.id, file_id="f", reason="  ")
 
 
-def test_replacing_needs_a_signed_copy_and_only_replaces_signed_ones(world: World) -> None:
+def test_replacing_needs_a_signed_copy_and_only_signed_files_are_registered_so(
+    world: World,
+) -> None:
     from tl_mod_documents.handlers.renditions import (
+        RegisterSignedRendition,
         ReplaceSignedRendition,
+        handle_register_signed_rendition,
         handle_replace_signed_rendition,
     )
 
@@ -143,12 +162,32 @@ def test_replacing_needs_a_signed_copy_and_only_replaces_signed_ones(world: Worl
     markup = world.upload(rev.id, "markup", b"%PDF markup", "m.pdf")
     for file_id, message in (
         (signed.file_id, "has no signed copy to replace"),
-        (markup.file_id, "only a signed copy is replaced this way"),
+        (markup.file_id, "only a signed copy is registered this way"),
     ):
         with open_uow(world.db) as uow, pytest.raises(RenditionNotAllowedError, match=message):
             handle_replace_signed_rendition(
                 uow, ReplaceSignedRendition(**BASE, revision_id=rev.id, file_id=file_id, reason="x")
             )
+    with (
+        open_uow(world.db) as uow,
+        pytest.raises(RenditionNotAllowedError, match="only a signed copy is registered this way"),
+    ):
+        handle_register_signed_rendition(
+            uow, RegisterSignedRendition(**BASE, revision_id=rev.id, file_id=markup.file_id)
+        )
+
+
+def test_a_revision_takes_a_bounded_number_of_markups(world: World) -> None:
+    from tl_mod_documents.limits import MAX_MARKUPS
+
+    world.issued_document()
+    rev = world.revision("ISO-1234", "A")
+    for n in range(MAX_MARKUPS):
+        world.attach("ISO-1234", "A", slot="markup", data=f"%PDF m{n}".encode(), name=f"m{n}.pdf")
+    extra = world.upload(rev.id, "markup", b"%PDF one too many", "extra.pdf")
+    with pytest.raises(RenditionNotAllowedError, match=f"already has {MAX_MARKUPS} markups"):
+        attach_file(world, rev.id, extra.file_id)
+    assert len([r for r in renditions(world, "ISO-1234", "A") if r.kind == "markup"]) == MAX_MARKUPS
 
 
 def test_a_superseded_revision_still_takes_markups_and_signed_copies(world: World) -> None:

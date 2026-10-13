@@ -2283,7 +2283,7 @@ A file was registered as a rendition of a revision.
 | `filename` | string | yes | File name. |
 | `kind` | string | yes | native, pdf, markup or signed. |
 | `page_count` | integer or null | no | Number of pages, when known. |
-| `replace_reason` | string or null | no | Why a signed copy was replaced (admin); null for every other rendition. |
+| `replace_reason` | string or null | no | The admin's reason when a signed copy was registered or replaced; null for every other rendition. |
 | `revision_id` | string | yes | Record id of the revision. |
 | `sha256` | string | yes | Hex SHA-256 of the bytes. |
 | `size` | integer | yes | Size in bytes. |
@@ -2393,7 +2393,7 @@ A review cycle was closed with an overall outcome.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `closed_on` | string | yes | ISO date it was closed. |
-| `outcome` | string | yes | approved, approved_with_comments or rejected. |
+| `outcome` | string | yes | approved, approved_with_comments or rejected; withdrawn when nobody answered. |
 | `reason` | string or null | no | Why it was closed, when not every reviewer answered or the outcome was stated. |
 | `worst_answer` | string or null | no | The worst recorded answer when an admin closed with a milder outcome; null otherwise. |
 

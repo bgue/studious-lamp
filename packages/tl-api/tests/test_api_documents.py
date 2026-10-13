@@ -33,6 +33,7 @@ EXPECTED_ACCESS = {
     "SupersedeRevision": "admin",
     "VoidRevision": "user",
     "AttachRendition": "user",
+    "RegisterSignedRendition": "admin",
     "ReplaceSignedRendition": "admin",
     "LinkToDocument": "user",
     "RepinDocumentLink": "user",
@@ -261,3 +262,91 @@ def test_a_key_with_an_at_sign_or_a_slash_cannot_be_taken_by_a_generic_record(
     for key in ("ISO-1234@A", "ISO-1234@A/pdf-1"):
         refused = run(people.bob, "CreateRecord", record_type="core.Record", title="t", key=key)
         assert refused.status_code == 422 and refused.json()["error"] == "reserved_key"
+
+
+def test_a_person_cannot_make_a_link_nobody_can_retract(
+    people: People, world: DocumentsWorld
+) -> None:
+    """``link_source`` is the system's to claim (a rule, an enricher, an import, a mapping)."""
+    world.register("ISO-1234")
+    doc = world.document("ISO-1234")
+    tag = run(
+        people.bob, "CreateRecord", record_type="core.Record", title="Valve", key="47-FV-1001"
+    ).json()["stream_id"]
+    for name in ("AddLink", "SuggestLink"):
+        for source in ("rule", "enricher", "import", "mapping"):
+            refused = run(
+                people.bob,
+                name,
+                from_id=doc.id,
+                to_id=tag,
+                relation="references",
+                link_source=source,
+            )
+            assert refused.status_code == 422, (name, source, refused.text)
+            assert refused.json()["error"] == "reserved_link_source", (name, source)
+    assert world.scalar("SELECT COUNT(*) FROM cur_links") == 0
+
+
+def test_the_admin_recovery_commands_reach_any_link_and_a_person_cannot_use_them(
+    people: People, world: DocumentsWorld
+) -> None:
+    world.issued_document("ISO-1234")
+    tag = world.tag()
+    link = world.link(tag, "ISO-1234", "A")
+    ours = {"link_id": link, "status": "broken", "reason": "wrong target"}
+    assert run(people.bob, "AdminFlagLink", **ours).status_code == 403
+    assert run(people.bob, "AdminRetractLink", link_id=link, reason="x").status_code == 403
+    assert run(people.boss, "AdminFlagLink", **ours).status_code == 200
+    assert (
+        run(people.boss, "AdminRetractLink", link_id=link, reason="made in error").status_code
+        == 200
+    )
+    assert world.link_status(link) == "retracted"
+
+
+def test_a_document_number_that_squats_a_module_key_is_a_422(
+    people: People, world: DocumentsWorld
+) -> None:
+    for number in ("ISO-1234@B", "ISO-1234/pdf-1"):
+        refused = run(people.bob, "RegisterDocument", number=number, title="x", doc_type="ISO")
+        assert refused.status_code == 422 and refused.json()["error"] == "reserved_key", number
+    assert world.scalar("SELECT COUNT(*) FROM cur_documents_document") == 0
+
+
+def test_a_stranger_cannot_close_someone_elses_review(
+    people: People, world: DocumentsWorld
+) -> None:
+    from tl_adapters.db import open_uow
+    from tl_mod_documents.handlers.reviews import (
+        OpenReviewCycle,
+        ReviewerRequest,
+        handle_open_review_cycle,
+    )
+    from tl_mod_documents.testing import BASE
+
+    world.people("u", "ana")
+    world.register("ISO-1234")
+    world.create_revision("ISO-1234")
+    world.attach("ISO-1234", "A")
+    with open_uow(world.db) as uow:
+        cycle = handle_open_review_cycle(
+            uow,
+            OpenReviewCycle(
+                **BASE,
+                revision_id=world.revision("ISO-1234", "A").id,
+                reviewers=[ReviewerRequest(reviewer="user:ana")],
+            ),
+        )
+    refused = run(people.bob, "CloseReviewCycle", review_cycle_id=cycle.stream_id)
+    assert refused.status_code == 403 and refused.json()["error"] == "not_your_review"
+    assert (
+        run(
+            people.boss,
+            "OverrideReviewOutcome",
+            review_cycle_id=cycle.stream_id,
+            outcome="approved",
+            reason="sign-off by the lead",
+        ).status_code
+        == 200
+    )

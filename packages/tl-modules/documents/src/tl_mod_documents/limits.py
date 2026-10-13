@@ -16,3 +16,4 @@ MAX_ITEMS = 200  # revisions on one transmittal
 MAX_RECIPIENTS = 100  # recipients of one transmittal
 MAX_REVIEWERS = 50  # reviewers of one review cycle
 MAX_PAGES = 100_000  # the page count a rendition may state
+MAX_MARKUPS = 20  # current markup renditions of one revision (markup is additive)

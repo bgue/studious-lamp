@@ -7,12 +7,12 @@ The API builds one ``POST /commands/<Name>`` route per row. ``access`` says who 
 
 Document control has no role of its own in Phase 1 (ADR-0008 has two roles). Until one exists
 (Entra groups, later) the **controlling acts** are the admin's (ADR-0011): issuing a revision,
-superseding a revision or a document, voiding a document, issuing a transmittal, replacing a signed
-copy, setting the confidentiality class, and the two corrections of a review. Everything that
-prepares work stays open to any signed-in person: registering, revising, attaching in draft,
-opening a review, recording one's own answer, linking and re-pinning. An agent never changes a
-record: its calls are proposals a person accepts, and a command is closed to agents until
-``tl_core.auth.provider`` lists it.
+superseding a revision or a document, voiding a document, issuing a transmittal, registering or
+replacing a signed copy, setting the confidentiality class, and the two corrections of a review.
+Everything that prepares work stays open to any signed-in person: registering, revising,
+attaching in draft, opening a review, recording one's own answer, linking and re-pinning. An agent
+never changes a record: its calls are proposals a person accepts, and a command is closed to
+agents until ``tl_core.auth.provider`` lists it.
 """
 
 from __future__ import annotations
@@ -38,8 +38,10 @@ from tl_mod_documents.handlers.documents import (
 )
 from tl_mod_documents.handlers.renditions import (
     AttachRendition,
+    RegisterSignedRendition,
     ReplaceSignedRendition,
     handle_attach_rendition,
+    handle_register_signed_rendition,
     handle_replace_signed_rendition,
 )
 from tl_mod_documents.handlers.reviews import (
@@ -104,6 +106,7 @@ API_COMMANDS: tuple[ApiCommand, ...] = (
     ApiCommand(SupersedeRevision, handle_supersede_revision, "admin"),
     ApiCommand(VoidRevision, handle_void_revision, "user"),
     ApiCommand(AttachRendition, handle_attach_rendition, "user"),
+    ApiCommand(RegisterSignedRendition, handle_register_signed_rendition, "admin"),
     ApiCommand(ReplaceSignedRendition, handle_replace_signed_rendition, "admin"),
     ApiCommand(LinkToDocument, handle_link_to_document, "user"),
     ApiCommand(RepinDocumentLink, handle_repin_document_link, "user"),

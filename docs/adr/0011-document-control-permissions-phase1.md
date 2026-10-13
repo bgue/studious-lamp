@@ -23,10 +23,10 @@ signed-in person. An agent never runs either kind: its call is a proposal.
 |---|---|
 | `IssueRevision`, `SupersedeRevision` | `RegisterDocument`, `UpdateDocument` (title, description, type, discipline, originator) |
 | `SupersedeDocument`, `VoidDocument` | `CreateRevision`, `VoidRevision` (a draft only) |
-| `SetDocumentConfidentiality` (any change to the class) | `AttachRendition` (native, PDF and markup in the states that take them) |
-| `ReplaceSignedRendition` | `LinkToDocument`, `RepinDocumentLink` |
+| `SetDocumentConfidentiality` (any change to the class) | `AttachRendition` (native, PDF and markup in the states that take them; at most 20 markups per revision; never a signed copy) |
+| `RegisterSignedRendition` (the first signed copy), `ReplaceSignedRendition` (a correction, with a reason) | `LinkToDocument`, `RepinDocumentLink` |
 | `IssueTransmittal` | `CreateTransmittal`, `RecordTransmittalResponse`, `CloseTransmittal`, `VoidTransmittal` (a draft) |
-| `RecordReviewOutcomeOnBehalf`, `OverrideReviewOutcome` | `OpenReviewCycle`, `RecordReviewOutcome` (one's own answer), `CloseReviewCycle` (not milder than the worst answer) |
+| `RecordReviewOutcomeOnBehalf`, `OverrideReviewOutcome` | `OpenReviewCycle`, `RecordReviewOutcome` (one's own answer), `CloseReviewCycle` (its opener or the revision's author; not milder than the worst answer) |
 
 `SupersedeDocument` does not require the replacement to have the same document type: a document may be replaced by one of another type (a sketch by a general arrangement drawing), and the admin who supersedes states the reason, which the event keeps.
 
@@ -38,8 +38,15 @@ The review rules that go with it:
 - A reviewer answers for themselves only. An admin can record an answer for someone else, with a mandatory comment, and
   the event keeps who recorded it (`recorded_by`).
 - A cycle's reviewers are active person accounts, and at least one is not the revision's author.
-- Closing a cycle with an outcome milder than the worst recorded answer, or closing one nobody answered with anything but
-  `rejected` (withdrawn), is the admin's `OverrideReviewOutcome`, with a reason. The event keeps the worst answer.
+- A round nobody answered closes as `withdrawn`, which is not a rejection and is the only outcome it can have. Only the
+  person who opened a cycle or wrote the revision closes it (anyone else gets 403 `not_your_review`); an admin closes any
+  cycle with `OverrideReviewOutcome`.
+- Closing a cycle with an outcome milder than the worst recorded answer is the admin's `OverrideReviewOutcome`, with a
+  reason. The event keeps the worst answer.
+- The signed copy is evidence, so registering the first one is the admin's too (`AttachRendition` refuses `signed` for
+  everyone); a correction is `ReplaceSignedRendition` with a reason.
+- The system sources of a link (`rule`, `enricher`, `import`, `mapping`) cannot be claimed over the API. An admin
+  recovers a link a module wrote, or any link, with `AdminFlagLink` and `AdminRetractLink` (a reason is required).
 
 ## Consequences
 - Contracts changed: two commands are added to the documents module (`RecordReviewOutcomeOnBehalf`,
@@ -53,6 +60,18 @@ The review rules that go with it:
 - Phase 1 has no per-record access lists. A person who may prepare may prepare any document of a project; "ownership" of
   a draft is not checked. Document this wherever a command is described.
 - Gates affected: none. Schema approvals: none beyond the optional event attributes recorded in APPROVALS.md.
+
+## Known limits (Phase 1)
+- **No ownership of links.** A link from a core record to a document has no owner a check could use, so any signed-in
+  person can flag, re-pin, retract or verify it. The events name the actor, so the history shows who did it. A link
+  a module wrote by rule is the exception: only the module's commands or the admin recovery commands change it.
+- **`IssueRevision` is the one gate that stops a bad revision date.** The issue date is checked by the command (never in
+  the future, a reason for an earlier one); a revision's own `revision_date` and a due date are bounded to a year ahead
+  and 50 years back. While issuing stays an admin's act, a person cannot put a revision into the register as issued.
+- **Concurrency.** "One current native or PDF", "one signed copy" and "one current revision per status class" rest on the
+  ledger's writer lock: a write unit of work takes it before its first statement on both adapters, so two commands
+  never check and append at the same time. No unique index backs them.
+- A confidentiality class is stored and shown; nothing filters by it yet (no per-record access lists).
 
 ## Alternatives considered
 | Option | Why not |

@@ -23,7 +23,12 @@ from tl_core.services.links import AddLink, handle_add_link
 
 from tl_mod_documents import registry
 from tl_mod_documents.handlers.documents import RegisterDocument, handle_register_document
-from tl_mod_documents.handlers.renditions import AttachRendition, handle_attach_rendition
+from tl_mod_documents.handlers.renditions import (
+    AttachRendition,
+    RegisterSignedRendition,
+    handle_attach_rendition,
+    handle_register_signed_rendition,
+)
 from tl_mod_documents.handlers.revisions import (
     CreateRevision,
     IssueRevision,
@@ -120,9 +125,20 @@ class DocumentsWorld:
         name: str = "sheet.pdf",
         **more: Any,
     ) -> CommandResult:
-        """Upload a file to a revision and register it as a rendition."""
+        """Upload a file to a revision and register it as a rendition.
+
+        The first signed copy goes through ``RegisterSignedRendition``, as an admin would run it.
+        """
         rev = self.revision(number, code)
         uploaded = self.upload(rev.id, slot, data, name)
+        if slot == "signed":
+            with open_uow(self.db) as uow:
+                return handle_register_signed_rendition(
+                    uow,
+                    RegisterSignedRendition(
+                        **{**BASE, "revision_id": rev.id, "file_id": uploaded.file_id, **more}
+                    ),
+                )
         with open_uow(self.db) as uow:
             return handle_attach_rendition(
                 uow,
@@ -138,9 +154,14 @@ class DocumentsWorld:
                 uow, IssueRevision(**{**BASE, "stream_id": rev.id, "issue_status": status, **more})
             )
 
-    def people(self, *usernames: str) -> None:
-        """Person accounts (role user, no password) for the actors a test names as reviewers."""
+    def people(self, *usernames: str, password: str | None = None) -> None:
+        """Person accounts (role user) for the actors a test names as reviewers.
+
+        Without ``password`` the accounts cannot sign in; give one when the test runs commands that
+        sign in as them (the CLI tests on Postgres).
+        """
         from tl_core.auth import accounts
+        from tl_core.auth.password import prepare_password
 
         for name in usernames:
             with open_uow(self.db) as uow:
@@ -150,7 +171,9 @@ class DocumentsWorld:
                     display_name=name.title(),
                     kind="person",
                     roles=["user"],
-                    password=None,
+                    password=None
+                    if password is None
+                    else prepare_password(password, username=name),
                     by="system:test",
                 )
 

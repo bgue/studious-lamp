@@ -338,6 +338,7 @@ def route_actions(app: Any) -> set[str]:
 AGENT_MAY = {
     "auth.me",
     "auth.sign_out",
+    "document.read",
     "events.read",
     "events.stream",
     "feed.read",
@@ -382,7 +383,11 @@ AGENT_MAY_NOT = {
     "admin.command.VoidDocument",
     "admin.command.IssueRevision",
     "admin.command.SupersedeRevision",
+    "admin.command.RegisterSignedRendition",
     "admin.command.ReplaceSignedRendition",
+    # recovery: flag or retract any link, a module's rule link included
+    "admin.command.AdminFlagLink",
+    "admin.command.AdminRetractLink",
     "admin.command.IssueTransmittal",
     "admin.command.RecordReviewOutcomeOnBehalf",
     "admin.command.OverrideReviewOutcome",

@@ -170,6 +170,8 @@ def test_the_command_checks_its_own_fields(issued: World) -> None:
         {"revision_ids": []},
         {"revision_ids": ["r"] * 201},
         {"due_date": "tomorrow"},
+        {"due_date": "2999-01-01"},
+        {"due_date": "1900-01-01"},
         {"number": "N" * 129},
         {"notes": "n" * 10_001},
         {"origin": "import"},

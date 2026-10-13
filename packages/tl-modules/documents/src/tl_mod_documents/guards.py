@@ -56,11 +56,14 @@ def revision_upload(conn: Connection, record_id: str, slot: str | None) -> None:
 
 
 def transmittal_draft_only(conn: Connection, record_id: str, slot: str | None) -> None:
-    """Refuse a link or an attachment on a transmittal that is no longer a draft."""
+    """Refuse a link, a flag, a retraction or an attachment on a transmittal past its draft.
+
+    An admin corrects such a link with the core commands ``AdminFlagLink`` and ``AdminRetractLink``.
+    """
     del slot
     state = state_of(conn, record_id)
     if state != "Draft":
         raise UnsupportedRecordTypeError(
-            f"a {state} transmittal takes no more links or attachments: it is the record of "
+            f"a {state} transmittal takes no more links, flags or attachments: it is the record of "
             "what was sent"
         )

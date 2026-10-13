@@ -38,6 +38,7 @@ from tl_mod_documents.handlers.common import (
     correlated,
     load_revision,
     open_document,
+    plausible_date,
     require_project,
     resolve_date,
     today,
@@ -85,7 +86,7 @@ class CreateRevision(Command):
     @field_validator("revision_date")
     @classmethod
     def _date(cls, value: str | None) -> str | None:
-        return check_date(value, "revision_date")
+        return plausible_date(value, "revision_date")
 
 
 class IssueRevision(Command):
@@ -213,6 +214,7 @@ def handle_create_revision(uow: UnitOfWork, cmd: CreateRevision) -> CommandResul
         record_type=REVISION,
         title=f"{doc.number} rev {code}",
         key=f"{doc.number}@{code}",
+        composed_key=True,
         extra_events=[
             NewEvent(
                 event_type=REVISION_DEFINED,

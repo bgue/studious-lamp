@@ -111,7 +111,7 @@ has a life of its own after it is made.
    proposal all inherit it. A guard names a type the module owns and a command in `GENERIC_COMMANDS`, or the spec does not
    load. Documents: a revision takes native and PDF uploads only as a draft, markup as a draft, in review, issued or
    superseded, a signed copy only when issued or superseded, nothing once void, and no unslotted attachment; a
-   transmittal takes `AttachFile`, `AddLink` and `SuggestLink` only as a draft.
+   transmittal takes `AttachFile`, `AddLink`, `SuggestLink`, `FlagLink` and `RetractLink` only as a draft.
 2. **`by_module`.** The handlers of `TransitionWorkflow`, `AddLink`, `SuggestLink` and the link-life commands take a
    Python-only keyword `by_module`. A module's own command passes `True` to skip the allow-list for the record type it
    owns. It never skips a field of the command and is not a field of any command model: a `by_module` in a request body
@@ -120,10 +120,17 @@ has a life of its own after it is made.
    `RetractLink`. A link belongs to the record it starts at: the handlers resolve that record's type and call
    `require_generic`. A link a module wrote by rule (`source` rule, from a module record) is flagged or retracted only
    through the module's commands. The relation `supersedes` onto a module record type is written only by that module
-   (`AddLink` and `SuggestLink` refuse it otherwise). Who owns a link is not checked: Phase 1 has no per-record access
-   lists, so the check is about the record type and the link's origin.
-4. **Reserved key characters.** `CreateRecord` and `UpdateRecord` refuse `@` and `/` in a record key. Module records use
-   them to build keys (`ISO-1234@A`, `ISO-1234@A/RC1`), so a generic record cannot collide with or imitate one.
+   (`AddLink` and `SuggestLink` refuse it otherwise). The system sources of a link (`rule`, `enricher`, `import`,
+   `mapping`) are the server's too: a generic `AddLink` or `SuggestLink` that names one is refused
+   (`reserved_link_source`) unless the call comes from a module or service path, which is the Python-only `by_module`
+   keyword; otherwise a client could make a link nobody can retract. An admin recovers any link with the core commands
+   `AdminFlagLink` and `AdminRetractLink` (reason required; API access `admin`). Who owns a link is not checked: Phase 1
+   has no per-record access lists, so the check is about the record type and the link's origin.
+4. **Reserved key characters.** A key a caller types in may not hold `@` or `/`. Module records build their own keys
+   with them (`ISO-1234@A`, `ISO-1234@A/RC1`, `CL:Area@1.0.0`), so a typed key would squat one: `CreateRecord` refuses
+   them, and `create_module_record` refuses them in a key it is given unless the module built that key itself
+   (`composed_key=True`). A document number, a typed transmittal number and a tag number are therefore checked in every
+   module command, whatever the module's own pattern says. `UpdateRecord` cannot change a key, so it needs no check.
 5. **The engineering module** allows the six link-life commands on `Tag`; its supersession link is made with
    `by_module=True`.
 

@@ -61,6 +61,28 @@ def check_date(value: str | None, what: str) -> str | None:
     return value
 
 
+#: A date a caller states for a revision or a due date is within this many days of today.
+MAX_DAYS_AHEAD = 366
+MAX_DAYS_BACK = 366 * 50
+
+
+def plausible_date(value: str | None, what: str) -> str | None:
+    """``check_date``, and the day is at most a year ahead and 50 years back of today.
+
+    A typo like ``2062-10-13`` or ``1926-10-13`` would put a revision or a due date where no report
+    looks (P1-I2 security review).
+    """
+    found = check_date(value, what)
+    if found is None:
+        return None
+    offset = (date.fromisoformat(found) - date.fromisoformat(today())).days
+    if offset > MAX_DAYS_AHEAD:
+        raise ValueError(f"{what} {found} is more than a year ahead of today")
+    if offset < -MAX_DAYS_BACK:
+        raise ValueError(f"{what} {found} is more than 50 years back")
+    return found
+
+
 def resolve_date(value: str | None, reason: str | None, what: str) -> tuple[str, str | None]:
     """``(date, reason)`` for an issue or answer date: today by default, never in the future.
 

@@ -22,8 +22,18 @@ How a new rendition treats the old ones depends on the kind (P1-I2 security revi
 
 * ``native`` and ``pdf``: the newest is the copy; the older one is superseded.
 * ``markup``: additive. Every reviewer's markup stays current; one never replaces another's.
-* ``signed``: write-once. A signed copy is evidence; once a revision has one, a correction is the
-  admin command ``ReplaceSignedRendition`` with a reason, which supersedes it.
+* ``signed``: an admin's act from the first copy (ADR-0011). ``AttachRendition`` refuses it for
+  everyone; the admin command ``RegisterSignedRendition`` registers the first signed copy, and the
+  write-once rule keeps it: a correction is ``ReplaceSignedRendition`` with a reason, which
+  supersedes it.
+
+``markup`` is capped (``limits.MAX_MARKUPS`` current ones per revision), so a loop cannot fill a
+revision with them.
+
+Concurrency. Every check below reads the revision's renditions and then appends. On Postgres and
+SQLite a write unit of work takes the ledger's single writer lock before its first statement
+(``tl_adapters.postgres.engine``), so two registrations of the same kind never interleave and
+"one current rendition per native or PDF" and "one signed copy" hold without a unique index.
 """
 
 from __future__ import annotations
@@ -46,7 +56,7 @@ from tl_mod_documents.handlers.common import (
     open_document,
     require_project,
 )
-from tl_mod_documents.limits import MAX_NUMBER, MAX_PAGES, MAX_REASON
+from tl_mod_documents.limits import MAX_MARKUPS, MAX_NUMBER, MAX_PAGES, MAX_REASON
 from tl_mod_documents.names import (
     RENDITION,
     RENDITION_DEFINED,
@@ -74,6 +84,21 @@ class AttachRendition(Command):
     page_count: int | None = Field(default=None, ge=0, le=MAX_PAGES)
 
 
+class RegisterSignedRendition(Command):
+    """Register the first signed copy of a revision (admin). The reason is optional.
+
+    The signed copy is evidence, so registering it is not open to everyone (ADR-0011). Once a
+    revision has one, a correction is ``ReplaceSignedRendition``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    revision_id: str
+    file_id: str = Field(min_length=1, max_length=MAX_NUMBER)
+    page_count: int | None = Field(default=None, ge=0, le=MAX_PAGES)
+    reason: str | None = Field(default=None, max_length=MAX_REASON)
+
+
 class ReplaceSignedRendition(Command):
     """Replace the signed copy of a revision by another file, with a reason (admin).
 
@@ -98,9 +123,10 @@ class ReplaceSignedRendition(Command):
 
 def _register(
     uow: UnitOfWork,
-    cmd: AttachRendition | ReplaceSignedRendition,
+    cmd: AttachRendition | RegisterSignedRendition | ReplaceSignedRendition,
     *,
     replacing: bool,
+    signed_command: bool = False,
 ) -> CommandResult:
     require_project(cmd)
     cmd = correlated(cmd)
@@ -135,9 +161,14 @@ def _register(
     current = [r for r in existing if r.is_current]
     if any(r.file_id == info.file_id for r in current):
         raise NoChangesError(f"file {info.filename!r} is already a {kind} rendition")
-    if replacing and kind != "signed":
-        raise RenditionNotAllowedError("only a signed copy is replaced this way")
+    if (replacing or signed_command) and kind != "signed":
+        raise RenditionNotAllowedError("only a signed copy is registered this way")
     if kind == "signed":
+        if not (replacing or signed_command):
+            raise RenditionNotAllowedError(
+                "the signed copy is registered by an admin with RegisterSignedRendition "
+                "(ReplaceSignedRendition to correct it)"
+            )
         if current and not replacing:
             raise RenditionNotAllowedError(
                 f"revision {rev.code} of {rev.document_number} already has a signed copy, which "
@@ -145,8 +176,13 @@ def _register(
             )
         if replacing and not current:
             raise RenditionNotAllowedError(
-                f"revision {rev.code} of {rev.document_number} has no signed copy to replace"
+                f"revision {rev.code} of {rev.document_number} has no signed copy to replace; "
+                "register the first one with RegisterSignedRendition"
             )
+    if kind == "markup" and len(current) >= MAX_MARKUPS:
+        raise RenditionNotAllowedError(
+            f"revision {rev.code} of {rev.document_number} already has {MAX_MARKUPS} markups"
+        )
     older = current if kind in REPLACING_KINDS or replacing else []
     made = create_module_record(
         uow,
@@ -154,6 +190,7 @@ def _register(
         record_type=RENDITION,
         title=f"{rev.key} {kind}",
         key=f"{rev.key}/{kind}-{len(existing) + 1}",
+        composed_key=True,
         extra_events=[
             NewEvent(
                 event_type=RENDITION_DEFINED,
@@ -168,9 +205,7 @@ def _register(
                     "sha256": info.sha256,
                     "page_count": cmd.page_count,
                     "supersedes": [r.id for r in older],
-                    "replace_reason": cmd.reason
-                    if isinstance(cmd, ReplaceSignedRendition)
-                    else None,
+                    "replace_reason": None if isinstance(cmd, AttachRendition) else cmd.reason,
                 },
             )
         ],
@@ -195,10 +230,21 @@ def handle_attach_rendition(uow: UnitOfWork, cmd: AttachRendition) -> CommandRes
     Raises ``ProjectScopeError``, ``RevisionNotFoundError``, ``DocumentClosedError``,
     ``FileNotAvailableError`` (unknown file, not on this revision, not in a rendition slot, still in
     quarantine or rejected), ``RenditionNotAllowedError`` (the revision's state does not take that
-    kind, or it already has a signed copy) and ``NoChangesError`` (the file is already a current
-    rendition).
+    kind, the kind is ``signed``, or the revision already has the most markups it may) and
+    ``NoChangesError`` (the file is already a current rendition).
     """
     return _register(uow, cmd, replacing=False)
+
+
+def handle_register_signed_rendition(
+    uow: UnitOfWork, cmd: RegisterSignedRendition
+) -> CommandResult:
+    """Register the file as the revision's first signed copy. Admin only.
+
+    Raises as ``handle_attach_rendition`` does, and ``RenditionNotAllowedError`` when the file is
+    not in the signed slot or the revision already has a signed copy.
+    """
+    return _register(uow, cmd, replacing=False, signed_command=True)
 
 
 def handle_replace_signed_rendition(uow: UnitOfWork, cmd: ReplaceSignedRendition) -> CommandResult:

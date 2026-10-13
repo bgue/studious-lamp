@@ -68,5 +68,7 @@ def spec() -> ModuleSpec:
             (TRANSMITTAL, "AttachFile"): transmittal_draft_only,
             (TRANSMITTAL, "AddLink"): transmittal_draft_only,
             (TRANSMITTAL, "SuggestLink"): transmittal_draft_only,
+            (TRANSMITTAL, "FlagLink"): transmittal_draft_only,
+            (TRANSMITTAL, "RetractLink"): transmittal_draft_only,
         },
     )

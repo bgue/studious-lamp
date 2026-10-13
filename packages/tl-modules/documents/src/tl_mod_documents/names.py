@@ -83,7 +83,7 @@ TRANSMITTAL_PURPOSES: Final = (
     "for_record",
 )
 RESPONSE_CODES: Final = ("approved", "approved_with_comments", "rejected", "noted")
-REVIEW_OUTCOMES: Final = ("approved", "approved_with_comments", "rejected")
+REVIEW_OUTCOMES: Final = ("approved", "approved_with_comments", "rejected", "withdrawn")
 
 #: The company code lists the module reads from the engineering registry.
 DOCUMENT_TYPE_LIST: Final = "DocumentType"

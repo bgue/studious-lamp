@@ -256,6 +256,7 @@ def _register(
         title=cmd.label,
         description=cmd.definition,
         key=f"{prefix}:{cmd.code}@{_version(cmd.edition)}",
+        composed_key=True,
         extra_events=[NewEvent(event_type=STANDARD_DEFINED, payload=payload)],
     )
 
@@ -395,6 +396,7 @@ def handle_add_code_value(uow: UnitOfWork, cmd: AddCodeValue) -> CommandResult:
         record_type=CODE_VALUE,
         title=cmd.label,
         key=key,
+        composed_key=True,
         extra_events=[NewEvent(event_type=CODE_VALUE_DEFINED, payload=payload)],
     )
 

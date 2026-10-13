@@ -226,7 +226,7 @@ classes:
           tl:json: true
         description: "Record ids of the renditions of the same kind this one replaces."
       replace_reason:
-        description: "Why a signed copy was replaced (admin); null for every other rendition."
+        description: "The admin's reason when a signed copy was registered or replaced; null for every other rendition."
     examples:
       - value: "{\"content_type\": \"application/pdf\", \"document_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"filename\": \"ISO-1234-A.pdf\", \"kind\": \"pdf\", \"page_count\": 3, \"revision_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"sha256\": \"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\", \"size\": 48213, \"supersedes\": []}"
   RenditionSupersededPayload:
@@ -373,7 +373,7 @@ classes:
       tl:event_version: "1"
     attributes:
       outcome:
-        description: "approved, approved_with_comments or rejected."
+        description: "approved, approved_with_comments or rejected; withdrawn when nobody answered."
         required: true
       closed_on:
         description: "ISO date it was closed."
