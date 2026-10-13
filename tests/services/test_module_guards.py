@@ -253,15 +253,23 @@ def test_the_supersedes_relation_onto_a_module_record_is_the_modules(db: DbTarge
             )
 
 
-@pytest.mark.parametrize("key", ["ISO-1234@A", "A/B", "@", "/x"])
-def test_a_typed_key_of_a_generic_record_cannot_hold_the_characters_modules_use(
+@pytest.mark.parametrize("key", ["ISO-1234@A", "ISO-1234@A/pdf-1", "@", "A@"])
+def test_a_typed_key_of_a_generic_record_cannot_hold_the_at_sign_modules_use(
     db: DbTarget, key: str
 ) -> None:
-    with open_uow(db) as uow, pytest.raises(ReservedKeyError, match="'@' or '/'"):
+    with open_uow(db) as uow, pytest.raises(ReservedKeyError, match="'@'"):
         handle_create_record(
             uow, CreateRecord(**BASE, record_type="core.Record", title="t", key=key)
         )
     plain(db, "ISO-1234-A")  # a hyphen is fine
+
+
+@pytest.mark.parametrize("key", ["MP/12/3", "A/B", "/x"])
+def test_a_typed_key_may_hold_a_slash_because_every_module_key_holds_an_at_sign(
+    db: DbTarget, key: str
+) -> None:
+    """Owner decision (ADR-0010 second addendum, item 4): real numbers hold ``/``."""
+    plain(db, key)
 
 
 def test_a_person_cannot_claim_a_system_link_source(db: DbTarget) -> None:
