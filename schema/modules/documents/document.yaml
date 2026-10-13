@@ -1,0 +1,78 @@
+id: https://example.org/throughline/modules/documents/document
+name: tl_mod_documents_document
+title: Documents (brief 9, M1)
+description: >-
+  A document is registered once under its number, which is its record key and is checked against the
+  registry numbering pattern for documents when the company has one. The document row keeps the
+  denormalised facts of its current revision (`current_revision_*`) so registers and grids need no
+  join; they are written by `Document.CurrentRevisionChanged`, appended in the same unit of work as
+  the revision events that change them. The title is the envelope title (`cur_core_record`).
+  Spec: docs/modules/documents/documents.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: documents
+
+classes:
+  Document:
+    description: >-
+      One controlled document of a project. Record type `documents.Document`. The envelope (key =
+      document number, title, status = the document workflow state, psets) is in `cur_core_record`;
+      this table holds the register fields and the current revision.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "documents.Document"
+      tl:ix_scope_type: "scope, doc_type"
+      tl:ix_scope_discipline: "scope, discipline"
+      tl:ix_scope_current_status: "scope, current_revision_status"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      number:
+        required: true
+        description: The document number, equal to the record key.
+      doc_type:
+        description: Code of the document type (a value of the code list `DocumentType`); null when none was given.
+      discipline:
+        description: Code of the owning discipline (a value of the code list `Discipline`); null when none was given.
+      originator:
+        description: Who produced the document (a company or a team), as the register shows it.
+      confidentiality:
+        description: Confidentiality class label. Stored and shown; filtering by it is a later increment.
+      revision_scheme:
+        required: true
+        description: Code of the revision scheme that numbers this document's revisions (`alpha`, `numeric`, `staged`).
+      pattern_code:
+        description: Code of the registry numbering pattern the number was checked against; null when none applied.
+      current_revision_id:
+        range: Ulid
+        description: The revision that is in force now (the latest issued revision that is current in its status class); null before the first issue.
+      current_revision_code:
+        description: Revision code of the current revision, for example `B`.
+      current_revision_status:
+        description: Issue status of the current revision (`IFR`, `IFC`, `AFC`, `ASB`).
+      current_revision_class:
+        description: Status class of the current revision (`review`, `construction`, `record`).
+      current_revision_issued_on:
+        description: ISO date (YYYY-MM-DD) on which the current revision was issued.
+      superseded_by:
+        range: Ulid
+        description: The document that replaced this one, when superseded.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

@@ -1,0 +1,31 @@
+CREATE OR REPLACE VIEW v_documents_revision AS
+SELECT
+  r.id AS id,
+  r.key AS key,
+  r.type AS record_type,
+  r.scope AS scope,
+  r.title AS title,
+  r.description AS description,
+  r.status AS status,
+  r.voided AS voided,
+  r.version AS version,
+  r.conformance AS conformance,
+  r.psets_json AS psets_json,
+  r.created_at AS created_at,
+  r.updated_at AS updated_at,
+  t.document_id AS document_id,
+  t.document_number AS document_number,
+  t.code AS code,
+  t.ordinal AS ordinal,
+  t.previous_revision_id AS previous_revision_id,
+  t.purpose AS purpose,
+  t.change_note AS change_note,
+  t.revision_date AS revision_date,
+  t.intended_status AS intended_status,
+  t.issue_status AS issue_status,
+  t.status_class AS status_class,
+  t.issued_on AS issued_on,
+  t.is_current AS is_current,
+  t.superseded_by AS superseded_by
+FROM cur_documents_revision AS t
+JOIN cur_core_record AS r ON r.id = t.id;

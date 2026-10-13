@@ -82,6 +82,42 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Document.CurrentRevisionChanged.v1",
+      "event_type": "Document.CurrentRevisionChanged",
+      "payload_class": "DocumentCurrentRevisionChangedPayload",
+      "sample": "samples/Document.CurrentRevisionChanged.v1.json",
+      "schema": "schemas/Document.CurrentRevisionChanged.v1.json",
+      "title": "The revision in force for a document changed (an issue, a supersession or a void).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Document.Defined.v1",
+      "event_type": "Document.Defined",
+      "payload_class": "DocumentDefinedPayload",
+      "sample": "samples/Document.Defined.v1.json",
+      "schema": "schemas/Document.Defined.v1.json",
+      "title": "A document was registered under its number.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Document.Superseded.v1",
+      "event_type": "Document.Superseded",
+      "payload_class": "DocumentSupersededPayload",
+      "sample": "samples/Document.Superseded.v1.json",
+      "schema": "schemas/Document.Superseded.v1.json",
+      "title": "A document was replaced by another document; it stays in the ledger and its links go stale.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Document.Updated.v1",
+      "event_type": "Document.Updated",
+      "payload_class": "DocumentUpdatedPayload",
+      "sample": "samples/Document.Updated.v1.json",
+      "schema": "schemas/Document.Updated.v1.json",
+      "title": "The register fields of a document changed (the title changes through the core `Record.Updated`).",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Feed.Edited.v1",
       "event_type": "Feed.Edited",
       "payload_class": "FeedEditedPayload",
@@ -316,6 +352,78 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Rendition.Defined.v1",
+      "event_type": "Rendition.Defined",
+      "payload_class": "RenditionDefinedPayload",
+      "sample": "samples/Rendition.Defined.v1.json",
+      "schema": "schemas/Rendition.Defined.v1.json",
+      "title": "A file was registered as a rendition of a revision.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Rendition.Superseded.v1",
+      "event_type": "Rendition.Superseded",
+      "payload_class": "RenditionSupersededPayload",
+      "sample": "samples/Rendition.Superseded.v1.json",
+      "schema": "schemas/Rendition.Superseded.v1.json",
+      "title": "A rendition was replaced by a newer one of the same kind on the same revision.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ReviewCycle.Closed.v1",
+      "event_type": "ReviewCycle.Closed",
+      "payload_class": "ReviewCycleClosedPayload",
+      "sample": "samples/ReviewCycle.Closed.v1.json",
+      "schema": "schemas/ReviewCycle.Closed.v1.json",
+      "title": "A review cycle was closed with an overall outcome.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ReviewCycle.Defined.v1",
+      "event_type": "ReviewCycle.Defined",
+      "payload_class": "ReviewCycleDefinedPayload",
+      "sample": "samples/ReviewCycle.Defined.v1.json",
+      "schema": "schemas/ReviewCycle.Defined.v1.json",
+      "title": "A review of a revision was opened with its reviewers.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ReviewCycle.OutcomeRecorded.v1",
+      "event_type": "ReviewCycle.OutcomeRecorded",
+      "payload_class": "ReviewCycleOutcomeRecordedPayload",
+      "sample": "samples/ReviewCycle.OutcomeRecorded.v1.json",
+      "schema": "schemas/ReviewCycle.OutcomeRecorded.v1.json",
+      "title": "A reviewer answered.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Revision.Defined.v1",
+      "event_type": "Revision.Defined",
+      "payload_class": "RevisionDefinedPayload",
+      "sample": "samples/Revision.Defined.v1.json",
+      "schema": "schemas/Revision.Defined.v1.json",
+      "title": "A revision of a document was created, as a draft.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Revision.Issued.v1",
+      "event_type": "Revision.Issued",
+      "payload_class": "RevisionIssuedPayload",
+      "sample": "samples/Revision.Issued.v1.json",
+      "schema": "schemas/Revision.Issued.v1.json",
+      "title": "A revision was issued with an issue status; it is now current for its status class.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Revision.Superseded.v1",
+      "event_type": "Revision.Superseded",
+      "payload_class": "RevisionSupersededPayload",
+      "sample": "samples/Revision.Superseded.v1.json",
+      "schema": "schemas/Revision.Superseded.v1.json",
+      "title": "An issued revision stopped being current because a later one replaced it.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Schema.EffectiveChanged.v1",
       "event_type": "Schema.EffectiveChanged",
       "payload_class": "SchemaEffectiveChangedPayload",
@@ -421,6 +529,33 @@
       "sample": "samples/TagClass.Revised.v1.json",
       "schema": "schemas/TagClass.Revised.v1.json",
       "title": "A tag class changed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Transmittal.Defined.v1",
+      "event_type": "Transmittal.Defined",
+      "payload_class": "TransmittalDefinedPayload",
+      "sample": "samples/Transmittal.Defined.v1.json",
+      "schema": "schemas/Transmittal.Defined.v1.json",
+      "title": "A transmittal was drafted with the revisions it carries and its recipients.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Transmittal.Issued.v1",
+      "event_type": "Transmittal.Issued",
+      "payload_class": "TransmittalIssuedPayload",
+      "sample": "samples/Transmittal.Issued.v1.json",
+      "schema": "schemas/Transmittal.Issued.v1.json",
+      "title": "A transmittal was issued to its recipients.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Transmittal.ResponseRecorded.v1",
+      "event_type": "Transmittal.ResponseRecorded",
+      "payload_class": "TransmittalResponseRecordedPayload",
+      "sample": "samples/Transmittal.ResponseRecorded.v1.json",
+      "schema": "schemas/Transmittal.ResponseRecorded.v1.json",
+      "title": "The recipients answered a transmittal.",
       "version": 1
     },
     {

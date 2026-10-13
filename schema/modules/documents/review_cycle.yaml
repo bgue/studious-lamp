@@ -1,0 +1,118 @@
+id: https://example.org/throughline/modules/documents/review_cycle
+name: tl_mod_documents_review_cycle
+title: Review cycles (brief 9, M1)
+description: >-
+  A review cycle asks named reviewers to review one revision by a date and collects an outcome from
+  each. It closes with an overall outcome, which decides whether the revision can be issued or goes
+  back to draft. The reviewers are a second table so an overdue-reviews report is a query.
+  Spec: docs/modules/documents/review-cycles.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: documents
+
+classes:
+  ReviewCycle:
+    description: >-
+      One review round of a revision. Record type `documents.ReviewCycle`; its key is `<number>@<code>/RC<n>`.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "documents.ReviewCycle"
+      tl:ix_revision_round: "revision_id, round"
+      tl:ix_scope_state_due: "scope, state, due_date"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      revision_id:
+        range: Ulid
+        required: true
+        description: The revision under review.
+      document_id:
+        range: Ulid
+        required: true
+        description: Its document.
+      round:
+        range: integer
+        required: true
+        description: Review round of the revision, from 1.
+      state:
+        required: true
+        ifabsent: string(open)
+        description: "open or closed."
+      due_date:
+        description: ISO date (YYYY-MM-DD) by which every reviewer should have answered.
+      outcome:
+        description: "Overall outcome once closed: approved, approved_with_comments or rejected."
+      opened_on:
+        description: ISO date (YYYY-MM-DD) the cycle was opened.
+      closed_on:
+        description: ISO date (YYYY-MM-DD) the cycle was closed.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
+
+  Reviewer:
+    description: >-
+      One reviewer of a cycle and what they answered. Not a record: a row written when the cycle opens and
+      filled in when the reviewer answers.
+    annotations:
+      tl:current_state: true
+      tl:ix_cycle: "review_cycle_id"
+      tl:ix_scope_reviewer: "scope, reviewer, outcome"
+    unique_keys:
+      cycle_reviewer:
+        description: A reviewer is listed once per cycle.
+        unique_key_slots:
+          - review_cycle_id
+          - reviewer
+    attributes:
+      reviewer_id:
+        identifier: true
+        required: true
+        description: "`<review cycle id>:<position, three digits>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      review_cycle_id:
+        range: Ulid
+        required: true
+        description: The cycle.
+      revision_id:
+        range: Ulid
+        required: true
+        description: The revision under review, copied for the overdue report.
+      document_id:
+        range: Ulid
+        required: true
+        description: Its document, copied for the overdue report.
+      reviewer:
+        required: true
+        description: The reviewer, an actor (`user:ana`) or a name.
+      due_date:
+        description: ISO date (YYYY-MM-DD) by which this reviewer should answer; defaults to the cycle's.
+      outcome:
+        description: "approved, approved_with_comments, rejected; null until the reviewer answers."
+      comment:
+        description: The reviewer's comment.
+      responded_on:
+        description: ISO date (YYYY-MM-DD) of the answer.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

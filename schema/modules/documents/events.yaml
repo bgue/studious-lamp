@@ -1,0 +1,374 @@
+id: https://example.org/throughline/modules/documents/events
+name: tl_mod_documents_events
+title: Documents module events
+description: >-
+  The ledger events of the documents module (brief 18.3), one class per event type, in the same form as
+  `schema/core/events.yaml`. A document, revision, rendition, transmittal or review cycle is created by
+  `Record.Created` (the envelope) followed in the same append by its `*.Defined` event (the typed fields).
+  Moves between workflow states are the core `Workflow.Transitioned` event; a void is the core `Record.Voided`.
+  The catalog generator reads these classes together with the core ones.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+default_range: string
+annotations:
+  tl:module: documents
+
+classes:
+  DocumentDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A document was registered under its number.
+    annotations:
+      tl:event_type: Document.Defined
+      tl:event_version: "1"
+    attributes:
+      number:
+        description: "The document number."
+        required: true
+      doc_type:
+        description: "Document type code."
+      discipline:
+        description: "Discipline code."
+      originator:
+        description: "Who produced the document."
+      confidentiality:
+        description: "Confidentiality class label."
+      revision_scheme:
+        description: "Code of the revision scheme."
+        required: true
+      pattern_code:
+        description: "Code of the numbering pattern the number was checked against."
+    examples:
+      - value: "{\"confidentiality\": \"internal\", \"discipline\": \"PIP\", \"doc_type\": \"ISO\", \"number\": \"ISO-1234\", \"originator\": \"Acme Engineering\", \"pattern_code\": \"document\", \"revision_scheme\": \"alpha\"}"
+  DocumentUpdatedPayload:
+    is_a: EventPayload
+    description: >-
+      The register fields of a document changed (the title changes through the core `Record.Updated`).
+    annotations:
+      tl:event_type: Document.Updated
+      tl:event_version: "1"
+      tl:sample_changes: "{\"discipline\": [\"MEC\", \"PIP\"]}"
+    attributes:
+      changes:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "Object of field name to [old, new]."
+      reason:
+        description: "Why it changed."
+    examples:
+      - value: "{\"changes\": {\"discipline\": [\"MEC\", \"PIP\"]}, \"reason\": \"Moved to the piping group\"}"
+  DocumentCurrentRevisionChangedPayload:
+    is_a: EventPayload
+    description: >-
+      The revision in force for a document changed (an issue, a supersession or a void). Carries the new
+      denormalised values; all null when no revision is current.
+    annotations:
+      tl:event_type: Document.CurrentRevisionChanged
+      tl:event_version: "1"
+    attributes:
+      current_revision_id:
+        description: "Record id of the new current revision; null when none."
+      current_revision_code:
+        description: "Its revision code."
+      current_revision_status:
+        description: "Its issue status."
+      current_revision_class:
+        description: "Its status class."
+      current_revision_issued_on:
+        description: "ISO date it was issued."
+      previous_revision_id:
+        description: "Record id of the revision that was current before."
+      reason:
+        description: "Why: issued, superseded, voided."
+        required: true
+    examples:
+      - value: "{\"current_revision_class\": \"construction\", \"current_revision_code\": \"B\", \"current_revision_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"current_revision_issued_on\": \"2026-10-13\", \"current_revision_status\": \"IFC\", \"previous_revision_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"reason\": \"issued\"}"
+  DocumentSupersededPayload:
+    is_a: EventPayload
+    description: >-
+      A document was replaced by another document; it stays in the ledger and its links go stale.
+    annotations:
+      tl:event_type: Document.Superseded
+      tl:event_version: "1"
+    attributes:
+      superseded_by:
+        description: "Record id of the document that replaces this one."
+        required: true
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"reason\": \"Merged into the new isometric set\", \"superseded_by\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+  RevisionDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A revision of a document was created, as a draft.
+    annotations:
+      tl:event_type: Revision.Defined
+      tl:event_version: "1"
+    attributes:
+      document_id:
+        description: "Record id of the document."
+        required: true
+      document_number:
+        description: "The document number."
+        required: true
+      code:
+        description: "The revision code."
+        required: true
+      ordinal:
+        description: "Position among the document's revisions, from 1."
+        range: integer
+        required: true
+      previous_revision_id:
+        description: "Record id of the previous revision."
+      purpose:
+        description: "Purpose or issue reason."
+      change_note:
+        description: "What changed since the previous revision."
+      revision_date:
+        description: "ISO date of the revision."
+      intended_status:
+        description: "The issue status it is meant to be issued with."
+    examples:
+      - value: "{\"change_note\": null, \"code\": \"A\", \"document_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"document_number\": \"ISO-1234\", \"intended_status\": \"IFR\", \"ordinal\": 1, \"previous_revision_id\": null, \"purpose\": \"First issue for review\", \"revision_date\": \"2026-10-13\"}"
+  RevisionIssuedPayload:
+    is_a: EventPayload
+    description: >-
+      A revision was issued with an issue status; it is now current for its status class.
+    annotations:
+      tl:event_type: Revision.Issued
+      tl:event_version: "1"
+    attributes:
+      issue_status:
+        description: "The issue status (IFR, IFC, AFC, ASB)."
+        required: true
+      status_class:
+        description: "Its status class (review, construction, record)."
+        required: true
+      issued_on:
+        description: "ISO date of the issue."
+        required: true
+      superseded_revision_ids:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Record ids of the revisions that stopped being current because of this issue."
+    examples:
+      - value: "{\"issue_status\": \"IFC\", \"issued_on\": \"2026-10-13\", \"status_class\": \"construction\", \"superseded_revision_ids\": []}"
+  RevisionSupersededPayload:
+    is_a: EventPayload
+    description: >-
+      An issued revision stopped being current because a later one replaced it. It stays visible as superseded.
+    annotations:
+      tl:event_type: Revision.Superseded
+      tl:event_version: "1"
+    attributes:
+      superseded_by:
+        description: "Record id of the revision that replaces it."
+        required: true
+      status_class:
+        description: "The status class it was current in."
+      reason:
+        description: "Why."
+    examples:
+      - value: "{\"reason\": \"Revision B issued\", \"status_class\": \"review\", \"superseded_by\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+  RenditionDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A file was registered as a rendition of a revision.
+    annotations:
+      tl:event_type: Rendition.Defined
+      tl:event_version: "1"
+    attributes:
+      revision_id:
+        description: "Record id of the revision."
+        required: true
+      document_id:
+        description: "Record id of the document."
+        required: true
+      kind:
+        description: "native, pdf, markup or signed."
+        required: true
+      file_id:
+        description: "File id in the file service."
+        required: true
+      filename:
+        description: "File name."
+        required: true
+      content_type:
+        description: "Media type."
+        required: true
+      size:
+        description: "Size in bytes."
+        range: integer
+        required: true
+      sha256:
+        description: "Hex SHA-256 of the bytes."
+        required: true
+      page_count:
+        description: "Number of pages, when known."
+        range: integer
+      supersedes:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Record ids of the renditions of the same kind this one replaces."
+    examples:
+      - value: "{\"content_type\": \"application/pdf\", \"document_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"filename\": \"ISO-1234-A.pdf\", \"kind\": \"pdf\", \"page_count\": 3, \"revision_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"sha256\": \"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\", \"size\": 48213, \"supersedes\": []}"
+  RenditionSupersededPayload:
+    is_a: EventPayload
+    description: >-
+      A rendition was replaced by a newer one of the same kind on the same revision.
+    annotations:
+      tl:event_type: Rendition.Superseded
+      tl:event_version: "1"
+    attributes:
+      superseded_by:
+        description: "Record id of the newer rendition."
+        required: true
+    examples:
+      - value: "{\"superseded_by\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+  TransmittalDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A transmittal was drafted with the revisions it carries and its recipients.
+    annotations:
+      tl:event_type: Transmittal.Defined
+      tl:event_version: "1"
+    attributes:
+      number:
+        description: "The transmittal number."
+        required: true
+      direction:
+        description: "outgoing or incoming."
+        required: true
+      purpose:
+        description: "Why it is sent."
+        required: true
+      due_date:
+        description: "ISO date an answer is due."
+      recipients:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "List of recipients, each name, organisation, email."
+      items:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "List of revisions: revision_id, document_id, document_number, revision_code, issue_status."
+    examples:
+      - value: "{\"direction\": \"outgoing\", \"due_date\": \"2026-10-27\", \"items\": [{\"document_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"document_number\": \"ISO-1234\", \"issue_status\": \"IFC\", \"revision_code\": \"B\", \"revision_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}], \"number\": \"TRN-0001\", \"purpose\": \"for_construction\", \"recipients\": [{\"email\": null, \"name\": \"Site document control\", \"organisation\": \"Acme Construction\"}]}"
+  TransmittalIssuedPayload:
+    is_a: EventPayload
+    description: >-
+      A transmittal was issued to its recipients.
+    annotations:
+      tl:event_type: Transmittal.Issued
+      tl:event_version: "1"
+    attributes:
+      issued_on:
+        description: "ISO date of the issue."
+        required: true
+    examples:
+      - value: "{\"issued_on\": \"2026-10-13\"}"
+  TransmittalResponseRecordedPayload:
+    is_a: EventPayload
+    description: >-
+      The recipients answered a transmittal.
+    annotations:
+      tl:event_type: Transmittal.ResponseRecorded
+      tl:event_version: "1"
+    attributes:
+      response_code:
+        description: "approved, approved_with_comments, rejected or noted."
+        required: true
+      response_note:
+        description: "Free text that came with the answer."
+      responded_on:
+        description: "ISO date of the answer."
+        required: true
+    examples:
+      - value: "{\"responded_on\": \"2026-10-20\", \"response_code\": \"approved\", \"response_note\": null}"
+  ReviewCycleDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A review of a revision was opened with its reviewers.
+    annotations:
+      tl:event_type: ReviewCycle.Defined
+      tl:event_version: "1"
+    attributes:
+      revision_id:
+        description: "Record id of the revision under review."
+        required: true
+      document_id:
+        description: "Record id of the document."
+        required: true
+      round:
+        description: "Review round of the revision, from 1."
+        range: integer
+        required: true
+      due_date:
+        description: "ISO date by which every reviewer should answer."
+      opened_on:
+        description: "ISO date the cycle was opened."
+        required: true
+      reviewers:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "List of reviewers, each reviewer and optional due_date."
+    examples:
+      - value: "{\"document_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"due_date\": \"2026-10-20\", \"opened_on\": \"2026-10-13\", \"reviewers\": [{\"due_date\": null, \"reviewer\": \"user:ana\"}], \"revision_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"round\": 1}"
+  ReviewCycleOutcomeRecordedPayload:
+    is_a: EventPayload
+    description: >-
+      A reviewer answered.
+    annotations:
+      tl:event_type: ReviewCycle.OutcomeRecorded
+      tl:event_version: "1"
+    attributes:
+      reviewer:
+        description: "The reviewer who answered."
+        required: true
+      outcome:
+        description: "approved, approved_with_comments or rejected."
+        required: true
+      comment:
+        description: "The reviewer's comment."
+      responded_on:
+        description: "ISO date of the answer."
+        required: true
+    examples:
+      - value: "{\"comment\": \"Check the weld map\", \"outcome\": \"approved_with_comments\", \"responded_on\": \"2026-10-15\", \"reviewer\": \"user:ana\"}"
+  ReviewCycleClosedPayload:
+    is_a: EventPayload
+    description: >-
+      A review cycle was closed with an overall outcome.
+    annotations:
+      tl:event_type: ReviewCycle.Closed
+      tl:event_version: "1"
+    attributes:
+      outcome:
+        description: "approved, approved_with_comments or rejected."
+        required: true
+      closed_on:
+        description: "ISO date it was closed."
+        required: true
+      reason:
+        description: "Why it was closed, when not every reviewer answered."
+    examples:
+      - value: "{\"closed_on\": \"2026-10-16\", \"outcome\": \"approved_with_comments\", \"reason\": null}"

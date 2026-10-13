@@ -1,0 +1,49 @@
+# Workflow of a controlled document (brief 9 M1: Draft, Registered, In Review, Issued, Superseded, Void).
+# A document is Registered when it is entered in the register (RegisterDocument runs `register` at once, so
+# Draft is only the engine's starting point). `start_review` and `end_review` follow the first review
+# cycle of a document that has no issued revision yet; once a revision is issued the document stays Issued
+# whatever later revisions do. `supersede` and `void` end the document's life: pinned links to it go stale.
+# These moves are made by the documents module's commands; people cannot run them directly.
+id: documents.document
+version: 1
+record_type: documents.Document
+scope: company
+initial_state: Draft
+states:
+  - name: Draft
+  - name: Registered
+  - name: In Review
+  - name: Issued
+  - name: Superseded
+  - name: Void
+transitions:
+  - name: register
+    label: Register the document
+    from: [Draft]
+    to: Registered
+    guards:
+      - kind: conformance
+        max_status: warning
+  - name: start_review
+    label: Start the first review
+    from: [Registered]
+    to: In Review
+  - name: end_review
+    label: End the review without an issue
+    from: [In Review]
+    to: Registered
+  - name: issue
+    label: Issue the document
+    from: [Registered, In Review]
+    to: Issued
+    guards:
+      - kind: conformance
+        max_status: warning
+  - name: supersede
+    label: Replace by another document
+    from: [Registered, In Review, Issued]
+    to: Superseded
+  - name: void
+    label: Void the document
+    from: [Draft, Registered, In Review, Issued]
+    to: Void
