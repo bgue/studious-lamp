@@ -3,13 +3,7 @@
 Each subcommand reads through `tl_mod_documents.reports` and prints one line per row (or JSON with
 `--json`). Nothing is written. The reports are: the document register, one document's revision
 history, overdue reviews, the transmittal log and stale pinned revisions.
-
-STUB (P1-I2-T11b): the bodies of the five commands raise NotImplementedError; their signatures,
-options, docstrings and the helpers are final. Each body has a STEPS comment. Implement them,
-then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
@@ -58,16 +52,34 @@ def register(
     as_json: _Json = False,
 ) -> None:
     """The document register: number, state, current revision, type, discipline, counts, title."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj.
-    # 2. `with _service_errors(), open_uow(db, readonly=True) as uow:` lines =
-    #    reports.document_register(uow.conn(), f"project:{project}", doc_type=doc_type,
-    #    discipline=discipline, state=state).
-    # 3. With --json call _dump(lines) and return.
-    # 4. Otherwise print, joined by two spaces: number, state, current (`<code>(<status>)` from
-    #    current_code and current_status, or "-"), doc_type or "-", discipline or "-",
-    #    f"revisions={revisions}", f"open={open_code or '-'}", f"stale={stale_links}", title.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        lines = reports.document_register(
+            uow.conn(),
+            f"project:{project}",
+            doc_type=doc_type,
+            discipline=discipline,
+            state=state,
+        )
+    if as_json:
+        _dump(lines)
+        return
+    for line in lines:
+        current = (
+            "-" if line.current_code is None else f"{line.current_code}({line.current_status})"
+        )
+        fields = [
+            line.number,
+            line.state,
+            current,
+            line.doc_type or "-",
+            line.discipline or "-",
+            f"revisions={line.revisions}",
+            f"open={line.open_code or '-'}",
+            f"stale={line.stale_links}",
+            line.title,
+        ]
+        typer.echo("  ".join(fields))
 
 
 @app.command("history")
@@ -78,30 +90,47 @@ def history(
     as_json: _Json = False,
 ) -> None:
     """One document's revisions, oldest first, with renditions, transmittals and review outcome."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj.
-    # 2. `with _service_errors(), open_uow(db, readonly=True) as uow:` lines =
-    #    reports.revision_history(uow.conn(), f"project:{project}", number). An unknown number
-    #    raises a ServiceError that _service_errors prints as `error: ...`.
-    # 3. With --json call _dump(lines) and return.
-    # 4. Otherwise print, joined by two spaces: code, state, issue_status or "-", status_class or
-    #    "-", issued_on or "-", "current" or "-" (is_current), f"renditions={renditions}",
-    #    f"transmittals={','.join(transmittals) or '-'}", f"review={review_outcome or '-'}",
-    #    f"superseded_by={superseded_by or '-'}".
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        lines = reports.revision_history(uow.conn(), f"project:{project}", number)
+    if as_json:
+        _dump(lines)
+        return
+    for line in lines:
+        fields = [
+            line.code,
+            line.state,
+            line.issue_status or "-",
+            line.status_class or "-",
+            line.issued_on or "-",
+            "current" if line.is_current else "-",
+            f"renditions={line.renditions}",
+            f"transmittals={','.join(line.transmittals) or '-'}",
+            f"review={line.review_outcome or '-'}",
+            f"superseded_by={line.superseded_by or '-'}",
+        ]
+        typer.echo("  ".join(fields))
 
 
 @app.command("overdue")
 def overdue(ctx: typer.Context, project: _Project, on: _On = None, as_json: _Json = False) -> None:
     """Reviews still open and unanswered after their date: the revision, the cycle, the reviewer."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; day = _day(on) (final helper).
-    # 2. `with _service_errors(), open_uow(db, readonly=True) as uow:` lines =
-    #    reports.overdue_reviews(uow.conn(), f"project:{project}", on=day).
-    # 3. With --json call _dump(lines) and return.
-    # 4. Otherwise print, joined by two spaces: f"{document_number}@{revision_code}", cycle_key,
-    #    reviewer, f"due={due_date}", f"{days_overdue}d overdue".
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    day = _day(on)
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        lines = reports.overdue_reviews(uow.conn(), f"project:{project}", on=day)
+    if as_json:
+        _dump(lines)
+        return
+    for line in lines:
+        fields = [
+            f"{line.document_number}@{line.revision_code}",
+            line.cycle_key,
+            line.reviewer,
+            f"due={line.due_date}",
+            f"{line.days_overdue}d overdue",
+        ]
+        typer.echo("  ".join(fields))
 
 
 @app.command("transmittals")
@@ -116,27 +145,51 @@ def transmittals(
     as_json: _Json = False,
 ) -> None:
     """The transmittal log: number, state, direction, purpose, dates, answer, items, overdue."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; day = _day(on).
-    # 2. `with _service_errors(), open_uow(db, readonly=True) as uow:` lines =
-    #    reports.transmittal_log(uow.conn(), f"project:{project}", state=state,
-    #    direction=direction, on=day).
-    # 3. With --json call _dump(lines) and return.
-    # 4. Otherwise print, joined by two spaces: number, state, direction, purpose,
-    #    f"issued={issued_on or '-'}", f"due={due_date or '-'}", f"response={response_code or
-    #    '-'}", f"items={items}", and the word "overdue" last only when `overdue` is true.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    day = _day(on)
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        lines = reports.transmittal_log(
+            uow.conn(),
+            f"project:{project}",
+            state=state,
+            direction=direction,
+            on=day,
+        )
+    if as_json:
+        _dump(lines)
+        return
+    for line in lines:
+        fields = [
+            line.number,
+            line.state,
+            line.direction,
+            line.purpose,
+            f"issued={line.issued_on or '-'}",
+            f"due={line.due_date or '-'}",
+            f"response={line.response_code or '-'}",
+            f"items={line.items}",
+        ]
+        if line.overdue:
+            fields.append("overdue")
+        typer.echo("  ".join(fields))
 
 
 @app.command("stale")
 def stale(ctx: typer.Context, project: _Project, as_json: _Json = False) -> None:
     """Stale pinned revisions: the document, the pin, what is current, who links, the link id."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj.
-    # 2. `with _service_errors(), open_uow(db, readonly=True) as uow:` lines =
-    #    reports.stale_pins(uow.conn(), f"project:{project}").
-    # 3. With --json call _dump(lines) and return.
-    # 4. Otherwise print, joined by two spaces: document_number, f"pinned={pinned_code or '-'}",
-    #    f"current={current_code or '-'}", f"newer={','.join(newer_codes) or '-'}",
-    #    f"{linked_key or '-'}", link_id.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        lines = reports.stale_pins(uow.conn(), f"project:{project}")
+    if as_json:
+        _dump(lines)
+        return
+    for line in lines:
+        fields = [
+            line.document_number,
+            f"pinned={line.pinned_code or '-'}",
+            f"current={line.current_code or '-'}",
+            f"newer={','.join(line.newer_codes) or '-'}",
+            line.linked_key or "-",
+            line.link_id,
+        ]
+        typer.echo("  ".join(fields))
