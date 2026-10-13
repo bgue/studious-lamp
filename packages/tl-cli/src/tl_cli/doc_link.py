@@ -6,17 +6,11 @@ them and `tl doc repin` moves one to another revision after showing what changed
 (`tl doc diff` shows the same without moving anything). The rules live in
 `tl_mod_documents.resolver`; the commands parse options, make one call and print.
 The four functions are registered on the `tl doc` group by `tl_cli.main`.
-
-STUB (P1-I2-T09d): the bodies of the four commands raise NotImplementedError; their signatures,
-options, docstrings and the helpers are final. Each body has a STEPS comment. Implement them,
-then delete this paragraph, the STEPS comments and the `ruff: noqa` line.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from sqlalchemy import text
@@ -70,20 +64,36 @@ def link(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Link a record to a document, floating or pinned to an issued revision."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}".
-    # 2. `with _service_errors(), open_uow(db) as uow:` doc = _document(uow, scope, project,
-    #    number); source = get_record(uow, scope, from_key); if source is None, _fail(f"no record
-    #    with key {from_key!r} in project {project!r}").
-    # 3. fields = {"actor": actor, "source": "cli", "scope": scope, "from_id": source["id"],
-    #    "document_id": doc.id, "pin": pin, "note": note}; add "relation": relation only when it
-    #    is not None (the command has a default). made = handle_link_to_document(uow,
-    #    LinkToDocument(**fields)).
-    # 4. Print `linked <from_key> to <number> pinned <resolved pin>` or `... floating`, then
-    #    `link <made.stream_id>`. The resolved pin is the stored one: read it with the SQL
-    #    `SELECT pin FROM cur_links WHERE link_id = :id` (made.stream_id) in the same unit of work
-    #    (`current` becomes the revision code).
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db) as uow:
+        doc = _document(uow, scope, project, number)
+        source = get_record(uow, scope, from_key)
+        if source is None:
+            _fail(f"no record with key {from_key!r} in project {project!r}")
+        fields: dict[str, Any] = {
+            "actor": actor,
+            "source": "cli",
+            "scope": scope,
+            "from_id": source["id"],
+            "document_id": doc.id,
+            "pin": pin,
+            "note": note,
+        }
+        if relation is not None:
+            fields["relation"] = relation
+        made = handle_link_to_document(uow, LinkToDocument(**fields))
+        stored = (
+            uow.conn()
+            .execute(text("SELECT pin FROM cur_links WHERE link_id = :id"), {"id": made.stream_id})
+            .one()
+            .pin
+        )
+    if stored is None:
+        typer.echo(f"linked {from_key} to {number} floating")
+    else:
+        typer.echo(f"linked {from_key} to {number} pinned {stored}")
+    typer.echo(f"link {made.stream_id}")
 
 
 def stale(
@@ -94,14 +104,21 @@ def stale(
     ] = None,
 ) -> None:
     """List links that are stale: the record, the document, its pin, what is current now, the id."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}".
-    # 2. `with _service_errors(), open_uow(db, readonly=True) as uow:` doc_id = None, or
-    #    _document(uow, scope, project, number).id when --document is given; found =
-    #    links_to_documents(uow.conn(), scope, document_id=doc_id, only_stale=True).
-    # 3. For each PinnedLink print, joined by two spaces: from_key or "-", "->", document_number,
-    #    f"pin {pin or '-'}", f"current {resolution.current_code or '-'}", link_id.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        doc_id = None if number is None else _document(uow, scope, project, number).id
+        found = links_to_documents(uow.conn(), scope, document_id=doc_id, only_stale=True)
+    for item in found:
+        fields = [
+            item.from_key or "-",
+            "->",
+            item.document_number,
+            f"pin {item.pin or '-'}",
+            f"current {item.resolution.current_code or '-'}",
+            item.link_id,
+        ]
+        typer.echo("  ".join(fields))
 
 
 def diff(
@@ -112,12 +129,13 @@ def diff(
     project: _Project,
 ) -> None:
     """Show what changed between two issued revisions of a document, without changing anything."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}".
-    # 2. `with _service_errors(), open_uow(db, readonly=True) as uow:` doc = _document(uow, scope,
-    #    project, number); result = revision_diff(uow.conn(), doc.id, from_code, to_code).
-    # 3. Print the lines of _diff_lines(result) (the helper is final).
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        doc = _document(uow, scope, project, number)
+        result = revision_diff(uow.conn(), doc.id, from_code, to_code)
+    for line in _diff_lines(result):
+        typer.echo(line)
 
 
 def repin(
@@ -129,18 +147,35 @@ def repin(
     actor: _Actor = _DEFAULT_ACTOR,
 ) -> None:
     """Show what changed between the pinned revision and another; with --apply, move the pin."""
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; scope = f"project:{project}".
-    # 2. `with _service_errors(), open_uow(db, readonly=not apply) as uow:` row =
-    #    uow.conn().execute(_LINK_SQL, {"id": link_id, "scope": scope}).first(); if it is None,
-    #    _fail(f"no link {link_id!r} in project {project!r}"). doc = registry.get_document(
-    #    uow.conn(), row.to_id); if doc is None, _fail("this link does not point to a document").
-    #    If row.pin is None, _fail("this link floats; it has no pin to move").
-    # 3. target = doc.current_revision_code when pin == CURRENT, else pin. If target is None,
-    #    _fail(f"{doc.number} has no issued revision"). result = revision_diff(uow.conn(), doc.id,
-    #    row.pin, target) and print the lines of _diff_lines(result).
-    # 4. Without --apply print `not re-pinned; run again with --apply to confirm` and stop.
-    # 5. With --apply: handle_repin_document_link(uow, RepinDocumentLink(actor=actor,
-    #    source="cli", scope=scope, link_id=link_id, pin=target)) and print
-    #    `re-pinned <link_id> to <target>`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    with _service_errors(), open_uow(db, readonly=not apply) as uow:
+        row = uow.conn().execute(_LINK_SQL, {"id": link_id, "scope": scope}).first()
+        if row is None:
+            _fail(f"no link {link_id!r} in project {project!r}")
+        doc = registry.get_document(uow.conn(), row.to_id)
+        if doc is None:
+            _fail("this link does not point to a document")
+        if row.pin is None:
+            _fail("this link floats; it has no pin to move")
+        target = doc.current_revision_code if pin == CURRENT else pin
+        if target is None:
+            _fail(f"{doc.number} has no issued revision")
+        result = revision_diff(uow.conn(), doc.id, row.pin, target)
+        for line in _diff_lines(result):
+            typer.echo(line)
+        if apply:
+            handle_repin_document_link(
+                uow,
+                RepinDocumentLink(
+                    actor=actor,
+                    source="cli",
+                    scope=scope,
+                    link_id=link_id,
+                    pin=target,
+                ),
+            )
+        else:
+            typer.echo("not re-pinned; run again with --apply to confirm")
+    if apply:
+        typer.echo(f"re-pinned {link_id} to {target}")
