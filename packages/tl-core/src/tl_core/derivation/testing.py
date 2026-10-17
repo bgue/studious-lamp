@@ -121,3 +121,58 @@ def make_not_an_extractor() -> object:
 
 def make_that_raises() -> FakeExtractor:
     raise RuntimeError("this plugin is broken")
+
+
+class SlowExtractor(FakeExtractor):
+    """Sleeps ``options["seconds"]`` (default 0) before reading; for the wall-clock limit test."""
+
+    name = "slow"
+
+    def accepts(self, source: SourceFile) -> bool:
+        return source.filename.endswith(".slow")
+
+    def extract(
+        self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
+    ) -> ExtractionResult:
+        import time
+
+        time.sleep(float(options.get("seconds", 0)))
+        result = super().extract(source, data, options)
+        return result.model_copy(update={"extractor": self.name})
+
+
+class DyingExtractor(FakeExtractor):
+    """Ends the whole process without answering, as a native library crash would."""
+
+    name = "dying"
+
+    def extract(
+        self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
+    ) -> ExtractionResult:
+        import os
+
+        os._exit(3)
+
+
+class GreedyExtractor(FakeExtractor):
+    """Asks for far more memory than any limit allows."""
+
+    name = "greedy"
+
+    def extract(
+        self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
+    ) -> ExtractionResult:
+        hoard = bytearray(8 * 1024**3)
+        return ExtractionResult(
+            extractor=self.name,
+            extractor_version=self.version,
+            status="failed",
+            problems=[ExtractionProblem(code="never", message=str(len(hoard)))],
+        )
+
+
+def make_extractors() -> dict[str, FakeExtractor]:
+    """The extractors of the child-process tests, by name (an ``isolated`` factory)."""
+    return {
+        e.name: e for e in (FakeExtractor(), SlowExtractor(), DyingExtractor(), GreedyExtractor())
+    }

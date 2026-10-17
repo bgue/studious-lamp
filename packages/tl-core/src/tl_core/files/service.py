@@ -218,9 +218,16 @@ class FileService:
 
     # --- upload flow ------------------------------------------------------------------------
 
-    def register_upload(self, uow: UnitOfWork, cmd: RegisterUpload) -> UploadTicket:
-        """Check the declaration and answer with a dedupe hit or a presigned staging URL."""
-        record = self._load_record(uow, cmd.scope, cmd.record_id, cmd.slot)
+    def register_upload(
+        self, uow: UnitOfWork, cmd: RegisterUpload, *, by_module: bool = False
+    ) -> UploadTicket:
+        """Check the declaration and answer with a dedupe hit or a presigned staging URL.
+
+        ``by_module`` is for a module writing a file of its own record type: the type's
+        generic-command allow-list and guard do not apply (ADR-0014). It is a Python argument, not
+        a field of any command, so no client can set it; slot, type, size and scan rules still do.
+        """
+        record = self._load_record(uow, cmd.scope, cmd.record_id, cmd.slot, by_module=by_module)
         self._check_declared(uow, record, cmd)
         key = object_key(cmd.sha256)
         exists = (
@@ -251,7 +258,12 @@ class FileService:
         )
 
     def complete_upload(
-        self, uow: UnitOfWork, cmd: CompleteUpload, data: BinaryIO | None = None
+        self,
+        uow: UnitOfWork,
+        cmd: CompleteUpload,
+        data: BinaryIO | None = None,
+        *,
+        by_module: bool = False,
     ) -> FileResult:
         """Verify, store, attach. ``data`` is the bytes when they did not arrive by presigned URL.
 
@@ -276,15 +288,19 @@ class FileService:
             size=claims["size"],
             sha256=claims["sha256"],
         )
-        return self._attach(uow, declared, data=data, staging=claims["staging"])
+        return self._attach(
+            uow, declared, data=data, staging=claims["staging"], by_module=by_module
+        )
 
-    def attach_file(self, uow: UnitOfWork, cmd: AttachFile) -> FileResult:
+    def attach_file(
+        self, uow: UnitOfWork, cmd: AttachFile, *, by_module: bool = False
+    ) -> FileResult:
         """Attach bytes already attached in this scope to a (possibly different) record slot.
 
         Raises ``UploadIncompleteError`` when this scope has never attached that hash: use the
         upload flow so the bytes are shown once.
         """
-        return self._attach(uow, cmd, data=None, staging=None)
+        return self._attach(uow, cmd, data=None, staging=None, by_module=by_module)
 
     # --- quarantine and scan ----------------------------------------------------------------
 
@@ -346,12 +362,18 @@ class FileService:
 
     @staticmethod
     def _load_record(
-        uow: UnitOfWork, scope: str, record_id: str, slot: str | None = None
+        uow: UnitOfWork,
+        scope: str,
+        record_id: str,
+        slot: str | None = None,
+        *,
+        by_module: bool = False,
     ) -> _Record:
         row = uow.conn().execute(_RECORD_SQL, {"id": record_id}).first()
         if row is None or row.scope != scope:
             raise RecordNotFoundError(f"no record {record_id!r} in scope {scope!r}")
-        require_generic(uow.conn(), row.type, "AttachFile", record_id, slot=slot)
+        if not by_module:
+            require_generic(uow.conn(), row.type, "AttachFile", record_id, slot=slot)
         if row.voided:
             raise RecordVoidedError(f"record {record_id!r} is voided; files cannot be attached")
         return _Record(id=row.id, type=row.type)
@@ -440,9 +462,15 @@ class FileService:
                 source.close()
 
     def _attach(
-        self, uow: UnitOfWork, cmd: AttachFile, *, data: BinaryIO | None, staging: str | None
+        self,
+        uow: UnitOfWork,
+        cmd: AttachFile,
+        *,
+        data: BinaryIO | None,
+        staging: str | None,
+        by_module: bool = False,
     ) -> FileResult:
-        record = self._load_record(uow, cmd.scope, cmd.record_id, cmd.slot)
+        record = self._load_record(uow, cmd.scope, cmd.record_id, cmd.slot, by_module=by_module)
         self._check_declared(uow, record, cmd)
         same = self._same_attachment(uow, cmd)
         if same is not None:

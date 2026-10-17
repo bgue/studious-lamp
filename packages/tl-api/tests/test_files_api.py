@@ -192,3 +192,15 @@ def test_without_file_storage_the_routes_answer_503(tmp_path: Path) -> None:
         assert listed.status_code == 200  # metadata needs no store
     finally:
         h.close()
+
+
+def test_by_module_is_not_a_field_a_client_can_send(harness: Harness) -> None:
+    """The module-only switch of the file service (ADR-0014) is a Python argument, not a field."""
+    record = harness.create_record("REC-1")
+    client = harness.client_for(ALICE)
+    for route, body in (
+        ("/uploads", declare(record.stream_id, by_module=True)),
+        ("/files/attach", declare(record.stream_id, by_module=True)),
+    ):
+        response = client.post(route, json=body)
+        assert response.status_code == 422, (route, response.text)
