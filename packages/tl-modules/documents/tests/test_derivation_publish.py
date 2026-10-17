@@ -9,6 +9,7 @@ from typing import Any
 
 import pytest
 from docworld import BASE, FIXTURES, World
+from sqlalchemy import text
 from tl_adapters.db import open_uow
 from tl_core.derivation.registry import use_extractors
 from tl_core.derivation.testing import make_extractors
@@ -446,3 +447,102 @@ def test_a_document_that_got_a_revision_blocks_its_compensation(ready: World) ->
         handle_compensate_publication(
             uow, CompensatePublication(**BASE, derived_id=derived.id, reason="no")
         )
+
+
+# --- compensation trusts what the publication wrote down, not a correlation id ------------------
+
+
+def inject(world: World, correlation: str) -> dict[str, str]:
+    """What a client who knows the publication's correlation id can make: events that carry it."""
+    from tl_core.services.commands import CreateRecord
+    from tl_core.services.links import AddLink, handle_add_link
+    from tl_core.services.records import handle_create_record
+    from tl_mod_documents.handlers.documents import RegisterDocument, handle_register_document
+
+    with open_uow(world.db) as uow:
+        doc = handle_register_document(
+            uow, RegisterDocument(**BASE, correlation_id=correlation, number="INJ-001", title="x")
+        )
+        other = handle_create_record(
+            uow,
+            CreateRecord(
+                **BASE,
+                correlation_id=correlation,
+                record_type="core.Record",
+                title="not a tag",
+                key="INJ-REC-1",
+            ),
+        )
+        link = handle_add_link(
+            uow,
+            AddLink(
+                **BASE,
+                correlation_id=correlation,
+                from_id=other.stream_id,
+                to_id=doc.stream_id,
+                relation="references",
+            ),
+        )
+    return {"document": doc.stream_id, "record": other.stream_id, "link": link.stream_id}
+
+
+def test_the_publication_has_a_server_made_correlation_id_and_records_what_it_made(
+    ready: World,
+) -> None:
+    import json
+
+    derived = ready.valid_derived(TAGS)
+    publish_tags(ready, derived)
+    after = ready.derived_row(derived.id)
+    assert after.published_correlation_id is not None
+    assert after.published_correlation_id.startswith("derive:")
+    event = ready.rows("SELECT payload FROM events WHERE event_type = 'DerivedDocument.Published'")[
+        0
+    ]["payload"]
+    payload = json.loads(event) if isinstance(event, str) else event
+    created = {t["id"] for t in tags(ready)}
+    assert set(payload["record_ids"]) == created and len(payload["record_ids"]) == 3
+    linked = {
+        r["link_id"]
+        for r in ready.rows("SELECT link_id FROM cur_links WHERE relation = 'derived_from'")
+    }
+    assert set(payload["link_ids"]) == linked and payload["created_count"] == 3
+
+
+def test_events_a_client_gave_the_publications_correlation_id_are_not_compensated(
+    ready: World,
+) -> None:
+    derived = ready.valid_derived(TAGS)
+    publish_tags(ready, derived)
+    corr = ready.derived_row(derived.id).published_correlation_id
+    assert corr is not None
+    injected = inject(ready, corr)
+    with open_uow(ready.db, readonly=True) as uow:
+        plan = preview_compensation(uow, BASE["scope"], derived.id)
+    assert plan.can_compensate and plan.problems == []  # the foreign record does not block it
+    assert sorted(i.action for i in plan.items) == ["delete_tag"] * 3 + ["retract_link"] * 3
+    assert injected["document"] not in {i.record_id for i in plan.items}
+    with open_uow(ready.db) as uow:
+        handle_compensate_publication(
+            uow, CompensatePublication(**BASE, derived_id=derived.id, reason="redo")
+        )
+    assert [t["status"] for t in tags(ready)] == ["Deleted"] * 3
+    document = ready.rows(
+        "SELECT voided, status FROM cur_core_record WHERE id = :i", i=injected["document"]
+    )
+    assert document[0]["voided"] in (False, 0)  # the injected document is untouched
+    record = ready.rows("SELECT voided FROM cur_core_record WHERE id = :i", i=injected["record"])
+    assert record[0]["voided"] in (False, 0)
+    link = ready.rows("SELECT status FROM cur_links WHERE link_id = :i", i=injected["link"])
+    assert link[0]["status"] == "active"  # the injected link is not retracted
+
+
+def test_a_recorded_record_that_is_gone_blocks_the_compensation(ready: World) -> None:
+    derived = ready.valid_derived(TAGS)
+    publish_tags(ready, derived)
+    victim = tags(ready)[0]["id"]
+    with open_uow(ready.db) as uow:
+        uow.conn().execute(text("DELETE FROM cur_core_record WHERE id = :i"), {"i": victim})
+    with open_uow(ready.db, readonly=True) as uow:
+        plan = preview_compensation(uow, BASE["scope"], derived.id)
+    assert not plan.can_compensate and any("not there" in p for p in plan.problems)

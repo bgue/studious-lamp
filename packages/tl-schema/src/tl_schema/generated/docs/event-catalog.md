@@ -790,7 +790,7 @@ The publication of a derived document was rolled back: reversing events for ever
 
 ## DerivedDocument.Published
 
-The rows of a valid content revision were published into target records as one correlated import. The records the import made carry `import_correlation_id` in their events.
+The rows of a valid content revision were published into target records as one correlated import. The payload names the records and links the import made, by id; the import's events also carry `import_correlation_id`, but that is a convenience for reading the ledger, not what compensation trusts.
 
 - CloudEvents type: `tl.core.DerivedDocument.Published.v1`
 - Ledger payload class: `DerivedDocumentPublishedPayload`
@@ -803,7 +803,9 @@ The rows of a valid content revision were published into target records as one c
 | `content_rev` | integer | yes | The content revision published. |
 | `created_count` | integer | yes | Records created. |
 | `import_correlation_id` | string | yes | The correlation id of every event of the import. |
+| `link_ids` | array | yes | The ids of the `derived_from` links the import created, exactly. |
 | `mapping_hash` | string | yes | Hex SHA-256 of the mapping applied. |
+| `record_ids` | array | yes | The ids of the records the import created, exactly. Compensation reverses these and nothing else; it never reads 'the events that carry this correlation id' (a client can set a correlation id). |
 | `result_sha256` | string | yes | Hex SHA-256 of the rows published. |
 | `target_kind` | string | yes | tags or documents. |
 
@@ -816,8 +818,10 @@ The rows of a valid content revision were published into target records as one c
     "detail": {
       "content_rev": 2,
       "created_count": 40,
-      "import_correlation_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PB",
+      "import_correlation_id": "derive:01J9Z6Q4W3X2Y1V0T9S8R7Q6PB",
+      "link_ids": [],
       "mapping_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "record_ids": [],
       "result_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "target_kind": "tags"
     },

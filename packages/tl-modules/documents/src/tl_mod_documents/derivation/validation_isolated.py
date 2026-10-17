@@ -27,16 +27,15 @@ from tl_core.derivation.envelope import (
 from tl_core.derivation.types import Cell, ExtractionProblem
 
 from tl_mod_documents.derivation.validation import ValidationReport, validate_result
-from tl_mod_documents.errors import ValidationFailedError
+from tl_mod_documents.errors import (
+    SchemaUnusableError,
+    ValidationLimitError,
+)
 
 ENTRY = "tl_mod_documents.derivation.validation_isolated:validate_entry"
 TAG_REPORT = b"V"
 TAG_UNUSABLE = b"U"
-LIMIT_CODE = "validation_limit"
-LIMIT_MESSAGE = "the validation used more time or memory than the limit allows"
 REFERENCE_ERROR_PACKAGES = ("jsonschema", "referencing", "jsonschema_specifications")
-UNUSABLE_CODE = "schema_unusable"
-UNUSABLE_MESSAGE = "the document schema cannot be applied to rows (a reference does not resolve)"
 
 
 def validate_entry(header: Mapping[str, Any], data: bytes) -> tuple[bytes, bytes]:
@@ -93,10 +92,10 @@ def validate_isolated(
             ENTRY, header, data, timeout_s=timeout_s, memory_limit_mb=memory_limit_mb
         )
     except Breach:
-        raise ValidationFailedError(LIMIT_CODE, LIMIT_MESSAGE) from None
+        raise ValidationLimitError from None
     if answer.tag == TAG_UNUSABLE:
-        raise ValidationFailedError(UNUSABLE_CODE, UNUSABLE_MESSAGE)
+        raise SchemaUnusableError
     try:
         return ValidationReport.model_validate_json(answer.payload)
     except ValidationError:
-        raise ValidationFailedError(LIMIT_CODE, LIMIT_MESSAGE) from None
+        raise ValidationLimitError from None

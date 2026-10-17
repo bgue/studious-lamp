@@ -27,9 +27,25 @@
               "description": "The correlation id of every event of the import.",
               "type": "string"
             },
+            "link_ids": {
+              "description": "The ids of the `derived_from` links the import created, exactly.",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20000,
+              "type": "array"
+            },
             "mapping_hash": {
               "description": "Hex SHA-256 of the mapping applied.",
               "type": "string"
+            },
+            "record_ids": {
+              "description": "The ids of the records the import created, exactly. Compensation reverses these and nothing else; it never reads 'the events that carry this correlation id' (a client can set a correlation id).",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 20000,
+              "type": "array"
             },
             "result_sha256": {
               "description": "Hex SHA-256 of the rows published.",
@@ -45,6 +61,8 @@
             "import_correlation_id",
             "target_kind",
             "created_count",
+            "record_ids",
+            "link_ids",
             "mapping_hash",
             "result_sha256"
           ],

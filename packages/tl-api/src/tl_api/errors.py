@@ -17,6 +17,7 @@ from typing import Any, cast
 
 from pydantic import BaseModel, ValidationError
 from tl_core.auth import errors as auth
+from tl_core.derivation.registry import ExtractorLoadError
 from tl_core.extypes import errors as ext
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
@@ -26,6 +27,11 @@ from tl_core.workflow.engine import GuardResult
 from tl_mod_documents import errors as doc
 from tl_mod_documents.imports.apply import ImportRefusedError
 from tl_mod_engineering import errors as eng
+
+#: What a client is told when an installed extractor cannot be loaded (detail: the server log).
+EXTRACTOR_UNAVAILABLE = (
+    "an extractor could not be loaded; the administrator can see why in the server log"
+)
 
 
 @dataclass(frozen=True)
@@ -45,6 +51,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.DuplicateKeyError, "duplicate_key", 409),
         s(svc.ReservedKeyError, "reserved_key", 422),
         s(svc.ReservedLinkSourceError, "reserved_link_source", 422),
+        s(svc.ReservedIdentifierError, "reserved_identifier", 422),
         s(svc.UnsupportedRecordTypeError, "unsupported_record_type", 422),
         s(svc.RecordNotFoundError, "record_not_found", 404),
         s(svc.RecordVoidedError, "record_voided", 409),
@@ -202,6 +209,10 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(doc.JobNotFoundError, "job_not_found", 404),
         s(doc.JobStateError, "job_state", 409),
         s(doc.DerivationNotConfiguredError, "derivation_unavailable", 503),
+        s(doc.ValidationFailedError, "validation_failed", 422),
+        s(doc.ValidationLimitError, "validation_limit", 422),
+        s(doc.SchemaUnusableError, "schema_unusable", 422),
+        s(ExtractorLoadError, "extractor_unavailable", 503),
         s(doc.PublishRefusedError, "publish_refused", 422),
         s(doc.CompensationRefusedError, "compensation_refused", 409),
     )
@@ -281,7 +292,10 @@ def body_for(exc: BaseException) -> tuple[int, ErrorBody] | None:
     spec = spec_for(exc)
     if spec is None:
         return None
-    body = ErrorBody(error=spec.error, message=str(exc) or spec.error)
+    message = str(exc) or spec.error
+    if isinstance(exc, ExtractorLoadError):  # the server log has the detail, the client has this
+        message = EXTRACTOR_UNAVAILABLE
+    body = ErrorBody(error=spec.error, message=message)
     if isinstance(exc, QuerySyntaxError):
         body.position = exc.position
     elif isinstance(exc, svc.GuardFailedError):

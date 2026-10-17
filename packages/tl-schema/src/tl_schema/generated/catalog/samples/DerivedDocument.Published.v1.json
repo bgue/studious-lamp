@@ -5,8 +5,10 @@
       "detail": {
         "content_rev": 2,
         "created_count": 40,
-        "import_correlation_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PB",
+        "import_correlation_id": "derive:01J9Z6Q4W3X2Y1V0T9S8R7Q6PB",
+        "link_ids": [],
         "mapping_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "record_ids": [],
         "result_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "target_kind": "tags"
       },
@@ -36,8 +38,10 @@
   "payload": {
     "content_rev": 2,
     "created_count": 40,
-    "import_correlation_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PB",
+    "import_correlation_id": "derive:01J9Z6Q4W3X2Y1V0T9S8R7Q6PB",
+    "link_ids": [],
     "mapping_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "record_ids": [],
     "result_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "target_kind": "tags"
   }

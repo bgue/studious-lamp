@@ -73,6 +73,7 @@ from tl_core.services.errors import (
 from tl_core.services.links import AddLink, handle_add_link
 from tl_core.services.psets import SetPsetValues, handle_set_pset_values
 from tl_core.services.records import handle_create_record
+from tl_core.services.reserved import refuse_reserved
 from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.settings.layers import parse_layer
@@ -311,6 +312,7 @@ def _check_proposal(tool: str, agent: str, command: Command, summary: str) -> st
             f"{tool} carries a {command_type}, not a {type(command).__name__}"
         )
     source_for(agent)  # checks the shape
+    refuse_reserved(command)
     clean = summary.strip()
     if not clean or len(clean) > MAX_SUMMARY:
         raise InvalidProposalError(f"summary must be 1 to {MAX_SUMMARY} characters")

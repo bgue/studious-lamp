@@ -29,6 +29,7 @@ from tl_core.services.feed_actions import (
 )
 from tl_core.services.proposals import source_for
 from tl_core.services.records import handle_create_record, handle_update_record
+from tl_core.services.reserved import refuse_reserved
 from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.uow import UnitOfWork
@@ -154,6 +155,7 @@ def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[.
         if actor.startswith("agent:"):  # an agent cannot claim another source (brief 18.12)
             fields["source"] = source_for(actor)
         command = spec.model(**fields, actor=actor)
+        refuse_reserved(command)  # a client cannot pose as a publication (ADR-0014)
         if spec.access == "company" and command.scope == "company":
             ctx.authorizer.authorize(principal, f"admin.command.{spec.name}", request.url.path)
         when = resolve_effective_at(effective_at, command.scope)

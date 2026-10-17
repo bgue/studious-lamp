@@ -12,12 +12,16 @@ from tl_core.derivation.registry import use_extractors
 from tl_core.derivation.testing import make_extractors
 from tl_mod_documents.derivation.schemas import MAX_PATTERN_CHARS
 from tl_mod_documents.derivation.store import use_files
-from tl_mod_documents.derivation.validation_isolated import (
-    LIMIT_MESSAGE,
-    UNUSABLE_MESSAGE,
-    validate_isolated,
+from tl_mod_documents.derivation.validation_isolated import validate_isolated
+from tl_mod_documents.errors import (
+    InvalidDocumentSchemaError,
+    SchemaUnusableError,
+    ValidationFailedError,
+    ValidationLimitError,
 )
-from tl_mod_documents.errors import InvalidDocumentSchemaError, ValidationFailedError
+
+LIMIT_MESSAGE = ValidationLimitError.default
+UNUSABLE_MESSAGE = SchemaUnusableError.default
 
 #: A classic catastrophic pattern: thirty letters and a mismatch take about a minute.
 REDOS = {"type": "object", "properties": {"tag": {"type": "string", "pattern": "^(a+)+$"}}}

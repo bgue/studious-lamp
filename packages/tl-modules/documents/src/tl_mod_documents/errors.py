@@ -171,11 +171,24 @@ class CompensationRefusedError(DocumentsError):
 
 
 class ValidationFailedError(DocumentsError):
-    """Validation could not finish: ``validation_limit`` (time or memory) or ``schema_unusable``.
+    """Validation could not finish. The text is fixed: no trace, no path, nothing of the rows."""
 
-    The text is fixed: no trace, no path, nothing from the schema or the rows (FANOUT D10).
-    """
+    code = "validation_failed"
+    default = "validation could not finish"
 
-    def __init__(self, code: str, message: str) -> None:
-        super().__init__(message)
-        self.code = code
+    def __init__(self, message: str | None = None) -> None:
+        super().__init__(message or self.default)
+
+
+class ValidationLimitError(ValidationFailedError):
+    """The validation used more time or memory than the limit allows (FANOUT D10)."""
+
+    code = "validation_limit"
+    default = "the validation used more time or memory than the limit allows"
+
+
+class SchemaUnusableError(ValidationFailedError):
+    """The document schema cannot be applied to rows (a reference loop, a reference that fails)."""
+
+    code = "schema_unusable"
+    default = "the document schema cannot be applied to rows (a reference does not resolve)"

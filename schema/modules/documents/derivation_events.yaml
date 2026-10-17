@@ -229,8 +229,9 @@ classes:
   DerivedDocumentPublishedPayload:
     is_a: EventPayload
     description: >-
-      The rows of a valid content revision were published into target records as one correlated import. The records the
-      import made carry `import_correlation_id` in their events.
+      The rows of a valid content revision were published into target records as one correlated import. The payload
+      names the records and links the import made, by id; the import's events also carry `import_correlation_id`, but
+      that is a convenience for reading the ledger, not what compensation trusts.
     annotations:
       tl:event_type: DerivedDocument.Published
       tl:event_version: "1"
@@ -249,6 +250,16 @@ classes:
         range: integer
         description: "Records created."
         required: true
+      record_ids:
+        multivalued: true
+        required: true
+        maximum_cardinality: 20000
+        description: "The ids of the records the import created, exactly. Compensation reverses these and nothing else; it never reads 'the events that carry this correlation id' (a client can set a correlation id)."
+      link_ids:
+        multivalued: true
+        required: true
+        maximum_cardinality: 20000
+        description: "The ids of the `derived_from` links the import created, exactly."
       mapping_hash:
         description: "Hex SHA-256 of the mapping applied."
         required: true
@@ -256,7 +267,7 @@ classes:
         description: "Hex SHA-256 of the rows published."
         required: true
     examples:
-      - value: "{\"content_rev\": 2, \"created_count\": 40, \"import_correlation_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PB\", \"mapping_hash\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"result_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"target_kind\": \"tags\"}"
+      - value: "{\"content_rev\": 2, \"created_count\": 40, \"import_correlation_id\": \"derive:01J9Z6Q4W3X2Y1V0T9S8R7Q6PB\", \"link_ids\": [], \"mapping_hash\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"record_ids\": [], \"result_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"target_kind\": \"tags\"}"
   DerivedDocumentPublicationCompensatedPayload:
     is_a: EventPayload
     description: >-

@@ -4085,7 +4085,7 @@
       },
       "DerivedDocument.Published": {
         "contentType": "application/json",
-        "description": "The rows of a valid content revision were published into target records as one correlated import. The records the import made carry `import_correlation_id` in their events.",
+        "description": "The rows of a valid content revision were published into target records as one correlated import. The payload names the records and links the import made, by id; the import's events also carry `import_correlation_id`, but that is a convenience for reading the ledger, not what compensation trusts.",
         "examples": [
           {
             "headers": {
@@ -4100,8 +4100,10 @@
                 "detail": {
                   "content_rev": 2,
                   "created_count": 40,
-                  "import_correlation_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PB",
+                  "import_correlation_id": "derive:01J9Z6Q4W3X2Y1V0T9S8R7Q6PB",
+                  "link_ids": [],
                   "mapping_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+                  "record_ids": [],
                   "result_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
                   "target_kind": "tags"
                 },
@@ -4161,9 +4163,25 @@
                       "description": "The correlation id of every event of the import.",
                       "type": "string"
                     },
+                    "link_ids": {
+                      "description": "The ids of the `derived_from` links the import created, exactly.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "maxItems": 20000,
+                      "type": "array"
+                    },
                     "mapping_hash": {
                       "description": "Hex SHA-256 of the mapping applied.",
                       "type": "string"
+                    },
+                    "record_ids": {
+                      "description": "The ids of the records the import created, exactly. Compensation reverses these and nothing else; it never reads 'the events that carry this correlation id' (a client can set a correlation id).",
+                      "items": {
+                        "type": "string"
+                      },
+                      "maxItems": 20000,
+                      "type": "array"
                     },
                     "result_sha256": {
                       "description": "Hex SHA-256 of the rows published.",
@@ -4179,6 +4197,8 @@
                     "import_correlation_id",
                     "target_kind",
                     "created_count",
+                    "record_ids",
+                    "link_ids",
                     "mapping_hash",
                     "result_sha256"
                   ],

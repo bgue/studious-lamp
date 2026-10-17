@@ -30,6 +30,9 @@ class ReservedKeyError(ServiceError): ...  # a typed-in key holds a character mo
 class ReservedLinkSourceError(ServiceError): ...  # a link source only the system may claim
 
 
+class ReservedIdentifierError(ServiceError): ...  # a correlation id or source the system alone sets
+
+
 class UnsupportedRecordTypeError(ServiceError): ...  # record_type other than "core.Record"
 
 

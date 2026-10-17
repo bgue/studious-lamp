@@ -37,6 +37,7 @@ from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import ServiceError
 from tl_core.services.links import AddLink, RetractLink, handle_add_link, handle_retract_link
 from tl_core.services.psets import SetPsetValues, handle_set_pset_values
+from tl_core.services.reserved import DERIVE_CORRELATION_PREFIX
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
@@ -426,7 +427,7 @@ def _publish(uow: UnitOfWork, cmd: _PublishBase, target: str) -> CommandResult:
         raise PublishRefusedError(
             f"{derived.key} cannot be published: " + "; ".join(problems[:10]), problems
         )
-    correlation = new_ulid()
+    correlation = f"{DERIVE_CORRELATION_PREFIX}{new_ulid()}"  # server-made, reserved prefix
     source = f"import:derived-{derived.id}"
     base: dict[str, Any] = {
         "actor": cmd.actor,
@@ -441,8 +442,9 @@ def _publish(uow: UnitOfWork, cmd: _PublishBase, target: str) -> CommandResult:
         if target == TARGET_TAGS
         else _create_documents(uow, base, built, provenance)
     )
+    link_ids: list[str] = []
     for record_id in record_ids:
-        handle_add_link(
+        linked = handle_add_link(
             uow,
             AddLink(
                 **base,
@@ -454,6 +456,7 @@ def _publish(uow: UnitOfWork, cmd: _PublishBase, target: str) -> CommandResult:
             ),
             by_module=True,
         )
+        link_ids.append(linked.stream_id)
     content = rows.get_content(uow.conn(), derived.id, derived.content_rev)
     assert content is not None and content.result_sha256 is not None
     actor_cmd = Command(**base)
@@ -470,6 +473,8 @@ def _publish(uow: UnitOfWork, cmd: _PublishBase, target: str) -> CommandResult:
                     "import_correlation_id": correlation,
                     "target_kind": target,
                     "created_count": len(record_ids),
+                    "record_ids": record_ids,
+                    "link_ids": link_ids,
                     "mapping_hash": plan.mapping_hash,
                     "result_sha256": content.result_sha256,
                 },
@@ -594,26 +599,26 @@ class CompensationPlan(BaseModel):
     can_compensate: bool
 
 
-_EVENTS_SQL = text(
-    "SELECT stream_id, stream_type, event_type, payload FROM events "
-    "WHERE correlation_id = :c ORDER BY seq"
+_RECORD_SQL = text("SELECT key, status, voided, type, scope FROM cur_core_record WHERE id = :id")
+_PUBLISHED_SQL = text(
+    "SELECT payload FROM events WHERE stream_id = :d AND event_type = :t ORDER BY seq DESC"
 )
-_RECORD_SQL = text("SELECT key, status, voided FROM cur_core_record WHERE id = :id")
 
 
-def _events_of(conn: Connection, correlation_id: str) -> list[tuple[str, str, str, dict[str, Any]]]:
-    out: list[tuple[str, str, str, dict[str, Any]]] = []
-    for row in conn.execute(_EVENTS_SQL, {"c": correlation_id}).all():
+def _recorded(conn: Connection, derived_id: str, correlation: str) -> tuple[list[str], list[str]]:
+    """The ids of the records and links the publication in force made, as it wrote them down.
+
+    This is the one source compensation trusts: the ``DerivedDocument.Published`` event the module
+    appended, not "the events that carry this correlation id" (a client can set a correlation id).
+    """
+    for row in conn.execute(_PUBLISHED_SQL, {"d": derived_id, "t": DERIVED_PUBLISHED}).all():
         payload = row.payload
-        out.append(
-            (
-                row.stream_id,
-                row.stream_type,
-                row.event_type,
-                json.loads(payload) if isinstance(payload, str) else dict(payload),
-            )
-        )
-    return out
+        body: dict[str, Any] = json.loads(payload) if isinstance(payload, str) else dict(payload)
+        if body.get("import_correlation_id") == correlation:
+            records = [str(i) for i in body.get("record_ids", [])]
+            links = [str(i) for i in body.get("link_ids", [])]
+            return records, links
+    return [], []
 
 
 def preview_compensation(uow: UnitOfWork, scope: str, derived_id: str) -> CompensationPlan:
@@ -636,22 +641,20 @@ def preview_compensation(uow: UnitOfWork, scope: str, derived_id: str) -> Compen
             problems=problems,
             can_compensate=False,
         )
-    for stream_id, stream_type, event_type, payload in _events_of(conn, correlation):
-        if event_type == "Link.Added":
-            items.append(
-                CompensationItem(
-                    record_id=stream_id,
-                    key=None,
-                    record_type="link",
-                    state=None,
-                    action="retract_link",
-                    reversible=True,
-                )
+    record_ids, link_ids = _recorded(conn, derived.id, correlation)
+    for link_id in link_ids:
+        items.append(
+            CompensationItem(
+                record_id=link_id,
+                key=None,
+                record_type="link",
+                state=None,
+                action="retract_link",
+                reversible=True,
             )
-        elif event_type == "Record.Created" and stream_id != derived.id:
-            items.append(
-                _record_item(conn, stream_id, str(payload.get("record_type", stream_type)))
-            )
+        )
+    for record_id in record_ids:
+        items.append(_record_item(conn, record_id, derived.scope))
     for item in items:
         if not item.reversible:
             problems.append(f"{item.key or item.record_id}: {item.problem}")
@@ -665,9 +668,20 @@ def preview_compensation(uow: UnitOfWork, scope: str, derived_id: str) -> Compen
     )
 
 
-def _record_item(conn: Connection, record_id: str, record_type: str) -> CompensationItem:
+def _record_item(conn: Connection, record_id: str, scope: str) -> CompensationItem:
     row = conn.execute(_RECORD_SQL, {"id": record_id}).first()
-    key = None if row is None else row.key
+    if row is None or row.scope != scope:
+        return CompensationItem(
+            record_id=record_id,
+            key=None,
+            record_type="unknown",
+            state=None,
+            action="void_document",
+            reversible=False,
+            problem="a record the publication made is not there",
+        )
+    record_type = str(row.type)
+    key = row.key
     if record_type == "engineering.Tag":
         state = None if row is None else (row.status or "Planned")
         ok = state in ("Planned", "Design", "Installed", "Commissioned", "Deleted")
@@ -724,7 +738,7 @@ def handle_compensate_publication(uow: UnitOfWork, cmd: CompensatePublication) -
             plan.problems or ["there is nothing to roll back"],
         )
     derived = load_derived(uow, cmd, cmd.derived_id)
-    correlation = new_ulid()
+    correlation = f"{DERIVE_CORRELATION_PREFIX}{new_ulid()}"
     base: dict[str, Any] = {
         "actor": cmd.actor,
         "source": f"compensation:{derived.id}",
