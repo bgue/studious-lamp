@@ -4,15 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 
+import pytest
 from fakes import SCOPE, FakeClient
 from helpers import run_pilot, screen_text
+from textual.app import ComposeResult
 from textual.pilot import Pilot
+from textual.screen import ModalScreen
 from textual.widgets import DataTable, Input, Static
 from tl_mod_documents.errors import DerivedNotFoundError
 from tl_tui.app import TlApp
 from tl_tui.widgets.derived_documents import DerivedDocumentsScreen
-from tl_tui.widgets.job_monitor import JobMonitorScreen
-from tl_tui.widgets.publish_preview import PublishPreviewScreen
 
 GOOD = "ISD-001@A/instrument-index"
 BAD = "ISD-002@A/instrument-index"
@@ -161,22 +162,55 @@ def test_a_refused_command_is_shown_and_the_screen_stays() -> None:
     scenario(client, steps)
 
 
-def test_j_opens_the_job_monitor_and_p_the_publish_preview() -> None:
+class Probe(ModalScreen[bool]):
+    """Stands in for the job monitor and the publish preview: records how it was opened."""
+
+    BINDINGS = [("escape", "close", "Close")]  # noqa: RUF012
+    opened: list[tuple[tuple[object, ...], dict[str, object]]] = []  # noqa: RUF012
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__()
+        Probe.opened.append((args, kwargs))
+
+    def compose(self) -> ComposeResult:
+        yield from ()
+
+    def action_close(self) -> None:
+        self.dismiss(True)
+
+
+def test_j_opens_the_job_monitor_and_p_the_publish_preview(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import tl_tui.widgets.derived_documents as module
+
+    Probe.opened = []
+    monkeypatch.setattr(module, "JobMonitorScreen", Probe)
+    monkeypatch.setattr(module, "PublishPreviewScreen", Probe)
+    client = world()
+
     async def steps(pilot: Pilot[None], app: TlApp, screen: DerivedDocumentsScreen) -> None:
         await pilot.press("j")
         await pilot.pause()
-        assert isinstance(app.screen, JobMonitorScreen) and app.screen.derived == GOOD
+        assert isinstance(app.screen, Probe)
+        (args, kwargs), *_ = Probe.opened
+        assert args == (client, "P123", "user:kim") and kwargs == {"derived": GOOD}
+        before = client.calls.count("list_derived_documents")
         await pilot.press("escape")
         await pilot.pause()
         assert isinstance(app.screen, DerivedDocumentsScreen)
-        await pilot.press("p")
+        assert client.calls.count("list_derived_documents") == before + 1  # read again
+        await pilot.press("down", "p")
         await pilot.pause()
-        assert isinstance(app.screen, PublishPreviewScreen) and app.screen.derived == GOOD
+        assert isinstance(app.screen, Probe)
+        args, kwargs = Probe.opened[1]
+        assert args == (client, "P123", "user:kim", BAD)
+        assert kwargs == {"is_admin": False, "is_controller": False}
         await pilot.press("escape")
         await pilot.pause()
         assert isinstance(app.screen, DerivedDocumentsScreen)
 
-    scenario(world(), steps)
+    scenario(client, steps)
 
 
 def test_the_letters_are_text_while_the_filter_box_has_focus() -> None:

@@ -11,7 +11,6 @@ from textual.pilot import Pilot
 from textual.widgets import DataTable, Static
 from tl_mod_documents.derivation.derived import StartExtraction
 from tl_tui.app import TlApp
-from tl_tui.widgets.derived_documents import DerivedDocumentsScreen
 from tl_tui.widgets.job_monitor import JobMonitorScreen
 
 GOOD = "ISD-001@A/instrument-index"
@@ -27,14 +26,16 @@ def world() -> FakeClient:
 def scenario(
     client: FakeClient,
     steps: Callable[[Pilot[None], TlApp, JobMonitorScreen], Awaitable[None]],
+    *,
+    derived: str | None = GOOD,
 ) -> None:
     app = TlApp(client, scope=SCOPE, actor="user:kim")
+    closed: list[object] = []
 
     async def go(pilot: Pilot[None]) -> None:
-        await pilot.press("f11")
-        await pilot.pause()
-        assert isinstance(app.screen, DerivedDocumentsScreen)
-        await pilot.press("j")  # the monitor, on the highlighted document's jobs
+        app.push_screen(
+            JobMonitorScreen(client, "P123", "user:kim", derived=derived), closed.append
+        )
         await pilot.pause()
         assert isinstance(app.screen, JobMonitorScreen)
         await steps(pilot, app, app.screen)
@@ -50,16 +51,15 @@ def status(screen: JobMonitorScreen) -> str:
     return str(screen.query_one("#jobs-status", Static).render())
 
 
-def test_j_opens_the_jobs_of_the_highlighted_document() -> None:
+def test_the_monitor_lists_the_jobs_of_one_derived_document() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: JobMonitorScreen) -> None:
-        assert screen.derived is not None
         assert states(screen) == ["succeeded"]  # the first row of the table is ISD-001
         text = screen_text(app)
         assert f"Jobs of {GOOD} in P123" in text and "1 of 1 jobs" in text
         assert screen.query_one("#jobs-table", DataTable).row_count == 1
         await pilot.press("escape")
         await pilot.pause()
-        assert isinstance(app.screen, DerivedDocumentsScreen)
+        assert not isinstance(app.screen, JobMonitorScreen)
 
     scenario(world(), steps)
 

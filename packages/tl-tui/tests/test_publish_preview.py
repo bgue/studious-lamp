@@ -9,7 +9,6 @@ from helpers import run_pilot, screen_text
 from textual.pilot import Pilot
 from textual.widgets import DataTable, Static
 from tl_tui.app import TlApp
-from tl_tui.widgets.derived_documents import DerivedDocumentsScreen
 from tl_tui.widgets.publish_preview import PublishPreviewScreen
 
 GOOD = "ISD-001@A/instrument-index"
@@ -28,15 +27,19 @@ def scenario(
     *,
     admin: bool = True,
     controller: bool = False,
-    down: int = 0,
+    derived: str = GOOD,
+    closed: list[bool | None] | None = None,
 ) -> None:
-    app = TlApp(client, scope=SCOPE, actor="user:kim", is_admin=admin, is_controller=controller)
+    app = TlApp(client, scope=SCOPE, actor="user:kim")
+    results = closed if closed is not None else []
 
     async def go(pilot: Pilot[None]) -> None:
-        await pilot.press("f11")
-        await pilot.pause()
-        assert isinstance(app.screen, DerivedDocumentsScreen)
-        await pilot.press(*["down"] * down, "p")
+        app.push_screen(
+            PublishPreviewScreen(
+                client, "P123", "user:kim", derived, is_admin=admin, is_controller=controller
+            ),
+            results.append,
+        )
         await pilot.pause()
         assert isinstance(app.screen, PublishPreviewScreen)
         await steps(pilot, app, app.screen)
@@ -90,6 +93,7 @@ def test_s_says_to_skip_the_rows_that_exist_and_p_then_asks_twice() -> None:
 
 def test_escape_after_the_first_p_leaves_without_publishing_and_closes_on_the_next() -> None:
     client = world()
+    closed: list[bool | None] = []
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: PublishPreviewScreen) -> None:
         await pilot.press("s", "p")
@@ -100,9 +104,10 @@ def test_escape_after_the_first_p_leaves_without_publishing_and_closes_on_the_ne
         assert client.calls.count("publish_derived_tags") == 0
         await pilot.press("escape")
         await pilot.pause()
-        assert isinstance(app.screen, DerivedDocumentsScreen)
+        assert not isinstance(app.screen, PublishPreviewScreen)
+        assert closed == [False]  # nothing changed
 
-    scenario(client, steps)
+    scenario(client, steps, closed=closed)
 
 
 def test_someone_without_the_admin_role_is_not_offered_tags() -> None:
@@ -131,7 +136,7 @@ def test_a_derived_document_that_cannot_be_published_says_so() -> None:
         assert "There is no plan to publish." in status(screen)
         assert client.calls.count("publish_derived_tags") == 0
 
-    scenario(client, steps, down=1)  # ISD-002 is Invalid
+    scenario(client, steps, derived=BAD)  # ISD-002 is Invalid
 
 
 def test_c_shows_the_compensation_and_u_takes_the_publication_back_after_asking() -> None:
@@ -161,17 +166,16 @@ def test_c_shows_the_compensation_and_u_takes_the_publication_back_after_asking(
     scenario(client, steps)
 
 
-def test_closing_after_a_change_tells_the_list_to_read_again() -> None:
+def test_closing_after_a_change_dismisses_with_true() -> None:
     client = world()
+    closed: list[bool | None] = []
 
     async def steps(pilot: Pilot[None], app: TlApp, screen: PublishPreviewScreen) -> None:
-        before = client.calls.count("list_derived_documents")
         await pilot.press("s", "p", "p")
         await pilot.pause()
         await pilot.press("escape")
         await pilot.pause()
-        assert isinstance(app.screen, DerivedDocumentsScreen)
-        assert client.calls.count("list_derived_documents") == before + 1
-        assert [v.state for v in app.screen.shown][0] == "Published"
+        assert not isinstance(app.screen, PublishPreviewScreen)
+        assert closed == [True]
 
-    scenario(client, steps)
+    scenario(client, steps, closed=closed)
