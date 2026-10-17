@@ -40,7 +40,7 @@ FANOUT demo:
 | S4 | Derivation commands: `RegisterDocumentSchema`, `RetireDocumentSchema`, `StartExtraction`, `ValidateDerived`, `CancelJob`, the `extract` and `validate` job kinds, server-written files (`by_module` on the file service), validation (T04) and diff (T06) | Ledger writes, files, access | reviewer, orchestrator | done (8361c4d) |
 | S5 (T05) | Publish: mapping model, preview, one correlated apply through module commands, provenance, compensation by correlation; `PublishDerivedTags`, `PublishDerivedDocuments`, `CompensatePublication`; access check when a proposal is accepted (7eb46e2) | Permissions, correlated import, compensation (§24.5) | reviewer, orchestrator | done (8361c4d, 7eb46e2) |
 | S6 | Client interface: the reads (`derivation/views.py`), the HTTP routes, the `ApiClient`, `EmbeddedClient` and `FakeClient` methods, the MCP tools (T08a and T08b), `build_worker`, the `tl derive` reference group and the TUI `derive_text` and screens (references for T07 and T14) | Interfaces first (L-P1-I0A-11) | reviewer | done (1f0d86a, 2ee0d18) |
-| S7 | Demo, docs (module page, runbook, READMEs), report | Wiring and docs | orchestrator | in progress (module page done) |
+| S7 | Demo, docs (module page, runbook, READMEs), report | Wiring and docs | orchestrator | done (module page, runbook, READMEs, demo, report: S31 and later) |
 | S12 | Accepting a proposal needs the access of the proposed command (core, API, CLI, MCP modes; fail closed) | Permissions | orchestrator | done (7eb46e2) |
 | S15 | Resource envelope for extractors, FANOUT D9: child process, `RLIMIT_AS` and `RLIMIT_CPU`, wall clock with `SIGKILL`, fixed `extraction_limit`, `MAX_CELLS` checked twice | Security | orchestrator | done (52db1b1) |
 
@@ -50,9 +50,9 @@ Ticket numbers T09 to T13 belong to workstream B. The CLI tickets, which the pla
 |---|---|---|---|---|---|
 | T01 | LinkML: `DocumentSchema`, `DerivedDocument`, `ProcessingJob`; derived workflow (see S2) | S | — | merged (supervisor) | built on `p1/i3a` |
 | T02 | Job runner v1 (see S3) | S | T01 | merged (supervisor) | built on `p1/i3a`; awaits the orchestrator's review |
-| T03 | Extractor registry (`load_extractors`, `choose`, fail loud) and `run_extraction`, the guard around a plugin call. The ledger-facing half of "job wiring" is the `extract` job kind of S4 | H | contract | ready | reference ad63051, stub fc049b5 |
+| T03 | Extractor registry (`load_extractors`, `choose`, fail loud) and `run_extraction`, the guard around a plugin call. The ledger-facing half of "job wiring" is the `extract` job kind of S4 | H | contract | merged | 357c607 (reference ad63051, stub fc049b5; reviewer pass); registry hardened in 069860c |
 | T04 | Validation: JSON Schema over extracted rows with typed reading of cells; row- and field-level report model | H | T01, T03 | built by supervisor | In S4 (8361c4d). The `validate` and `extract` job kinds and the pipeline tests cannot run without it, so it was built with them and tested in full (`test_derivation_validation.py`); a stub plus held tests would have held back every pipeline test. No Haiku dispatch. |
-| T05 | Publish (see S5) | S | T04 | todo | |
+| T05 | Publish (see S5) | S | T04 | built by supervisor | In S5 (`derivation/publish.py`); a permissions piece. Compensation reverses recorded ids since 0c2fdc8. |
 | T06 | Diff of two row sets by key column | H | T04 | built by supervisor | In S4 (`diff.py`, `test_derivation_diff.py`), used by S6's `derived_diff`; no Haiku dispatch, for the reason given at T04. |
 | T07a | TUI job monitor | H | S6 | done | merged 5b767d4 (reviewer pass) |
 | T07b | TUI derived documents and validation report viewer (F11) | H | S6 | done | merged 85aa786 (reviewer pass) |
@@ -62,7 +62,7 @@ Ticket numbers T09 to T13 belong to workstream B. The CLI tickets, which the pla
 | T14a | CLI `tl derive schema` (register, ls, show, retire) | H | S4 | done | merged 6f27ecb (reviewer pass) |
 | T14b | CLI `tl derive open`, `start`, `ls`, `jobs`, `cancel` (`content` and `worker` are finished in the stub) | H | S4 | done | merged 15f4527 (post-merge reruns; fresh reviewer passed) |
 | T14c | CLI `tl derive show`, `report`, `rows`, `diff`, `check`, `validate` | H | T14b | done | merged 53d9567 (31b2795); diff notice S38 |
-| T14d | CLI `tl derive publish` (preview, apply), `compensate` | H | S5, T14a, T14b | done | merged 4bbea71 (0ec96fc plus S35/S36 fixes; reruns 15 pass 3 skip on both adapters) |
+| T14d | CLI `tl derive publish` (preview, apply), `compensate` | H | S5, T14a, T14b | done | merged 4bbea71, review-only pass pending (0ec96fc plus S35/S36 fixes; reruns 15 pass 3 skip on both adapters) |
 
 D8 held for the supervisor-built pieces; the orchestrator told me (2026-10-17) to go on with T04 to T08 before B is in, so the tickets
 that do not need B's extractors are ready now. The extractor is a fake in tests until `p1/i3b` is merged. Batches (disjoint paths):
