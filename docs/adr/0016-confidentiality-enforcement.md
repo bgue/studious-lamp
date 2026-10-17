@@ -1,6 +1,6 @@
 # ADR-0016 — Confidentiality is enforced on every read path, and an unknown class is hidden
 
-Status: proposed 2026-10-17 by the P1-I5 supervisor; awaits the orchestrator's approval as the delegated security gate (ADR-0008 decision 6: "confidentiality filters"). Closes the known limit of ADR-0011 ("a confidentiality class is stored and shown; nothing filters by it yet").
+Status: accepted 2026-10-17 by the orchestrator under ADR-0008 decision 6 ("confidentiality filters"), as written (proposed by the P1-I5 supervisor). Closes the known limit of ADR-0011 ("a confidentiality class is stored and shown; nothing filters by it yet").
 Date: 2026-10-17
 Deciders: P1-I5 supervisor (proposal); orchestrator (approval)
 Brief sections: §9 M10 (confidentiality per domain; "Confidentiality rules apply to every view, including the master"), §18.3 (restricted classes emit thin payloads, only to cleared subscription owners), §18.10 (restricted classes are excluded from bulk and semantic exports), §8 (permissions), §25.5 (confidentiality filters are a human gate)
