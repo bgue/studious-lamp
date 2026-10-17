@@ -5,7 +5,7 @@ Supervisor session: 2026-10-17
 Brief sections: §9 M11, §7.2 and §7.3 (links by stable id, orphans), §9 M1 (derivation path, shared with ADR-0014), §28 (lake bronze and silver), §8 and §18 (access; agents propose), §24.6 (runbooks)
 Branch: `p1/i4`
 
-Decisions are in [ADR-0015](../../adr/0015-cost-and-schedule-snapshots.md) (proposed; the orchestrator accepts it under ADR-0008 decision 6). Phase plan rows: `docs/build-spec/07-phase1-plan.md`, Increment 4.
+Decisions are in [ADR-0015](../../adr/0015-cost-and-schedule-snapshots.md) (accepted 2026-10-17). Phase plan rows: `docs/build-spec/07-phase1-plan.md`, Increment 4.
 
 ## Objective
 M11 gives the suite a mirror of the cost system (cost codes with a measure matrix and one snapshot per period) and P6 schedules read from XER files: each upload is an immutable snapshot, validated, compared with the one before, published as the current schedule, and linked to by stable activity id. An XER file is untrusted input, so it is read by a bounded, deterministic reader inside the derivation resource envelope (ADR-0014), and the typed rows of a snapshot are written by a queued job into operational tables, not by events.
@@ -31,12 +31,14 @@ The exact commands are fixed when the CLI lands and are copied from `dev/demos/P
 | S4 | Module `schedule`: records, operational tables, build job and worker, publish (supersede, orphan flagging), `LinkActivity`, compare (plan T05 and T06) | Core engine, job, access | security pass; orchestrator review (core engine) | done (2ba0104) |
 | S5 | References for the Haiku tickets (CSV reader, resolver, look-ahead), ADR-0015, learnings L-P1-I4-1 to 7 | Reference implementations, mutation-checked | — | done (27b2170) |
 | S6 | Stubs, provided tests (`provided/`), tickets T02a, T07, T08 | — | — | done (9495b1d) |
+| F1 | Security review fixes in tl-xer and the shared text check | Security | re-review | done (1a47cba) |
+| F2 | Security review fixes in the schedule module, API, CLI, MCP | Security | re-review | done (2b10c42) |
 | S6b | Views for both modules (`views.py`), `registry.activity_page` | Public read shapes | — | done (c01047f) |
 | S7 | API: command table entries (both modules), error rows, read routes, `ApiClient` methods, OpenAPI document | Public interface; access table | security pass | done (c01047f) |
-| S8 | CLI operations: `tl xer upload/worker/reconcile/publish/void/link`, `tl cost import` (preview/apply) | Writes; roles; the actor hook | security pass | todo |
-| S9 | TUI client interface (embedded and remote methods) for the schedule and cost reads | Interface the Haiku TUI ticket codes against | — | todo |
-| S10 | MCP read tools and the proposable `PublishScheduleSnapshot` | Agents propose only | security pass | todo |
-| S11 | `reconcile` (typed rows from the source file after a restore) and the runbook | Recovery path | — | todo |
+| S8 | CLI operations: `tl xer define/upload/start/publish/void/link/worker/reconcile`, `tl cost import` (preview/apply) | Writes; roles; the actor hook | security pass | done (532cbeb, F2 2b10c42) |
+| S9 | TUI client interface (embedded and remote methods) for the schedule and cost reads | Interface the Haiku TUI ticket codes against | — | done (532cbeb) |
+| S10 | MCP proposable `PublishScheduleSnapshot` (read tools are T13) | Agents propose only | security pass | done (532cbeb) |
+| S11 | `reconcile` (typed rows from the source file after a restore) and the runbook | Recovery path | — | done (532cbeb, runbook F3) |
 | S12 | Demo script, gates, module pages, package READMEs and AGENTS.md, report with the Showcase | — | — | todo |
 
 ## Tickets
@@ -67,7 +69,7 @@ Haiku-ability (`01-tiers.md` §6) for the ready tickets: T02a reads 6 files, T07
 5. S12: demo on SQLite and Postgres, `just test-parity` alone in the background, docs, report.
 
 ## Risks and escalation triggers
-- **XER reader resource use.** Measured: 20 MB / 60 000 activities in 9 s and 330 MB; the largest legal file (47.5 MB, 5.9 million cells) 12 s and 550 MB; envelope 60 s and 1 GiB. A bound that cannot be met is an escalation.
+- **XER reader resource use.** Measured after the security review (ADR-0015 §2, §4): the worst legal file (the typed maximum: 60 000 activities, 200 000 relationships, 300 000 codes, 300 000 user fields; 42.6 MB) reads in 16.8 s with 582 MB in the child; the hostile shapes of the review are refused in about 3 s. Settle of the maximum snapshot: 25 s on Postgres (JSON per chunk; 535 s with `executemany`) and about 13 s on SQLite; the worker's claim is 600 s. Envelope 60 s and 1 GiB. A bound that cannot be met is an escalation.
 - **Writer lock during settle.** Writing 60 000 activities in one transaction holds the SQLite writer lock for seconds. Measured in the report; chunking would change the settle contract (escalate before changing it).
 - **Operational tables.** The typed rows are not rebuilt by a projection rebuild; `reconcile` is the recovery path. If the orchestrator wants them as projections, ADR-0015 section 4 is the point to reopen.
 - **Roles.** Publishing needs the controller role, importing cost figures needs admin (ADR-0015 section 7). A different rule is a decision for the owner.
