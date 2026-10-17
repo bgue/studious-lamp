@@ -26,4 +26,5 @@ imports:
   - extension
   - events
   - auth
+  - jobs
 default_range: string

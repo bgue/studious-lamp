@@ -10,6 +10,10 @@ file upload path, so the API, the CLI, MCP and an accepted proposal all inherit 
   refused: a revision's files are its four slots.
 * **Transmittal, AttachFile, AddLink, SuggestLink.** Only while it is a draft: an issued
   transmittal is the record of what was sent.
+* **DerivedDocument, AttachFile.** A person attaches only the slot ``content`` (the CSV or XLSX to
+  read), and only while the derived document is Pending, Invalid or Valid: not while a job runs
+  (Processing), not once published, not when void. The slots ``extracted`` and ``report`` are
+  written by the module with ``by_module`` and are never a person's to fill (ADR-0014).
 """
 
 from __future__ import annotations
@@ -17,7 +21,13 @@ from __future__ import annotations
 from sqlalchemy import Connection, text
 from tl_core.services.errors import UnsupportedRecordTypeError
 
-from tl_mod_documents.names import RENDITION_KINDS
+from tl_mod_documents.names import (
+    DD_INVALID,
+    DD_PENDING,
+    DD_VALID,
+    RENDITION_KINDS,
+    SLOT_CONTENT,
+)
 
 #: Kinds of file a revision accepts in each of its states.
 UPLOAD_KINDS: dict[str, tuple[str, ...]] = {
@@ -66,4 +76,24 @@ def transmittal_draft_only(conn: Connection, record_id: str, slot: str | None) -
         raise UnsupportedRecordTypeError(
             f"a {state} transmittal takes no more links, flags or attachments: it is the record of "
             "what was sent"
+        )
+
+
+#: States of a derived document in which a person may attach a file to read.
+DERIVED_UPLOAD_STATES = (DD_PENDING, DD_INVALID, DD_VALID)
+
+
+def derived_upload(conn: Connection, record_id: str, slot: str | None) -> None:
+    """Refuse an upload to a derived document that is not the ``content`` slot in an open state."""
+    if slot != SLOT_CONTENT:
+        raise UnsupportedRecordTypeError(
+            f"a derived document takes files in its {SLOT_CONTENT!r} slot only"
+        )
+    state = state_of(conn, record_id)
+    # A derived document that never moved is Pending, not Draft.
+    state = DD_PENDING if state == "Draft" else state
+    if state not in DERIVED_UPLOAD_STATES:
+        raise UnsupportedRecordTypeError(
+            f"a {state} derived document takes no more content: "
+            + ("wait for the job to finish" if state == "Processing" else "it is closed")
         )

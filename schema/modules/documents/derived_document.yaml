@@ -1,0 +1,224 @@
+id: https://example.org/throughline/modules/documents/derived_document
+name: tl_mod_documents_derived_document
+title: Derived documents (brief 9, M1 derivation; P1-I3)
+description: >-
+  A `DerivedDocument` is the table of data derived from one source revision (a rendition such as an instrument
+  index PDF, or a CSV or XLSX a person attached), checked against one `DocumentSchema` and, when valid and
+  approved, published into target records (ADR-0014). The record is the thread: its workflow is Pending,
+  Processing, Invalid or Valid, Published; each pass of an extractor over a file adds a *content revision*
+  (`DerivedContent`), so fixing a CSV and running again keeps the earlier pass, its validation report and the
+  rows, and the diff between two passes is a query. The rows themselves are files (slot `extracted`), never
+  event payloads. Spec: docs/modules/documents/derivation.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: documents
+
+classes:
+  DerivedDocument:
+    description: >-
+      One derived document. Record type `documents.DerivedDocument`; its key is `<number>@<revision>/<schema code>`
+      (`ISD-001@A/instrument-index`), so a source revision has at most one derived document per schema code. The
+      workflow state (Pending, Processing, Invalid, Valid, Published, Void) is the envelope `status`. The columns here
+      are the facts of the latest content revision, so registers need no join.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "documents.DerivedDocument"
+      tl:ix_scope_revision: "scope, source_revision_id"
+      tl:ix_scope_schema: "scope, schema_code"
+      tl:ix_source_document: "source_document_id, schema_code"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      source_document_id:
+        range: Ulid
+        required: true
+        description: The document the data was derived from.
+      source_revision_id:
+        range: Ulid
+        required: true
+        description: The revision the data was derived from.
+      source_document_number:
+        required: true
+        description: The document number, copied so a register needs no join.
+      source_revision_code:
+        required: true
+        description: The revision code, copied.
+      source_ref:
+        required: true
+        description: "The provenance string `src.doc.<number>@<revision code>`, written to every record this publishes."
+      schema_id:
+        range: Ulid
+        required: true
+        description: The `DocumentSchema` version the latest content revision was checked against.
+      schema_code:
+        required: true
+        description: Its code; part of the key.
+      schema_version:
+        required: true
+        description: Its version.
+      method:
+        required: true
+        ifabsent: string(manual)
+        description: "manual (a person supplied the data), automated (an extractor read a rendition) or hybrid (both)."
+      previous_derived_id:
+        range: Ulid
+        description: The derived document of the previous revision of the same document and schema code, when one exists; the diff is taken against it.
+      content_rev:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: The latest content revision, 0 before the first pass.
+      published_rev:
+        range: integer
+        description: The content revision that is published now; null when none or after a compensation.
+      validation_status:
+        required: true
+        ifabsent: string(none)
+        description: "none (no rows validated yet), valid or invalid, for the latest content revision."
+      row_count:
+        range: integer
+        description: Rows of the latest content revision.
+      error_count:
+        range: integer
+        description: Row and field errors of the latest validation.
+      published_correlation_id:
+        description: The correlation id of the publication in force; compensating it undoes exactly these events.
+      published_at:
+        description: ISO-8601 UTC of the publication in force.
+      published_count:
+        range: integer
+        description: Records the publication in force created.
+      last_job_id:
+        range: Ulid
+        description: The latest processing job.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
+
+  DerivedContent:
+    description: >-
+      One content revision of a derived document: the result of one extractor pass over one source file and, once
+      checked, its validation. Not a record: a row of the derived document's history, written when the pass is
+      recorded and completed by the validation event; the files it names are never changed.
+    annotations:
+      tl:current_state: true
+    unique_keys:
+      derived_rev:
+        description: A content revision number is used once per derived document.
+        unique_key_slots:
+          - derived_id
+          - content_rev
+    attributes:
+      content_id:
+        identifier: true
+        required: true
+        description: "`<derived document id>:<content revision, four digits>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      derived_id:
+        range: Ulid
+        required: true
+        description: The derived document.
+      content_rev:
+        range: integer
+        required: true
+        description: Content revision, from 1.
+      job_id:
+        range: Ulid
+        description: The processing job that made it; null for a revision recorded by hand.
+      source_kind:
+        required: true
+        description: "rendition (a file of the source revision) or upload (a file a person attached to the derived document)."
+      source_file_id:
+        range: Ulid
+        required: true
+        description: The file the extractor read.
+      extractor:
+        required: true
+        description: Name of the extractor that read it.
+      extractor_version:
+        required: true
+        description: Its version.
+      extraction_status:
+        required: true
+        description: "ok, metadata_only, unsupported or failed (the extractor contract)."
+      result_file_id:
+        range: Ulid
+        description: The file (slot `extracted`) that holds columns, rows, profiles and problems as JSON; null when the pass produced no rows.
+      result_sha256:
+        description: Hex SHA-256 of that file; publishing reads the file and checks it.
+      row_count:
+        range: integer
+        required: true
+        ifabsent: int(0)
+      column_count:
+        range: integer
+        required: true
+        ifabsent: int(0)
+      problem_count:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Problems the extractor reported while reading (a bad row, a refused file).
+      file_metadata:
+        range: Any
+        annotations:
+          tl:json: true
+        description: The real file metadata the extractor read (pages, title, author, sheet names ...).
+      extractor_notes:
+        range: Any
+        annotations:
+          tl:json: true
+        description: JSON list of the extractor's notes, for example that content extraction is stubbed (ADR-0008 decision 8).
+      schema_id:
+        range: Ulid
+        description: The schema version the pass was validated against; null before validation.
+      schema_version:
+        description: Its version.
+      validation_status:
+        required: true
+        ifabsent: string(none)
+        description: "none, valid or invalid."
+      error_count:
+        range: integer
+        required: true
+        ifabsent: int(0)
+      warning_count:
+        range: integer
+        required: true
+        ifabsent: int(0)
+      report_file_id:
+        range: Ulid
+        description: The validation report file (slot `report`).
+      report_sha256:
+        description: Hex SHA-256 of the report.
+      published:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: True while this content revision is the one published.
+      created_at:
+        required: true
+        description: ISO-8601 UTC.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

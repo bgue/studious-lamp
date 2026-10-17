@@ -26,7 +26,11 @@ imports:
   - revision
   - transmittal
   - review_cycle
+  - document_schema
+  - derived_document
+  - processing_job
   - events
+  - derivation_events
 default_range: string
 annotations:
   tl:module: documents

@@ -116,7 +116,10 @@ def test_every_record_class_of_the_committed_modules_has_a_view() -> None:
     files = ddl.generate(REPO / "schema" / "core")
     views = sorted(name.split("/")[-1][:-4] for name in files if "/sqlite/v_" in name)
     assert views == [
+        "v_documents_derived_document",
         "v_documents_document",
+        "v_documents_document_schema",
+        "v_documents_processing_job",
         "v_documents_rendition",
         "v_documents_review_cycle",
         "v_documents_revision",

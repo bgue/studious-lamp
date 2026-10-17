@@ -1,0 +1,31 @@
+CREATE TABLE IF NOT EXISTS cur_documents_derived_content (
+  content_id TEXT PRIMARY KEY,
+  scope TEXT NOT NULL,
+  derived_id TEXT NOT NULL,
+  content_rev INTEGER NOT NULL,
+  job_id TEXT,
+  source_kind TEXT NOT NULL,
+  source_file_id TEXT NOT NULL,
+  extractor TEXT NOT NULL,
+  extractor_version TEXT NOT NULL,
+  extraction_status TEXT NOT NULL,
+  result_file_id TEXT,
+  result_sha256 TEXT,
+  row_count INTEGER NOT NULL DEFAULT 0,
+  column_count INTEGER NOT NULL DEFAULT 0,
+  problem_count INTEGER NOT NULL DEFAULT 0,
+  file_metadata_json TEXT,
+  extractor_notes_json TEXT,
+  schema_id TEXT,
+  schema_version TEXT,
+  validation_status TEXT NOT NULL DEFAULT 'none',
+  error_count INTEGER NOT NULL DEFAULT 0,
+  warning_count INTEGER NOT NULL DEFAULT 0,
+  report_file_id TEXT,
+  report_sha256 TEXT,
+  published INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  last_seq INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_cur_documents_derived_content_derived_rev ON cur_documents_derived_content (derived_id, content_rev);

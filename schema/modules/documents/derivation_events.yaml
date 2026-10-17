@@ -1,0 +1,406 @@
+id: https://example.org/throughline/modules/documents/derivation_events
+name: tl_mod_documents_derivation_events
+title: Derivation events of the documents module (P1-I3)
+description: >-
+  The ledger events of the derivation pipeline (brief 9, M1; ADR-0014), one class per event type, in the same form as
+  `events.yaml`. A document schema, a derived document and a processing job are created by `Record.Created` followed in
+  the same append by their `*.Defined` event. A derived document moves between its workflow states with the core
+  `Workflow.Transitioned` event; its publication and the compensation of a publication are `DerivedDocument.Published`
+  and `DerivedDocument.PublicationCompensated`. Job attempts are `ProcessingJob.Started`, `Succeeded` and `Failed`.
+  The extracted rows and the validation report are files, never payloads.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+default_range: string
+annotations:
+  tl:module: documents
+
+classes:
+  DocumentSchemaDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A version of a document schema was registered.
+    annotations:
+      tl:event_type: DocumentSchema.Defined
+      tl:event_version: "1"
+    attributes:
+      code:
+        description: "The schema's name."
+        required: true
+      semver:
+        description: "Semantic version `major.minor.patch`."
+        required: true
+      ordinal:
+        description: "Position among the versions of the code in the scope, from 1."
+        range: integer
+        required: true
+      target_kind:
+        description: "tags, documents or null."
+      key_column:
+        description: "The column that identifies a row."
+      json_schema:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "The JSON Schema of one row."
+      sample:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Example rows."
+      mapping:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "The publish mapping, or null."
+      mapping_notes:
+        description: "Notes."
+      doc_types:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Document type codes it applies to; empty means any."
+      content_hash:
+        description: "Hex SHA-256 of the canonical schema and mapping."
+        required: true
+    examples:
+      - value: "{\"code\": \"instrument-index\", \"content_hash\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"doc_types\": [\"IDX\"], \"json_schema\": {\"properties\": {\"tag\": {\"type\": \"string\"}}, \"required\": [\"tag\"], \"type\": \"object\"}, \"key_column\": \"tag\", \"mapping\": null, \"mapping_notes\": null, \"ordinal\": 1, \"sample\": [{\"tag\": \"47-FV-1001\"}], \"target_kind\": \"tags\", \"semver\": \"1.0.0\"}"
+  DocumentSchemaRetiredPayload:
+    is_a: EventPayload
+    description: >-
+      A version of a document schema was retired; documents that named it keep it.
+    annotations:
+      tl:event_type: DocumentSchema.Retired
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"reason\": \"Replaced by 1.1.0\"}"
+  DerivedDocumentDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A derived document was opened for a source revision and a document schema.
+    annotations:
+      tl:event_type: DerivedDocument.Defined
+      tl:event_version: "1"
+    attributes:
+      source_document_id:
+        description: "Record id of the source document."
+        required: true
+      source_revision_id:
+        description: "Record id of the source revision."
+        required: true
+      source_document_number:
+        description: "The document number."
+        required: true
+      source_revision_code:
+        description: "The revision code."
+        required: true
+      source_ref:
+        description: "The provenance string src.doc.<number>@<revision>."
+        required: true
+      schema_id:
+        description: "Record id of the document schema version."
+        required: true
+      schema_code:
+        description: "The schema code."
+        required: true
+      schema_version:
+        description: "The schema version."
+        required: true
+      method:
+        description: "manual, automated or hybrid."
+        required: true
+      previous_derived_id:
+        description: "Record id of the derived document of the previous revision, when there is one."
+    examples:
+      - value: "{\"method\": \"automated\", \"previous_derived_id\": null, \"schema_code\": \"instrument-index\", \"schema_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"schema_version\": \"1.0.0\", \"source_document_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"source_document_number\": \"ISD-001\", \"source_ref\": \"src.doc.ISD-001@A\", \"source_revision_code\": \"A\", \"source_revision_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+  DerivedDocumentContentRecordedPayload:
+    is_a: EventPayload
+    description: >-
+      One extractor pass over a source file finished: a new content revision of the derived document. The rows are in
+      the result file; this event keeps the counts, the file's hash and the extractor's real metadata.
+    annotations:
+      tl:event_type: DerivedDocument.ContentRecorded
+      tl:event_version: "1"
+    attributes:
+      content_rev:
+        description: "Content revision, from 1."
+        range: integer
+        required: true
+      job_id:
+        description: "Record id of the processing job."
+      source_kind:
+        description: "rendition or upload."
+        required: true
+      source_file_id:
+        description: "The file the extractor read."
+        required: true
+      extractor:
+        description: "Extractor name."
+        required: true
+      extractor_version:
+        description: "Extractor version."
+        required: true
+      extraction_status:
+        description: "ok, metadata_only, unsupported or failed."
+        required: true
+      result_file_id:
+        description: "The result file, when the pass produced rows."
+      result_sha256:
+        description: "Hex SHA-256 of the result file."
+      row_count:
+        range: integer
+        description: "Rows read."
+        required: true
+      column_count:
+        range: integer
+        description: "Columns read."
+        required: true
+      problem_count:
+        range: integer
+        description: "Reading problems reported by the extractor."
+        required: true
+      file_metadata:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "The real file metadata."
+      extractor_notes:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "The extractor's notes."
+      method:
+        description: "manual, automated or hybrid, after this pass."
+        required: true
+    examples:
+      - value: "{\"column_count\": 0, \"content_rev\": 1, \"extraction_status\": \"metadata_only\", \"extractor\": \"pdf\", \"extractor_notes\": [\"content extraction stubbed (ADR-0008 decision 8)\"], \"extractor_version\": \"1\", \"file_metadata\": {\"content_type\": \"application/pdf\", \"page_count\": 2, \"sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"size\": 1024}, \"job_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\", \"method\": \"automated\", \"problem_count\": 0, \"result_file_id\": null, \"result_sha256\": null, \"row_count\": 0, \"source_file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"source_kind\": \"rendition\"}"
+  DerivedDocumentValidatedPayload:
+    is_a: EventPayload
+    description: >-
+      A content revision was checked against a document schema version. The row and field problems are in the report
+      file; this event keeps the verdict and the counts.
+    annotations:
+      tl:event_type: DerivedDocument.Validated
+      tl:event_version: "1"
+    attributes:
+      content_rev:
+        description: "The content revision checked."
+        range: integer
+        required: true
+      schema_id:
+        description: "Record id of the schema version."
+        required: true
+      schema_code:
+        description: "Schema code."
+        required: true
+      schema_version:
+        description: "Schema version."
+        required: true
+      validation_status:
+        description: "valid or invalid."
+        required: true
+      error_count:
+        range: integer
+        description: "Errors found."
+        required: true
+      warning_count:
+        range: integer
+        description: "Warnings found."
+        required: true
+      report_file_id:
+        description: "The report file."
+      report_sha256:
+        description: "Hex SHA-256 of the report."
+      job_id:
+        description: "Record id of the processing job, when one ran it."
+    examples:
+      - value: "{\"content_rev\": 1, \"error_count\": 1, \"job_id\": null, \"report_file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PA\", \"report_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"schema_code\": \"instrument-index\", \"schema_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"schema_version\": \"1.0.0\", \"validation_status\": \"invalid\", \"warning_count\": 0}"
+  DerivedDocumentPublishedPayload:
+    is_a: EventPayload
+    description: >-
+      The rows of a valid content revision were published into target records as one correlated import. The records the
+      import made carry `import_correlation_id` in their events.
+    annotations:
+      tl:event_type: DerivedDocument.Published
+      tl:event_version: "1"
+    attributes:
+      content_rev:
+        description: "The content revision published."
+        range: integer
+        required: true
+      import_correlation_id:
+        description: "The correlation id of every event of the import."
+        required: true
+      target_kind:
+        description: "tags or documents."
+        required: true
+      created_count:
+        range: integer
+        description: "Records created."
+        required: true
+      mapping_hash:
+        description: "Hex SHA-256 of the mapping applied."
+        required: true
+      result_sha256:
+        description: "Hex SHA-256 of the rows published."
+        required: true
+    examples:
+      - value: "{\"content_rev\": 2, \"created_count\": 40, \"import_correlation_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PB\", \"mapping_hash\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"result_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"target_kind\": \"tags\"}"
+  DerivedDocumentPublicationCompensatedPayload:
+    is_a: EventPayload
+    description: >-
+      The publication of a derived document was rolled back: reversing events for everything its import made were
+      appended under a correlation id of their own. The original events stay in the ledger.
+    annotations:
+      tl:event_type: DerivedDocument.PublicationCompensated
+      tl:event_version: "1"
+    attributes:
+      content_rev:
+        description: "The content revision whose publication was rolled back."
+        range: integer
+        required: true
+      import_correlation_id:
+        description: "The correlation id of the import that was rolled back."
+        required: true
+      compensation_correlation_id:
+        description: "The correlation id of the reversing events."
+        required: true
+      reversed_count:
+        range: integer
+        description: "Records reversed."
+        required: true
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"compensation_correlation_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PC\", \"content_rev\": 2, \"import_correlation_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PB\", \"reason\": \"Loaded against the wrong revision\", \"reversed_count\": 40}"
+  ProcessingJobDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A processing job was queued.
+    annotations:
+      tl:event_type: ProcessingJob.Defined
+      tl:event_version: "1"
+    attributes:
+      kind:
+        description: "extract or validate."
+        required: true
+      derived_id:
+        description: "Record id of the derived document."
+        required: true
+      derived_key:
+        description: "Its key."
+        required: true
+      source_ref:
+        description: "The provenance string."
+        required: true
+      source_file_id:
+        description: "The file to read."
+      extractor:
+        description: "The extractor asked for, or null."
+      options:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Extractor options."
+      schema_id:
+        description: "Record id of the schema version."
+        required: true
+      requested_by:
+        description: "The actor who asked."
+        required: true
+      max_attempts:
+        range: integer
+        description: "Claims allowed."
+        required: true
+    examples:
+      - value: "{\"derived_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PD\", \"derived_key\": \"ISD-001@A/instrument-index\", \"extractor\": null, \"kind\": \"extract\", \"max_attempts\": 3, \"options\": {}, \"requested_by\": \"user:demo\", \"schema_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"source_file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"source_ref\": \"src.doc.ISD-001@A\"}"
+  ProcessingJobStartedPayload:
+    is_a: EventPayload
+    description: >-
+      A worker claimed a job (attempt n).
+    annotations:
+      tl:event_type: ProcessingJob.Started
+      tl:event_version: "1"
+    attributes:
+      attempt:
+        range: integer
+        description: "The claim number, from 1."
+        required: true
+      worker:
+        description: "The worker that holds the claim."
+        required: true
+      lease_until:
+        description: "ISO-8601 UTC at which the claim expires."
+        required: true
+    examples:
+      - value: "{\"attempt\": 1, \"lease_until\": \"2026-10-17T10:05:00.000000Z\", \"worker\": \"worker-1\"}"
+  ProcessingJobSucceededPayload:
+    is_a: EventPayload
+    description: >-
+      The claimed attempt finished and its results were recorded.
+    annotations:
+      tl:event_type: ProcessingJob.Succeeded
+      tl:event_version: "1"
+    attributes:
+      attempt:
+        range: integer
+        description: "The attempt that finished."
+        required: true
+      result:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "A small summary: extraction status, rows, content revision, validation status."
+    examples:
+      - value: "{\"attempt\": 1, \"result\": {\"content_rev\": 1, \"extraction_status\": \"ok\", \"rows\": 40, \"validation_status\": \"valid\"}}"
+  ProcessingJobFailedPayload:
+    is_a: EventPayload
+    description: >-
+      The claimed attempt failed. When `final` is false the job is queued again at `retry_at`.
+    annotations:
+      tl:event_type: ProcessingJob.Failed
+      tl:event_version: "1"
+    attributes:
+      attempt:
+        range: integer
+        description: "The attempt that failed."
+        required: true
+      error_code:
+        description: "Short code."
+        required: true
+      error_message:
+        description: "What went wrong, in words, without paths or stack traces."
+        required: true
+      final:
+        range: boolean
+        description: "True when no attempt is left."
+        required: true
+      retry_at:
+        description: "ISO-8601 UTC of the next attempt when not final."
+    examples:
+      - value: "{\"attempt\": 1, \"error_code\": \"source_not_available\", \"error_message\": \"the file is still in quarantine\", \"final\": false, \"retry_at\": \"2026-10-17T10:01:00.000000Z\"}"
+  ProcessingJobCancelledPayload:
+    is_a: EventPayload
+    description: >-
+      A queued job was cancelled before a worker took it.
+    annotations:
+      tl:event_type: ProcessingJob.Cancelled
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"reason\": \"Wrong file\"}"

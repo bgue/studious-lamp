@@ -1,0 +1,45 @@
+# File slots of a derived document (brief 9 M1, 20.1; ADR-0014). `content` is what a person attaches: the
+# CSV or XLSX to read. `extracted` (the rows an extractor read, as JSON) and `report` (the validation report,
+# as JSON) are written by the module only: the generic upload is refused for them by the derived document's
+# upload guard, and the module writes them with the Python-only `by_module` keyword of the file service.
+id: https://example.org/throughline/fixtures/files/documents-derived-document
+name: tl_fixture_documents_derived_document_files
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+default_range: string
+annotations:
+  tl:module: documents
+
+classes:
+  DerivedDocument:
+    annotations:
+      tl:file_slots:
+        - name: content
+          label: Derived content (CSV or XLSX)
+          cardinality: many
+          accepted_types:
+            - text/csv
+            - text/plain
+            - application/csv
+            - application/vnd.ms-excel
+            - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+          max_size: 52428800
+          retention_class: project
+        - name: extracted
+          label: Extracted rows (JSON)
+          cardinality: many
+          accepted_types:
+            - application/json
+          max_size: 268435456
+          retention_class: project
+        - name: report
+          label: Validation report (JSON)
+          cardinality: many
+          accepted_types:
+            - application/json
+          max_size: 67108864
+          retention_class: project

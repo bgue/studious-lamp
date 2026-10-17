@@ -15,10 +15,17 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`AgentToken.Revoked`](#agenttokenrevoked) | `tl.core.AgentToken.Revoked.v1` | An agent token was revoked and no longer authenticates. |
 | [`CodeValue.Closed`](#codevalueclosed) | `tl.core.CodeValue.Closed.v1` | A code value was superseded by another or retired; it still resolves for old records. |
 | [`CodeValue.Defined`](#codevaluedefined) | `tl.core.CodeValue.Defined.v1` | A value was added to a code list. |
+| [`DerivedDocument.ContentRecorded`](#deriveddocumentcontentrecorded) | `tl.core.DerivedDocument.ContentRecorded.v1` | One extractor pass over a source file finished: a new content revision of the derived document. |
+| [`DerivedDocument.Defined`](#deriveddocumentdefined) | `tl.core.DerivedDocument.Defined.v1` | A derived document was opened for a source revision and a document schema. |
+| [`DerivedDocument.PublicationCompensated`](#deriveddocumentpublicationcompensated) | `tl.core.DerivedDocument.PublicationCompensated.v1` | The publication of a derived document was rolled back: reversing events for everything its import made were appended under a correlation id of their own. |
+| [`DerivedDocument.Published`](#deriveddocumentpublished) | `tl.core.DerivedDocument.Published.v1` | The rows of a valid content revision were published into target records as one correlated import. |
+| [`DerivedDocument.Validated`](#deriveddocumentvalidated) | `tl.core.DerivedDocument.Validated.v1` | A content revision was checked against a document schema version. |
 | [`Document.CurrentRevisionChanged`](#documentcurrentrevisionchanged) | `tl.core.Document.CurrentRevisionChanged.v1` | The revision in force for a document changed (an issue, a supersession or a void). |
 | [`Document.Defined`](#documentdefined) | `tl.core.Document.Defined.v1` | A document was registered under its number. |
 | [`Document.Superseded`](#documentsuperseded) | `tl.core.Document.Superseded.v1` | A document was replaced by another document; it stays in the ledger and its links go stale. |
 | [`Document.Updated`](#documentupdated) | `tl.core.Document.Updated.v1` | The register fields of a document changed (the title changes through the core `Record.Updated`). |
+| [`DocumentSchema.Defined`](#documentschemadefined) | `tl.core.DocumentSchema.Defined.v1` | A version of a document schema was registered. |
+| [`DocumentSchema.Retired`](#documentschemaretired) | `tl.core.DocumentSchema.Retired.v1` | A version of a document schema was retired; documents that named it keep it. |
 | [`Feed.Edited`](#feededited) | `tl.core.Feed.Edited.v1` | A post was edited. |
 | [`Feed.Posted`](#feedposted) | `tl.core.Feed.Posted.v1` | A post was made in a project feed. |
 | [`Feed.Reacted`](#feedreacted) | `tl.core.Feed.Reacted.v1` | A reaction was set or cleared on a post. |
@@ -35,6 +42,11 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Link.Suggested`](#linksuggested) | `tl.core.Link.Suggested.v1` | A link was suggested and waits for a person to accept or decline. |
 | [`Link.Verified`](#linkverified) | `tl.core.Link.Verified.v1` | A person verified an active link. |
 | [`Numbering.Allocated`](#numberingallocated) | `tl.core.Numbering.Allocated.v1` | A number was allocated from a counter. |
+| [`ProcessingJob.Cancelled`](#processingjobcancelled) | `tl.core.ProcessingJob.Cancelled.v1` | A queued job was cancelled before a worker took it. |
+| [`ProcessingJob.Defined`](#processingjobdefined) | `tl.core.ProcessingJob.Defined.v1` | A processing job was queued. |
+| [`ProcessingJob.Failed`](#processingjobfailed) | `tl.core.ProcessingJob.Failed.v1` | The claimed attempt failed. |
+| [`ProcessingJob.Started`](#processingjobstarted) | `tl.core.ProcessingJob.Started.v1` | A worker claimed a job (attempt n). |
+| [`ProcessingJob.Succeeded`](#processingjobsucceeded) | `tl.core.ProcessingJob.Succeeded.v1` | The claimed attempt finished and its results were recorded. |
 | [`Proposal.Accepted`](#proposalaccepted) | `tl.core.Proposal.Accepted.v1` | A person accepted a proposal and its command ran in the same transaction. |
 | [`Proposal.Created`](#proposalcreated) | `tl.core.Proposal.Created.v1` | An agent proposed a change. |
 | [`Proposal.Failed`](#proposalfailed) | `tl.core.Proposal.Failed.v1` | A person accepted a proposal, but the command was refused (the record changed since, a guard failed). |
@@ -571,6 +583,335 @@ A value was added to a code list.
 }
 ```
 
+## DerivedDocument.ContentRecorded
+
+One extractor pass over a source file finished: a new content revision of the derived document. The rows are in the result file; this event keeps the counts, the file's hash and the extractor's real metadata.
+
+- CloudEvents type: `tl.core.DerivedDocument.ContentRecorded.v1`
+- Ledger payload class: `DerivedDocumentContentRecordedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `column_count` | integer | yes | Columns read. |
+| `content_rev` | integer | yes | Content revision, from 1. |
+| `extraction_status` | string | yes | ok, metadata_only, unsupported or failed. |
+| `extractor` | string | yes | Extractor name. |
+| `extractor_notes` | any | no | The extractor's notes. |
+| `extractor_version` | string | yes | Extractor version. |
+| `file_metadata` | any | no | The real file metadata. |
+| `job_id` | string or null | no | Record id of the processing job. |
+| `method` | string | yes | manual, automated or hybrid, after this pass. |
+| `problem_count` | integer | yes | Reading problems reported by the extractor. |
+| `result_file_id` | string or null | no | The result file, when the pass produced rows. |
+| `result_sha256` | string or null | no | Hex SHA-256 of the result file. |
+| `row_count` | integer | yes | Rows read. |
+| `source_file_id` | string | yes | The file the extractor read. |
+| `source_kind` | string | yes | rendition or upload. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "column_count": 0,
+      "content_rev": 1,
+      "extraction_status": "metadata_only",
+      "extractor": "pdf",
+      "extractor_notes": [
+        "content extraction stubbed (ADR-0008 decision 8)"
+      ],
+      "extractor_version": "1",
+      "file_metadata": {
+        "content_type": "application/pdf",
+        "page_count": 2,
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "size": 1024
+      },
+      "job_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P8",
+      "method": "automated",
+      "problem_count": 0,
+      "result_file_id": null,
+      "result_sha256": null,
+      "row_count": 0,
+      "source_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+      "source_kind": "rendition"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/DerivedDocument.ContentRecorded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.DerivedDocument.ContentRecorded.v1"
+}
+```
+
+## DerivedDocument.Defined
+
+A derived document was opened for a source revision and a document schema.
+
+- CloudEvents type: `tl.core.DerivedDocument.Defined.v1`
+- Ledger payload class: `DerivedDocumentDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `method` | string | yes | manual, automated or hybrid. |
+| `previous_derived_id` | string or null | no | Record id of the derived document of the previous revision, when there is one. |
+| `schema_code` | string | yes | The schema code. |
+| `schema_id` | string | yes | Record id of the document schema version. |
+| `schema_version` | string | yes | The schema version. |
+| `source_document_id` | string | yes | Record id of the source document. |
+| `source_document_number` | string | yes | The document number. |
+| `source_ref` | string | yes | The provenance string src.doc.<number>@<revision>. |
+| `source_revision_code` | string | yes | The revision code. |
+| `source_revision_id` | string | yes | Record id of the source revision. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "method": "automated",
+      "previous_derived_id": null,
+      "schema_code": "instrument-index",
+      "schema_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+      "schema_version": "1.0.0",
+      "source_document_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "source_document_number": "ISD-001",
+      "source_ref": "src.doc.ISD-001@A",
+      "source_revision_code": "A",
+      "source_revision_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/DerivedDocument.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.DerivedDocument.Defined.v1"
+}
+```
+
+## DerivedDocument.PublicationCompensated
+
+The publication of a derived document was rolled back: reversing events for everything its import made were appended under a correlation id of their own. The original events stay in the ledger.
+
+- CloudEvents type: `tl.core.DerivedDocument.PublicationCompensated.v1`
+- Ledger payload class: `DerivedDocumentPublicationCompensatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `compensation_correlation_id` | string | yes | The correlation id of the reversing events. |
+| `content_rev` | integer | yes | The content revision whose publication was rolled back. |
+| `import_correlation_id` | string | yes | The correlation id of the import that was rolled back. |
+| `reason` | string | yes | Why. |
+| `reversed_count` | integer | yes | Records reversed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "compensation_correlation_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PC",
+      "content_rev": 2,
+      "import_correlation_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PB",
+      "reason": "Loaded against the wrong revision",
+      "reversed_count": 40
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/DerivedDocument.PublicationCompensated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.DerivedDocument.PublicationCompensated.v1"
+}
+```
+
+## DerivedDocument.Published
+
+The rows of a valid content revision were published into target records as one correlated import. The records the import made carry `import_correlation_id` in their events.
+
+- CloudEvents type: `tl.core.DerivedDocument.Published.v1`
+- Ledger payload class: `DerivedDocumentPublishedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `content_rev` | integer | yes | The content revision published. |
+| `created_count` | integer | yes | Records created. |
+| `import_correlation_id` | string | yes | The correlation id of every event of the import. |
+| `mapping_hash` | string | yes | Hex SHA-256 of the mapping applied. |
+| `result_sha256` | string | yes | Hex SHA-256 of the rows published. |
+| `target_kind` | string | yes | tags or documents. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "content_rev": 2,
+      "created_count": 40,
+      "import_correlation_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PB",
+      "mapping_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "result_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "target_kind": "tags"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/DerivedDocument.Published/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.DerivedDocument.Published.v1"
+}
+```
+
+## DerivedDocument.Validated
+
+A content revision was checked against a document schema version. The row and field problems are in the report file; this event keeps the verdict and the counts.
+
+- CloudEvents type: `tl.core.DerivedDocument.Validated.v1`
+- Ledger payload class: `DerivedDocumentValidatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `content_rev` | integer | yes | The content revision checked. |
+| `error_count` | integer | yes | Errors found. |
+| `job_id` | string or null | no | Record id of the processing job, when one ran it. |
+| `report_file_id` | string or null | no | The report file. |
+| `report_sha256` | string or null | no | Hex SHA-256 of the report. |
+| `schema_code` | string | yes | Schema code. |
+| `schema_id` | string | yes | Record id of the schema version. |
+| `schema_version` | string | yes | Schema version. |
+| `validation_status` | string | yes | valid or invalid. |
+| `warning_count` | integer | yes | Warnings found. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "content_rev": 1,
+      "error_count": 1,
+      "job_id": null,
+      "report_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PA",
+      "report_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "schema_code": "instrument-index",
+      "schema_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+      "schema_version": "1.0.0",
+      "validation_status": "invalid",
+      "warning_count": 0
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/DerivedDocument.Validated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.DerivedDocument.Validated.v1"
+}
+```
+
 ## Document.CurrentRevisionChanged
 
 The revision in force for a document changed (an issue, a supersession or a void). Carries the new denormalised values; all null when no revision is current.
@@ -798,6 +1139,138 @@ The register fields of a document changed (the title changes through the core `R
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Document.Updated.v1"
+}
+```
+
+## DocumentSchema.Defined
+
+A version of a document schema was registered.
+
+- CloudEvents type: `tl.core.DocumentSchema.Defined.v1`
+- Ledger payload class: `DocumentSchemaDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `code` | string | yes | The schema's name. |
+| `content_hash` | string | yes | Hex SHA-256 of the canonical schema and mapping. |
+| `doc_types` | any | no | Document type codes it applies to; empty means any. |
+| `json_schema` | any | yes |  |
+| `key_column` | string or null | no | The column that identifies a row. |
+| `mapping` | any | no | The publish mapping, or null. |
+| `mapping_notes` | string or null | no | Notes. |
+| `ordinal` | integer | yes | Position among the versions of the code in the scope, from 1. |
+| `sample` | any | no | Example rows. |
+| `semver` | string | yes | Semantic version `major.minor.patch`. |
+| `target_kind` | string or null | no | tags, documents or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "code": "instrument-index",
+      "content_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "doc_types": [
+        "IDX"
+      ],
+      "json_schema": {
+        "properties": {
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag"
+        ],
+        "type": "object"
+      },
+      "key_column": "tag",
+      "mapping": null,
+      "mapping_notes": null,
+      "ordinal": 1,
+      "sample": [
+        {
+          "tag": "47-FV-1001"
+        }
+      ],
+      "semver": "1.0.0",
+      "target_kind": "tags"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/DocumentSchema.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.DocumentSchema.Defined.v1"
+}
+```
+
+## DocumentSchema.Retired
+
+A version of a document schema was retired; documents that named it keep it.
+
+- CloudEvents type: `tl.core.DocumentSchema.Retired.v1`
+- Ledger payload class: `DocumentSchemaRetiredPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Replaced by 1.1.0"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/DocumentSchema.Retired/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.DocumentSchema.Retired.v1"
 }
 ```
 
@@ -1683,6 +2156,283 @@ A number was allocated from a counter.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Numbering.Allocated.v1"
+}
+```
+
+## ProcessingJob.Cancelled
+
+A queued job was cancelled before a worker took it.
+
+- CloudEvents type: `tl.core.ProcessingJob.Cancelled.v1`
+- Ledger payload class: `ProcessingJobCancelledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Wrong file"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ProcessingJob.Cancelled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ProcessingJob.Cancelled.v1"
+}
+```
+
+## ProcessingJob.Defined
+
+A processing job was queued.
+
+- CloudEvents type: `tl.core.ProcessingJob.Defined.v1`
+- Ledger payload class: `ProcessingJobDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `derived_id` | string | yes | Record id of the derived document. |
+| `derived_key` | string | yes | Its key. |
+| `extractor` | string or null | no | The extractor asked for, or null. |
+| `kind` | string | yes | extract or validate. |
+| `max_attempts` | integer | yes | Claims allowed. |
+| `options` | any | no | Extractor options. |
+| `requested_by` | string | yes | The actor who asked. |
+| `schema_id` | string | yes | Record id of the schema version. |
+| `source_file_id` | string or null | no | The file to read. |
+| `source_ref` | string | yes | The provenance string. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "derived_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PD",
+      "derived_key": "ISD-001@A/instrument-index",
+      "extractor": null,
+      "kind": "extract",
+      "max_attempts": 3,
+      "options": {},
+      "requested_by": "user:demo",
+      "schema_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+      "source_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+      "source_ref": "src.doc.ISD-001@A"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ProcessingJob.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ProcessingJob.Defined.v1"
+}
+```
+
+## ProcessingJob.Failed
+
+The claimed attempt failed. When `final` is false the job is queued again at `retry_at`.
+
+- CloudEvents type: `tl.core.ProcessingJob.Failed.v1`
+- Ledger payload class: `ProcessingJobFailedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `attempt` | integer | yes | The attempt that failed. |
+| `error_code` | string | yes | Short code. |
+| `error_message` | string | yes | What went wrong, in words, without paths or stack traces. |
+| `final` | boolean | yes | True when no attempt is left. |
+| `retry_at` | string or null | no | ISO-8601 UTC of the next attempt when not final. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "attempt": 1,
+      "error_code": "source_not_available",
+      "error_message": "the file is still in quarantine",
+      "final": false,
+      "retry_at": "2026-10-17T10:01:00.000000Z"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ProcessingJob.Failed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ProcessingJob.Failed.v1"
+}
+```
+
+## ProcessingJob.Started
+
+A worker claimed a job (attempt n).
+
+- CloudEvents type: `tl.core.ProcessingJob.Started.v1`
+- Ledger payload class: `ProcessingJobStartedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `attempt` | integer | yes | The claim number, from 1. |
+| `lease_until` | string | yes | ISO-8601 UTC at which the claim expires. |
+| `worker` | string | yes | The worker that holds the claim. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "attempt": 1,
+      "lease_until": "2026-10-17T10:05:00.000000Z",
+      "worker": "worker-1"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ProcessingJob.Started/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ProcessingJob.Started.v1"
+}
+```
+
+## ProcessingJob.Succeeded
+
+The claimed attempt finished and its results were recorded.
+
+- CloudEvents type: `tl.core.ProcessingJob.Succeeded.v1`
+- Ledger payload class: `ProcessingJobSucceededPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `attempt` | integer | yes | The attempt that finished. |
+| `result` | any | no | A small summary: extraction status, rows, content revision, validation status. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "attempt": 1,
+      "result": {
+        "content_rev": 1,
+        "extraction_status": "ok",
+        "rows": 40,
+        "validation_status": "valid"
+      }
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ProcessingJob.Succeeded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ProcessingJob.Succeeded.v1"
 }
 ```
 

@@ -10,10 +10,20 @@ from tl_core.modules import ModuleSpec
 from tl_core.projection.types import Projector
 
 from tl_mod_documents import MODULE
-from tl_mod_documents.guards import revision_upload, transmittal_draft_only
-from tl_mod_documents.names import DOCUMENT, RECORD_TYPES, REVISION, TRANSMITTAL
+from tl_mod_documents.guards import derived_upload, revision_upload, transmittal_draft_only
+from tl_mod_documents.names import (
+    DERIVED_DOCUMENT,
+    DOCUMENT,
+    DOCUMENT_SCHEMA,
+    RECORD_TYPES,
+    REVISION,
+    TRANSMITTAL,
+)
 from tl_mod_documents.projectors import (
+    DerivedDocumentProjector,
     DocumentProjector,
+    DocumentSchemaProjector,
+    ProcessingJobProjector,
     RenditionProjector,
     ReviewCycleProjector,
     RevisionProjector,
@@ -40,6 +50,11 @@ LINK_LIFE = frozenset(
 DOCUMENT_GENERIC_COMMANDS = frozenset({"SetPsetValues", "AddLink", "SuggestLink"}) | LINK_LIFE
 REVISION_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink", "AttachFile"}) | LINK_LIFE
 TRANSMITTAL_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink", "AttachFile"}) | LINK_LIFE
+#: The derivation records (ADR-0014): a schema takes links only; a derived document takes links and
+#: the person's file in the slot ``content`` (``derived_upload`` guards the state and the slot); a
+#: processing job takes nothing. Their state moves only through the module's own commands.
+SCHEMA_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink"}) | LINK_LIFE
+DERIVED_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink", "AttachFile"}) | LINK_LIFE
 
 
 def projectors() -> list[Projector]:
@@ -50,6 +65,9 @@ def projectors() -> list[Projector]:
         RenditionProjector(),
         TransmittalProjector(),
         ReviewCycleProjector(),
+        DocumentSchemaProjector(),
+        DerivedDocumentProjector(),
+        ProcessingJobProjector(),
     ]
 
 
@@ -62,6 +80,8 @@ def spec() -> ModuleSpec:
             DOCUMENT: DOCUMENT_GENERIC_COMMANDS,
             REVISION: REVISION_GENERIC_COMMANDS,
             TRANSMITTAL: TRANSMITTAL_GENERIC_COMMANDS,
+            DOCUMENT_SCHEMA: SCHEMA_GENERIC_COMMANDS,
+            DERIVED_DOCUMENT: DERIVED_GENERIC_COMMANDS,
         },
         generic_guards={
             (REVISION, "AttachFile"): revision_upload,
@@ -70,5 +90,6 @@ def spec() -> ModuleSpec:
             (TRANSMITTAL, "SuggestLink"): transmittal_draft_only,
             (TRANSMITTAL, "FlagLink"): transmittal_draft_only,
             (TRANSMITTAL, "RetractLink"): transmittal_draft_only,
+            (DERIVED_DOCUMENT, "AttachFile"): derived_upload,
         },
     )
