@@ -25,3 +25,4 @@ Operational procedures, one file per alert or recovery path (§24.6). Template: 
 - `accounts-and-access.md` — accounts, roles, sign-in, agent tokens, the demo account, recovery from a locked-out or restored system, and the release gates for authentication (P1-I0).
 - `engineering-standards-and-tags.md` — load the company standards, change a tag class, preview and apply a tag-list import, read the tag reports (P1-I1).
 - `documents.md` — register, issue, re-pin stale links, transmittals, reviews, the legacy register import and recovery (P1-I2).
+- `derivation-pipeline.md` — register a document schema, run the worker, read a failed job, preview and approve a publication, take it back, requeue after a restore (P1-I3).
