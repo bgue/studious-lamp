@@ -1,0 +1,46 @@
+{
+  "envelope": {
+    "data": {
+      "changes": {},
+      "detail": {
+        "clock_ids": [],
+        "date_reason": null,
+        "delivery": "stub",
+        "issued_on": "2026-10-17",
+        "rendition_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "rendition_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "template": "general-letter"
+      },
+      "links": [],
+      "origin": {
+        "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "key": "47-1234-W012",
+        "type": "core.Record",
+        "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+        "version": 7
+      }
+    },
+    "datacontenttype": "application/json",
+    "dataschema": "https://tl.example.com/schema/events/Correspondence.Issued/1",
+    "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+    "source": "https://tl.example.com/c/acme/p/P123",
+    "specversion": "1.0",
+    "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+    "time": "2026-10-09T03:14:07.000000Z",
+    "tlactor": "user:jsmith",
+    "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+    "tlseq": 48211933,
+    "tlstreamversion": 7,
+    "type": "tl.core.Correspondence.Issued.v1"
+  },
+  "payload": {
+    "clock_ids": [],
+    "date_reason": null,
+    "delivery": "stub",
+    "issued_on": "2026-10-17",
+    "rendition_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+    "rendition_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "template": "general-letter"
+  }
+}

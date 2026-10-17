@@ -1,0 +1,66 @@
+{
+  "envelope": {
+    "data": {
+      "changes": {},
+      "detail": {
+        "calendar": "P123-default@1",
+        "clause_id": null,
+        "day_type": "calendar",
+        "due_on": "2026-10-31",
+        "duration_days": 14,
+        "item_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "item_number": "P123-COR-0002",
+        "kind": "response_from_them",
+        "label": "Reply expected",
+        "owner": "user:amy",
+        "start_on": "2026-10-17",
+        "trigger": "issue",
+        "warn_days": [
+          7,
+          3,
+          1
+        ]
+      },
+      "links": [],
+      "origin": {
+        "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "key": "47-1234-W012",
+        "type": "core.Record",
+        "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+        "version": 7
+      }
+    },
+    "datacontenttype": "application/json",
+    "dataschema": "https://tl.example.com/schema/events/ResponseClock.Started/1",
+    "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+    "source": "https://tl.example.com/c/acme/p/P123",
+    "specversion": "1.0",
+    "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+    "time": "2026-10-09T03:14:07.000000Z",
+    "tlactor": "user:jsmith",
+    "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+    "tlseq": 48211933,
+    "tlstreamversion": 7,
+    "type": "tl.core.ResponseClock.Started.v1"
+  },
+  "payload": {
+    "calendar": "P123-default@1",
+    "clause_id": null,
+    "day_type": "calendar",
+    "due_on": "2026-10-31",
+    "duration_days": 14,
+    "item_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+    "item_number": "P123-COR-0002",
+    "kind": "response_from_them",
+    "label": "Reply expected",
+    "owner": "user:amy",
+    "start_on": "2026-10-17",
+    "trigger": "issue",
+    "warn_days": [
+      7,
+      3,
+      1
+    ]
+  }
+}

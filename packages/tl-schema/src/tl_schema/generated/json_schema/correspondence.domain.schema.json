@@ -1,0 +1,533 @@
+{
+    "$defs": {
+        "ClockKind": {
+            "description": "What a clock waits for.",
+            "enum": [
+                "response_from_them",
+                "response_from_us",
+                "time_bar"
+            ],
+            "title": "ClockKind",
+            "type": "string"
+        },
+        "ClockTemplate": {
+            "additionalProperties": false,
+            "description": "A clock the domain starts by default for a subtype.",
+            "properties": {
+                "clause": {
+                    "description": "`<contract>/<clause number>` of the contract clause the clock is based on; null when none.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "day_type": {
+                    "$ref": "#/$defs/DayType",
+                    "description": "Calendar or working days."
+                },
+                "duration_days": {
+                    "description": "Length in days of the unit.",
+                    "maximum": 3650,
+                    "minimum": 1,
+                    "type": "integer"
+                },
+                "kind": {
+                    "$ref": "#/$defs/ClockKind",
+                    "description": "What kind of clock it is."
+                },
+                "label": {
+                    "description": "What the clock waits for.",
+                    "type": "string"
+                },
+                "trigger": {
+                    "$ref": "#/$defs/ClockTrigger",
+                    "description": "When it starts."
+                },
+                "warn_days": {
+                    "description": "Days-before-due warning thresholds, largest first, each at least 1.",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "label",
+                "trigger",
+                "kind",
+                "duration_days",
+                "day_type"
+            ],
+            "title": "ClockTemplate",
+            "type": "object"
+        },
+        "ClockTrigger": {
+            "description": "The event that starts a default clock.",
+            "enum": [
+                "receipt",
+                "issue"
+            ],
+            "title": "ClockTrigger",
+            "type": "string"
+        },
+        "ConfidentialityClass": {
+            "description": "The classes a domain can default to (ADR-0016).",
+            "enum": [
+                "internal",
+                "restricted",
+                "privileged"
+            ],
+            "title": "ConfidentialityClass",
+            "type": "string"
+        },
+        "CorrespondenceDomain": {
+            "additionalProperties": false,
+            "description": "One domain of the correspondence module.",
+            "properties": {
+                "code": {
+                    "description": "Lower-case domain code, for example `general` or `document_control`.",
+                    "pattern": "^[a-z][a-z0-9_]{0,31}$",
+                    "type": "string"
+                },
+                "confidentiality_default": {
+                    "$ref": "#/$defs/ConfidentialityClass",
+                    "description": "The class a new item of the domain gets."
+                },
+                "default_subtype": {
+                    "description": "The subtype triage proposes when no keyword matches; one of the subtypes.",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "What the domain is for.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "feed_policy": {
+                    "$ref": "#/$defs/FeedPolicy",
+                    "description": "What the feed shows."
+                },
+                "integration": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/DomainIntegration"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "What may leave the system."
+                },
+                "item_source": {
+                    "description": "The name of a code-defined register source that supplies items of this domain from another module (`documents.transmittal`); null when items are `Correspondence` records.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "name": {
+                    "description": "Name shown to people.",
+                    "type": "string"
+                },
+                "numbering_pattern": {
+                    "description": "The id of the numbering pattern that numbers items of the domain (it must exist).",
+                    "type": "string"
+                },
+                "required_psets": {
+                    "description": "Property sets an item must carry before it can be issued.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "routing": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/DomainRouting"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Who receives, reviews and approves."
+                },
+                "scope": {
+                    "description": "`company` for the default; `project:<id>` for an override.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "semver": {
+                    "description": "Version of this definition; the highest of equal scope wins.",
+                    "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+                    "type": "string"
+                },
+                "subtypes": {
+                    "description": "The kinds of item; at least one.",
+                    "items": {
+                        "$ref": "#/$defs/DomainSubtype"
+                    },
+                    "type": "array"
+                },
+                "templates": {
+                    "description": "Outgoing letter templates.",
+                    "items": {
+                        "$ref": "#/$defs/LetterTemplate"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "triage_keywords": {
+                    "description": "Lower-case words in a subject or body that suggest this domain at triage.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "workflow_ref": {
+                    "description": "The id of the workflow that moves items of the domain (it must exist).",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "code",
+                "name",
+                "semver",
+                "scope",
+                "subtypes",
+                "default_subtype",
+                "workflow_ref",
+                "numbering_pattern",
+                "confidentiality_default",
+                "feed_policy"
+            ],
+            "title": "CorrespondenceDomain",
+            "type": "object"
+        },
+        "DayType": {
+            "description": "How days are counted.",
+            "enum": [
+                "calendar",
+                "working"
+            ],
+            "title": "DayType",
+            "type": "string"
+        },
+        "DomainIntegration": {
+            "additionalProperties": false,
+            "description": "What may leave the system for items of the domain.",
+            "properties": {
+                "portal_response": {
+                    "description": "True when an external party may answer through a portal or guest link.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "webhook_modes": {
+                    "description": "Webhook payload modes allowed (thin, delta, full). The class of an item can lower this further.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "title": "DomainIntegration",
+            "type": "object"
+        },
+        "DomainRouting": {
+            "additionalProperties": false,
+            "description": "Who receives, reviews and approves items of the domain.",
+            "properties": {
+                "approve_roles": {
+                    "description": "Roles who approve (issue) an outgoing item.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "party_roles": {
+                    "description": "Party roles (client, engineer ...) that normally correspond in the domain.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "receive_roles": {
+                    "description": "Contact roles or account roles who receive incoming items.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "review_roles": {
+                    "description": "Roles who review an outgoing item before it is issued.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "title": "DomainRouting",
+            "type": "object"
+        },
+        "DomainSubtype": {
+            "additionalProperties": false,
+            "description": "One kind of item inside a domain.",
+            "properties": {
+                "clocks": {
+                    "description": "The default clocks of the subtype.",
+                    "items": {
+                        "$ref": "#/$defs/ClockTemplate"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "code": {
+                    "description": "Lower-case code.",
+                    "pattern": "^[a-z][a-z0-9_]{0,31}$",
+                    "type": "string"
+                },
+                "keywords": {
+                    "description": "Lower-case words in a subject or body that suggest this subtype at triage.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "label": {
+                    "description": "Name shown to people.",
+                    "type": "string"
+                },
+                "response_required": {
+                    "description": "True when an item of this subtype expects an answer; clocks then start by default.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "code",
+                "label"
+            ],
+            "title": "DomainSubtype",
+            "type": "object"
+        },
+        "FeedPolicy": {
+            "description": "What the feed shows of an item of the domain.",
+            "enum": [
+                "full",
+                "minimal",
+                "none"
+            ],
+            "title": "FeedPolicy",
+            "type": "string"
+        },
+        "LetterTemplate": {
+            "additionalProperties": false,
+            "description": "An outgoing letter template. The text may use {number}, {date}, {subject}, {to} and {body}.",
+            "properties": {
+                "code": {
+                    "description": "Template code.",
+                    "pattern": "^[a-z][a-z0-9-]{0,63}$",
+                    "type": "string"
+                },
+                "footer": {
+                    "description": "Fixed text below the body.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "header": {
+                    "description": "Fixed text above the subject line (a letterhead stub).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "label": {
+                    "description": "Name shown to people.",
+                    "type": "string"
+                },
+                "subtype": {
+                    "description": "The subtype it is for.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "code",
+                "label",
+                "subtype"
+            ],
+            "title": "LetterTemplate",
+            "type": "object"
+        }
+    },
+    "$id": "https://example.org/throughline/modules/correspondence/domain",
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "additionalProperties": false,
+    "description": "One domain of the correspondence module.",
+    "metamodel_version": "1.12.0",
+    "properties": {
+        "code": {
+            "description": "Lower-case domain code, for example `general` or `document_control`.",
+            "pattern": "^[a-z][a-z0-9_]{0,31}$",
+            "type": "string"
+        },
+        "confidentiality_default": {
+            "$ref": "#/$defs/ConfidentialityClass",
+            "description": "The class a new item of the domain gets."
+        },
+        "default_subtype": {
+            "description": "The subtype triage proposes when no keyword matches; one of the subtypes.",
+            "type": "string"
+        },
+        "description": {
+            "description": "What the domain is for.",
+            "type": [
+                "string",
+                "null"
+            ]
+        },
+        "feed_policy": {
+            "$ref": "#/$defs/FeedPolicy",
+            "description": "What the feed shows."
+        },
+        "integration": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/DomainIntegration"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "What may leave the system."
+        },
+        "item_source": {
+            "description": "The name of a code-defined register source that supplies items of this domain from another module (`documents.transmittal`); null when items are `Correspondence` records.",
+            "type": [
+                "string",
+                "null"
+            ]
+        },
+        "name": {
+            "description": "Name shown to people.",
+            "type": "string"
+        },
+        "numbering_pattern": {
+            "description": "The id of the numbering pattern that numbers items of the domain (it must exist).",
+            "type": "string"
+        },
+        "required_psets": {
+            "description": "Property sets an item must carry before it can be issued.",
+            "items": {
+                "type": "string"
+            },
+            "type": [
+                "array",
+                "null"
+            ]
+        },
+        "routing": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/DomainRouting"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "description": "Who receives, reviews and approves."
+        },
+        "scope": {
+            "description": "`company` for the default; `project:<id>` for an override.",
+            "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+            "type": "string"
+        },
+        "semver": {
+            "description": "Version of this definition; the highest of equal scope wins.",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+            "type": "string"
+        },
+        "subtypes": {
+            "description": "The kinds of item; at least one.",
+            "items": {
+                "$ref": "#/$defs/DomainSubtype"
+            },
+            "type": "array"
+        },
+        "templates": {
+            "description": "Outgoing letter templates.",
+            "items": {
+                "$ref": "#/$defs/LetterTemplate"
+            },
+            "type": [
+                "array",
+                "null"
+            ]
+        },
+        "triage_keywords": {
+            "description": "Lower-case words in a subject or body that suggest this domain at triage.",
+            "items": {
+                "type": "string"
+            },
+            "type": [
+                "array",
+                "null"
+            ]
+        },
+        "workflow_ref": {
+            "description": "The id of the workflow that moves items of the domain (it must exist).",
+            "type": "string"
+        }
+    },
+    "required": [
+        "code",
+        "name",
+        "semver",
+        "scope",
+        "subtypes",
+        "default_subtype",
+        "workflow_ref",
+        "numbering_pattern",
+        "confidentiality_default",
+        "feed_policy"
+    ],
+    "title": "tl_mod_correspondence_domain",
+    "type": "object",
+    "version": null
+}
