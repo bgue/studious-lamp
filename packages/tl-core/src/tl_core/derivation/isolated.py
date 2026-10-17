@@ -29,7 +29,7 @@ import importlib
 import io
 import json
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
 from pydantic import ValidationError
 
@@ -51,6 +51,7 @@ from tl_core.derivation.registry import (
     run_extraction,
 )
 from tl_core.derivation.types import (
+    Cell,
     ExtractionProblem,
     ExtractionResult,
     Extractor,
@@ -102,6 +103,41 @@ def _extractors_from(factory: str | None) -> Mapping[str, Extractor]:
     return built  # type: ignore[no-any-return]
 
 
+def _wire(result: ExtractionResult) -> bytes:
+    """The result as JSON with each row a list in column order: no column name is repeated per row,
+    so a table is about as large on the wire as the text in it."""
+    body = result.model_dump(mode="json")
+    body["rows"] = [list(row.values()) for row in result.rows]
+    return json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode()
+
+
+def _unwire(payload: bytes) -> ExtractionResult:
+    """Parse the child's answer. Raises ``ValueError`` for anything that is not a result.
+
+    The result is validated without its rows first; the rows are checked to be lists of exactly
+    as many cells as there are columns (a text or ``null`` each), and only then rebuilt as dicts.
+    """
+    loaded: Any = json.loads(payload)
+    if not isinstance(loaded, dict):
+        raise ValueError("not an object")
+    body = cast(dict[str, Any], loaded)
+    raw_rows: Any = body.pop("rows", [])
+    if not isinstance(raw_rows, list):
+        raise ValueError("rows is not a list")
+    result = ExtractionResult.model_validate(body)
+    width = len(result.columns)
+    rows: list[dict[str, Cell]] = []
+    for row in cast(list[Any], raw_rows):
+        if not isinstance(row, list) or len(cast(list[Any], row)) != width:
+            raise ValueError("a row is not a list of one cell per column")
+        cells = cast(list[Any], row)
+        if any(cell is not None and not isinstance(cell, str) for cell in cells):
+            raise ValueError("a cell is not text or null")
+        rows.append(dict(zip(result.columns, cast(list[Cell], cells), strict=True)))
+    result.rows = rows
+    return result
+
+
 def extract_entry(header: Mapping[str, Any], data: bytes) -> tuple[bytes, bytes]:
     """What the child runs: choose an extractor, call it, answer with the result as JSON."""
     source = SourceFile.model_validate_json(header["source"])
@@ -115,7 +151,7 @@ def extract_entry(header: Mapping[str, Any], data: bytes) -> tuple[bytes, bytes]
         )
     except (NoExtractorError, AmbiguousExtractorError, ExtractorLoadError) as exc:
         return TAG_SELECTION, json.dumps({"kind": type(exc).__name__, "message": str(exc)}).encode()
-    return TAG_RESULT, result.model_dump_json().encode()
+    return TAG_RESULT, _wire(result)
 
 
 def run_isolated(
@@ -167,8 +203,8 @@ def run_isolated(
     if answer.tag != TAG_RESULT:
         return _failed(label, "contract_violation", "the answer is not understood")
     try:
-        result = ExtractionResult.model_validate_json(answer.payload)
-    except ValidationError:
+        result = _unwire(answer.payload)
+    except (ValidationError, ValueError):
         return _failed(label, "contract_violation", "the result is not an ExtractionResult")
     broken = contract_problem(_Named(result), source, result)  # type: ignore[arg-type]
     if broken is not None:

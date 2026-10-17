@@ -55,6 +55,7 @@ addopts = "--import-mode=importlib"
 markers = [
   "parity: runs once per adapter named by --adapters (see conftest.py)",
   "requires_postgres: needs the Postgres server at TL_PG_URL",
+  "slow: takes more than a few seconds (a table of the largest legal size); part of the default run",
   "bench: performance benches over a seeded 100k-record database; run only by `just bench`",
 ]
 

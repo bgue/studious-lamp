@@ -239,8 +239,54 @@ def test_a_process_the_extractor_started_does_not_outlive_the_call() -> None:
     assert not _alive(pid)
 
 
-def test_the_answer_cap_comes_from_the_cell_bound_and_is_about_sixty_mebibytes() -> None:
-    from tl_core.derivation.types import MAX_CELLS
+def test_the_answer_cap_comes_from_the_source_bound() -> None:
+    from tl_core.derivation.types import MAX_SOURCE_BYTES
 
-    assert envelope.MAX_ANSWER_BYTES >= MAX_CELLS * 64
-    assert envelope.MAX_ANSWER_BYTES < 64 * 1024 * 1024
+    assert envelope.MAX_ANSWER_BYTES == 2 * MAX_SOURCE_BYTES + 1024 * 1024
+
+
+def test_a_process_that_ignores_sigterm_does_not_outlive_the_call() -> None:
+    """The leader leaves at once; the grandchild ignores SIGTERM, so only SIGKILL ends it."""
+    answer = envelope.run_in_envelope(
+        "tl_core.derivation.testing:stubborn_grandchild_entry", {}, b"", timeout_s=60
+    )
+    pid = int(answer.payload)
+    deadline = time.monotonic() + 10
+    while _alive(pid) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert not _alive(pid)
+
+
+def test_rows_travel_as_lists_and_come_back_as_rows() -> None:
+    from tl_core.derivation.isolated import _unwire, _wire  # pyright: ignore[reportPrivateUsage]
+
+    result = ExtractionResult(
+        extractor="x",
+        extractor_version="1",
+        status="ok",
+        columns=["a", "b"],
+        rows=[{"a": "1", "b": None}, {"a": "2", "b": "3"}],
+    )
+    wire = _wire(result)
+    assert b'"rows":[["1",null],["2","3"]]' in wire
+    assert _unwire(wire) == result
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        [["1"]],  # too few cells
+        [["1", "2", "3"]],  # too many
+        [{"a": "1", "b": "2"}],  # a dict, the old shape
+        [["1", 2]],  # a cell that is not text
+        "rows",
+    ],
+)
+def test_a_row_of_the_wrong_shape_is_refused_before_it_is_rebuilt(rows: object) -> None:
+    import json
+
+    from tl_core.derivation.isolated import _unwire  # pyright: ignore[reportPrivateUsage]
+
+    body = {"extractor": "x", "extractor_version": "1", "status": "ok", "columns": ["a", "b"]}
+    with pytest.raises(ValueError):
+        _unwire(json.dumps({**body, "rows": rows}).encode())

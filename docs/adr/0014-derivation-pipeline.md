@@ -161,14 +161,16 @@ Lease 300 s; `max_attempts` 3; retry delay 30 s times the attempt; at most 100 i
   checked again in the parent; a violation also fails the job for good. The limits are parameters for tests; the defaults are the
   contract's. The registry never exposes plugin error text (`ExtractorLoadError` names the exception type only).
 - **Hardening after the security review of P1-I3 (FANOUT D10).**
-  - *No pickle.* The child answers with one tag byte, a length and JSON bytes; the parent reads at most `MAX_ANSWER_BYTES` (`MAX_CELLS` cells
-    at 64 bytes and 1 MiB around them: about 62 MiB, derived from the cell bound and not from the source size) and parses with
-    pydantic. Nothing the child sends is ever unpickled. The input goes the same way.
+  - *No pickle.* The child answers with one tag byte, a length and JSON bytes; the parent reads at most `MAX_ANSWER_BYTES` (twice `MAX_SOURCE_BYTES` plus 1 MiB: a table cannot hold more text than its source, and JSON
+    escaping at most about doubles it) and parses with
+    pydantic. Rows travel as lists in column order and the parent checks their shape before it rebuilds the dicts, so no column name is
+    repeated per row and the largest legal table (1 000 000 cells, a CSV just under 50 MiB) fits. Nothing the child sends is ever unpickled. The input goes the same way.
   - *Scrubbed child.* `tl_core.derivation.envelope.run_in_envelope` starts the child with `PATH`, `PYTHONPATH`, `LANG` and the locale
     variables only (no `TL_*`, no secrets, no session), no inherited descriptors, a session of its own (the group gets
     `SIGKILL`), and a limit that cannot be set fails the call as a breach instead of running unlimited. The interpreter runs with `-P`, so the
     worker's current directory is not on the child's `sys.path`; on a breach or an answer the whole process group is signalled, so
-    a process the extractor started does not outlive the call.
+    a process the extractor started does not outlive the call (`SIGKILL` goes to the group after the grace period whether or not the
+    leader has left).
   - *Bounds on every part of a result.* `contract_problem` also bounds names, notes, problems, metadata text, sheet names and
     profiles (`MAX_TEXT_CHARS`, `MAX_NAME_CHARS`, `MAX_SHEET_NAMES`, `MAX_NOTES`, `MAX_PROBLEMS`, `MAX_MESSAGE_CHARS`); a breach
     fails the job, nothing is truncated. The `ContentRecorded` payload still types `file_metadata` and `extractor_notes` as

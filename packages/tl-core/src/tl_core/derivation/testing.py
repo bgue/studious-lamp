@@ -288,6 +288,30 @@ def grandchild_entry(header: Mapping[str, Any], data: bytes) -> tuple[bytes, byt
     return b"R", str(grandchild.pid).encode()
 
 
+def stubborn_grandchild_entry(header: Mapping[str, Any], data: bytes) -> tuple[bytes, bytes]:
+    """Starts a process that ignores ``SIGTERM``, waits until it says so, and answers with its pid.
+
+    The entry then returns, so the leader exits before the call ends: only a ``SIGKILL`` of the
+    whole group can end the grandchild.
+    """
+    import subprocess
+    import sys
+
+    code = (
+        "import signal, sys, time; signal.signal(signal.SIGTERM, signal.SIG_IGN);"
+        " print('ready', flush=True); time.sleep(120)"
+    )
+    grandchild = subprocess.Popen(  # noqa: S603 - a test double
+        [sys.executable, "-c", code],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
+    assert grandchild.stdout is not None
+    grandchild.stdout.readline()  # SIGTERM is ignored from here on
+    return b"R", str(grandchild.pid).encode()
+
+
 class PdfStubExtractor:
     """Reads no content from a PDF, as ADR-0008 decision 8 says: metadata only, rows empty."""
 

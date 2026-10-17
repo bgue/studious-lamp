@@ -45,21 +45,21 @@ from typing import Any, BinaryIO, Literal
 from tl_core.derivation.types import (
     EXTRACT_MAX_MEMORY_BYTES,
     EXTRACT_MAX_SECONDS,
-    MAX_CELLS,
+    MAX_SOURCE_BYTES,
 )
 
 DEFAULT_TIMEOUT_S = float(EXTRACT_MAX_SECONDS)
 DEFAULT_MEMORY_LIMIT_MB = EXTRACT_MAX_MEMORY_BYTES // (1024 * 1024)
 #: How long a child gets to leave after it is asked to, before it is killed.
 KILL_GRACE_S = 1.0
-#: The largest answer the parent reads, derived from the contract's cell bound and not from the
-#: source's size: ``MAX_CELLS`` cells at 64 bytes each (a realistic cell is a tag, a number or a
-#: short description), plus 1 MiB for the names, notes and problems around the rows. About 62 MiB.
-#: More is a contract violation, so a hostile extractor cannot make the parent hold hundreds of
-#: megabytes (security re-review of b5f5d41).
-AVERAGE_CELL_BYTES = 64
+#: The largest answer the parent reads, derived from the source bound: a table cannot carry more
+#: text than the source it came from (``MAX_SOURCE_BYTES``), the child sends each row as a list in
+#: column order (no column name is repeated per row), and JSON escaping at most roughly doubles
+#: the text; everything else in a result (names, notes, problems, profiles) is small and bounded.
+#: So twice the source plus 1 MiB. More is a contract violation, so a hostile extractor cannot
+#: make the parent hold more than that (security re-review of ce5ac64).
 ANSWER_OVERHEAD_BYTES = 1024 * 1024
-MAX_ANSWER_BYTES = MAX_CELLS * AVERAGE_CELL_BYTES + ANSWER_OVERHEAD_BYTES
+MAX_ANSWER_BYTES = 2 * MAX_SOURCE_BYTES + ANSWER_OVERHEAD_BYTES
 #: The largest header the child reads (the source description, options, a schema).
 MAX_HEADER_BYTES = 8 * 1024 * 1024
 #: What the child's environment may hold.
@@ -195,18 +195,27 @@ def _read_answer(fd: int, deadline: float, max_answer: int) -> Answer:
     return Answer(bytes(buffer[:1]), bytes(buffer[9:wanted]))
 
 
+def _signal_group(pid: int, sig: signal.Signals) -> None:
+    try:
+        os.killpg(pid, sig)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
 def _end(process: subprocess.Popen[bytes]) -> None:
-    """Make sure the child and anything it started are gone: ``SIGTERM``, grace, ``SIGKILL``."""
-    for sig, wait in ((signal.SIGTERM, KILL_GRACE_S), (signal.SIGKILL, None)):
-        try:
-            os.killpg(process.pid, sig)
-        except (ProcessLookupError, PermissionError):
-            pass
-        try:
-            process.wait(timeout=wait)
-            return
-        except subprocess.TimeoutExpired:
-            continue
+    """Make sure the child and anything it started are gone.
+
+    ``SIGTERM`` to the group, a grace period for the leader, then ``SIGKILL`` to the group
+    *always*: the leader may have left while a grandchild that ignores ``SIGTERM`` has not.
+    Then the leader is reaped.
+    """
+    _signal_group(process.pid, signal.SIGTERM)
+    try:
+        process.wait(timeout=KILL_GRACE_S)
+    except subprocess.TimeoutExpired:
+        pass
+    _signal_group(process.pid, signal.SIGKILL)
+    process.wait()
 
 
 def run_in_envelope(
