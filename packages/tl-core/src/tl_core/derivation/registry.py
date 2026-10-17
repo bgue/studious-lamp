@@ -12,15 +12,7 @@ returns an object satisfying ``Extractor``. The pipeline never imports a plugin 
 * :func:`run_extraction` calls a plugin and does not trust it: it refuses a source over the size
   bound, turns an exception into a failed result, and refuses a result that breaks the contract
   (bounds, shape) by returning a failed result instead of passing the rows on.
-
-STUB (P1-I3-T03): the bodies of ``_discover``, ``load_extractors``, ``choose``,
-``contract_problem`` and ``run_extraction`` raise NotImplementedError; everything else is final.
-Each body has a STEPS comment. Implement them, then delete this paragraph, the STEPS comments, the
-``ruff: noqa`` line and the ``pyright`` line below.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
-# pyright: reportUnusedImport=false, reportUnusedFunction=false
 
 from __future__ import annotations
 
@@ -62,22 +54,27 @@ _loaded: dict[str, Extractor] | None = None
 
 def _discover() -> dict[str, Extractor]:
     """Read the entry points of the group and build the extractors by name."""
-    # STEPS
-    # 1. found: dict[str, Extractor] = {}.
-    # 2. For each `entry` in `entry_points(group=EXTRACTOR_ENTRY_POINT)` sorted by `entry.name`
-    #    (call `entry_points` through the module-level name: the tests replace it):
-    #    a. `produced = entry.load()()` inside try/except Exception as exc: raise
-    #       ExtractorLoadError(f"extractor {entry.name!r} cannot be loaded: "
-    #       f"{type(exc).__name__}: {exc}") from exc.
-    #    b. If `not isinstance(produced, Extractor)`: raise ExtractorLoadError(f"extractor
-    #       {entry.name!r}: its entry point must return an Extractor").
-    #    c. If `produced.name != entry.name`: raise ExtractorLoadError(f"extractor entry point
-    #       {entry.name!r} returned an extractor named {produced.name!r}").
-    #    d. If `entry.name in found`: raise ExtractorLoadError(f"extractor {entry.name!r} is
-    #       declared twice").
-    #    e. found[entry.name] = produced.
-    # 3. Return found.
-    raise NotImplementedError
+    found: dict[str, Extractor] = {}
+    for entry in sorted(entry_points(group=EXTRACTOR_ENTRY_POINT), key=lambda e: e.name):
+        try:
+            produced = entry.load()()
+        except Exception as exc:
+            raise ExtractorLoadError(
+                f"extractor {entry.name!r} cannot be loaded: {type(exc).__name__}: {exc}"
+            ) from exc
+        if not isinstance(produced, Extractor):
+            raise ExtractorLoadError(
+                f"extractor {entry.name!r}: its entry point must return an Extractor"
+            )
+        if produced.name != entry.name:
+            raise ExtractorLoadError(
+                f"extractor entry point {entry.name!r} returned an extractor named "
+                f"{produced.name!r}"
+            )
+        if entry.name in found:
+            raise ExtractorLoadError(f"extractor {entry.name!r} is declared twice")
+        found[entry.name] = produced
+    return found
 
 
 def load_extractors() -> dict[str, Extractor]:
@@ -85,13 +82,15 @@ def load_extractors() -> dict[str, Extractor]:
 
     Raises :class:`ExtractorLoadError` when a plugin is broken (see the module docstring).
     """
-    # STEPS
-    # 1. `global _loaded`; `with _lock:`.
-    # 2. If `_override is not None`: return dict(_override).
-    # 3. If `_loaded is None`: `_loaded = _discover()` (a failure leaves `_loaded` None, so the
-    #    next call raises again instead of returning an empty registry).
-    # 4. Return dict(_loaded).
-    raise NotImplementedError
+    global _loaded
+    with _lock:
+        if _override is not None:
+            return dict(_override)
+        if _loaded is None:
+            # A failure raises here and leaves `_loaded` None, so the next call raises again
+            # instead of returning an empty registry.
+            _loaded = _discover()
+        return dict(_loaded)
 
 
 @contextmanager
@@ -124,20 +123,31 @@ def choose(
     used. Raises :class:`NoExtractorError` (unknown name, or none accepts) and
     :class:`AmbiguousExtractorError` (several accept; the message names them).
     """
-    # STEPS
-    # 1. If `name is not None`: `found = extractors.get(name)`; if None raise NoExtractorError(
-    #    f"no extractor named {name!r} (known: {known})") where known is the names sorted and
-    #    joined by ", ", or "none installed" when there are none; else return found.
-    # 2. accepting: list[Extractor] = []; for each extractor in name order (`sorted(extractors)`):
-    #    call `candidate.accepts(source)` inside try/except Exception as exc: raise
-    #    ExtractorLoadError(f"extractor {candidate.name!r} failed in accepts: "
-    #    f"{type(exc).__name__}") from exc; append the ones that return true.
-    # 3. None accept: raise NoExtractorError(f"no extractor accepts {source.filename!r} "
-    #    f"({source.content_type})").
-    # 4. Several accept: raise AmbiguousExtractorError(f"several extractors accept "
-    #    f"{source.filename!r}: {names}; name one") with names joined by ", ".
-    # 5. Return the one.
-    raise NotImplementedError
+    if name is not None:
+        found = extractors.get(name)
+        if found is None:
+            known = ", ".join(sorted(extractors)) or "none installed"
+            raise NoExtractorError(f"no extractor named {name!r} (known: {known})")
+        return found
+    accepting: list[Extractor] = []
+    for key in sorted(extractors):
+        candidate = extractors[key]
+        try:
+            takes = candidate.accepts(source)
+        except Exception as exc:
+            raise ExtractorLoadError(
+                f"extractor {candidate.name!r} failed in accepts: {type(exc).__name__}"
+            ) from exc
+        if takes:
+            accepting.append(candidate)
+    if not accepting:
+        raise NoExtractorError(f"no extractor accepts {source.filename!r} ({source.content_type})")
+    if len(accepting) > 1:
+        names = ", ".join(candidate.name for candidate in accepting)
+        raise AmbiguousExtractorError(
+            f"several extractors accept {source.filename!r}: {names}; name one"
+        )
+    return accepting[0]
 
 
 def _opaque(value: object) -> object:
@@ -163,20 +173,28 @@ def contract_problem(
     names match, metadata matches the source, a metadata-only result has no rows, columns and rows
     stay inside the bounds, every row has exactly the columns, no cell is longer than the bound.
     """
-    # STEPS (check in this order; return the first message that applies, else None)
-    # 1. `result.extractor != extractor.name or result.extractor_version != extractor.version`:
-    #    "the result names another extractor or version".
-    # 2. status "ok" or "metadata_only": `result.metadata is None`: "the result has no file
-    #    metadata"; its `sha256` or `size` differs from the source's: "the file metadata does
-    #    not match the source".
-    # 3. status "metadata_only" with rows: "a metadata-only result must have no rows".
-    # 4. `len(result.columns) > MAX_COLUMNS`: f"more than {MAX_COLUMNS} columns".
-    # 5. Duplicate column names: "the column names are not unique".
-    # 6. `len(result.rows) > MAX_ROWS`: f"more than {MAX_ROWS} rows".
-    # 7. For each row: `list(row) != result.columns`: "a row does not have exactly the columns,
-    #    in order"; a cell that is not None and longer than MAX_CELL_CHARS: f"a cell is longer
-    #    than {MAX_CELL_CHARS} characters".
-    raise NotImplementedError
+    if result.extractor != extractor.name or result.extractor_version != extractor.version:
+        return "the result names another extractor or version"
+    if result.status in ("ok", "metadata_only"):
+        if result.metadata is None:
+            return "the result has no file metadata"
+        if result.metadata.sha256 != source.sha256 or result.metadata.size != source.size:
+            return "the file metadata does not match the source"
+    if result.status == "metadata_only" and result.rows:
+        return "a metadata-only result must have no rows"
+    if len(result.columns) > MAX_COLUMNS:
+        return f"more than {MAX_COLUMNS} columns"
+    if len(set(result.columns)) != len(result.columns):
+        return "the column names are not unique"
+    if len(result.rows) > MAX_ROWS:
+        return f"more than {MAX_ROWS} rows"
+    for row in result.rows:
+        if list(row) != result.columns:
+            return "a row does not have exactly the columns, in order"
+        for cell in row.values():
+            if cell is not None and len(cell) > MAX_CELL_CHARS:
+                return f"a cell is longer than {MAX_CELL_CHARS} characters"
+    return None
 
 
 def run_extraction(
@@ -195,17 +213,24 @@ def run_extraction(
     the exception type, never its text, a trace or a path); a result that breaks the contract is
     ``failed`` with ``contract_violation`` and the rule broken. The caller's ``options`` are copied.
     """
-    # STEPS
-    # 1. `extractor = choose(extractors, source, name)` (its errors propagate).
-    # 2. If `source.size > MAX_SOURCE_BYTES`: return _failed(extractor, "source_too_large",
-    #    f"the file is {source.size} bytes; the limit is {MAX_SOURCE_BYTES}"). The plugin is not
-    #    called.
-    # 3. In try/except Exception as exc: `produced = _opaque(extractor.extract(source, data,
-    #    dict(options or {})))`. On an exception return _failed(extractor, "extractor_crashed",
-    #    f"extractor {extractor.name} failed: {type(exc).__name__}"): never the text of `exc`.
-    # 4. If `not isinstance(produced, ExtractionResult)`: return _failed(extractor,
-    #    "contract_violation", "the result is not an ExtractionResult").
-    # 5. `broken = contract_problem(extractor, source, produced)`; if not None return
-    #    _failed(extractor, "contract_violation", broken).
-    # 6. Return `produced` unchanged (a "failed" result of the plugin passes through as it is).
-    raise NotImplementedError
+    extractor = choose(extractors, source, name)
+    if source.size > MAX_SOURCE_BYTES:
+        return _failed(
+            extractor,
+            "source_too_large",
+            f"the file is {source.size} bytes; the limit is {MAX_SOURCE_BYTES}",
+        )
+    try:
+        produced = _opaque(extractor.extract(source, data, dict(options or {})))
+    except Exception as exc:
+        return _failed(
+            extractor,
+            "extractor_crashed",
+            f"extractor {extractor.name} failed: {type(exc).__name__}",
+        )
+    if not isinstance(produced, ExtractionResult):
+        return _failed(extractor, "contract_violation", "the result is not an ExtractionResult")
+    broken = contract_problem(extractor, source, produced)
+    if broken is not None:
+        return _failed(extractor, "contract_violation", broken)
+    return produced
