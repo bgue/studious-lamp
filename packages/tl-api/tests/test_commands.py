@@ -217,7 +217,7 @@ def test_a_command_with_no_body_is_a_422_not_a_500(harness: Harness, spec) -> No
 
 
 def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> None:
-    """The authorizer's list (ADR-0013) is derived from the typed table; this pins the eleven."""
+    """The authorizer's list (ADR-0013) is derived from the typed table; this pins the twelve."""
     from tl_api.commands import controller_actions
 
     assert controller_actions() == {
@@ -234,6 +234,7 @@ def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> 
             "RecordReviewOutcomeOnBehalf",
             "OverrideReviewOutcome",
             "PublishDerivedDocuments",
+            "VoidDerivedDocument",
         )
     }
     assert {s.name for s in COMMANDS if s.access == "controller"} == {

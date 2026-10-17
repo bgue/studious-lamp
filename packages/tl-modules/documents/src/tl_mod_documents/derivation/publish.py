@@ -30,7 +30,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import Connection, text
-from tl_core.derivation.types import ExtractionResult
+from tl_core.derivation.types import MAX_ROWS, ExtractionResult
 from tl_core.ledger import NewEvent
 from tl_core.schema_provider import get_provider
 from tl_core.services.commands import Command, CommandResult
@@ -406,6 +406,20 @@ def preview_publication(
 # --- publishing ------------------------------------------------------------------------------
 
 
+def _check_recorded_bounds(record_ids: list[str], link_ids: list[str]) -> None:
+    """A publication makes one record and one link per row, so neither list can pass ``MAX_ROWS``.
+
+    The lists go into the ``Published`` event, which compensation trusts; this keeps the event
+    bounded whatever the plan says. Raising rolls the whole publication back (security re-review).
+    """
+    if len(record_ids) > MAX_ROWS or len(link_ids) > MAX_ROWS or len(link_ids) != len(record_ids):
+        raise PublishRefusedError(
+            f"the publication would record {len(record_ids)} records and {len(link_ids)} links; "
+            f"at most {MAX_ROWS} rows can be published",
+            [],
+        )
+
+
 def _publish(uow: UnitOfWork, cmd: _PublishBase, target: str) -> CommandResult:
     cmd = correlated(cmd)
     built = _build(
@@ -457,6 +471,7 @@ def _publish(uow: UnitOfWork, cmd: _PublishBase, target: str) -> CommandResult:
             by_module=True,
         )
         link_ids.append(linked.stream_id)
+    _check_recorded_bounds(record_ids, link_ids)
     content = rows.get_content(uow.conn(), derived.id, derived.content_rev)
     assert content is not None and content.result_sha256 is not None
     actor_cmd = Command(**base)

@@ -206,3 +206,41 @@ def test_no_extractor_for_the_file_is_raised_in_the_parent() -> None:
         run_isolated(source("scan.pdf"), CSV, factory=FACTORY, name="nope")
     assert caught.value.kind == "NoExtractorError"
     assert "nope" in str(caught.value)
+
+
+def test_the_workers_current_directory_is_not_on_the_childs_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A file named like a standard module in the cwd must not run in the child (``-P``)."""
+    marker = tmp_path / "ran"
+    (tmp_path / "json.py").write_text(f"open({str(marker)!r}, 'w').write('shadowed')\n")
+    monkeypatch.chdir(tmp_path)
+    result = run_isolated(source("a.csv"), CSV, factory=FACTORY, name="fake", timeout_s=60)
+    assert result.status == "ok"
+    assert not marker.exists()
+
+
+def _alive(pid: int) -> bool:
+    try:
+        state = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
+    except (FileNotFoundError, ProcessLookupError):
+        return False
+    return state != "Z"  # a zombie is dead; nobody has reaped it yet
+
+
+def test_a_process_the_extractor_started_does_not_outlive_the_call() -> None:
+    answer = envelope.run_in_envelope(
+        "tl_core.derivation.testing:grandchild_entry", {}, b"", timeout_s=60
+    )
+    pid = int(answer.payload)
+    deadline = time.monotonic() + 10
+    while _alive(pid) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert not _alive(pid)
+
+
+def test_the_answer_cap_comes_from_the_cell_bound_and_is_about_sixty_mebibytes() -> None:
+    from tl_core.derivation.types import MAX_CELLS
+
+    assert envelope.MAX_ANSWER_BYTES >= MAX_CELLS * 64
+    assert envelope.MAX_ANSWER_BYTES < 64 * 1024 * 1024

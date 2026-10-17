@@ -6,7 +6,6 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
-from auth_support import bootstrap, sign_in
 from auth_support import run as tl
 from derivecli_support import (
     FACTORY,

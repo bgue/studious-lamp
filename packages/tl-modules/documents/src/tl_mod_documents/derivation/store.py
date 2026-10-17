@@ -41,7 +41,11 @@ _files: FileService | None = None
 #: Parsed results and reports, by (file id, sha256, model): a few, newest last. A read of the same
 #: pass again (a screen paging through rows) then costs a permission check and no parse.
 CACHE_ENTRIES = 4
-_parsed: OrderedDict[tuple[str, str, str], BaseModel] = OrderedDict()
+#: ...and at most this many bytes of stored JSON in all (the parsed objects are several times the
+#: size of their JSON, so this keeps the cache to a few hundred megabytes at worst). A file bigger
+#: than the budget is parsed for the call and not kept.
+CACHE_BYTES = 32 * 1024 * 1024
+_parsed: OrderedDict[tuple[str, str, str], tuple[BaseModel, int]] = OrderedDict()
 _parsed_lock = threading.Lock()
 
 
@@ -132,8 +136,8 @@ class ResultFiles:
                 _parsed.move_to_end(key)
         if hit is not None:
             opened.data.close()
-            assert isinstance(hit, model)
-            return hit
+            assert isinstance(hit[0], model)
+            return hit[0]
         try:
             data = opened.data.read()
         finally:
@@ -143,10 +147,15 @@ class ResultFiles:
         if digest != wanted or len(data) != opened.info.size:
             raise InvalidSourceError(f"file {file_id} does not match the hash the ledger holds")
         parsed = model.model_validate_json(data)
-        with _parsed_lock:
-            _parsed[key] = parsed
-            while len(_parsed) > CACHE_ENTRIES:
-                _parsed.popitem(last=False)
+        size = len(data)
+        if size <= CACHE_BYTES:
+            with _parsed_lock:
+                _parsed[key] = (parsed, size)
+                while (
+                    len(_parsed) > CACHE_ENTRIES
+                    or sum(n for _, n in _parsed.values()) > CACHE_BYTES
+                ):
+                    _parsed.popitem(last=False)
         return parsed
 
     def read_result(

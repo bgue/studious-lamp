@@ -213,8 +213,20 @@ class JobRunner:
             now = self._clock()
             for item in self._queue.reap_expired(uow.conn(), now=now):
                 kind = self._kinds.get(item.kind)
-                if kind is not None:
-                    kind.expired(uow, item)
+                if kind is None:
+                    continue
+                try:
+                    # a savepoint, as for ``started``: a kind that cannot write its "failed" event
+                    # must not abort the claim. The queue row is already failed for good (the
+                    # reap did that); only the event is lost, and the log says so.
+                    with uow.conn().begin_nested():
+                        kind.expired(uow, item)
+                except Exception as exc:  # noqa: BLE001 - any refusal of the kind
+                    log.warning(
+                        "job %s expired but its event could not be written: %s",
+                        item.job_id,
+                        failure_from(exc).code,
+                    )
             while True:
                 claim = self._queue.claim(
                     uow.conn(),

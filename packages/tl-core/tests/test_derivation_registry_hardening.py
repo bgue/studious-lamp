@@ -224,11 +224,11 @@ def meta(**fields: Any) -> FileMetadata:
             {
                 "profiles": [
                     ColumnProfile(
-                        name="a", non_empty=1, distinct=1, max_length=1, samples=["s" * 1001]
+                        name="a", non_empty=1, distinct=1, max_length=1, samples=["s" * 10_001]
                     )
                 ]
             },
-            "a profile sample is longer",
+            "a profile sample",
         ),
     ],
 )

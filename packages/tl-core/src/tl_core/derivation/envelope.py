@@ -45,16 +45,21 @@ from typing import Any, BinaryIO, Literal
 from tl_core.derivation.types import (
     EXTRACT_MAX_MEMORY_BYTES,
     EXTRACT_MAX_SECONDS,
-    MAX_SOURCE_BYTES,
+    MAX_CELLS,
 )
 
 DEFAULT_TIMEOUT_S = float(EXTRACT_MAX_SECONDS)
 DEFAULT_MEMORY_LIMIT_MB = EXTRACT_MAX_MEMORY_BYTES // (1024 * 1024)
 #: How long a child gets to leave after it is asked to, before it is killed.
 KILL_GRACE_S = 1.0
-#: The largest answer the parent reads. A text table from a source of ``MAX_SOURCE_BYTES`` can
-#: grow when parsed (a compressed spreadsheet), so four times the source bound; more is refused.
-MAX_ANSWER_BYTES = 4 * MAX_SOURCE_BYTES
+#: The largest answer the parent reads, derived from the contract's cell bound and not from the
+#: source's size: ``MAX_CELLS`` cells at 64 bytes each (a realistic cell is a tag, a number or a
+#: short description), plus 1 MiB for the names, notes and problems around the rows. About 62 MiB.
+#: More is a contract violation, so a hostile extractor cannot make the parent hold hundreds of
+#: megabytes (security re-review of b5f5d41).
+AVERAGE_CELL_BYTES = 64
+ANSWER_OVERHEAD_BYTES = 1024 * 1024
+MAX_ANSWER_BYTES = MAX_CELLS * AVERAGE_CELL_BYTES + ANSWER_OVERHEAD_BYTES
 #: The largest header the child reads (the source description, options, a schema).
 MAX_HEADER_BYTES = 8 * 1024 * 1024
 #: What the child's environment may hold.
@@ -224,6 +229,7 @@ def run_in_envelope(
         process = subprocess.Popen(  # noqa: S603 - our own interpreter and our own module
             [
                 sys.executable,
+                "-P",  # the worker's current directory is not on the child's sys.path
                 "-c",
                 _BOOT,
                 str(write_fd),
@@ -237,7 +243,7 @@ def run_in_envelope(
             env=scrubbed_environment(),
             pass_fds=(write_fd,),
             close_fds=True,
-            start_new_session=True,
+            start_new_session=True,  # its own process group: ``_end`` signals the whole group
         )
     except OSError as exc:
         os.close(read_fd)
