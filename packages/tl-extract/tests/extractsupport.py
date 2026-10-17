@@ -286,3 +286,21 @@ def make_tiff(
         directory += struct.pack(byte_order + "HHI", tag, kind, n) + slot
     directory += struct.pack(byte_order + "I", 0)
     return head + directory + extra
+
+
+def pdf_from_objects(objects: Sequence[bytes]) -> bytes:
+    """A PDF made of exactly these objects (object 1 is the catalog), with a correct xref table."""
+    out = io.BytesIO()
+    out.write(b"%PDF-1.4\n")
+    offsets: list[int] = []
+    for number, body in enumerate(objects, start=1):
+        offsets.append(out.tell())
+        out.write(f"{number} 0 obj\n".encode() + body + b"\nendobj\n")
+    xref = out.tell()
+    out.write(f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode())
+    for offset in offsets:
+        out.write(f"{offset:010d} 00000 n \n".encode())
+    out.write(
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    )
+    return out.getvalue()
