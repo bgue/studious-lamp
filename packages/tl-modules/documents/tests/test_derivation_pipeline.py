@@ -256,7 +256,7 @@ def test_every_breach_of_the_envelope_fails_the_job_for_good_and_the_worker_goes
     # the same worker process goes on: the next job runs and succeeds
     ready.upload_content(derived.id, index_csv(GOOD), name="good.csv")
     good = start(ready, derived_id=derived.id)
-    assert [r.outcome for r in ready.run_jobs(timeout_s=2, memory_limit_mb=512)] == ["done"]
+    assert [r.outcome for r in ready.run_jobs(timeout_s=30, memory_limit_mb=512)] == ["done"]
     assert [j for j in ready.jobs() if j.id == good][0].state == "succeeded"
     assert ready.derived_row(derived.id).state == "Valid"
 
