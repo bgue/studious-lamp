@@ -28,8 +28,14 @@ from tl_core.derivation.types import (
     MAX_CELL_CHARS,
     MAX_CELLS,
     MAX_COLUMNS,
+    MAX_MESSAGE_CHARS,
+    MAX_NAME_CHARS,
+    MAX_NOTES,
+    MAX_PROBLEMS,
     MAX_ROWS,
+    MAX_SHEET_NAMES,
     MAX_SOURCE_BYTES,
+    MAX_TEXT_CHARS,
     ExtractionProblem,
     ExtractionResult,
     Extractor,
@@ -175,6 +181,49 @@ def _failed(extractor: Extractor, code: str, message: str) -> ExtractionResult:
     )
 
 
+def _text_problem(result: ExtractionResult) -> str | None:
+    """Why the text of ``result`` (not its grid) breaks the bounds of FANOUT D10, or ``None``.
+
+    These strings reach immutable events and reports, so a plugin cannot be allowed to make them
+    any size: the result is refused, never truncated.
+    """
+    if len(result.extractor) > MAX_NAME_CHARS or len(result.extractor_version) > MAX_NAME_CHARS:
+        return f"an extractor name or version is longer than {MAX_NAME_CHARS} characters"
+    if any(len(name) > MAX_NAME_CHARS for name in result.columns):
+        return f"a column name is longer than {MAX_NAME_CHARS} characters"
+    if result.sheet is not None and len(result.sheet) > MAX_NAME_CHARS:
+        return f"the sheet name is longer than {MAX_NAME_CHARS} characters"
+    if len(result.notes) > MAX_NOTES:
+        return f"more than {MAX_NOTES} notes"
+    if any(len(note) > MAX_TEXT_CHARS for note in result.notes):
+        return f"a note is longer than {MAX_TEXT_CHARS} characters"
+    if len(result.problems) > MAX_PROBLEMS:
+        return f"more than {MAX_PROBLEMS} problems"
+    for problem in result.problems:
+        if len(problem.message) > MAX_MESSAGE_CHARS or len(problem.code) > MAX_NAME_CHARS:
+            return f"a problem message is longer than {MAX_MESSAGE_CHARS} characters"
+    if result.metadata is not None:
+        meta = result.metadata
+        for text in (meta.title, meta.author, meta.created, meta.modified, meta.producer):
+            if text is not None and len(text) > MAX_TEXT_CHARS:
+                return f"a metadata text is longer than {MAX_TEXT_CHARS} characters"
+        names = meta.sheet_names or []
+        if len(names) > MAX_SHEET_NAMES:
+            return f"more than {MAX_SHEET_NAMES} sheet names"
+        if any(len(name) > MAX_NAME_CHARS for name in names):
+            return f"a sheet name is longer than {MAX_NAME_CHARS} characters"
+        if len(meta.content_type) > MAX_NAME_CHARS:
+            return f"the content type is longer than {MAX_NAME_CHARS} characters"
+    if len(result.profiles) > len(result.columns):
+        return "more column profiles than columns"
+    for profile in result.profiles:
+        if len(profile.name) > MAX_NAME_CHARS:
+            return f"a profile name is longer than {MAX_NAME_CHARS} characters"
+        if any(len(sample) > MAX_TEXT_CHARS for sample in profile.samples):
+            return f"a profile sample is longer than {MAX_TEXT_CHARS} characters"
+    return None
+
+
 def contract_problem(
     extractor: Extractor, source: SourceFile, result: ExtractionResult
 ) -> str | None:
@@ -198,6 +247,9 @@ def contract_problem(
             return "the file metadata does not match the source"
     if result.status == "metadata_only" and result.rows:
         return "a metadata-only result must have no rows"
+    broken = _text_problem(result)
+    if broken is not None:
+        return broken
     if len(result.columns) > MAX_COLUMNS:
         return f"more than {MAX_COLUMNS} columns"
     if len(set(result.columns)) != len(result.columns):

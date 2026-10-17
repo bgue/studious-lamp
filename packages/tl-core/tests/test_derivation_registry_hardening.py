@@ -20,6 +20,8 @@ from tl_core.derivation.registry import (
 )
 from tl_core.derivation.types import (
     EXTRACTOR_ENTRY_POINT,
+    ColumnProfile,
+    ExtractionProblem,
     ExtractionResult,
     Extractor,
     FileMetadata,
@@ -162,3 +164,87 @@ def test_a_result_over_the_cell_bound_is_a_contract_violation() -> None:
     result = run_extraction({"wide": Wide()}, SOURCE, io.BytesIO(DATA))
     assert result.status == "failed" and result.problems[0].code == "contract_violation"
     assert "more than 1000000 cells" in result.problems[0].message
+
+
+def run_with(**changes: Any) -> ExtractionResult:
+    """A result that is fine except for ``changes``, run through the guard."""
+
+    class Shaped:
+        name = "shaped"
+        version = "1"
+
+        def accepts(self, source: SourceFile) -> bool:
+            return True
+
+        def extract(
+            self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
+        ) -> ExtractionResult:
+            base = ExtractionResult(
+                extractor=self.name,
+                extractor_version=self.version,
+                status="ok",
+                metadata=FileMetadata(
+                    content_type=source.content_type, size=source.size, sha256=source.sha256
+                ),
+                columns=["a"],
+                rows=[{"a": "1"}],
+            )
+            return base.model_copy(update=changes)
+
+    return run_extraction({"shaped": Shaped()}, SOURCE, io.BytesIO(DATA))
+
+
+def meta(**fields: Any) -> FileMetadata:
+    return FileMetadata(
+        content_type=SOURCE.content_type, size=SOURCE.size, sha256=SOURCE.sha256, **fields
+    )
+
+
+@pytest.mark.parametrize(
+    ("changes", "words"),
+    [
+        ({"notes": ["x"] * 101}, "more than 100 notes"),
+        ({"notes": ["x" * 1001]}, "a note is longer than 1000"),
+        (
+            {"problems": [ExtractionProblem(code="c", message="m")] * 1001},
+            "more than 1000 problems",
+        ),
+        ({"problems": [ExtractionProblem(code="c", message="m" * 501)]}, "problem message"),
+        ({"columns": ["c" * 256], "rows": [{"c" * 256: "1"}]}, "a column name is longer"),
+        ({"sheet": "s" * 256}, "the sheet name is longer"),
+        ({"metadata": meta(title="t" * 1001)}, "a metadata text is longer"),
+        ({"metadata": meta(producer="p" * 1001)}, "a metadata text is longer"),
+        ({"metadata": meta(sheet_names=["s"] * 257)}, "more than 256 sheet names"),
+        ({"metadata": meta(sheet_names=["s" * 256])}, "a sheet name is longer"),
+        (
+            {"profiles": [ColumnProfile(name="a", non_empty=1, distinct=1, max_length=1)] * 2},
+            "more column profiles than columns",
+        ),
+        (
+            {
+                "profiles": [
+                    ColumnProfile(
+                        name="a", non_empty=1, distinct=1, max_length=1, samples=["s" * 1001]
+                    )
+                ]
+            },
+            "a profile sample is longer",
+        ),
+    ],
+)
+def test_every_part_of_a_result_is_bounded_and_a_breach_fails_instead_of_truncating(
+    changes: dict[str, Any], words: str
+) -> None:
+    result = run_with(**changes)
+    assert result.status == "failed" and result.rows == []
+    (problem,) = result.problems
+    assert problem.code == "contract_violation" and words in problem.message
+
+
+def test_a_result_inside_every_bound_passes() -> None:
+    ok = run_with(
+        notes=["x" * 1000] * 100,
+        metadata=meta(title="t" * 1000, sheet_names=["s" * 255] * 256),
+        profiles=[ColumnProfile(name="a", non_empty=1, distinct=1, max_length=1, samples=["s"])],
+    )
+    assert ok.status == "ok"
