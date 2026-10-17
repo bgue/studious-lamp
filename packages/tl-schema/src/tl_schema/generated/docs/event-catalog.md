@@ -11,10 +11,16 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Account.Enabled`](#accountenabled) | `tl.core.Account.Enabled.v1` | A disabled account was enabled again. |
 | [`Account.PasswordChanged`](#accountpasswordchanged) | `tl.core.Account.PasswordChanged.v1` | The password of an account was set or changed. |
 | [`Account.RolesSet`](#accountrolesset) | `tl.core.Account.RolesSet.v1` | The roles of an account were replaced. |
+| [`ActivityRef.Defined`](#activityrefdefined) | `tl.core.ActivityRef.Defined.v1` | The first link to an activity made its reference. |
+| [`ActivityRef.PresenceChanged`](#activityrefpresencechanged) | `tl.core.ActivityRef.PresenceChanged.v1` | A publication found the activity gone from the schedule (present false) or back (present true). |
 | [`AgentToken.Issued`](#agenttokenissued) | `tl.core.AgentToken.Issued.v1` | An agent token was issued. |
 | [`AgentToken.Revoked`](#agenttokenrevoked) | `tl.core.AgentToken.Revoked.v1` | An agent token was revoked and no longer authenticates. |
 | [`CodeValue.Closed`](#codevalueclosed) | `tl.core.CodeValue.Closed.v1` | A code value was superseded by another or retired; it still resolves for old records. |
 | [`CodeValue.Defined`](#codevaluedefined) | `tl.core.CodeValue.Defined.v1` | A value was added to a code list. |
+| [`CostCode.Defined`](#costcodedefined) | `tl.core.CostCode.Defined.v1` | A cost code was registered (by the first snapshot that names it). |
+| [`CostCode.MeasuresRecorded`](#costcodemeasuresrecorded) | `tl.core.CostCode.MeasuresRecorded.v1` | A snapshot stated the figures of a cost code. |
+| [`CostCode.Revised`](#costcoderevised) | `tl.core.CostCode.Revised.v1` | A snapshot changed the description, parent or unit of measure of an existing cost code. |
+| [`CostSnapshot.Defined`](#costsnapshotdefined) | `tl.core.CostSnapshot.Defined.v1` | A period of figures was imported. |
 | [`DerivedDocument.ContentRecorded`](#deriveddocumentcontentrecorded) | `tl.core.DerivedDocument.ContentRecorded.v1` | One extractor pass over a source file finished: a new content revision of the derived document. |
 | [`DerivedDocument.Defined`](#deriveddocumentdefined) | `tl.core.DerivedDocument.Defined.v1` | A derived document was opened for a source revision and a document schema. |
 | [`DerivedDocument.PublicationCompensated`](#deriveddocumentpublicationcompensated) | `tl.core.DerivedDocument.PublicationCompensated.v1` | The publication of a derived document was rolled back: reversing events for everything its import made were appended under a correlation id of their own. |
@@ -65,6 +71,15 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Revision.Defined`](#revisiondefined) | `tl.core.Revision.Defined.v1` | A revision of a document was created, as a draft. |
 | [`Revision.Issued`](#revisionissued) | `tl.core.Revision.Issued.v1` | A revision was issued with an issue status; it is now current for its status class. |
 | [`Revision.Superseded`](#revisionsuperseded) | `tl.core.Revision.Superseded.v1` | An issued revision stopped being current because a later one replaced it. |
+| [`Schedule.Defined`](#scheduledefined) | `tl.core.Schedule.Defined.v1` | A schedule was registered. |
+| [`Schedule.SnapshotPublished`](#schedulesnapshotpublished) | `tl.core.Schedule.SnapshotPublished.v1` | A snapshot became the schedule's current one. |
+| [`ScheduleSnapshot.BuildFailed`](#schedulesnapshotbuildfailed) | `tl.core.ScheduleSnapshot.BuildFailed.v1` | A build attempt failed (a limit breach, a crash, a lease that ran out). |
+| [`ScheduleSnapshot.BuildStarted`](#schedulesnapshotbuildstarted) | `tl.core.ScheduleSnapshot.BuildStarted.v1` | A worker claimed the build. |
+| [`ScheduleSnapshot.Built`](#schedulesnapshotbuilt) | `tl.core.ScheduleSnapshot.Built.v1` | The file was read and passed the XER document schema; the typed rows were written. |
+| [`ScheduleSnapshot.Defined`](#schedulesnapshotdefined) | `tl.core.ScheduleSnapshot.Defined.v1` | A snapshot was opened for a schedule; the XER file is attached next. |
+| [`ScheduleSnapshot.MadeCurrent`](#schedulesnapshotmadecurrent) | `tl.core.ScheduleSnapshot.MadeCurrent.v1` | A snapshot was made the schedule's current one. |
+| [`ScheduleSnapshot.Queued`](#schedulesnapshotqueued) | `tl.core.ScheduleSnapshot.Queued.v1` | The build of a snapshot was queued: the XER file is fixed. |
+| [`ScheduleSnapshot.Rejected`](#schedulesnapshotrejected) | `tl.core.ScheduleSnapshot.Rejected.v1` | The file was read and is not a valid schedule snapshot (or could not be read): the snapshot is Invalid and no rows were written. |
 | [`Schema.EffectiveChanged`](#schemaeffectivechanged) | `tl.core.Schema.EffectiveChanged.v1` | The effective schema of a scope changed. |
 | [`SchemaPackage.Published`](#schemapackagepublished) | `tl.core.SchemaPackage.Published.v1` | A schema package version was published. |
 | [`Setting.Changed`](#settingchanged) | `tl.core.Setting.Changed.v1` | One key was set, or reset to what the layer above gives, at one layer. |
@@ -355,6 +370,118 @@ The roles of an account were replaced. Internal: never delivered to webhooks.
 }
 ```
 
+## ActivityRef.Defined
+
+The first link to an activity made its reference.
+
+- CloudEvents type: `tl.core.ActivityRef.Defined.v1`
+- Ledger payload class: `ActivityRefDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `activity_id` | string | yes | The P6 activity id. |
+| `first_snapshot_id` | string | yes | The snapshot that had the activity. |
+| `first_snapshot_number` | integer | yes | Its number. |
+| `schedule_code` | string | yes | Its code. |
+| `schedule_id` | string | yes | The schedule. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "activity_id": "A1230",
+      "first_snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "first_snapshot_number": 1,
+      "schedule_code": "MAIN",
+      "schedule_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ActivityRef.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ActivityRef.Defined.v1"
+}
+```
+
+## ActivityRef.PresenceChanged
+
+A publication found the activity gone from the schedule (present false) or back (present true).
+
+- CloudEvents type: `tl.core.ActivityRef.PresenceChanged.v1`
+- Ledger payload class: `ActivityRefPresencePayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `last_seen_number` | integer | yes | Its number. |
+| `last_seen_snapshot_id` | string | yes | The latest published snapshot that had the activity. |
+| `present` | boolean | yes | Whether the published snapshot has the activity. |
+| `snapshot_id` | string | yes | The snapshot that was published. |
+| `snapshot_number` | integer | yes | Its number. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "last_seen_number": 1,
+      "last_seen_snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "present": false,
+      "snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "snapshot_number": 2
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ActivityRef.PresenceChanged/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ActivityRef.PresenceChanged.v1"
+}
+```
+
 ## AgentToken.Issued
 
 An agent token was issued. The event holds its metadata; the token is shown once and stored only as a hash. Internal: never delivered to webhooks.
@@ -580,6 +707,251 @@ A value was added to a code list.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.CodeValue.Defined.v1"
+}
+```
+
+## CostCode.Defined
+
+A cost code was registered (by the first snapshot that names it).
+
+- CloudEvents type: `tl.core.CostCode.Defined.v1`
+- Ledger payload class: `CostCodeDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `code` | string | yes | The cost code. |
+| `level` | integer | yes | Depth in the hierarchy. |
+| `parent_code` | string or null | no | The parent code, or null. |
+| `uom` | string or null | no | Unit of measure of the quantity figures. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "code": "4210-PIP-WLD",
+      "level": 3,
+      "parent_code": "4210-PIP",
+      "uom": "in-dia"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CostCode.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CostCode.Defined.v1"
+}
+```
+
+## CostCode.MeasuresRecorded
+
+A snapshot stated the figures of a cost code.
+
+- CloudEvents type: `tl.core.CostCode.MeasuresRecorded.v1`
+- Ledger payload class: `CostCodeMeasuresRecordedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `as_of` | string | yes | YYYY-MM-DD. |
+| `measures` | any | yes |  |
+| `period` | string | yes | YYYY-MM. |
+| `revision` | integer | yes | The snapshot's revision of the period. |
+| `snapshot_id` | string | yes | The snapshot. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "as_of": "2026-09-30",
+      "measures": {
+        "amount_actual": 51240.0,
+        "amount_budget": 96000.0,
+        "amount_eac": 102440.0,
+        "amount_earned": 48000.0,
+        "amount_ftc": 51200.0,
+        "hours_actual": 640.5,
+        "hours_budget": 1200.0,
+        "hours_eac": 1280.5,
+        "hours_earned": 600.0,
+        "hours_ftc": 640.0,
+        "quantity_actual": 250.0,
+        "quantity_budget": 480.0,
+        "quantity_eac": 480.0,
+        "quantity_earned": 250.0,
+        "quantity_ftc": 230.0
+      },
+      "period": "2026-09",
+      "revision": 1,
+      "snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CostCode.MeasuresRecorded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CostCode.MeasuresRecorded.v1"
+}
+```
+
+## CostCode.Revised
+
+A snapshot changed the description, parent or unit of measure of an existing cost code.
+
+- CloudEvents type: `tl.core.CostCode.Revised.v1`
+- Ledger payload class: `CostCodeRevisedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `changes` | any | yes |  |
+| `snapshot_id` | string | yes | The snapshot that brought the change. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "changes": {
+        "uom": [
+          "ea",
+          "in-dia"
+        ]
+      },
+      "snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CostCode.Revised/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CostCode.Revised.v1"
+}
+```
+
+## CostSnapshot.Defined
+
+A period of figures was imported.
+
+- CloudEvents type: `tl.core.CostSnapshot.Defined.v1`
+- Ledger payload class: `CostSnapshotDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `as_of` | string | yes | YYYY-MM-DD. |
+| `currency` | string or null | no | ISO 4217 code, or null. |
+| `new_code_count` | integer | yes | Codes created. |
+| `period` | string | yes | YYYY-MM. |
+| `revised_code_count` | integer | yes | Codes revised. |
+| `revision` | integer | yes | 1 for the first import of the period. |
+| `row_count` | integer | yes | Codes with figures. |
+| `source_name` | string or null | no | Display name of the file. |
+| `source_sha256` | string or null | no | SHA-256 of the file. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "as_of": "2026-09-30",
+      "currency": "USD",
+      "new_code_count": 3,
+      "period": "2026-09",
+      "revised_code_count": 0,
+      "revision": 1,
+      "row_count": 12,
+      "source_name": "cost-2026-09.csv",
+      "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/CostSnapshot.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.CostSnapshot.Defined.v1"
 }
 ```
 
@@ -3475,6 +3847,517 @@ An issued revision stopped being current because a later one replaced it. It sta
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Revision.Superseded.v1"
+}
+```
+
+## Schedule.Defined
+
+A schedule was registered.
+
+- CloudEvents type: `tl.core.Schedule.Defined.v1`
+- Ledger payload class: `ScheduleDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `code` | string | yes | The schedule's code. |
+| `owner` | string or null | no | Who owns it. |
+| `p6_project` | string or null | no | The P6 project short name to read, or null. |
+| `schedule_type` | string | yes | baseline, current, look_ahead or what_if. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "code": "MAIN",
+      "owner": "Planning",
+      "p6_project": "DEMO-RACK",
+      "schedule_type": "current"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Schedule.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Schedule.Defined.v1"
+}
+```
+
+## Schedule.SnapshotPublished
+
+A snapshot became the schedule's current one. Written on the schedule's stream.
+
+- CloudEvents type: `tl.core.Schedule.SnapshotPublished.v1`
+- Ledger payload class: `ScheduleSnapshotPublishedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `data_date` | string | yes | Its data date. |
+| `orphaned_count` | integer | yes | Activity references whose activity is not in the snapshot; their links were flagged. |
+| `previous_snapshot_id` | string or null | no | The snapshot that was current before, or null. |
+| `restored_count` | integer | yes | Activity references whose activity came back; their links were restored. |
+| `snapshot_id` | string | yes | The published snapshot. |
+| `snapshot_number` | integer | yes | Its number. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "data_date": "2026-10-12T08:00",
+      "orphaned_count": 1,
+      "previous_snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "restored_count": 0,
+      "snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "snapshot_number": 2
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Schedule.SnapshotPublished/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Schedule.SnapshotPublished.v1"
+}
+```
+
+## ScheduleSnapshot.BuildFailed
+
+A build attempt failed (a limit breach, a crash, a lease that ran out).
+
+- CloudEvents type: `tl.core.ScheduleSnapshot.BuildFailed.v1`
+- Ledger payload class: `ScheduleSnapshotBuildFailedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `attempt` | integer | yes | Attempt number. |
+| `error_code` | string | yes | A short fixed code. |
+| `error_message` | string | yes | Words for a person; no paths, no trace. |
+| `final` | boolean | yes | True when no attempt is left. |
+| `retry_at` | string or null | no | ISO-8601 UTC of the next attempt, or null. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "attempt": 1,
+      "error_code": "xer_limit",
+      "error_message": "reading the XER file broke the resource limits",
+      "final": true,
+      "retry_at": null
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ScheduleSnapshot.BuildFailed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ScheduleSnapshot.BuildFailed.v1"
+}
+```
+
+## ScheduleSnapshot.BuildStarted
+
+A worker claimed the build.
+
+- CloudEvents type: `tl.core.ScheduleSnapshot.BuildStarted.v1`
+- Ledger payload class: `ScheduleSnapshotBuildStartedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `attempt` | integer | yes | Attempt number. |
+| `lease_until` | string | yes | ISO-8601 UTC; the claim expires here. |
+| `worker` | string | yes | The worker's id. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "attempt": 1,
+      "lease_until": "2026-10-17T10:05:00Z",
+      "worker": "host:1:abcdef"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ScheduleSnapshot.BuildStarted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ScheduleSnapshot.BuildStarted.v1"
+}
+```
+
+## ScheduleSnapshot.Built
+
+The file was read and passed the XER document schema; the typed rows were written. The snapshot is Valid.
+
+- CloudEvents type: `tl.core.ScheduleSnapshot.Built.v1`
+- Ledger payload class: `ScheduleSnapshotBuiltPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `counts` | any | yes |  |
+| `data_date` | string | yes | The project's data date, ISO local date-time. |
+| `p6_project` | string | yes | The P6 project short name that was read. |
+| `p6_version` | string | yes | The P6 version of the file. |
+| `raw_file_id` | string | yes | The raw tables file. |
+| `raw_sha256` | string | yes | SHA-256 of the uncompressed raw tables. |
+| `report_file_id` | string | yes | The check report file. |
+| `typed_sha256` | string | yes | SHA-256 of the canonical typed rows. |
+| `warning_count` | integer | yes | Warnings of the check. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "counts": {
+        "activities": 21,
+        "calendars": 1,
+        "codes": 21,
+        "relationships": 23,
+        "udfs": 12,
+        "wbs": 4
+      },
+      "data_date": "2026-10-05T08:00",
+      "p6_project": "DEMO-RACK",
+      "p6_version": "20.12",
+      "raw_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "raw_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "report_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "typed_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "warning_count": 0
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ScheduleSnapshot.Built/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ScheduleSnapshot.Built.v1"
+}
+```
+
+## ScheduleSnapshot.Defined
+
+A snapshot was opened for a schedule; the XER file is attached next.
+
+- CloudEvents type: `tl.core.ScheduleSnapshot.Defined.v1`
+- Ledger payload class: `ScheduleSnapshotDefinedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `number` | integer | yes | The snapshot's number in the schedule. |
+| `p6_project_option` | string or null | no | The P6 project asked for, or null. |
+| `schedule_code` | string | yes | Its code. |
+| `schedule_id` | string | yes | The schedule. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "number": 1,
+      "p6_project_option": null,
+      "schedule_code": "MAIN",
+      "schedule_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ScheduleSnapshot.Defined/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ScheduleSnapshot.Defined.v1"
+}
+```
+
+## ScheduleSnapshot.MadeCurrent
+
+A snapshot was made the schedule's current one. Written on the snapshot's stream next to the workflow move.
+
+- CloudEvents type: `tl.core.ScheduleSnapshot.MadeCurrent.v1`
+- Ledger payload class: `ScheduleSnapshotMadeCurrentPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `orphaned_count` | integer | yes | Activity references flagged. |
+| `previous_snapshot_id` | string or null | no | The snapshot that was current before, or null. |
+| `restored_count` | integer | yes | Activity references restored. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "orphaned_count": 1,
+      "previous_snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "restored_count": 0
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ScheduleSnapshot.MadeCurrent/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ScheduleSnapshot.MadeCurrent.v1"
+}
+```
+
+## ScheduleSnapshot.Queued
+
+The build of a snapshot was queued: the XER file is fixed.
+
+- CloudEvents type: `tl.core.ScheduleSnapshot.Queued.v1`
+- Ledger payload class: `ScheduleSnapshotQueuedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `requested_by` | string | yes | The actor who asked. |
+| `source_file_id` | string | yes | The XER file. |
+| `source_name` | string | yes | Display name of the file. |
+| `source_sha256` | string | yes | SHA-256 of the file. |
+| `source_size` | integer | yes | Bytes. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "requested_by": "user:demo",
+      "source_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "source_name": "rack-2026-10-05.xer",
+      "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "source_size": 7496
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ScheduleSnapshot.Queued/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ScheduleSnapshot.Queued.v1"
+}
+```
+
+## ScheduleSnapshot.Rejected
+
+The file was read and is not a valid schedule snapshot (or could not be read): the snapshot is Invalid and no rows were written.
+
+- CloudEvents type: `tl.core.ScheduleSnapshot.Rejected.v1`
+- Ledger payload class: `ScheduleSnapshotRejectedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `error_count` | integer | yes | Errors. |
+| `first_codes` | any | yes |  |
+| `outcome` | string | yes | invalid (read, but it fails the document schema) or refused (could not be read). |
+| `report_file_id` | string | yes | The report file. |
+| `warning_count` | integer | yes | Warnings. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "error_count": 1,
+      "first_codes": [
+        "missing_table"
+      ],
+      "outcome": "invalid",
+      "report_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "warning_count": 0
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/ScheduleSnapshot.Rejected/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.ScheduleSnapshot.Rejected.v1"
 }
 ```
 

@@ -116,6 +116,8 @@ def test_every_record_class_of_the_committed_modules_has_a_view() -> None:
     files = ddl.generate(REPO / "schema" / "core")
     views = sorted(name.split("/")[-1][:-4] for name in files if "/sqlite/v_" in name)
     assert views == [
+        "v_cost_cost_code",
+        "v_cost_cost_snapshot",
         "v_documents_derived_document",
         "v_documents_document",
         "v_documents_document_schema",
@@ -128,4 +130,7 @@ def test_every_record_class_of_the_committed_modules_has_a_view() -> None:
         "v_engineering_standard",
         "v_engineering_tag",
         "v_engineering_tag_class",
+        "v_schedule_activity_ref",
+        "v_schedule_schedule",
+        "v_schedule_schedule_snapshot",
     ]
