@@ -75,3 +75,46 @@ Everything else in ADR-0011 stands: the right column is open to any signed-in pe
 | Move the tag registry to the controller | The engineering registry is not document control; the owner's request is about documents |
 | A project-level assignment of the role | No per-project role model in Phase 1 (ADR-0008 decision 3); left to the SSO increment |
 | Read a dev token's roles from its account so the simulator can issue | Changes ADR-0009 section 9 (dev tokens are never more than `user`) and adds a privilege path from the token file; not decided here |
+
+## Addendum (P1-SEC1), 2026-10-17: where a person's workflow roles come from
+
+Status: accepted by the orchestrator's instruction of 2026-10-17 (urgent security fix); the fresh-context security review of the P1-SEC1 commits is pending.
+Brief sections: §8 (identity and auth), §25.2
+
+### The finding
+A `roles` guard of a workflow (`kind: roles, any_of: [...]`, for example `issue` in `core.review`) was judged against `TransitionWorkflow.actor_roles`, a field of the command that the API read from the request body. Any signed-in person could send `"actor_roles": ["manager"]` and pass the guard. The same claim was accepted from the accept-proposal body (`roles`), the `?role=` query of the workflow status, `tl wf ... --role` and `tl proposal accept --role` on every target (a Postgres target included), the TUI (`WorkflowMenu` sent the roles it was given), and the simulator client. The P1-I5 and P1-I6 workflows add more roles guards, so the hole is closed before they land.
+
+### Decision
+1. **Roles are derived on the server side from the authenticated account, never read from a request.** `tl_core.workflow.roles.workflow_roles(principal_or_account)` is the one place that says what a person holds for a guard:
+   - an `agent` account holds none (agents propose; the person who accepts brings theirs, ADR-0009);
+   - a `person` or `sim` account holds the roles of its account (`admin`, `document_controller`, `user`);
+   - an `admin` also holds `document_controller` (an admin passes every controller check, section 1 above);
+   - any account with a role also holds `user` (the authorizer's rule for what a `user` may do).
+   Today the account's own roles are the only source: there are no project assignments, role memberships, contact roles or settings that grant a role (searched 2026-10-17). A later source (a project-level assignment, Entra groups, brief §27) adds its names inside `workflow_roles` and nowhere else.
+2. **A guard names account roles.** The `issue` guard of the fixture `core.review` changes from `manager`, a name no account can hold, to `document_controller` (an admin passes it too). A guard that names a role nobody holds (the sample `LiftPlan` workflow wants `lifting_supervisor`) fails closed: no route, session or client can pass it. A company that keeps its own copy of `core.review` (a `TL_SCHEMA_DIR`) changes `manager` to `document_controller` or waits for the project-level source. `schema/fixtures/workflows/core-review.yaml` is the only schema file touched, by this instruction.
+3. **Roles are not a field of a command.** `TransitionWorkflow` has no `actor_roles`. `handle_transition_workflow(uow, cmd, *, by_module=False, roles=())` and `workflow_status(uow, record_id, *, roles=())` take the derived roles as a Python argument, as `by_module` is one, so no body, stored proposal or tool call can carry them. The default is no roles, which fails every `roles` guard.
+4. **Entry points.**
+
+   | Entry point | What it does |
+   |---|---|
+   | API `POST /commands/TransitionWorkflow` | The route calls `workflow_roles(principal)`. A body that carries `actor_roles` is refused with 422 `role_claim_refused` and a fixed message, by the body model that `request_model` builds for every command route and the upload routes (like the reserved identifiers, ADR-0014). |
+   | API `POST /proposals/{id}/accept` | The `roles` field is gone; a body with `roles` or `actor_roles` is refused the same way. The accepting person's derived roles apply. |
+   | API `GET /records/{id}/workflow` | The `role` query parameter is gone; the guards are judged for the caller. |
+   | CLI `tl wf show`, `tl wf transition`, `tl proposal accept` | The roles of the signed-in session when it is the actor's. `--role` is accepted as a claim only where `--actor` is: a ledger file where `TL_ENV` is dev, test or ci (`local=not is_postgres(db)`). Elsewhere every named role must be one the session holds (it adds nothing), else `error: --role X: the signed-in account does not hold it ...`; with no session, `error: not signed in`. |
+   | TUI, embedded | `EmbeddedClient` reads its own account by its actor (the actor must match the account character for character and the account must be active), derives the roles, and ignores the actor of any other command. `ClientInterface.workflow_status` and `WorkflowMenu` take no roles. |
+   | TUI, remote | The API client sends no roles; the server derives them. |
+   | MCP | Agents have no roles and only propose; a proposal never carries any (`TransitionWorkflow` has no field for it). The person who accepts brings the derived roles of their session or token. |
+   | Simulator | `HttpSimClient` sends none and has no parameter for them. A simulated person's roles are those of the account behind its token: a dev token is a `user` (ADR-0009 section 9), so it passes no role guard. Making a simulated person pass one needs a session sign-in for an account that holds the role; no scenario declares one yet. |
+5. **Proposals** keep dropping roles. `accept_proposal(..., roles=)` still takes them from its caller (the API route and the CLI, which derive them); a stored command that carried a stray `actor_roles` has it removed before it is validated.
+
+### Consequences
+- **Contracts changed.** `TransitionWorkflow.actor_roles` is removed; `handle_transition_workflow` and `workflow_status` keep `roles` as an argument; `ClientInterface.workflow_status(record_id)`, `ApiClient.workflow_status(record_id)`, `ApiClient.accept_proposal(proposal_id)` and `HttpSimClient` lose their `roles`; `AcceptBody.roles` and the `role` query are removed from the HTTP API; the new error `RoleClaimError` is `role_claim_refused` (422). `docs/reference` and the OpenAPI snapshot follow.
+- **Known limits.** Roles are company-wide, as the document controller role is. A role-guarded transition on a project needs a project-level source of roles (not built). `--role` on a ledger file in a dev setup is a claim by design: whoever runs `tl` on the file can edit the file (ADR-0009 section 14).
+- **Tests.** `test_api_workflow_roles.py` (walks the published API: no body or parameter takes roles; every command route refuses `actor_roles`; a user cannot claim; a controller and an admin pass; proposals use the accepting person's roles; removing the derivation blocks the controller), `test_cli_wf_roles.py`, `test_embedded_workflow_roles.py`, `test_workflow_roles.py` and the MCP cases in `test_mcp_write_tools.py`.
+
+### Alternatives considered
+| Option | Why not |
+|---|---|
+| Keep `actor_roles` as a field and have the API overwrite it | A field is a way in for every path that builds a command from JSON (a proposal, a tool, a new route); the argument cannot be set from any of them |
+| A declared table mapping guard names (`manager`) to account roles | A second vocabulary to keep in step with the first, for names nobody holds; the guard names account roles until a real source of other roles exists |
+| Reject only on the API and leave `--role` in the CLI | The CLI on a Postgres target is a remote client of a shared ledger: the same claim passes there |

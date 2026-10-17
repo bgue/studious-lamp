@@ -29,7 +29,7 @@ Purpose: list, inspect, accept or reject the changes AI agents proposed through 
    curl -s -X POST -H "Authorization: Bearer $TOKEN" localhost:8765/proposals/<id>/accept
    curl -s -X POST -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' -d '{"reason":"no"}' localhost:8765/proposals/<id>/reject
    ```
-   Add `"roles": ["manager"]` to the accept body (or `--role manager` on the CLI) to accept a workflow transition whose guard needs a role. A proposal never carries roles: you supply the ones you hold.
+   A workflow transition whose guard needs a role is judged with the roles of the account you are signed in as (a document controller or an admin passes `core.review`'s `issue`). Nobody supplies roles: an accept body that carries `roles` is refused (422 `role_claim_refused`), and `--role` on the CLI counts only on a ledger file in a dev setup, where it is accepted like `--actor` (ADR-0013, addendum P1-SEC1). A proposal never carries roles either.
 
 ## Verify
 - `uv run tl proposal ls --project P123 --status all` shows the proposal as `accepted` or `rejected`.
