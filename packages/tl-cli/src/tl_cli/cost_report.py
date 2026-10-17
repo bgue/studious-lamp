@@ -1,15 +1,8 @@
-# ruff: noqa: F401, F841
-# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 """`tl cost report budget|uncoded`: the cost reports (P1-I4-T10a).
 
 Both read and write nothing. The reports are the module's (`tl_mod_cost.reports`); these commands
 parse options and print one line per fact, with two spaces between fields. Figures are printed
 with `money()` of `tl_cli.cost_read`; a figure the snapshot did not state is `-`.
-
-
-STUB (P1-I4-T10a): the bodies of `budget` and `uncoded` are `NotImplementedError`; the options,
-docstrings (the exact output) and `register` are written. The ticket fills the bodies by their
-STEPS comments.
 """
 
 from __future__ import annotations
@@ -46,22 +39,30 @@ def budget(
     budget above zero), `linked` is the number of records linked to the code. A `--unit` other
     than the three is `error: ...` on stderr, exit 1.
     """
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`.
-    # 2. A `--unit` that is not in `UNITS` is `fail(f"unit must be one of {',
-    #    '.join(UNITS)}")` (it prints `error: ...` on stderr and exits 1). Do this before
-    #    you open the database.
-    # 3. Open the read with `with service_errors(), open_uow(db, readonly=True) as uow:`
-    #    (reads write nothing, and a module error becomes `error: ...` on stderr with exit
-    #    1), call the report with `uow.conn()` and the scope `f"project:{project}"`, and
-    #    leave the `with` before you print. The report is `reports.budget_report(conn,
-    #    scope, unit=unit, parent=parent, over_only=over, limit=limit)`.
-    # 4. Print `budget report (<unit>): <n> codes, <k> over budget` where k counts the lines
-    #    with `over_budget`.
-    # 5. Per line print the line of the docstring: the figures with `money(x)` (the helper
-    #    imported above: `-` for none), `spent` as `<percent:.1f>%` or `-`, `over` or `ok`,
-    #    `cell(x.uom)` and `cell(x.title, 60)`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    if unit not in UNITS:
+        fail(f"unit must be one of {', '.join(UNITS)}")
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        found = reports.budget_report(
+            uow.conn(),
+            f"project:{project}",
+            unit=unit,
+            parent=parent,
+            over_only=over,
+            limit=limit,
+        )
+    over_count = sum(1 for line in found if line.over_budget)
+    typer.echo(f"budget report ({unit}): {len(found)} codes, {over_count} over budget")
+    for line in found:
+        spent = "-" if line.percent_spent is None else f"{line.percent_spent:.1f}%"
+        state = "over" if line.over_budget else "ok"
+        typer.echo(
+            f"{line.code}  level {line.level}  uom {cell(line.uom)}"
+            f"  budget {money(line.budget)}  actual {money(line.actual)}"
+            f"  eac {money(line.eac)}  variance {money(line.variance)}"
+            f"  spent {spent}  linked {line.linked_records}  {state}"
+            f"  {cell(line.title, 60)}"
+        )
 
 
 def uncoded(
@@ -77,16 +78,14 @@ def uncoded(
     First `records without a cost code (<type>): <n>`, then `<key or ->  <id>  <title>` for each,
     by key.
     """
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`.
-    # 2. Open the read with `with service_errors(), open_uow(db, readonly=True) as uow:`
-    #    (reads write nothing, and a module error becomes `error: ...` on stderr with exit
-    #    1), call the report with `uow.conn()` and the scope `f"project:{project}"`, and
-    #    leave the `with` before you print. The report is
-    #    `reports.records_without_cost_code(conn, scope, record_type, limit=limit)`.
-    # 3. Print `records without a cost code (<type>): <n>`, then one line per record:
-    #    `<cell(key)>  <id>  <cell(title, 60)>`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        found = reports.records_without_cost_code(
+            uow.conn(), f"project:{project}", record_type, limit=limit
+        )
+    typer.echo(f"records without a cost code ({record_type}): {len(found)}")
+    for record in found:
+        typer.echo(f"{cell(record.key)}  {record.id}  {cell(record.title, 60)}")
 
 
 def register(app: typer.Typer) -> None:
