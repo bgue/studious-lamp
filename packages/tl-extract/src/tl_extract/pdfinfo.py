@@ -51,6 +51,7 @@ NOT_PDF = "the file is not a PDF (no %PDF- header)"
 ENCRYPTED_PDF = "the PDF is encrypted; it cannot be read"
 DAMAGED_PDF = "the PDF is damaged and cannot be read"
 TOO_COMPLEX = "the PDF is too complex to read safely"
+XREF_DAMAGED = "the PDF's cross-reference table is damaged"
 BAD_PAGE_COUNT = "the PDF states a page count that is out of range"
 
 #: Limits of the byte scan.
@@ -92,6 +93,11 @@ class _OutOfBudget(BaseException):
     ``Exception`` and carry on, cannot swallow it."""
 
 
+class _NeedsRepair(_OutOfBudget):
+    """pypdf asked for the whole file at once, which it does only to repair an unparsable
+    cross-reference entry."""
+
+
 class _BudgetStream(io.BytesIO):
     """The bytes of the file, charging everything pypdf does with them.
 
@@ -99,7 +105,7 @@ class _BudgetStream(io.BytesIO):
     out costs one byte of a total of ``STREAM_BYTE_FACTOR`` times the file plus
     ``STREAM_BYTE_ALLOWANCE``. The ways to get the whole file at once, which pypdf's repair paths
     use once per unparsable cross-reference entry (``getbuffer``, ``getvalue``, ``readlines``), are
-    not allowed at all: a file that reaches them is ``pdf_too_complex``.
+    not allowed at all: a file that reaches them is ``damaged_pdf`` (its table is damaged).
     """
 
     def __init__(self, data: bytes) -> None:
@@ -153,13 +159,13 @@ class _BudgetStream(io.BytesIO):
         return self
 
     def readlines(self, hint: int | None = -1) -> list[bytes]:
-        raise _OutOfBudget
+        raise _NeedsRepair
 
     def getbuffer(self) -> memoryview:
-        raise _OutOfBudget
+        raise _NeedsRepair
 
     def getvalue(self) -> bytes:
-        raise _OutOfBudget
+        raise _NeedsRepair
 
 
 _DATE = re.compile(
@@ -305,6 +311,8 @@ def read_pdf_info(raw: bytes) -> PdfInfo:
     with _guarded_pypdf():
         try:
             _read_into(info, raw)
+        except _NeedsRepair as exc:
+            raise Refusal("damaged_pdf", XREF_DAMAGED) from exc
         except _OutOfBudget as exc:
             raise Refusal("pdf_too_complex", TOO_COMPLEX) from exc
     return info
