@@ -25,6 +25,10 @@ logging.getLogger("pypdf").addHandler(logging.NullHandler())
 #: A PDF whose header is not in the first kilobyte is not read as one.
 HEADER_WINDOW = 1024
 
+NOT_PDF = "the file is not a PDF (no %PDF- header)"
+ENCRYPTED_PDF = "the PDF is encrypted; it cannot be read"
+BROKEN_PDF = "the PDF is damaged and cannot be read"
+
 _DATE = re.compile(
     r"^(?:D:)?(\d{4})(\d{2})?(\d{2})?(\d{2})?(\d{2})?(\d{2})?"
     r"(?:(Z)(?:00'?(?:00'?)?)?|([+-])(\d{2})(?:'?(\d{2})'?)?)?$"
@@ -99,16 +103,16 @@ def read_pdf_info(raw: bytes) -> PdfInfo:
     could not open it or read its trailer).
     """
     if b"%PDF-" not in raw[:HEADER_WINDOW]:
-        raise Refusal("not_pdf", "the file is not a PDF (no %PDF- header)")
+        raise Refusal("not_pdf", NOT_PDF)
     try:
         reader = PdfReader(io.BytesIO(raw), strict=False)
         if reader.is_encrypted:
-            raise Refusal("encrypted_pdf", "the PDF is encrypted; it cannot be read")
+            raise Refusal("encrypted_pdf", ENCRYPTED_PDF)
         metadata = reader.metadata
     except Refusal:
         raise
     except Exception as exc:
-        raise Refusal("broken_pdf", "the PDF is damaged and cannot be read") from exc
+        raise Refusal("broken_pdf", BROKEN_PDF) from exc
     info = PdfInfo()
     try:
         info.page_count = len(reader.pages)

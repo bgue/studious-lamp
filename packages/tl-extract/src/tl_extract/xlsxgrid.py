@@ -50,6 +50,12 @@ XML_SUFFIXES = (".xml", ".rels", ".vml")
 SCAN_CHUNK = 64 * 1024
 FORBIDDEN = (b"<!DOCTYPE", b"<!ENTITY")
 
+NOT_XLSX = "the file is not an XLSX workbook (a ZIP archive)"
+LINKS_NOTE = "the workbook links to other workbooks; the links are not followed"
+MACROS_NOTE = "the workbook holds macros; they are never run"
+BLANK_RUN_NOTE = "reading stopped after {count} blank rows in a row"
+SHEET_NOT_FOUND = "there is no sheet {name}; the sheets are: {available}"
+
 
 def _member_limit(name: str) -> int:
     if name == "xl/sharedStrings.xml":
@@ -166,11 +172,11 @@ def read_xlsx(raw: bytes, options: TableOptions) -> RawGrid:
     ``too_much_text``.
     """
     if not raw.startswith(b"PK\x03\x04"):
-        raise Refusal("not_xlsx", "the file is not an XLSX workbook (a ZIP archive)")
+        raise Refusal("not_xlsx", NOT_XLSX)
     try:
         archive = zipfile.ZipFile(io.BytesIO(raw))
     except zipfile.BadZipFile as exc:
-        raise Refusal("not_xlsx", "the file is not an XLSX workbook (a ZIP archive)") from exc
+        raise Refusal("not_xlsx", NOT_XLSX) from exc
     with archive:
         try:
             check_archive(archive)
@@ -180,9 +186,9 @@ def read_xlsx(raw: bytes, options: TableOptions) -> RawGrid:
         names = set(archive.namelist())
     notes: list[str] = []
     if any(name.startswith("xl/externalLinks/") for name in names):
-        notes.append("the workbook links to other workbooks; the links are not followed")
+        notes.append(LINKS_NOTE)
     if "xl/vbaProject.bin" in names:
-        notes.append("the workbook holds macros; they are never run")
+        notes.append(MACROS_NOTE)
 
     with warnings.catch_warnings():
         # openpyxl warns about workbooks other programs wrote (no default style, unknown parts)
@@ -207,7 +213,7 @@ def _read_workbook(
                 available = ", ".join(shown(s.title, 40) for s in sheets[:10])
                 raise Refusal(
                     "sheet_not_found",
-                    f"there is no sheet {shown(options.sheet, 40)}; the sheets are: {available}",
+                    SHEET_NOT_FOUND.format(name=shown(options.sheet, 40), available=available),
                 )
         else:
             chosen = next((s for s in sheets if s.sheet_state == "visible"), sheets[0])
@@ -257,7 +263,7 @@ def _read_rows(
             skipped += 1
             blank_run += 1
             if blank_run >= MAX_BLANK_RUN:
-                notes.append(f"reading stopped after {MAX_BLANK_RUN} blank rows in a row")
+                notes.append(BLANK_RUN_NOTE.format(count=MAX_BLANK_RUN))
                 break
             continue
         blank_run = 0

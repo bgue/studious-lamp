@@ -24,6 +24,9 @@ MAX_LINE_CHARS = (MAX_COLUMNS + 1) * (MAX_CELL_CHARS + 1)
 DELIMITER_CANDIDATES = (",", ";", "\t", "|")
 DELIMITER_NAMES = {",": "comma", ";": "semicolon", "\t": "tab", "|": "bar"}
 
+NOT_UTF8 = "the file is not text in UTF-8 (or UTF-16 with a byte-order mark); save it as CSV UTF-8"
+DELIMITER_NOTE = "delimiter detected: {name}"
+
 
 def decode_text(raw: bytes) -> str:
     """The text of the file. A UTF-8 byte-order mark is dropped; UTF-16 is read when its byte-order
@@ -36,11 +39,7 @@ def decode_text(raw: bytes) -> str:
             return raw.decode("utf-16")
         return raw.decode("utf-8-sig")
     except UnicodeDecodeError as exc:
-        raise Refusal(
-            "not_utf8",
-            "the file is not text in UTF-8 (or UTF-16 with a byte-order mark); "
-            "save it as CSV UTF-8",
-        ) from exc
+        raise Refusal("not_utf8", NOT_UTF8) from exc
 
 
 def _lines(text: str) -> Iterator[str]:
@@ -98,7 +97,7 @@ def read_csv(raw: bytes, options: TableOptions) -> RawGrid:
     delimiter = options.delimiter or detect_delimiter(text, options.header_row)
     notes: list[str] = []
     if options.delimiter is None and delimiter != ",":
-        notes.append(f"delimiter detected: {DELIMITER_NAMES[delimiter]}")
+        notes.append(DELIMITER_NOTE.format(name=DELIMITER_NAMES[delimiter]))
     budget = CellBudget()
     rows: list[list[Cell]] = []
     skipped = 0

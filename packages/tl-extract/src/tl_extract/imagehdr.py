@@ -21,6 +21,9 @@ MAX_PNG_CHUNKS = 200
 MAX_JPEG_SEGMENTS = 500
 MAX_TIFF_ENTRIES = 512
 MAX_TIFF_TEXT = 4096
+
+NOT_AN_IMAGE = "the file is not a PNG, JPEG or TIFF image"
+BIGTIFF = "BigTIFF files are not read"
 _SOF_MARKERS = frozenset(
     {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}
 )
@@ -128,7 +131,7 @@ def _jpeg(raw: bytes) -> ImageInfo:
 
 def _tiff(raw: bytes) -> ImageInfo:
     if raw[2:3] == b"+" or raw[3:4] == b"+":
-        raise Refusal("unsupported_image", "BigTIFF files are not read")
+        raise Refusal("unsupported_image", BIGTIFF)
     order = "<" if raw[:2] == b"II" else ">"
     if len(raw) < 8:
         raise Refusal("broken_image", "the TIFF is too short")
@@ -190,7 +193,7 @@ def read_image_header(raw: bytes) -> ImageInfo:
     """
     kind = sniff(raw)
     if kind is None:
-        raise Refusal("not_an_image", "the file is not a PNG, JPEG or TIFF image")
+        raise Refusal("not_an_image", NOT_AN_IMAGE)
     try:
         if kind == "png":
             return _png(raw)
