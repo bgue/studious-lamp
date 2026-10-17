@@ -81,7 +81,7 @@ class ColumnProfile(BaseModel):
     non_empty: int
     distinct: int
     max_length: int
-    samples: list[str] = Field(default_factory=list, max_length=5)
+    samples: list[str] = Field(default_factory=list[str], max_length=5)
 
 
 class ExtractionProblem(BaseModel):
@@ -101,13 +101,13 @@ class ExtractionResult(BaseModel):
     metadata: FileMetadata | None = None
     #: The sheet the rows came from (XLSX).
     sheet: str | None = None
-    columns: list[str] = Field(default_factory=list)
+    columns: list[str] = Field(default_factory=list[str])
     #: Keys are exactly ``columns``, in order.
-    rows: list[dict[str, Cell]] = Field(default_factory=list)
-    profiles: list[ColumnProfile] = Field(default_factory=list)
-    problems: list[ExtractionProblem] = Field(default_factory=list)
+    rows: list[dict[str, Cell]] = Field(default_factory=list[dict[str, Cell]])
+    profiles: list[ColumnProfile] = Field(default_factory=list[ColumnProfile])
+    problems: list[ExtractionProblem] = Field(default_factory=list[ExtractionProblem])
     #: e.g. "content extraction stubbed (ADR-0008 decision 8)".
-    notes: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list[str])
 
 
 @runtime_checkable
