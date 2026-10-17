@@ -30,3 +30,16 @@ class CostImportRefusedError(CostError):
     def __init__(self, message: str, issues: list[str] | None = None) -> None:
         super().__init__(message)
         self.issues: list[str] = issues if issues is not None else []
+
+
+class CostFileError(CostError):
+    """The CSV of a cost snapshot cannot be read. ``code`` is fixed; ``row`` is the data row.
+
+    The message is fixed text plus a row number and a column name from the file's header; it never
+    holds a cell of the file.
+    """
+
+    def __init__(self, code: str, message: str, row: int | None = None) -> None:
+        super().__init__(message)
+        self.code = code
+        self.row = row

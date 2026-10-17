@@ -474,3 +474,24 @@ T14d came back blocked for two reasons that were both in the ticket: the provide
 
 ### L-P1-I3-13 (tests) Run the demo through every entry point that runs the pipeline; a process must configure what a command needs
 `tl proposal accept` of an agent's publication proposal failed in the demo with "no file service for derived data": only `tl derive` configured the derivation module's file service, and the accept command runs the publication in the CLI process. No unit test had run that path with the module unconfigured. A test for such a path calls `store.configure(None)` first, so only the command's own set-up can make it pass (`test_cli_proposal_publish.py`). The demo also found that two fixtures that share tag numbers cannot both be published after one is compensated (a compensated key is never reused): give demo data distinct keys.
+
+### L-P1-I4-1 (security) In a pattern for numbers write `[0-9]`, not `\d`
+`\d` matches the digits of every script (Arabic-Indic, Devanagari) and `float()` and `int()` accept them, so a cost file with `١٢٣` passed a number check that was meant to be plain ASCII. Use `[0-9]` and `fullmatch`. A mutation of the cost CSV reader found it; `test_cost_csv_reader.py` pins it. Evidence: `tl_mod_cost/imports/reader.py` (`_NUMBER`).
+
+### L-P1-I4-2 (security) `str.isdigit()` is not "ASCII digits", and `int()` refuses more than 4300 digits
+A text a person typed (a link's pin) went through `int(pin) if pin.isdigit()`: `"²"` is `isdigit()` and `int("²")` raises, and a 5000-digit text raises too. Check `isascii()` and a length before `int()`. Evidence: `tl_mod_schedule/resolver.py` (`_pin_as_of`), `test_a_pin_that_is_not_a_snapshot_number_floats`.
+
+### L-P1-I4-3 (security) A tree limit in a file reader needs the depth of every node, not a walk from the roots
+The XER WBS depth limit held for files that list parents before children and was not enforced for other orders: the first version walked up from each node and never remembered. `test_largest.py` (60 000 nodes in a chain) found it; the reader keeps a depth map and a path-length cap and refuses `wbs_too_deep`. Test a limit with the worst shape, in the worst order. Evidence: `tl_xer/typed.py` (`_wbs_rows`).
+
+### L-P1-I4-4 (ledger) The link vocabulary is the thirteen of brief 7.1; a module names its target by the target's type
+A module cannot add a relation (`scheduled_by`, `costed_to` are unknown), so links to cost codes and activities use `references` and the type of the record they point at says what they mean. Do not filter links by relation in SQL; join the target table. Evidence: ADR-0015 section 5, `tl_mod_schedule/names.py` (`ACTIVITY_RELATION`).
+
+### L-P1-I4-5 (tests) Two traps of link and lock tests; and test data must be in the past
+The same record cannot link twice to one target (`DuplicateLinkError`): use two records or two activities. A write inside an open read unit of work times out on SQLite (the writer lock): evaluate arguments that write before the `with open_uow(...)`, or close the read transaction first. The clock of the build environment is ahead of the dates a test author imagines: a test that writes a future period is refused as such, so cost tests use 2026-05 to 2026-08. Evidence: `test_resolver.py`, `tl_mod_schedule/testing.py`, `tl_mod_cost/tests/test_module.py`.
+
+### L-P1-I4-6 (process) Mutate the reference before it becomes a ticket; a survivor is a missing test or a redundant guard
+Before a reference file was stubbed for a Haiku ticket, one guard at a time was removed (`mutate_generic.py` style: replace a line, run the file's tests). The cost reader, the look-ahead and the resolver had 0, 0 and 8 survivors at first; the resolver's were a missing trailing-text test, a missing non-ASCII pin test, a person-flagged link on an absent activity, a retracted link, a `broken` link with the module's own words, a second schedule, and three guards that nothing can reach (kept). Without the tests the Haiku implementer could pass a wrong boundary. Evidence: `docs/tickets/P1-I4/` provided tests.
+
+### L-P1-I4-7 (ledger) Large typed rows of a snapshot are operational tables, with a hash in the ledger
+20 000 activities of up to 100 columns would be events of megabytes. The snapshot's typed rows (`sched_*`) are written by the build job in its own transaction, never cleared by a projection rebuild, and checked against the SHA-256 of the canonical rows recorded in `ScheduleSnapshot.Built`; `tl xer reconcile` rewrites them from the source file after a restore. Use the same shape for any derived table a job writes that is bigger than an event should be (ADR-0014, ADR-0015). Evidence: `tl_mod_schedule/projectors/tables.py`, `build.py`.

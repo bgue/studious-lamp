@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,7 @@ from tl_mod_schedule.handlers.snapshots import (
     handle_start_schedule_snapshot,
     handle_void_schedule_snapshot,
 )
+from tl_mod_schedule.registry import ActivityRow, RelationshipRow
 from tl_mod_schedule.worker import build_worker
 
 PROJECT = "project:P123"
@@ -189,3 +191,48 @@ class ScheduleWorld:
 
     def scenario_xer(self, scenario: Scenario) -> bytes:
         return make_xer(scenario)
+
+
+def make_activity(activity_id: str, **more: Any) -> ActivityRow:
+    """An ``ActivityRow`` for a test that needs no database: a task from 2026-10-05, 40 h of float.
+
+    Keyword arguments replace fields (``total_float_hr=0.0``, ``status="in_progress"``).
+    """
+    base = ActivityRow(
+        snapshot_id="s",
+        activity_id=activity_id,
+        task_id=activity_id,
+        name=f"Activity {activity_id}",
+        wbs_id="1",
+        wbs_path="P > W",
+        task_type="task",
+        status="not_started",
+        calendar_id="1",
+        original_duration_hr=80.0,
+        remaining_duration_hr=80.0,
+        early_start="2026-10-05T08:00",
+        early_finish="2026-10-16T16:00",
+        late_start="2026-10-12T08:00",
+        late_finish="2026-10-23T16:00",
+        actual_start=None,
+        actual_finish=None,
+        target_start="2026-10-05T08:00",
+        target_finish="2026-10-16T16:00",
+        total_float_hr=40.0,
+        free_float_hr=40.0,
+        percent_complete=0.0,
+        percent_type="CP_Drtn",
+        constraint_type=None,
+        constraint_date=None,
+        critical=False,
+        longest_path=False,
+        seq=1,
+    )
+    return replace(base, **more)
+
+
+def make_relationship(
+    pred: str, succ: str, kind: str = "FS", lag_hr: float = 0.0
+) -> RelationshipRow:
+    """A ``RelationshipRow`` for a test that needs no database."""
+    return RelationshipRow("s", pred, succ, kind, lag_hr, 1)

@@ -10,45 +10,10 @@ from tl_mod_schedule import compare, registry
 from tl_mod_schedule.compare import SnapshotData
 from tl_mod_schedule.compare import compare as compare_snapshots
 from tl_mod_schedule.registry import ActivityRow, RelationshipRow
-from tl_mod_schedule.testing import ScheduleWorld
+from tl_mod_schedule.testing import ScheduleWorld, make_activity, make_relationship
 
-
-def act(activity_id: str, **more: object) -> ActivityRow:
-    base = ActivityRow(
-        snapshot_id="s",
-        activity_id=activity_id,
-        task_id=activity_id,
-        name=f"Activity {activity_id}",
-        wbs_id="1",
-        wbs_path="P > W",
-        task_type="task",
-        status="not_started",
-        calendar_id="1",
-        original_duration_hr=80.0,
-        remaining_duration_hr=80.0,
-        early_start="2026-10-05T08:00",
-        early_finish="2026-10-16T16:00",
-        late_start="2026-10-12T08:00",
-        late_finish="2026-10-23T16:00",
-        actual_start=None,
-        actual_finish=None,
-        target_start="2026-10-05T08:00",
-        target_finish="2026-10-16T16:00",
-        total_float_hr=40.0,
-        free_float_hr=40.0,
-        percent_complete=0.0,
-        percent_type="CP_Drtn",
-        constraint_type=None,
-        constraint_date=None,
-        critical=False,
-        longest_path=False,
-        seq=1,
-    )
-    return replace(base, **more)  # type: ignore[arg-type]
-
-
-def rel(pred: str, succ: str, kind: str = "FS", lag: float = 0.0) -> RelationshipRow:
-    return RelationshipRow("s", pred, succ, kind, lag, 1)
+act = make_activity
+rel = make_relationship
 
 
 def snap(
