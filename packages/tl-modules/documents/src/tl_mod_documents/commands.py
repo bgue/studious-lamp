@@ -25,6 +25,32 @@ from typing import Any, Literal
 from tl_core.services.commands import Command, CommandResult
 from tl_core.uow import UnitOfWork
 
+from tl_mod_documents.derivation.derived import (
+    CancelJob,
+    OpenDerivedDocument,
+    StartExtraction,
+    ValidateDerived,
+    VoidDerivedDocument,
+    handle_cancel_job,
+    handle_open_derived_document,
+    handle_start_extraction,
+    handle_validate_derived,
+    handle_void_derived_document,
+)
+from tl_mod_documents.derivation.publish import (
+    CompensatePublication,
+    PublishDerivedDocuments,
+    PublishDerivedTags,
+    handle_compensate_publication,
+    handle_publish_derived_documents,
+    handle_publish_derived_tags,
+)
+from tl_mod_documents.derivation.schemas import (
+    RegisterDocumentSchema,
+    RetireDocumentSchema,
+    handle_register_document_schema,
+    handle_retire_document_schema,
+)
 from tl_mod_documents.handlers.documents import (
     RegisterDocument,
     SetDocumentConfidentiality,
@@ -121,4 +147,19 @@ API_COMMANDS: tuple[ApiCommand, ...] = (
     ApiCommand(CloseReviewCycle, handle_close_review_cycle, "user"),
     ApiCommand(RecordReviewOutcomeOnBehalf, handle_record_review_outcome_on_behalf, "controller"),
     ApiCommand(OverrideReviewOutcome, handle_override_review_outcome, "controller"),
+    # the derivation pipeline (P1-I3, ADR-0014). Document schemas are registry data: the admin's.
+    # Running work (opening, extracting, checking again, cancelling, voiding) is any signed-in
+    # person's. Publishing needs the access of the bulk import of the target type (tags: the
+    # admin's, as `tl tag import --apply`; documents: the controller's, as `tl doc import
+    # --apply`); rolling a publication back is the admin's.
+    ApiCommand(RegisterDocumentSchema, handle_register_document_schema, "admin"),
+    ApiCommand(RetireDocumentSchema, handle_retire_document_schema, "admin"),
+    ApiCommand(OpenDerivedDocument, handle_open_derived_document, "user"),
+    ApiCommand(StartExtraction, handle_start_extraction, "user"),
+    ApiCommand(ValidateDerived, handle_validate_derived, "user"),
+    ApiCommand(CancelJob, handle_cancel_job, "user"),
+    ApiCommand(VoidDerivedDocument, handle_void_derived_document, "user"),
+    ApiCommand(PublishDerivedTags, handle_publish_derived_tags, "admin"),
+    ApiCommand(PublishDerivedDocuments, handle_publish_derived_documents, "controller"),
+    ApiCommand(CompensatePublication, handle_compensate_publication, "admin"),
 )

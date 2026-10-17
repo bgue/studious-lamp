@@ -27,8 +27,8 @@ def create(h: Harness, key: str = "REC-1", **extra: Any) -> dict[str, Any]:
 def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     paths = harness.app.openapi()["paths"]
     assert {f"/commands/{spec.name}" for spec in COMMANDS} <= set(paths)
-    # the core commands, the engineering module's (14) and the documents module's (24)
-    assert len(COMMANDS) == 20 + 14 + 24
+    # the core commands, the engineering module's (14) and the documents module's (34)
+    assert len(COMMANDS) == 20 + 14 + 24 + 10  # + the derivation pipeline (P1-I3)
 
 
 def test_create_record_returns_the_command_result(harness: Harness) -> None:
@@ -217,7 +217,7 @@ def test_a_command_with_no_body_is_a_422_not_a_500(harness: Harness, spec) -> No
 
 
 def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> None:
-    """The authorizer's list (ADR-0013) is derived from the typed table; this pins the ten."""
+    """The authorizer's list (ADR-0013) is derived from the typed table; this pins the eleven."""
     from tl_api.commands import controller_actions
 
     assert controller_actions() == {
@@ -233,6 +233,7 @@ def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> 
             "IssueTransmittal",
             "RecordReviewOutcomeOnBehalf",
             "OverrideReviewOutcome",
+            "PublishDerivedDocuments",
         )
     }
     assert {s.name for s in COMMANDS if s.access == "controller"} == {

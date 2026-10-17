@@ -146,6 +146,9 @@ class DyingExtractor(FakeExtractor):
 
     name = "dying"
 
+    def accepts(self, source: SourceFile) -> bool:
+        return source.filename.endswith(".die")
+
     def extract(
         self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
     ) -> ExtractionResult:
@@ -159,6 +162,9 @@ class GreedyExtractor(FakeExtractor):
 
     name = "greedy"
 
+    def accepts(self, source: SourceFile) -> bool:
+        return source.filename.endswith(".greedy")
+
     def extract(
         self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
     ) -> ExtractionResult:
@@ -171,8 +177,39 @@ class GreedyExtractor(FakeExtractor):
         )
 
 
-def make_extractors() -> dict[str, FakeExtractor]:
-    """The extractors of the child-process tests, by name (an ``isolated`` factory)."""
+class PdfStubExtractor:
+    """Reads no content from a PDF, as ADR-0008 decision 8 says: metadata only, rows empty."""
+
+    name = "pdfstub"
+    version = "1"
+
+    def accepts(self, source: SourceFile) -> bool:
+        return source.filename.lower().endswith(".pdf")
+
+    def extract(
+        self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
+    ) -> ExtractionResult:
+        data.read()
+        return ExtractionResult(
+            extractor=self.name,
+            extractor_version=self.version,
+            status="metadata_only",
+            metadata=FileMetadata(
+                content_type=source.content_type, size=source.size, sha256=source.sha256
+            ),
+            notes=["content extraction stubbed (ADR-0008 decision 8)"],
+        )
+
+
+def make_extractors() -> dict[str, Any]:
+    """The extractors of the pipeline tests, by name (an ``isolated`` factory)."""
     return {
-        e.name: e for e in (FakeExtractor(), SlowExtractor(), DyingExtractor(), GreedyExtractor())
+        e.name: e
+        for e in (
+            FakeExtractor(),
+            SlowExtractor(),
+            DyingExtractor(),
+            GreedyExtractor(),
+            PdfStubExtractor(),
+        )
     }

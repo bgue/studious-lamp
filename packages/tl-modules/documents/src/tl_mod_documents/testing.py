@@ -37,6 +37,41 @@ from tl_mod_documents.handlers.revisions import (
 )
 
 PROJECT = "project:P123"
+EXTRACTOR_FACTORY = "tl_core.derivation.testing:make_extractors"
+
+#: A small document schema and its publish mapping, for the pipeline tests.
+INDEX_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["tag", "type"],
+    "properties": {
+        "tag": {"type": "string", "pattern": "^[0-9]{2}-[A-Z]{2,3}-[0-9]{3,5}$"},
+        "service": {"type": "string"},
+        "type": {"type": "string", "enum": ["CV", "HV", "PSV"]},
+        "size_in": {"type": "number", "minimum": 0.25},
+    },
+}
+INDEX_MAPPING: dict[str, Any] = {
+    "target": "tags",
+    "key_column": "tag",
+    "columns": [
+        {"column": "tag", "to": "number"},
+        {"column": "service", "to": "service"},
+        {
+            "column": "type",
+            "to": "class",
+            "values": {"CV": "ControlValve", "HV": "ManualValve", "PSV": "SafetyValve"},
+        },
+        {"column": "size_in", "to": "psets.valve_data.size_in"},
+    ],
+}
+
+
+def index_csv(rows: list[tuple[str, str, str, str]]) -> bytes:
+    """A CSV of the instrument-index schema: (tag, service, type, size_in) per row."""
+    lines = ["tag,service,type,size_in", *(",".join(row) for row in rows)]
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
 BASE: dict[str, Any] = {"actor": "user:u", "source": "test", "scope": PROJECT}
 PDF = b"%PDF-1.7 isometric drawing sheet"
 
@@ -232,6 +267,152 @@ class DocumentsWorld:
                 ),
                 by_module=True,
             )
+
+    # --- the derivation pipeline (P1-I3) -----------------------------------------------------
+
+    def register_schema(
+        self,
+        *,
+        code: str = "instrument-index",
+        semver: str = "1.0.0",
+        scope: str = "company",
+        **more: Any,
+    ) -> CommandResult:
+        """Register a document schema version as an admin would (the default: ``INDEX_SCHEMA``)."""
+        from tl_mod_documents.derivation.schemas import (
+            RegisterDocumentSchema,
+            handle_register_document_schema,
+        )
+
+        fields: dict[str, Any] = {
+            "title": "Instrument index",
+            "json_schema": INDEX_SCHEMA,
+            "key_column": "tag",
+            "target_kind": "tags",
+            "mapping": INDEX_MAPPING,
+        }
+        fields.update(more)
+        with open_uow(self.db) as uow:
+            return handle_register_document_schema(
+                uow,
+                RegisterDocumentSchema(
+                    **{**BASE, "scope": scope, "code": code, "semver": semver, **fields}
+                ),
+            )
+
+    def open_derived(self, number: str, code: str, schema_code: str = "instrument-index") -> Any:
+        from tl_mod_documents.derivation import rows
+        from tl_mod_documents.derivation.derived import (
+            OpenDerivedDocument,
+            handle_open_derived_document,
+        )
+
+        rev = self.revision(number, code)
+        with open_uow(self.db) as uow:
+            made = handle_open_derived_document(
+                uow, OpenDerivedDocument(**BASE, revision_id=rev.id, schema_code=schema_code)
+            )
+        with open_uow(self.db, readonly=True) as uow:
+            return rows.get_derived(uow.conn(), made.stream_id)
+
+    def derived_row(self, derived_id: str) -> Any:
+        from tl_mod_documents.derivation import rows
+
+        with open_uow(self.db, readonly=True) as uow:
+            found = rows.get_derived(uow.conn(), derived_id)
+        assert found is not None
+        return found
+
+    def contents(self, derived_id: str) -> list[Any]:
+        from tl_mod_documents.derivation import rows
+
+        with open_uow(self.db, readonly=True) as uow:
+            return rows.contents_of(uow.conn(), derived_id)
+
+    def jobs(self, derived_id: str | None = None) -> list[Any]:
+        from tl_mod_documents.derivation import rows
+
+        with open_uow(self.db, readonly=True) as uow:
+            return rows.list_jobs(uow.conn(), PROJECT, derived_id=derived_id)
+
+    def upload_content(
+        self, derived_id: str, data: bytes, name: str = "index.csv", content_type: str = "text/csv"
+    ) -> FileResult:
+        """A person attaches a CSV to the derived document's ``content`` slot."""
+        declared = RegisterUpload(
+            **BASE,
+            record_id=derived_id,
+            slot="content",
+            filename=name,
+            content_type=content_type,
+            size=len(data),
+            sha256=hashlib.sha256(data).hexdigest(),
+        )
+        with open_uow(self.db) as uow:
+            ticket = self.files.register_upload(uow, declared)
+        with open_uow(self.db) as uow:
+            return self.files.complete_upload(
+                uow, CompleteUpload(**BASE, upload_id=ticket.upload_id), io.BytesIO(data)
+            )
+
+    def start_extraction(self, **fields: Any) -> CommandResult:
+        from tl_mod_documents.derivation.derived import StartExtraction, handle_start_extraction
+
+        with open_uow(self.db) as uow:
+            return handle_start_extraction(uow, StartExtraction(**{**BASE, **fields}))
+
+    def run_jobs(
+        self, *, timeout_s: float = 60.0, worker: str = "test-worker", clock: Any = None
+    ) -> list[Any]:
+        """Run the job queue to idle with the real job kinds and the child-process extractors."""
+        from tl_adapters.db import make_uow_factory
+        from tl_adapters.queue import job_queue_for
+        from tl_core.jobs import JobRunner
+
+        from tl_mod_documents.derivation.jobs import make_kinds
+
+        factory = make_uow_factory(self.db)
+        try:
+            with factory() as uow:
+                queue = job_queue_for(uow.conn())
+            kwargs: dict[str, Any] = {} if clock is None else {"clock": clock}
+            runner = JobRunner(
+                factory,
+                queue,
+                make_kinds(self.files, timeout_s=timeout_s, factory=EXTRACTOR_FACTORY),
+                worker_id=worker,
+                **kwargs,
+            )
+            return runner.run_until_idle()
+        finally:
+            factory.dispose()
+
+    def load_standards(self) -> None:
+        """The sample company's standards (tag classes, mnemonics, numbering) into the ledger."""
+        from tl_mod_engineering.document import load_standards_file
+        from tl_mod_engineering.loader import load_standards
+
+        path = (
+            Path(__file__).resolve().parents[5]
+            / "schema/fixtures/standards/co.acme.standards@1.0.0.yaml"
+        )
+        with open_uow(self.db) as uow:
+            load_standards(uow, load_standards_file(path), actor="user:seed", source="test")
+
+    def valid_derived(
+        self,
+        rows: list[tuple[str, str, str, str]],
+        *,
+        number: str = "ISD-001",
+        code: str = "A",
+        schema_code: str = "instrument-index",
+    ) -> Any:
+        """A derived document that read ``rows`` from an uploaded CSV and passed its schema."""
+        derived = self.open_derived(number, code, schema_code)
+        self.upload_content(derived.id, index_csv(rows))
+        self.start_extraction(derived_id=derived.id)
+        self.run_jobs()
+        return self.derived_row(derived.id)
 
     def link_status(self, link_id: str) -> str:
         return str(self.scalar("SELECT status FROM cur_links WHERE link_id = :i", i=link_id))

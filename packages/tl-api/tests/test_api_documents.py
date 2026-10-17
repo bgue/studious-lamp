@@ -48,6 +48,17 @@ EXPECTED_ACCESS = {
     "CloseReviewCycle": "user",
     "RecordReviewOutcomeOnBehalf": "controller",
     "OverrideReviewOutcome": "controller",
+    # the derivation pipeline (P1-I3, ADR-0014)
+    "RegisterDocumentSchema": "admin",
+    "RetireDocumentSchema": "admin",
+    "OpenDerivedDocument": "user",
+    "StartExtraction": "user",
+    "ValidateDerived": "user",
+    "CancelJob": "user",
+    "VoidDerivedDocument": "user",
+    "PublishDerivedTags": "admin",
+    "PublishDerivedDocuments": "controller",
+    "CompensatePublication": "admin",
 }
 
 

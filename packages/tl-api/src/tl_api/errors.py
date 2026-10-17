@@ -193,6 +193,16 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(doc.InvalidReviewError, "invalid_review", 422),
         s(ImportRefusedError, "import_refused", 422),  # `tl doc import`; no route offers it yet
         s(doc.NotYourReviewError, "not_your_review", 403),
+        s(doc.SchemaNotFoundError, "schema_not_found", 404),
+        s(doc.InvalidDocumentSchemaError, "invalid_document_schema", 422),
+        s(doc.DerivedNotFoundError, "derived_not_found", 404),
+        s(doc.DerivedStateError, "derived_state", 409),
+        s(doc.InvalidSourceError, "invalid_source", 422),
+        s(doc.JobNotFoundError, "job_not_found", 404),
+        s(doc.JobStateError, "job_state", 409),
+        s(doc.DerivationNotConfiguredError, "derivation_unavailable", 503),
+        s(doc.PublishRefusedError, "publish_refused", 422),
+        s(doc.CompensationRefusedError, "compensation_refused", 409),
     )
 
 
@@ -283,7 +293,16 @@ def body_for(exc: BaseException) -> tuple[int, ErrorBody] | None:
         body.issues = list(exc.issues)
     elif isinstance(exc, (eng.InvalidTagNumberError, doc.InvalidDocumentNumberError)):
         body.issues = list(exc.issues)  # one dict per problem: segment, rule, level, message
-    elif isinstance(exc, (eng.StandardsLoadError, eng.ImportApplyError)):
+    elif isinstance(
+        exc,
+        (
+            eng.StandardsLoadError,
+            eng.ImportApplyError,
+            doc.InvalidDocumentSchemaError,
+            doc.PublishRefusedError,
+            doc.CompensationRefusedError,
+        ),
+    ):
         body.issues = list(exc.problems)
     elif isinstance(exc, auth.AccountLockedError):
         body.locked_until = exc.locked_until
@@ -324,6 +343,12 @@ def exception_for(status: int, body: dict[str, Any]) -> Exception:
             return eng.StandardsLoadError(message, [str(i) for i in body.get("issues") or []])
         if spec.exc is eng.ImportApplyError:
             return eng.ImportApplyError(message, [str(i) for i in body.get("issues") or []])
+        if spec.exc in (
+            doc.InvalidDocumentSchemaError,
+            doc.PublishRefusedError,
+            doc.CompensationRefusedError,
+        ):
+            return spec.exc(message, [str(i) for i in body.get("issues") or []])
         if spec.exc is auth.AccountLockedError:
             until = body.get("locked_until")
             return auth.AccountLockedError(message, None if until is None else str(until))

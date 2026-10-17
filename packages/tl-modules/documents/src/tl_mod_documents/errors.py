@@ -113,3 +113,58 @@ class InvalidReviewError(DocumentsError):
 
 class NotYourReviewError(DocumentsError):
     """Only the reviewer records their own answer; a document controller can record one for them."""
+
+
+# --- the derivation pipeline (P1-I3, ADR-0014) ----------------------------------------------------
+
+
+class SchemaNotFoundError(DocumentsError):
+    """No document schema with that id, or code and version, in the scope."""
+
+
+class InvalidDocumentSchemaError(DocumentsError):
+    """The document schema as written cannot be used. ``problems`` lists every reason."""
+
+    def __init__(self, message: str, problems: list[str] | None = None) -> None:
+        super().__init__(message)
+        self.problems: list[str] = problems if problems is not None else [message]
+
+
+class DerivedNotFoundError(DocumentsError):
+    """No derived document with that id or key in the scope."""
+
+
+class DerivedStateError(DocumentsError):
+    """The derived document is not in a state that allows the change."""
+
+
+class InvalidSourceError(DocumentsError):
+    """The file to read cannot be used: not on this revision, in the wrong slot, or unreadable."""
+
+
+class JobNotFoundError(DocumentsError):
+    """No processing job with that id in the scope."""
+
+
+class JobStateError(DocumentsError):
+    """The job is not in a state that allows the change (only a queued job is cancelled)."""
+
+
+class DerivationNotConfiguredError(DocumentsError):
+    """This process has no file service for derived data (it was set up without one)."""
+
+
+class PublishRefusedError(DocumentsError):
+    """The derived document cannot be published as it stands. ``problems`` lists every reason."""
+
+    def __init__(self, message: str, problems: list[str] | None = None) -> None:
+        super().__init__(message)
+        self.problems: list[str] = problems if problems is not None else [message]
+
+
+class CompensationRefusedError(DocumentsError):
+    """The publication cannot be rolled back as it stands. ``problems`` lists every reason."""
+
+    def __init__(self, message: str, problems: list[str] | None = None) -> None:
+        super().__init__(message)
+        self.problems: list[str] = problems if problems is not None else [message]
