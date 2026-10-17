@@ -12,8 +12,15 @@ from collections.abc import Iterable
 
 from tl_core.derivation import (
     MAX_CELL_CHARS,
+    MAX_CELLS,
     MAX_COLUMNS,
+    MAX_MESSAGE_CHARS,
+    MAX_NAME_CHARS,
+    MAX_NOTES,
+    MAX_PROBLEMS,
     MAX_ROWS,
+    MAX_SHEET_NAMES,
+    MAX_TEXT_CHARS,
     ExtractionResult,
     Extractor,
     SourceFile,
@@ -50,7 +57,21 @@ def check_result_shape(extractor: Extractor, source: SourceFile, result: Extract
         assert list(row) == result.columns, "every row has exactly the columns, in order"
         for value in row.values():
             assert value is None or (isinstance(value, str) and len(value) <= MAX_CELL_CHARS)
+    assert len(result.rows) * len(result.columns) <= MAX_CELLS
+    assert all(len(name) <= MAX_NAME_CHARS for name in result.columns)
+    assert result.sheet is None or len(result.sheet) <= MAX_NAME_CHARS
+    assert len(result.notes) <= MAX_NOTES
+    assert all(len(note) <= MAX_TEXT_CHARS for note in result.notes)
+    assert len(result.problems) <= MAX_PROBLEMS
+    if result.metadata is not None:
+        meta = result.metadata
+        for text in (meta.title, meta.author, meta.created, meta.modified, meta.producer):
+            assert text is None or len(text) <= MAX_TEXT_CHARS
+        names = meta.sheet_names or []
+        assert len(names) <= MAX_SHEET_NAMES
+        assert all(len(name) <= MAX_NAME_CHARS for name in names)
     for problem in result.problems:
+        assert len(problem.message) <= MAX_MESSAGE_CHARS
         assert "Traceback" not in problem.message
         assert "/home/" not in problem.message and "/tmp/" not in problem.message
 
