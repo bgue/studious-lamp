@@ -1,6 +1,6 @@
 # Increment plan — P1-I4 Cost snapshots (M11) and P6 XER schedule snapshots
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-17
 Brief sections: §9 M11, §7.2 and §7.3 (links by stable id, orphans), §9 M1 (derivation path, shared with ADR-0014), §28 (lake bronze and silver), §8 and §18 (access; agents propose), §24.6 (runbooks)
 Branch: `p1/i4`
@@ -42,39 +42,38 @@ The exact commands are fixed when the CLI lands and are copied from `dev/demos/P
 | S12 | Reports of both modules (`tl_mod_cost.reports`, `tl_mod_schedule.reports`) and the TUI text helpers (`schedule_text.py`) the tickets use | Reads that decide (variance, over budget, which records have no cost code or activity) | — | done |
 | S13 | Lake loader for schedule snapshots (bronze `xer_*`, silver `schedule_snapshot` and `schedule_activity`, mart `mart_float_trend`), the weekly series generator `tl_xer.synth.series`, reads that refuse while the typed rows are missing | Core engine: sync, transaction, rebuild equality | orchestrator review | done |
 | S15 | Simulator: `ScheduleDesk` and the client calls (open, attach, start, link), `Recorder.schedules/activities/send_update/link_activity`, the `snapshot.queued` intent, `Scenario.operators` and the rules of `sim_assert` for them and for file events, `FakeWorld.define_schedule` and the schedule calls (held to the real suite call by call), the actor `schedule_updater` (the T12 actor, taken over), the scenario `schedule-weeks` | Changes what `sim_assert` excuses | orchestrator review | done |
-| S14 | Demo script `dev/demos/P1-I4.sh`, module pages, package READMEs and AGENTS.md, runbook | — | — | done; gates and report after the tickets |
+| S14 | Demo script `dev/demos/P1-I4.sh`, module pages, package READMEs and AGENTS.md, runbook | — | — | done |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
 | T01 | LinkML schema of both modules | S | — | done (S2) | built by supervisor |
 | T02a | Cost snapshot CSV reader | H | S6 | merged (4fa7e18) | passed review first time; 84 provided tests; diff to the reference is cosmetic |
-| T02b | `tl cost snapshots\|codes\|show` (reads) | H | S8 | ready | stub, 9 provided tests, mutation-checked |
+| T02b | `tl cost snapshots\|codes\|show` (reads) | H | S8 | merged (a1a7490) | 9 tests on SQLite, 18 on both adapters; `show` cuts parent and uom at 40 characters with `cell()` (disclosed) |
 | T03 | XER parser (all tables raw, typed activities, WBS, relationships, calendars, codes, UDFs) | S | T01 | done (S1) | built by supervisor |
 | T04 | XER `DocumentSchema` validation | S (taken over) | T03 | done (S1) | the plan had this as H; the check list is one security-reviewed table inside `tl_xer.typed`, so it was built with T03 (L-P1-I3-5) |
 | T05 | Snapshot build: operational tables, `Schedule.SnapshotPublished` | S (taken over) | T04 | done (S4) | job, projectors and publish are core-engine work |
 | T06 | Snapshot compare | S | T05 | done (S4) | built by supervisor |
 | T07 | Activity-id link resolution, as-of, orphans | H | S6 | merged (ef3baa2) | passed review first time; 22 tests on SQLite, 44 on both adapters |
 | T08 | Look-ahead query | H | S6 | merged (1c5056b) | passed review first time; the reviewer's mutation spot-check was caught |
-| T09a1 | TUI: the schedules and their snapshots (F12), look-ahead, orphans, publish | H | S9 | ready | stub, 15 provided tests, mutation-checked |
-| T09a2 | TUI: the comparison of two snapshots | H | S9 | ready | stub, 9 provided tests, mutation-checked |
-| T09a3 | TUI: the activities of a snapshot and one activity | H | S9 | ready | stub, 15 provided tests, mutation-checked |
-| T09b | `tl xer ls\|show\|activities\|activity\|resolve\|health` | H | S8 | ready | stub, 18 provided tests, mutation-checked |
-| T09c | `tl xer compare\|look-ahead\|trend` (split from T09b: two files) | H | S8 | ready | stub, 12 provided tests, mutation-checked |
-| T10a | `tl cost report budget\|uncoded` (the report functions are S12) | H | S12 | ready | stub, 7 provided tests, mutation-checked |
-| T10b | `tl xer unscheduled` (the report function is S12; the IWP-vs-activity report takes the record type as an option until Phase 2) | H | S12 | ready | stub, 5 provided tests, mutation-checked |
+| T09a1 | TUI: the schedules and their snapshots (F12), look-ahead, orphans, publish | H | S9 | merged (7e93e13) | 15 tests; the full tl-tui suite passed (912) in the implementer's run; the blank-line order in `_describe` differs from the reference with the same output |
+| T09a2 | TUI: the comparison of two snapshots | H | S9 | merged (f32d17f) | 9 tests |
+| T09a3 | TUI: the activities of a snapshot and one activity | H | S9 | merged (6d3a917) | passed review first time |
+| T09b | `tl xer ls\|show\|activities\|activity\|resolve\|health` | H | S8 | merged (6371aa4) | 18 tests on SQLite, 36 on both adapters; no cut on the show title or the resolve name (disclosed) |
+| T09c | `tl xer compare\|look-ahead\|trend` (split from T09b: two files) | H | S8 | merged (1151bb4) | 12 tests on SQLite, 24 on both adapters; a `None` in a critical or duration row prints `-` (supervisor decision, same rule as float rows) |
+| T10a | `tl cost report budget\|uncoded` (the report functions are S12) | H | S12 | merged (1bcd90d) | passed review first time |
+| T10b | `tl xer unscheduled` (the report function is S12; the IWP-vs-activity report takes the record type as an option until Phase 2) | H | S12 | merged (f8f5767) | 5 tests on SQLite, 10 on both adapters |
 | T11 | Lake: `xer_*` bronze, `schedule_activity` silver, float-trend mart | S (taken over) | S13 | done (S13) | the typed rows are not events, so the seq-driven sync cannot carry them: a second pass loads whole snapshots (core engine, rebuild equality, a transaction); the mart is one query inside it |
-| T13 | MCP read tools for schedules and cost (13 tools) | H | S10 | ready | stub, 13 provided tests, mutation-checked |
+| T13 | MCP read tools for schedules and cost (13 tools) | H | S10 | merged (de986b6) | 13 tests, plus 35 in the pinned, identity and tool suites |
 | T12 | Simulator planner actor (XER with slips), demo support | S (taken over) | T11, S8 | done (S15) | the actor is small and its interface (desk, recorder, fake world, what `sim_assert` excuses) was designed with it; 38 actor tests, 8 end-to-end tests on the real suite (the fake world held to it call by call), 17 mutations of the actor, 18 of the recorder, 11 of `sim_assert` and 14 of the fake world, no survivor |
 
 Haiku-ability (`01-tiers.md` §6) for the ready tickets: T02a reads 6 files, T07 reads 6, T08 reads 4; every interface is in the tree; each has a provided test that fails on the stub and passes on the reference; each diff is one source file plus a report; none touches `schema/**`, a dependency or a public interface; a reviewer verifies from the diff and the three commands. The reader and resolver are security-sensitive, so their merged code also goes through the security pass.
 
 ## Order of work
 1. Done: S1 to S6; batch 1 (T02a, T07, T08) merged; the security review of c709ebe..27b2170 fixed (F1 to F3); the plumbing S7 to S11.
-2. Done: S12 to S14 (reports, TUI text helpers, lake loader, the weekly series, the demo, docs). Dispatch round 2: T02b, T09a1, T09a2, T09a3, T09b, T09c, T10a, T10b, T13 (disjoint paths: three CLI files, one file each for the cli reports, three TUI screens, one MCP file; at most four at once).
-3. The relay returns to the orchestrator, which runs the implementers and reviewers; the supervisor resumes on their results.
-4. S15 and T12 (the simulator planner actor), then the gates, `just test-parity` in the background alone, the report with the Showcase.
-5. Merge only reviewed tickets with green `just check && just test`. Two failed reviews: the supervisor finishes the ticket.
+2. Done: S12 to S14 (reports, TUI text helpers, lake loader, the weekly series, the demo, docs). Round 2 ran in three batches (2a: T02b, T09b, T09c, T10a; 2b and 2c: T10b, T13, T09a1, T09a2, T09a3); every ticket passed review on the first attempt and was merged with a merge commit.
+3. Done: S15 and T12 (the simulator schedule updater), the demo on both adapters, the gates, the report with the Showcase (`docs/reports/P1-I4.md`).
+4. Open: the owner's full `just test-parity` on the final commit; the security re-review (S13 and S15 included).
 
 ## Risks and escalation triggers
 - **XER reader resource use.** Measured after the security review (ADR-0015 §2, §4): the worst legal file (the typed maximum: 60 000 activities, 200 000 relationships, 300 000 codes, 300 000 user fields; 42.6 MB) reads in 16.8 s with 582 MB in the child; the hostile shapes of the review are refused in about 3 s. Settle of the maximum snapshot: 25 s on Postgres (JSON per chunk; 535 s with `executemany`) and about 13 s on SQLite; the worker's claim is 600 s. Envelope 60 s and 1 GiB. A bound that cannot be met is an escalation.
