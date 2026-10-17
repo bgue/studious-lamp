@@ -3,7 +3,7 @@
 Status: ready
 Tier: haiku
 Labels: cli
-Depends on: S5; T14a and T14b for the test setup (the supervisor merges them first)
+Depends on: S5; T14a, T14b and T14c for the test setup (`tl derive show` is T14c's; the supervisor merges them first)
 Branch: `p1/i3a-t14d-cli-derive-publish`
 
 ## Goal
