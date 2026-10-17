@@ -21,7 +21,7 @@ from extractsupport import (
 )
 from tl_extract import xlsxxml
 from tl_extract.options import TableOptions
-from tl_extract.reading import Refusal
+from tl_extract.reading import MAX_NAME_CHARS, Refusal
 from tl_extract.xlsxgrid import COMPOUND_DOCUMENT, MAX_CENTRAL_DIRECTORY, MAX_MEMBERS, read_xlsx
 from tl_extract.xlsxxml import MAX_SHEET_NAME, MAX_SHEETS, from_serial, is_date_format
 
@@ -111,7 +111,9 @@ def test_a_shared_string_is_cut_where_a_cell_is_refused_anyway() -> None:
 def test_elements_are_counted_while_they_are_read(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(xlsxxml, "MAX_ELEMENTS", 50)
     body = "".join(inline_row(n, ["x"]) for n in range(1, 40))
-    assert refusal(hand_xlsx(sheet_xml(body))).code == "unsafe_xlsx"
+    error = refusal(hand_xlsx(sheet_xml(body)))
+    assert error.code == "sheet_too_complex"
+    assert "XML elements in one part" in error.message and "split it" in error.message
 
 
 def test_nesting_is_bounded() -> None:
@@ -431,10 +433,21 @@ def test_elements_a_worksheet_does_not_have_are_counted_and_refused() -> None:
     assert time.monotonic() - started < 1.5
 
 
-def test_attributes_count_toward_the_element_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_attributes_of_elements_a_sheet_lacks_count_toward_the_element_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(xlsxxml, "MAX_ELEMENTS", 100)
-    cell = "<c " + " ".join(f'a{i}="1"' for i in range(60)) + "/>"
-    assert refusal(hand_xlsx(sheet_xml(f'<row r="1">{cell}{cell}</row>'))).code == "unsafe_xlsx"
+    odd = "<x " + " ".join(f'a{i}="1"' for i in range(60)) + "/>"
+    body = f'<row r="1"><c r="A1"/></row>{odd}{odd}'
+    assert refusal(hand_xlsx(sheet_xml(body))).code == "sheet_too_complex"
+
+
+def test_the_attributes_of_a_cell_written_the_way_excel_writes_it_are_not_counted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(xlsxxml, "MAX_ELEMENTS", 2 * 50 + 10)  # a row, and 50 cells of 2 elements
+    cells = "".join(f'<c r="A{n}" s="1" t="n"><v>1</v></c>' for n in range(1, 50))
+    assert len(read_xlsx(hand_xlsx(sheet_xml(f'<row r="1">{cells}</row>')), OPTIONS).rows) == 1
 
 
 def test_the_97_kilobyte_file_that_took_gigabytes_fails_quickly_under_a_memory_limit(
@@ -472,10 +485,12 @@ def test_the_97_kilobyte_file_that_took_gigabytes_fails_quickly_under_a_memory_l
     assert done.stdout.strip() == "failed ['unsafe_xlsx']"
 
 
-def test_a_shared_string_index_the_workbook_lacks_is_refused() -> None:
+def test_a_shared_string_index_the_workbook_lacks_is_refused_and_says_where() -> None:
     for index in ("99", "-1", "1e3", "٣"):
-        row = f'<row r="1"><c r="A1" t="s"><v>{index}</v></c></row>'
-        assert refusal(hand_xlsx(sheet_xml(row))).code == "bad_shared_string", index
+        row = f'<row r="7"><c r="C7" t="s"><v>{index}</v></c></row>'
+        error = refusal(hand_xlsx(sheet_xml(row)))
+        assert error.code == "bad_shared_string", index
+        assert "sheet Sheet1, cell C7" in error.message and "does not exist" in error.message
 
 
 @pytest.mark.parametrize(
@@ -492,9 +507,13 @@ def test_a_cell_reference_that_is_not_one_is_refused(reference: str) -> None:
 
 
 @pytest.mark.parametrize("number", ["99999999999999999999", "0x10", "-1", "1e3", "٣", "1.5"])
-def test_a_row_number_that_is_not_a_row_is_refused_without_echoing_it(number: str) -> None:
-    error = refusal(hand_xlsx(sheet_xml(f'<row r="{number}"><c r="A1"/></row>')))
-    assert error.code == "bad_row_number" and number not in error.message
+def test_a_row_number_that_is_not_a_row_is_refused_and_says_where(number: str) -> None:
+    body = inline_row(1, ["A"]) + f'<row r="{number}"><c r="A1"/></row>'
+    error = refusal(hand_xlsx(sheet_xml(body)))
+    assert error.code == "bad_row_number"
+    assert "sheet Sheet1" in error.message and "after row 1" in error.message
+    assert "1048576" in error.message and len(error.message) < 200
+    assert number not in error.message or len(number) <= 12  # a 20-digit number is cut
 
 
 def test_the_last_row_of_a_sheet_is_a_row() -> None:
@@ -530,12 +549,6 @@ def test_numbers_are_plain_decimals_and_nothing_else(text: str, value: object) -
     assert xlsxxml.number_value(text) == value
 
 
-def test_a_sheet_that_takes_too_long_to_read_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(xlsxxml, "MAX_SHEET_SECONDS", -1.0)
-    body = "".join(inline_row(n, ["x"]) for n in range(1, 4_000))
-    assert refusal(hand_xlsx(sheet_xml(body))).code == "sheet_too_slow"
-
-
 def test_a_part_that_claims_more_than_deflate_can_do_is_a_lie() -> None:
     raw = bytearray(hand_xlsx(sheet_xml(inline_row(1, ["A"])), {"xl/media/x.bin": b"\x00" * 2000}))
     # the declared uncompressed size sits 24 bytes into the part's central-directory header
@@ -546,3 +559,32 @@ def test_a_part_that_claims_more_than_deflate_can_do_is_a_lie() -> None:
     )
     raw[header + 24 : header + 28] = (3_000_000).to_bytes(4, "little")
     assert refusal(bytes(raw)).code == "zip_bomb"
+
+
+def test_a_bad_cell_reference_says_which_sheet_and_which_row() -> None:
+    row = '<row r="4"><c r="A?" t="inlineStr"><is><t>x</t></is></c></row>'
+    error = refusal(hand_xlsx(sheet_xml(row)))
+    assert error.code == "bad_cell_ref"
+    assert error.message == "sheet Sheet1, row 4: 'A?' is not a cell reference (like B7)"
+    far = '<row r="1"><c r="XFE1"/></row>'
+    assert "past the last column of a sheet (XFD)" in refusal(hand_xlsx(sheet_xml(far))).message
+
+
+def test_the_sheet_name_in_a_refusal_is_cut_to_the_names_bound() -> None:
+    sheets = f'<sheet name="{"n" * MAX_NAME_CHARS}" sheetId="1" r:id="rId1"/>'
+    row = '<row r="1"><c r="1"/></row>'
+    raw = hand_xlsx(sheet_xml(row), {"xl/workbook.xml": workbook(sheets)})
+    assert len(refusal(raw).message) < 400
+
+
+def test_there_is_no_clock_in_the_reader() -> None:
+    raw = hand_xlsx(sheet_xml("".join(inline_row(n, ["x"]) for n in range(1, 50))))
+    assert read_xlsx(raw, OPTIONS) == read_xlsx(raw, OPTIONS)
+    assert not hasattr(xlsxxml, "MAX_SHEET_SECONDS")
+
+
+def test_more_row_elements_than_a_sheet_can_have_are_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(xlsxxml, "MAX_SHEET_ROW", 20)
+    assert refusal(hand_xlsx(sheet_xml("<row/>" * 21))).code == "sheet_too_complex"

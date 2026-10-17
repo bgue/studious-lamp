@@ -17,7 +17,6 @@ from __future__ import annotations
 import datetime as dt
 import posixpath
 import re
-import time
 import xml.etree.ElementTree as ET
 import zipfile
 from collections.abc import Iterator
@@ -33,14 +32,13 @@ from tl_extract.reading import (
     GridMeta,
     Refusal,
     clean_metadata_text,
+    shown,
 )
 
 MAX_XML_DEPTH = 64
 MAX_ELEMENTS = 5_000_000
 #: Elements of a worksheet that a worksheet does not have (anything but rows, cells and their text).
 MAX_FOREIGN = 200_000
-#: A sheet that takes longer than this to read is refused (the job runner's limit is 60 s).
-MAX_SHEET_SECONDS = 40.0
 MAX_SHEETS = MAX_SHEET_NAMES
 MAX_SHEET_NAME = MAX_NAME_CHARS
 MAX_SHARED_STRINGS = 1_000_000
@@ -110,9 +108,11 @@ def events(
 
     Each element is cleared and detached from its parent as soon as the consumer has seen its end
     event, so that memory stays flat however many elements follow; a consumer reads what it needs
-    (attributes, text) at the end event and keeps nothing else. Elements and attributes both count
-    toward ``MAX_ELEMENTS``; with ``known`` given, elements whose name is not in it count toward
-    ``MAX_FOREIGN`` as well. Raises ``Refusal`` for a part that is not well formed, nests deeper
+    (attributes, text) at the end event and keeps nothing else. Every element counts toward
+    ``MAX_ELEMENTS``; an element that is not in ``known`` (every element when ``known`` is None)
+    also counts its attributes, and with ``known`` given counts toward ``MAX_FOREIGN``, so that a
+    cell written the way Excel writes it (``<c r= s= t=>``) costs one. Raises ``Refusal`` for a
+    part that is not well formed, nests deeper
     than ``MAX_XML_DEPTH`` or passes a count.
     """
     path: list[str] = []
@@ -126,11 +126,22 @@ def events(
                     tag = local(element.tag)
                     path.append(tag)
                     open_elements.append(element)
-                    count += 1 + len(element.attrib)
-                    if known is not None and tag not in known:
-                        foreign += 1
-                    if len(path) > MAX_XML_DEPTH or count > MAX_ELEMENTS or foreign > MAX_FOREIGN:
-                        raise Refusal("unsafe_xlsx", "the workbook has an XML part that is too big")
+                    count += 1
+                    if known is None or tag not in known:
+                        count += len(element.attrib)  # a part's own elements are counted bare
+                        foreign += known is not None
+                    if len(path) > MAX_XML_DEPTH:
+                        raise Refusal("unsafe_xlsx", "the workbook has XML nested too deeply")
+                    if foreign > MAX_FOREIGN:
+                        raise Refusal(
+                            "unsafe_xlsx", "the workbook has a sheet with parts a sheet lacks"
+                        )
+                    if count > MAX_ELEMENTS:
+                        raise Refusal(
+                            "sheet_too_complex",
+                            f"the workbook has more than {MAX_ELEMENTS} XML elements in one part; "
+                            "split it",
+                        )
                     yield event, element, path
                 else:
                     yield event, element, path
@@ -185,6 +196,7 @@ class Book:
             strings=strings,
             date_styles=styles,
             date1904=self.date1904,
+            label=sheet.name,
         )
 
 
@@ -367,17 +379,23 @@ class SheetReading:
     skipped_blank_rows: int = 0
 
 
-def column_index(reference: str) -> int:
-    """The 1-based column of a cell reference such as ``AB12``. Raises ``Refusal("bad_cell_ref")``
-    for a reference that is not letters and digits, or a column past ``XFD`` (16 384)."""
+def column_index(reference: str, where: str = "a sheet") -> int:
+    """The 1-based column of a cell reference such as ``AB12``. Raises ``Refusal("bad_cell_ref")``,
+    naming ``where``, for a reference that is not letters and digits, or a column past ``XFD``
+    (16 384)."""
     match = _CELL_REFERENCE.match(reference)
     if match is None:
-        raise Refusal("bad_cell_ref", "a cell has a reference that is not a cell")
+        raise Refusal(
+            "bad_cell_ref", f"{where}: '{shown(reference, 20)}' is not a cell reference (like B7)"
+        )
     index = 0
     for char in match.group(1).upper():
         index = index * 26 + ord(char) - 64
     if index > MAX_SHEET_COLUMN:
-        raise Refusal("bad_cell_ref", "a cell is in a column past the last column of a sheet")
+        raise Refusal(
+            "bad_cell_ref",
+            f"{where}: '{shown(reference, 20)}' is past the last column of a sheet (XFD)",
+        )
     return index
 
 
@@ -389,22 +407,24 @@ def read_sheet(
     strings: list[str],
     date_styles: frozenset[int],
     date1904: bool,
+    label: str = "",
 ) -> SheetReading:
-    """The records of one worksheet, streamed.
+    """The records of one worksheet, streamed. ``label`` names the sheet in a refusal.
 
     Records up to and including ``header_row`` are kept as they are (a row the file does not have
     is an empty record); after it a blank record is skipped and counted, and ``MAX_ROWS`` data
     rows are allowed. A record is cut after the last non-empty cell and at ``MAX_COLUMNS + 1``
     cells. Raises ``Refusal`` (``too_many_rows``, ``too_many_cells``, ``too_much_text``,
     ``too_many_blank_rows`` when data follows ``MAX_BLANK_RUN`` blank rows, ``bad_row_number``,
-    ``bad_cell_ref``, ``bad_shared_string``, ``sheet_too_slow`` and the XML refusals of
+    ``bad_cell_ref``, ``bad_shared_string``, ``sheet_too_complex`` and the XML refusals of
     ``events``).
     """
     out = SheetReading()
     budget = CellBudget()
+    sheet_label = shown(label, MAX_NAME_CHARS) or "(unnamed)"
+    rows_seen = 0
+    cell_reference = ""
     width = MAX_COLUMNS + 1
-    started = time.monotonic()
-    ticks = 0
     expected = 1  # the number of the next row to be written
     blank_run = 0
     kept = 0
@@ -428,22 +448,35 @@ def read_sheet(
     for event, element, path in events(archive, name, SHEET_TAGS):
         tag = path[-1]
         if event == "start":
-            ticks += 1
-            if ticks % 4096 == 0 and time.monotonic() - started > MAX_SHEET_SECONDS:
-                raise Refusal("sheet_too_slow", "the sheet takes too long to read")
             if tag == "row":
                 values = []
+                rows_seen += 1
+                if rows_seen > MAX_SHEET_ROW:
+                    raise Refusal(
+                        "sheet_too_complex",
+                        f"sheet {sheet_label} has more row elements than a sheet can have",
+                    )
                 number = element.get("r")
                 row_number = expected
                 if number is not None:
                     if _ROW_NUMBER.match(number) is None or int(number) > MAX_SHEET_ROW:
-                        raise Refusal("bad_row_number", "a row has a number that is not a row")
+                        raise Refusal(
+                            "bad_row_number",
+                            f"sheet {sheet_label}: the row after row {expected - 1} is numbered "
+                            f"'{shown(number, 12)}', which is not a row of a sheet (1 to "
+                            f"{MAX_SHEET_ROW})",
+                        )
                     row_number = max(int(number), expected)
                 blank_rows(row_number - expected)
                 expected = row_number
             elif tag == "c":
                 reference = element.get("r")
-                cell_col = column_index(reference) if reference else len(values) + 1
+                cell_reference = reference or ""
+                cell_col = (
+                    column_index(reference, f"sheet {sheet_label}, row {expected}")
+                    if reference
+                    else len(values) + 1
+                )
                 cell_type = element.get("t") or "n"
                 style = element.get("s") or ""
                 cell_style = int(style) if _INDEX.match(style) else -1
@@ -468,6 +501,7 @@ def read_sheet(
                     strings,
                     date_styles,
                     date1904,
+                    f"sheet {sheet_label}, cell {cell_reference or f'in row {expected}'}",
                 )
                 if text is not None:
                     while len(values) < cell_col:
@@ -511,6 +545,7 @@ def _cell(
     strings: list[str],
     date_styles: frozenset[int],
     date1904: bool,
+    where: str,
 ) -> Cell:
     if kind == "inlineStr":
         return cell_text("".join(inline))
@@ -519,7 +554,11 @@ def _cell(
     if kind == "s":
         index = value.strip()
         if _INDEX.match(index) is None or int(index) >= len(strings):
-            raise Refusal("bad_shared_string", "a cell names a shared string the workbook lacks")
+            raise Refusal(
+                "bad_shared_string",
+                f"{where}: shared string '{shown(index, 12)}' does not exist "
+                f"(the workbook has {len(strings)})",
+            )
         return cell_text(strings[int(index)])
     if kind in ("str", "e", "d"):
         return cell_text(value)

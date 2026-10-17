@@ -177,3 +177,89 @@ def test_the_loggers_state_is_restored() -> None:
     before = (logger.level, logger.propagate)
     read_pdf_info(make_pdf())
     assert (logger.level, logger.propagate) == before
+
+
+# --- the third review: everything pypdf can do with the file is charged -----------------------
+
+
+def with_broken_xref(entries: int) -> bytes:
+    """A PDF whose classic cross-reference table is ``entries`` lines of garbage. pypdf's repair
+    path copies the whole file once per bad line, even when it reads strictly."""
+    body = make_pdf()
+    head = body[: body.index(b"xref\n")]
+    xref_at = len(head)
+    table = f"xref\n0 {entries}\n".encode() + b"aaaaaaaaaa aaaaa n \n" * entries
+    trailer = f"trailer\n<< /Size {entries} /Root 1 0 R >>\nstartxref\n{xref_at}\n%%EOF\n".encode()
+    return head + table + trailer
+
+
+def test_a_table_of_bad_entries_reaches_the_repair_path_and_is_refused() -> None:
+    raw = with_broken_xref(2000)
+    assert len(raw) < 60_000
+    started = time.monotonic()
+    assert refusal(raw).code == "pdf_too_complex"
+    assert time.monotonic() - started < 1
+
+
+def stream_of(data: bytes, monkeypatch: pytest.MonkeyPatch) -> pdfinfo._BudgetStream:  # pyright: ignore[reportPrivateUsage]
+    monkeypatch.setattr(pdfinfo, "STREAM_BYTE_FACTOR", 1)
+    monkeypatch.setattr(pdfinfo, "STREAM_BYTE_ALLOWANCE", 0)
+    return pdfinfo._BudgetStream(data)  # pyright: ignore[reportPrivateUsage]
+
+
+DATA = (b"x" * 59 + b"\n") * 4  # four lines of 60 bytes: the budget is 240
+
+
+@pytest.mark.parametrize(
+    "operation",
+    [
+        lambda s: s.read(),
+        lambda s: s.read(60),
+        lambda s: s.read1(60),
+        lambda s: s.readline(),
+        lambda s: s.readinto(bytearray(60)),
+        lambda s: next(s),
+        lambda s: list(s),
+    ],
+    ids=["read-all", "read-n", "read1", "readline", "readinto", "next", "iterate"],
+)
+def test_every_way_of_reading_the_file_is_charged_by_its_bytes(
+    operation: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    op = operation  # type: ignore[assignment]
+    stream = stream_of(DATA, monkeypatch)
+    for _ in range(4):  # whatever reads 60 bytes at a time uses up the 240 exactly...
+        stream.seek(0)
+        stream.bytes_left = len(DATA)
+        op(stream)  # type: ignore[operator]
+    stream.seek(0)
+    stream.bytes_left = 100
+    with pytest.raises(pdfinfo._OutOfBudget):  # pyright: ignore[reportPrivateUsage]
+        for _ in range(3):  # ...and the third of 60 bytes is past 100
+            op(stream)  # type: ignore[operator]
+
+
+@pytest.mark.parametrize("method", ["getbuffer", "getvalue", "readlines"])
+def test_getting_the_whole_file_at_once_is_not_allowed(
+    method: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stream = stream_of(DATA, monkeypatch)
+    with pytest.raises(pdfinfo._OutOfBudget):  # pyright: ignore[reportPrivateUsage]
+        getattr(stream, method)()
+
+
+def test_operations_are_counted_as_well_as_bytes(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(pdfinfo, "MAX_STREAM_OPS", 3)
+    stream = pdfinfo._BudgetStream(b"abcdef")  # pyright: ignore[reportPrivateUsage]
+    stream.read(1)
+    stream.seek(0)
+    stream.readline()
+    with pytest.raises(pdfinfo._OutOfBudget):  # pyright: ignore[reportPrivateUsage]
+        stream.read(1)
+
+
+def test_a_file_that_is_read_whole_once_is_within_the_byte_budget() -> None:
+    stream = pdfinfo._BudgetStream(b"x" * 1000)  # pyright: ignore[reportPrivateUsage]
+    assert len(stream.read()) == 1000
+    stream.seek(0)
+    assert len(stream.read()) == 1000

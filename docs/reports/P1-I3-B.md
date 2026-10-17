@@ -80,6 +80,15 @@ The re-review passed every original finding and found three new problems in the 
 
 A flat `/Kids` array of more than about 100 000 pages and a PDF with more than about 400 000 objects are now refused (`pdf_too_complex`, `damaged_pdf`); the job runner's limits are the backstop for the rest.
 
+## Security third pass (9ab071f) and the D10 merge
+Fixed in S19 (below) after merging `p1/i3` at d95abf1 (FANOUT D10; S18 `e2b8efb` uses the contract's limits and cuts notes, problem lists and suffixed names to them).
+
+| Item | Fix |
+|---|---|
+| F1 pypdf I/O | `_BudgetStream` charges every operation and every byte handed out (4 times the file plus 4 MiB); `getbuffer`, `getvalue` and `readlines`, which pypdf's repair path calls once per bad xref line, raise. A 2000-line bad table is `pdf_too_complex` in milliseconds |
+| F2 element budget | only elements a sheet lacks are charged for their attributes; the largest tables in Excel's form (20 000 x 50 and 5 000 x 200) are read (9 s and 9.5 s of reading each); the refusal is `sheet_too_complex` with a message |
+| L1, L2, L4 | no clock in the reader (D9's wall clock is the time limit); `<row>` elements capped at a sheet's rows; refusals name the sheet and the cell or row |
+
 ## Security
 Extractors read untrusted bytes. The commits to read are listed in the relay (SECURITY_REVIEW). The rules, each with a test: refuse before parsing
 (declared sizes of ZIP parts, member count, encrypted parts, unsafe names); scan every XML part for a document type or entity, including

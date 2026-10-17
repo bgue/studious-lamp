@@ -69,6 +69,9 @@ PYPDF_LIMIT = 2 * 1024 * 1024
 #: string one byte at a time, so this is also the longest string, array or run of garbage it will
 #: look at; a classic cross-reference table costs about one operation per object.
 MAX_STREAM_OPS = 600_000
+#: The bytes pypdf may be handed in all: this many times the file, plus a fixed allowance.
+STREAM_BYTE_FACTOR = 4
+STREAM_BYTE_ALLOWANCE = 4 * 1024 * 1024
 
 _LENGTH = re.compile(rb"/Length\s+(\d+)(?!\s+\d+\s+R)")
 _SIZE = re.compile(rb"/Size\s+(\d+)")
@@ -90,28 +93,73 @@ class _OutOfBudget(BaseException):
 
 
 class _BudgetStream(io.BytesIO):
-    """The bytes of the file, counting every operation pypdf makes on them."""
+    """The bytes of the file, charging everything pypdf does with them.
+
+    Each read, line read and seek costs one operation (``MAX_STREAM_OPS``), and each byte handed
+    out costs one byte of a total of ``STREAM_BYTE_FACTOR`` times the file plus
+    ``STREAM_BYTE_ALLOWANCE``. The ways to get the whole file at once, which pypdf's repair paths
+    use once per unparsable cross-reference entry (``getbuffer``, ``getvalue``, ``readlines``), are
+    not allowed at all: a file that reaches them is ``pdf_too_complex``.
+    """
 
     def __init__(self, data: bytes) -> None:
         super().__init__(data)
+        self._size = len(data)
         self.operations = 0
+        self.bytes_left = STREAM_BYTE_FACTOR * len(data) + STREAM_BYTE_ALLOWANCE
 
-    def _count(self) -> None:
+    def _charge(self, nbytes: int) -> None:
         self.operations += 1
-        if self.operations > MAX_STREAM_OPS:
+        self.bytes_left -= nbytes
+        if self.operations > MAX_STREAM_OPS or self.bytes_left < 0:
             raise _OutOfBudget
 
+    def _ahead(self, size: int | None) -> int:
+        """What a read of ``size`` will hand out, at most; cheap for the one-byte reads that
+        dominate."""
+        if size is not None and size >= 0:
+            return size
+        return max(self._size - self.tell(), 0)
+
     def read(self, size: int | None = -1) -> bytes:
-        self._count()
+        self._charge(self._ahead(size))
         return super().read(size)
 
+    def read1(self, size: int | None = -1) -> bytes:
+        self._charge(self._ahead(size))
+        return super().read1(size)
+
     def readline(self, size: int | None = -1) -> bytes:
-        self._count()
-        return super().readline(size)
+        line = super().readline(size)
+        self._charge(len(line))
+        return line
+
+    def readinto(self, buffer: object) -> int:
+        count = super().readinto(buffer)  # type: ignore[arg-type]
+        self._charge(count)
+        return count
 
     def seek(self, offset: int, whence: int = 0) -> int:
-        self._count()
+        self._charge(0)
         return super().seek(offset, whence)
+
+    def __next__(self) -> bytes:
+        line = self.readline()
+        if not line:
+            raise StopIteration
+        return line
+
+    def __iter__(self) -> _BudgetStream:
+        return self
+
+    def readlines(self, hint: int | None = -1) -> list[bytes]:
+        raise _OutOfBudget
+
+    def getbuffer(self) -> memoryview:
+        raise _OutOfBudget
+
+    def getvalue(self) -> bytes:
+        raise _OutOfBudget
 
 
 _DATE = re.compile(

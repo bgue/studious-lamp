@@ -122,7 +122,7 @@ def test_a_pdf_with_flipped_bytes_is_read_or_refused_never_an_exception() -> Non
             outcomes.add("read")
         except Refusal as caught:
             outcomes.add(caught.code)
-    assert outcomes <= {"read", "damaged_pdf", "not_pdf", "encrypted_pdf"}
+    assert outcomes <= {"read", "damaged_pdf", "not_pdf", "encrypted_pdf", "pdf_too_complex"}
     assert "read" in outcomes and "damaged_pdf" in outcomes
 
 
