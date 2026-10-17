@@ -1,8 +1,8 @@
 # ADR-0014 — The derivation pipeline: records, job queue, validation, publication and compensation
 
-Status: proposed (P1-I3 workstream A supervisor; for acceptance by the orchestrator under ADR-0008 decision 6)
+Status: accepted 2026-10-17 by the orchestrator under ADR-0008 decision 6 (proposed by the P1-I3 workstream A supervisor)
 Date: 2026-10-17
-Deciders: P1-I3 workstream A supervisor (proposal); the orchestrator accepts
+Deciders: P1-I3 workstream A supervisor (proposal); accepted by the orchestrator
 Brief sections: §9 M1 (derivation pipeline), §9 M2 (bulk import, provenance), §20 (files), §24.5 (compensation), §11.3 and §18.12 (agents propose)
 
 ## Context
