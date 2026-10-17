@@ -26,11 +26,10 @@ _INSERT_SQL = text(
     "governing_item_id, item_count, last_item_on, last_seq) VALUES (:id, :scope, :number, "
     ":subject_key, :domain, 'open', :governing, 1, :item_on, :last_seq)"
 )
+_LAST_SQL = text(f"SELECT last_item_on FROM {THREAD_TABLE} WHERE id = :id")
 _ADD_SQL = text(
-    f"UPDATE {THREAD_TABLE} SET item_count = item_count + 1, "
-    "last_item_on = CASE WHEN :item_on IS NOT NULL AND (last_item_on IS NULL OR "
-    ":item_on > last_item_on) THEN :item_on ELSE last_item_on END, last_seq = :last_seq "
-    "WHERE id = :id"
+    f"UPDATE {THREAD_TABLE} SET item_count = item_count + 1, last_item_on = :last_item_on, "
+    "last_seq = :last_seq WHERE id = :id"
 )
 _STATE_SQL = text(f"UPDATE {THREAD_TABLE} SET state = :state, last_seq = :last_seq WHERE id = :id")
 
@@ -59,9 +58,18 @@ class ThreadProjector:
                 },
             )
         elif event.event_type == THREAD_ITEM_ADDED:
-            self._require(
-                conn.execute(_ADD_SQL, {**base, "item_on": payload.get("item_on")}).rowcount, event
+            # Postgres cannot infer the type of a bare parameter in CASE: pick the date here.
+            found = conn.execute(_LAST_SQL, {"id": event.stream_id}).first()
+            if found is None:
+                raise LookupError(f"no {THREAD_TABLE} row for stream {event.stream_id}")
+            current: str | None = found[0]
+            item_on: str | None = payload.get("item_on")
+            newest = (
+                item_on
+                if item_on is not None and (current is None or item_on > current)
+                else current
             )
+            conn.execute(_ADD_SQL, {**base, "last_item_on": newest})
         elif event.event_type == THREAD_STATE_CHANGED:
             self._require(
                 conn.execute(_STATE_SQL, {**base, "state": payload["state"]}).rowcount, event
