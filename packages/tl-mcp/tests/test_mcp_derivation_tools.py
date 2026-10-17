@@ -72,7 +72,14 @@ def test_the_five_tools_are_registered_with_the_right_hints(env: Env) -> None:
         )
 
 
-def test_the_reads_show_the_derived_document_and_check_rows_without_storing(env: Env) -> None:
+def test_the_reads_show_the_derived_document_and_the_stored_report(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def never(*args: object, **kwargs: object) -> None:
+        raise AssertionError("a read must not run a JSON Schema")
+
+    monkeypatch.setattr("tl_mod_documents.derivation.validation_isolated.run_in_envelope", never)
+    monkeypatch.setattr("tl_mod_documents.derivation.validation.validate_result", never)
     listed = env.h.structured("list_derived_documents", project="P123")["result"]
     assert [d["key"] for d in listed] == [KEY] and listed[0]["state"] == "Valid"
     assert (

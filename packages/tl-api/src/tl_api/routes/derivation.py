@@ -3,8 +3,8 @@
 Thin, like the document reads: one call into ``tl_mod_documents.derivation.views`` per route.
 Writes are the module's commands (``POST /commands/StartExtraction``, ``ValidateDerived``,
 ``PublishDerivedTags`` and the rest; ``tl_mod_documents.commands`` has their access levels). Every
-read needs the action ``document.read``, which agents hold because they only read; the validation
-check (``derived-validations``) computes a report from stored rows and stores nothing. A derived
+read needs the action ``document.read``, which agents hold because they only read. No route runs
+a JSON Schema on a request (FANOUT D10): a report is the one a job stored. A derived
 document's key holds ``/`` (``ISD-001@A/instrument-index``), so the routes that take one use a
 path parameter and a distinct prefix, as ``document-diffs`` does.
 """
@@ -139,24 +139,6 @@ def get_derived_diff(
     with ctx.backend(True) as uow:
         return views.derived_diff(
             uow, f"project:{project}", ref, against=against, content_rev=content_rev
-        )
-
-
-@router.get(
-    "/projects/{project}/derived-validations/{ref:path}", operation_id="check_derived_document"
-)
-def check_derived_document(
-    ctx: Ctx,
-    actor: Reader,
-    project: str,
-    ref: str,
-    schema: Annotated[str | None, Query(max_length=128, description="code or code@semver")] = None,
-    content_rev: Rev = None,
-) -> ValidationReport:
-    """Check stored rows against a schema now; nothing is stored. The default is its own schema."""
-    with ctx.backend(True) as uow:
-        return views.validate_stored(
-            uow, f"project:{project}", ref, schema_ref=schema, content_rev=content_rev
         )
 
 

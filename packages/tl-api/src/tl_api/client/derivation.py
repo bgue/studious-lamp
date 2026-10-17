@@ -128,21 +128,6 @@ class DerivationApi(ApiClientBase):
         )
         return self._model(DerivedDiff, data)
 
-    def check_derived_document(
-        self,
-        project: str,
-        ref: str,
-        *,
-        schema: str | None = None,
-        content_rev: int | None = None,
-    ) -> ValidationReport:
-        """Check stored rows against a schema now; nothing is stored."""
-        data = self._get_json(
-            f"/projects/{quote(project)}/derived-validations/{quote(ref)}",
-            {"schema": schema, "content_rev": content_rev},
-        )
-        return self._model(ValidationReport, data)
-
     def get_publish_preview(
         self, project: str, ref: str, *, target: str | None = None
     ) -> PublishPlan:

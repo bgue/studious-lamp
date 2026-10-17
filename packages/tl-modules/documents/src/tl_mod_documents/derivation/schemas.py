@@ -26,8 +26,12 @@ from tl_core.uow import UnitOfWork
 
 from tl_mod_documents.derivation import rows
 from tl_mod_documents.derivation.mapping import MappingInvalidError, check_mapping
-from tl_mod_documents.derivation.validation import validate_result
-from tl_mod_documents.errors import InvalidDocumentSchemaError, SchemaNotFoundError
+from tl_mod_documents.derivation.validation_isolated import validate_isolated
+from tl_mod_documents.errors import (
+    InvalidDocumentSchemaError,
+    SchemaNotFoundError,
+    ValidationFailedError,
+)
 from tl_mod_documents.handlers.common import append, correlated
 from tl_mod_documents.limits import MAX_DESCRIPTION, MAX_REASON, MAX_TEXT
 from tl_mod_documents.names import DOCUMENT_SCHEMA, DOCUMENT_SCHEMA_DEFINED, DOCUMENT_SCHEMA_RETIRED
@@ -38,6 +42,13 @@ MAX_SCHEMA_BYTES = 256 * 1024
 MAX_PROPERTIES = 200
 MAX_SAMPLE_ROWS = 20
 MAX_DOC_TYPES = 50
+
+
+#: A regular expression in a schema is at most this long (FANOUT D10).
+MAX_PATTERN_CHARS = 200
+#: The sample rows are checked in a child process under these limits.
+SAMPLE_CHECK_S = 10.0
+SAMPLE_CHECK_MB = 512
 
 
 def semver_key(text: str) -> tuple[int, int, int]:
@@ -90,6 +101,26 @@ class RetireDocumentSchema(Command):
         if not value.strip():
             raise ValueError("must not be blank")
         return value
+
+
+def _long_patterns(node: Any, path: str = "") -> list[str]:
+    """Where a ``pattern`` or a ``patternProperties`` key is longer than ``MAX_PATTERN_CHARS``."""
+    found: list[str] = []
+    if isinstance(node, dict):
+        for key, value in node.items():  # pyright: ignore[reportUnknownVariableType]
+            if key == "pattern" and isinstance(value, str) and len(value) > MAX_PATTERN_CHARS:
+                found.append(f"{path}/pattern")
+            if key == "patternProperties" and isinstance(value, dict):
+                found.extend(
+                    f"{path}/patternProperties"
+                    for k in value  # pyright: ignore[reportUnknownVariableType]
+                    if isinstance(k, str) and len(k) > MAX_PATTERN_CHARS
+                )
+            found.extend(_long_patterns(value, f"{path}/{key}"))
+    elif isinstance(node, list):
+        for index, value in enumerate(node):  # pyright: ignore[reportUnknownVariableType]
+            found.extend(_long_patterns(value, f"{path}/{index}"))
+    return found
 
 
 def _remote_refs(node: Any, path: str = "") -> list[str]:
@@ -145,6 +176,15 @@ def schema_problems(cmd: RegisterDocumentSchema) -> list[str]:
     except SchemaError as exc:
         problems.append(f"json_schema is not a valid JSON Schema: {exc.message[:200]}")
         return problems
+    except RecursionError:
+        problems.append("json_schema nests or refers to itself too deeply")
+        return problems
+    too_long = _long_patterns(cmd.json_schema)
+    if too_long:
+        problems.append(
+            f"a pattern is longer than {MAX_PATTERN_CHARS} characters ({', '.join(too_long[:5])})"
+        )
+        return problems
     remote = _remote_refs(cmd.json_schema)
     if remote:
         problems.append(f"json_schema may refer only to itself ('#...'); found {', '.join(remote)}")
@@ -169,21 +209,31 @@ def schema_problems(cmd: RegisterDocumentSchema) -> list[str]:
         problems.append(f"key_column {cmd.key_column!r} is not a property")
     if len(cmd.sample) > MAX_SAMPLE_ROWS:
         problems.append(f"at most {MAX_SAMPLE_ROWS} sample rows")
-    elif cmd.sample:
-        columns = list(cmd.sample[0])
-        report = validate_result(
-            cmd.json_schema,
-            columns,
-            cmd.sample,
-            schema_code=cmd.code,
-            schema_version=cmd.semver,
-            key_column=cmd.key_column,
-        )
-        problems.extend(
-            f"sample row {i.row}: {i.column or ''} {i.message}".replace("  ", " ")
-            for i in report.issues
-            if i.level == "error"
-        )
+    else:
+        # no sample: a row with a value in every column still shows whether the schema can be
+        # applied at all (a loop of references, a pattern that never ends)
+        sample: list[dict[str, str | None]] = cmd.sample or [dict.fromkeys(names, "x")]
+        columns = list(sample[0])
+        try:
+            report = validate_isolated(
+                cmd.json_schema,
+                columns,
+                sample,
+                schema_code=cmd.code,
+                schema_version=cmd.semver,
+                key_column=cmd.key_column,
+                timeout_s=SAMPLE_CHECK_S,
+                memory_limit_mb=SAMPLE_CHECK_MB,
+            )
+        except ValidationFailedError as exc:
+            problems.append(f"the sample rows could not be checked: {exc}")
+            return problems
+        if cmd.sample:
+            problems.extend(
+                f"sample row {i.row}: {i.column or ''} {i.message}".replace("  ", " ")
+                for i in report.issues
+                if i.level == "error"
+            )
     if cmd.mapping is not None:
         try:
             check_mapping(cmd.mapping, cmd.json_schema, cmd.target_kind)

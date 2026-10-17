@@ -1,12 +1,12 @@
 """Derivation tools: find and check derived documents, propose to extract and to import.
 
 ``list_derived_documents``, ``get_derived_document`` and ``validate_against_schema`` only read:
-the last computes a report from stored rows and stores nothing. ``start_extraction`` and
-``propose_import`` never change anything: each builds the command the API would run, has it
-checked by the handler's own rules and files a pending proposal. A person accepts it in the review
-queue, and accepting runs the command as that person, so it needs the access the command needs
-(ADR-0014 section 8): publishing into tags the admin role, into documents the document controller
-or admin role. An agent never starts a job or writes a record itself.
+the last returns the report a job stored, and never runs a JSON Schema on the call.
+``start_extraction`` and ``propose_import`` never change anything: each builds the command the
+API would run, has it checked by the handler's own rules and files a pending proposal. A person
+accepts it in the review queue, and accepting runs the command as that person, so it needs the
+access the command needs (ADR-0014 section 8): publishing into tags the admin role, into documents
+the document controller or admin role. An agent never starts a job or writes a record itself.
 """
 
 from __future__ import annotations
@@ -64,12 +64,11 @@ def get_derived_document_impl(ctx: McpContext, *, project: str, derived: str) ->
 
 
 def validate_against_schema_impl(
-    ctx: McpContext, *, project: str, derived: str, schema: str | None, content_rev: int | None
+    ctx: McpContext, *, project: str, derived: str, content_rev: int | None
 ) -> ValidationReport:
+    """The report a validation job stored for the pass; nothing is computed on this call."""
     with ctx.factory(True) as uow:
-        return views.validate_stored(
-            uow, f"project:{project}", derived, schema_ref=schema, content_rev=content_rev
-        )
+        return views.derived_report(uow, f"project:{project}", derived, content_rev=content_rev)
 
 
 def start_extraction_impl(
@@ -174,25 +173,20 @@ def register_derivation_tools(server: MCPServer, ctx: McpContext) -> None:
     def validate_against_schema(
         project: Project,
         derived: Derived,
-        schema: Annotated[
-            str | None,
-            Field(
-                max_length=MAX_PART,
-                description="A schema `code` or `code@semver`; default: the document's own.",
-            ),
-        ] = None,
         content_rev: Annotated[
-            int | None, Field(ge=1, description="The pass to check; default: the latest.")
+            int | None, Field(ge=1, description="The pass to read; default: the latest.")
         ] = None,
     ) -> ValidationReport:
-        """Check the stored rows of a derived document against a schema and return the report.
+        """Get the validation report of a derived document against its schema.
 
-        Nothing is stored and no job runs: use it to see whether rows would pass, or which issues
-        another schema version would raise, before you propose anything.
+        This is the report the validation job stored for the pass (issues by row and column, with
+        exact counts); nothing is computed or written by this call. A pass that has not been
+        validated says so. To check against another schema version, propose `start_extraction`
+        or ask a person to queue a validation.
         """
         with guarded(ctx, "validate_against_schema", resource_name("derived", project, derived)):
             return validate_against_schema_impl(
-                ctx, project=project, derived=derived, schema=schema, content_rev=content_rev
+                ctx, project=project, derived=derived, content_rev=content_rev
             )
 
     @server.tool(annotations=PROPOSES)

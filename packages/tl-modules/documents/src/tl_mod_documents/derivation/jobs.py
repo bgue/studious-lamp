@@ -46,7 +46,9 @@ from tl_core.util import new_ulid, utcnow
 from tl_mod_documents.derivation import rows
 from tl_mod_documents.derivation.derived import finish_transition, source_file_of
 from tl_mod_documents.derivation.store import ACTOR, SOURCE, ResultFiles
-from tl_mod_documents.derivation.validation import ValidationReport, validate_result
+from tl_mod_documents.derivation.validation import ValidationReport
+from tl_mod_documents.derivation.validation_isolated import validate_isolated
+from tl_mod_documents.errors import ValidationFailedError
 from tl_mod_documents.handlers.common import append, version_of
 from tl_mod_documents.names import (
     DD_PROCESSING,
@@ -304,6 +306,29 @@ def _move(uow: UnitOfWork, cmd: Command, derived: rows.DerivedRow, name: str | N
     )
 
 
+def _validated(
+    schema: rows.SchemaRow,
+    result: ExtractionResult,
+    timeout_s: float,
+    memory_limit_mb: int | None,
+) -> ValidationReport:
+    """Validate in a child process; a breach or an unusable schema fails the job for good."""
+    try:
+        return validate_isolated(
+            schema.json_schema,
+            result.columns,
+            result.rows,
+            schema_code=schema.code,
+            schema_version=schema.semver,
+            key_column=schema.key_column,
+            problems=result.problems,
+            timeout_s=timeout_s,
+            memory_limit_mb=memory_limit_mb,
+        )
+    except ValidationFailedError as exc:
+        raise JobFailure(exc.code, str(exc), retryable=False) from exc
+
+
 class ExtractKind(_Base):
     """Read a file with an extractor, store the rows and check them against the schema."""
 
@@ -350,15 +375,7 @@ class ExtractKind(_Base):
                 )
         report: ValidationReport | None = None
         if result.status in ("ok", "failed", "unsupported"):
-            report = validate_result(
-                work.schema.json_schema,
-                result.columns,
-                result.rows,
-                schema_code=work.schema.code,
-                schema_version=work.schema.semver,
-                key_column=work.schema.key_column,
-                problems=result.problems if result.status != "ok" else result.problems,
-            )
+            report = _validated(work.schema, result, self._timeout_s, self._memory_limit_mb)
         return Outcome(
             work.job,
             work.derived.id,
@@ -476,6 +493,17 @@ class ValidateKind(_Base):
 
     kind = JOB_KIND_VALIDATE
 
+    def __init__(
+        self,
+        files: FileService,
+        *,
+        timeout_s: float = DEFAULT_TIMEOUT_S,
+        memory_limit_mb: int | None = DEFAULT_MEMORY_LIMIT_MB,
+    ) -> None:
+        super().__init__(files)
+        self._timeout_s = timeout_s
+        self._memory_limit_mb = memory_limit_mb
+
     def prepare(self, uow: UnitOfWork, claim: Claim) -> Work:
         job, derived, schema = self._load(uow, claim)
         rev = int(job.options.get("content_rev") or derived.content_rev)
@@ -489,15 +517,7 @@ class ValidateKind(_Base):
 
     def run(self, work: Work) -> Outcome:
         result = ExtractionResult.model_validate_json(work.data)
-        report = validate_result(
-            work.schema.json_schema,
-            result.columns,
-            result.rows,
-            schema_code=work.schema.code,
-            schema_version=work.schema.semver,
-            key_column=work.schema.key_column,
-            problems=result.problems,
-        )
+        report = _validated(work.schema, result, self._timeout_s, self._memory_limit_mb)
         return Outcome(
             work.job,
             work.derived.id,
@@ -566,7 +586,7 @@ def make_kinds(
     """The job kinds a worker serves."""
     return [
         ExtractKind(files, timeout_s=timeout_s, memory_limit_mb=memory_limit_mb, factory=factory),
-        ValidateKind(files),
+        ValidateKind(files, timeout_s=timeout_s, memory_limit_mb=memory_limit_mb),
     ]
 
 

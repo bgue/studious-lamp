@@ -24,7 +24,8 @@ from tl_mod_documents.derivation.publish import (
     preview_compensation,
     preview_publication,
 )
-from tl_mod_documents.derivation.validation import ValidationReport, validate_result
+from tl_mod_documents.derivation.validation import ValidationReport
+from tl_mod_documents.derivation.validation_isolated import validate_isolated
 from tl_mod_documents.errors import (
     DerivedNotFoundError,
     DerivedStateError,
@@ -401,7 +402,7 @@ def validate_stored(
     result = store.result_files().read_result(
         uow, scope, content.result_file_id, content.result_sha256
     )
-    return validate_result(
+    return validate_isolated(
         schema.json_schema,
         result.columns,
         result.rows,

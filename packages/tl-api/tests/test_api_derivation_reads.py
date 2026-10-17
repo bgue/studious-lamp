@@ -33,8 +33,16 @@ def test_the_app_configures_the_derivation_file_service(harness: Harness) -> Non
     assert store.configured() is harness.service
 
 
-def test_the_reads_answer_what_the_pipeline_stored(harness: Harness, world: DocumentsWorld) -> None:
+def test_the_reads_answer_what_the_pipeline_stored(
+    harness: Harness, world: DocumentsWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
     derived = world.valid_derived(ONE)
+
+    def never(*args: object, **kwargs: object) -> None:
+        raise AssertionError("a GET must not run a JSON Schema")
+
+    monkeypatch.setattr("tl_mod_documents.derivation.validation_isolated.run_in_envelope", never)
+    monkeypatch.setattr("tl_mod_documents.derivation.validation.validate_result", never)
     client = harness.client
     schemas = client.get(f"{P}/document-schemas").json()
     assert [s["code"] for s in schemas] == ["instrument-index"] and "json_schema" not in schemas[0]
@@ -53,8 +61,8 @@ def test_the_reads_answer_what_the_pipeline_stored(harness: Harness, world: Docu
     assert rows["total"] == 2 and [r["tag"] for r in rows["rows"]] == ["47-FV-1002"]
     report = client.get(f"{P}/derived-reports/{derived.key}").json()
     assert report["status"] == "valid"
-    check = client.get(f"{P}/derived-validations/{derived.key}").json()
-    assert check["status"] == "valid"
+    # no route runs a JSON Schema on a request: the report is the stored one
+    assert client.get(f"{P}/derived-validations/{derived.key}").status_code == 404
     preview = client.get(f"{P}/derived-publish-previews/{derived.id}").json()
     assert preview["counts"]["create"] == 2 and preview["can_publish"] is True
     comp = client.get(f"{P}/derived-compensation-previews/{derived.id}").json()
@@ -97,4 +105,4 @@ def test_an_agent_reads_but_nobody_without_a_token_does(
         {"Authorization": f"Bearer {add_token(harness.settings.tokens_path, 'agent:triage')}"}
     )
     assert agent.get(f"{P}/derived-documents/{derived.id}").status_code == 200
-    assert agent.get(f"{P}/derived-validations/{derived.id}").status_code == 200
+    assert agent.get(f"{P}/derived-reports/{derived.id}").status_code == 200

@@ -168,3 +168,14 @@ class CompensationRefusedError(DocumentsError):
     def __init__(self, message: str, problems: list[str] | None = None) -> None:
         super().__init__(message)
         self.problems: list[str] = problems if problems is not None else [message]
+
+
+class ValidationFailedError(DocumentsError):
+    """Validation could not finish: ``validation_limit`` (time or memory) or ``schema_unusable``.
+
+    The text is fixed: no trace, no path, nothing from the schema or the rows (FANOUT D10).
+    """
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code

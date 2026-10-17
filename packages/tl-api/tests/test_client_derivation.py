@@ -89,7 +89,7 @@ def test_the_client_runs_the_pipeline_and_reads_every_stage(
     assert api.list_derived_documents(PROJECT, state="Valid")[0].id == derived_id
     assert api.get_derived_rows(PROJECT, view.key).total == 2
     assert api.get_derived_report(PROJECT, view.key).status == "valid"
-    assert api.check_derived_document(PROJECT, view.key).status == "valid"
+    assert not hasattr(api, "check_derived_document")  # nothing validates on a request
     assert api.get_publish_preview(PROJECT, view.key).counts["create"] == 2
     assert api.get_compensation_preview(PROJECT, view.key).can_compensate is False
     world.upload_content(derived_id, index_csv(TWO), name="two.csv")
