@@ -1,5 +1,3 @@
-# ruff: noqa: F401, F841
-# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 """Schedule and cost read tools: schedules, snapshots, comparison, look-ahead, cost codes (T13).
 
 Thirteen read-only tools. An agent that helps a planner needs to know what the current schedule
@@ -9,11 +7,6 @@ fields. None of them writes: publishing a snapshot is proposed with
 ``propose_publish_schedule_snapshot`` (``tl_mcp.schedule_tools``) and a document controller
 accepts it. Every tool names its resource for the authorizer (``guarded``), so reading needs
 ``document.read`` like the other reads.
-
-
-STUB (P1-I4-T13): the bodies of the thirteen `*_impl` functions are `NotImplementedError`; the
-tools in `register_schedule_read_tools` (names, argument bounds, descriptions, the `guarded`
-authorizer call) are written and call them. The ticket fills the bodies by their STEPS comments.
 """
 
 from __future__ import annotations
@@ -53,20 +46,14 @@ Snapshot = Annotated[
 
 def list_schedules_impl(ctx: McpContext, *, project: str) -> list[views.ScheduleView]:
     """The project's schedules by code, without snapshots."""
-    # STEPS
-    # 1. Open `with ctx.factory(True) as uow:` (the `True` is read-only), call the view with
-    #    `uow.conn()` and the scope `f"project:{project}"`, and return its result from
-    #    inside the `with`. The view is `views.schedule_views(conn, scope)`.
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.schedule_views(uow.conn(), f"project:{project}")
 
 
 def get_schedule_impl(ctx: McpContext, *, project: str, schedule: str) -> views.ScheduleDetailView:
     """One schedule with its snapshots, newest first."""
-    # STEPS
-    # 1. Open `with ctx.factory(True) as uow:` (the `True` is read-only), call the view with
-    #    `uow.conn()` and the scope `f"project:{project}"`, and return its result from
-    #    inside the `with`. The view is `views.schedule_detail(conn, scope, schedule)`.
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.schedule_detail(uow.conn(), f"project:{project}", schedule)
 
 
 def list_activities_impl(
@@ -82,26 +69,28 @@ def list_activities_impl(
     offset: int,
 ) -> views.ActivityPage:
     """A page of the activities of a built snapshot, in file order."""
-    # STEPS
-    # 1. Open `with ctx.factory(True) as uow:` (the `True` is read-only), call the view with
-    #    `uow.conn()` and the scope `f"project:{project}"`, and return its result from
-    #    inside the `with`. The view is `views.activity_page(conn, scope, schedule,
-    #    snapshot, critical=..., status=status, search=search, limit=limit, offset=offset)`;
-    #    pass `critical=True` when `critical` is true and `None` otherwise (`False` would
-    #    ask for the non-critical ones).
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.activity_page(
+            uow.conn(),
+            f"project:{project}",
+            schedule,
+            snapshot,
+            critical=True if critical else None,
+            status=status,
+            search=search,
+            limit=limit,
+            offset=offset,
+        )
 
 
 def get_activity_impl(
     ctx: McpContext, *, project: str, schedule: str, activity_id: str, snapshot: int | None
 ) -> views.ActivityDetail:
     """One activity with its predecessors and successors."""
-    # STEPS
-    # 1. Open `with ctx.factory(True) as uow:` (the `True` is read-only), call the view with
-    #    `uow.conn()` and the scope `f"project:{project}"`, and return its result from
-    #    inside the `with`. The view is `views.activity_detail(conn, scope, schedule,
-    #    activity_id, snapshot)`.
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.activity_detail(
+            uow.conn(), f"project:{project}", schedule, activity_id, snapshot
+        )
 
 
 def compare_impl(
@@ -114,99 +103,70 @@ def compare_impl(
     limit: int,
 ) -> Comparison:
     """What changed from ``old`` to ``new`` (default: the current snapshot and the one before)."""
-    # STEPS
-    # 1. Open `with ctx.factory(True) as uow:` (the `True` is read-only), call the view with
-    #    `uow.conn()` and the scope `f"project:{project}"`, and return its result from
-    #    inside the `with`. The view is `views.comparison(conn, scope, schedule, new, old,
-    #    limit=limit)`.
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.comparison(uow.conn(), f"project:{project}", schedule, new, old, limit=limit)
 
 
 def look_ahead_impl(
     ctx: McpContext, *, project: str, schedule: str, snapshot: int | None, weeks: int
 ) -> LookAhead:
     """What is under way or starts within ``weeks`` weeks of the snapshot's data date."""
-    # STEPS
-    # 1. Open `with ctx.factory(True) as uow:` (the `True` is read-only), call the view with
-    #    `uow.conn()` and the scope `f"project:{project}"`, and return its result from
-    #    inside the `with`. The view is `views.look_ahead_view(conn, scope, schedule,
-    #    snapshot, weeks)`.
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.look_ahead_view(uow.conn(), f"project:{project}", schedule, snapshot, weeks)
 
 
 def resolve_impl(
     ctx: McpContext, *, project: str, schedule: str, activity_id: str, as_of: str | None
 ) -> Resolution:
     """What an activity id is now, or as of a snapshot number or a date."""
-    # STEPS
-    # 1. Open `with ctx.factory(True) as uow:` (the `True` is read-only), call the view with
-    #    `uow.conn()` and the scope `f"project:{project}"`, and return its result from
-    #    inside the `with`. The view is `views.resolution(conn, scope, schedule,
-    #    activity_id, views.as_of_of(as_of))`; `as_of_of` turns the text into what the view
-    #    takes.
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.resolution(
+            uow.conn(), f"project:{project}", schedule, activity_id, views.as_of_of(as_of)
+        )
 
 
 def trend_impl(
     ctx: McpContext, *, project: str, schedule: str, activity_id: str
 ) -> list[views.TrendPoint]:
     """One activity's float and dates in every published snapshot, oldest first."""
-    # STEPS
-    # 1. Open `with ctx.factory(True) as uow:` (the `True` is read-only), call the view with
-    #    `uow.conn()` and the scope `f"project:{project}"`, and return its result from
-    #    inside the `with`. The view is `views.float_trend(conn, scope, schedule,
-    #    activity_id)`.
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.float_trend(uow.conn(), f"project:{project}", schedule, activity_id)
 
 
 def orphans_impl(ctx: McpContext, *, project: str, schedule: str) -> list[OrphanedLink]:
     """The links whose activity is not in the current snapshot."""
-    # STEPS
-    # 1. Open `with ctx.factory(True) as uow:` (the `True` is read-only), call the view with
-    #    `uow.conn()` and the scope `f"project:{project}"`, and return its result from
-    #    inside the `with`. The view is `views.orphans(conn, scope, schedule)`.
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.orphans(uow.conn(), f"project:{project}", schedule)
 
 
 def record_links_impl(ctx: McpContext, *, project: str, record_id: str) -> list[ActivityLink]:
     """The activity links of one record and what each resolves to now."""
-    # STEPS
-    # 1. Open `with ctx.factory(True) as uow:` (the `True` is read-only), call the view with
-    #    `uow.conn()` and the scope `f"project:{project}"`, and return its result from
-    #    inside the `with`. The view is `views.activity_links(conn, scope, record_id)`.
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return views.activity_links(uow.conn(), f"project:{project}", record_id)
 
 
 def list_cost_codes_impl(
     ctx: McpContext, *, project: str, parent: str | None, search: str | None, limit: int
 ) -> list[cost_views.CostCodeView]:
     """The project's cost codes by code with their latest figures."""
-    # STEPS
-    # 1. Open `with ctx.factory(True) as uow:` (the `True` is read-only), call the view with
-    #    `uow.conn()` and the scope `f"project:{project}"`, and return its result from
-    #    inside the `with`. The view is `cost_views.cost_codes(conn, scope, parent=parent,
-    #    search=search, limit=limit)`.
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return cost_views.cost_codes(
+            uow.conn(), f"project:{project}", parent=parent, search=search, limit=limit
+        )
 
 
 def get_cost_code_impl(
     ctx: McpContext, *, project: str, code: str
 ) -> cost_views.CostCodeDetailView:
     """One cost code with its children and the figures of every snapshot."""
-    # STEPS
-    # 1. Open `with ctx.factory(True) as uow:` (the `True` is read-only), call the view with
-    #    `uow.conn()` and the scope `f"project:{project}"`, and return its result from
-    #    inside the `with`. The view is `cost_views.cost_code_detail(conn, scope, code)`.
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return cost_views.cost_code_detail(uow.conn(), f"project:{project}", code)
 
 
 def list_cost_snapshots_impl(ctx: McpContext, *, project: str) -> list[cost_views.CostSnapshotView]:
     """The project's imported cost periods, newest first."""
-    # STEPS
-    # 1. Open `with ctx.factory(True) as uow:` (the `True` is read-only), call the view with
-    #    `uow.conn()` and the scope `f"project:{project}"`, and return its result from
-    #    inside the `with`. The view is `cost_views.cost_snapshots(conn, scope)`.
-    raise NotImplementedError
+    with ctx.factory(True) as uow:
+        return cost_views.cost_snapshots(uow.conn(), f"project:{project}")
 
 
 def register_schedule_read_tools(server: MCPServer, ctx: McpContext) -> None:
