@@ -49,14 +49,17 @@ Learnings that apply (pasted from `docs/memory/LEARNINGS.md` and the build's con
 - No new dependencies. When you implement the stub, remove the `STUB` paragraph from the module docstring, every `STEPS` comment, the `# ruff: noqa: F401` line and the `# pyright: reportUnusedImport=false, ...` line.
 - Never change `schema/**` or anything under `generated/`. Never edit a file outside *Allowed paths*.
 - Do not run `just test`, `just test-parity` or `just test-tui` (they take an hour); run the scoped commands in *Acceptance*.
-Expected: `just check` clean; 8 pass on SQLite; 16 pass with both adapters.
+Expected: `just check` clean; 9 pass on SQLite; with both adapters 17 pass and 1 skips (the actor test, which is about a setup the Postgres conftest replaces).
 
 ## Allowed paths
 - pytest runs in importlib mode: a test cannot import a sibling test file; the helpers it needs are `packages/tl-cli/tests/derivecli_support.py`, `doccli_support.py` and `auth_support.py` (all in the tree, read only) (L-P0-I2-B1).
 - These tests use the `new_db` fixture, so they run on SQLite and, with `--adapters sqlite,postgres`, on Postgres (L-P1-I1-6). On SQLite an admin command needs a signed-in admin: the helpers do `bootstrap` and `sign_in`; do not weaken `require_admin` to make a test pass.
 - The commands call the module's functions directly (`open_uow`, a `handle_*` function or a `views.*` read) and print; they do not re-implement any rule. A refusal is a `ServiceError` and `service_errors()` turns it into `error: ...` on stderr and exit 1.
 - Output lines are asserted exactly, including the two spaces between fields: copy the formats from the docstring of each command.
-- This ticket's test file has 8 test functions. Several run the worker through `tl derive worker`, which is finished (T14b's file; if it is still a stub on your branch, the T14b ticket merges first: ask the supervisor).
+- This ticket's test file has 9 test functions. Several run the worker through `tl derive worker`, which is finished (T14b's file; if it is still a stub on your branch, the T14b ticket merges first: ask the supervisor).
+
+## Lines you must not change
+`validate` starts with `who = acting(db, actor)`: the actor check comes before anything is read or written (security review of P1-I3, finding 2). Keep it, and use `who` as the command's actor. `--actor` is declared with the default `DEV_ACTOR` so that the hook of `tl_cli.actor_hook` installs; do not change that declaration.
 
 ## Steps
 - `packages/tl-cli/src/tl_cli/derive_read.py` (edit)

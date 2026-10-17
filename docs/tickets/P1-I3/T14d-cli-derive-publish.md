@@ -14,7 +14,7 @@ A person previews and approves the publication of a valid derived document, and 
 >
 > **Surfaces do not re-implement rules.** The module (`tl_mod_documents.derivation`) decides; a surface parses its input, calls one function and prints what comes back.
 >
-> **Publication (ADR-0014 sections 5 and 6).** One correlated import through module commands; it creates records and never changes existing ones; rows whose key exists need `--skip-existing`. Publishing into tags needs the admin role (`require_admin`), into documents the document controller role (`require_controller`); compensation needs admin. The gate is checked before anything is written, and the plan's `target` says which.
+> **Publication (ADR-0014 sections 5 and 6).** One correlated import through module commands; it creates records and never changes existing ones; rows whose key exists need `--skip-existing`. Publishing into tags needs the admin role (`require_admin`), into documents the document controller role (`require_controller`); compensation needs admin. The gates are in the stub already (final); the correlation id is made by the server with the prefix `derive:`.
 
 ## Interfaces (verbatim from the repo at the branch point)
 `packages/tl-cli/src/tl_cli/derive_support.py` (final; read only):
@@ -50,15 +50,18 @@ Learnings that apply (pasted from `docs/memory/LEARNINGS.md` and the build's con
 - No new dependencies. When you implement the stub, remove the `STUB` paragraph from the module docstring, every `STEPS` comment, the `# ruff: noqa: F401` line and the `# pyright: reportUnusedImport=false, ...` line.
 - Never change `schema/**` or anything under `generated/`. Never edit a file outside *Allowed paths*.
 - Do not run `just test`, `just test-parity` or `just test-tui` (they take an hour); run the scoped commands in *Acceptance*.
-Expected: `just check` clean; 7 pass on SQLite; with both adapters 13 pass and 1 skips (the Postgres case of the role test).
+Expected: `just check` clean; 8 pass on SQLite; with both adapters 14 pass and 2 skip (the role test and the actor test, which are about a setup the Postgres conftest replaces).
 
 ## Allowed paths
 - pytest runs in importlib mode: a test cannot import a sibling test file; the helpers it needs are `packages/tl-cli/tests/derivecli_support.py`, `doccli_support.py` and `auth_support.py` (all in the tree, read only) (L-P0-I2-B1).
 - These tests use the `new_db` fixture, so they run on SQLite and, with `--adapters sqlite,postgres`, on Postgres (L-P1-I1-6). On SQLite an admin command needs a signed-in admin: the helpers do `bootstrap` and `sign_in`; do not weaken `require_admin` to make a test pass.
 - The commands call the module's functions directly (`open_uow`, a `handle_*` function or a `views.*` read) and print; they do not re-implement any rule. A refusal is a `ServiceError` and `service_errors()` turns it into `error: ...` on stderr and exit 1.
 - Output lines are asserted exactly, including the two spaces between fields: copy the formats from the docstring of each command.
-- This ticket's test file has 7 test functions. Its setup uses `tl derive open|content|start|worker` and `tl derive schema register` (T14a, T14b); the supervisor merges those first.
+- This ticket's test file has 8 test functions. Its setup uses `tl derive open|content|start|worker` and `tl derive schema register` (T14a, T14b); the supervisor merges those first.
 - The gate comes first: a person without the role must see the error and no record may be written.
+
+## Lines you must not change
+Both commands start with `who = acting(db, actor)` and, with `--apply`, the role gate (`_require_publisher` for `publish`: admin for tags, document controller or admin for documents; `require_admin` for `compensate`), all before anything is read for output or written (security review of P1-I3, findings 1 and 2). They are written in the stub and are final: keep them, use `who` as the actor of the command, and do not move them. `--actor` is declared with the default `DEV_ACTOR` so that the hook of `tl_cli.actor_hook` installs; do not change that declaration.
 
 ## Steps
 - `packages/tl-cli/src/tl_cli/derive_publish.py` (edit)

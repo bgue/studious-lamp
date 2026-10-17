@@ -151,3 +151,26 @@ def test_requeue_restores_jobs_the_queue_lost(env: dict[str, str], tmp_path: Pat
     ran = derive(env, "worker", "--once", "--requeue", "--factory", FACTORY).stdout.splitlines()
     assert ran[0] == "requeued 1" and ran[-1] == "worker done: ran=1"
     assert "Valid" in derive(env, "ls", *P).stdout
+
+
+def test_no_command_that_writes_can_act_as_someone_else(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    from tl_adapters.db import as_target, is_postgres
+
+    if is_postgres(as_target(env["TL_DB"])):
+        pytest.skip("the conftest signs one admin in on Postgres")
+    derive(env, "open", "ISD-001", "A", "--schema", "instrument-index", *P)
+    data = str(csv_file(tmp_path, ROWS))
+    prod = env | {"TL_ENV": "prod"}  # a setup where nobody may act as someone else
+    ceo = ["--actor", "user:ceo", *P]
+    for args in (
+        ("open", "ISD-001", "A", "--schema", "instrument-index"),
+        ("content", KEY, data),
+        ("start", KEY),
+        ("cancel", "NOSUCH"),
+    ):
+        refused = tl(prod, "derive", *args, *ceo)
+        assert refused.exit_code == 1 and "is not the signed-in user" in refused.output, args
+    assert "attached" not in derive(env, "jobs", *P).stdout
+    assert derive(env, "jobs", *P).stdout.strip() == ""  # nothing was queued

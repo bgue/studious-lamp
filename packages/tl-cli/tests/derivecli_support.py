@@ -94,3 +94,29 @@ def csv_file(
     path = tmp_path / name
     path.write_bytes(index_csv(rows))
     return path
+
+
+def sign_in_as(env: dict[str, str], tmp_path: Path, name: str, roles: list[str]) -> dict[str, str]:
+    """A new account with ``roles``, signed in with a session file of its own; its environment.
+
+    SQLite only: on Postgres the conftest signs one admin in for every command.
+    """
+    from auth_support import GOOD, separate_session
+    from auth_support import sign_in as sign_in_session
+    from tl_adapters.db import open_uow
+    from tl_core.auth import accounts
+    from tl_core.auth.password import prepare_password
+
+    other = separate_session(env, tmp_path, name)
+    with open_uow(as_target(env["TL_DB"])) as uow:
+        accounts.create_account(
+            uow,
+            username=name,
+            display_name=name,
+            kind="person",
+            roles=roles,
+            password=prepare_password(GOOD, username=name),
+            by="svc:test",
+        )
+    sign_in_session(other, name, GOOD)
+    return other

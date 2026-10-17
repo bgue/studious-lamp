@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 import yaml
 from auth_support import run as tl
-from derivecli_support import as_admin, derive_env, schema_file
-from tl_adapters.db import DbTarget
+from derivecli_support import as_admin, derive_env, schema_file, sign_in_as
+from tl_adapters.db import DbTarget, as_target, is_postgres
 from typer.testing import Result as RunResult
 
 
@@ -115,3 +115,46 @@ def test_registering_needs_the_admin_role(env: dict[str, str], tmp_path: Path) -
     assert "not signed in" in result.output
     sign_in(env)
     derive(env, "register", str(schema_file(tmp_path)), "--company")
+
+
+def test_a_user_without_the_admin_role_cannot_register_or_retire(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    if is_postgres(as_target(env["TL_DB"])):
+        pytest.skip("the conftest signs one admin in on Postgres")
+    as_admin(env)
+    derive(env, "register", str(schema_file(tmp_path)), "--company")
+    user = sign_in_as(env, tmp_path, "ursula", ["user"])
+    refused = tl(
+        user,
+        "derive",
+        "schema",
+        "register",
+        str(schema_file(tmp_path, semver="1.1.0")),
+        "--company",
+    )
+    assert refused.exit_code == 1 and "forbidden" in refused.output
+    refused = tl(
+        user, "derive", "schema", "retire", "instrument-index@1.0.0", "--company", "--reason", "x"
+    )
+    assert refused.exit_code == 1 and "forbidden" in refused.output
+    assert len(derive(env, "ls", "--all").stdout.splitlines()) == 1  # nothing was written
+
+
+def test_the_actor_must_be_the_signed_in_one(env: dict[str, str], tmp_path: Path) -> None:
+    if is_postgres(as_target(env["TL_DB"])):
+        pytest.skip("the conftest signs one admin in on Postgres")
+    as_admin(env)
+    prod = env | {"TL_ENV": "prod"}  # a setup where nobody may act as someone else
+    other = tl(
+        prod,
+        "derive",
+        "schema",
+        "register",
+        str(schema_file(tmp_path)),
+        "--company",
+        "--actor",
+        "user:ceo",
+    )
+    assert other.exit_code == 1 and "is not the signed-in user" in other.output
+    assert derive(env, "ls").stdout.strip() == ""

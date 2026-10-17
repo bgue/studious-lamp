@@ -11,7 +11,7 @@ signatures, options, docstrings and the helpers are final. Each body has a STEPS
 Implement them, then delete this paragraph, the STEPS comments and the lint-silencing lines.
 """
 
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
+# ruff: noqa: F401, F841 -- STUB: these imports are used once the bodies are written
 # pyright: reportUnusedImport=false, reportUnusedVariable=false
 
 from __future__ import annotations
@@ -32,6 +32,7 @@ from tl_mod_documents.derivation.publish import (
 from tl_mod_documents.names import TARGET_TAGS
 
 from tl_cli.derive_support import (
+    DEV_ACTOR,
     SOURCE,
     Actor,
     Project,
@@ -46,6 +47,19 @@ from tl_cli.session import require_admin, require_controller
 app = typer.Typer(help="Publish a valid derived document, or compensate.", no_args_is_help=True)
 
 _Ref = Annotated[str, typer.Argument(help="A derived document's key or id.")]
+
+
+def _require_publisher(db: DbTarget, scope: str, ref: str) -> None:
+    """The role a publication needs, checked before anything is written (ADR-0014): admin for
+    tags, document controller (or admin) for documents. Final: do not move or drop the call."""
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        plan = views.publish_preview(uow, scope, ref)
+    if plan.target is None:
+        fail(f"{plan.derived_key}: its schema has no publish mapping")
+    if plan.target == TARGET_TAGS:
+        require_admin(db)
+    else:
+        require_controller(db)
 
 
 @app.command("publish")
@@ -64,7 +78,7 @@ def publish(
         bool, typer.Option("--skip-existing", help="Leave rows whose key exists alone.")
     ] = False,
     limit: Annotated[int, typer.Option("--limit", min=1, help="Rows to list.")] = 40,
-    actor: Actor = None,
+    actor: Actor = DEV_ACTOR,
 ) -> None:
     """Show what publishing would do; with --apply, do it as one correlated import.
 
@@ -75,8 +89,14 @@ def publish(
     `dry run: nothing written; add --apply to publish` (or `cannot publish`, exit 1). With --apply
     it prints `published <n> records from <key>` and the import's correlation id.
     """
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    configure_files()
+    who = acting(db, actor)  # final: the actor is checked before anything is read or written
+    if apply:
+        _require_publisher(db, scope, ref)  # final: the role gate, before the first write
     # STEPS (P1-I3-T14d)
-    # 1. db = ctx.obj; scope = f"project:{project}"; configure_files().
+    # 1. (done above: db, scope, configure_files, who and the role gate.)
     # 2. Readonly block: found = views.find_derived(...); plan = views.publish_preview(uow,
     #    scope, ref).
     # 3. Print the header, the counts line, one line per row (at most `limit`: `+ key` create, `=
@@ -86,12 +106,11 @@ def publish(
     #    written; add --apply to publish` plus ` (add --skip-existing)` when
     #    plan.needs_skip_existing and not skip_existing, and return; otherwise print `cannot
     #    publish` and raise typer.Exit(code=1).
-    # 5. With --apply: if plan.target is None fail(...); require_admin(db) for tags (TARGET_TAGS)
-    #    else require_controller(db).
+    # 5. (done above: the role gate.)
     # 6. Inside `with service_errors(), open_uow(db) as uow:` call
     #    handle_publish_derived_tags(uow, PublishDerivedTags(**fields)) or
     #    handle_publish_derived_documents(uow, PublishDerivedDocuments(**fields)); fields = actor
-    #    (acting), source, scope, derived_id=found.id, expected_content_rev=rev or
+    #    (`who`), source, scope, derived_id=found.id, expected_content_rev=rev or
     #    plan.content_rev, skip_existing.
     # 7. Read the derived document again (views.derived_view) and print `published
     #    <published_count> records from <key>` and `correlation <published_correlation_id>`.
@@ -107,7 +126,7 @@ def compensate(
     apply: Annotated[
         bool, typer.Option("--apply", help="Roll the publication back (admin).")
     ] = False,
-    actor: Actor = None,
+    actor: Actor = DEV_ACTOR,
 ) -> None:
     """Show what rolling back the publication in force would end; with --apply, do it.
 
@@ -115,8 +134,14 @@ def compensate(
     reversible` or `blocked: <problem>` per record, then `problem: <reason>` lines. All or nothing:
     one record that cannot be reversed stops it. Prints `compensated <n> records of <key>`.
     """
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}"
+    configure_files()
+    who = acting(db, actor)  # final: the actor is checked before anything is read or written
+    if apply:
+        require_admin(db)  # final: compensation is an admin's act, checked before the first write
     # STEPS (P1-I3-T14d)
-    # 1. db = ctx.obj; scope = f"project:{project}"; configure_files().
+    # 1. (done above: db, scope, configure_files, who and the admin gate.)
     # 2. Readonly block: found = views.find_derived(...); plan = views.compensation_preview(uow,
     #    scope, ref).
     # 3. Print `compensate <key> correlation <id or ->`, then per item `<action> <key or
@@ -124,8 +149,8 @@ def compensate(
     #    `problem: <p>` per plan.problems.
     # 4. Without --apply: if plan.can_compensate print `dry run: nothing written; add --apply to
     #    roll back` and return; otherwise print `cannot compensate` and raise typer.Exit(code=1).
-    # 5. With --apply: require_admin(db); inside `with service_errors(), open_uow(db) as uow:`
-    #    handle_compensate_publication(uow, CompensatePublication(actor=acting(db, actor),
+    # 5. With --apply: inside `with service_errors(), open_uow(db) as uow:`
+    #    handle_compensate_publication(uow, CompensatePublication(actor=who,
     #    source=SOURCE, scope=scope, derived_id=found.id, reason=reason)).
     # 6. Print `compensated <n> records of <key>` where n counts the plan items whose action is
     #    not `retract_link`.

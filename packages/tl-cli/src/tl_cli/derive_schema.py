@@ -25,6 +25,7 @@ from tl_mod_documents.derivation.schemas import (
 from tl_mod_documents.errors import SchemaNotFoundError
 
 from tl_cli.derive_support import (
+    DEV_ACTOR,
     SOURCE,
     Actor,
     OptProject,
@@ -59,7 +60,7 @@ def register(
     file: Annotated[Path, typer.Argument(help="YAML or JSON with the schema.", exists=True)],
     project: OptProject = None,
     company: _Company = False,
-    actor: Actor = None,
+    actor: Actor = DEV_ACTOR,
 ) -> None:
     """Register a schema version from FILE (admin).
 
@@ -150,7 +151,7 @@ def retire(
     reason: Annotated[str, typer.Option("--reason", help="Why (kept in the history).")],
     project: OptProject = None,
     company: _Company = False,
-    actor: Actor = None,
+    actor: Actor = DEV_ACTOR,
 ) -> None:
     """Retire a schema version (admin). Documents that named it keep it; new work cannot pick it."""
     db: DbTarget = ctx.obj

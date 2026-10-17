@@ -18,6 +18,7 @@ from derivecli_support import (
     runtime,
     schema_file,
     seed,
+    sign_in_as,
 )
 from sqlalchemy import text
 from tl_adapters.db import DbTarget, as_target, is_postgres, open_uow
@@ -82,7 +83,7 @@ def test_apply_creates_the_tags_and_the_derived_document_is_published(
     valid(env, tmp_path)
     out = derive(env, "publish", KEY, *P, "--apply").stdout.splitlines()
     assert out[-2] == f"published 3 records from {KEY}"
-    assert out[-1].startswith("correlation ") and len(out[-1].split()[1]) == 26
+    assert out[-1].startswith("correlation derive:")  # the server makes it, with its prefix
     assert tags(env) == 3
     assert "state Published" in derive(env, "show", KEY, *P).stdout
     again = derive(env, "publish", KEY, *P, "--apply", ok=False)
@@ -143,16 +144,40 @@ def test_compensating_what_was_never_published_is_refused(
     assert "no publication to roll back" in out.stdout and "cannot compensate" in out.stdout
 
 
-def test_publishing_needs_the_admin_role(env: dict[str, str], tmp_path: Path) -> None:
+def test_publishing_and_compensating_need_the_admin_role(
+    env: dict[str, str], tmp_path: Path
+) -> None:
     if is_postgres(as_target(env["TL_DB"])):
         pytest.skip("on Postgres the conftest signs an admin in for every command")
     valid(env, tmp_path)
-    from auth_support import separate_session
+    for name, roles in (("ursula", ["user"]), ("dora", ["user", "document_controller"])):
+        person = sign_in_as(env, tmp_path, name, roles)  # a controller is not an admin
+        refused = tl(person, "derive", "publish", KEY, *P, "--apply")
+        assert refused.exit_code == 1 and "forbidden" in refused.output, name
+        assert tags(env) == 0, name
+    derive(env, "publish", KEY, *P, "--apply")  # the admin of the fixture
+    assert tags(env) == 3
+    person = sign_in_as(env, tmp_path, "vera", ["user", "document_controller"])
+    refused = tl(person, "derive", "compensate", KEY, *P, "--reason", "x", "--apply")
+    assert refused.exit_code == 1 and "forbidden" in refused.output
+    assert tags(env) == 3  # nothing was taken back
+    preview = tl(person, "derive", "publish", KEY, *P)  # a preview is open to anyone signed in
+    assert preview.exit_code in (0, 1) and "forbidden" not in preview.output
 
-    other = separate_session(env, tmp_path, "nobody")
-    assert bootstrap(other, name="root").exit_code in (0, 1)
-    # a person who is not signed in cannot publish
-    result = derive(other, "publish", KEY, *P, "--apply", ok=False)
-    assert "not signed in" in result.output or "forbidden" in result.output
+
+def test_publish_and_compensate_cannot_act_as_someone_else(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    if is_postgres(as_target(env["TL_DB"])):
+        pytest.skip("on Postgres the conftest signs an admin in for every command")
+    valid(env, tmp_path)
+    prod = env | {"TL_ENV": "prod"}  # a setup where nobody may act as someone else
+    refused = tl(prod, "derive", "publish", KEY, *P, "--apply", "--actor", "user:ceo")
+    assert refused.exit_code == 1 and "is not the signed-in user" in refused.output
     assert tags(env) == 0
-    sign_in(env)
+    derive(env, "publish", KEY, *P, "--apply")
+    refused = tl(
+        prod, "derive", "compensate", KEY, *P, "--reason", "x", "--apply", "--actor", "user:ceo"
+    )
+    assert refused.exit_code == 1 and "is not the signed-in user" in refused.output
+    assert tags(env) == 3

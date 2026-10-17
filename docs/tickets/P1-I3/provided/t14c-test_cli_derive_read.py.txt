@@ -155,3 +155,15 @@ def test_validate_queues_a_job_and_the_worker_keeps_the_report(
 def test_an_unknown_key_is_named(env: dict[str, str]) -> None:
     out = derive(env, "show", "ISD-009@A/none", *P, ok=False)
     assert "no derived document 'ISD-009@A/none'" in out.output
+
+
+def test_validate_cannot_act_as_someone_else(env: dict[str, str], tmp_path: Path) -> None:
+    from tl_adapters.db import as_target, is_postgres
+
+    if is_postgres(as_target(env["TL_DB"])):
+        pytest.skip("the conftest signs one admin in on Postgres")
+    run_pass(env, tmp_path, ROWS)
+    prod = env | {"TL_ENV": "prod"}  # a setup where nobody may act as someone else
+    refused = tl(prod, "derive", "validate", KEY, *P, "--actor", "user:ceo")
+    assert refused.exit_code == 1 and "is not the signed-in user" in refused.output
+    assert derive(env, "jobs", *P, "--state", "queued").stdout.strip() == ""

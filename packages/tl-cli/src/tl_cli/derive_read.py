@@ -10,7 +10,7 @@ has a STEPS comment. Implement them, then delete this paragraph, the STEPS comme
 lint-silencing lines.
 """
 
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
+# ruff: noqa: F401, F841 -- STUB: these imports are used once the bodies are written
 # pyright: reportUnusedImport=false, reportUnusedVariable=false
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from tl_mod_documents.derivation.derived import ValidateDerived, handle_validate
 from tl_mod_documents.derivation.validation import ValidationReport
 
 from tl_cli.derive_support import (
+    DEV_ACTOR,
     SOURCE,
     Actor,
     Project,
@@ -191,14 +192,16 @@ def validate(
     schema_version: Annotated[
         str | None, typer.Option("--schema-version", help="Another version of its schema.")
     ] = None,
-    actor: Actor = None,
+    actor: Actor = DEV_ACTOR,
 ) -> None:
     """Queue a job that validates a pass again and keeps the report. `queued <job> for <key>`."""
+    db: DbTarget = ctx.obj
+    who = acting(db, actor)  # final: the actor is checked before anything is read or written
     # STEPS (P1-I3-T14c)
-    # 1. db = ctx.obj; scope = f"project:{project}".
+    # 1. scope = f"project:{project}" (db and `who` are set above).
     # 2. Inside `with service_errors(), open_uow(db) as uow:` found =
     #    views.find_derived(uow.conn(), scope, ref); made = handle_validate_derived(uow,
-    #    ValidateDerived(actor=acting(db, actor), source=SOURCE, scope=scope,
+    #    ValidateDerived(actor=who, source=SOURCE, scope=scope,
     #    derived_id=found.id, content_rev=rev, schema_semver=schema_version)).
     # 3. Print `queued <made.key> for <found.key>`.
     raise NotImplementedError

@@ -13,7 +13,7 @@ from typing import Annotated, NoReturn
 
 import typer
 from pydantic import ValidationError
-from tl_adapters.db import DbTarget
+from tl_adapters.db import DbTarget, is_postgres
 from tl_adapters.objectstore import make_object_store, object_secret
 from tl_core.files.service import FileService
 from tl_core.ledger import ConcurrencyError
@@ -21,12 +21,11 @@ from tl_core.services.errors import ServiceError
 from tl_mod_documents.derivation import store
 from tl_mod_documents.errors import PublishRefusedError
 
-from tl_cli.session import default_actor
+from tl_cli.session import DEV_ACTOR as DEV_ACTOR
+from tl_cli.session import check_actor
 
 Project = Annotated[str, typer.Option("--project", help="Project ID; scope project:<ID>.")]
-Actor = Annotated[
-    str | None, typer.Option("--actor", help="Actor recorded on events (default: the session's).")
-]
+Actor = Annotated[str, typer.Option("--actor", help="Actor recorded on events.")]
 OptProject = Annotated[
     str | None, typer.Option("--project", help="A project (scope project:<ID>).")
 ]
@@ -79,10 +78,15 @@ def scope_of(project: str | None, company: bool = False) -> str:
     return "company" if company else f"project:{project}"
 
 
-def acting(db: DbTarget, actor: str | None) -> str:
-    """The actor to record: ``--actor`` as given (checked by the gate of the command), else the
-    session's, else ``user:dev`` where the setup allows it."""
-    return actor if actor is not None else default_actor(db)
+def acting(db: DbTarget, actor: str) -> str:
+    """The actor to record: the session's own, or anyone only in a dev setup on a ledger file.
+
+    ``--actor`` is declared like every other command's (default ``user:dev``), which installs the
+    hook of ``tl_cli.actor_hook`` (the default becomes the session's actor and every value is
+    checked); this checks again, so a command that reaches the handler without the hook cannot
+    act as someone else.
+    """
+    return check_actor(db, actor, local=not is_postgres(db))
 
 
 def cell(value: object, width: int = 40) -> str:

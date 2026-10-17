@@ -32,6 +32,7 @@ from tl_mod_documents.derivation.worker import build_worker, requeue_orphans
 from tl_mod_documents.names import SLOT_CONTENT
 
 from tl_cli.derive_support import (
+    DEV_ACTOR,
     SOURCE,
     Actor,
     Project,
@@ -66,7 +67,7 @@ def open_derived(
     revision: Annotated[str, typer.Argument(help="The revision code.")],
     schema: Annotated[str, typer.Option("--schema", help="Schema code, or code@version.")],
     project: Project,
-    actor: Actor = None,
+    actor: Actor = DEV_ACTOR,
 ) -> None:
     """Open the derived document of a revision for a schema. Prints `opened <key> <id>`.
 
@@ -99,7 +100,7 @@ def content(
         Path, typer.Argument(help="The CSV or XLSX to attach.", exists=True, dir_okay=False)
     ],
     project: Project,
-    actor: Actor = None,
+    actor: Actor = DEV_ACTOR,
 ) -> None:
     """Attach a CSV or XLSX as the data of a derived document. Prints `attached <name> <file id>`.
 
@@ -153,7 +154,7 @@ def start(
     file_id: Annotated[
         str | None, typer.Option("--file-id", help="A content file to read.")
     ] = None,
-    actor: Actor = None,
+    actor: Actor = DEV_ACTOR,
 ) -> None:
     """Queue an extraction job. Prints `queued <job key> for <derived key>`.
 
@@ -239,7 +240,7 @@ def cancel(
     job: Annotated[str, typer.Argument(help="The job's id.")],
     project: Project,
     reason: Annotated[str, typer.Option("--reason", help="Why.")] = "cancelled",
-    actor: Actor = None,
+    actor: Actor = DEV_ACTOR,
 ) -> None:
     """Cancel a queued job. Prints `cancelled <job key>`. A running job cannot be cancelled."""
     db: DbTarget = ctx.obj
