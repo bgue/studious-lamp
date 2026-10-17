@@ -30,6 +30,7 @@ projector would leave tables empty without a trace.
 
 from __future__ import annotations
 
+import re
 import threading
 from collections.abc import Callable, Generator, Mapping, Sequence
 from contextlib import contextmanager
@@ -103,6 +104,62 @@ class ProposableCommand:
     access: ProposalAccess
 
 
+_SQL_NAME = re.compile(r"[a-z][a-z0-9_]{0,62}")
+_TYPE_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]*\.[A-Za-z][A-Za-z0-9_]*")
+
+
+@dataclass(frozen=True)
+class ChildSource:
+    """Records whose class is their parent's (ADR-0016): a revision takes its document's.
+
+    ``record_types`` are the child record types, ``table`` their module table with the ``id_column``
+    and the ``parent_column`` that holds the parent record's id. A child is readable only when its
+    parent is; a child row with no parent id, or no row at all, is hidden.
+    """
+
+    record_types: frozenset[str]
+    table: str
+    id_column: str
+    parent_column: str
+
+
+@dataclass(frozen=True)
+class ConfidentialSource:
+    """A module's declaration that some record types carry a confidentiality class (ADR-0016).
+
+    ``table`` holds one row per record (``id_column``) with the class in ``class_column``;
+    ``null_class`` is what a NULL class means (``None``: nothing, so NULL is hidden). With a
+    ``clearance_table`` (record and account columns) a ``privileged`` record is also readable by
+    the accounts named there. A record of ``record_types`` with no row in ``table`` is hidden.
+    """
+
+    record_types: frozenset[str]
+    table: str
+    id_column: str
+    class_column: str
+    null_class: str | None = None
+    clearance_table: str | None = None
+    clearance_record_column: str = "record_id"
+    clearance_account_column: str = "account"
+    children: tuple[ChildSource, ...] = ()
+
+    def __post_init__(self) -> None:
+        names = [self.table, self.id_column, self.class_column]
+        names += [self.clearance_table] if self.clearance_table else []
+        names += [self.clearance_record_column, self.clearance_account_column]
+        for child in self.children:
+            names += [child.table, child.id_column, child.parent_column]
+        types = set(self.record_types)
+        for child in self.children:
+            types |= child.record_types
+        if (
+            any(_SQL_NAME.fullmatch(n) is None for n in names)
+            or any(_TYPE_NAME.fullmatch(t) is None for t in types)
+            or self.null_class not in (None, "internal", "restricted")
+        ):
+            raise ModuleLoadError(f"confidential source {self.table!r} has an unusable name")
+
+
 class ModuleLoadError(RuntimeError):
     """An installed module could not be loaded, or two modules claim the same name or type."""
 
@@ -133,6 +190,9 @@ class ModuleSpec:
     generic_guards: Mapping[tuple[str, str], GenericGuard] = field(default_factory=_no_guards)
     #: Module commands an agent may propose, each with the access the accepting person needs.
     proposable: Sequence[ProposableCommand] = ()
+    #: Record types of this module that carry a confidentiality class (ADR-0016). The core filters
+    #: every read by them; a module that declares none has no confidential records.
+    confidential: Sequence[ConfidentialSource] = ()
 
     def __post_init__(self) -> None:
         for record_type, commands in self.generic_commands.items():
@@ -151,6 +211,15 @@ class ModuleSpec:
                 raise ModuleLoadError(
                     f"module {self.name!r}: generic_guards names ({record_type!r}, {command!r}), "
                     "which is not one of its record types and a generic command"
+                )
+        for source in self.confidential:
+            claimed = set(source.record_types)
+            for child in source.children:
+                claimed |= child.record_types
+            if not claimed <= self.record_types:
+                raise ModuleLoadError(
+                    f"module {self.name!r}: a confidential source names record types it does "
+                    "not own"
                 )
         for record_type in self.record_types:
             if not record_type.startswith(f"{self.name}."):
@@ -303,4 +372,12 @@ def module_proposables() -> dict[str, ProposableCommand]:
             if item.tool in found:
                 raise ModuleLoadError(f"proposal tool {item.tool!r} is declared twice")
             found[item.tool] = item
+    return found
+
+
+def confidential_sources() -> list[ConfidentialSource]:
+    """Every module's confidential sources, module by module in name order (ADR-0016)."""
+    found: list[ConfidentialSource] = []
+    for spec in load_modules():
+        found.extend(spec.confidential)
     return found

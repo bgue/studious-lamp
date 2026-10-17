@@ -13,6 +13,7 @@ from typing import Any, Literal
 from pydantic import BaseModel
 from sqlalchemy import bindparam, text
 
+from tl_core import confidentiality
 from tl_core.links.provider import get_vocabulary
 from tl_core.services.errors import RecordNotFoundError, UnknownRelationError
 from tl_core.uow import UnitOfWork
@@ -90,10 +91,6 @@ _LINKS_SQL = (
     "ON r.id = CASE WHEN l.from_id = :id THEN l.to_id ELSE l.from_id END "
     "WHERE (l.from_id = :id OR l.to_id = :id)"
 )
-_COUNTS_SQL = text(
-    "SELECT record_id, active_out, active_in, stale, broken, suggested "
-    "FROM cur_link_counts WHERE record_id IN :ids"
-).bindparams(bindparam("ids", expanding=True))
 
 
 def _label(relation: str, direction: Direction) -> str:
@@ -121,8 +118,13 @@ def links_of(uow: UnitOfWork, record_id: str, *, include_retracted: bool = False
     exists = conn.execute(text("SELECT 1 FROM cur_core_record WHERE id = :id"), {"id": record_id})
     if exists.first() is None:
         raise RecordNotFoundError(f"no record {record_id!r}")
+    confidentiality.require_visible(conn, record_id)
     sql = _LINKS_SQL if include_retracted else _LINKS_SQL + " AND l.status <> 'retracted'"
-    rows = conn.execute(text(sql), {"id": record_id}).mappings().all()
+    # The other end must be readable: a record, or a post that tags no hidden record (ADR-0016).
+    record_ok, params = confidentiality.not_hidden("r.id")
+    item_ok, item_params = confidentiality.not_hidden_item("r.id")
+    sql += f" AND {record_ok} AND {item_ok}"
+    rows = conn.execute(text(sql), {"id": record_id, **params, **item_params}).mappings().all()
     views = [
         LinkView(
             link_id=row["link_id"],
@@ -163,11 +165,31 @@ def links_of(uow: UnitOfWork, record_id: str, *, include_retracted: bool = False
 
 
 def link_counts(uow: UnitOfWork, record_ids: Sequence[str]) -> dict[str, LinkCounts]:
-    """Counts for each id (all zero for a record with no links), read from ``cur_link_counts``."""
+    """Counts for each id (all zero for a record with no links), over the links the viewer may see.
+
+    A link counts only when both ends are readable (ADR-0016), so the numbers are computed from
+    ``cur_links`` and not read from the stored ``cur_link_counts``, which count every link.
+    """
     if not record_ids:
         return {}
     found: dict[str, LinkCounts] = {rid: LinkCounts(record_id=rid) for rid in record_ids}
-    rows = uow.conn().execute(_COUNTS_SQL, {"ids": list(found)}).mappings().all()
+    from_ok, params = confidentiality.not_hidden("l.from_id")
+    to_ok, to_params = confidentiality.not_hidden("l.to_id")
+    sql = text(
+        "SELECT u.rid AS record_id, "
+        "COALESCE(SUM(CASE WHEN u.status = 'active' AND u.outbound = 1 THEN 1 ELSE 0 END), 0) "
+        "AS active_out, "
+        "COALESCE(SUM(CASE WHEN u.status = 'active' AND u.outbound = 0 THEN 1 ELSE 0 END), 0) "
+        "AS active_in, "
+        "COALESCE(SUM(CASE WHEN u.status = 'stale' THEN 1 ELSE 0 END), 0) AS stale, "
+        "COALESCE(SUM(CASE WHEN u.status = 'broken' THEN 1 ELSE 0 END), 0) AS broken, "
+        "COALESCE(SUM(CASE WHEN u.status = 'suggested' THEN 1 ELSE 0 END), 0) AS suggested FROM ("
+        "SELECT l.from_id AS rid, l.status AS status, 1 AS outbound FROM cur_links l "
+        f"WHERE l.from_id IN :ids AND {from_ok} AND {to_ok} "
+        "UNION ALL SELECT l.to_id AS rid, l.status AS status, 0 AS outbound FROM cur_links l "
+        f"WHERE l.to_id IN :ids AND {from_ok} AND {to_ok}) u GROUP BY u.rid"
+    ).bindparams(bindparam("ids", expanding=True))
+    rows = uow.conn().execute(sql, {"ids": list(found), **params, **to_params}).mappings().all()
     for row in rows:
         found[row["record_id"]] = LinkCounts(**dict(row))
     return found
@@ -191,6 +213,9 @@ def search_linkable(
     words = query.split()
     params: dict[str, Any] = {"no": False, "scope": scope, "limit": limit}
     clauses = ["r.voided = :no", "r.scope IN (:scope, 'company')"]
+    visible, visible_params = confidentiality.not_hidden("r.id")
+    clauses.append(visible)
+    params.update(visible_params)
     if record_type is not None:
         clauses.append("r.type = :record_type")
         params["record_type"] = record_type

@@ -13,6 +13,7 @@ from typing import Any, Literal
 from pydantic import BaseModel
 from sqlalchemy import bindparam, text
 
+from tl_core import confidentiality
 from tl_core.links.provider import get_vocabulary
 from tl_core.services.errors import RecordNotFoundError, UnknownRelationError
 from tl_core.uow import UnitOfWork
@@ -43,7 +44,7 @@ class TraceNode(BaseModel):
 _RECORD_SQL = text(
     "SELECT id, key, title, type, status, voided FROM cur_core_record WHERE id = :id"
 )
-_NEIGHBOURS_SQL = text(
+_NEIGHBOURS_TEXT = (
     "SELECT l.link_id, l.relation, l.status AS link_status, "
     "CASE WHEN l.from_id = :id THEN 'out' ELSE 'in' END AS direction, "
     "r.id, r.key, r.title, r.type, r.status, r.voided "
@@ -51,7 +52,7 @@ _NEIGHBOURS_SQL = text(
     "ON r.id = CASE WHEN l.from_id = :id THEN l.to_id ELSE l.from_id END "
     "WHERE (l.from_id = :id AND :want_out = :yes OR l.to_id = :id AND :want_in = :yes) "
     "AND l.status IN :statuses"
-).bindparams(bindparam("statuses", expanding=True))
+)
 
 
 def trace(
@@ -74,17 +75,23 @@ def trace(
     root_row = uow.conn().execute(_RECORD_SQL, {"id": record_id}).mappings().first()
     if root_row is None:
         raise RecordNotFoundError(f"no record {record_id!r}")
+    confidentiality.require_visible(uow.conn(), record_id)
     vocabulary = get_vocabulary()
     order = {code: index for index, code in enumerate(vocabulary.codes())}
     want_out = direction in ("out", "both")
     want_in = direction in ("in", "both")
 
     def neighbours(rid: str) -> list[dict[str, Any]]:
+        # a record the viewer may not read is not a neighbour (ADR-0016)
+        visible, visible_params = confidentiality.not_hidden("r.id")
         rows = (
             uow.conn()
             .execute(
-                _NEIGHBOURS_SQL,
+                text(f"{_NEIGHBOURS_TEXT} AND {visible}").bindparams(
+                    bindparam("statuses", expanding=True)
+                ),
                 {
+                    **visible_params,
                     "id": rid,
                     "want_out": want_out,
                     "want_in": want_in,

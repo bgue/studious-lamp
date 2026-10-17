@@ -38,11 +38,12 @@ import re
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from pydantic import ValidationError
 from sqlalchemy import Connection, text
 
+from tl_core import confidentiality
 from tl_core.ledger import ConcurrencyError, NewEvent
 from tl_core.modules import module_proposables
 from tl_core.projection.proposals import PROPOSAL_STREAM_TYPE
@@ -260,13 +261,48 @@ def _view(row: Any, conn: Connection | None = None) -> ProposalView:
     )
 
 
+_ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
+
+
+def _carried_ids(value: Any, found: set[str], depth: int = 0) -> None:
+    """Record-id shaped strings anywhere in a proposed command (bounded depth and count)."""
+    if depth > 8 or len(found) > 200:
+        return
+    if isinstance(value, str):
+        if _ULID.fullmatch(value):
+            found.add(value)
+    elif isinstance(value, dict):
+        for item in cast("dict[str, Any]", value).values():
+            _carried_ids(item, found, depth + 1)
+    elif isinstance(value, list):
+        for item in cast("list[Any]", value):
+            _carried_ids(item, found, depth + 1)
+
+
+def _readable(conn: Connection, views: list[ProposalView]) -> list[ProposalView]:
+    """The proposals that carry no id of a record the viewer may not read (ADR-0016)."""
+    carried: dict[str, set[str]] = {}
+    for view in views:
+        ids: set[str] = set()
+        _carried_ids(view.command, ids)
+        carried[view.proposal_id] = ids
+    every: set[str] = set()
+    for ids in carried.values():
+        every |= ids
+    hidden = confidentiality.hidden_among(conn, sorted(every))
+    return [v for v in views if not (carried[v.proposal_id] & hidden)]
+
+
 def get_proposal(conn: Connection, proposal_id: str, *, scope: str | None = None) -> ProposalView:
     """One proposal. Raises ``ProposalNotFoundError`` for an unknown id, or one of another scope
-    when ``scope`` is given."""
+    when ``scope`` is given, or one that carries a record the viewer may not read (ADR-0016)."""
     row = conn.execute(_BY_ID_SQL, {"proposal_id": proposal_id}).first()
     if row is None or (scope is not None and row.scope != scope):
         raise ProposalNotFoundError(f"no proposal {proposal_id!r}")
-    return _view(row, conn)
+    shown = _readable(conn, [_view(row, conn)])
+    if not shown:
+        raise ProposalNotFoundError(f"no proposal {proposal_id!r}")
+    return shown[0]
 
 
 def list_proposals(
@@ -288,7 +324,7 @@ def list_proposals(
         clauses.append("agent = :agent")
         params["agent"] = agent
     sql = f"{_COLUMNS} WHERE {' AND '.join(clauses)} ORDER BY seq ASC LIMIT :limit"
-    return [_view(row, conn) for row in conn.execute(text(sql), params).all()]
+    return _readable(conn, [_view(row, conn) for row in conn.execute(text(sql), params).all()])
 
 
 def proposals_today(conn: Connection, agent: str, *, now: datetime | None = None) -> int:

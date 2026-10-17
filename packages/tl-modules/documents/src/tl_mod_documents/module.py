@@ -6,7 +6,7 @@ The entry point ``throughline.modules`` / ``documents`` in this package's ``pypr
 
 from __future__ import annotations
 
-from tl_core.modules import ModuleSpec, ProposableCommand
+from tl_core.modules import ChildSource, ConfidentialSource, ModuleSpec, ProposableCommand
 from tl_core.projection.types import Projector
 
 from tl_mod_documents import MODULE
@@ -20,10 +20,19 @@ from tl_mod_documents.derivation.publish import (
 from tl_mod_documents.guards import derived_upload, revision_upload, transmittal_draft_only
 from tl_mod_documents.names import (
     DERIVED_DOCUMENT,
+    DERIVED_DOCUMENT_TABLE,
     DOCUMENT,
     DOCUMENT_SCHEMA,
+    DOCUMENT_TABLE,
+    PROCESSING_JOB,
+    PROCESSING_JOB_TABLE,
     RECORD_TYPES,
+    RENDITION,
+    RENDITION_TABLE,
+    REVIEW_CYCLE,
+    REVIEW_CYCLE_TABLE,
     REVISION,
+    REVISION_TABLE,
     TRANSMITTAL,
 )
 from tl_mod_documents.projectors import (
@@ -83,6 +92,29 @@ PROPOSABLE = (
 )
 
 
+#: The class of a document is its `confidentiality` column (ADR-0016); NULL is `internal`. A
+#: revision, rendition, review, derived document and processing job are readable only when their
+#: document is (a processing job hangs on its derived document, which hangs on a document).
+CONFIDENTIAL = (
+    ConfidentialSource(
+        record_types=frozenset({DOCUMENT}),
+        table=DOCUMENT_TABLE,
+        id_column="id",
+        class_column="confidentiality",
+        null_class="internal",
+        children=(
+            ChildSource(frozenset({REVISION}), REVISION_TABLE, "id", "document_id"),
+            ChildSource(frozenset({RENDITION}), RENDITION_TABLE, "id", "document_id"),
+            ChildSource(frozenset({REVIEW_CYCLE}), REVIEW_CYCLE_TABLE, "id", "document_id"),
+            ChildSource(
+                frozenset({DERIVED_DOCUMENT}), DERIVED_DOCUMENT_TABLE, "id", "source_document_id"
+            ),
+            ChildSource(frozenset({PROCESSING_JOB}), PROCESSING_JOB_TABLE, "id", "derived_id"),
+        ),
+    ),
+)
+
+
 def projectors() -> list[Projector]:
     """Fresh projectors in the order they are registered."""
     return [
@@ -119,4 +151,5 @@ def spec() -> ModuleSpec:
             (DERIVED_DOCUMENT, "AttachFile"): derived_upload,
         },
         proposable=PROPOSABLE,
+        confidential=CONFIDENTIAL,
     )

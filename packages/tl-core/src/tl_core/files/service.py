@@ -44,6 +44,7 @@ from typing import Any, BinaryIO
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
 
+from tl_core import confidentiality
 from tl_core.files.errors import ObjectIntegrityError
 from tl_core.files.lifecycle import FILE_STREAM_TYPE, next_file_status
 from tl_core.files.queries import FileInfo, get_file
@@ -370,7 +371,7 @@ class FileService:
         by_module: bool = False,
     ) -> _Record:
         row = uow.conn().execute(_RECORD_SQL, {"id": record_id}).first()
-        if row is None or row.scope != scope:
+        if row is None or row.scope != scope or confidentiality.is_hidden(uow.conn(), record_id):
             raise RecordNotFoundError(f"no record {record_id!r} in scope {scope!r}")
         if not by_module:
             require_generic(uow.conn(), row.type, "AttachFile", record_id, slot=slot)

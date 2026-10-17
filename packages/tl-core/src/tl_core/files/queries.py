@@ -12,6 +12,7 @@ from typing import Any
 from pydantic import BaseModel
 from sqlalchemy import Row, text
 
+from tl_core import confidentiality
 from tl_core.files.lifecycle import FileStatus
 from tl_core.services.errors import UnknownFileError
 from tl_core.uow import UnitOfWork
@@ -75,7 +76,8 @@ def info_from_row(row: Row[Any]) -> FileInfo:
 def get_file(uow: UnitOfWork, scope: str, file_id: str) -> FileInfo:
     """One file. Raises ``UnknownFileError`` when it is unknown or belongs to another scope."""
     row = uow.conn().execute(_ONE_SQL, {"file_id": file_id}).first()
-    if row is None or row.scope != scope:
+    # a file of a record the viewer may not read does not exist for them (ADR-0016)
+    if row is None or row.scope != scope or confidentiality.is_hidden(uow.conn(), row.record_id):
         raise UnknownFileError(f"no file {file_id!r} in scope {scope!r}")
     return info_from_row(row)
 
@@ -93,6 +95,8 @@ def list_files(
     ``slot`` limits the list to one slot. ``current_only`` keeps only files that are
     available and not superseded (the current file per slot).
     """
+    if confidentiality.is_hidden(uow.conn(), record_id):
+        return []  # as for a record that does not exist
     sql = f"SELECT {_COLUMNS} FROM cur_files WHERE scope = :scope AND record_id = :record_id"
     params: dict[str, Any] = {"scope": scope, "record_id": record_id}
     if slot is not None:

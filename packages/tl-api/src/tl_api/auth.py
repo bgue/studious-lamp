@@ -22,6 +22,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from tl_core.auth.errors import InvalidCredentialsError
 from tl_core.auth.types import IdentityProvider, Principal
+from tl_core.confidentiality import use_viewer, viewer_for
 
 from tl_api.context import ApiContext, get_ctx
 from tl_api.errors import ApiError
@@ -198,7 +199,10 @@ class AuthenticationMiddleware:
             await response(scope, receive, send)
             return
         scope[PRINCIPAL_KEY] = principal
-        await self.app(scope, receive, send)
+        # Every read below this point sees only what this principal may read (ADR-0016): the
+        # context variable is copied into the worker threads that run the route functions.
+        with use_viewer(viewer_for(principal)):
+            await self.app(scope, receive, send)
 
 
 #: Largest request body by path prefix; credentials and account forms are tiny.
