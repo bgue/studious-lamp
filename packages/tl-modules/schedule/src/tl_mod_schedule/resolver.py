@@ -1,3 +1,5 @@
+# ruff: noqa: F401, F841
+# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 """Resolve a link to an activity: to the current snapshot, as of an earlier one, or orphaned (T07).
 
 A link from a record points at an activity *reference* (``schedule.ActivityRef``), never at a
@@ -14,6 +16,10 @@ snapshot row (brief 9 M11). This module is the one place that decides what such 
 Only *published* snapshots (Published and Superseded) are history: a snapshot that is built but not
 published is not what the project was planning with. Nothing here writes, and nothing here checks a
 role (reads need ``document.read``).
+
+STUB (P1-I4-T07): the functions with a STEPS comment are for you to write; the types, the SQL, the
+constants, the docstrings and `_pin_as_of` are final. When they are written, delete this paragraph,
+the STEPS comments and the `ruff: noqa` and `pyright` lines at the top.
 """
 
 from __future__ import annotations
@@ -76,54 +82,42 @@ def resolve_snapshot(
     or before it: ``YYYY-MM-DD`` means the end of that day, ``YYYY-MM-DDTHH:MM`` that minute. Any
     other string names nothing. Raises ``ScheduleNotFoundError`` for an unknown schedule.
     """
-    schedule = registry.get_schedule(conn, schedule_id)
-    if schedule is None:
-        raise ScheduleNotFoundError(f"no schedule {schedule_id!r}")
-    if as_of is None:
-        if schedule.current_snapshot_id is None:
-            return None
-        return registry.get_snapshot(conn, schedule.current_snapshot_id)
-    published = registry.history(conn, schedule_id)
-    if isinstance(as_of, bool):
-        return None  # True is an int in Python; it does not name snapshot 1
-    if isinstance(as_of, int):
-        return next((s for s in published if s.number == as_of), None)
-    if _DAY.fullmatch(as_of):
-        limit = f"{as_of}T23:59"
-    elif _MINUTE.fullmatch(as_of):
-        limit = as_of
-    else:
-        return None
-    found = [s for s in published if s.data_date is not None and s.data_date <= limit]
-    return found[-1] if found else None  # history is ordered by data date, then number
+    # STEPS
+    # 1. schedule = registry.get_schedule(conn, schedule_id). When it is None raise
+    #    ScheduleNotFoundError(f"no schedule {schedule_id!r}").
+    # 2. as_of is None: when schedule.current_snapshot_id is None return None, else return
+    #    registry.get_snapshot(conn, schedule.current_snapshot_id).
+    # 3. published = registry.history(conn, schedule_id): the Published and Superseded
+    #    snapshots, ordered by data date, then number.
+    # 4. A bool as_of names nothing: return None (test isinstance(as_of, bool) BEFORE the
+    #    int test, because True is an int).
+    # 5. An int names a snapshot number: return the member of published whose number equals
+    #    it, else None.
+    # 6. A str: if _DAY.fullmatch(as_of) the limit is f"{as_of}T23:59" (the end of that
+    #    day); elif _MINUTE.fullmatch(as_of) the limit is as_of itself; any other string
+    #    returns None. Use fullmatch, not match.
+    # 7. found = the members of published whose data_date is not None and is <= limit (the
+    #    stamps are ISO text, so the comparison is a string comparison). Return the last of
+    #    found, or None when it is empty.
+    raise NotImplementedError
 
 
 def resolve_activity(
     conn: Connection, schedule_id: str, activity_id: str, as_of: AsOf = None
 ) -> Resolution:
     """What ``activity_id`` of the schedule is, as of ``as_of`` (see ``State``)."""
-    schedule = registry.get_schedule(conn, schedule_id)
-    if schedule is None:
-        raise ScheduleNotFoundError(f"no schedule {schedule_id!r}")
-    snapshot = resolve_snapshot(conn, schedule_id, as_of)
-    if snapshot is None:
-        return Resolution("no_snapshot", schedule.code, activity_id, None, None, None, None)
-    activity = registry.get_activity(conn, snapshot.id, activity_id)
-    if activity is not None:
-        state: State = "current" if as_of is None else "as_of"
-    elif registry.find_ref(conn, schedule_id, activity_id) is not None:
-        state = "orphaned"
-    else:
-        state = "unknown_activity"
-    return Resolution(
-        state,
-        schedule.code,
-        activity_id,
-        snapshot.id,
-        snapshot.number,
-        snapshot.data_date,
-        activity,
-    )
+    # STEPS
+    # 1. schedule = registry.get_schedule(...); None raises ScheduleNotFoundError(f"no
+    #    schedule {schedule_id!r}").
+    # 2. snapshot = resolve_snapshot(conn, schedule_id, as_of). When it is None return
+    #    Resolution("no_snapshot", schedule.code, activity_id, None, None, None, None).
+    # 3. activity = registry.get_activity(conn, snapshot.id, activity_id). Found: the state
+    #    is "current" when as_of is None, else "as_of". Not found: "orphaned" when
+    #    registry.find_ref(conn, schedule_id, activity_id) is not None (something referred
+    #    to the activity once), else "unknown_activity".
+    # 4. Return Resolution(state, schedule.code, activity_id, snapshot.id, snapshot.number,
+    #    snapshot.data_date, activity).
+    raise NotImplementedError
 
 
 _LINKS_SQL = text(
@@ -148,21 +142,14 @@ def _pin_as_of(pin: str | None) -> AsOf:
 
 def links_to_activities(conn: Connection, record_id: str) -> list[ActivityLink]:
     """The activity links of a record (active and stale), oldest first, each resolved by its pin."""
-    found: list[ActivityLink] = []
-    for row in conn.execute(_LINKS_SQL, {"record": record_id}):
-        found.append(
-            ActivityLink(
-                link_id=str(row.link_id),
-                status=str(row.status),
-                pin=None if row.pin is None else str(row.pin),
-                reason=None if row.reason is None else str(row.reason),
-                ref_key=str(row.ref_key),
-                resolution=resolve_activity(
-                    conn, str(row.schedule_id), str(row.activity_id), _pin_as_of(row.pin)
-                ),
-            )
-        )
-    return found
+    # STEPS
+    # 1. found = []. For each row of conn.execute(_LINKS_SQL, {"record": record_id}):
+    # 2. append ActivityLink(link_id=str(row.link_id), status=str(row.status), pin=None when
+    #    row.pin is None else str(row.pin), reason=None when row.reason is None else
+    #    str(row.reason), ref_key=str(row.ref_key), resolution=resolve_activity(conn,
+    #    str(row.schedule_id), str(row.activity_id), _pin_as_of(row.pin))).
+    # 3. Return found (the SQL already orders it).
+    raise NotImplementedError
 
 
 _ORPHANED_SQL = text(
@@ -188,17 +175,10 @@ def orphaned_links(conn: Connection, schedule_id: str) -> list[OrphanedLink]:
     Only links the module flagged on a publication (their reason starts with ``ORPHAN_REASON``)
     are listed, ordered by activity id, then by age of the link.
     """
-    found = conn.execute(
-        _ORPHANED_SQL,
-        {"schedule": schedule_id, "absent": False, "reason": ORPHAN_REASON + "%"},
-    )
-    return [
-        OrphanedLink(
-            link_id=str(r.link_id),
-            from_id=str(r.from_id),
-            activity_id=str(r.activity_id),
-            last_seen_number=None if r.last_seen_number is None else int(r.last_seen_number),
-            reason=str(r.reason),
-        )
-        for r in found
-    ]
+    # STEPS
+    # 1. Run _ORPHANED_SQL with {"schedule": schedule_id, "absent": False, "reason":
+    #    ORPHAN_REASON + "%"} (the LIKE pattern: a reason that starts with ORPHAN_REASON;
+    #    the boolean is passed as a Python bool so SQLite and Postgres both take it).
+    # 2. Return one OrphanedLink per row: link_id, from_id, activity_id and reason as str,
+    #    and last_seen_number as int, or None when the column is None.
+    raise NotImplementedError
