@@ -107,6 +107,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.InvalidProposalError, "invalid_proposal", 422),
         s(svc.BudgetExceededError, "budget_exceeded", 429),
         s(svc.ProposalDeciderError, "proposal_decider", 403),
+        s(svc.ProposalAccessError, "proposal_access", 403),
         # --- extension types (P0-I8 workstream B) ---------------------------------------------
         s(ext.UnknownTypeError, "type_not_found", 404),
         s(ext.TypeNotActiveError, "type_not_active", 409),

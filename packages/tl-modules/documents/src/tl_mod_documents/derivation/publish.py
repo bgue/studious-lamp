@@ -433,6 +433,7 @@ def _publish(uow: UnitOfWork, cmd: _PublishBase, target: str) -> CommandResult:
         "source": source,
         "scope": cmd.scope,
         "correlation_id": correlation,
+        "causation_id": cmd.causation_id,  # the proposal, when an agent proposed this
     }
     provenance = {PROVENANCE_PROPERTY: derived.source_ref, "derived_document": derived.key}
     record_ids = (
@@ -455,7 +456,7 @@ def _publish(uow: UnitOfWork, cmd: _PublishBase, target: str) -> CommandResult:
         )
     content = rows.get_content(uow.conn(), derived.id, derived.content_rev)
     assert content is not None and content.result_sha256 is not None
-    actor_cmd = Command(actor=cmd.actor, source=source, scope=cmd.scope, correlation_id=correlation)
+    actor_cmd = Command(**base)
     made = append(
         uow,
         actor_cmd,
@@ -729,6 +730,7 @@ def handle_compensate_publication(uow: UnitOfWork, cmd: CompensatePublication) -
         "source": f"compensation:{derived.id}",
         "scope": cmd.scope,
         "correlation_id": correlation,
+        "causation_id": cmd.causation_id,
     }
     why = f"compensation of {plan.import_correlation_id}: {cmd.reason}"
     reversed_count = 0

@@ -317,7 +317,8 @@ def post_feed_impl(ctx: McpContext, *, scope: str, body: str, importance: Import
 
 def register_write_tools(server: MCPServer, ctx: McpContext, modes: dict[str, ToolMode]) -> None:
     """Add the six write tools to ``server``. ``modes`` is ``resolve_tool_modes()``'s answer."""
-    assert set(modes) == set(PROPOSABLE_TOOLS) and set(modes.values()) == {"propose"}
+    # the modules' proposable tools are registered by their own tool modules (derivation_tools)
+    assert set(PROPOSABLE_TOOLS) <= set(modes) and set(modes.values()) == {"propose"}
 
     @server.tool(annotations=PROPOSES)
     def create_record(

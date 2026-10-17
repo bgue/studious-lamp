@@ -6,10 +6,17 @@ The entry point ``throughline.modules`` / ``documents`` in this package's ``pypr
 
 from __future__ import annotations
 
-from tl_core.modules import ModuleSpec
+from tl_core.modules import ModuleSpec, ProposableCommand
 from tl_core.projection.types import Projector
 
 from tl_mod_documents import MODULE
+from tl_mod_documents.derivation.derived import StartExtraction, handle_start_extraction
+from tl_mod_documents.derivation.publish import (
+    PublishDerivedDocuments,
+    PublishDerivedTags,
+    handle_publish_derived_documents,
+    handle_publish_derived_tags,
+)
 from tl_mod_documents.guards import derived_upload, revision_upload, transmittal_draft_only
 from tl_mod_documents.names import (
     DERIVED_DOCUMENT,
@@ -57,6 +64,25 @@ SCHEMA_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink"}) | LINK_LIFE
 DERIVED_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink", "AttachFile"}) | LINK_LIFE
 
 
+#: What an agent may propose (ADR-0014 section 8). Accepting runs the command as the accepting
+#: person, who needs the access written here: starting an extraction is any signed-in person's,
+#: publishing into tags the admin's (as `tl tag import --apply`), into documents the document
+#: controller's (as `tl doc import --apply`). `tl_core.services.proposals` refuses an accept by
+#: anyone without it and a command with no access at all.
+PROPOSABLE = (
+    ProposableCommand("start_extraction", StartExtraction, handle_start_extraction, "user"),
+    ProposableCommand(
+        "propose_import_tags", PublishDerivedTags, handle_publish_derived_tags, "admin"
+    ),
+    ProposableCommand(
+        "propose_import_documents",
+        PublishDerivedDocuments,
+        handle_publish_derived_documents,
+        "controller",
+    ),
+)
+
+
 def projectors() -> list[Projector]:
     """Fresh projectors in the order they are registered."""
     return [
@@ -92,4 +118,5 @@ def spec() -> ModuleSpec:
             (TRANSMITTAL, "RetractLink"): transmittal_draft_only,
             (DERIVED_DOCUMENT, "AttachFile"): derived_upload,
         },
+        proposable=PROPOSABLE,
     )

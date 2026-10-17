@@ -15,11 +15,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, Query
 from pydantic import BaseModel, ConfigDict, Field
+from tl_core.auth.types import Principal
 from tl_core.proposals.types import ProposalStatus, ProposalView
 from tl_core.services import proposals
 from tl_core.util import effective_time
 
-from tl_api.auth import guard
+from tl_api.auth import current_principal, guard
 from tl_api.context import ApiContext, get_ctx
 from tl_api.effective import EFFECTIVE_AT_HEADER, resolve_effective_at
 
@@ -29,6 +30,7 @@ Ctx = Annotated[ApiContext, Depends(get_ctx)]
 Reader = Annotated[str, Depends(guard("proposal.read"))]
 Acceptor = Annotated[str, Depends(guard("proposal.accept"))]
 Rejector = Annotated[str, Depends(guard("proposal.reject"))]
+Who = Annotated[Principal, Depends(current_principal)]
 API_SOURCE = "api"
 
 
@@ -113,6 +115,7 @@ def simulated_time(ctx: ApiContext, proposal_id: str, header: str | None) -> dat
 def accept_proposal(
     ctx: Ctx,
     actor: Acceptor,
+    principal: Who,
     proposal_id: str,
     effective_at: SimulatedTime = None,
     body: AcceptBody | None = None,
@@ -121,6 +124,9 @@ def accept_proposal(
 
     The answer has `status` `accepted`, or `failed` with the refusal in `reason` when the command
     could not be applied (the record changed, a guard failed); nothing of the command is kept then.
+    Accepting a proposal runs its command as the caller, so it needs the access that command needs
+    (ADR-0014): a publication into tags the admin role, into documents the document controller or
+    admin role. Anyone else gets 403 `proposal_access` and the proposal stays pending.
     """
     roles = body.roles if body is not None else []
     accept_risk = body.accept_risk if body is not None else False
@@ -133,7 +139,19 @@ def accept_proposal(
             roles=roles,
             accept_risk=accept_risk,
             source=API_SOURCE,
+            holds=lambda level: holds_access(principal, actor, level),
         )
+
+
+def holds_access(principal: Principal, actor: str, level: str) -> bool:
+    """Whether ``principal`` (who is ``actor``) has the access a proposal's command needs."""
+    if principal.actor != actor:
+        return False
+    if level == "admin":
+        return principal.is_admin
+    if level == "controller":
+        return principal.is_controller
+    return level == "user"
 
 
 @router.post("/proposals/{proposal_id}/reject", operation_id="reject_proposal")

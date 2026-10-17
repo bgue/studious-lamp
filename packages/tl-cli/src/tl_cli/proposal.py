@@ -22,6 +22,8 @@ from tl_core.services.errors import ServiceError
 from tl_core.settings.values import format_value
 from tl_core.uow import UnitOfWork
 
+from tl_cli import session
+
 app = typer.Typer(
     help="Review what agents proposed: list, show, accept, reject.", no_args_is_help=True
 )
@@ -196,6 +198,16 @@ def accept(
     ``result <view.result_stream_id>``.
     """
     db: DbTarget = ctx.obj
+    principal = session.current_principal(db)
+
+    def holds(level: str) -> bool:
+        # the command runs as `actor`, so the session must be that person's (L-P1-I2b-6)
+        if principal is None or principal.actor != actor:
+            return False
+        return {"admin": principal.is_admin, "controller": principal.is_controller}.get(
+            level, level == "user"
+        )
+
     with _service_errors():
         view = proposals.accept_or_fail(
             _factory(db),
@@ -204,6 +216,7 @@ def accept(
             roles=role or [],
             accept_risk=accept_risk,
             source="cli",
+            holds=holds,
         )
     if view.status == "failed":
         typer.echo(f"failed {view.proposal_id}")

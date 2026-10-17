@@ -110,11 +110,17 @@ keys cannot be published again; the preview of a later publication says so per r
 module's commands. The derived document's workflow transitions are made by `by_module` calls.
 
 ### 8. Agents
-An agent never writes (B15). `start_extraction` and `propose_import` are **proposals** (`PROPOSABLE_TOOLS` gains the two tools;
-the proposal command table gains `StartExtraction`, `PublishDerivedTags`, `PublishDerivedDocuments`). `validate_against_schema`
+An agent never writes (B15). `start_extraction` and `propose_import` are **proposals**. The module declares them
+(`ModuleSpec.proposable`; `proposable_tools()` merges them into `PROPOSABLE_TOOLS`): `start_extraction` proposes `StartExtraction`,
+and `propose_import` is the two tools `propose_import_tags` (`PublishDerivedTags`) and `propose_import_documents`
+(`PublishDerivedDocuments`), which the MCP tool chooses between by the schema's `target_kind`. `validate_against_schema`
 reads a stored derived document and returns the report it would produce; it writes nothing. A person accepts a proposal through
 the existing review queue; **accepting a publication proposal needs the access the command needs** (admin for tags, controller for
-documents): the API route and the CLI check it on the accepting person, not on the agent. A direct "staging" mode for agents (run an
+documents): the API route and the CLI check it on the accepting person, not on the agent. The check is in core
+(`proposals.accept` takes a `holds(level)` callback from the client; the level of each command comes from the module's declaration
+or `CORE_ACCESS`; a command nobody declared an access for is never accepted, so the check fails closed). A person without the
+access gets `ProposalAccessError` (HTTP 403 `proposal_access`), and the proposal stays pending; rejecting needs no command access.
+This tightens the review queue for every command, not only these: it applies the access the direct command route already enforces. A direct "staging" mode for agents (run an
 extraction without a person) would change the permission model; it is not built.
 
 ### 9. Defaults
@@ -130,7 +136,10 @@ Lease 300 s; `max_attempts` 3; retry delay 30 s times the attempt; at most 100 i
   All additive; no migration of existing data.
 - Security review (D7): the job claim and lease, the proposal-accept access check, the file service keyword, the new commands'
   access levels and allow-lists, the upload slot, and compensation.
-- Known limits: publication cannot change existing records; a compensated key is not reusable; queue rows are not in the archive
+- Extractors run in a child process with a wall-clock limit (60 s) and a memory limit; the parent never imports plugin code
+  that has not passed the registry's checks (`ExtractorLoadError` names the exception type only, never its text).
+- Known limits: no updates through publication in Phase 1 (create only, no key reuse; a changed row is imported with
+  `tl tag import --apply`); publication cannot change existing records; a compensated key is not reusable; queue rows are not in the archive
   (reconcile restores them); one derived document per source revision and schema code.
 
 ## Alternatives considered

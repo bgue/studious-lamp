@@ -212,6 +212,9 @@ class BudgetExceededError(ServiceError): ...  # the agent's proposals for the UT
 class ProposalDeciderError(ServiceError): ...  # only a person (user:<id>) accepts or rejects
 
 
+class ProposalAccessError(ServiceError): ...  # the accepting person lacks the access it needs
+
+
 # --- settings (P0-I8 workstream A) -------------------------------------------------------------
 
 
