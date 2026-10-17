@@ -161,7 +161,8 @@ def diff(
     """Compare a pass with the pass before it, or with the previous revision's data.
 
     `added <n>  removed <n>  changed <n>  unchanged <n>`, then `+ <key>` per added row, `- <key>`
-    per removed row and `~ <key>: <column> <old> -> <new>; ...` per changed row.
+    per removed row and `~ <key>: <column> <old> -> <new>; ...` per changed row. When the module
+    cut the lists, a last line says so (the counts stay exact).
     """
     if against not in ("previous_pass", "previous_revision"):
         fail("--against must be previous_pass or previous_revision")
@@ -180,6 +181,8 @@ def diff(
     for change in d.changed:
         edits = "; ".join(f"{f.column} {cell(f.old)} -> {cell(f.new)}" for f in change.fields)
         typer.echo(f"~ {change.key}: {edits}")
+    if d.truncated:  # the counts above are exact; the lists were cut
+        typer.echo("... the lists above are cut; the counts on the first line are complete")
 
 
 @app.command("check")
