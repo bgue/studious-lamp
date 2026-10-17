@@ -33,6 +33,7 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field
 from sqlalchemy import Connection, text
+from tl_core import confidentiality
 from tl_core.ledger import Event
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import RecordNotFoundError
@@ -182,6 +183,11 @@ def links_to_documents(
     if document_id is not None:
         sql += " AND l.to_id = :document_id"
         params["document_id"] = document_id
+    # both ends must be readable (ADR-0016): the document, and the record that links to it
+    for end in ("d.id", "x.id"):
+        visible, visible_params = confidentiality.not_hidden(end)
+        sql += f" AND {visible}"
+        params.update(visible_params)
     sql += " ORDER BY d.key, x.key, l.link_id LIMIT :limit"
     found: list[PinnedLink] = []
     for row in conn.execute(text(sql), params).all():

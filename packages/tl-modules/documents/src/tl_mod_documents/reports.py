@@ -15,6 +15,7 @@ from datetime import date
 from typing import Any
 
 from sqlalchemy import Connection, text
+from tl_core import confidentiality
 
 from tl_mod_documents import registry
 from tl_mod_documents.errors import DocumentNotFoundError
@@ -131,6 +132,9 @@ def document_register(
     """
     where = ["d.scope = :scope", "COALESCE(d.status, 'Draft') <> 'Void'"]
     params: dict[str, Any] = {"scope": scope, "limit": limit}
+    visible, visible_params = confidentiality.not_hidden("d.id")
+    where.append(visible)
+    params.update(visible_params)
     if doc_type is not None:
         where.append("d.doc_type = :doc_type")
         params["doc_type"] = doc_type
@@ -228,6 +232,8 @@ def overdue_reviews(conn: Connection, scope: str, *, on: date | None = None) -> 
         "ORDER BY r.due_date, c.key, r.reviewer"
     )
     today = date.fromisoformat(day)
+    visible, visible_params = confidentiality.not_hidden("d.id")
+    sql = sql.replace("ORDER BY r.due_date", f"AND {visible} ORDER BY r.due_date")
     return [
         OverdueLine(
             document_number=row.document_number,
@@ -237,7 +243,7 @@ def overdue_reviews(conn: Connection, scope: str, *, on: date | None = None) -> 
             due_date=row.due_date,
             days_overdue=(today - date.fromisoformat(row.due_date)).days,
         )
-        for row in conn.execute(text(sql), {"scope": scope, "day": day}).all()
+        for row in conn.execute(text(sql), {"scope": scope, "day": day, **visible_params}).all()
     ]
 
 
@@ -254,15 +260,16 @@ def transmittal_log(
     ``overdue`` is true for an issued transmittal that has no answer and whose due date has passed.
     """
     day = (on or date.today()).isoformat()
+    item_visible, item_params = confidentiality.not_hidden("i.revision_id")
     sql = (
         "SELECT t.key AS key, t.title AS title, t.direction AS direction, "
         "t.purpose AS purpose, t.status AS status, t.issued_on AS issued_on, "
         "t.due_date AS due_date, t.response_code AS response_code, "
         "t.responded_on AS responded_on, "
-        f"(SELECT COUNT(*) FROM {TRANSMITTAL_ITEM_TABLE} i WHERE i.transmittal_id = t.id) "
-        f"AS items FROM {TRANSMITTAL_VIEW} t WHERE t.scope = :scope"
+        f"(SELECT COUNT(*) FROM {TRANSMITTAL_ITEM_TABLE} i WHERE i.transmittal_id = t.id "
+        f"AND {item_visible}) AS items FROM {TRANSMITTAL_VIEW} t WHERE t.scope = :scope"
     )
-    params: dict[str, Any] = {"scope": scope}
+    params: dict[str, Any] = {"scope": scope, **item_params}
     if state is not None:
         sql += " AND COALESCE(t.status, 'Draft') = :state"
         params["state"] = state
