@@ -198,11 +198,10 @@ def test_met_and_cancelled_close_the_clock_with_a_date_and_a_reason(engine: Engi
     assert met["closed_reason"] == "ITEM9"
     assert met["paused_on"] is None and met["pause_reason"] is None
 
-    other = Events()
-    apply(engine, *started(other, stream="CLK2"))
+    apply(engine, *started(events, stream="CLK2"))
     apply(
         engine,
-        other.make(
+        events.make(
             "ResponseClock.Cancelled",
             {"on": "2026-10-26", "reason": "Withdrawn"},
             stream_id="CLK2",
