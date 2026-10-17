@@ -193,11 +193,15 @@ def with_broken_xref(entries: int) -> bytes:
     return head + table + trailer
 
 
-def test_a_table_of_bad_entries_reaches_the_repair_path_and_is_refused() -> None:
+def test_a_table_of_bad_entries_reaches_the_repair_path_and_is_refused_as_damaged() -> None:
     raw = with_broken_xref(2000)
     assert len(raw) < 60_000
     started = time.monotonic()
-    assert refusal(raw).code == "pdf_too_complex"
+    error = refusal(raw)
+    assert (error.code, error.message) == (
+        "damaged_pdf",
+        "the PDF's cross-reference table is damaged",
+    )
     assert time.monotonic() - started < 1
 
 
@@ -244,7 +248,7 @@ def test_getting_the_whole_file_at_once_is_not_allowed(
     method: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     stream = stream_of(DATA, monkeypatch)
-    with pytest.raises(pdfinfo._OutOfBudget):  # pyright: ignore[reportPrivateUsage]
+    with pytest.raises(pdfinfo._NeedsRepair):  # pyright: ignore[reportPrivateUsage]
         getattr(stream, method)()
 
 
