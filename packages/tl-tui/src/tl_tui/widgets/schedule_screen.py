@@ -1,5 +1,3 @@
-# ruff: noqa: F401, F841
-# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 """The schedules of a project: their snapshots, the look-ahead and the orphaned links (P1-I4).
 
 A full-size modal opened with ``F12``. The upper table lists the project's schedules; the lower
@@ -9,12 +7,6 @@ whose activity left the schedule (``o``). ``c`` compares the highlighted snapsho
 before it, ``a`` opens its activities, and ``p`` publishes it (a document controller or an admin:
 the service decides). Everything is read and written through the client; the screen shows what the
 module found and decides nothing.
-
-
-STUB (P1-I4-T09a1): `reload`, `_fill`, `_load_schedule`, `_describe` and `action_publish` are
-`NotImplementedError`; the layout, the bindings, the event handlers, the other actions and the text
-helpers (`tl_tui/schedule_text.py`) are written. The ticket fills the five bodies by their STEPS
-comments.
 """
 
 from __future__ import annotations
@@ -113,29 +105,35 @@ class ScheduleScreen(ModalScreen[None]):
 
     def reload(self) -> None:
         """Read the schedules again and keep the highlighted schedule and snapshot in place."""
-        # STEPS
-        # 1. `keep = self._code()` and `keep_snapshot = self._number()`: the highlighted
-        #    schedule and snapshot, to put the cursors back.
-        # 2. Read `self.views = self.client.list_schedules(self.project)`. On
-        #    `CLIENT_ERRORS` say `describe_error(exc)` with `self._say(..., error=True)`
-        #    and return (keep what is shown).
-        # 3. Call `self._fill(keep, keep_snapshot)`.
-        raise NotImplementedError
+        keep = self._code()
+        keep_snapshot = self._number()
+        try:
+            self.views = self.client.list_schedules(self.project)
+        except CLIENT_ERRORS as exc:
+            self._say(describe_error(exc), error=True)
+            return
+        self._fill(keep, keep_snapshot)
 
     def _fill(self, keep: str | None = None, keep_snapshot: int | None = None) -> None:
         """Apply the filter to ``self.views``, fill the schedule table and load the highlighted."""
-        # STEPS
-        # 1. `needle = self.text.strip().lower()`; `self.shown` is the views whose code
-        #    or title holds the needle in any case (all of them when the needle is
-        #    empty).
-        # 2. Fill `#sc-schedules`: `table.clear()`, then one `add_row` per shown
-        #    schedule with `Text(cell)` for each cell of `schedule_cells(view)` (a cell
-        #    is read as markup, a `Text` is not) and `key=view.code`.
-        # 3. Put the cursor on the row of `keep` when it is still shown, else on row 0
-        #    (`table.move_cursor(row=...)`), when there are rows.
-        # 4. Write `schedules_summary(len(self.shown), len(self.views), text=self.text)`
-        #    to `#sc-status` and call `self._load_schedule(keep_snapshot)`.
-        raise NotImplementedError
+        needle = self.text.strip().lower()
+        self.shown = [
+            v
+            for v in self.views
+            if not needle or needle in v.code.lower() or needle in v.title.lower()
+        ]
+        table = self.query_one("#sc-schedules", DataTable)
+        table.clear()
+        for view in self.shown:
+            # Text, not str: a cell is read as markup, and a title such as [a, b] is not markup
+            table.add_row(*(Text(cell) for cell in schedule_cells(view)), key=view.code)
+        if self.shown:
+            codes = [v.code for v in self.shown]
+            table.move_cursor(row=codes.index(keep) if keep in codes else 0)
+        self.query_one("#sc-status", Static).update(
+            schedules_summary(len(self.shown), len(self.views), text=self.text)
+        )
+        self._load_schedule(keep_snapshot)
 
     def _code(self) -> str | None:
         view = self.current_schedule()
@@ -159,39 +157,49 @@ class ScheduleScreen(ModalScreen[None]):
 
     def _load_schedule(self, keep_snapshot: int | None = None) -> None:
         """Read the highlighted schedule with its snapshots and fill the snapshot table."""
-        # STEPS
-        # 1. Clear `#sc-snapshots`. The highlighted schedule is
-        #    `self.current_schedule()`; with none, set `self.detail = None`, write `No
-        #    schedule matches.` to `#sc-detail` and return.
-        # 2. Read `self.detail = self.client.get_schedule(self.project, view.code)`. On
-        #    `CLIENT_ERRORS` set `self.detail = None`, write `describe_error(exc)` to
-        #    `#sc-detail` and (as an error) to the status line, and return.
-        # 3. Add one row per snapshot of `self.detail.snapshots` (newest first, as
-        #    given) with `Text(cell)` for each cell of `snapshot_cells(snap)` and
-        #    `key=str(snap.number)`.
-        # 4. Put the cursor on the row of `keep_snapshot` when it is among the
-        #    snapshots, else on row 0, when there are rows. Then call
-        #    `self._describe()`.
-        raise NotImplementedError
+        table = self.query_one("#sc-snapshots", DataTable)
+        table.clear()
+        view = self.current_schedule()
+        if view is None:
+            self.detail = None
+            self.query_one("#sc-detail", Static).update("No schedule matches.")
+            return
+        try:
+            self.detail = self.client.get_schedule(self.project, view.code)
+        except CLIENT_ERRORS as exc:
+            self.detail = None
+            message = describe_error(exc)
+            self.query_one("#sc-detail", Static).update(message)
+            self._say(message, error=True)
+            return
+        for snap in self.detail.snapshots:
+            table.add_row(*(Text(cell) for cell in snapshot_cells(snap)), key=str(snap.number))
+        numbers = [s.number for s in self.detail.snapshots]
+        if numbers:
+            table.move_cursor(row=numbers.index(keep_snapshot) if keep_snapshot in numbers else 0)
+        self._describe()
 
     def _describe(self) -> None:
         """The panel: the highlighted snapshot, the look-ahead, or the orphaned links."""
-        # STEPS
-        # 1. `panel` is `#sc-detail`. With no `self.detail` write `No schedule matches.`
-        #    and return.
-        # 2. `snap = self.current_snapshot()`; `lines =
-        #    schedule_detail_lines(self.detail)`.
-        # 3. In a `try` that catches `CLIENT_ERRORS`: when `self.panel == "look_ahead"`
-        #    and there is a snapshot, append an empty line and
-        #    `look_ahead_lines(self.client.get_look_ahead(self.project,
-        #    self.detail.code, snapshot=snap.number))`; when `self.panel == "orphans"`
-        #    append an empty line and
-        #    `orphan_lines(self.client.list_orphaned_links(self.project,
-        #    self.detail.code))`; otherwise, with a snapshot, append an empty line and
-        #    `snapshot_detail_lines(snap)`.
-        # 4. On a client failure append an empty line and `describe_error(exc)` instead.
-        #    Write the lines joined by newlines to the panel.
-        raise NotImplementedError
+        panel = self.query_one("#sc-detail", Static)
+        detail = self.detail
+        if detail is None:
+            panel.update("No schedule matches.")
+            return
+        snap = self.current_snapshot()
+        lines = schedule_detail_lines(detail)
+        try:
+            if self.panel == "look_ahead" and snap is not None:
+                answer = self.client.get_look_ahead(self.project, detail.code, snapshot=snap.number)
+                lines += ["", *look_ahead_lines(answer)]
+            elif self.panel == "orphans":
+                links = self.client.list_orphaned_links(self.project, detail.code)
+                lines += ["", *orphan_lines(links)]
+            elif snap is not None:
+                lines += ["", *snapshot_detail_lines(snap)]
+        except CLIENT_ERRORS as exc:
+            lines += ["", describe_error(exc)]
+        panel.update("\n".join(lines))
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#sc-status", Static).update(("! " if error else "") + text)
@@ -260,19 +268,26 @@ class ScheduleScreen(ModalScreen[None]):
 
     def action_publish(self) -> None:
         """Make the highlighted snapshot the current one (the service checks the role)."""
-        # STEPS
-        # 1. The key is text while an `Input` has focus: `if isinstance(self.focused,
-        #    Input): return` first.
-        # 2. `snap = self.current_snapshot()`; with none say `No snapshot is
-        #    highlighted.` and return.
-        # 3. Send `PublishScheduleSnapshot(actor=self.actor, source="tui",
-        #    scope=f"project:{self.project}", snapshot_id=snap.id)` with
-        #    `self.client.publish_schedule_snapshot(...)`. On `CLIENT_ERRORS` say
-        #    `describe_error(exc)` as an error and return: the service decides who may
-        #    publish (the screen checks no role) and nothing was sent.
-        # 4. Read again with `self.reload()`, then say `Published <snap.key>.` (last:
-        #    the reload rewrites the status line).
-        raise NotImplementedError
+        if isinstance(self.focused, Input):
+            return  # the key is text
+        snap = self.current_snapshot()
+        if snap is None:
+            self._say("No snapshot is highlighted.")
+            return
+        try:
+            self.client.publish_schedule_snapshot(
+                PublishScheduleSnapshot(
+                    actor=self.actor,
+                    source="tui",
+                    scope=f"project:{self.project}",
+                    snapshot_id=snap.id,
+                )
+            )
+        except CLIENT_ERRORS as exc:
+            self._say(describe_error(exc), error=True)
+            return
+        self.reload()
+        self._say(f"Published {snap.key}.")  # last: the reload rewrites the line
 
     def action_filter(self) -> None:
         self.query_one("#sc-filter", Input).focus()
