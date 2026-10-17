@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:throughline:document-schema:equipment-list:1.0.0",
+  "title": "Equipment list",
+  "description": "One row per equipment item: its tag, class, description and main design data.",
+  "type": "object",
+  "required": [
+    "equipment_tag",
+    "equipment_class",
+    "description"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "equipment_tag": {
+      "type": "string",
+      "description": "Engineering tag number of the item, for example 47-P-1024.",
+      "pattern": "^[0-9]{2}-[A-Z]{1,4}-[0-9]{4}$",
+      "maxLength": 40
+    },
+    "equipment_class": {
+      "type": "string",
+      "description": "Tag class from the Acme standards.",
+      "enum": [
+        "Pump",
+        "Vessel",
+        "HeatExchanger",
+        "Compressor",
+        "Motor"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "description": "What the item is, for example Condensate pump.",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "area": {
+      "type": "string",
+      "description": "Plant area (unit number); when present it is the first segment of the tag number.",
+      "pattern": "^[0-9]{2}$"
+    },
+    "p_and_id": {
+      "type": "string",
+      "description": "Drawing number of the P&ID the item appears on.",
+      "maxLength": 40
+    },
+    "design_pressure_barg": {
+      "type": "string",
+      "description": "Design pressure in barg.",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$",
+      "maxLength": 10,
+      "x-tl-type": "decimal"
+    },
+    "design_temp_degc": {
+      "type": "string",
+      "description": "Design temperature in degrees Celsius.",
+      "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+      "maxLength": 10,
+      "x-tl-type": "decimal"
+    },
+    "weight_kg": {
+      "type": "string",
+      "description": "Dry weight in kilograms.",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$",
+      "maxLength": 10,
+      "x-tl-type": "decimal"
+    },
+    "manufacturer": {
+      "type": "string",
+      "description": "Manufacturer.",
+      "maxLength": 100
+    }
+  },
+  "x-throughline": {
+    "code": "equipment-list",
+    "version": "1.0.0",
+    "title": "Equipment list",
+    "target": {
+      "module": "engineering",
+      "record_type": "engineering.Tag",
+      "key": "equipment_tag",
+      "title": "description",
+      "class": "equipment_class"
+    },
+    "unique": [
+      "equipment_tag"
+    ],
+    "header_aliases": {
+      "equipment_tag": [
+        "TAG NO",
+        "Tag",
+        "Equipment No."
+      ],
+      "equipment_class": [
+        "Class",
+        "TYPE"
+      ],
+      "description": [
+        "Description",
+        "SERVICE"
+      ],
+      "area": [
+        "Area",
+        "Unit"
+      ],
+      "p_and_id": [
+        "P&ID",
+        "PID"
+      ],
+      "design_pressure_barg": [
+        "DP (BARG)",
+        "Design Pressure"
+      ],
+      "design_temp_degc": [
+        "DT (C)",
+        "Design Temp"
+      ],
+      "weight_kg": [
+        "WEIGHT (KG)",
+        "Weight"
+      ],
+      "manufacturer": [
+        "MFR",
+        "Manufacturer"
+      ]
+    },
+    "sample": "equipment-list@1.0.0.sample.csv"
+  }
+}

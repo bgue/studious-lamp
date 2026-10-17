@@ -1,0 +1,198 @@
+{
+  "columns": [
+    "tag_number",
+    "service",
+    "tag_class",
+    "size_in",
+    "body_material",
+    "manufacturer",
+    "fail_action",
+    "remarks",
+    "Issued",
+    "Witnessed"
+  ],
+  "extractor": "tabular",
+  "extractor_version": "1",
+  "metadata": {
+    "author": "Acme Instrumentation",
+    "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "created": "2024-03-01T10:15:30Z",
+    "height": null,
+    "image_format": null,
+    "modified": "2024-03-05T17:00:00Z",
+    "page_count": null,
+    "producer": null,
+    "sha256": "a949201f0bd897c48d7bda851fbf0cc10d92432c3e8e57195210a3b80613030d",
+    "sheet_names": [
+      "Cover",
+      "Index",
+      "Archive"
+    ],
+    "size": 22034,
+    "title": "Instrument index",
+    "width": null
+  },
+  "notes": [
+    "header hints applied: Tag No. -> tag_number; Service -> service; Class -> tag_class; Size (in) -> size_in; Material -> body_material; MFR -> manufacturer; Fail -> fail_action; Remarks -> remarks",
+    "skipped 1 blank row(s)"
+  ],
+  "problems": [],
+  "profiles": [
+    {
+      "distinct": 4,
+      "max_length": 10,
+      "name": "tag_number",
+      "non_empty": 4,
+      "samples": [
+        "47-FV-1001",
+        "47-FV-1002",
+        "47-HV-1004",
+        "47-FT-1006"
+      ]
+    },
+    {
+      "distinct": 4,
+      "max_length": 25,
+      "name": "service",
+      "non_empty": 4,
+      "samples": [
+        "Feed gas flow control",
+        "Fuel gas flow control",
+        "Feed gas isolation",
+        "Feed gas flow transmitter"
+      ]
+    },
+    {
+      "distinct": 3,
+      "max_length": 12,
+      "name": "tag_class",
+      "non_empty": 4,
+      "samples": [
+        "ControlValve",
+        "ManualValve",
+        "Transmitter"
+      ]
+    },
+    {
+      "distinct": 2,
+      "max_length": 3,
+      "name": "size_in",
+      "non_empty": 2,
+      "samples": [
+        "4",
+        "6.5"
+      ]
+    },
+    {
+      "distinct": 2,
+      "max_length": 6,
+      "name": "body_material",
+      "non_empty": 3,
+      "samples": [
+        "SS316L",
+        "CS"
+      ]
+    },
+    {
+      "distinct": 2,
+      "max_length": 11,
+      "name": "manufacturer",
+      "non_empty": 3,
+      "samples": [
+        "Acme Valves",
+        "Borealis"
+      ]
+    },
+    {
+      "distinct": 2,
+      "max_length": 2,
+      "name": "fail_action",
+      "non_empty": 2,
+      "samples": [
+        "FC",
+        "FO"
+      ]
+    },
+    {
+      "distinct": 1,
+      "max_length": 16,
+      "name": "remarks",
+      "non_empty": 1,
+      "samples": [
+        "Replaces FV-0902"
+      ]
+    },
+    {
+      "distinct": 2,
+      "max_length": 19,
+      "name": "Issued",
+      "non_empty": 2,
+      "samples": [
+        "2024-03-01",
+        "2024-03-01T13:05:00"
+      ]
+    },
+    {
+      "distinct": 2,
+      "max_length": 5,
+      "name": "Witnessed",
+      "non_empty": 2,
+      "samples": [
+        "TRUE",
+        "FALSE"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "Issued": "2024-03-01",
+      "Witnessed": "TRUE",
+      "body_material": "SS316L",
+      "fail_action": "FC",
+      "manufacturer": "Acme Valves",
+      "remarks": null,
+      "service": "Feed gas flow control",
+      "size_in": "4",
+      "tag_class": "ControlValve",
+      "tag_number": "47-FV-1001"
+    },
+    {
+      "Issued": "2024-03-01T13:05:00",
+      "Witnessed": "FALSE",
+      "body_material": "CS",
+      "fail_action": "FO",
+      "manufacturer": "Acme Valves",
+      "remarks": "Replaces FV-0902",
+      "service": "Fuel gas flow control",
+      "size_in": "6.5",
+      "tag_class": "ControlValve",
+      "tag_number": "47-FV-1002"
+    },
+    {
+      "Issued": null,
+      "Witnessed": null,
+      "body_material": "CS",
+      "fail_action": null,
+      "manufacturer": "Borealis",
+      "remarks": null,
+      "service": "Feed gas isolation",
+      "size_in": null,
+      "tag_class": "ManualValve",
+      "tag_number": "47-HV-1004"
+    },
+    {
+      "Issued": null,
+      "Witnessed": null,
+      "body_material": null,
+      "fail_action": null,
+      "manufacturer": null,
+      "remarks": null,
+      "service": "Feed gas flow transmitter",
+      "size_in": null,
+      "tag_class": "Transmitter",
+      "tag_number": "47-FT-1006"
+    }
+  ],
+  "sheet": "Index",
+  "status": "ok"
+}

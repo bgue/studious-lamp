@@ -1,0 +1,14 @@
+﻿Tag No.;Service;Class;Size (in);Material;MFR;Fail;Remarks
+47-FV-1001;Feed gas flow control;ControlValve;4;SS316L;Acme Valves;FC;
+47-FV-1002;Fuel gas flow control;ControlValve;6;CS;Acme Valves;FO;Replaces FV-0902
+47-PV-1003;"Flare header; north leg, pressure control";ControlValve;8;SS316L;Borealis;FO;
+47-HV-1004;  Feed gas isolation  ;ManualValve;4;CS;Borealis;;
+
+47-PSV-1005;Separator relief;SafetyValve;3;SS316L;Borealis;;Set 18 barg
+47-FT-1006;Feed gas flow transmitter;Transmitter;;;;;
+47-LIC-1007;"Separator level
+controller";Controller;;;;;"Shown on PID-4703"
+47-P-1008;Condensate pump;Pump;;;;;Bell rang
+47-V-1009;Feed separator;Vessel;;;;;
+;;;;;;;
+47-E-1010;Reactor effluent cooler;HeatExchanger;;;;;;stray cell
