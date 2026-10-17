@@ -61,16 +61,48 @@ classes:
         required: true
       previous_snapshot_id:
         description: "The snapshot that was current before, or null."
-      orphaned_count:
-        description: "Activity references whose activity is not in the snapshot; their links were flagged."
-        range: integer
-        required: true
-      restored_count:
-        description: "Activity references whose activity came back; their links were restored."
-        range: integer
+      orphan_check_queued:
+        description: "True: a job (schedule.flag_orphans) was queued to flag the links to activities that are not in the snapshot and to restore the ones that came back. Its events (Schedule.OrphansChecked) carry the totals."
+        range: boolean
         required: true
     examples:
-      - value: "{\"data_date\": \"2026-10-12T08:00\", \"orphaned_count\": 1, \"previous_snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"restored_count\": 0, \"snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"snapshot_number\": 2}"
+      - value: "{\"data_date\": \"2026-10-12T08:00\", \"orphan_check_queued\": true, \"previous_snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"snapshot_number\": 2}"
+  ScheduleOrphansCheckedPayload:
+    is_a: EventPayload
+    description: >-
+      One run of the job that makes the links to a schedule's activities agree with its current snapshot
+      (ADR-0015 section 5): activity references whose presence changed, links flagged stale (their activity
+      is gone) and links restored (it came back). Written on the schedule's stream. A run does a bounded
+      amount of work; complete is false when more is left and another run is queued.
+    annotations:
+      tl:event_type: Schedule.OrphansChecked
+      tl:event_version: "1"
+    attributes:
+      snapshot_id:
+        description: "The current snapshot the run made the links agree with."
+        required: true
+      snapshot_number:
+        description: "Its number."
+        range: integer
+        required: true
+      refs_changed:
+        description: "Activity references whose presence was changed in this run."
+        range: integer
+        required: true
+      links_flagged:
+        description: "Links flagged stale in this run."
+        range: integer
+        required: true
+      links_restored:
+        description: "Links restored in this run."
+        range: integer
+        required: true
+      complete:
+        description: "True when nothing is left to do for this snapshot."
+        range: boolean
+        required: true
+    examples:
+      - value: "{\"complete\": true, \"links_flagged\": 1, \"links_restored\": 0, \"refs_changed\": 1, \"snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"snapshot_number\": 2}"
   ScheduleSnapshotDefinedPayload:
     is_a: EventPayload
     description: >-
@@ -246,16 +278,12 @@ classes:
     attributes:
       previous_snapshot_id:
         description: "The snapshot that was current before, or null."
-      orphaned_count:
-        description: "Activity references flagged."
-        range: integer
-        required: true
-      restored_count:
-        description: "Activity references restored."
-        range: integer
+      orphan_check_queued:
+        description: "True: the job that flags and restores the links to activities was queued."
+        range: boolean
         required: true
     examples:
-      - value: "{\"orphaned_count\": 1, \"previous_snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"restored_count\": 0}"
+      - value: "{\"orphan_check_queued\": true, \"previous_snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
   ActivityRefDefinedPayload:
     is_a: EventPayload
     description: >-

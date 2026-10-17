@@ -3,9 +3,8 @@
     "data": {
       "changes": {},
       "detail": {
-        "orphaned_count": 1,
-        "previous_snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
-        "restored_count": 0
+        "orphan_check_queued": true,
+        "previous_snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
       },
       "links": [],
       "origin": {
@@ -31,8 +30,7 @@
     "type": "tl.core.ScheduleSnapshot.MadeCurrent.v1"
   },
   "payload": {
-    "orphaned_count": 1,
-    "previous_snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
-    "restored_count": 0
+    "orphan_check_queued": true,
+    "previous_snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
   }
 }

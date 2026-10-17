@@ -316,25 +316,24 @@ def history(conn: Connection, schedule_id: str) -> list[SnapshotRow]:
 
 
 def previous_of(conn: Connection, snapshot: SnapshotRow) -> SnapshotRow | None:
-    """The built snapshot of the schedule with the latest data date before this one's.
+    """The published snapshot of the schedule with the latest data date before this one's.
 
-    "Built" is Valid, Published or Superseded: a snapshot can be compared before it is published.
-    Equal data dates are ordered by number. ``None`` for the first, or while this one has no data
-    date.
+    The baseline of a comparison is what the project was planning with: a Published or Superseded
+    snapshot, never another upload that was merely built (Valid), however recent. Equal data dates
+    are ordered by number. ``None`` for the first, or while this one has no data date.
     """
     if snapshot.data_date is None:
         return None
     found = conn.execute(
         text(
-            _SNAPSHOT_SQL + " WHERE t.schedule_id = :schedule AND r.status IN (:a, :b, :c) "
+            _SNAPSHOT_SQL + " WHERE t.schedule_id = :schedule AND r.status IN (:a, :b) "
             "AND t.id <> :id AND (t.data_date < :dd OR (t.data_date = :dd AND t.number < :n)) "
             "ORDER BY t.data_date DESC, t.number DESC LIMIT 1"
         ),
         {
             "schedule": snapshot.schedule_id,
-            "a": BUILT_STATES[0],
-            "b": BUILT_STATES[1],
-            "c": BUILT_STATES[2],
+            "a": PUBLISHED,
+            "b": SUPERSEDED,
             "id": snapshot.id,
             "dd": snapshot.data_date,
             "n": snapshot.number,

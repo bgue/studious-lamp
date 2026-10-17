@@ -7,6 +7,9 @@ not allowed on snapshots, so a person cannot skip the checks the module's comman
 
 from __future__ import annotations
 
+import re
+from datetime import datetime
+
 from sqlalchemy import text
 from tl_core.ledger import AppendResult, NewEvent
 from tl_core.services.commands import Command, CommandResult
@@ -17,6 +20,7 @@ from tl_core.util import new_ulid
 from tl_mod_schedule.errors import ScheduleScopeError
 
 _VERSION_SQL = text("SELECT version FROM cur_core_record WHERE id = :id")
+_STAMP = re.compile(r"([0-9]{1,4})-([0-9]{1,2})-([0-9]{1,2})T([0-9]{1,2}):([0-9]{1,2})")
 
 
 def require_project(cmd: Command) -> None:
@@ -74,3 +78,15 @@ def transition(
         ),
         by_module=True,
     )
+
+
+def stamp(value: str) -> datetime:
+    """A data date or other stamp (``YYYY-MM-DDTHH:MM``) as a value to compare, not as text.
+
+    Tolerant of a year or field written without padding (older rows), which text would sort wrong.
+    """
+    found = _STAMP.fullmatch(value)
+    if found is None:
+        raise ValueError("not a stamp")
+    year, month, day, hour, minute = (int(g) for g in found.groups())
+    return datetime(year, month, day, hour, minute)

@@ -372,7 +372,7 @@ class FakeScheduleSupport:
             raise ActivityNotFoundError(f"the fake has no resolution of {activity_id!r}")
         return found
 
-    def list_activity_links(self, record_id: str) -> list[ActivityLink]:
+    def list_activity_links(self, project: str, record_id: str) -> list[ActivityLink]:
         return list(self._activity_links.get(record_id, []))
 
     def link_activity(self, cmd: LinkActivity) -> CommandResult:

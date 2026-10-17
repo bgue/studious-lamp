@@ -58,3 +58,21 @@ class ScheduleNotConfiguredError(ScheduleError):
 
 class TablesMismatchError(ScheduleError):
     """The typed rows read again from the source file are not the ones the ledger recorded."""
+
+
+class TooManyLinksError(ScheduleError):
+    """The activity already has the most links one activity may have."""
+
+
+class TooManyReferencesError(ScheduleError):
+    """The schedule already has the most activity references it may have."""
+
+
+class TypedRowsMissingError(ScheduleError):
+    """The current snapshot's activities are not in the database (after a restore): run
+    ``tl xer reconcile`` first. Judging links against missing rows would call every activity gone.
+    """
+
+
+class FutureDataDateError(ScheduleError):
+    """The snapshot's data date is too far after today to be the current schedule."""

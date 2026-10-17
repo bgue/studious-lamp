@@ -18,6 +18,7 @@ from tl_core.files.queries import list_files
 from tl_core.ledger import NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.records import create_module_record
+from tl_core.text import clean_optional_text, clean_text
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
 from tl_xer import limits as xer_limits
@@ -31,7 +32,6 @@ from tl_mod_schedule.errors import (
     SnapshotStateError,
     SourceFileError,
 )
-from tl_mod_schedule.handlers.schedules import no_controls
 from tl_mod_schedule.limits import MAX_P6_PROJECT, MAX_REASON
 from tl_mod_schedule.names import (
     INVALID,
@@ -59,7 +59,7 @@ class OpenScheduleSnapshot(Command):
     @field_validator("p6_project")
     @classmethod
     def _plain(cls, value: str | None) -> str | None:
-        return None if value is None else no_controls(value)
+        return clean_optional_text(value)
 
 
 class StartScheduleSnapshot(Command):
@@ -83,7 +83,7 @@ class VoidScheduleSnapshot(Command):
     def _reason(cls, value: str) -> str:
         if not value.strip():
             raise ValueError("reason must not be blank")
-        return no_controls(value)
+        return clean_text(value)
 
 
 def load_snapshot(uow: UnitOfWork, cmd: Command, snapshot_id: str) -> registry.SnapshotRow:

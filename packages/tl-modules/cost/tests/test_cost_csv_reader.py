@@ -282,7 +282,9 @@ def test_a_byte_neither_encoding_allows_is_refused() -> None:
     assert refused(b"code,description\n1,x\x81y\n").code == "not_text"
 
 
-@pytest.mark.parametrize("char", ["\x00", "\x07", "\x1b", "\x7f", "\u0085", "‮", " ", "﻿"])
+@pytest.mark.parametrize(
+    "char", ["\x00", "\x07", "\x1b", "\x7f", "\u0085", chr(0x202E), chr(0x2028), chr(0xFEFF)]
+)
 def test_control_characters_and_direction_marks_are_refused(char: str) -> None:
     error = refused(f"code,description\n1,a{char}b\n".encode())
     assert error.code == "control_character"

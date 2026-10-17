@@ -40,7 +40,7 @@ def test_publishing_the_first_snapshot_makes_it_current(world: ScheduleWorld) ->
     assert snap.state == "Published" and snap.published_at is not None
     [pointed] = [p for t, p in events(world, schedule.id) if t == "Schedule.SnapshotPublished"]
     assert pointed["snapshot_id"] == snapshot_id and pointed["previous_snapshot_id"] is None
-    assert (pointed["orphaned_count"], pointed["restored_count"]) == (0, 0)
+    assert pointed["orphan_check_queued"] is False  # nothing is linked yet: no job
 
 
 def test_a_later_snapshot_supersedes_the_earlier_one(world: ScheduleWorld) -> None:
@@ -117,8 +117,8 @@ def test_a_link_to_an_activity_that_vanishes_is_flagged_and_one_that_stays_is_no
     still = world.ref("MAIN", "A1230")
     assert still is not None and still.present
     [made] = [p for t, p in events(world, two) if t == "ScheduleSnapshot.MadeCurrent"]
-    assert (made["orphaned_count"], made["restored_count"]) == (1, 0)
-    assert "Link.Flagged" in [e.event_type for e in result.events]
+    assert made["orphan_check_queued"] is True
+    assert "Link.Flagged" not in [e.event_type for e in result.events]  # the job flags, later
 
 
 def test_an_activity_that_comes_back_restores_the_links_the_module_flagged(
@@ -137,7 +137,7 @@ def test_an_activity_that_comes_back_restores_the_links_the_module_flagged(
     ref = world.ref("MAIN", "A1990")
     assert ref is not None and ref.present and ref.last_seen_number == 3
     [made] = [p for t, p in events(world, three) if t == "ScheduleSnapshot.MadeCurrent"]
-    assert (made["orphaned_count"], made["restored_count"]) == (0, 1)
+    assert made["orphan_check_queued"] is True
 
 
 def test_a_link_a_person_flagged_is_not_restored_when_the_activity_returns(

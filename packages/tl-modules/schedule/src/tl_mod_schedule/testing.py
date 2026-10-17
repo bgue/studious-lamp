@@ -129,6 +129,11 @@ class ScheduleWorld:
                 uow, StartScheduleSnapshot(**BASE, snapshot_id=snapshot_id)
             )
 
+    def work_once(self) -> Any:
+        """One pass of the queue (one job); ``None`` when nothing is queued."""
+        with build_worker(self.db, self.files, worker_id="test") as worker:
+            return worker.runner.run_once()
+
     def work(self, **limits: Any) -> list[Any]:
         """Run the queue until it is empty (the snapshot builds); the results of each pass."""
         with build_worker(self.db, self.files, worker_id="test", **limits) as worker:
@@ -142,11 +147,16 @@ class ScheduleWorld:
         self.work()
         return snapshot_id
 
-    def publish(self, snapshot_id: str) -> CommandResult:
+    def publish(self, snapshot_id: str, *, check: bool = True) -> CommandResult:
+        """Publish, and (``check``) run the worker so the flagging job has finished, as a worker
+        would a moment later. ``check=False`` leaves the window of ADR-0015 section 5 open."""
         with open_uow(self.db) as uow:
-            return handle_publish_schedule_snapshot(
+            made = handle_publish_schedule_snapshot(
                 uow, PublishScheduleSnapshot(**BASE, snapshot_id=snapshot_id)
             )
+        if check:
+            self.work()
+        return made
 
     def void(self, snapshot_id: str, reason: str = "wrong file") -> CommandResult:
         with open_uow(self.db) as uow:

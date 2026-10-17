@@ -69,6 +69,20 @@ MAX_TYPED_JSON: Final = MAX_TYPED_TEXT + 48 * 1024 * 1024
 #: The parent reads at most this much from the child: the typed snapshot, the compressed raw tables
 #: (about the source size; gzip adds under 1 per cent) and the frames around them.
 MAX_ANSWER_BYTES: Final = MAX_TYPED_JSON + MAX_BYTES + 8 * 1024 * 1024
+
+
+def answer_bound(source_size: int) -> int:
+    """The most the parent reads from the child for a file of ``source_size`` bytes.
+
+    The typed text is at most ``TYPED_TEXT_FACTOR`` times the source plus a margin, the structure
+    around it (quotes, separators, numbers of at most 60 000 + 200 000 + 300 000 + 300 000 rows)
+    about 48 MiB at its largest, and the compressed raw tables about the source. A small file is
+    therefore allowed a small answer; no file more than ``MAX_ANSWER_BYTES``.
+    """
+    typed = TYPED_TEXT_FACTOR * source_size + TYPED_TEXT_EXTRA + 48 * 1024 * 1024
+    return min(MAX_ANSWER_BYTES, typed + source_size + 8 * 1024 * 1024)
+
+
 #: What the parser may inflate the stored raw bundle to when it is read back (the lake loader).
 MAX_BUNDLE_BYTES: Final = 400 * 1024 * 1024
 #: The longest line of the raw bundle: a batch of rows, or one row (200 fields of 32 000 characters,

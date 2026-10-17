@@ -126,6 +126,34 @@ def test_the_typed_json_is_bounded_as_a_whole(monkeypatch: pytest.MonkeyPatch) -
     assert codes(outcome.report["problems"]) == ["typed_too_large"]
 
 
+def test_a_small_file_is_allowed_a_small_answer_and_none_more_than_the_ceiling() -> None:
+    small, large = limits.answer_bound(10_000), limits.answer_bound(limits.MAX_BYTES)
+    assert small < large <= limits.MAX_ANSWER_BYTES
+    assert small == 3 * 10_000 + (16 + 48 + 8) * (1 << 20)
+    assert limits.answer_bound(10**12) == limits.MAX_ANSWER_BYTES
+    # the demo files are well inside it
+    from tl_xer.child import entry
+
+    _, payload = entry({"options": {"project": None}}, encode(first_text()))
+    assert len(payload) < small
+
+
+def test_the_read_passes_the_size_bound_to_the_envelope(monkeypatch: pytest.MonkeyPatch) -> None:
+    from tl_core.derivation.envelope import run_in_envelope as real
+    from tl_xer import run
+
+    seen: list[int] = []
+
+    def watching(*args: Any, **kwargs: Any) -> Any:
+        seen.append(kwargs["max_answer"])
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(run, "run_in_envelope", watching)
+    data = encode(first_text())
+    assert run.read_xer_file(data).status == "valid"
+    assert seen == [limits.answer_bound(len(data))]
+
+
 def test_the_answer_bound_follows_the_text_bound() -> None:
     assert limits.MAX_TYPED_TEXT == limits.TYPED_TEXT_FACTOR * limits.MAX_BYTES + (16 << 20)
     assert limits.MAX_ANSWER_BYTES == limits.MAX_TYPED_JSON + limits.MAX_BYTES + (8 << 20)
@@ -393,7 +421,7 @@ def test_the_parent_refuses_an_encoding_note_it_does_not_know() -> None:
     assert wire.decode(build(meta, typed, raw)).status == "valid"
 
 
-@pytest.mark.parametrize("char", ["\x00", "\x85", "‮", " ", "⁦", "\x7f"])
+@pytest.mark.parametrize("char", ["\x00", "\x85", chr(0x202E), chr(0x2028), chr(0x2066), "\x7f"])
 def test_the_parent_rechecks_text_cells_for_characters_the_reader_refused(char: str) -> None:
     from test_run import build, valid_payload
 

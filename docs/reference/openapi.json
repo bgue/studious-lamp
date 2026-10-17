@@ -12149,7 +12149,7 @@
         "type": "object"
       },
       "ScheduleDetailView": {
-        "description": "A schedule with its snapshots, newest number first.",
+        "description": "A schedule with its snapshots, newest number first.\n\n``links_being_checked`` is true while the job that flags the links to activities the current\nsnapshot lacks (and restores the ones that came back) has work left: until it is done a link to\na removed activity may still read as current (ADR-0015 section 5).",
         "properties": {
           "code": {
             "title": "Code",
@@ -12180,6 +12180,11 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "links_being_checked": {
+            "default": false,
+            "title": "Links Being Checked",
+            "type": "boolean"
           },
           "owner": {
             "anyOf": [
@@ -27394,7 +27399,7 @@
     },
     "/projects/{project}/cost-codes/{code}": {
       "get": {
-        "description": "One cost code with its children and the figures of every snapshot. 404 `cost_code_not_found`.",
+        "description": "One cost code, its children and the figures of every snapshot. 404 `cost_code_not_found`.",
         "operationId": "get_cost_code",
         "parameters": [
           {
@@ -29390,6 +29395,107 @@
         ]
       }
     },
+    "/projects/{project}/records/{record_id}/activity-links": {
+      "get": {
+        "description": "The activity links of a record of the project and what each resolves to now (at most 200).",
+        "operationId": "list_activity_links",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityLink"
+                  },
+                  "title": "Response List Activity Links",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Activity Links",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
     "/projects/{project}/schedules": {
       "get": {
         "description": "A project's schedules by code, without snapshots.",
@@ -30540,6 +30646,8 @@
             "name": "number",
             "required": true,
             "schema": {
+              "maximum": 1000000000,
+              "minimum": 1,
               "title": "Number",
               "type": "integer"
             }
@@ -32287,98 +32395,6 @@
         "summary": "Get Record",
         "tags": [
           "records"
-        ]
-      }
-    },
-    "/records/{record_id}/activity-links": {
-      "get": {
-        "description": "The activity links of a record and what each resolves to now.",
-        "operationId": "list_activity_links",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "record_id",
-            "required": true,
-            "schema": {
-              "title": "Record Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ActivityLink"
-                  },
-                  "title": "Response List Activity Links",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "Missing or unknown bearer token."
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "No such resource."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "Version conflict, state conflict or failed workflow guard."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "The request is well formed but cannot be applied."
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "List Activity Links",
-        "tags": [
-          "schedule"
         ]
       }
     },

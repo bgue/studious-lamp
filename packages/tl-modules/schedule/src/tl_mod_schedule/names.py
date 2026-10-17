@@ -39,6 +39,7 @@ TYPED_TABLES: Final = {
 # Event types. The *Defined event follows Record.Created in the same append.
 SCHEDULE_DEFINED: Final = "Schedule.Defined"
 SCHEDULE_SNAPSHOT_PUBLISHED: Final = "Schedule.SnapshotPublished"
+ORPHANS_CHECKED: Final = "Schedule.OrphansChecked"
 SNAPSHOT_DEFINED: Final = "ScheduleSnapshot.Defined"
 SNAPSHOT_QUEUED: Final = "ScheduleSnapshot.Queued"
 BUILD_STARTED: Final = "ScheduleSnapshot.BuildStarted"
@@ -67,6 +68,10 @@ SLOT_RAW: Final = "raw"
 
 #: The job kind of a snapshot build in the claim queue (ADR-0014): the job id is the snapshot id.
 JOB_KIND_BUILD: Final = "schedule.build"
+#: The job that makes the links to a schedule's activities agree with its current snapshot. Its id
+#: is ``flag:<schedule id>:<ulid>``: the schedule is the work, and each run is a new job.
+JOB_KIND_FLAG: Final = "schedule.flag_orphans"
+FLAG_JOB_PREFIX: Final = "flag:"
 
 SCHEDULE_TYPES: Final = ("baseline", "current", "look_ahead", "what_if")
 
@@ -74,6 +79,10 @@ SCHEDULE_TYPES: Final = ("baseline", "current", "look_ahead", "what_if")
 #: is the thirteen of brief 7.1 (``references`` is the default); the activity is told by the type
 #: of the record the link points at (``schedule.ActivityRef``), as a document is.
 ACTIVITY_RELATION: Final = "references"
-#: The reason the module gives when a publication flags a link; a link flagged with it is restored
-#: when the activity comes back, and only such a link.
+#: The reason the module gives when it flags a link (words for a person). It is not how the module
+#: recognises its own flags: that is the *source* of the ``Link.Flagged`` event (``SERVICE``),
+#: which a client cannot set (ADR-0014 reserves it), so a person cannot make a flag the module
+#: would undo by typing the same words.
 ORPHAN_REASON: Final = "activity is not in the published snapshot"
+#: The actor and source of everything the module does on its own (the build, the flagging).
+SERVICE: Final = "svc:schedule"

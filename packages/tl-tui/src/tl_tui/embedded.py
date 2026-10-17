@@ -946,9 +946,9 @@ class EmbeddedClient:
                 schedule_views.as_of_of(as_of),
             )
 
-    def list_activity_links(self, record_id: str) -> list[ActivityLink]:
+    def list_activity_links(self, project: str, record_id: str) -> list[ActivityLink]:
         with self._uow(True) as uow:
-            return schedule_views.activity_links(uow.conn(), record_id)
+            return schedule_views.activity_links(uow.conn(), f"project:{project}", record_id)
 
     def link_activity(self, cmd: LinkActivity) -> CommandResult:
         with self._uow(False) as uow:

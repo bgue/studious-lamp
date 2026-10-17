@@ -35,6 +35,8 @@ from typing import Any
 from sqlalchemy import Connection
 
 from tl_mod_schedule import registry
+from tl_mod_schedule.common import stamp
+from tl_mod_schedule.errors import SnapshotNotFoundError
 from tl_mod_schedule.registry import DEFAULT_DAY_HOURS, ActivityRow, RelationshipRow, SnapshotRow
 
 DATE_FIELDS = (
@@ -63,8 +65,11 @@ class SnapshotData:
     day_hours: Mapping[str, float] = field(default_factory=dict[str, float])
 
 
-def load(conn: Connection, snapshot: SnapshotRow) -> SnapshotData:
-    """Read the typed rows of a built snapshot. ``data_date`` is set once a snapshot is built."""
+def load(conn: Connection, snapshot: SnapshotRow, *, scope: str) -> SnapshotData:
+    """Read the typed rows of a built snapshot of ``scope`` (``SnapshotNotFoundError`` for one of
+    another project). ``data_date`` is set once a snapshot is built."""
+    if snapshot.scope != scope:
+        raise SnapshotNotFoundError(f"no snapshot {snapshot.key!r} in scope {scope!r}")
     assert snapshot.data_date is not None
     return SnapshotData(
         key=snapshot.key,
@@ -217,8 +222,8 @@ class Comparison:
 # --- the comparison ---------------------------------------------------------------------------
 
 
-def _day(stamp: str) -> datetime:
-    return datetime.fromisoformat(stamp)
+def _day(value: str) -> datetime:
+    return stamp(value)
 
 
 def shift_days(old: str, new: str) -> int:
@@ -421,4 +426,4 @@ def compare(old: SnapshotData, new: SnapshotData) -> Comparison:
 
 def _latest(snapshot: SnapshotData) -> str | None:
     finishes = [a.early_finish for a in snapshot.activities.values() if a.early_finish is not None]
-    return max(finishes) if finishes else None
+    return max(finishes, key=stamp) if finishes else None  # as dates, not as text

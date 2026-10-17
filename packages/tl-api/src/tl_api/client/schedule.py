@@ -136,9 +136,11 @@ class ScheduleApi(ApiClientBase):
         )
         return TypeAdapter(Resolution).validate_python(data)
 
-    def list_activity_links(self, record_id: str) -> list[ActivityLink]:
-        """The activity links of a record (``GET /records/{id}/activity-links``)."""
-        data = self._get_json(f"/records/{quote(record_id)}/activity-links")
+    def list_activity_links(self, project: str, record_id: str) -> list[ActivityLink]:
+        """The activity links of a record (``GET /projects/{p}/records/{id}/activity-links``)."""
+        data = self._get_json(
+            f"/projects/{quote(project)}/records/{quote(record_id)}/activity-links"
+        )
         return TypeAdapter(list[ActivityLink]).validate_python(data)
 
     def define_schedule(self, cmd: DefineSchedule) -> CommandResult:

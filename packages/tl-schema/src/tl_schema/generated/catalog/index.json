@@ -595,6 +595,15 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Schedule.OrphansChecked.v1",
+      "event_type": "Schedule.OrphansChecked",
+      "payload_class": "ScheduleOrphansCheckedPayload",
+      "sample": "samples/Schedule.OrphansChecked.v1.json",
+      "schema": "schemas/Schedule.OrphansChecked.v1.json",
+      "title": "One run of the job that makes the links to a schedule's activities agree with its current snapshot (ADR-0015 section 5): activity references whose presence changed, links flagged stale (their activity is gone) and links restored (it came back).",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Schedule.SnapshotPublished.v1",
       "event_type": "Schedule.SnapshotPublished",
       "payload_class": "ScheduleSnapshotPublishedPayload",

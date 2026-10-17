@@ -27,6 +27,8 @@ from tl_mod_schedule.testing import BASE, ScheduleWorld
 from tl_xer.synth import Spec, make_xer, slipped, week_pair
 from xer_files import first_xer
 
+SCOPE = BASE["scope"]
+
 
 def published_pair(world: ScheduleWorld) -> tuple[str, str]:
     """Snapshots 1 (data date 2026-10-05 08:00) and 2 (2026-10-12 08:00), both published."""
@@ -47,14 +49,14 @@ def third_file() -> bytes:
 def snapshot_number(world: ScheduleWorld, as_of: resolver.AsOf) -> int | None:
     schedule = world.schedule()
     with open_uow(world.db, readonly=True) as uow:
-        found = resolve_snapshot(uow.conn(), schedule.id, as_of)
+        found = resolve_snapshot(uow.conn(), schedule.id, as_of, scope=SCOPE)
     return None if found is None else found.number
 
 
 def resolution(world: ScheduleWorld, activity_id: str, as_of: resolver.AsOf = None):  # noqa: ANN201
     schedule = world.schedule()
     with open_uow(world.db, readonly=True) as uow:
-        return resolve_activity(uow.conn(), schedule.id, activity_id, as_of)
+        return resolve_activity(uow.conn(), schedule.id, activity_id, as_of, scope=SCOPE)
 
 
 # --- which snapshot an as-of names ------------------------------------------------------------
@@ -121,9 +123,9 @@ def test_an_unknown_schedule_is_an_error(world: ScheduleWorld) -> None:
     world.define()
     with open_uow(world.db, readonly=True) as uow:
         with pytest.raises(ScheduleNotFoundError):
-            resolve_snapshot(uow.conn(), "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6")
+            resolve_snapshot(uow.conn(), "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6", scope=SCOPE)
         with pytest.raises(ScheduleNotFoundError):
-            resolve_activity(uow.conn(), "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6", "A1")
+            resolve_activity(uow.conn(), "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6", "A1", scope=SCOPE)
 
 
 # --- what an activity is -----------------------------------------------------------------------
@@ -196,13 +198,13 @@ def test_the_links_of_a_record_are_resolved_each_by_its_own_pin(world: ScheduleW
 
 def links_of(world: ScheduleWorld, record: str):  # noqa: ANN201
     with open_uow(world.db, readonly=True) as uow:
-        return links_to_activities(uow.conn(), record)
+        return links_to_activities(uow.conn(), record, scope=SCOPE)
 
 
 def orphans(world: ScheduleWorld):  # noqa: ANN201
     schedule = world.schedule()
     with open_uow(world.db, readonly=True) as uow:
-        return orphaned_links(uow.conn(), schedule.id)
+        return orphaned_links(uow.conn(), schedule.id, scope=SCOPE)
 
 
 def test_a_retracted_link_and_a_link_to_something_else_are_not_listed(world: ScheduleWorld) -> None:
@@ -339,4 +341,6 @@ def test_only_the_orphans_of_the_schedule_asked_for_are_listed(world: ScheduleWo
     assert [o.link_id for o in orphans(world)] == [mine.stream_id]
     other = world.schedule("OTHER")
     with open_uow(world.db, readonly=True) as uow:
-        assert [o.link_id for o in orphaned_links(uow.conn(), other.id)] == [theirs.stream_id]
+        assert [o.link_id for o in orphaned_links(uow.conn(), other.id, scope=SCOPE)] == [
+            theirs.stream_id
+        ]

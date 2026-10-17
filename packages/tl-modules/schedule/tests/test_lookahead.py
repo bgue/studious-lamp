@@ -188,9 +188,9 @@ def test_the_look_ahead_of_the_demos_snapshots(world: ScheduleWorld) -> None:
         first = registry.get_snapshot(uow.conn(), one)
         second = registry.get_snapshot(uow.conn(), two)
         assert first is not None and second is not None
-        four = look_ahead(uow.conn(), first)
-        short = look_ahead(uow.conn(), first, weeks=1)
-        later = look_ahead(uow.conn(), second, weeks=2)
+        four = look_ahead(uow.conn(), first, scope="project:P123")
+        short = look_ahead(uow.conn(), first, weeks=1, scope="project:P123")
+        later = look_ahead(uow.conn(), second, weeks=2, scope="project:P123")
     by_id = {r.activity_id: r for r in four.rows}
     assert by_id["A1230"].phase == "in_progress" and by_id["A1230"].total_float_days == 9.0
     assert "A1000" not in by_id  # complete

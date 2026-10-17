@@ -1,5 +1,8 @@
 """ScheduleProjector: ``Schedule.Defined`` and ``Schedule.SnapshotPublished`` into the table.
 
+``Schedule.OrphansChecked`` (a run of the flagging job) changes no column; it is handled here so
+that the record's version and update time move with the stream.
+
 A schedule is registered once; each publication moves its current-snapshot pointer. Deterministic:
 the row depends only on the events of the stream. Register it after ``RecordProjector``.
 """
@@ -12,6 +15,7 @@ from sqlalchemy import Connection, text
 from tl_core.ledger import Event
 
 from tl_mod_schedule.names import (
+    ORPHANS_CHECKED,
     SCHEDULE_DEFINED,
     SCHEDULE_SNAPSHOT_PUBLISHED,
     SCHEDULE_TABLE,
@@ -32,7 +36,7 @@ _PUBLISH_SQL = text(
 
 class ScheduleProjector:
     name = "schedule_schedule"
-    handles = frozenset({SCHEDULE_DEFINED, SCHEDULE_SNAPSHOT_PUBLISHED})
+    handles = frozenset({SCHEDULE_DEFINED, SCHEDULE_SNAPSHOT_PUBLISHED, ORPHANS_CHECKED})
 
     def ddl(self, dialect: str) -> list[str]:
         return ddl_for(SCHEDULE_TABLE, dialect) + ddl_for(SCHEDULE_VIEW, dialect)
@@ -65,7 +69,9 @@ class ScheduleProjector:
             ).rowcount
             if found == 0:
                 raise LookupError(f"no {SCHEDULE_TABLE} row for stream {event.stream_id}")
-        else:
+        elif (
+            event.event_type != ORPHANS_CHECKED
+        ):  # a run of the flagging job: only the record moves
             raise ValueError(f"ScheduleProjector cannot apply event type: {event.event_type}")
         touch_record(conn, event)
 

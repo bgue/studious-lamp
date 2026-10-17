@@ -1,49 +1,47 @@
 """``PublishScheduleSnapshot``: make a valid snapshot the schedule's current one (ADR-0015).
 
-One unit of work: the previous current snapshot becomes Superseded, this one Published,
-``ScheduleSnapshot.MadeCurrent`` and ``Schedule.SnapshotPublished`` are appended, and then every
-activity reference of the schedule is checked against the new snapshot. A reference whose activity
-is gone is marked absent and the active links to it are flagged stale (brief 7.3: an activity
-missing from the latest XER snapshot is orphaned); a reference whose activity is back is marked
-present and the links this module flagged are restored. Only the links the module itself flagged
-(by their reason) are restored; a link a person flagged stays flagged.
+One unit of work of a small, fixed size: the previous current snapshot becomes Superseded, this
+one Published, ``ScheduleSnapshot.MadeCurrent`` and ``Schedule.SnapshotPublished`` are appended,
+and a job is queued (``orphans.py``) that makes the links to the schedule's activities agree with
+the new snapshot: links to an activity that is gone are flagged stale, and the ones the module
+flagged earlier are restored when it is back (brief 7.3). The job runs in bounded runs after the
+commit, so until it has finished the links may still show the old state.
 
 Who may run it: the document controller or the admin (ADR-0015). An agent proposes it.
-The data date must be later than the current snapshot's: the current snapshot is always the
-latest data date published.
+
+Two checks on the data date, both on parsed dates and not on text: it must be later than the
+current snapshot's (the current snapshot is always the latest data date published), and not more
+than ``MAX_DATA_DATE_AHEAD_DAYS`` after today by the handler's clock (a data date far in the
+future would sit above every later snapshot and freeze the series).
 """
 
 from __future__ import annotations
 
+from datetime import UTC, timedelta
+
 from pydantic import ConfigDict
-from sqlalchemy import text
 from tl_core.ledger import NewEvent
 from tl_core.services.commands import Command, CommandResult
-from tl_core.services.links import FlagLink, RepinLink, handle_flag_link, handle_repin_link
 from tl_core.uow import UnitOfWork
+from tl_core.util import current_effective_time, utcnow
 
-from tl_mod_schedule import registry
-from tl_mod_schedule.common import append, correlated, transition
-from tl_mod_schedule.errors import ScheduleNotFoundError, SnapshotStateError, StaleSnapshotError
+from tl_mod_schedule import limits, registry
+from tl_mod_schedule.common import append, correlated, stamp, transition
+from tl_mod_schedule.errors import (
+    FutureDataDateError,
+    ScheduleNotFoundError,
+    SnapshotStateError,
+    StaleSnapshotError,
+)
 from tl_mod_schedule.handlers.snapshots import load_snapshot
 from tl_mod_schedule.names import (
-    ORPHAN_REASON,
-    REF_PRESENCE,
     SCHEDULE,
     SCHEDULE_SNAPSHOT,
     SCHEDULE_SNAPSHOT_PUBLISHED,
     SNAPSHOT_MADE_CURRENT,
     VALID,
 )
-
-ACTIVE_LINKS_SQL = text(
-    "SELECT link_id FROM cur_links WHERE to_id = :ref AND status = 'active' "
-    "ORDER BY created_at, link_id"
-)
-ORPHANED_LINKS_SQL = text(
-    "SELECT link_id FROM cur_links WHERE to_id = :ref AND status = 'stale' "
-    "AND reason LIKE :reason ORDER BY created_at, link_id"
-)
+from tl_mod_schedule.orphans import has_refs, queue_check
 
 
 class PublishScheduleSnapshot(Command):
@@ -57,7 +55,8 @@ class PublishScheduleSnapshot(Command):
 def handle_publish_schedule_snapshot(
     uow: UnitOfWork, cmd: PublishScheduleSnapshot
 ) -> CommandResult:
-    """Publish. Raises ``SnapshotStateError`` (not Valid) and ``StaleSnapshotError``."""
+    """Publish. Raises ``SnapshotStateError`` (not Valid), ``StaleSnapshotError`` and
+    ``FutureDataDateError``."""
     cmd = correlated(cmd)
     conn = uow.conn()
     snapshot = load_snapshot(uow, cmd, cmd.snapshot_id)
@@ -75,7 +74,19 @@ def handle_publish_schedule_snapshot(
         if schedule.current_snapshot_id
         else None
     )
-    if previous is not None and previous.data_date is not None and data_date <= previous.data_date:
+    # the handler's clock: simulated time when a simulation sets it, else the real one
+    today = (current_effective_time() or utcnow()).astimezone(UTC).replace(tzinfo=None)
+    if stamp(data_date) > today + timedelta(days=limits.MAX_DATA_DATE_AHEAD_DAYS):
+        raise FutureDataDateError(
+            f"snapshot {snapshot.key} has data date {data_date}, more than "
+            f"{limits.MAX_DATA_DATE_AHEAD_DAYS} days after today ({today.date().isoformat()}); "
+            "a data date that far ahead would freeze the series of snapshots"
+        )
+    if (
+        previous is not None
+        and previous.data_date is not None
+        and stamp(data_date) <= stamp(previous.data_date)
+    ):
         raise StaleSnapshotError(
             f"snapshot {snapshot.key} has data date {data_date}, not later than the current "
             f"snapshot {previous.key} ({previous.data_date})"
@@ -84,79 +95,11 @@ def handle_publish_schedule_snapshot(
     if previous is not None:
         events.extend(transition(uow, cmd, previous.id, "supersede").events)
     events.extend(transition(uow, cmd, snapshot.id, "publish").events)
-
-    refs = registry.refs_of(conn, schedule.id)
-    present = registry.activity_ids_present(conn, snapshot.id, (r.activity_id for r in refs))
-    orphaned = restored = 0
-    for ref in refs:
-        here = ref.activity_id in present
-        if here == ref.present:
-            continue
-        seen_id, seen_number = (
-            (snapshot.id, snapshot.number)
-            if here
-            else (
-                previous.id if previous else ref.last_seen_snapshot_id or snapshot.id,
-                previous.number if previous else ref.last_seen_number or snapshot.number,
-            )
-        )
-        events.extend(
-            append(
-                uow,
-                cmd,
-                ref.id,
-                "schedule.ActivityRef",
-                [
-                    NewEvent(
-                        event_type=REF_PRESENCE,
-                        payload={
-                            "present": here,
-                            "snapshot_id": snapshot.id,
-                            "snapshot_number": snapshot.number,
-                            "last_seen_snapshot_id": seen_id,
-                            "last_seen_number": seen_number,
-                        },
-                    )
-                ],
-            ).events
-        )
-        if not here:
-            orphaned += 1
-            for row in conn.execute(ACTIVE_LINKS_SQL, {"ref": ref.id}).all():
-                events.extend(
-                    handle_flag_link(
-                        uow,
-                        FlagLink(
-                            actor=cmd.actor,
-                            source=cmd.source,
-                            scope=cmd.scope,
-                            correlation_id=cmd.correlation_id,
-                            link_id=str(row.link_id),
-                            status="stale",
-                            reason=f"{ORPHAN_REASON} {snapshot.key}"[:500],
-                        ),
-                        by_module=True,
-                    ).events
-                )
-        else:
-            restored += 1
-            for row in conn.execute(
-                ORPHANED_LINKS_SQL,
-                {"ref": ref.id, "reason": ORPHAN_REASON + "%"},
-            ).all():
-                events.extend(
-                    handle_repin_link(
-                        uow,
-                        RepinLink(
-                            actor=cmd.actor,
-                            source=cmd.source,
-                            scope=cmd.scope,
-                            correlation_id=cmd.correlation_id,
-                            link_id=str(row.link_id),
-                        ),
-                        by_module=True,
-                    ).events
-                )
+    # The links to activities are made to agree with this snapshot by a job (orphans.py), in runs
+    # of bounded size, not in this transaction: the publisher does a small, fixed amount of work.
+    queued = has_refs(conn, schedule.id)
+    if queued:
+        queue_check(conn, schedule.id, cmd.scope)
     marked = append(
         uow,
         cmd,
@@ -167,8 +110,7 @@ def handle_publish_schedule_snapshot(
                 event_type=SNAPSHOT_MADE_CURRENT,
                 payload={
                     "previous_snapshot_id": previous.id if previous else None,
-                    "orphaned_count": orphaned,
-                    "restored_count": restored,
+                    "orphan_check_queued": queued,
                 },
             )
         ],
@@ -187,8 +129,7 @@ def handle_publish_schedule_snapshot(
                     "snapshot_number": snapshot.number,
                     "data_date": data_date,
                     "previous_snapshot_id": previous.id if previous else None,
-                    "orphaned_count": orphaned,
-                    "restored_count": restored,
+                    "orphan_check_queued": queued,
                 },
             )
         ],

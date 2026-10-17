@@ -2,13 +2,27 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from pydantic import ValidationError
 from tl_mod_cost.handlers.snapshots import ImportCostSnapshot
 from tl_mod_cost.imports.model import CostRow
 from tl_mod_cost.testing import BASE, row
 
-BAD = ["\n", "\r", "\t", "\x00", "\x85", " ", " ", "‮", "‏", "⁦", "\x7f"]
+BAD = [
+    "\n",
+    "\r",
+    "\t",
+    "\x00",
+    "\x85",
+    chr(0x2028),
+    chr(0x2029),
+    chr(0x202E),
+    chr(0x200F),
+    chr(0x2066),
+    "\x7f",
+]
 FIELDS = ["code", "parent_code", "description", "uom"]
 
 
@@ -17,7 +31,12 @@ FIELDS = ["code", "parent_code", "description", "uom"]
 def test_a_control_or_direction_character_in_any_text_field_is_refused(
     field: str, char: str
 ) -> None:
-    values = {"code": "4210", "parent_code": "4200", "description": "Piping", "uom": "m"}
+    values: dict[str, Any] = {
+        "code": "4210",
+        "parent_code": "4200",
+        "description": "Piping",
+        "uom": "m",
+    }
     values[field] = f"x{char}y"
     with pytest.raises(ValidationError) as caught:
         CostRow(**values)

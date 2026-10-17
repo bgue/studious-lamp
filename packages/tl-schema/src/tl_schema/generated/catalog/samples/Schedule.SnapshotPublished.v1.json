@@ -4,9 +4,8 @@
       "changes": {},
       "detail": {
         "data_date": "2026-10-12T08:00",
-        "orphaned_count": 1,
+        "orphan_check_queued": true,
         "previous_snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
-        "restored_count": 0,
         "snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
         "snapshot_number": 2
       },
@@ -35,9 +34,8 @@
   },
   "payload": {
     "data_date": "2026-10-12T08:00",
-    "orphaned_count": 1,
+    "orphan_check_queued": true,
     "previous_snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
-    "restored_count": 0,
     "snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
     "snapshot_number": 2
   }

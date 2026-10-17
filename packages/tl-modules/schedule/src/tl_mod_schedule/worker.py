@@ -10,10 +10,11 @@ from tl_adapters.db import DbTarget, make_uow_factory
 from tl_adapters.queue import job_queue_for
 from tl_core.files.service import FileService
 from tl_core.jobs import JobRunner
-from tl_core.jobs.types import DEFAULT_LEASE_S, Clock, UowFactory
+from tl_core.jobs.types import Clock, UowFactory
 from tl_core.util import utcnow
 
 from tl_mod_schedule.build import make_kinds
+from tl_mod_schedule.limits import BUILD_LEASE_S
 
 
 class Worker:
@@ -42,7 +43,7 @@ def build_worker(
     worker_id: str | None = None,
     timeout_s: float | None = None,
     memory_limit_mb: int | None = None,
-    lease_s: float = DEFAULT_LEASE_S,
+    lease_s: float = BUILD_LEASE_S,
     clock: Clock = utcnow,
 ) -> Worker:
     """A worker that serves the ``schedule.build`` jobs of the ledger at ``target``."""

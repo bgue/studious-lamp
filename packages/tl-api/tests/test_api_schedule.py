@@ -99,7 +99,7 @@ def reads(world: ScheduleWorld) -> tuple[str, ...]:
         f"{P}/schedules/MAIN/activity-details/A1230",
         f"{P}/schedules/MAIN/activity-trends/A1230",
         f"{P}/schedules/MAIN/activity-resolutions/A1230",
-        f"/records/{world.__dict__['record_a']}/activity-links",
+        f"{P}/records/{world.__dict__['record_a']}/activity-links",
     )
 
 
@@ -184,7 +184,7 @@ def test_a_link_resolves_to_the_current_snapshot_and_as_of_the_earlier_one(
     assert bob.get(base, params={"as_of": "2026-01-01"}).json()["state"] == "no_snapshot"
     gone = bob.get(f"{P}/schedules/MAIN/activity-resolutions/A1990").json()
     assert (gone["state"], gone["snapshot_number"]) == ("orphaned", 2)
-    links = bob.get(f"/records/{world.__dict__['record_b']}/activity-links").json()
+    links = bob.get(f"{P}/records/{world.__dict__['record_b']}/activity-links").json()
     assert [(link["ref_key"], link["status"]) for link in links] == [("MAIN/A1990", "stale")]
     orphans = bob.get(f"{P}/schedules/MAIN/orphans").json()
     assert [(o["activity_id"], o["from_id"]) for o in orphans] == [
@@ -234,7 +234,7 @@ def test_the_client_returns_what_the_embedded_views_return(
             views.resolution(conn, SCOPE, "MAIN", "A1230", "2026-10-08")
         )
         record = world.__dict__["record_b"]
-        assert api.list_activity_links(record) == views.activity_links(conn, record)
+        assert api.list_activity_links("P123", record) == views.activity_links(conn, SCOPE, record)
 
 
 def test_the_client_rebuilds_the_modules_errors(cast: Cast, world: ScheduleWorld) -> None:
@@ -329,5 +329,5 @@ def test_a_snapshot_is_made_and_published_over_http(
     bob.link_activity(
         LinkActivity(**CLIENT_BASE, from_id=record, schedule_id=schedule_id, activity_id="A1230")
     )
-    [link] = bob.list_activity_links(record)
+    [link] = bob.list_activity_links("P123", record)
     assert link.resolution.state == "current"

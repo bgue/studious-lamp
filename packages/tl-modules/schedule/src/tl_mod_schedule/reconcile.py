@@ -33,11 +33,15 @@ from tl_mod_schedule import registry, typed_store
 from tl_mod_schedule.handlers.snapshots import DEFAULT_MAX_ATTEMPTS
 from tl_mod_schedule.names import (
     BUILT_STATES,
+    FLAG_JOB_PREFIX,
     JOB_KIND_BUILD,
+    JOB_KIND_FLAG,
     PROCESSING,
+    SCHEDULE_TABLE,
     SNAPSHOT_TABLE,
     UPLOADED,
 )
+from tl_mod_schedule.orphans import outstanding, queue_check
 from tl_mod_schedule.store import SnapshotFiles
 
 #: Rows the ledger recorded for a built snapshot, by typed table (the keys of ``Snapshot.tables``).
@@ -78,11 +82,38 @@ class Reconciled:
 
 
 def requeue_orphans(conn: Connection) -> int:
-    """Queue again the builds the ledger says are waiting or running that the queue lacks.
+    """Queue again the jobs the ledger says are waiting or running that the queue lacks.
 
-    A running build is queued with the attempts it used, so the retry limit still counts. Returns
-    the number queued.
+    * the build of every snapshot that was queued or running (a running one is queued with the
+      attempts it used, so the retry limit still counts);
+    * a run of the flagging job for every schedule whose links disagree with its current snapshot
+      and that has no run queued or running (the queue of a restored ledger is empty).
+
+    Returns the number queued.
     """
+    return _requeue_builds(conn) + _requeue_flagging(conn)
+
+
+_SCHEDULES_SQL = text(f"SELECT id, scope FROM {SCHEDULE_TABLE} ORDER BY id")
+_LIVE_FLAG_SQL = text(
+    "SELECT 1 FROM job_queue WHERE kind = :kind AND job_id LIKE :prefix "
+    "AND state IN ('queued', 'running') LIMIT 1"
+)
+
+
+def _requeue_flagging(conn: Connection) -> int:
+    queued = 0
+    for row in conn.execute(_SCHEDULES_SQL).all():
+        prefix = f"{FLAG_JOB_PREFIX}{row.id}:%"
+        if conn.execute(_LIVE_FLAG_SQL, {"kind": JOB_KIND_FLAG, "prefix": prefix}).first():
+            continue
+        if outstanding(conn, str(row.id)):
+            queue_check(conn, str(row.id), str(row.scope))
+            queued += 1
+    return queued
+
+
+def _requeue_builds(conn: Connection) -> int:
     queue = job_queue_for(conn)
     found = conn.execute(
         _ORPHANS_SQL, {"no": False, "uploaded": UPLOADED, "processing": PROCESSING}

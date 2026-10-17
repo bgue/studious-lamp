@@ -569,7 +569,7 @@ class ClientInterface(Protocol):
         """What the activity is now, or as of a snapshot number or a date (``state`` says which)."""
         ...
 
-    def list_activity_links(self, record_id: str) -> list[ActivityLink]:
+    def list_activity_links(self, project: str, record_id: str) -> list[ActivityLink]:
         """The activity links of a record and what each resolves to now."""
         ...
 

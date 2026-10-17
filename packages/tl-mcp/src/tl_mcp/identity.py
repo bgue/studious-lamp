@@ -51,6 +51,7 @@ MCP_ACTIONS = frozenset(
         "mcp.validate_against_schema",
         "mcp.start_extraction",
         "mcp.propose_import",
+        "mcp.propose_publish_schedule_snapshot",
         "mcp.create_record",
         "mcp.update_psets",
         "mcp.link_records",

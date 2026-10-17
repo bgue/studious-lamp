@@ -15,9 +15,9 @@
           "additionalProperties": true,
           "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
           "properties": {
-            "orphaned_count": {
-              "description": "Activity references flagged.",
-              "type": "integer"
+            "orphan_check_queued": {
+              "description": "True: the job that flags and restores the links to activities was queued.",
+              "type": "boolean"
             },
             "previous_snapshot_id": {
               "description": "The snapshot that was current before, or null.",
@@ -25,15 +25,10 @@
                 "string",
                 "null"
               ]
-            },
-            "restored_count": {
-              "description": "Activity references restored.",
-              "type": "integer"
             }
           },
           "required": [
-            "orphaned_count",
-            "restored_count"
+            "orphan_check_queued"
           ],
           "title": "ScheduleSnapshotMadeCurrentPayload",
           "type": "object"

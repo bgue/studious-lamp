@@ -13,11 +13,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from sqlalchemy import Connection
 
 from tl_mod_schedule import registry
+from tl_mod_schedule.common import stamp
+from tl_mod_schedule.errors import SnapshotNotFoundError
 from tl_mod_schedule.registry import DEFAULT_DAY_HOURS, ActivityRow, SnapshotRow
 
 MIN_WEEKS = 1
@@ -56,8 +58,8 @@ class LookAhead:
     counts: Mapping[str, int]
 
 
-def _day(stamp: str) -> date:
-    return datetime.fromisoformat(stamp).date()
+def _day(value: str) -> date:
+    return stamp(value).date()
 
 
 def _days(
@@ -132,8 +134,13 @@ def build_look_ahead(
     )
 
 
-def look_ahead(conn: Connection, snapshot: SnapshotRow, weeks: int = 4) -> LookAhead:
-    """Read the rows of ``snapshot`` and build its look-ahead (see ``build_look_ahead``)."""
+def look_ahead(conn: Connection, snapshot: SnapshotRow, weeks: int = 4, *, scope: str) -> LookAhead:
+    """Read the rows of ``snapshot`` (of ``scope``) and build its look-ahead (``build_look_ahead``).
+
+    A snapshot of another project is ``SnapshotNotFoundError``.
+    """
+    if snapshot.scope != scope:
+        raise SnapshotNotFoundError(f"no snapshot {snapshot.key!r} in scope {scope!r}")
     return build_look_ahead(
         snapshot,
         registry.activities(conn, snapshot.id),

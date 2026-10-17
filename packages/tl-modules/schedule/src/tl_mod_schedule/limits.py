@@ -15,3 +15,21 @@ MAX_REASON = 2000
 #: Rows of each list in a comparison view before it says it was cut.
 DEFAULT_VIEW_LIMIT = 500
 MAX_VIEW_LIMIT = 5000
+
+#: Links that may point at one activity reference (active, stale or suggested). Anyone signed in
+#: can link, so the work of flagging them when the activity leaves is bounded by this.
+MAX_LINKS_PER_ACTIVITY = 100
+#: Activity references of one schedule: at most the activities a snapshot can hold.
+MAX_REFS_PER_SCHEDULE = 60_000
+#: Operations (a reference changed, a link flagged or restored) one run of the flagging job does;
+#: more is left to the next run, which the run queues.
+FLAG_BATCH = 500
+#: A data date more than this many days after today cannot be published: it would sit above every
+#: later snapshot and freeze the series (publication needs a later data date than the current).
+MAX_DATA_DATE_AHEAD_DAYS = 31
+
+#: How long a worker holds a claim. A build reads the file in the envelope (at most the envelope's
+#: wall clock, 60 s by default) and then writes the typed rows in one transaction (measured in
+#: ADR-0015: well under a minute at the limits); the claim must outlast both with a wide margin, or
+#: a second worker would take the job over while the first is still writing.
+BUILD_LEASE_S = 600.0

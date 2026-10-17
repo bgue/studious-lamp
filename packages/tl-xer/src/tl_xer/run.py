@@ -39,7 +39,7 @@ def read_xer_file(
     *,
     timeout_s: float = DEFAULT_TIMEOUT_S,
     memory_limit_mb: int | None = DEFAULT_MEMORY_LIMIT_MB,
-    max_answer: int = limits.MAX_ANSWER_BYTES,
+    max_answer: int | None = None,
     entry: str = ENTRY,
 ) -> XerResult:
     """Read, validate and type ``data`` in the envelope. Raises only ``XerLimitError``."""
@@ -54,7 +54,7 @@ def read_xer_file(
             data,
             timeout_s=timeout_s,
             memory_limit_mb=memory_limit_mb,
-            max_answer=max_answer,
+            max_answer=limits.answer_bound(len(data)) if max_answer is None else max_answer,
         )
     except Breach as breach:
         raise XerLimitError(breach.reason) from None

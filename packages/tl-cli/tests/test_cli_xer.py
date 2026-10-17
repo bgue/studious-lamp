@@ -168,7 +168,17 @@ def test_publishing_flags_the_links_to_an_activity_that_left_and_says_so(
     tl(cast.ursula, "xer", "link", "REC-B", "A1990", *P, *SCHED, "--pin", "1", ok=True)
     out = tl(cast.dora, "xer", "publish", "2", *P, *SCHED, ok=True).stdout.splitlines()
     assert out[0] == "published MAIN#2"
-    assert out[1].startswith("flagged 1 link(s)")
+    assert out[1].startswith("links to activities will be checked by the worker")
+
+    def statuses() -> list[str]:
+        with open_uow(cast.target, readonly=True) as uow:
+            rows = uow.conn().execute(text("SELECT status FROM cur_links ORDER BY link_id")).all()
+        return [str(r[0]) for r in rows]
+
+    assert set(statuses()) == {"active"}  # the window: nothing flagged until the worker has run
+    ran = tl(cast.boss, "xer", "worker", "--once", ok=True).stdout.splitlines()
+    assert any("schedule.flag_orphans" in line for line in ran)
+    assert sorted(statuses()) == ["active", "stale"]
     missing = tl(cast.ursula, "xer", "link", "REC-A", "A9999", *P, *SCHED, ok=False)
     assert "A9999" in missing.output
     assert (

@@ -175,8 +175,12 @@ def resolve_activity(
         )
 
 
-@router.get("/records/{record_id}/activity-links", operation_id="list_activity_links")
-def list_activity_links(ctx: Ctx, actor: Reader, record_id: str) -> list[ActivityLink]:
-    """The activity links of a record and what each resolves to now."""
+@router.get(
+    "/projects/{project}/records/{record_id}/activity-links", operation_id="list_activity_links"
+)
+def list_activity_links(
+    ctx: Ctx, actor: Reader, project: str, record_id: str
+) -> list[ActivityLink]:
+    """The activity links of a record of the project and what each resolves to now (at most 200)."""
     with ctx.backend(True) as uow:
-        return views.activity_links(uow.conn(), record_id)
+        return views.activity_links(uow.conn(), f"project:{project}", record_id)

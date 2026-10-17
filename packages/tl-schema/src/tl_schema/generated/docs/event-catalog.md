@@ -72,6 +72,7 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Revision.Issued`](#revisionissued) | `tl.core.Revision.Issued.v1` | A revision was issued with an issue status; it is now current for its status class. |
 | [`Revision.Superseded`](#revisionsuperseded) | `tl.core.Revision.Superseded.v1` | An issued revision stopped being current because a later one replaced it. |
 | [`Schedule.Defined`](#scheduledefined) | `tl.core.Schedule.Defined.v1` | A schedule was registered. |
+| [`Schedule.OrphansChecked`](#scheduleorphanschecked) | `tl.core.Schedule.OrphansChecked.v1` | One run of the job that makes the links to a schedule's activities agree with its current snapshot (ADR-0015 section 5): activity references whose presence changed, links flagged stale (their activity is gone) and links restored (it came back). |
 | [`Schedule.SnapshotPublished`](#schedulesnapshotpublished) | `tl.core.Schedule.SnapshotPublished.v1` | A snapshot became the schedule's current one. |
 | [`ScheduleSnapshot.BuildFailed`](#schedulesnapshotbuildfailed) | `tl.core.ScheduleSnapshot.BuildFailed.v1` | A build attempt failed (a limit breach, a crash, a lease that ran out). |
 | [`ScheduleSnapshot.BuildStarted`](#schedulesnapshotbuildstarted) | `tl.core.ScheduleSnapshot.BuildStarted.v1` | A worker claimed the build. |
@@ -3904,6 +3905,64 @@ A schedule was registered.
 }
 ```
 
+## Schedule.OrphansChecked
+
+One run of the job that makes the links to a schedule's activities agree with its current snapshot (ADR-0015 section 5): activity references whose presence changed, links flagged stale (their activity is gone) and links restored (it came back). Written on the schedule's stream. A run does a bounded amount of work; complete is false when more is left and another run is queued.
+
+- CloudEvents type: `tl.core.Schedule.OrphansChecked.v1`
+- Ledger payload class: `ScheduleOrphansCheckedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `complete` | boolean | yes | True when nothing is left to do for this snapshot. |
+| `links_flagged` | integer | yes | Links flagged stale in this run. |
+| `links_restored` | integer | yes | Links restored in this run. |
+| `refs_changed` | integer | yes | Activity references whose presence was changed in this run. |
+| `snapshot_id` | string | yes | The current snapshot the run made the links agree with. |
+| `snapshot_number` | integer | yes | Its number. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "complete": true,
+      "links_flagged": 1,
+      "links_restored": 0,
+      "refs_changed": 1,
+      "snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "snapshot_number": 2
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Schedule.OrphansChecked/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Schedule.OrphansChecked.v1"
+}
+```
+
 ## Schedule.SnapshotPublished
 
 A snapshot became the schedule's current one. Written on the schedule's stream.
@@ -3917,9 +3976,8 @@ A snapshot became the schedule's current one. Written on the schedule's stream.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `data_date` | string | yes | Its data date. |
-| `orphaned_count` | integer | yes | Activity references whose activity is not in the snapshot; their links were flagged. |
+| `orphan_check_queued` | boolean | yes | True: a job (schedule.flag_orphans) was queued to flag the links to activities that are not in the snapshot and to restore the ones that came back. Its events (Schedule.OrphansChecked) carry the totals. |
 | `previous_snapshot_id` | string or null | no | The snapshot that was current before, or null. |
-| `restored_count` | integer | yes | Activity references whose activity came back; their links were restored. |
 | `snapshot_id` | string | yes | The published snapshot. |
 | `snapshot_number` | integer | yes | Its number. |
 
@@ -3931,9 +3989,8 @@ A snapshot became the schedule's current one. Written on the schedule's stream.
     "changes": {},
     "detail": {
       "data_date": "2026-10-12T08:00",
-      "orphaned_count": 1,
+      "orphan_check_queued": true,
       "previous_snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
-      "restored_count": 0,
       "snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
       "snapshot_number": 2
     },
@@ -4207,9 +4264,8 @@ A snapshot was made the schedule's current one. Written on the snapshot's stream
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `orphaned_count` | integer | yes | Activity references flagged. |
+| `orphan_check_queued` | boolean | yes | True: the job that flags and restores the links to activities was queued. |
 | `previous_snapshot_id` | string or null | no | The snapshot that was current before, or null. |
-| `restored_count` | integer | yes | Activity references restored. |
 
 ### Sample delivered event
 
@@ -4218,9 +4274,8 @@ A snapshot was made the schedule's current one. Written on the snapshot's stream
   "data": {
     "changes": {},
     "detail": {
-      "orphaned_count": 1,
-      "previous_snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
-      "restored_count": 0
+      "orphan_check_queued": true,
+      "previous_snapshot_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
     },
     "links": [],
     "origin": {

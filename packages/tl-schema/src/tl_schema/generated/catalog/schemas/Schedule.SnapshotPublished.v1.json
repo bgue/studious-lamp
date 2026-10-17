@@ -19,9 +19,9 @@
               "description": "Its data date.",
               "type": "string"
             },
-            "orphaned_count": {
-              "description": "Activity references whose activity is not in the snapshot; their links were flagged.",
-              "type": "integer"
+            "orphan_check_queued": {
+              "description": "True: a job (schedule.flag_orphans) was queued to flag the links to activities that are not in the snapshot and to restore the ones that came back. Its events (Schedule.OrphansChecked) carry the totals.",
+              "type": "boolean"
             },
             "previous_snapshot_id": {
               "description": "The snapshot that was current before, or null.",
@@ -29,10 +29,6 @@
                 "string",
                 "null"
               ]
-            },
-            "restored_count": {
-              "description": "Activity references whose activity came back; their links were restored.",
-              "type": "integer"
             },
             "snapshot_id": {
               "description": "The published snapshot.",
@@ -47,8 +43,7 @@
             "snapshot_id",
             "snapshot_number",
             "data_date",
-            "orphaned_count",
-            "restored_count"
+            "orphan_check_queued"
           ],
           "title": "ScheduleSnapshotPublishedPayload",
           "type": "object"

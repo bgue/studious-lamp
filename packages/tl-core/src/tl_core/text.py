@@ -5,7 +5,8 @@ A control character breaks the table (a newline, U+2028), crashes a database (NU
 screen (a text-direction mark makes ``abc`` look like ``cba``). ``clean_text`` refuses them all;
 it does not strip them, because a value that changes on its way in is a value nobody typed.
 
-Refused: C0 (``U+0000`` to ``U+001F``, tab and newline included: the fields are one line), DEL and C1
+Refused: C0 (``U+0000`` to ``U+001F``, tab and newline included: the fields are one line), DEL
+and C1
 (``U+007F`` to ``U+009F``), the Arabic letter mark, the left-to-right and right-to-left marks, the
 line and paragraph separators, the embedding and override controls, the isolates and the byte-order
 mark. The message never repeats the value.
@@ -16,7 +17,9 @@ from __future__ import annotations
 import re
 from typing import Final
 
-FORBIDDEN_TEXT: Final = re.compile("[\x00-\x1f\x7f-\x9f؜‎‏  ‪-‮⁦-⁩﻿]")
+FORBIDDEN_TEXT: Final = re.compile(
+    r"[\x00-\x1f\x7f-\x9f\u061c\u200e\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069\ufeff]"
+)
 MESSAGE: Final = "text must not hold control, line-break or text-direction characters"
 
 

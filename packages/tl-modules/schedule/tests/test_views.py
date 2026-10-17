@@ -234,7 +234,7 @@ def test_the_activity_links_of_a_record_and_the_orphans_of_a_schedule(
     world.link(record, "A1990")
     world.publish(two)
     with open_uow(world.db, readonly=True) as uow:
-        links = views.activity_links(uow.conn(), record)
+        links = views.activity_links(uow.conn(), SCOPE, record)
     assert [(link.ref_key, link.status) for link in links] == [
         ("MAIN/A1230", "active"),
         ("MAIN/A1990", "stale"),

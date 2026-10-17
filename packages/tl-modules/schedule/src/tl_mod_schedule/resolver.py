@@ -25,8 +25,10 @@ from typing import Literal
 from sqlalchemy import Connection, text
 
 from tl_mod_schedule import registry
+from tl_mod_schedule.common import stamp
 from tl_mod_schedule.errors import ScheduleNotFoundError
-from tl_mod_schedule.names import ACTIVITY_REF_TABLE, ORPHAN_REASON
+from tl_mod_schedule.names import ACTIVITY_REF_TABLE, SERVICE
+from tl_mod_schedule.orphans import MODULE_FLAG_SQL
 
 #: ``None`` is the current snapshot; an ``int`` a snapshot number; a ``str`` a date written
 #: ``YYYY-MM-DD`` (the end of that day) or ``YYYY-MM-DDTHH:MM``.
@@ -38,8 +40,10 @@ AsOf = int | str | None
 State = Literal["current", "as_of", "orphaned", "unknown_activity", "no_snapshot"]
 
 MAX_PIN_DIGITS = 9
-_DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
-_MINUTE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
+_DAY = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+_MINUTE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}")
+#: The most links one call to ``links_to_activities`` resolves (each is a query).
+MAX_LINKS = 200
 
 
 @dataclass(frozen=True)
@@ -66,19 +70,26 @@ class ActivityLink:
     resolution: Resolution
 
 
+def _schedule(conn: Connection, schedule_id: str, scope: str) -> registry.ScheduleRow:
+    """The schedule, if it is in ``scope``: a schedule of another project is not found."""
+    schedule = registry.get_schedule(conn, schedule_id)
+    if schedule is None or schedule.scope != scope:
+        raise ScheduleNotFoundError(f"no schedule {schedule_id!r}")
+    return schedule
+
+
 def resolve_snapshot(
-    conn: Connection, schedule_id: str, as_of: AsOf = None
+    conn: Connection, schedule_id: str, as_of: AsOf = None, *, scope: str
 ) -> registry.SnapshotRow | None:
     """The published snapshot ``as_of`` names, or ``None``.
 
     ``None`` names the schedule's current snapshot. An integer names a snapshot by number if it
     is Published or Superseded. A string names the latest published snapshot whose data date is on
     or before it: ``YYYY-MM-DD`` means the end of that day, ``YYYY-MM-DDTHH:MM`` that minute. Any
-    other string names nothing. Raises ``ScheduleNotFoundError`` for an unknown schedule.
+    other string names nothing; dates are compared as dates. Raises ``ScheduleNotFoundError`` for an
+    unknown schedule or one of another ``scope``.
     """
-    schedule = registry.get_schedule(conn, schedule_id)
-    if schedule is None:
-        raise ScheduleNotFoundError(f"no schedule {schedule_id!r}")
+    schedule = _schedule(conn, schedule_id, scope)
     if as_of is None:
         if schedule.current_snapshot_id is None:
             return None
@@ -94,18 +105,32 @@ def resolve_snapshot(
         limit = as_of
     else:
         return None
-    found = [s for s in published if s.data_date is not None and s.data_date <= limit]
+    until = stamp(limit)
+    found = [s for s in published if s.data_date is not None and stamp(s.data_date) <= until]
     return found[-1] if found else None
 
 
 def resolve_activity(
-    conn: Connection, schedule_id: str, activity_id: str, as_of: AsOf = None
+    conn: Connection,
+    schedule_id: str,
+    activity_id: str,
+    as_of: AsOf = None,
+    *,
+    scope: str,
+    cache: dict[tuple[str, AsOf], registry.SnapshotRow | None] | None = None,
 ) -> Resolution:
-    """What ``activity_id`` of the schedule is, as of ``as_of`` (see ``State``)."""
-    schedule = registry.get_schedule(conn, schedule_id)
-    if schedule is None:
-        raise ScheduleNotFoundError(f"no schedule {schedule_id!r}")
-    snapshot = resolve_snapshot(conn, schedule_id, as_of)
+    """What ``activity_id`` of the schedule is, as of ``as_of`` (see ``State``).
+
+    ``cache`` lets a caller that resolves many activities of one schedule find each snapshot once.
+    """
+    schedule = _schedule(conn, schedule_id, scope)
+    key = (schedule_id, as_of)
+    if cache is not None and key in cache:
+        snapshot = cache[key]
+    else:
+        snapshot = resolve_snapshot(conn, schedule_id, as_of, scope=scope)
+        if cache is not None:
+            cache[key] = snapshot
     if snapshot is None:
         return Resolution("no_snapshot", schedule.code, activity_id, None, None, None, None)
     activity = registry.get_activity(conn, snapshot.id, activity_id)
@@ -131,8 +156,8 @@ _LINKS_SQL = text(
     "SELECT l.link_id, l.status, l.pin, l.reason, r.key AS ref_key, a.schedule_id, a.activity_id "
     f"FROM cur_links l JOIN {ACTIVITY_REF_TABLE} a ON a.id = l.to_id "
     "JOIN cur_core_record r ON r.id = a.id "
-    "WHERE l.from_id = :record AND l.status IN ('active', 'stale') "
-    "ORDER BY l.created_at, l.link_id"
+    "WHERE l.from_id = :record AND l.scope = :scope AND l.status IN ('active', 'stale') "
+    "ORDER BY l.created_at, l.link_id LIMIT :limit"
 )
 
 
@@ -147,10 +172,15 @@ def _pin_as_of(pin: str | None) -> AsOf:
     return None
 
 
-def links_to_activities(conn: Connection, record_id: str) -> list[ActivityLink]:
-    """The activity links of a record (active and stale), oldest first, each resolved by its pin."""
+def links_to_activities(
+    conn: Connection, record_id: str, *, scope: str, limit: int = MAX_LINKS
+) -> list[ActivityLink]:
+    """The activity links of a record (active and stale) in ``scope``, oldest first, each resolved
+    by its pin. At most ``limit`` (and ``MAX_LINKS``); each snapshot is found once per call."""
     found: list[ActivityLink] = []
-    for row in conn.execute(_LINKS_SQL, {"record": record_id}):
+    cache: dict[tuple[str, AsOf], registry.SnapshotRow | None] = {}
+    asked = {"record": record_id, "scope": scope, "limit": max(1, min(limit, MAX_LINKS))}
+    for row in conn.execute(_LINKS_SQL, asked).all():
         found.append(
             ActivityLink(
                 link_id=str(row.link_id),
@@ -163,6 +193,8 @@ def links_to_activities(conn: Connection, record_id: str) -> list[ActivityLink]:
                     str(row.schedule_id),
                     str(row.activity_id),
                     _pin_as_of(row.pin),
+                    scope=scope,
+                    cache=cache,
                 ),
             )
         )
@@ -172,8 +204,9 @@ def links_to_activities(conn: Connection, record_id: str) -> list[ActivityLink]:
 _ORPHANED_SQL = text(
     "SELECT l.link_id, l.from_id, l.reason, a.activity_id, a.last_seen_number "
     f"FROM cur_links l JOIN {ACTIVITY_REF_TABLE} a ON a.id = l.to_id "
-    "WHERE a.schedule_id = :schedule AND a.present = :absent AND l.status = 'stale' "
-    "AND l.reason LIKE :reason ORDER BY a.activity_id, l.created_at, l.link_id"
+    "WHERE a.schedule_id = :schedule AND a.scope = :scope AND l.scope = :scope "
+    f"AND a.present = :absent AND l.status = 'stale' AND {MODULE_FLAG_SQL} "
+    "ORDER BY a.activity_id, l.created_at, l.link_id LIMIT :limit"
 )
 
 
@@ -186,15 +219,26 @@ class OrphanedLink:
     reason: str
 
 
-def orphaned_links(conn: Connection, schedule_id: str) -> list[OrphanedLink]:
+def orphaned_links(
+    conn: Connection, schedule_id: str, *, scope: str, limit: int = MAX_LINKS
+) -> list[OrphanedLink]:
     """The stale links of a schedule whose activity left the current snapshot.
 
-    Only links the module flagged on a publication (their reason starts with ``ORPHAN_REASON``)
-    are listed, ordered by activity id, then by age of the link.
+    Only links the module flagged itself are listed: the latest ``Link.Flagged`` event of the link
+    has the module's source, which a client cannot set. A person's flag, whatever its words, is
+    not an orphan. Ordered by activity id, then by age of the link; at most ``limit`` (and
+    ``MAX_LINKS``). ``ScheduleNotFoundError`` when the schedule is not in ``scope``.
     """
+    _schedule(conn, schedule_id, scope)
     rows = conn.execute(
         _ORPHANED_SQL,
-        {"schedule": schedule_id, "absent": False, "reason": ORPHAN_REASON + "%"},
+        {
+            "schedule": schedule_id,
+            "scope": scope,
+            "absent": False,
+            "service": SERVICE,
+            "limit": max(1, min(limit, MAX_LINKS)),
+        },
     )
     return [
         OrphanedLink(

@@ -13,6 +13,7 @@ from pydantic import ConfigDict, Field, field_validator
 from tl_core.ledger import NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.records import create_module_record
+from tl_core.text import clean_optional_text
 from tl_core.uow import UnitOfWork
 
 from tl_mod_schedule.common import correlated, require_project
@@ -21,12 +22,6 @@ from tl_mod_schedule.limits import MAX_CODE, MAX_NAME, MAX_OWNER, MAX_P6_PROJECT
 from tl_mod_schedule.names import SCHEDULE, SCHEDULE_DEFINED, SCHEDULE_TYPES
 
 _CODE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
-
-
-def no_controls(value: str) -> str:
-    if any(ord(c) < 32 or ord(c) == 127 for c in value):
-        raise ValueError("text must not hold control characters")
-    return value
 
 
 class DefineSchedule(Command):
@@ -53,7 +48,7 @@ class DefineSchedule(Command):
     @field_validator("name", "owner", "p6_project")
     @classmethod
     def _plain(cls, value: str | None) -> str | None:
-        return None if value is None else no_controls(value)
+        return clean_optional_text(value)
 
 
 def handle_define_schedule(uow: UnitOfWork, cmd: DefineSchedule) -> CommandResult:

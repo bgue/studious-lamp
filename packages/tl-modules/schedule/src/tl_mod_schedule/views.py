@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel
 from sqlalchemy import Connection
 
+from tl_mod_schedule import orphans as orphans_module
 from tl_mod_schedule import registry
 from tl_mod_schedule.compare import Comparison, compare, load
 from tl_mod_schedule.errors import (
@@ -123,9 +124,15 @@ class ScheduleView(BaseModel):
 
 
 class ScheduleDetailView(ScheduleView):
-    """A schedule with its snapshots, newest number first."""
+    """A schedule with its snapshots, newest number first.
+
+    ``links_being_checked`` is true while the job that flags the links to activities the current
+    snapshot lacks (and restores the ones that came back) has work left: until it is done a link to
+    a removed activity may still read as current (ADR-0015 section 5).
+    """
 
     snapshots: list[SnapshotView]
+    links_being_checked: bool = False
 
 
 @dataclass(frozen=True)
@@ -230,7 +237,9 @@ def schedule_detail(conn: Connection, scope: str, code: str) -> ScheduleDetailVi
     schedule = find_schedule(conn, scope, code)
     snapshots = snapshot_views(conn, schedule)
     return ScheduleDetailView(
-        **ScheduleView.of(schedule, len(snapshots)).model_dump(), snapshots=snapshots
+        **ScheduleView.of(schedule, len(snapshots)).model_dump(),
+        snapshots=snapshots,
+        links_being_checked=orphans_module.outstanding(conn, schedule.id),
     )
 
 
@@ -354,7 +363,7 @@ def comparison(
             raise SnapshotNotFoundError(f"snapshot {newer.key} has no earlier snapshot to compare")
     else:
         older = find_snapshot(conn, schedule, old, built=True)
-    result = compare(load(conn, older), load(conn, newer))
+    result = compare(load(conn, older, scope=scope), load(conn, newer, scope=scope))
     return result.limited(max(1, min(limit, MAX_COMPARE_LIMIT)))
 
 
@@ -363,7 +372,7 @@ def look_ahead_view(
 ) -> LookAhead:
     """The look-ahead of a built snapshot (default: the current one). ``ValueError`` for weeks."""
     schedule = find_schedule(conn, scope, code)
-    return look_ahead(conn, find_snapshot(conn, schedule, number, built=True), weeks)
+    return look_ahead(conn, find_snapshot(conn, schedule, number, built=True), weeks, scope=scope)
 
 
 def resolution(
@@ -371,14 +380,14 @@ def resolution(
 ) -> Resolution:
     """What ``activity_id`` is now (``as_of`` ``None``) or as of a snapshot number or a date."""
     schedule = find_schedule(conn, scope, code)
-    return resolve_activity(conn, schedule.id, activity_id, as_of)
+    return resolve_activity(conn, schedule.id, activity_id, as_of, scope=scope)
 
 
 def orphans(conn: Connection, scope: str, code: str) -> list[OrphanedLink]:
     """The links the last publication flagged because their activity left the schedule."""
-    return orphaned_links(conn, find_schedule(conn, scope, code).id)
+    return orphaned_links(conn, find_schedule(conn, scope, code).id, scope=scope)
 
 
-def activity_links(conn: Connection, record_id: str) -> list[ActivityLink]:
-    """The activity links of a record and what each resolves to now."""
-    return links_to_activities(conn, record_id)
+def activity_links(conn: Connection, scope: str, record_id: str) -> list[ActivityLink]:
+    """The activity links of a record of ``scope`` and what each resolves to now (at most 200)."""
+    return links_to_activities(conn, record_id, scope=scope)

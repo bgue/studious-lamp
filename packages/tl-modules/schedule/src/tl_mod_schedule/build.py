@@ -52,6 +52,7 @@ from tl_mod_schedule.names import (
     SNAPSHOT_REJECTED,
     UPLOADED,
 )
+from tl_mod_schedule.orphans import FlagOrphansKind
 from tl_mod_schedule.store import ACTOR, SOURCE, SnapshotFiles
 
 LIMIT_MESSAGE = "reading the XER file broke the resource limits"
@@ -309,8 +310,12 @@ class BuildKind:
 
 def make_kinds(
     files: FileService, *, timeout_s: float | None = None, memory_limit_mb: int | None = None
-) -> list[BuildKind]:
-    return [BuildKind(files, timeout_s=timeout_s, memory_limit_mb=memory_limit_mb)]
+) -> list[BuildKind | FlagOrphansKind]:
+    """The job kinds of a schedule worker: the build of a snapshot and the flagging of links."""
+    return [
+        BuildKind(files, timeout_s=timeout_s, memory_limit_mb=memory_limit_mb),
+        FlagOrphansKind(),
+    ]
 
 
 __all__ = ["BuildKind", "make_kinds", "report_bytes"]

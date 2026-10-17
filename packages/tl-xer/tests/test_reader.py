@@ -87,7 +87,20 @@ def test_a_byte_that_windows_1252_leaves_undefined_is_refused() -> None:
 
 @pytest.mark.parametrize(
     "char",
-    ["\x00", "\x01", "\x08", "\x0b", "\x1b", "\x7f", "\u0085", "‮", "⁦", "‏", " ", "﻿"],
+    [
+        "\x00",
+        "\x01",
+        "\x08",
+        "\x0b",
+        "\x1b",
+        "\x7f",
+        "\u0085",
+        chr(0x202E),
+        chr(0x2066),
+        chr(0x200F),
+        chr(0x2028),
+        chr(0xFEFF),
+    ],
 )
 def test_control_characters_and_direction_marks_refuse_the_file(char: str) -> None:
     text = f"{HEADER}\r\n%T\tT\r\n%F\ta\r\n%R\tx{char}y\r\n%E\r\n"

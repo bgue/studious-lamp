@@ -301,7 +301,9 @@ def test_limited_cuts_every_list_and_keeps_the_totals() -> None:
 def loaded(world: ScheduleWorld, a: str, b: str) -> compare.Comparison:
     with open_uow(world.db, readonly=True) as uow:
         rows = [registry.get_snapshot(uow.conn(), i) for i in (a, b)]
-        old, new = (compare.load(uow.conn(), r) for r in rows if r is not None)
+        old, new = (
+            compare.load(uow.conn(), r, scope="project:P123") for r in rows if r is not None
+        )
     return compare_snapshots(old, new)
 
 

@@ -72,7 +72,7 @@ def both(tmp_path: Path) -> Iterator[tuple[ClientInterface, ClientInterface, Sch
     fake.put_orphans(PROJECT, "MAIN", embedded.list_orphaned_links(PROJECT, "MAIN"))
     for found in world.rows("SELECT DISTINCT from_id FROM cur_links"):
         record_id = str(found["from_id"])
-        fake.put_activity_links(record_id, embedded.list_activity_links(record_id))
+        fake.put_activity_links(record_id, embedded.list_activity_links(PROJECT, record_id))
     for activity_id, as_of in (("A1230", None), ("A1230", "1"), ("A1990", None)):
         fake.put_resolution(
             PROJECT, "MAIN", activity_id, as_of,
@@ -136,8 +136,8 @@ def test_the_links_of_a_record_are_the_same_on_both(
 ) -> None:
     embedded, fake, world = both
     record = world.rows("SELECT from_id FROM cur_links ORDER BY created_at")[0]["from_id"]
-    links = embedded.list_activity_links(str(record))
-    assert links and fake.list_activity_links(str(record)) == links
+    links = embedded.list_activity_links(PROJECT, str(record))
+    assert links and fake.list_activity_links(PROJECT, str(record)) == links
 
 
 def test_unknowns_are_the_modules_errors_on_both(
@@ -172,7 +172,7 @@ def test_linking_and_publishing_are_commands_both_accept_and_publishing_is_a_con
     link = LinkActivity(**COMMON, from_id=record, schedule_id=schedule_id, activity_id="A1240")
     assert embedded.link_activity(link).stream_id
     assert fake.link_activity(link).stream_id
-    assert [x.ref_key for x in embedded.list_activity_links(record)] == ["MAIN/A1240"]
+    assert [x.ref_key for x in embedded.list_activity_links(PROJECT, record)] == ["MAIN/A1240"]
     publish = PublishScheduleSnapshot(**COMMON, snapshot_id="whatever")
     with pytest.raises(ForbiddenError):  # kim holds no account: not a controller
         embedded.publish_schedule_snapshot(publish)

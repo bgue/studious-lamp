@@ -223,8 +223,9 @@ def publish(
 ) -> None:
     """Make a valid snapshot the current schedule (controller).
 
-    Prints `published <key>`; then `flagged <n> link(s)` for links to activities that are no longer
-    in the schedule and `restored <n> link(s)` for those whose activity came back.
+    Prints `published <key>`. When the schedule has links to activities, the worker then flags the
+    ones whose activity is not in this snapshot and restores the ones whose activity came back (a
+    queued job, in bounded runs); until it has run they still show the old state.
     """
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
@@ -239,12 +240,12 @@ def publish(
                 ),
             )
     typer.echo(f"published {made.key}")
-    flagged = sum(1 for e in made.events if e.event_type == "Link.Flagged")
-    restored = sum(1 for e in made.events if e.event_type == "Link.Repinned")
-    if flagged:
-        typer.echo(f"flagged {flagged} link(s): their activity is not in this snapshot")
-    if restored:
-        typer.echo(f"restored {restored} link(s): their activity is back")
+    checked = [e for e in made.events if e.event_type == "ScheduleSnapshot.MadeCurrent"]
+    if checked and checked[0].payload.get("orphan_check_queued"):
+        typer.echo(
+            "links to activities will be checked by the worker (`tl xer worker`): "
+            "those whose activity left are flagged, those whose activity is back are restored"
+        )
 
 
 @app.command("void")
@@ -371,17 +372,19 @@ def reconcile(
 ) -> None:
     """After a restore: queue lost builds again and write the typed rows from the XER files (admin).
 
-    Prints `requeued <n>`, one `<key> <outcome> <detail>` line per built snapshot and a summary.
-    Exits 1 when a file no longer gives the rows the ledger recorded (`mismatch`) or cannot be read.
+    Writes the typed rows from the files first, then queues what the queue lost. Prints
+    `requeued <n>`, one `<key> <outcome> <detail>` line per built snapshot and a summary. Exits 1
+    when a file no longer gives the rows the ledger recorded (`mismatch`) or cannot be read.
     """
     db: DbTarget = ctx.obj
     require_admin(db)
     service = file_service()
     with service_errors():
-        typer.echo(f"requeued {requeue(db)}")
+        # the typed rows first: the flagging of links is judged against them
         done = reconcile_tables(
             db, service, scope=None if project is None else f"project:{project}", timeout_s=timeout
         )
+        typer.echo(f"requeued {requeue(db)}")
     for item in done:
         typer.echo(f"{item.key} {item.outcome} {item.detail}")
     bad = [i for i in done if i.outcome in ("mismatch", "unreadable")]

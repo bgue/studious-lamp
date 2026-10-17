@@ -11,29 +11,39 @@ Open to any signed-in person.
 from __future__ import annotations
 
 from pydantic import ConfigDict, Field, field_validator
+from sqlalchemy import text
 from tl_core.ledger import NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.links import AddLink, handle_add_link
 from tl_core.services.records import create_module_record
+from tl_core.text import clean_optional_text
 from tl_core.uow import UnitOfWork
 
-from tl_mod_schedule import registry
+from tl_mod_schedule import limits, registry
 from tl_mod_schedule.common import correlated, require_project
 from tl_mod_schedule.errors import (
     ActivityNotFoundError,
     NoCurrentSnapshotError,
     ScheduleNotFoundError,
     SnapshotNotFoundError,
+    TooManyLinksError,
+    TooManyReferencesError,
 )
-from tl_mod_schedule.handlers.schedules import no_controls
 from tl_mod_schedule.limits import MAX_ACTIVITY_ID
 from tl_mod_schedule.names import (
     ACTIVITY_REF,
+    ACTIVITY_REF_TABLE,
     ACTIVITY_RELATION,
     PUBLISHED,
     REF_DEFINED,
     SUPERSEDED,
 )
+
+_LIVE_LINKS_SQL = text(
+    "SELECT COUNT(*) FROM cur_links WHERE to_id = :ref "
+    "AND status IN ('active', 'stale', 'suggested')"
+)
+_REFS_SQL = text(f"SELECT COUNT(*) FROM {ACTIVITY_REF_TABLE} WHERE schedule_id = :schedule")
 
 
 class LinkActivity(Command):
@@ -51,7 +61,7 @@ class LinkActivity(Command):
     @field_validator("activity_id", "note")
     @classmethod
     def _plain(cls, value: str | None) -> str | None:
-        return None if value is None else no_controls(value)
+        return clean_optional_text(value)
 
 
 def handle_link_activity(uow: UnitOfWork, cmd: LinkActivity) -> CommandResult:
@@ -83,7 +93,21 @@ def handle_link_activity(uow: UnitOfWork, cmd: LinkActivity) -> CommandResult:
         )
     events = []
     ref = registry.find_ref(conn, schedule.id, cmd.activity_id)
-    if ref is None:
+    if ref is not None:
+        held = conn.execute(_LIVE_LINKS_SQL, {"ref": ref.id}).scalar_one()
+        if int(held) >= limits.MAX_LINKS_PER_ACTIVITY:
+            raise TooManyLinksError(
+                f"activity {cmd.activity_id!r} already has {limits.MAX_LINKS_PER_ACTIVITY} links; "
+                "retract one before adding another"
+            )
+        ref_id = ref.id
+    else:
+        known = conn.execute(_REFS_SQL, {"schedule": schedule.id}).scalar_one()
+        if int(known) >= limits.MAX_REFS_PER_SCHEDULE:
+            raise TooManyReferencesError(
+                f"schedule {schedule.code} already has {limits.MAX_REFS_PER_SCHEDULE} "
+                "linked activities"
+            )
         current = registry.get_snapshot(conn, schedule.current_snapshot_id)
         assert current is not None
         made = create_module_record(
@@ -108,8 +132,6 @@ def handle_link_activity(uow: UnitOfWork, cmd: LinkActivity) -> CommandResult:
         )
         ref_id = made.stream_id
         events.extend(made.events)
-    else:
-        ref_id = ref.id
     linked = handle_add_link(
         uow,
         AddLink(
