@@ -474,3 +474,7 @@ T14d came back blocked for two reasons that were both in the ticket: the provide
 
 ### L-P1-I3-13 (tests) Run the demo through every entry point that runs the pipeline; a process must configure what a command needs
 `tl proposal accept` of an agent's publication proposal failed in the demo with "no file service for derived data": only `tl derive` configured the derivation module's file service, and the accept command runs the publication in the CLI process. No unit test had run that path with the module unconfigured. A test for such a path calls `store.configure(None)` first, so only the command's own set-up can make it pass (`test_cli_proposal_publish.py`). The demo also found that two fixtures that share tag numbers cannot both be published after one is compensated (a compensated key is never reused): give demo data distinct keys.
+
+- **L-P1-I5-1** · 2026-10-17 · tags: database, tests
+  Postgres cannot infer the type of a bare parameter in `CASE WHEN :p IS NOT NULL AND :p > col ...` (`could not determine data type of parameter $1`); SQLite accepts it, so a SQLite-only run passes. Choose the value in Python (read the row, compare, write) or `CAST(:p AS text)`. A slot named `to_json` with `tl:json` gets the column `to_json_json`: name JSON slots without the suffix (`to_parties` gives `to_parties_json`).
+  Evidence: `projectors/thread.py` (first version failed `test_a_thread_counts_its_items_and_keeps_the_newest_date[postgres]`); `schema/modules/correspondence/correspondence.yaml`. Status: active

@@ -1,3 +1,4 @@
+# ruff: noqa: F401, F841
 """ClockProjector: the ``ResponseClock.*`` events into ``cur_correspondence_response_clock``.
 
 The projector does no arithmetic. ``Started``, ``Resumed`` and ``Restarted`` carry the due date the
@@ -5,6 +6,9 @@ clock engine computed (``tl_mod_correspondence.clocks``); the row copies it. ``P
 pause, ``Met`` and ``Cancelled`` close the clock, ``Warned`` records the warning threshold crossed
 and ``Expired`` marks a running clock past its date. Deterministic. Register it after
 ``RecordProjector``.
+
+STUB (P1-I5-T03b): the functions with a STEPS comment are for you to write. When they are
+written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -28,37 +32,6 @@ from tl_mod_correspondence.names import (
 )
 from tl_mod_correspondence.projectors._common import ddl_for, json_text, touch_record
 
-_INSERT_SQL = text(
-    f"INSERT INTO {CLOCK_TABLE} (id, scope, item_id, item_number, label, kind, start_on, "
-    "duration_days, day_type, calendar, warn_days_json, due_on, state, owner, clause_id, "
-    "restarts, last_seq) VALUES (:id, :scope, :item_id, :item_number, :label, :kind, :start_on, "
-    ":duration_days, :day_type, :calendar, :warn_days_json, :due_on, 'running', :owner, "
-    ":clause_id, 0, :last_seq)"
-)
-_PAUSED_SQL = text(
-    f"UPDATE {CLOCK_TABLE} SET state = 'paused', paused_on = :on, pause_reason = :reason, "
-    "last_seq = :last_seq WHERE id = :id"
-)
-_RESUMED_SQL = text(
-    f"UPDATE {CLOCK_TABLE} SET state = 'running', due_on = :due_on, paused_on = NULL, "
-    "pause_reason = NULL, last_seq = :last_seq WHERE id = :id"
-)
-_RESTARTED_SQL = text(
-    f"UPDATE {CLOCK_TABLE} SET state = 'running', start_on = :start_on, due_on = :due_on, "
-    "paused_on = NULL, pause_reason = NULL, closed_on = NULL, closed_reason = NULL, "
-    "warned_level = NULL, restarts = restarts + 1, last_seq = :last_seq WHERE id = :id"
-)
-_CLOSED_SQL = text(
-    f"UPDATE {CLOCK_TABLE} SET state = :state, closed_on = :on, closed_reason = :reason, "
-    "paused_on = NULL, pause_reason = NULL, last_seq = :last_seq WHERE id = :id"
-)
-_WARNED_SQL = text(
-    f"UPDATE {CLOCK_TABLE} SET warned_level = :level, last_seq = :last_seq WHERE id = :id"
-)
-_EXPIRED_SQL = text(
-    f"UPDATE {CLOCK_TABLE} SET state = 'expired', last_seq = :last_seq WHERE id = :id"
-)
-
 
 class ClockProjector:
     name = "correspondence_clock"
@@ -79,73 +52,33 @@ class ClockProjector:
         return ddl_for(CLOCK_TABLE, dialect) + ddl_for(CLOCK_VIEW, dialect)
 
     def apply(self, conn: Connection, event: Event) -> None:
-        p: dict[str, Any] = event.payload
-        et = event.event_type
-        base = {"id": event.stream_id, "last_seq": event.seq}
-        if et == CLOCK_STARTED:
-            conn.execute(
-                _INSERT_SQL,
-                {
-                    **base,
-                    "scope": event.scope,
-                    "item_id": p["item_id"],
-                    "item_number": p["item_number"],
-                    "label": p["label"],
-                    "kind": p["kind"],
-                    "start_on": p["start_on"],
-                    "duration_days": p["duration_days"],
-                    "day_type": p["day_type"],
-                    "calendar": p["calendar"],
-                    "warn_days_json": json_text(p.get("warn_days") or []),
-                    "due_on": p["due_on"],
-                    "owner": p.get("owner"),
-                    "clause_id": p.get("clause_id"),
-                },
-            )
-        elif et == CLOCK_PAUSED:
-            self._require(
-                conn.execute(_PAUSED_SQL, {**base, "on": p["on"], "reason": p["reason"]}).rowcount,
-                event,
-            )
-        elif et == CLOCK_RESUMED:
-            self._require(
-                conn.execute(_RESUMED_SQL, {**base, "due_on": p["due_on"]}).rowcount, event
-            )
-        elif et == CLOCK_RESTARTED:
-            self._require(
-                conn.execute(
-                    _RESTARTED_SQL, {**base, "start_on": p["start_on"], "due_on": p["due_on"]}
-                ).rowcount,
-                event,
-            )
-        elif et == CLOCK_MET:
-            self._require(
-                conn.execute(
-                    _CLOSED_SQL,
-                    {
-                        **base,
-                        "state": "met",
-                        "on": p["on"],
-                        "reason": p.get("reason") or p.get("response_id"),
-                    },
-                ).rowcount,
-                event,
-            )
-        elif et == CLOCK_CANCELLED:
-            self._require(
-                conn.execute(
-                    _CLOSED_SQL,
-                    {**base, "state": "cancelled", "on": p["on"], "reason": p["reason"]},
-                ).rowcount,
-                event,
-            )
-        elif et == CLOCK_WARNED:
-            self._require(conn.execute(_WARNED_SQL, {**base, "level": p["level"]}).rowcount, event)
-        elif et == CLOCK_EXPIRED:
-            self._require(conn.execute(_EXPIRED_SQL, base).rowcount, event)
-        else:
-            raise ValueError(f"ClockProjector cannot apply event type: {et}")
-        touch_record(conn, event)
+        # STEPS
+        # 1. `p = event.payload`, `et = event.event_type`, `base = {"id": event.stream_id,
+        #    "last_seq": event.seq}`. Named parameters, table name from the constant CLOCK_TABLE.
+        #    The projector does no date arithmetic: due dates come from the events.
+        # 2. CLOCK_STARTED: INSERT into CLOCK_TABLE: id, scope (`event.scope`), item_id,
+        #    item_number, label, kind, start_on, duration_days, day_type, calendar, due_on (all
+        #    required keys), `warn_days_json` = `json_text(p.get("warn_days") or [])`, owner and
+        #    clause_id (`p.get`), state 'running', restarts 0, last_seq.
+        # 3. CLOCK_PAUSED: UPDATE state 'paused', paused_on = `p["on"]`, pause_reason =
+        #    `p["reason"]`, last_seq.
+        # 4. CLOCK_RESUMED: UPDATE state 'running', due_on = `p["due_on"]`, paused_on NULL,
+        #    pause_reason NULL, last_seq.
+        # 5. CLOCK_RESTARTED: UPDATE state 'running', start_on = `p["start_on"]`, due_on =
+        #    `p["due_on"]`, paused_on NULL, pause_reason NULL, closed_on NULL, closed_reason NULL,
+        #    warned_level NULL, restarts = restarts + 1, last_seq. (A restart reopens a clock that
+        #    was met, cancelled or expired.)
+        # 6. CLOCK_MET: UPDATE state 'met', closed_on = `p["on"]`, closed_reason = `p.get("reason")
+        #    or p.get("response_id")`, paused_on NULL, pause_reason NULL, last_seq.
+        # 7. CLOCK_CANCELLED: UPDATE state 'cancelled', closed_on = `p["on"]`, closed_reason =
+        #    `p["reason"]`, paused_on NULL, pause_reason NULL, last_seq. (Use one shared statement
+        #    with a `:state` parameter for met and cancelled if you like.)
+        # 8. CLOCK_WARNED: UPDATE warned_level = `p["level"]` and last_seq.
+        # 9. CLOCK_EXPIRED: UPDATE state 'expired' and last_seq (the due date and closed_on stay).
+        # 10. Any other event type: `raise ValueError(f"ClockProjector cannot apply event type:
+        #    {et}")`. Every UPDATE branch checks its row count with `self._require(rowcount,
+        #    event)`. After the branches call `touch_record(conn, event)`.
+        raise NotImplementedError
 
     @staticmethod
     def _require(rowcount: int, event: Event) -> None:
@@ -153,4 +86,6 @@ class ClockProjector:
             raise LookupError(f"no {CLOCK_TABLE} row for stream {event.stream_id}")
 
     def reset(self, conn: Connection) -> None:
-        conn.execute(text(f"DELETE FROM {CLOCK_TABLE}"))
+        # STEPS
+        # 1. `DELETE FROM` the CLOCK_TABLE.
+        raise NotImplementedError

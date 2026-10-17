@@ -1,3 +1,4 @@
+# ruff: noqa: F401, F841
 """Threading keys: normalise what an item says about its place in a conversation (brief 9 M10).
 
 Pure functions over text. Nothing here reads the ledger, the clock or the network; the caller
@@ -7,6 +8,9 @@ none raises on hostile text.
 
 The module is named ``threading.py`` inside a package, which is safe because the package imports
 it by its full name; do not run a script from this directory (L-P0-I5-B1).
+
+STUB (P1-I5-T08a): the functions with a STEPS comment are for you to write. When they are
+written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -40,14 +44,14 @@ def normalise_subject(subject: str) -> str:
     ``MAX_SUBJECT_CHARS`` is ignored, control characters become spaces, and the result is
     compatibility-normalised (``NFKC``) so a full-width letter equals its plain form.
     """
-    text = unicodedata.normalize("NFKC", subject[:MAX_SUBJECT_CHARS])
-    text = "".join(" " if unicodedata.category(c).startswith("C") else c for c in text)
-    for _ in range(20):  # a prefix may repeat; the loop is bounded
-        stripped = _PREFIX.sub("", text, count=1)
-        if stripped == text:
-            break
-        text = stripped
-    return _SPACE.sub(" ", text).strip().lower()
+    # STEPS
+    # 1. `text = unicodedata.normalize("NFKC", subject[:MAX_SUBJECT_CHARS])`.
+    # 2. Replace every character whose `unicodedata.category(c)` starts with "C" (control,
+    #    format, surrogate ...) by a space: `"".join(" " if ... else c for c in text)`.
+    # 3. Strip leading reply prefixes at most 20 times (`for _ in range(20)`): `stripped =
+    #    _PREFIX.sub("", text, count=1)`; break when `stripped == text`, else `text = stripped`.
+    # 4. Return `_SPACE.sub(" ", text).strip().lower()`.
+    raise NotImplementedError
 
 
 def normalise_message_id(value: str | None) -> str | None:
@@ -56,16 +60,14 @@ def normalise_message_id(value: str | None) -> str | None:
     Usable: 3 to ``MAX_MESSAGE_ID_CHARS`` characters, one ``@``, no whitespace, angle bracket or
     control character. The case is kept, because the local part may be case sensitive.
     """
-    if value is None:
-        return None
-    text = value.strip()
-    if text.startswith("<") and text.endswith(">"):
-        text = text[1:-1]
-    if not 3 <= len(text) <= MAX_MESSAGE_ID_CHARS or text.count("@") != 1:
-        return None
-    if any(c.isspace() or c in "<>" or unicodedata.category(c).startswith("C") for c in text):
-        return None
-    return text
+    # STEPS
+    # 1. `None` gives `None`. `text = value.strip()`; when it starts with `<` and ends with `>`
+    #    remove those two characters.
+    # 2. Return `None` unless `3 <= len(text) <= MAX_MESSAGE_ID_CHARS` and `text.count("@") ==
+    #    1`.
+    # 3. Return `None` when any character is whitespace (`c.isspace()`), is `<` or `>`, or has a
+    #    `unicodedata.category` that starts with "C". Otherwise return `text` (case kept).
+    raise NotImplementedError
 
 
 def parse_references(header: str | None) -> list[str]:
@@ -75,16 +77,13 @@ def parse_references(header: str | None) -> list[str]:
     unusable token is skipped, a repeated one is kept once, and a header longer than
     ``MAX_HEADER_CHARS`` is read up to that length.
     """
-    if not header:
-        return []
-    found: list[str] = []
-    for token in _ANGLE.findall(header[:MAX_HEADER_CHARS]):
-        message_id = normalise_message_id(token)
-        if message_id is not None and message_id not in found:
-            found.append(message_id)
-            if len(found) == MAX_REFERENCES:
-                break
-    return found
+    # STEPS
+    # 1. Return `[]` for `None` or an empty header. `found: list[str] = []`.
+    # 2. For each `token` in `_ANGLE.findall(header[:MAX_HEADER_CHARS])`: `message_id =
+    #    normalise_message_id(token)`; when it is not `None` and not already in `found`, append
+    #    it and `break` once `len(found) == MAX_REFERENCES`.
+    # 3. Return `found`.
+    raise NotImplementedError
 
 
 def find_item_numbers(text: str, project: str, type_codes: Sequence[str]) -> list[str]:
@@ -96,23 +95,17 @@ def find_item_numbers(text: str, project: str, type_codes: Sequence[str]) -> lis
     ``MAX_TEXT_CHARS`` is ignored. A ``project`` or type code that is not plain letters, digits
     and ``_.-`` gives an empty list.
     """
-    if _PROJECT.fullmatch(project) is None or not type_codes:
-        return []
-    codes = [code.upper() for code in type_codes]
-    if any(_TYPE_CODE.fullmatch(code) is None for code in codes):
-        return []
-    kinds = "|".join(re.escape(code) for code in codes)
-    pattern = re.compile(
-        rf"(?<![A-Za-z0-9]){re.escape(project)}-(?:{kinds})-\d{{4,8}}(?!\d)", re.IGNORECASE
-    )
-    found: list[str] = []
-    for match in pattern.finditer(text[:MAX_TEXT_CHARS]):
-        number = match.group(0).upper()
-        if number not in found:
-            found.append(number)
-            if len(found) == MAX_KEYS:
-                break
-    return found
+    # STEPS
+    # 1. Return `[]` unless `_PROJECT.fullmatch(project)` matches and `type_codes` is not empty.
+    #    `codes = [code.upper() for code in type_codes]`; return `[]` when any code does not
+    #    `_TYPE_CODE.fullmatch`.
+    # 2. `kinds = "|".join(re.escape(code) for code in codes)`; pattern =
+    #    `re.compile(rf"(?<![A-Za-z0-9]){re.escape(project)}-(?:{kinds})-\d{{4,8}}(?!\d)",
+    #    re.IGNORECASE)`.
+    # 3. For each match of `pattern.finditer(text[:MAX_TEXT_CHARS])`: `number =
+    #    match.group(0).upper()`; append it when it is not in `found` yet, and stop when
+    #    `len(found) == MAX_KEYS`. Return `found`.
+    raise NotImplementedError
 
 
 @dataclass(frozen=True)
@@ -157,20 +150,14 @@ def match_thread(
     no ``responds_to_id``. A hit on an item that has no thread gives ``thread_id=None`` and the
     item's id as ``responds_to_id`` (the caller opens a thread for both).
     """
-    candidates: list[str] = []
-    if facts.in_reply_to:
-        candidates.append(facts.in_reply_to)
-    candidates.extend(reversed(list(facts.references)))
-    for message_id in candidates:
-        known = by_message_id.get(message_id)
-        if known is not None:
-            return ThreadMatch(known.thread_id, known.item_id, "header")
-    for number in facts.numbers:
-        known = by_number.get(number)
-        if known is not None:
-            return ThreadMatch(known.thread_id, known.item_id, "reference_key")
-    if len(facts.subject_key) >= MIN_SUBJECT_KEY_CHARS:
-        thread_id = open_threads_by_subject.get(facts.subject_key)
-        if thread_id is not None:
-            return ThreadMatch(thread_id, None, "subject")
-    return None
+    # STEPS
+    # 1. `candidates`: `facts.in_reply_to` first (when it is not empty), then the `references`
+    #    from the last to the first (`reversed(list(facts.references))`).
+    # 2. The first candidate that is a key of `by_message_id` returns
+    #    `ThreadMatch(known.thread_id, known.item_id, "header")`.
+    # 3. Then each number of `facts.numbers`, in order: the first that is a key of `by_number`
+    #    returns `ThreadMatch(known.thread_id, known.item_id, "reference_key")`.
+    # 4. Then, when `len(facts.subject_key) >= MIN_SUBJECT_KEY_CHARS` and the key is in
+    #    `open_threads_by_subject`, return `ThreadMatch(thread_id, None, "subject")`.
+    # 5. Otherwise return `None`.
+    raise NotImplementedError

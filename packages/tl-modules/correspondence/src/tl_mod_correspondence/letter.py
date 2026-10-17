@@ -1,3 +1,4 @@
+# ruff: noqa: F401, F841
 """A letter from a template to a PDF, with no library and no clock (brief 9 M10: issue).
 
 ``fill_template`` puts the fields of a letter into the text of a domain template, ``compose_letter``
@@ -9,6 +10,9 @@ column, plain text. Characters that Windows-1252 cannot show become ``?``.
 
 Bounds (a letter is bounded before it is laid out, and an over-long one is refused, not cut):
 ``MAX_CHARS`` characters, ``MAX_PAGES`` pages.
+
+STUB (P1-I5-T07d): the functions with a STEPS comment are for you to write. When they are
+written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -61,10 +65,14 @@ def fill_template(text: str, fields: Mapping[str, str]) -> str:
     as it is (it is never searched for further placeholders), and nothing is evaluated: this is
     not ``str.format``.
     """
-    unknown = sorted({m for m in _FIELD.findall(text) if m not in FIELD_NAMES})
-    if unknown:
-        raise LetterError(f"the template uses {{{unknown[0]}}}, which is not a letter field")
-    return _FIELD.sub(lambda match: fields.get(match.group(1), ""), text)
+    # STEPS
+    # 1. `unknown = sorted({m for m in _FIELD.findall(text) if m not in FIELD_NAMES})`; when it
+    #    is not empty raise `LetterError(f"the template uses {{{unknown[0]}}}, which is not a
+    #    letter field")`.
+    # 2. `return _FIELD.sub(lambda match: fields.get(match.group(1), ""), text)` (the result of
+    #    a replacement function is not searched again, so a value that looks like a placeholder
+    #    stays as it is).
+    raise NotImplementedError
 
 
 def compose_letter(header: str | None, footer: str | None, fields: LetterFields) -> list[str]:
@@ -76,44 +84,35 @@ def compose_letter(header: str | None, footer: str | None, fields: LetterFields)
     text is cleaned (tabs become four spaces, other control characters a space). Raises
     ``LetterError`` when the whole letter holds more than ``MAX_CHARS`` characters.
     """
-    mapping = fields.as_mapping()
-    parts: list[str] = []
-    if header:
-        parts += [fill_template(header, mapping), ""]
-    parts += [
-        f"Our ref: {fields.number}",
-        f"Date: {fields.date}",
-        "",
-        f"To: {fields.to}",
-        "",
-        f"Subject: {fields.subject}",
-        "",
-        fields.body,
-    ]
-    if footer:
-        parts += ["", fill_template(footer, mapping)]
-    raw = "\n".join(parts)
-    if len(raw) > MAX_CHARS:
-        raise LetterError(f"the letter has {len(raw)} characters; the limit is {MAX_CHARS}")
-    lines: list[str] = []
-    for paragraph in _clean(raw).split("\n"):
-        wrapped = textwrap.wrap(
-            paragraph, width=LINE_WIDTH, replace_whitespace=False, drop_whitespace=True
-        )
-        lines.extend(wrapped or [""])
-    return lines
+    # STEPS
+    # 1. `mapping = fields.as_mapping()`; `parts: list[str] = []`. When `header` is not empty
+    #    `parts += [fill_template(header, mapping), ""]`.
+    # 2. Then `parts += [f"Our ref: {fields.number}", f"Date: {fields.date}", "", f"To:
+    #    {fields.to}", "", f"Subject: {fields.subject}", "", fields.body]`.
+    # 3. When `footer` is not empty `parts += ["", fill_template(footer, mapping)]`.
+    # 4. `raw = "\n".join(parts)`; when `len(raw) > MAX_CHARS` raise `LetterError(f"the letter
+    #    has {len(raw)} characters; the limit is {MAX_CHARS}")`.
+    # 5. `lines: list[str] = []`; for each `paragraph` of `_clean(raw).split("\n")`: `wrapped =
+    #    textwrap.wrap(paragraph, width=LINE_WIDTH, replace_whitespace=False,
+    #    drop_whitespace=True)`; `lines.extend(wrapped or [""])` (an empty paragraph is one
+    #    empty line). Return `lines`.
+    raise NotImplementedError
 
 
 def _clean(text: str) -> str:
-    text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\t", "    ")
-    return "".join(
-        " " if c != "\n" and unicodedata.category(c).startswith("C") else c for c in text
-    )
+    # STEPS
+    # 1. `text.replace("\r\n", "\n").replace("\r", "\n").replace("\t", "    ")`.
+    # 2. Replace each character other than "\n" whose `unicodedata.category` starts with "C" by
+    #    a space; return the joined text.
+    raise NotImplementedError
 
 
 def _pdf_text(line: str) -> bytes:
-    data = line.encode("cp1252", errors="replace")
-    return data.replace(b"\\", b"\\\\").replace(b"(", b"\\(").replace(b")", b"\\)")
+    # STEPS
+    # 1. `data = line.encode("cp1252", errors="replace")`.
+    # 2. Escape with a backslash, in this order: `\` (`b"\\"` becomes `b"\\\\"`), `(` and `)`.
+    #    Return the bytes.
+    raise NotImplementedError
 
 
 def render_pdf(lines: Sequence[str], title: str) -> bytes:
@@ -124,39 +123,27 @@ def render_pdf(lines: Sequence[str], title: str) -> bytes:
     offsets and a trailer; it holds no date and no random id. An empty ``lines`` gives one empty
     page. Raises ``LetterError`` for more than ``MAX_PAGES`` pages.
     """
-    pages = [list(lines[i : i + LINES_PER_PAGE]) for i in range(0, len(lines), LINES_PER_PAGE)]
-    pages = pages or [[]]
-    if len(pages) > MAX_PAGES:
-        raise LetterError(f"the letter needs {len(pages)} pages; the limit is {MAX_PAGES}")
-    first_page = 5
-    objects: list[bytes] = [
-        b"<< /Type /Catalog /Pages 2 0 R >>",
-        b"<< /Type /Pages /Kids ["
-        + b" ".join(f"{first_page + 2 * i} 0 R".encode() for i in range(len(pages)))
-        + f"] /Count {len(pages)} >>".encode(),
-        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
-        b"<< /Title (" + _pdf_text(title[:200]) + b") >>",
-    ]
-    for index, page in enumerate(pages):
-        content_id = first_page + 2 * index + 1
-        stream = b"BT /F1 10 Tf 12 TL 50 790 Td\n"
-        stream += b"".join(b"(" + _pdf_text(line) + b") Tj T*\n" for line in page)
-        stream += b"ET"
-        objects.append(
-            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
-            b"/Resources << /Font << /F1 3 0 R >> >> " + f"/Contents {content_id} 0 R >>".encode()
-        )
-        objects.append(f"<< /Length {len(stream)} >>\nstream\n".encode() + stream + b"\nendstream")
-    out = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
-    offsets: list[int] = []
-    for number, body in enumerate(objects, start=1):
-        offsets.append(len(out))
-        out += f"{number} 0 obj\n".encode() + body + b"\nendobj\n"
-    xref_at = len(out)
-    out += f"xref\n0 {len(objects) + 1}\n".encode() + b"0000000000 65535 f \n"
-    out += b"".join(f"{offset:010d} 00000 n \n".encode() for offset in offsets)
-    out += (
-        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R /Info 4 0 R >>\n"
-        f"startxref\n{xref_at}\n%%EOF\n"
-    ).encode()
-    return bytes(out)
+    # STEPS
+    # 1. `pages = [list(lines[i : i + LINES_PER_PAGE]) for i in range(0, len(lines),
+    #    LINES_PER_PAGE)]`; `pages = pages or [[]]`; when `len(pages) > MAX_PAGES` raise
+    #    `LetterError(f"the letter needs {len(pages)} pages; the limit is {MAX_PAGES}")`.
+    # 2. Object bodies (bytes), in this order, numbered from 1: (1) `<< /Type /Catalog /Pages 2
+    #    0 R >>`; (2) `<< /Type /Pages /Kids [<refs>] /Count <n> >>` where the refs are `f"{5 +
+    #    2 * i} 0 R"` for page i joined by one space and n is `len(pages)`, written as `b"<<
+    #    /Type /Pages /Kids [" + refs + f"] /Count {n} >>".encode()`; (3) `<< /Type /Font
+    #    /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`; (4) `<< /Title (`
+    #    + `_pdf_text(title[:200])` + `) >>`.
+    # 3. For page `index` (objects 5 + 2 * index and 6 + 2 * index): the content stream is `b"BT
+    #    /F1 10 Tf 12 TL 50 790 Td\n"` followed, for each line, by `b"(" + _pdf_text(line) + b")
+    #    Tj T*\n"`, then `b"ET"`. The page object is `<< /Type /Page /Parent 2 0 R /MediaBox [0
+    #    0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents <6 + 2 * index> 0 R >>`.
+    #    The content object is `<< /Length <len(stream)> >>\nstream\n` + stream + `\nendstream`.
+    # 4. Write the file: `out = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")`. For each object
+    #    `number, body` (from 1) remember `len(out)` as its offset and append `f"{number} 0
+    #    obj\n".encode() + body + b"\nendobj\n"`.
+    # 5. `xref_at = len(out)`; append `f"xref\n0 {len(objects) + 1}\n"` and `b"0000000000 65535
+    #    f \n"`, then for each object `f"{offset:010d} 00000 n \n"` (exactly 20 bytes each).
+    # 6. Append `f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R /Info 4 0 R
+    #    >>\nstartxref\n{xref_at}\n%%EOF\n"` and return `bytes(out)`. The file has no date and
+    #    no random id: the same lines and title always give the same bytes.
+    raise NotImplementedError
