@@ -14,8 +14,8 @@ The extractors of the derivation pipeline: plugins that read the bytes of a sour
 | `tl_extract.reading` | module | The shared limits, `Refusal`, `run_guarded`, `read_exact`, text cleaning, `RawGrid` |
 | `tl_extract.table.build_table` | function | Headers, mapping hints, duplicates, rows and column profiles from a `RawGrid` |
 | `tl_extract.csvgrid.read_csv` | function | CSV bytes to a `RawGrid` (encoding, delimiter, quotes, limits) |
-| `tl_extract.xlsxgrid.read_xlsx` | function | XLSX bytes to a `RawGrid` (archive guards, XML scan, openpyxl read-only) |
-| `tl_extract.pdfinfo.read_pdf_info` | function | Page count and information dictionary with pypdf; `pdf_date_to_iso` |
+| `tl_extract.xlsxgrid.read_xlsx` | function | XLSX bytes to a `RawGrid`: end-record check, archive guards, XML scan, then streaming parsers (`tl_extract.xlsxxml`); no workbook library |
+| `tl_extract.pdfinfo.read_pdf_info` | function | A byte scan, then page count (`/Root/Pages/Count`) and information dictionary with pypdf (strict, limits lowered); `pdf_date_to_iso` |
 | `tl_extract.imagehdr.read_image_header` | function | PNG, JPEG, TIFF format and size from the header, by hand |
 
 The pipeline finds the plugins through the entry-point group `throughline.extractors` (`pyproject.toml`); nothing imports this package
@@ -28,10 +28,10 @@ paths, no stack traces), and the same bytes give the same result.
 | CSV, XLSX | `ok` | `columns`, `rows` (text or None), `profiles`, `problems` per row, `notes`; XLSX also `sheet`, `sheet_names`, title/author/dates |
 | PDF | `metadata_only` | page count, title, author, producer, created, modified; a note naming ADR-0008 |
 | PNG, JPEG, TIFF | `metadata_only` | title, author, producer, dates where the header has them; `image_format`, `width` and `height`; the ADR-0008 note |
-| anything unreadable | `failed` | a problem with a code: `not_utf8`, `too_many_rows`, `duplicate_header`, `zip_bomb`, `unsafe_xlsx`, `encrypted_pdf`, `damaged_pdf`, `broken_image`, ... |
+| anything unreadable | `failed` | a problem with a code: `not_utf8`, `too_many_rows`, `duplicate_header`, `unknown_option`, `zip_bomb`, `unsafe_xlsx`, `encrypted_xlsx`, `too_many_blank_rows`, `encrypted_pdf`, `damaged_pdf`, `pdf_too_complex`, `broken_image`, ... |
 
 ## Depends on / used by
-- Depends on: `tl_core.derivation` (the contract), `pydantic`, `openpyxl` (MIT), `pypdf` (BSD-3-Clause).
+- Depends on: `tl_core.derivation` (the contract), `pydantic`, `pypdf` (BSD-3-Clause). `openpyxl` (MIT) is a test dependency only (the tests and the golden script write workbooks).
 - Used by: the derivation pipeline in `tl_core` finds the plugins by entry point. Tests: `tests/contract/test_extractor_contract.py` is called by each extractor's test.
 
 ## Commands

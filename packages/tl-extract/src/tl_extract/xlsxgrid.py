@@ -1,59 +1,62 @@
-"""Read an XLSX workbook into a ``RawGrid`` (P1-I3B-T09b).
+"""Read an XLSX workbook into a ``RawGrid`` (P1-I3B-T09b; rewritten in P1-I3B-S14).
 
 An XLSX file is a ZIP archive of XML parts, which makes it the most dangerous input of this
 package. The guards, in the order they run:
 
-1. the bytes must be a ZIP archive with a workbook part (``not_xlsx``);
-2. the archive is checked before anything is parsed: at most ``MAX_MEMBERS`` parts, no encrypted
-   part, a name that is a plain relative path, the declared size of each part and of all parts
-   together under their limits (``zip_bomb``); the size the archive declares bounds what the
-   reader will return, so the declared sizes are the real bounds;
-3. every XML part is scanned for a document type declaration or an entity declaration, and for an
-   encoding that hides one (UTF-16), and refused if it has one (``unsafe_xlsx``): a workbook
-   written by a spreadsheet program has none, and without them entity expansion cannot happen;
-4. openpyxl opens the workbook ``read_only`` (rows are streamed, not built), ``data_only`` (the
-   values the file stored; a formula is never evaluated) and ``keep_links=False`` (external
-   workbooks are never opened). Macros are never run.
+1. a legacy Office or encrypted Office file (a compound document, ``D0 CF 11 E0``) is
+   ``encrypted_xlsx``; anything else must start like a ZIP archive (``not_xlsx``);
+2. the end-of-central-directory record is read first (``check_central_directory``): the entry count
+   and the size of the directory are checked before ``zipfile`` is asked to load the directory;
+3. the archive is checked by what it declares (``check_archive``): at most ``MAX_MEMBERS`` parts, no
+   encrypted part, plain relative names, the declared size of each part and of all parts together
+   under their limits (``zip_bomb``); the size a ZIP archive declares bounds what ``zipfile``
+   returns, so the declared sizes are the real bounds;
+4. every XML part is scanned for a document type or entity declaration, and for an encoding that
+   hides one (UTF-16), and refused if it has one (``unsafe_xlsx``);
+5. the parts are streamed by ``tl_extract.xlsxxml`` with counts of elements, depth, strings, cells
+   and characters. openpyxl is not used: it materialises a whole row or the whole shared-strings
+   table before a cap can look at it. A formula is never evaluated (the stored value is read),
+   external links are never opened, macros are never run.
 
-Cell values are turned into text here, deterministically (see ``cell_text``).
+Cell values are turned into text here, deterministically (see ``xlsxxml.cell_text``).
 """
 
 from __future__ import annotations
 
-import datetime as dt
 import io
-import warnings
+import struct
 import zipfile
 import zlib
 from collections.abc import Iterator
 
-import openpyxl
-from tl_core.derivation import MAX_COLUMNS, MAX_ROWS, Cell
-
 from tl_extract.options import TableOptions
-from tl_extract.reading import (
-    MAX_BLANK_RUN,
-    CellBudget,
-    GridMeta,
-    RawGrid,
-    Refusal,
-    clean_metadata_text,
-    shown,
+from tl_extract.reading import MAX_BLANK_RUN as MAX_BLANK_RUN
+from tl_extract.reading import GridMeta, RawGrid, Refusal, clean_metadata_text, shown
+from tl_extract.xlsxxml import (
+    SheetRef,
+    read_book,
+)
+from tl_extract.xlsxxml import (
+    cell_text as cell_text,
 )
 
 MAX_MEMBERS = 2000
-MAX_TOTAL_UNCOMPRESSED = 200 * 1024 * 1024
-MAX_SHARED_STRINGS_BYTES = 32 * 1024 * 1024
-MAX_SHEET_BYTES = 150 * 1024 * 1024
-MAX_OTHER_BYTES = 16 * 1024 * 1024
+MAX_CENTRAL_DIRECTORY = 2 * 1024 * 1024
+MAX_TOTAL_UNCOMPRESSED = 128 * 1024 * 1024
+MAX_SHARED_STRINGS_BYTES = 24 * 1024 * 1024
+MAX_SHEET_BYTES = 48 * 1024 * 1024
+MAX_OTHER_BYTES = 4 * 1024 * 1024
 XML_SUFFIXES = (".xml", ".rels", ".vml")
 SCAN_CHUNK = 64 * 1024
 FORBIDDEN = (b"<!DOCTYPE", b"<!ENTITY")
+COMPOUND_DOCUMENT = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 
 NOT_XLSX = "the file is not an XLSX workbook (a ZIP archive)"
+ENCRYPTED_XLSX = (
+    "the file is an encrypted or legacy Office document; save it as an unprotected XLSX"
+)
 LINKS_NOTE = "the workbook links to other workbooks; the links are not followed"
 MACROS_NOTE = "the workbook holds macros; they are never run"
-BLANK_RUN_NOTE = "reading stopped after {count} blank rows in a row"
 SHEET_NOT_FOUND = "there is no sheet {name}; the sheets are: {available}"
 
 
@@ -63,6 +66,23 @@ def _member_limit(name: str) -> int:
     if name.startswith("xl/worksheets/") and name.endswith(".xml"):
         return MAX_SHEET_BYTES
     return MAX_OTHER_BYTES
+
+
+def check_central_directory(raw: bytes) -> None:
+    """Read the end-of-central-directory record and refuse an archive with too many entries or a
+    directory that is too big, before ``zipfile`` loads the directory. Raises ``Refusal``
+    (``not_xlsx``, ``zip_bomb``)."""
+    tail = raw[-(65_535 + 22) :]
+    at = tail.rfind(b"PK\x05\x06")
+    if at < 0 or len(tail) - at < 22:
+        raise Refusal("not_xlsx", NOT_XLSX)
+    _, _, _, _, entries, size, offset, _ = struct.unpack_from("<4s4H2IH", tail, at)
+    if entries > MAX_MEMBERS or entries == 0xFFFF or size == 0xFFFFFFFF:
+        raise Refusal("zip_bomb", f"the workbook has more than {MAX_MEMBERS} parts")
+    if size > MAX_CENTRAL_DIRECTORY:
+        raise Refusal("zip_bomb", "the workbook's list of parts is too big")
+    if offset + size > len(raw):
+        raise Refusal("not_xlsx", NOT_XLSX)
 
 
 def check_archive(archive: zipfile.ZipFile) -> None:
@@ -126,150 +146,68 @@ def scan_xml_parts(archive: zipfile.ZipFile) -> None:
             tail = window[-(len(FORBIDDEN[0]) - 1) :]
 
 
-def cell_text(value: object) -> Cell:
-    """A cell value as text, the same for the same value every time.
-
-    None and an empty string are None. A bool is ``TRUE`` or ``FALSE``. An int is its digits. A
-    float is written with up to 15 significant digits and no trailing zeros (``2024.0`` is
-    ``2024``). A date is ``YYYY-MM-DD``; a date with a time is ISO 8601 and drops the time when it
-    is midnight; a time of day is ``HH:MM:SS``. Everything else is ``str(value)``.
-    """
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return "TRUE" if value else "FALSE"
-    if isinstance(value, int):
-        return str(value)
-    if isinstance(value, float):
-        return format(value, ".15g")
-    if isinstance(value, dt.datetime):
-        if value.time() == dt.time(0):
-            return value.date().isoformat()
-        return value.isoformat()
-    if isinstance(value, dt.date):
-        return value.isoformat()
-    if isinstance(value, dt.time):
-        return value.isoformat()
-    text = str(value)
-    return text if text else None
-
-
-def _iso(value: object) -> str | None:
-    if isinstance(value, dt.datetime):
-        text = value.isoformat(timespec="seconds")
-        return text if value.tzinfo is not None else text + "Z"
-    return None
+def _sheet_list(sheets: list[SheetRef], chosen: str | None) -> SheetRef:
+    worksheets = [s for s in sheets if s.kind == "worksheet"]
+    if not worksheets:
+        raise Refusal("no_sheet", "the workbook has no worksheet")
+    if chosen is not None:
+        for sheet in worksheets:
+            if sheet.name == chosen:
+                return sheet
+        available = ", ".join(shown(s.name, 40) for s in worksheets[:10])
+        raise Refusal(
+            "sheet_not_found",
+            SHEET_NOT_FOUND.format(name=shown(chosen, 40), available=available),
+        )
+    return next((s for s in worksheets if s.state == "visible"), worksheets[0])
 
 
 def read_xlsx(raw: bytes, options: TableOptions) -> RawGrid:
     """The rows of one sheet of ``raw`` as a ``RawGrid`` (see its docstring for what they hold).
 
-    The sheet is ``options.sheet`` or the first visible worksheet. Rows are read until the end of
-    the sheet or until ``MAX_BLANK_RUN`` blank rows in a row (a note says so).
+    The sheet is ``options.sheet`` or the first visible worksheet.
 
-    Raises ``Refusal`` with the code ``not_xlsx``, ``zip_bomb``, ``encrypted_file``,
-    ``unsafe_xlsx``, ``sheet_not_found``, ``no_sheet``, ``too_many_rows``, ``too_many_cells`` or
-    ``too_much_text``.
+    Raises ``Refusal`` with the code ``not_xlsx``, ``encrypted_xlsx``, ``zip_bomb``,
+    ``encrypted_file``, ``unsafe_xlsx``, ``sheet_not_found``, ``no_sheet``, ``too_many_sheets``,
+    ``bad_sheet_name``, ``too_many_rows``, ``too_many_cells``, ``too_much_text`` or
+    ``too_many_blank_rows``.
     """
+    if raw.startswith(COMPOUND_DOCUMENT):
+        raise Refusal("encrypted_xlsx", ENCRYPTED_XLSX)
     if not raw.startswith(b"PK\x03\x04"):
         raise Refusal("not_xlsx", NOT_XLSX)
+    check_central_directory(raw)
     try:
         archive = zipfile.ZipFile(io.BytesIO(raw))
-    except zipfile.BadZipFile as error:
-        raise Refusal("not_xlsx", NOT_XLSX) from error
+    except zipfile.BadZipFile as exc:
+        raise Refusal("not_xlsx", NOT_XLSX) from exc
     with archive:
         try:
             check_archive(archive)
             scan_xml_parts(archive)
-        except (zipfile.BadZipFile, EOFError, zlib.error) as error:
-            raise Refusal("not_xlsx", "the workbook archive is damaged") from error
+        except (zipfile.BadZipFile, EOFError, zlib.error) as exc:
+            raise Refusal("not_xlsx", "the workbook archive is damaged") from exc
         names = set(archive.namelist())
-    notes: list[str] = []
-    if any(name.startswith("xl/externalLinks/") for name in names):
-        notes.append(LINKS_NOTE)
-    if "xl/vbaProject.bin" in names:
-        notes.append(MACROS_NOTE)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        return _read_workbook(raw, options, notes, "docProps/core.xml" in names)
-
-
-def _read_workbook(
-    raw: bytes, options: TableOptions, notes: list[str], has_core_properties: bool
-) -> RawGrid:
-    workbook = openpyxl.load_workbook(
-        io.BytesIO(raw), read_only=True, data_only=True, keep_links=False
+        notes: list[str] = []
+        if any(name.startswith("xl/externalLinks/") for name in names):
+            notes.append(LINKS_NOTE)
+        if "xl/vbaProject.bin" in names:
+            notes.append(MACROS_NOTE)
+        try:
+            book = read_book(archive, names)
+            chosen = _sheet_list(book.sheets, options.sheet)
+            assert chosen.part is not None
+            meta = GridMeta()
+            if "docProps/core.xml" in names:
+                meta = book.read_core(archive, "docProps/core.xml")
+            reading = book.read_sheet(archive, chosen, header_row=options.header_row)
+        except (zipfile.BadZipFile, EOFError, zlib.error) as exc:
+            raise Refusal("not_xlsx", "the workbook archive is damaged") from exc
+    return RawGrid(
+        rows=reading.rows,
+        sheet=clean_metadata_text(chosen.name) or "",
+        sheet_names=[s.name for s in book.sheets],
+        skipped_blank_rows=reading.skipped_blank_rows,
+        notes=notes,
+        meta=meta,
     )
-    try:
-        sheets = list(workbook.worksheets)
-        if not sheets:
-            raise Refusal("no_sheet", "the workbook has no worksheet")
-        sheet_names = [clean_metadata_text(name) or "" for name in workbook.sheetnames]
-        if options.sheet is not None:
-            matches = [sheet for sheet in sheets if sheet.title == options.sheet]
-            if not matches:
-                available = ", ".join(shown(sheet.title, 40) for sheet in sheets[:10])
-                raise Refusal(
-                    "sheet_not_found",
-                    SHEET_NOT_FOUND.format(name=shown(options.sheet, 40), available=available),
-                )
-            chosen = matches[0]
-        else:
-            chosen = next((sheet for sheet in sheets if sheet.sheet_state == "visible"), sheets[0])
-        meta = GridMeta()
-        if has_core_properties:
-            props = workbook.properties
-            meta = GridMeta(
-                title=clean_metadata_text(props.title),
-                author=clean_metadata_text(props.creator),
-                created=_iso(props.created),
-                modified=_iso(props.modified),
-            )
-        rows, skipped = _read_rows(
-            chosen.iter_rows(max_col=MAX_COLUMNS + 1, values_only=True), options, notes
-        )
-        title = clean_metadata_text(chosen.title) or ""
-        return RawGrid(
-            rows=rows,
-            sheet=title,
-            sheet_names=sheet_names,
-            skipped_blank_rows=skipped,
-            notes=notes,
-            meta=meta,
-        )
-    finally:
-        workbook.close()
-
-
-def _read_rows(
-    source: Iterator[tuple[object, ...]], options: TableOptions, notes: list[str]
-) -> tuple[list[list[Cell]], int]:
-    budget = CellBudget()
-    rows: list[list[Cell]] = []
-    skipped = 0
-    kept = 0
-    blank_run = 0
-    for index, values in enumerate(source, start=1):
-        cells = [cell_text(v) for v in values]
-        while cells and not (cells[-1] or "").strip():
-            cells.pop()
-        budget.take(cells)
-        if index <= options.header_row:
-            rows.append(cells)
-            continue
-        if not cells:
-            skipped += 1
-            blank_run += 1
-            if blank_run >= MAX_BLANK_RUN:
-                notes.append(BLANK_RUN_NOTE.format(count=MAX_BLANK_RUN))
-                break
-            continue
-        blank_run = 0
-        kept += 1
-        if kept > MAX_ROWS:
-            raise Refusal(
-                "too_many_rows",
-                f"the sheet has more than {MAX_ROWS} data rows; split the file",
-            )
-        rows.append(cells)
-    return rows, skipped

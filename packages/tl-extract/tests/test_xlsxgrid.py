@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import io
 import re
+import time
 import warnings
 import zipfile
 
@@ -16,6 +17,7 @@ from tl_extract.options import TableOptions
 from tl_extract.reading import Refusal
 from tl_extract.xlsxgrid import (
     MAX_MEMBERS,
+    MAX_OTHER_BYTES,
     MAX_SHARED_STRINGS_BYTES,
     MAX_TOTAL_UNCOMPRESSED,
     cell_text,
@@ -152,27 +154,12 @@ def test_trailing_empty_cells_are_dropped() -> None:
     assert read_xlsx(raw, OPTIONS).rows == [["A", "B"], ["1"]]
 
 
-def test_the_workbook_is_opened_read_only_for_values_without_following_links() -> None:
-    import openpyxl
+def test_no_workbook_library_is_used() -> None:
+    from tl_extract import xlsxgrid, xlsxxml
 
-    calls: list[dict[str, object]] = []
-    opened: list[object] = []
-    real = openpyxl.load_workbook
-
-    def spy(*args: object, **kwargs: object) -> object:
-        calls.append(kwargs)
-        workbook = real(*args, **kwargs)  # type: ignore[arg-type]
-        opened.append(workbook)
-        return workbook
-
-    openpyxl.load_workbook = spy  # type: ignore[assignment]
-    try:
-        read_xlsx(hand_rows(["A"], ["1"]), OPTIONS)
-    finally:
-        openpyxl.load_workbook = real
-    assert len(calls) == 1
-    assert calls[0] == {"read_only": True, "data_only": True, "keep_links": False}
-    assert vars(opened[0])["_archive"].fp is None  # closed
+    for module in (xlsxgrid, xlsxxml):
+        assert not hasattr(module, "openpyxl")
+        assert "import openpyxl" not in open(module.__file__ or "").read()
 
 
 def test_a_zip_with_bytes_in_front_of_it_is_not_a_workbook() -> None:
@@ -259,7 +246,7 @@ def test_a_part_that_expands_past_its_limit_is_refused_before_it_is_read() -> No
 
 
 def test_parts_that_together_expand_past_the_total_are_refused() -> None:
-    chunk = b"\x00" * (15 * MIB)
+    chunk = b"\x00" * MAX_OTHER_BYTES
     count = MAX_TOTAL_UNCOMPRESSED // len(chunk) + 1
     extra = {f"xl/media/part{i}.bin": chunk for i in range(count)}
     assert refusal(hand_xlsx(sheet_xml(""), extra)).code == "zip_bomb"
@@ -359,20 +346,31 @@ def test_a_record_is_cut_after_the_column_limit_plus_one() -> None:
     assert rows[0][-1] == f"c{MAX_COLUMNS}"
 
 
-def test_a_run_of_blank_rows_ends_the_reading_and_is_noted() -> None:
-    blank = "".join(f'<row r="{n}"><c r="A{n}"/></row>' for n in range(3, 1500))  # formatted cells
-    body = inline_row(1, ["A"]) + inline_row(2, ["1"]) + blank + inline_row(1600, ["late"])
-    grid = read_xlsx(hand_xlsx(sheet_xml(body, dimension="A1:A1600")), OPTIONS)
+def formatted_blank_rows(first: int, last: int) -> str:
+    return "".join(f'<row r="{n}"><c r="A{n}"/></row>' for n in range(first, last + 1))
+
+
+def test_blank_rows_formatted_down_the_sheet_after_the_data_are_harmless() -> None:
+    body = inline_row(1, ["A"]) + inline_row(2, ["1"]) + formatted_blank_rows(3, 5000)
+    grid = read_xlsx(hand_xlsx(sheet_xml(body, dimension="A1:A5000")), OPTIONS)
     assert grid.rows == [["A"], ["1"]]
-    assert grid.skipped_blank_rows == 1000
-    assert grid.notes == ["reading stopped after 1000 blank rows in a row"]
+    assert grid.skipped_blank_rows == 4998 and grid.notes == []
 
 
-def test_a_far_gap_between_rows_is_a_run_of_blank_rows_too() -> None:
+def test_data_after_a_long_run_of_blank_rows_is_refused_not_dropped() -> None:
+    body = inline_row(1, ["A"]) + inline_row(2, ["1"]) + formatted_blank_rows(3, 1500)
+    error = refusal(hand_xlsx(sheet_xml(body + inline_row(1600, ["late"]))))
+    assert error.code == "too_many_blank_rows"
+    assert "1500" not in error.message and "blank rows" in error.message
+
+
+def test_a_far_gap_between_rows_is_a_run_of_blank_rows_too_and_costs_nothing() -> None:
     body = inline_row(1, ["A"]) + inline_row(2, ["1"]) + inline_row(1_000_000, ["late"])
-    grid = read_xlsx(hand_xlsx(sheet_xml(body, dimension="A1:A1000000")), OPTIONS)
-    assert grid.rows == [["A"], ["1"]]
-    assert grid.notes == ["reading stopped after 1000 blank rows in a row"]
+    started = time.monotonic()
+    assert refusal(hand_xlsx(sheet_xml(body, dimension="A1:A1000000"))).code == (
+        "too_many_blank_rows"
+    )
+    assert time.monotonic() - started < 1
 
 
 def test_blank_rows_that_never_run_to_the_limit_do_not_end_the_reading() -> None:
@@ -395,7 +393,7 @@ def test_a_long_gap_of_blank_rows_between_data_is_not_the_end_if_it_is_short() -
 
 
 def test_too_many_cells_is_refused_while_reading(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(reading, "MAX_CELLS", 6)
+    monkeypatch.setattr(reading, "MAX_CELLS", 4)  # data cells; the header is free
     assert len(read_xlsx(hand_rows(["a", "b"], ["1", "2"], ["3", "4"]), OPTIONS).rows) == 3
     assert refusal(hand_rows(["a", "b"], ["1", "2"], ["3", "4"], ["5"])).code == "too_many_cells"
 

@@ -207,3 +207,20 @@ def test_a_readers_notes_come_first() -> None:
     grid = grid_of(["A"], ["1"])
     grid.notes = ["delimiter detected: semicolon"]
     assert build_table(grid, OPTIONS).notes == ["delimiter detected: semicolon"]
+
+
+def test_the_cell_limit_is_the_contracts_and_counts_data_cells() -> None:
+    import tl_core.derivation as contract
+    from tl_extract import reading
+
+    assert reading.MAX_CELLS is contract.MAX_CELLS
+    assert MAX_ROWS * 50 == MAX_CELLS  # 20 000 rows of 50 columns fit
+    assert MAX_ROWS * MAX_COLUMNS > MAX_CELLS  # 20 000 rows of 200 columns do not
+
+
+def test_the_cell_limit_is_exactly_at_rows_times_columns(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("tl_extract.table.MAX_CELLS", 100)
+    header = [f"c{i}" for i in range(5)]
+    ok = build_table(grid_of(header, *[["x"] * 5] * 20), OPTIONS)
+    assert len(ok.rows) == 20
+    assert refusal(grid_of(header, *[["x"] * 5] * 21)).code == "too_many_cells"
