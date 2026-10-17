@@ -1,9 +1,13 @@
+# ruff: noqa: F401, F841
 """The properties of a PDF file, read with pypdf (P1-I3B-T10; ADR-0008 decision 8).
 
 Only the document information is read: the page count and the title, author, producer and dates
 of the information dictionary. No page is parsed, no content stream is decoded, no text is
 extracted; that is the stubbed part of the decision. An encrypted PDF is refused without trying a
 password, and any error inside pypdf is a refusal of this file, never an exception.
+
+STUB (P1-I3B-T10): the functions with a STEPS comment are for you to write. When they are
+written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -55,40 +59,22 @@ def pdf_date_to_iso(text: str) -> str | None:
     ``+02:00``; ``Z``, ``Z00'00'`` and ``+00'00'`` are written ``Z``. A month, day, hour, minute
     or second out of range, or any other shape, is None.
     """
-    match = _DATE.match(text.strip())
-    if match is None:
-        return None
-    year, month, day, hour, minute, second, zulu, sign, zone_h, zone_m = match.groups()
-    y = int(year)
-    m = int(month) if month else None
-    d = int(day) if day else None
-    if m is not None and not 1 <= m <= 12:
-        return None
-    if d is not None and m is not None and not 1 <= d <= monthrange(y if y else 1, m)[1]:
-        return None
-    if hour is not None and int(hour) > 23:
-        return None
-    if minute is not None and int(minute) > 59:
-        return None
-    if second is not None and int(second) > 59:
-        return None
-    result = f"{year}"
-    if month:
-        result += f"-{month}"
-    if day:
-        result += f"-{day}"
-    if hour:
-        result += f"T{hour}:{minute or '00'}:{second or '00'}"
-    if hour is None:
-        return result  # a zone means nothing without a time
-    if zulu:
-        result += "Z"
-    elif sign:
-        offset_m = zone_m or "00"
-        if int(zone_h) > 23 or int(offset_m) > 59:
-            return None
-        result += "Z" if (zone_h, offset_m) == ("00", "00") else f"{sign}{zone_h}:{offset_m}"
-    return result
+    # STEPS
+    # 1. match = _DATE.match(text.strip()). No match gives None.
+    # 2. year, month, day, hour, minute, second, zulu, sign, zone_h, zone_m = match.groups().
+    #    Each of them is a string or None. The pattern only lets a part appear when the parts
+    #    before it do.
+    # 3. Return None when a part is out of range: month not in 1..12; day not in
+    #    1..calendar.monthrange(year, month)[1] (use year 1 when the year is 0); hour > 23;
+    #    minute > 59; second > 59. Check only the parts that are present.
+    # 4. result = year. If month: result += f"-{month}". If day: result += f"-{day}". If hour:
+    #    result += f"T{hour}:{minute or '00'}:{second or '00'}".
+    # 5. If hour is None return result: a zone means nothing without a time.
+    # 6. If zulu: result += "Z". Elif sign: offset_m = zone_m or "00"; return None when
+    #    int(zone_h) > 23 or int(offset_m) > 59; otherwise result += "Z" when (zone_h, offset_m)
+    #    == ("00", "00"), else f"{sign}{zone_h}:{offset_m}".
+    # 7. Return result.
+    raise NotImplementedError
 
 
 def _text(value: object) -> str | None:
@@ -102,31 +88,19 @@ def read_pdf_info(raw: bytes) -> PdfInfo:
     ``encrypted_pdf`` (the file is encrypted; no password is tried) or ``broken_pdf`` (pypdf
     could not open it or read its trailer).
     """
-    if b"%PDF-" not in raw[:HEADER_WINDOW]:
-        raise Refusal("not_pdf", NOT_PDF)
-    try:
-        reader = PdfReader(io.BytesIO(raw), strict=False)
-        if reader.is_encrypted:
-            raise Refusal("encrypted_pdf", ENCRYPTED_PDF)
-        metadata = reader.metadata
-    except Refusal:
-        raise
-    except Exception as exc:
-        raise Refusal("broken_pdf", BROKEN_PDF) from exc
-    info = PdfInfo()
-    try:
-        info.page_count = len(reader.pages)
-    except Exception:
-        info.page_count = None
-    if metadata is not None:
-        try:
-            info.title = _text(metadata.title)
-            info.author = _text(metadata.author)
-            info.producer = _text(metadata.producer)
-            created = metadata.get("/CreationDate")
-            modified = metadata.get("/ModDate")
-            info.created = pdf_date_to_iso(str(created)) if created is not None else None
-            info.modified = pdf_date_to_iso(str(modified)) if modified is not None else None
-        except Exception:
-            pass
-    return info
+    # STEPS
+    # 1. If b"%PDF-" is not in raw[:HEADER_WINDOW] raise Refusal("not_pdf", NOT_PDF).
+    # 2. In one try block: reader = PdfReader(io.BytesIO(raw), strict=False). If
+    #    reader.is_encrypted raise Refusal("encrypted_pdf", ENCRYPTED_PDF); do not touch pages
+    #    or metadata and do not try a password. Then metadata = reader.metadata. Let a Refusal
+    #    pass through (`except Refusal: raise`) and turn any other Exception into
+    #    Refusal("broken_pdf", BROKEN_PDF) from the error.
+    # 3. info = PdfInfo(). In its own try/except Exception: info.page_count = len(reader.pages).
+    #    When it fails the page count stays None.
+    # 4. If metadata is not None, in another try/except Exception (a failure leaves the fields
+    #    not yet set as None): info.title, info.author and info.producer are
+    #    _text(metadata.title), _text(metadata.author) and _text(metadata.producer). created =
+    #    metadata.get("/CreationDate") and modified = metadata.get("/ModDate"); each field is
+    #    pdf_date_to_iso(str(value)) when the value is not None.
+    # 5. Return info.
+    raise NotImplementedError
