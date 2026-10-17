@@ -86,7 +86,7 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`ResponseClock.Restarted`](#responseclockrestarted) | `tl.core.ResponseClock.Restarted.v1` | A clock started its count again from a new day zero, with the same parameters. |
 | [`ResponseClock.Resumed`](#responseclockresumed) | `tl.core.ResponseClock.Resumed.v1` | A paused clock ran again; the due date moved by the days of the pause. |
 | [`ResponseClock.Started`](#responseclockstarted) | `tl.core.ResponseClock.Started.v1` | A response clock started. |
-| [`ResponseClock.Warned`](#responseclockwarned) | `tl.core.ResponseClock.Warned.v1` | The sweep found a running clock at or inside one of its warning thresholds. |
+| [`ResponseClock.Warned`](#responseclockwarned) | `tl.core.ResponseClock.Warned.v1` | The sweep found a running clock at or inside a warning threshold smaller than the last one raised. |
 | [`ReviewCycle.Closed`](#reviewcycleclosed) | `tl.core.ReviewCycle.Closed.v1` | A review cycle was closed with an overall outcome. |
 | [`ReviewCycle.Defined`](#reviewcycledefined) | `tl.core.ReviewCycle.Defined.v1` | A review of a revision was opened with its reviewers. |
 | [`ReviewCycle.OutcomeRecorded`](#reviewcycleoutcomerecorded) | `tl.core.ReviewCycle.OutcomeRecorded.v1` | A reviewer answered. |
@@ -4291,7 +4291,7 @@ The clock was cancelled: no answer is needed any more.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `True` | string | yes | ISO date. |
+| `day` | string | yes | ISO date. |
 | `reason` | string | yes | Why. |
 
 ### Sample delivered event
@@ -4301,7 +4301,7 @@ The clock was cancelled: no answer is needed any more.
   "data": {
     "changes": {},
     "detail": {
-      "on": "2026-10-25",
+      "day": "2026-10-25",
       "reason": "Withdrawn by the client"
     },
     "links": [],
@@ -4341,7 +4341,7 @@ The sweep found a running clock past its due date. A late answer still ends it w
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `True` | string | yes | ISO date of the sweep. |
+| `day` | string | yes | ISO date of the sweep. |
 | `days_overdue` | integer | yes | Days past the due date on the clock's own count. |
 
 ### Sample delivered event
@@ -4351,8 +4351,8 @@ The sweep found a running clock past its due date. A late answer still ends it w
   "data": {
     "changes": {},
     "detail": {
-      "days_overdue": 1,
-      "on": "2026-11-01"
+      "day": "2026-11-01",
+      "days_overdue": 1
     },
     "links": [],
     "origin": {
@@ -4391,7 +4391,7 @@ The clock was met: the answer came in time (or late; the date says which).
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `True` | string | yes | ISO date of the answer. |
+| `day` | string | yes | ISO date of the answer. |
 | `reason` | string or null | no | How it was met. |
 | `response_id` | string or null | no | Record id of the answering item, when there is one. |
 
@@ -4402,7 +4402,7 @@ The clock was met: the answer came in time (or late; the date says which).
   "data": {
     "changes": {},
     "detail": {
-      "on": "2026-10-25",
+      "day": "2026-10-25",
       "reason": null,
       "response_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"
     },
@@ -4443,7 +4443,7 @@ A clock was paused; the days of the pause do not count.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `True` | string | yes | ISO date of the pause. |
+| `day` | string | yes | ISO date of the pause. |
 | `reason` | string | yes | Why. |
 
 ### Sample delivered event
@@ -4453,7 +4453,7 @@ A clock was paused; the days of the pause do not count.
   "data": {
     "changes": {},
     "detail": {
-      "on": "2026-10-20",
+      "day": "2026-10-20",
       "reason": "Waiting for the client to send the drawing"
     },
     "links": [],
@@ -4545,8 +4545,9 @@ A paused clock ran again; the due date moved by the days of the pause.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `True` | string | yes | ISO date of the resume. |
+| `day` | string | yes | ISO date of the resume. |
 | `due_on` | string | yes | The new due date. |
+| `reason` | string or null | no | Why, when the date is before today. |
 
 ### Sample delivered event
 
@@ -4555,8 +4556,9 @@ A paused clock ran again; the due date moved by the days of the pause.
   "data": {
     "changes": {},
     "detail": {
+      "day": "2026-10-23",
       "due_on": "2026-11-03",
-      "on": "2026-10-23"
+      "reason": null
     },
     "links": [],
     "origin": {
@@ -4661,7 +4663,7 @@ A response clock started. The first event of a clock; it carries every parameter
 
 ## ResponseClock.Warned
 
-The sweep found a running clock at or inside one of its warning thresholds. Recorded once per threshold.
+The sweep found a running clock at or inside a warning threshold smaller than the last one raised. The smallest crossed threshold is recorded.
 
 - CloudEvents type: `tl.core.ResponseClock.Warned.v1`
 - Ledger payload class: `ResponseClockWarnedPayload`
@@ -4671,7 +4673,7 @@ The sweep found a running clock at or inside one of its warning thresholds. Reco
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `True` | string | yes | ISO date of the sweep. |
+| `day` | string | yes | ISO date of the sweep. |
 | `days_left` | integer | yes | Days left on the clock's own count when the sweep ran. |
 | `level` | integer | yes | The threshold in days that was crossed. |
 
@@ -4682,9 +4684,9 @@ The sweep found a running clock at or inside one of its warning thresholds. Reco
   "data": {
     "changes": {},
     "detail": {
+      "day": "2026-10-28",
       "days_left": 3,
-      "level": 3,
-      "on": "2026-10-28"
+      "level": 3
     },
     "links": [],
     "origin": {

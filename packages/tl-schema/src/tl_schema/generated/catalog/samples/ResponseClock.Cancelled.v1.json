@@ -3,7 +3,7 @@
     "data": {
       "changes": {},
       "detail": {
-        "on": "2026-10-25",
+        "day": "2026-10-25",
         "reason": "Withdrawn by the client"
       },
       "links": [],
@@ -30,7 +30,7 @@
     "type": "tl.core.ResponseClock.Cancelled.v1"
   },
   "payload": {
-    "on": "2026-10-25",
+    "day": "2026-10-25",
     "reason": "Withdrawn by the client"
   }
 }

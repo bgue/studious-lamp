@@ -418,14 +418,14 @@ classes:
       tl:event_type: ResponseClock.Paused
       tl:event_version: "1"
     attributes:
-      on:
+      day:
         description: "ISO date of the pause."
         required: true
       reason:
         description: "Why."
         required: true
     examples:
-      - value: "{\"on\": \"2026-10-20\", \"reason\": \"Waiting for the client to send the drawing\"}"
+      - value: "{\"day\": \"2026-10-20\", \"reason\": \"Waiting for the client to send the drawing\"}"
   ResponseClockResumedPayload:
     is_a: EventPayload
     description: >-
@@ -434,14 +434,16 @@ classes:
       tl:event_type: ResponseClock.Resumed
       tl:event_version: "1"
     attributes:
-      on:
+      day:
         description: "ISO date of the resume."
         required: true
       due_on:
         description: "The new due date."
         required: true
+      reason:
+        description: "Why, when the date is before today."
     examples:
-      - value: "{\"due_on\": \"2026-11-03\", \"on\": \"2026-10-23\"}"
+      - value: "{\"day\": \"2026-10-23\", \"due_on\": \"2026-11-03\", \"reason\": null}"
   ResponseClockRestartedPayload:
     is_a: EventPayload
     description: >-
@@ -469,7 +471,7 @@ classes:
       tl:event_type: ResponseClock.Met
       tl:event_version: "1"
     attributes:
-      on:
+      day:
         description: "ISO date of the answer."
         required: true
       response_id:
@@ -477,7 +479,7 @@ classes:
       reason:
         description: "How it was met."
     examples:
-      - value: "{\"on\": \"2026-10-25\", \"reason\": null, \"response_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\"}"
+      - value: "{\"day\": \"2026-10-25\", \"reason\": null, \"response_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\"}"
   ResponseClockCancelledPayload:
     is_a: EventPayload
     description: >-
@@ -486,23 +488,23 @@ classes:
       tl:event_type: ResponseClock.Cancelled
       tl:event_version: "1"
     attributes:
-      on:
+      day:
         description: "ISO date."
         required: true
       reason:
         description: "Why."
         required: true
     examples:
-      - value: "{\"on\": \"2026-10-25\", \"reason\": \"Withdrawn by the client\"}"
+      - value: "{\"day\": \"2026-10-25\", \"reason\": \"Withdrawn by the client\"}"
   ResponseClockWarnedPayload:
     is_a: EventPayload
     description: >-
-      The sweep found a running clock at or inside one of its warning thresholds. Recorded once per threshold.
+      The sweep found a running clock at or inside a warning threshold smaller than the last one raised. The smallest crossed threshold is recorded.
     annotations:
       tl:event_type: ResponseClock.Warned
       tl:event_version: "1"
     attributes:
-      on:
+      day:
         description: "ISO date of the sweep."
         required: true
       level:
@@ -514,7 +516,7 @@ classes:
         description: "Days left on the clock's own count when the sweep ran."
         required: true
     examples:
-      - value: "{\"days_left\": 3, \"level\": 3, \"on\": \"2026-10-28\"}"
+      - value: "{\"days_left\": 3, \"level\": 3, \"day\": \"2026-10-28\"}"
   ResponseClockExpiredPayload:
     is_a: EventPayload
     description: >-
@@ -523,7 +525,7 @@ classes:
       tl:event_type: ResponseClock.Expired
       tl:event_version: "1"
     attributes:
-      on:
+      day:
         description: "ISO date of the sweep."
         required: true
       days_overdue:
@@ -531,7 +533,7 @@ classes:
         description: "Days past the due date on the clock's own count."
         required: true
     examples:
-      - value: "{\"days_overdue\": 1, \"on\": \"2026-11-01\"}"
+      - value: "{\"days_overdue\": 1, \"day\": \"2026-11-01\"}"
 
   ContractClauseDefinedPayload:
     is_a: EventPayload

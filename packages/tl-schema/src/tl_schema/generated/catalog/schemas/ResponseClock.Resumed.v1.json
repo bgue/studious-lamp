@@ -15,17 +15,24 @@
           "additionalProperties": true,
           "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
           "properties": {
-            "True": {
+            "day": {
               "description": "ISO date of the resume.",
               "type": "string"
             },
             "due_on": {
               "description": "The new due date.",
               "type": "string"
+            },
+            "reason": {
+              "description": "Why, when the date is before today.",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           "required": [
-            "True",
+            "day",
             "due_on"
           ],
           "title": "ResponseClockResumedPayload",

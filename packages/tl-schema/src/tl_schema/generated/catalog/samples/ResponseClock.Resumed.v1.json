@@ -3,8 +3,9 @@
     "data": {
       "changes": {},
       "detail": {
+        "day": "2026-10-23",
         "due_on": "2026-11-03",
-        "on": "2026-10-23"
+        "reason": null
       },
       "links": [],
       "origin": {
@@ -30,7 +31,8 @@
     "type": "tl.core.ResponseClock.Resumed.v1"
   },
   "payload": {
+    "day": "2026-10-23",
     "due_on": "2026-11-03",
-    "on": "2026-10-23"
+    "reason": null
   }
 }

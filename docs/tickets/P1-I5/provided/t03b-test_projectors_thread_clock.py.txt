@@ -124,14 +124,14 @@ def test_pause_and_resume_move_the_state_and_the_due_date(engine: Engine) -> Non
     events = Events()
     apply(engine, *started(events))
     apply(
-        engine, clock_event(events, "ResponseClock.Paused", {"on": "2026-10-20", "reason": "Wait"})
+        engine, clock_event(events, "ResponseClock.Paused", {"day": "2026-10-20", "reason": "Wait"})
     )
     (paused,) = table_rows(engine, CLOCK_TABLE)
     assert paused["state"] == "paused" and paused["paused_on"] == "2026-10-20"
     assert paused["pause_reason"] == "Wait" and paused["due_on"] == "2026-10-31"
     apply(
         engine,
-        clock_event(events, "ResponseClock.Resumed", {"on": "2026-10-23", "due_on": "2026-11-03"}),
+        clock_event(events, "ResponseClock.Resumed", {"day": "2026-10-23", "due_on": "2026-11-03"}),
     )
     (resumed,) = table_rows(engine, CLOCK_TABLE)
     assert resumed["state"] == "running" and resumed["due_on"] == "2026-11-03"
@@ -144,7 +144,7 @@ def test_a_restart_begins_again_and_forgets_the_warnings(engine: Engine) -> None
     apply(
         engine,
         clock_event(
-            events, "ResponseClock.Warned", {"on": "2026-10-24", "level": 7, "days_left": 7}
+            events, "ResponseClock.Warned", {"day": "2026-10-24", "level": 7, "days_left": 7}
         ),
     )
     (warned,) = table_rows(engine, CLOCK_TABLE)
@@ -167,7 +167,7 @@ def test_a_restart_reopens_a_clock_that_had_expired(engine: Engine) -> None:
     apply(engine, *started(events))
     apply(
         engine,
-        clock_event(events, "ResponseClock.Expired", {"on": "2026-11-01", "days_overdue": 1}),
+        clock_event(events, "ResponseClock.Expired", {"day": "2026-11-01", "days_overdue": 1}),
     )
     (expired,) = table_rows(engine, CLOCK_TABLE)
     assert expired["state"] == "expired"
@@ -187,7 +187,7 @@ def test_a_restart_reopens_a_clock_that_was_met(engine: Engine) -> None:
     events = Events()
     apply(engine, *started(events))
     apply(
-        engine, clock_event(events, "ResponseClock.Met", {"on": "2026-10-25", "response_id": "I9"})
+        engine, clock_event(events, "ResponseClock.Met", {"day": "2026-10-25", "response_id": "I9"})
     )
     apply(
         engine,
@@ -205,11 +205,11 @@ def test_met_and_cancelled_close_the_clock_with_a_date_and_a_reason(engine: Engi
     events = Events()
     apply(engine, *started(events))
     apply(
-        engine, clock_event(events, "ResponseClock.Paused", {"on": "2026-10-20", "reason": "Wait"})
+        engine, clock_event(events, "ResponseClock.Paused", {"day": "2026-10-20", "reason": "Wait"})
     )
     apply(
         engine,
-        clock_event(events, "ResponseClock.Met", {"on": "2026-10-25", "response_id": "ITEM9"}),
+        clock_event(events, "ResponseClock.Met", {"day": "2026-10-25", "response_id": "ITEM9"}),
     )
     (met,) = table_rows(engine, CLOCK_TABLE)
     assert met["state"] == "met" and met["closed_on"] == "2026-10-25"
@@ -221,7 +221,7 @@ def test_met_and_cancelled_close_the_clock_with_a_date_and_a_reason(engine: Engi
         engine,
         events.make(
             "ResponseClock.Cancelled",
-            {"on": "2026-10-26", "reason": "Withdrawn"},
+            {"day": "2026-10-26", "reason": "Withdrawn"},
             stream_id="CLK2",
             stream_type=CLOCK_TYPE,
         ),
@@ -238,7 +238,7 @@ def test_a_reason_given_with_met_wins_over_the_answering_item(engine: Engine) ->
         clock_event(
             events,
             "ResponseClock.Met",
-            {"on": "2026-10-25", "response_id": "ITEM9", "reason": "Answered by phone"},
+            {"day": "2026-10-25", "response_id": "ITEM9", "reason": "Answered by phone"},
         ),
     )
     (row,) = table_rows(engine, CLOCK_TABLE)
@@ -250,7 +250,7 @@ def test_expired_marks_a_running_clock_and_keeps_its_dates(engine: Engine) -> No
     apply(engine, *started(events))
     apply(
         engine,
-        clock_event(events, "ResponseClock.Expired", {"on": "2026-11-01", "days_overdue": 1}),
+        clock_event(events, "ResponseClock.Expired", {"day": "2026-11-01", "days_overdue": 1}),
     )
     (row,) = table_rows(engine, CLOCK_TABLE)
     assert row["state"] == "expired" and row["due_on"] == "2026-10-31" and row["closed_on"] is None
@@ -264,11 +264,11 @@ def test_the_same_events_give_the_same_rows_on_a_second_database(
         *thread_events(events),
         *started(events),
         clock_event(
-            events, "ResponseClock.Warned", {"on": "2026-10-24", "level": 7, "days_left": 7}
+            events, "ResponseClock.Warned", {"day": "2026-10-24", "level": 7, "days_left": 7}
         ),
-        clock_event(events, "ResponseClock.Paused", {"on": "2026-10-25", "reason": "Wait"}),
-        clock_event(events, "ResponseClock.Resumed", {"on": "2026-10-28", "due_on": "2026-11-03"}),
-        clock_event(events, "ResponseClock.Met", {"on": "2026-11-01"}),
+        clock_event(events, "ResponseClock.Paused", {"day": "2026-10-25", "reason": "Wait"}),
+        clock_event(events, "ResponseClock.Resumed", {"day": "2026-10-28", "due_on": "2026-11-03"}),
+        clock_event(events, "ResponseClock.Met", {"day": "2026-11-01"}),
     ]
     apply(engine, *journal)
     other = new_engine()

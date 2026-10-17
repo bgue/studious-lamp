@@ -60,7 +60,7 @@ class ClockProjector:
         #    item_number, label, kind, start_on, duration_days, day_type, calendar, due_on (all
         #    required keys), `warn_days_json` = `json_text(p.get("warn_days") or [])`, owner and
         #    clause_id (`p.get`), state 'running', restarts 0, last_seq.
-        # 3. CLOCK_PAUSED: UPDATE state 'paused', paused_on = `p["on"]`, pause_reason =
+        # 3. CLOCK_PAUSED: UPDATE state 'paused', paused_on = `p["day"]`, pause_reason =
         #    `p["reason"]`, last_seq.
         # 4. CLOCK_RESUMED: UPDATE state 'running', due_on = `p["due_on"]`, paused_on NULL,
         #    pause_reason NULL, last_seq.
@@ -68,9 +68,9 @@ class ClockProjector:
         #    `p["due_on"]`, paused_on NULL, pause_reason NULL, closed_on NULL, closed_reason NULL,
         #    warned_level NULL, restarts = restarts + 1, last_seq. (A restart reopens a clock that
         #    was met, cancelled or expired.)
-        # 6. CLOCK_MET: UPDATE state 'met', closed_on = `p["on"]`, closed_reason = `p.get("reason")
+        # 6. CLOCK_MET: UPDATE state 'met', closed_on = `p["day"]`, closed_reason = `p.get("reason")
         #    or p.get("response_id")`, paused_on NULL, pause_reason NULL, last_seq.
-        # 7. CLOCK_CANCELLED: UPDATE state 'cancelled', closed_on = `p["on"]`, closed_reason =
+        # 7. CLOCK_CANCELLED: UPDATE state 'cancelled', closed_on = `p["day"]`, closed_reason =
         #    `p["reason"]`, paused_on NULL, pause_reason NULL, last_seq. (Use one shared statement
         #    with a `:state` parameter for met and cancelled if you like.)
         # 8. CLOCK_WARNED: UPDATE warned_level = `p["level"]` and last_seq.

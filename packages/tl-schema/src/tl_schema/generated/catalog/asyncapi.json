@@ -728,7 +728,7 @@
           "$ref": "#/components/messages/ResponseClock.Warned"
         }
       },
-      "title": "The sweep found a running clock at or inside one of its warning thresholds."
+      "title": "The sweep found a running clock at or inside a warning threshold smaller than the last one raised."
     },
     "ReviewCycle.Closed": {
       "address": "ReviewCycle.Closed",
@@ -20966,7 +20966,7 @@
               "data": {
                 "changes": {},
                 "detail": {
-                  "on": "2026-10-25",
+                  "day": "2026-10-25",
                   "reason": "Withdrawn by the client"
                 },
                 "links": [],
@@ -21013,7 +21013,7 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
-                    "True": {
+                    "day": {
                       "description": "ISO date.",
                       "type": "string"
                     },
@@ -21023,7 +21023,7 @@
                     }
                   },
                   "required": [
-                    "True",
+                    "day",
                     "reason"
                   ],
                   "title": "ResponseClockCancelledPayload",
@@ -21219,8 +21219,8 @@
               "data": {
                 "changes": {},
                 "detail": {
-                  "days_overdue": 1,
-                  "on": "2026-11-01"
+                  "day": "2026-11-01",
+                  "days_overdue": 1
                 },
                 "links": [],
                 "origin": {
@@ -21266,7 +21266,7 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
-                    "True": {
+                    "day": {
                       "description": "ISO date of the sweep.",
                       "type": "string"
                     },
@@ -21276,7 +21276,7 @@
                     }
                   },
                   "required": [
-                    "True",
+                    "day",
                     "days_overdue"
                   ],
                   "title": "ResponseClockExpiredPayload",
@@ -21472,7 +21472,7 @@
               "data": {
                 "changes": {},
                 "detail": {
-                  "on": "2026-10-25",
+                  "day": "2026-10-25",
                   "reason": null,
                   "response_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"
                 },
@@ -21520,7 +21520,7 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
-                    "True": {
+                    "day": {
                       "description": "ISO date of the answer.",
                       "type": "string"
                     },
@@ -21540,7 +21540,7 @@
                     }
                   },
                   "required": [
-                    "True"
+                    "day"
                   ],
                   "title": "ResponseClockMetPayload",
                   "type": "object"
@@ -21735,7 +21735,7 @@
               "data": {
                 "changes": {},
                 "detail": {
-                  "on": "2026-10-20",
+                  "day": "2026-10-20",
                   "reason": "Waiting for the client to send the drawing"
                 },
                 "links": [],
@@ -21782,7 +21782,7 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
-                    "True": {
+                    "day": {
                       "description": "ISO date of the pause.",
                       "type": "string"
                     },
@@ -21792,7 +21792,7 @@
                     }
                   },
                   "required": [
-                    "True",
+                    "day",
                     "reason"
                   ],
                   "title": "ResponseClockPausedPayload",
@@ -22247,8 +22247,9 @@
               "data": {
                 "changes": {},
                 "detail": {
+                  "day": "2026-10-23",
                   "due_on": "2026-11-03",
-                  "on": "2026-10-23"
+                  "reason": null
                 },
                 "links": [],
                 "origin": {
@@ -22294,17 +22295,24 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
-                    "True": {
+                    "day": {
                       "description": "ISO date of the resume.",
                       "type": "string"
                     },
                     "due_on": {
                       "description": "The new due date.",
                       "type": "string"
+                    },
+                    "reason": {
+                      "description": "Why, when the date is before today.",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   },
                   "required": [
-                    "True",
+                    "day",
                     "due_on"
                   ],
                   "title": "ResponseClockResumedPayload",
@@ -22811,7 +22819,7 @@
       },
       "ResponseClock.Warned": {
         "contentType": "application/json",
-        "description": "The sweep found a running clock at or inside one of its warning thresholds. Recorded once per threshold.",
+        "description": "The sweep found a running clock at or inside a warning threshold smaller than the last one raised. The smallest crossed threshold is recorded.",
         "examples": [
           {
             "headers": {
@@ -22824,9 +22832,9 @@
               "data": {
                 "changes": {},
                 "detail": {
+                  "day": "2026-10-28",
                   "days_left": 3,
-                  "level": 3,
-                  "on": "2026-10-28"
+                  "level": 3
                 },
                 "links": [],
                 "origin": {
@@ -22872,7 +22880,7 @@
                   "additionalProperties": true,
                   "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
                   "properties": {
-                    "True": {
+                    "day": {
                       "description": "ISO date of the sweep.",
                       "type": "string"
                     },
@@ -22886,7 +22894,7 @@
                     }
                   },
                   "required": [
-                    "True",
+                    "day",
                     "level",
                     "days_left"
                   ],
@@ -23065,8 +23073,8 @@
           "title": "CloudEvent",
           "type": "object"
         },
-        "summary": "The sweep found a running clock at or inside one of its warning thresholds.",
-        "title": "The sweep found a running clock at or inside one of its warning thresholds."
+        "summary": "The sweep found a running clock at or inside a warning threshold smaller than the last one raised.",
+        "title": "The sweep found a running clock at or inside a warning threshold smaller than the last one raised."
       },
       "ReviewCycle.Closed": {
         "contentType": "application/json",
@@ -32408,7 +32416,7 @@
           "$ref": "#/channels/ResponseClock.Warned/messages/ResponseClock.Warned"
         }
       ],
-      "summary": "The sweep found a running clock at or inside one of its warning thresholds."
+      "summary": "The sweep found a running clock at or inside a warning threshold smaller than the last one raised."
     },
     "receiveReviewCycleClosed": {
       "action": "receive",

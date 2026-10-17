@@ -76,8 +76,8 @@ def test_a_clock_length_and_day_type_are_checked() -> None:
 def test_pause_stops_the_count_and_resume_moves_the_due_date(p123: cal.Calendar) -> None:
     facts = [
         started(p123),
-        fact("Paused", on="2026-10-20", reason="Waiting for a drawing"),
-        fact("Resumed", on="2026-10-23", due_on="2026-11-03"),
+        fact("Paused", day="2026-10-20", reason="Waiting for a drawing"),
+        fact("Resumed", day="2026-10-23", due_on="2026-11-03"),
     ]
     fig = ck.replay(facts[:2], p123)
     assert fig.state == "paused" and fig.remaining == 11 and fig.paused_on == d("2026-10-20")
@@ -90,8 +90,8 @@ def test_pause_stops_the_count_and_resume_moves_the_due_date(p123: cal.Calendar)
 def test_a_working_clock_does_not_count_the_weekend_of_a_pause(p123: cal.Calendar) -> None:
     facts = [
         started(p123, "2026-10-19", 5, "working"),  # due Mon 26th
-        fact("Paused", on="2026-10-21", reason="Wait"),  # two working days used
-        fact("Resumed", on="2026-10-26", due_on="2026-10-29"),  # three left, from Monday
+        fact("Paused", day="2026-10-21", reason="Wait"),  # two working days used
+        fact("Resumed", day="2026-10-26", due_on="2026-10-29"),  # three left, from Monday
     ]
     fig = ck.replay(facts, p123)
     assert fig.due_on == d("2026-10-29") and fig.remaining == 3
@@ -100,8 +100,8 @@ def test_a_working_clock_does_not_count_the_weekend_of_a_pause(p123: cal.Calenda
 def test_pausing_and_resuming_the_same_day_changes_nothing(p123: cal.Calendar) -> None:
     facts = [
         started(p123),
-        fact("Paused", on="2026-10-20", reason="x"),
-        fact("Resumed", on="2026-10-20", due_on="2026-10-31"),
+        fact("Paused", day="2026-10-20", reason="x"),
+        fact("Resumed", day="2026-10-20", due_on="2026-10-31"),
     ]
     assert ck.replay(facts, p123).due_on == d("2026-10-31")
 
@@ -109,10 +109,10 @@ def test_pausing_and_resuming_the_same_day_changes_nothing(p123: cal.Calendar) -
 def test_two_pauses_add_up(p123: cal.Calendar) -> None:
     facts = [
         started(p123),
-        fact("Paused", on="2026-10-19", reason="a"),  # 2 used, 12 left
-        fact("Resumed", on="2026-10-21", due_on="2026-11-02"),
-        fact("Paused", on="2026-10-24", reason="b"),  # 3 more used, 9 left
-        fact("Resumed", on="2026-10-30", due_on="2026-11-08"),
+        fact("Paused", day="2026-10-19", reason="a"),  # 2 used, 12 left
+        fact("Resumed", day="2026-10-21", due_on="2026-11-02"),
+        fact("Paused", day="2026-10-24", reason="b"),  # 3 more used, 9 left
+        fact("Resumed", day="2026-10-30", due_on="2026-11-08"),
     ]
     fig = ck.replay(facts, p123)
     assert fig.remaining == 9 and fig.due_on == d("2026-11-08")
@@ -123,7 +123,7 @@ def test_restart_counts_again_from_the_new_day_zero_and_forgets_warnings(
 ) -> None:
     facts = [
         started(p123),
-        fact("Warned", on="2026-10-24", level=7, days_left=7),
+        fact("Warned", day="2026-10-24", level=7, days_left=7),
         fact("Restarted", start_on="2026-10-27", due_on="2026-11-10", reason="Revised letter"),
     ]
     fig = ck.replay(facts, p123)
@@ -133,9 +133,9 @@ def test_restart_counts_again_from_the_new_day_zero_and_forgets_warnings(
 
 def test_restart_reopens_a_clock_that_was_met_cancelled_or_expired(p123: cal.Calendar) -> None:
     for closing in (
-        fact("Met", on="2026-10-20"),
-        fact("Cancelled", on="2026-10-20", reason="x"),
-        fact("Expired", on="2026-11-02", days_overdue=2),
+        fact("Met", day="2026-10-20"),
+        fact("Cancelled", day="2026-10-20", reason="x"),
+        fact("Expired", day="2026-11-02", days_overdue=2),
     ):
         facts = [
             started(p123),
@@ -149,15 +149,15 @@ def test_restart_reopens_a_clock_that_was_met_cancelled_or_expired(p123: cal.Cal
 def test_met_and_cancelled_close_the_clock_and_a_late_answer_still_meets_it(
     p123: cal.Calendar,
 ) -> None:
-    met = ck.replay([started(p123), fact("Met", on="2026-10-25")], p123)
+    met = ck.replay([started(p123), fact("Met", day="2026-10-25")], p123)
     assert met.state == "met" and met.closed_on == d("2026-10-25")
-    cancelled = ck.replay([started(p123), fact("Cancelled", on="2026-10-25", reason="x")], p123)
+    cancelled = ck.replay([started(p123), fact("Cancelled", day="2026-10-25", reason="x")], p123)
     assert cancelled.state == "cancelled"
     late = ck.replay(
         [
             started(p123),
-            fact("Expired", on="2026-11-02", days_overdue=2),
-            fact("Met", on="2026-11-05"),
+            fact("Expired", day="2026-11-02", days_overdue=2),
+            fact("Met", day="2026-11-05"),
         ],
         p123,
     )
@@ -165,20 +165,20 @@ def test_met_and_cancelled_close_the_clock_and_a_late_answer_still_meets_it(
 
 
 def test_warnings_must_be_new_smaller_thresholds_of_the_clock(p123: cal.Calendar) -> None:
-    two = [started(p123), fact("Warned", on="2026-10-24", level=7, days_left=7)]
+    two = [started(p123), fact("Warned", day="2026-10-24", level=7, days_left=7)]
     assert (
-        ck.replay([*two, fact("Warned", on="2026-10-28", level=3, days_left=3)], p123).warned_level
+        ck.replay([*two, fact("Warned", day="2026-10-28", level=3, days_left=3)], p123).warned_level
         == 3
     )
     for bad in (7, 5, 9):  # the same level again, a level the clock has not, a larger one
         with pytest.raises(ck.ClockReplayError):
-            ck.replay([*two, fact("Warned", on="2026-10-28", level=bad, days_left=1)], p123)
+            ck.replay([*two, fact("Warned", day="2026-10-28", level=bad, days_left=1)], p123)
 
 
 def test_expired_needs_a_date_after_the_due_date(p123: cal.Calendar) -> None:
     with pytest.raises(ck.ClockReplayError, match="not past"):
-        ck.replay([started(p123), fact("Expired", on="2026-10-31", days_overdue=0)], p123)
-    fig = ck.replay([started(p123), fact("Expired", on="2026-11-01", days_overdue=1)], p123)
+        ck.replay([started(p123), fact("Expired", day="2026-10-31", days_overdue=0)], p123)
+    fig = ck.replay([started(p123), fact("Expired", day="2026-11-01", days_overdue=1)], p123)
     assert fig.state == "expired" and fig.due_on == d("2026-10-31")
 
 
@@ -186,8 +186,8 @@ def test_expired_needs_a_date_after_the_due_date(p123: cal.Calendar) -> None:
     "events",
     [
         [],
-        [fact("Paused", on="2026-10-20", reason="x")],  # does not start with Started
-        [fact("Met", on="2026-10-20")],
+        [fact("Paused", day="2026-10-20", reason="x")],  # does not start with Started
+        [fact("Met", day="2026-10-20")],
     ],
 )
 def test_a_history_must_begin_with_started(p123: cal.Calendar, events: list[ck.Fact]) -> None:
@@ -196,17 +196,20 @@ def test_a_history_must_begin_with_started(p123: cal.Calendar, events: list[ck.F
 
 
 def test_events_that_do_not_fit_the_state_are_refused(p123: cal.Calendar) -> None:
-    paused = [started(p123), fact("Paused", on="2026-10-20", reason="x")]
-    met = [started(p123), fact("Met", on="2026-10-20")]
+    paused = [started(p123), fact("Paused", day="2026-10-20", reason="x")]
+    met = [started(p123), fact("Met", day="2026-10-20")]
     cases = [
-        [started(p123), fact("Resumed", on="2026-10-20", due_on="2026-10-31")],  # not paused
-        [*paused, fact("Paused", on="2026-10-21", reason="y")],  # already paused
-        [*paused, fact("Warned", on="2026-10-21", level=7, days_left=1)],  # warns only when running
-        [*paused, fact("Expired", on="2026-11-30", days_overdue=3)],
-        [*met, fact("Met", on="2026-10-21")],
-        [*met, fact("Cancelled", on="2026-10-21", reason="x")],
-        [*met, fact("Paused", on="2026-10-21", reason="x")],
-        [started(p123), fact("Mystery", on="2026-10-21")],
+        [started(p123), fact("Resumed", day="2026-10-20", due_on="2026-10-31")],  # not paused
+        [*paused, fact("Paused", day="2026-10-21", reason="y")],  # already paused
+        [
+            *paused,
+            fact("Warned", day="2026-10-21", level=7, days_left=1),
+        ],  # warns only when running
+        [*paused, fact("Expired", day="2026-11-30", days_overdue=3)],
+        [*met, fact("Met", day="2026-10-21")],
+        [*met, fact("Cancelled", day="2026-10-21", reason="x")],
+        [*met, fact("Paused", day="2026-10-21", reason="x")],
+        [started(p123), fact("Mystery", day="2026-10-21")],
         [started(p123), started(p123)],
     ]
     for events in cases:
@@ -216,13 +219,13 @@ def test_events_that_do_not_fit_the_state_are_refused(p123: cal.Calendar) -> Non
 
 def test_dates_never_move_backwards(p123: cal.Calendar) -> None:
     with pytest.raises(ck.ClockReplayError, match="before"):
-        ck.replay([started(p123), fact("Met", on="2026-10-10")], p123)
+        ck.replay([started(p123), fact("Met", day="2026-10-10")], p123)
     with pytest.raises(ck.ClockReplayError, match="before"):
         ck.replay(
             [
                 started(p123),
-                fact("Paused", on="2026-10-22", reason="x"),
-                fact("Resumed", on="2026-10-21", due_on="2026-10-30"),
+                fact("Paused", day="2026-10-22", reason="x"),
+                fact("Resumed", day="2026-10-21", due_on="2026-10-30"),
             ],
             p123,
         )
@@ -230,7 +233,7 @@ def test_dates_never_move_backwards(p123: cal.Calendar) -> None:
         ck.replay(
             [
                 started(p123),
-                fact("Met", on="2026-10-25"),
+                fact("Met", day="2026-10-25"),
                 fact("Restarted", start_on="2026-10-20", due_on="2026-11-03", reason="x"),
             ],
             p123,
@@ -244,8 +247,8 @@ def test_a_stored_due_date_that_the_engine_does_not_compute_is_refused(p123: cal
         ck.replay(
             [
                 started(p123),
-                fact("Paused", on="2026-10-20", reason="x"),
-                fact("Resumed", on="2026-10-23", due_on="2026-11-04"),
+                fact("Paused", day="2026-10-20", reason="x"),
+                fact("Resumed", day="2026-10-23", due_on="2026-11-04"),
             ],
             p123,
         )
@@ -300,7 +303,7 @@ def test_a_working_clock_that_runs_past_the_calendar_is_refused(p123: cal.Calend
 
 
 def test_too_many_events_are_refused_before_any_is_read(p123: cal.Calendar) -> None:
-    many = [started(p123)] + [fact("Warned", on="2026-10-24", level=7)] * MAX_CLOCK_EVENTS
+    many = [started(p123)] + [fact("Warned", day="2026-10-24", level=7)] * MAX_CLOCK_EVENTS
     with pytest.raises(ck.ClockReplayError, match="events"):
         ck.replay(many, p123)
 
@@ -316,9 +319,9 @@ def test_days_left_counts_down_to_zero_and_below(p123: cal.Calendar) -> None:
 
 
 def test_days_left_of_a_paused_or_closed_clock(p123: cal.Calendar) -> None:
-    paused = ck.replay([started(p123), fact("Paused", on="2026-10-20", reason="x")], p123)
+    paused = ck.replay([started(p123), fact("Paused", day="2026-10-20", reason="x")], p123)
     assert ck.days_left(p123, paused, d("2026-12-01")) == 11
-    met = ck.replay([started(p123), fact("Met", on="2026-10-20")], p123)
+    met = ck.replay([started(p123), fact("Met", day="2026-10-20")], p123)
     assert ck.days_left(p123, met, d("2026-12-01")) == 0
 
 
@@ -355,9 +358,9 @@ def test_the_warning_to_raise_is_the_smallest_new_threshold_crossed(
 
 
 def test_only_a_running_clock_warns(p123: cal.Calendar) -> None:
-    paused = ck.replay([started(p123), fact("Paused", on="2026-10-20", reason="x")], p123)
+    paused = ck.replay([started(p123), fact("Paused", day="2026-10-20", reason="x")], p123)
     assert ck.warning_to_raise(paused, 1) is None
-    met = ck.replay([started(p123), fact("Met", on="2026-10-20")], p123)
+    met = ck.replay([started(p123), fact("Met", day="2026-10-20")], p123)
     assert ck.warning_to_raise(met, 1) is None
 
 
@@ -379,10 +382,10 @@ def random_history(rng: random.Random, calendar: cal.Calendar) -> tuple[list[ck.
     for _ in range(rng.randint(0, 6)):
         on = fig.last_on + timedelta(days=rng.randint(0, 6))
         if fig.state == "running":
-            facts.append(fact("Paused", on=on.isoformat(), reason="r"))
+            facts.append(fact("Paused", day=on.isoformat(), reason="r"))
         elif fig.state == "paused":
             due = ck.resume_due(calendar, fig.remaining, on, fig.day_type)
-            facts.append(fact("Resumed", on=on.isoformat(), due_on=due.isoformat()))
+            facts.append(fact("Resumed", day=on.isoformat(), due_on=due.isoformat()))
         else:
             break
         fig = ck.replay(facts, calendar)

@@ -3,7 +3,7 @@
     "data": {
       "changes": {},
       "detail": {
-        "on": "2026-10-20",
+        "day": "2026-10-20",
         "reason": "Waiting for the client to send the drawing"
       },
       "links": [],
@@ -30,7 +30,7 @@
     "type": "tl.core.ResponseClock.Paused.v1"
   },
   "payload": {
-    "on": "2026-10-20",
+    "day": "2026-10-20",
     "reason": "Waiting for the client to send the drawing"
   }
 }

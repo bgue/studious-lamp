@@ -3,8 +3,8 @@
     "data": {
       "changes": {},
       "detail": {
-        "days_overdue": 1,
-        "on": "2026-11-01"
+        "day": "2026-11-01",
+        "days_overdue": 1
       },
       "links": [],
       "origin": {
@@ -30,7 +30,7 @@
     "type": "tl.core.ResponseClock.Expired.v1"
   },
   "payload": {
-    "days_overdue": 1,
-    "on": "2026-11-01"
+    "day": "2026-11-01",
+    "days_overdue": 1
   }
 }

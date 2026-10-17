@@ -726,7 +726,7 @@
       "payload_class": "ResponseClockWarnedPayload",
       "sample": "samples/ResponseClock.Warned.v1.json",
       "schema": "schemas/ResponseClock.Warned.v1.json",
-      "title": "The sweep found a running clock at or inside one of its warning thresholds.",
+      "title": "The sweep found a running clock at or inside a warning threshold smaller than the last one raised.",
       "version": 1
     },
     {

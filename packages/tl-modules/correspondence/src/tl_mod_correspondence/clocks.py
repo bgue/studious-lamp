@@ -246,7 +246,7 @@ def _step(fig: Figures, fact: Fact, calendar: Calendar) -> Figures:
         if et == CLOCK_PAUSED:
             if state not in (CLOCK_RUNNING, CLOCK_EXPIRED_STATE):
                 raise ClockReplayError(f"Paused while {state}")
-            on = _day(fact, "on", fig)
+            on = _day(fact, "day", fig)
             return _with(
                 fig,
                 state=CLOCK_PAUSED_STATE,
@@ -257,7 +257,7 @@ def _step(fig: Figures, fact: Fact, calendar: Calendar) -> Figures:
         if et == CLOCK_RESUMED:
             if state != CLOCK_PAUSED_STATE:
                 raise ClockReplayError(f"Resumed while {state}")
-            on = _day(fact, "on", fig)
+            on = _day(fact, "day", fig)
             due = resume_due(calendar, fig.remaining, on, fig.day_type)
             _same_due(p, due)
             return _with(
@@ -285,13 +285,13 @@ def _step(fig: Figures, fact: Fact, calendar: Calendar) -> Figures:
         if et in (CLOCK_MET, CLOCK_CANCELLED):
             if state in CLOSED_STATES:
                 raise ClockReplayError(f"{et} while {state}")
-            on = _day(fact, "on", fig)
+            on = _day(fact, "day", fig)
             closed = CLOCK_MET_STATE if et == CLOCK_MET else CLOCK_CANCELLED_STATE
             return _with(fig, state=closed, closed_on=on, paused_on=None, last_on=on)
         if et == CLOCK_WARNED:
             if state != CLOCK_RUNNING:
                 raise ClockReplayError(f"Warned while {state}")
-            on = _day(fact, "on", fig)
+            on = _day(fact, "day", fig)
             level = p["level"]
             if isinstance(level, bool) or not isinstance(level, int):
                 raise ValueError("level is a whole number of days")
@@ -303,7 +303,7 @@ def _step(fig: Figures, fact: Fact, calendar: Calendar) -> Figures:
         if et == CLOCK_EXPIRED:
             if state != CLOCK_RUNNING:
                 raise ClockReplayError(f"Expired while {state}")
-            on = _day(fact, "on", fig)
+            on = _day(fact, "day", fig)
             if on <= fig.due_on:
                 raise ClockReplayError(f"Expired on {on}, which is not past {fig.due_on}")
             return _with(fig, state=CLOCK_EXPIRED_STATE, last_on=on)

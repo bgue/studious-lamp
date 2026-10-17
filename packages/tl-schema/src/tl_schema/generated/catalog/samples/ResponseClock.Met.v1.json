@@ -3,7 +3,7 @@
     "data": {
       "changes": {},
       "detail": {
-        "on": "2026-10-25",
+        "day": "2026-10-25",
         "reason": null,
         "response_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"
       },
@@ -31,7 +31,7 @@
     "type": "tl.core.ResponseClock.Met.v1"
   },
   "payload": {
-    "on": "2026-10-25",
+    "day": "2026-10-25",
     "reason": null,
     "response_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"
   }

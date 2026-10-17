@@ -15,7 +15,7 @@
           "additionalProperties": true,
           "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
           "properties": {
-            "True": {
+            "day": {
               "description": "ISO date of the answer.",
               "type": "string"
             },
@@ -35,7 +35,7 @@
             }
           },
           "required": [
-            "True"
+            "day"
           ],
           "title": "ResponseClockMetPayload",
           "type": "object"

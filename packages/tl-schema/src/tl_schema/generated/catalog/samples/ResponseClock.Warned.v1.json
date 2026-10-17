@@ -3,9 +3,9 @@
     "data": {
       "changes": {},
       "detail": {
+        "day": "2026-10-28",
         "days_left": 3,
-        "level": 3,
-        "on": "2026-10-28"
+        "level": 3
       },
       "links": [],
       "origin": {
@@ -31,8 +31,8 @@
     "type": "tl.core.ResponseClock.Warned.v1"
   },
   "payload": {
+    "day": "2026-10-28",
     "days_left": 3,
-    "level": 3,
-    "on": "2026-10-28"
+    "level": 3
   }
 }
