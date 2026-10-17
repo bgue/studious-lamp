@@ -110,17 +110,22 @@ _TYPE_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]*\.[A-Za-z][A-Za-z0-9_]*")
 
 @dataclass(frozen=True)
 class ChildSource:
-    """Records whose class is their parent's (ADR-0016): a revision takes its document's.
+    """Records whose class is the class of a root record (ADR-0016): a revision takes its
+    document's.
 
-    ``record_types`` are the child record types, ``table`` their module table with the ``id_column``
-    and the ``parent_column`` that holds the parent record's id. A child is readable only when its
-    parent is; a child row with no parent id, or no row at all, is hidden.
+    ``record_types`` are the child record types, ``table`` their module table with the
+    ``id_column`` and the ``root_column`` that holds the root record's id. When the child hangs on
+    the root through another table (a processing job on a derived document on a document), give
+    ``hop`` as ``(table, key_column, root_column)``: ``root_column`` of the child then holds the key
+    of that table's row and the root id is the hop's ``root_column``. A child is readable only
+    when its root is; a child with no row, or no root, is hidden.
     """
 
     record_types: frozenset[str]
     table: str
     id_column: str
-    parent_column: str
+    root_column: str
+    hop: tuple[str, str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -148,7 +153,8 @@ class ConfidentialSource:
         names += [self.clearance_table] if self.clearance_table else []
         names += [self.clearance_record_column, self.clearance_account_column]
         for child in self.children:
-            names += [child.table, child.id_column, child.parent_column]
+            names += [child.table, child.id_column, child.root_column]
+            names += list(child.hop) if child.hop else []
         types = set(self.record_types)
         for child in self.children:
             types |= child.record_types
@@ -329,6 +335,11 @@ def require_generic(
     allowed in one state and refused in another. A core or extension type passes.
     """
     require_generic_command(record_type, command)
+    from tl_core import confidentiality  # avoid an import cycle
+    from tl_core.services.errors import RecordNotFoundError
+
+    if confidentiality.is_hidden(conn, record_id):  # a hidden record does not exist (ADR-0016)
+        raise RecordNotFoundError(f"no record {record_id!r}")
     for spec in load_modules():
         guard = spec.generic_guards.get((record_type, command))
         if guard is not None:

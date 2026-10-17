@@ -29,6 +29,7 @@ from typing import Any
 
 from sqlalchemy import Connection, text
 
+from tl_core import confidentiality
 from tl_core.auth.projector import ACCOUNT_STREAM_TYPE
 from tl_core.query.api import QuerySpec, count_query, parse
 from tl_core.query.ast import And, Compare
@@ -342,7 +343,21 @@ class Dispatcher:
             return False
         if not self._policy.allows(row, sub.owner):
             return False
-        body = self.render_body(uow, row, sub.payload_mode)
+        # The audience is the subscription's owner (ADR-0016, brief 18.3): a record the owner may
+        # not read is not delivered; a privileged or unknown class is never delivered; a
+        # restricted record goes out as `thin` only.
+        owner = confidentiality.viewer_for_actor(conn, sub.owner)
+        if confidentiality.is_hidden(conn, row.subject_id, owner) or confidentiality.is_hidden(
+            conn, row.subject_id, confidentiality.RESTRICTED_ONLY
+        ):
+            return False
+        requested = (
+            "thin"
+            if confidentiality.is_hidden(conn, row.subject_id, confidentiality.LOWEST)
+            else sub.payload_mode
+        )
+        with confidentiality.use_viewer(owner):
+            body = self.render_body(uow, row, requested)
         result = conn.execute(
             _INSERT_DELIVERY,
             {
@@ -383,7 +398,9 @@ class Dispatcher:
             }
         for link in conn.execute(_LINKS_SQL, {"id": row.subject_id}).mappings():
             found[(link["rel"], link["id"])] = dict(link)
-        return sorted(found.values(), key=lambda item: (item["rel"], item["id"] or ""))
+        hidden = confidentiality.hidden_among(conn, [i["id"] for i in found.values() if i["id"]])
+        shown = [item for item in found.values() if item["id"] not in hidden]  # ADR-0016
+        return sorted(shown, key=lambda item: (item["rel"], item["id"] or ""))
 
     @staticmethod
     def _read(conn: Connection, where: str, params: dict[str, Any], limit: int) -> list[OutboxRow]:

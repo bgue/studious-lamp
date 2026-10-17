@@ -119,26 +119,33 @@ def _allowed(source: ConfidentialSource, viewer: Viewer) -> str:
 def _source_hidden(source: ConfidentialSource, viewer: Viewer) -> str:
     return (
         f"SELECT r.id FROM cur_core_record r WHERE r.type IN ({_types(source.record_types)}) "
-        f"AND r.id NOT IN (SELECT s.{source.id_column} FROM {source.table} s "
-        f"WHERE {_allowed(source, viewer)})"
+        f"AND NOT EXISTS (SELECT 1 FROM {source.table} s WHERE s.{source.id_column} = r.id "
+        f"AND ({_allowed(source, viewer)}))"
     )
 
 
-def _child_hidden(child: ChildSource, parent_hidden: str) -> str:
+def _child_hidden(source: ConfidentialSource, child: ChildSource, viewer: Viewer) -> str:
+    """The children whose root is not readable. A flat join to the root: nesting one subquery
+    inside another per level overflows SQLite's parser stack."""
+    if child.hop is None:
+        via, root_key = "", f"ch.{child.root_column}"
+    else:
+        table, key, root = child.hop
+        via = f" JOIN {table} hop ON hop.{key} = ch.{child.root_column}"
+        root_key = f"hop.{root}"
     return (
         f"SELECT r.id FROM cur_core_record r WHERE r.type IN ({_types(child.record_types)}) "
-        f"AND r.id NOT IN (SELECT ch.{child.id_column} FROM {child.table} ch "
-        f"WHERE ch.{child.parent_column} NOT IN ({parent_hidden}))"
+        f"AND NOT EXISTS (SELECT 1 FROM {child.table} ch{via} "
+        f"JOIN {source.table} s ON s.{source.id_column} = {root_key} "
+        f"WHERE ch.{child.id_column} = r.id AND ({_allowed(source, viewer)}))"
     )
 
 
 def _source_parts(source: ConfidentialSource, viewer: Viewer) -> list[str]:
-    """The root's hidden records, then each child's. A child may hang on any record hidden before
-    it (a processing job on a derived document, which hangs on a document)."""
-    parts = [_source_hidden(source, viewer)]
-    for child in source.children:
-        parts.append(_child_hidden(child, " UNION ALL ".join(parts)))
-    return parts
+    """The root's hidden records, then each child's."""
+    return [_source_hidden(source, viewer)] + [
+        _child_hidden(source, child, viewer) for child in source.children
+    ]
 
 
 def hidden_sql(viewer: Viewer | None = None) -> str | None:
@@ -271,3 +278,23 @@ def filter_events(
     """
     hidden = hidden_event_streams(conn, [(e.stream_id, e.stream_type) for e in events], viewer)
     return [e for e in events if e.stream_id not in hidden] if hidden else list(events)
+
+
+def viewer_for_actor(conn: Connection, actor: str) -> Viewer:
+    """The viewer a named account is, read from the account projection (``LOWEST`` when it is not
+    an active person or simulated person). For deliveries made on someone's behalf, such as the
+    webhooks of a subscription: the audience is the owner, not the process that sends."""
+    from tl_core.auth.queries import find_account
+
+    if not actor.startswith("user:"):
+        return LOWEST
+    account = find_account(conn, username=actor[len("user:") :])
+    if account is None or account.status != "active" or account.kind == "agent":
+        return LOWEST
+    controller = "admin" in account.roles or "document_controller" in account.roles
+    return Viewer(actor=actor, level=1 if controller else 0, account=actor)
+
+
+#: The viewer that reads restricted records and can never be named: used to tell a restricted
+#: record from a privileged or unknown one.
+RESTRICTED_ONLY: Final = Viewer(actor="", level=1, account="")

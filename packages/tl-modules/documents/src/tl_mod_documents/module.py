@@ -109,7 +109,13 @@ CONFIDENTIAL = (
             ChildSource(
                 frozenset({DERIVED_DOCUMENT}), DERIVED_DOCUMENT_TABLE, "id", "source_document_id"
             ),
-            ChildSource(frozenset({PROCESSING_JOB}), PROCESSING_JOB_TABLE, "id", "derived_id"),
+            ChildSource(
+                frozenset({PROCESSING_JOB}),
+                PROCESSING_JOB_TABLE,
+                "id",
+                "derived_id",
+                hop=(DERIVED_DOCUMENT_TABLE, "id", "source_document_id"),
+            ),
         ),
     ),
 )

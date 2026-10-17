@@ -17,6 +17,7 @@ from typing import Any, Literal
 from pydantic import Field, field_validator
 from sqlalchemy import text
 
+from tl_core import confidentiality
 from tl_core.ledger import Event, NewEvent
 from tl_core.links.lifecycle import next_status
 from tl_core.links.provider import get_vocabulary
@@ -177,7 +178,7 @@ def _record(uow: UnitOfWork, record_id: str, *, allow_post: bool = False) -> Any
                 type=POST_RECORD_TYPE,
                 voided=bool(post.retracted),
             )
-    if row is None:
+    if row is None or confidentiality.is_hidden(uow.conn(), record_id):
         raise RecordNotFoundError(f"no record {record_id!r}")
     return row
 
