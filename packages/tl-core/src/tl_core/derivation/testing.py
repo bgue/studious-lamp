@@ -1,0 +1,123 @@
+"""Fake extractors for tests of the pipeline (P1-I3): never registered, never run in production.
+
+``FakeExtractor`` reads a small CSV (comma, first line is the header) deterministically, which is
+enough to drive the job runner, validation and publication before the real extractors exist and
+beside them afterwards. ``make_fake`` and ``make_wrong_name`` are the zero-argument callables an
+entry point names; tests build real ``EntryPoint`` objects that point at them.
+"""
+
+from __future__ import annotations
+
+import csv
+import io
+from collections.abc import Mapping
+from typing import Any, BinaryIO
+
+from tl_core.derivation.types import (
+    ColumnProfile,
+    ExtractionProblem,
+    ExtractionResult,
+    FileMetadata,
+    SourceFile,
+)
+
+
+class FakeExtractor:
+    """Reads ``.csv`` and ``.txt`` files as a table; anything else it does not accept."""
+
+    name = "fake"
+    version = "1"
+
+    def accepts(self, source: SourceFile) -> bool:
+        return source.filename.lower().endswith((".csv", ".txt"))
+
+    def extract(
+        self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
+    ) -> ExtractionResult:
+        raw = data.read()
+        meta = FileMetadata(
+            content_type=source.content_type, size=source.size, sha256=source.sha256
+        )
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            return ExtractionResult(
+                extractor=self.name,
+                extractor_version=self.version,
+                status="failed",
+                problems=[ExtractionProblem(code="not_utf8", message="the file is not UTF-8 text")],
+            )
+        records = list(csv.reader(io.StringIO(text), strict=False))
+        if not records:
+            return ExtractionResult(
+                extractor=self.name,
+                extractor_version=self.version,
+                status="failed",
+                problems=[ExtractionProblem(code="empty_file", message="the file has no rows")],
+            )
+        columns = [c.strip() for c in records[0]]
+        rows: list[dict[str, str | None]] = []
+        problems: list[ExtractionProblem] = []
+        for number, record in enumerate(records[1:], start=1):
+            if len(record) != len(columns):
+                problems.append(
+                    ExtractionProblem(
+                        code="ragged_row",
+                        message=f"row has {len(record)} cells, the header has {len(columns)}",
+                        row=number,
+                    )
+                )
+                continue
+            rows.append(dict(zip(columns, (c if c != "" else None for c in record), strict=True)))
+        profiles: list[ColumnProfile] = []
+        for column in columns:
+            values = [v for v in (r[column] for r in rows) if v is not None]
+            profiles.append(
+                ColumnProfile(
+                    name=column,
+                    non_empty=len(values),
+                    distinct=len(set(values)),
+                    max_length=max((len(v) for v in values), default=0),
+                    samples=values[:5],
+                )
+            )
+        return ExtractionResult(
+            extractor=self.name,
+            extractor_version=self.version,
+            status="ok",
+            metadata=meta,
+            columns=columns,
+            rows=rows,
+            profiles=profiles,
+            problems=problems,
+        )
+
+
+def make_fake() -> FakeExtractor:
+    return FakeExtractor()
+
+
+class _Second(FakeExtractor):
+    name = "second"
+
+
+def make_second() -> FakeExtractor:
+    """A second, differently named extractor, for tests of choosing between two."""
+    return _Second()
+
+
+class _Misnamed(FakeExtractor):
+    name = "not-the-entry-point-name"
+
+
+def make_wrong_name() -> FakeExtractor:
+    """An extractor whose ``name`` differs from the entry point that names it."""
+    return _Misnamed()
+
+
+def make_not_an_extractor() -> object:
+    return object()
+
+
+def make_that_raises() -> FakeExtractor:
+    raise RuntimeError("this plugin is broken")
