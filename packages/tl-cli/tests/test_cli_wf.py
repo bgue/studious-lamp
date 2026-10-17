@@ -99,20 +99,6 @@ def test_show_lists_guards_with_their_verdicts(env: dict[str, str]) -> None:
     assert "option reject -> Draft allowed" in lines
 
 
-def test_show_takes_roles(env: dict[str, str]) -> None:
-    key = create(env, "NCR")
-    other = create(env, "Support")
-    link(env, key, other)
-    for name in ("submit", "approve"):
-        assert wf(env, "transition", "--project", "P123", key, name).exit_code == 0
-    without = wf(env, "show", "--project", "P123", key).stdout
-    assert "option issue -> Issued blocked" in without
-    assert "guard roles FAILED needs one of the roles: manager" in without
-    with_role = wf(env, "show", "--project", "P123", key, "--role", "manager").stdout
-    assert "option issue -> Issued allowed" in with_role
-    assert "guard roles ok role manager held" in with_role
-
-
 def test_show_of_an_unknown_record_is_an_error(env: dict[str, str]) -> None:
     result = wf(env, "show", "--project", "P123", "NOPE-1")
     assert result.exit_code == 1
@@ -157,22 +143,6 @@ def test_a_missing_expected_link_blocks_the_transition_until_it_exists(
     assert allowed.exit_code == 0, allowed.output
     assert allowed.stdout.splitlines()[0] == f"transitioned {key} Review -> Approved"
     assert "status: Approved" in run(env, "record", "show", "--project", "P123", key).stdout
-
-
-def test_roles_come_from_the_option(env: dict[str, str]) -> None:
-    key = create(env, "NCR")
-    other = create(env, "Support")
-    link(env, key, other)
-    for name in ("submit", "approve"):
-        assert wf(env, "transition", "--project", "P123", key, name).exit_code == 0
-    refused = wf(env, "transition", "--project", "P123", key, "issue", "--role", "clerk")
-    assert refused.exit_code == 1
-    assert "guard roles FAILED needs one of the roles: manager" in refused.stderr
-    done = wf(
-        env, "transition", "--project", "P123", key, "issue", "--role", "clerk", "--role", "manager"
-    )
-    assert done.exit_code == 0, done.output
-    assert done.stdout.splitlines()[0] == f"transitioned {key} Approved -> Issued"
 
 
 def test_the_transition_is_in_the_event_tail(env: dict[str, str]) -> None:

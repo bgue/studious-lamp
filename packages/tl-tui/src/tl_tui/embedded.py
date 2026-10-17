@@ -92,6 +92,7 @@ from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView, get_view, list_views, view_at
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
+from tl_core.workflow.roles import workflow_roles
 from tl_mod_documents import reports as document_reports
 from tl_mod_documents import views as document_views
 from tl_mod_documents.derivation import views as derivation_views
@@ -544,13 +545,29 @@ class EmbeddedClient:
 
     # --- workflow -------------------------------------------------------------------------------
 
-    def workflow_status(self, record_id: str, *, roles: Sequence[str] = ()) -> WorkflowStatus:
+    def _workflow_roles(self, uow: UnitOfWork, actor: str) -> tuple[str, ...]:
+        """The workflow roles of this client's own active account, derived from the ledger.
+
+        Nothing the caller or a command says is used (ADR-0013, addendum P1-SEC1). The account is
+        looked up by this client's actor and must be the same character for character and active;
+        anything else (no such account, a disabled one, another actor in the command) holds no
+        roles, so every ``roles`` guard fails.
+        """
+        if actor != self.actor:
+            return ()
+        found = account_queries.find_account(uow.conn(), username=actor.partition(":")[2])
+        if found is None or account_queries.actor_of(found) != actor or found.status != "active":
+            return ()
+        return workflow_roles(found)
+
+    def workflow_status(self, record_id: str) -> WorkflowStatus:
         with self._uow(True) as uow:
-            return workflow_status(uow, record_id, roles=tuple(roles))
+            return workflow_status(uow, record_id, roles=self._workflow_roles(uow, self.actor))
 
     def transition(self, cmd: TransitionWorkflow) -> CommandResult:
         with self._uow(False) as uow:
-            return self.own_writes.note(handle_transition_workflow(uow, cmd))
+            roles = self._workflow_roles(uow, cmd.actor)
+            return self.own_writes.note(handle_transition_workflow(uow, cmd, roles=roles))
 
     # --- feed -----------------------------------------------------------------------------------
 

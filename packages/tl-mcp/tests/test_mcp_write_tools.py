@@ -12,8 +12,10 @@ from mcp_harness import ACTOR, SCOPE, McpHarness
 from mcp_types import CallToolResult
 from sqlalchemy import text
 from tl_api.auth import Forbidden
+from tl_core.auth.types import Principal
 from tl_core.proposals.types import ProposalView
 from tl_core.services import proposals
+from tl_core.workflow.roles import workflow_roles
 from tl_mcp.main import main
 from tl_mcp.modes import HUMAN_GATE_MESSAGE, ToolModeError, resolve_tool_modes
 from tl_mcp.server import build_server
@@ -131,10 +133,69 @@ def test_transition_workflow_proposes_and_a_person_accepts(env: McpHarness) -> N
     rid = env.create_record("P123-REC-0001").stream_id
     out = env.structured("transition_workflow", record=rid, transition="submit")
     assert out["proposal"]["command"]["transition"] == "submit"
-    assert out["proposal"]["command"]["actor_roles"] == []
+    assert "actor_roles" not in out["proposal"]["command"]  # an agent holds and sends no roles
     assert accept(env, out["proposal"]["proposal_id"]).status == "accepted"
     (moved,) = events(env, "Workflow.Transitioned")
     assert (moved.actor, moved.source) == (ALICE, "mcp:triage")
+
+
+def approved_record(env: McpHarness) -> str:
+    """A record in `Approved` (the fixture workflow's `issue` needs the document controller)."""
+    rid = env.create_record("P123-REC-0001").stream_id
+    env.link(rid, env.create_record("P123-REC-0002").stream_id, "references")
+    for name in ("submit", "approve"):
+        out = env.structured("transition_workflow", record=rid, transition=name)
+        assert accept(env, out["proposal"]["proposal_id"]).status == "accepted"
+    return rid
+
+
+def controller() -> Principal:
+    return Principal(
+        actor="user:dora", account_id="a-dora", kind="person",
+        roles=["user", "document_controller"], via="session",
+    )  # fmt: skip
+
+
+def test_the_transition_tool_takes_no_roles_and_an_agent_cannot_claim_any(
+    env: McpHarness,
+) -> None:
+    tools = {t.name: t for t in asyncio.run(env.server.list_tools())}
+    names = set(tools["transition_workflow"].input_schema["properties"])
+    assert not {n for n in names if "role" in n}, names
+    rid = approved_record(env)
+    for claim in ({"actor_roles": ["document_controller"]}, {"roles": ["admin"]}):
+        try:
+            out = env.structured("transition_workflow", record=rid, transition="issue", **claim)
+        except ToolError:
+            continue  # refused outright: also fine
+        assert "roles" not in str(out["proposal"]["command"])
+
+
+def test_a_role_guarded_proposal_runs_with_the_roles_of_the_person_who_accepts(
+    env: McpHarness,
+) -> None:
+    """MCP never carries roles: the accepting person's derived roles (workflow_roles) apply."""
+    rid = approved_record(env)
+    first = env.structured("transition_workflow", record=rid, transition="issue")["proposal"]
+    assert "roles" not in str(first["command"])  # the agent's proposal passes: a role guard alone
+    plain = accept(env, first["proposal_id"])  # alice, a user: derived roles are `user` only
+    assert plain.status == "failed" and (plain.reason or "").startswith("GuardFailedError")
+    second = env.structured("transition_workflow", record=rid, transition="issue")["proposal"]
+    done = proposals.accept_or_fail(
+        env.factory,
+        proposal_id=second["proposal_id"],
+        by="user:dora",
+        roles=workflow_roles(controller()),
+    )
+    assert done.status == "accepted"
+    assert events(env, "Workflow.Transitioned")[-1].payload["to_state"] == "Issued"
+
+
+def test_an_agent_account_derives_no_workflow_roles() -> None:
+    agent = Principal(
+        actor=ACTOR, account_id="a-bot", kind="agent", roles=["user"], via="agent_token"
+    )
+    assert workflow_roles(agent) == ()
 
 
 def test_the_handlers_own_refusals_come_back_to_the_agent(env: McpHarness) -> None:

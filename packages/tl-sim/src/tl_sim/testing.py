@@ -30,7 +30,9 @@ WORKFLOW: dict[str, tuple[tuple[str, ...], str]] = {
     "issue": (("Approved",), "Issued"),
     "reject": (("Review", "Approved"), "Draft"),
 }
-ROLE_GUARDED = {"issue": "manager"}
+# The fixture's `issue` needs the document controller role. A simulated person (a dev token) holds
+# `user` only, so only a fake client built with that role passes it.
+ROLE_GUARDED = {"issue": "document_controller"}
 
 
 class FakeWorld:

@@ -133,12 +133,12 @@ class LinksApi(ApiClientBase):
     def retract_link(self, cmd: RetractLink) -> CommandResult:
         return self._command("RetractLink", cmd)
 
-    def workflow_status(self, record_id: str, *, roles: Sequence[str] = ()) -> WorkflowStatus:
-        """State, state-entered time and every transition with its guard results."""
-        data = self._get_json(
-            f"/records/{quote(record_id)}/workflow",
-            {"role": list(roles)},
-        )
+    def workflow_status(self, record_id: str) -> WorkflowStatus:
+        """State, state-entered time and every transition with its guard results.
+
+        The role guards are judged for the signed-in account; the client sends no roles.
+        """
+        data = self._get_json(f"/records/{quote(record_id)}/workflow")
         return self._model(WorkflowStatus, data)
 
     def transition(self, cmd: TransitionWorkflow) -> CommandResult:

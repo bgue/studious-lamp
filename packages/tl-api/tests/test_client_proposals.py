@@ -106,7 +106,9 @@ def test_a_command_that_cannot_be_applied_comes_back_failed_not_raised(harness: 
     assert done.decided_by == ALICE and done.result_stream_id is None
 
 
-def test_accept_sends_the_roles(harness: Harness, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_accept_runs_with_the_roles_of_the_callers_account(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
     seen: list[list[str]] = []
     real = proposals.accept_or_fail
 
@@ -117,9 +119,9 @@ def test_accept_sends_the_roles(harness: Harness, monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(proposals, "accept_or_fail", spy)
     api = harness.api()
     first, second = propose_create(harness), propose_create(harness, "P123-REC-0043")
-    assert api.accept_proposal(first.proposal_id, roles=["manager", "admin"]).status == "accepted"
+    assert api.accept_proposal(first.proposal_id).status == "accepted"
     assert api.accept_proposal(second.proposal_id).status == "accepted"
-    assert seen == [["manager", "admin"], []]
+    assert seen == [["user"], ["user"]]  # a dev token is a `user`; the client sent no roles
 
 
 def test_reject_records_the_reason(harness: Harness) -> None:

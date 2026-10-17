@@ -11,8 +11,10 @@ Compensation does not trust them in any case: it reverses the ids a publication 
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from tl_core.services.commands import Command
-from tl_core.services.errors import ReservedIdentifierError
+from tl_core.services.errors import ReservedIdentifierError, RoleClaimError
 
 DERIVE_CORRELATION_PREFIX = "derive:"
 RESERVED_SOURCE_PREFIXES = ("import:derived-", "compensation:")
@@ -39,3 +41,21 @@ def refuse_reserved(cmd: Command) -> None:
     refuse_reserved_fields(
         source=cmd.source, correlation_id=cmd.correlation_id, causation_id=cmd.causation_id
     )
+
+
+#: The fixed refusal of a client that names workflow roles (ADR-0013, addendum P1-SEC1). It never
+#: repeats what the client sent.
+ROLE_CLAIM_MESSAGE = (
+    "workflow roles cannot be claimed; the server derives them from the signed-in account"
+)
+#: The body key of a claim of workflow roles in a command body. (The accept-proposal body also
+#: refuses ``roles``, its old field.)
+CLAIMED_ROLE_FIELDS = frozenset({"actor_roles"})
+
+
+def refuse_role_claim(
+    body: Mapping[str, object], fields: frozenset[str] = CLAIMED_ROLE_FIELDS
+) -> None:
+    """Raise ``RoleClaimError`` when a client body names workflow roles (any of ``fields``)."""
+    if not fields.isdisjoint(body):
+        raise RoleClaimError(ROLE_CLAIM_MESSAGE)

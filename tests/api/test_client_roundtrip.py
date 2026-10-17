@@ -115,7 +115,6 @@ def test_reads_equal_the_embedded_answers(pair: Pair) -> None:
         "relations": lambda c: c.relations(),
         "default_relation": lambda c: c.default_relation("core.Record", "core.Record"),
         "workflow_status": lambda c: c.workflow_status(sid),
-        "workflow_status_roles": lambda c: c.workflow_status(sid, roles=["manager"]),
     }
     for name, call in checks.items():
         assert plain(call(r)) == plain(call(e)), name

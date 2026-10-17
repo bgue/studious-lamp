@@ -26,8 +26,9 @@ context manager that yields an entered unit of work.
 
 Not a permission model (human gate, ADR-0005): the only rule here is the meaning of "accept". An
 ``agent:<id>`` never accepts, rejects or fails a proposal, and an agent cannot claim workflow roles
-(``TransitionWorkflow.actor_roles`` is trusted input, so a proposal carries none; the accepting
-person supplies them).
+(a ``TransitionWorkflow`` has no roles field: the accepting person's roles are an argument of
+``accept_proposal``, derived by the entry point from the authenticated account,
+``tl_core.workflow.roles.workflow_roles``).
 """
 
 from __future__ import annotations
@@ -316,10 +317,6 @@ def _check_proposal(tool: str, agent: str, command: Command, summary: str) -> st
     clean = summary.strip()
     if not clean or len(clean) > MAX_SUMMARY:
         raise InvalidProposalError(f"summary must be 1 to {MAX_SUMMARY} characters")
-    if isinstance(command, TransitionWorkflow) and command.actor_roles:
-        raise InvalidProposalError(
-            "an agent cannot claim workflow roles; the person who accepts supplies them"
-        )
     if isinstance(command, ChangeSetting) and command.accept_risk:
         raise InvalidProposalError(
             "an agent cannot accept a risk; the person who accepts the proposal decides"
@@ -524,11 +521,13 @@ def accept_proposal(
     ``by`` must be a person (``ProposalDeciderError``); the proposal must be pending
     (``ProposalNotPendingError``). The command runs with ``actor`` = ``by``, ``source`` =
     ``mcp:<agent>``, ``causation_id`` = the ``Proposal.Created`` event and ``correlation_id`` = the
-    proposal id. ``roles`` are the workflow roles ``by`` holds, used by a transition (a stub until
-    auth exists, brief 8). ``accept_risk`` is the person's "I accept the risk" for a setting change
-    on a ``dangerous`` key (the stored command never carries it). If the command is refused its
-    error propagates and the caller's block rolls back; callers use :func:`accept_or_fail`, which
-    then records ``Proposal.Failed``. ``source`` labels the decision event (``cli``, ``api``).
+    proposal id. ``roles`` are the workflow roles ``by`` holds, used by a transition: the caller
+    derives them from the authenticated account (``tl_core.workflow.roles.workflow_roles``), never
+    from what the person typed, and a stored command carries none. ``accept_risk`` is the person's
+    "I accept the risk" for a setting change on a ``dangerous`` key (the stored command never
+    carries it). If the command is refused its error propagates and the caller's block rolls back;
+    callers use :func:`accept_or_fail`, which then records ``Proposal.Failed``. ``source`` labels
+    the decision event (``cli``, ``api``).
 
     ``holds(level)`` tells whether ``by`` holds the ``controller`` or ``admin`` access a command may
     need (ADR-0014): the command runs as ``by`` and gets no more rights through a proposal than
@@ -546,11 +545,14 @@ def accept_proposal(
         correlation_id=proposal_id,
         causation_id=row.created_event_id,
     )
-    if model is TransitionWorkflow:
-        data["actor_roles"] = list(roles)
+    data.pop("actor_roles", None)  # a stored command never carries roles; none is honoured
     if model is ChangeSetting:
         data["accept_risk"] = accept_risk
-    result = handler(uow, model.model_validate(data))
+    command = model.model_validate(data)
+    if isinstance(command, TransitionWorkflow):
+        result = handle_transition_workflow(uow, command, roles=roles)
+    else:
+        result = handler(uow, command)
     _decide(
         uow,
         row,
