@@ -76,8 +76,8 @@ def test_an_encrypted_pdf_is_a_failed_result() -> None:
 
 def test_a_damaged_pdf_a_non_pdf_and_another_format_are_failed_results() -> None:
     for data, code in (
-        (make_pdf(pages=3)[:100], "broken_pdf"),
-        (b"%PDF-1.4\n" + b"\x00\xff" * 100, "broken_pdf"),
+        (make_pdf(pages=3)[:100], "damaged_pdf"),
+        (b"%PDF-1.4\n" + b"\x00\xff" * 100, "damaged_pdf"),
         (b"just text", "not_pdf"),
         (make_png(), "not_pdf"),
         (b"", "not_pdf"),
@@ -98,3 +98,9 @@ def test_the_same_bytes_give_the_same_result_and_it_survives_json() -> None:
     first, second = pdf_run(data), pdf_run(data)
     assert first == second
     assert ExtractionResult.model_validate_json(first.model_dump_json()) == first
+
+
+def test_the_pdf_extractor_takes_no_options() -> None:
+    data = make_pdf()
+    result = run(EXTRACTOR, "a.pdf", PDF, data, {"pages": "all"})
+    assert result.status == "failed" and [p.code for p in result.problems] == ["unknown_option"]

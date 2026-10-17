@@ -180,8 +180,9 @@ def test_blank_records_do_not_count_toward_the_row_limit() -> None:
 
 def test_too_many_cells_is_refused_while_reading(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(reading, "MAX_CELLS", 20)
-    assert len(read("A,B\n" + "1,2\n" * 9)) == 10  # 20 cells
-    assert refusal(("A,B\n" + "1,2\n" * 10).encode()).code == "too_many_cells"
+    # MAX_CELLS counts data cells, as the contract's does: the header is free
+    assert len(read("A,B\n" + "1,2\n" * 10)) == 11  # 20 data cells
+    assert refusal(("A,B\n" + "1,2\n" * 11).encode()).code == "too_many_cells"
 
 
 def test_too_much_text_is_refused_while_reading(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -206,3 +207,16 @@ def test_the_source_is_not_changed_by_reading() -> None:
     before = bytes(raw)
     read_csv(bytes(raw), OPTIONS)
     assert bytes(raw) == before
+
+
+def test_a_title_block_above_the_header_does_not_use_up_the_cell_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(reading, "MAX_CELLS", 4)
+    title_block = "t1,t2,t3,t4,t5,t6\n" * 3
+    assert len(read(title_block + "A,B\n1,2\n3,4\n", header_row=4)) == 6
+
+
+def test_a_unicode_error_in_the_middle_of_a_long_file_is_refused() -> None:
+    raw = b"A\n" + b"ok\n" * 10_000 + b"caf\xe9\n"
+    assert refusal(raw).code == "not_utf8"

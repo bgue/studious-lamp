@@ -94,7 +94,7 @@ def test_an_encrypted_pdf_is_refused_without_a_password_attempt() -> None:
 )
 def test_a_damaged_pdf_is_refused_with_fixed_text(raw: bytes) -> None:
     error = refusal(raw)
-    assert error.code == "broken_pdf"
+    assert error.code == "damaged_pdf"
     assert error.message == "the PDF is damaged and cannot be read"
 
 
@@ -103,7 +103,7 @@ def test_a_page_tree_that_points_at_itself_does_not_hang_or_raise() -> None:
     try:
         info = read_pdf_info(raw)
     except Refusal as caught:
-        assert caught.code == "broken_pdf"
+        assert caught.code == "damaged_pdf"
     else:
         assert info.page_count is None or info.page_count >= 0
 
@@ -122,8 +122,8 @@ def test_a_pdf_with_flipped_bytes_is_read_or_refused_never_an_exception() -> Non
             outcomes.add("read")
         except Refusal as caught:
             outcomes.add(caught.code)
-    assert outcomes <= {"read", "broken_pdf", "not_pdf", "encrypted_pdf"}
-    assert "read" in outcomes and "broken_pdf" in outcomes
+    assert outcomes <= {"read", "damaged_pdf", "not_pdf", "encrypted_pdf"}
+    assert "read" in outcomes and "damaged_pdf" in outcomes
 
 
 def test_pypdfs_log_records_do_not_reach_pythons_last_resort_handler() -> None:

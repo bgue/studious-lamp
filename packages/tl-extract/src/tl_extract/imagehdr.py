@@ -19,6 +19,10 @@ ImageFormat = Literal["png", "jpeg", "tiff"]
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 MAX_PNG_CHUNKS = 200
 MAX_JPEG_SEGMENTS = 500
+#: Fill bytes (0xFF) a JPEG may put before a marker; the standard allows any number, files have 0-3.
+MAX_JPEG_FILL = 64
+#: The most a size may be (PNG's own limit, 2**31 - 1); TIFF stores 32 bits.
+MAX_DIMENSION = 0x7FFFFFFF
 MAX_TIFF_ENTRIES = 512
 MAX_TIFF_TEXT = 4096
 
@@ -100,10 +104,11 @@ def _jpeg(raw: bytes) -> ImageInfo:
     for _ in range(MAX_JPEG_SEGMENTS):
         if pos >= len(raw) or raw[pos] != 0xFF:
             break
-        while pos < len(raw) and raw[pos] == 0xFF:
+        fill_end = min(len(raw), pos + MAX_JPEG_FILL + 1)
+        while pos < fill_end and raw[pos] == 0xFF:
             pos += 1
-        if pos >= len(raw):
-            break
+        if pos >= len(raw) or raw[pos] == 0xFF:
+            break  # no marker byte, or more than MAX_JPEG_FILL fill bytes
         marker = raw[pos]
         pos += 1
         if marker == 0x00:
@@ -166,8 +171,8 @@ def _tiff(raw: bytes) -> ImageInfo:
             text = clean_metadata_text(data.split(b"\x00", 1)[0].decode("latin-1"))
             if text is not None:
                 texts[tag] = text
-    if not width or not height:
-        raise Refusal("broken_image", "the TIFF has no width and height")
+    if not width or not height or width > MAX_DIMENSION or height > MAX_DIMENSION:
+        raise Refusal("broken_image", "the TIFF has no width and height, or one is out of range")
     modified: str | None = None
     stamp = texts.get(306)
     if (

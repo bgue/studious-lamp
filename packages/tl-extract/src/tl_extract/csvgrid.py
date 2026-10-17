@@ -4,6 +4,9 @@ Safe against hostile input in the ways that matter for text: the encoding is che
 longer than any legitimate record can be, a cell over the csv module's field limit is a refusal,
 a quote that is never closed is a refusal (``strict=True``, L-P1-I1-2), and the number of cells and
 characters is counted as the file is read (``CellBudget``).
+
+The file is decoded and parsed as a stream (``io.TextIOWrapper`` over the bytes, lines read with a
+size limit), so the cost is the records kept plus one line, not a decoded copy of the whole file.
 """
 
 from __future__ import annotations
@@ -42,18 +45,37 @@ def decode_text(raw: bytes) -> str:
         raise Refusal("not_utf8", NOT_UTF8) from exc
 
 
-def _lines(text: str) -> Iterator[str]:
-    for line in io.StringIO(text, newline=""):
-        if len(line) > MAX_LINE_CHARS:
-            raise Refusal(
-                "record_too_long",
-                "a line of the file is far longer than a row can be",
-            )
-        yield line
+def _open(source: str | bytes) -> io.TextIOBase:
+    if isinstance(source, str):
+        return io.StringIO(source, newline="")
+    encoding = "utf-16" if source.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8-sig"
+    return io.TextIOWrapper(io.BytesIO(source), encoding=encoding, newline="")
 
 
-def _records(text: str, delimiter: str) -> Iterator[list[str]]:
-    reader = csv.reader(_lines(text), delimiter=delimiter, strict=True)
+def _lines(source: str | bytes) -> Iterator[str]:
+    """The lines of the text, each read with a size limit so that a line without an end (a file of
+    50 MiB of commas) is refused before it is held in memory."""
+    stream = _open(source)
+    try:
+        while True:
+            try:
+                line = stream.readline(MAX_LINE_CHARS + 1)
+            except UnicodeDecodeError as exc:
+                raise Refusal("not_utf8", NOT_UTF8) from exc
+            if not line:
+                return
+            if len(line) > MAX_LINE_CHARS:
+                raise Refusal(
+                    "record_too_long",
+                    "a line of the file is far longer than a row can be",
+                )
+            yield line
+    finally:
+        stream.close()
+
+
+def _records(source: str | bytes, delimiter: str) -> Iterator[list[str]]:
+    reader = csv.reader(_lines(source), delimiter=delimiter, strict=True)
     while True:
         try:
             record = next(reader)
@@ -72,14 +94,14 @@ def _records(text: str, delimiter: str) -> Iterator[list[str]]:
         yield record
 
 
-def detect_delimiter(text: str, header_row: int) -> str:
+def detect_delimiter(source: str | bytes, header_row: int) -> str:
     """The candidate delimiter that splits the header record into the most cells; a comma when
     none splits it. Ties go to the earlier candidate (comma, semicolon, tab, bar)."""
     best = ","
     best_count = 1
     for candidate in DELIMITER_CANDIDATES:
         try:
-            record = next(islice(_records(text, candidate), header_row - 1, None), [])
+            record = next(islice(_records(source, candidate), header_row - 1, None), [])
         except Refusal:
             continue
         if len(record) > best_count:
@@ -98,8 +120,7 @@ def read_csv(raw: bytes, options: TableOptions) -> RawGrid:
     Raises ``Refusal`` with the code ``not_utf8``, ``record_too_long``, ``cell_too_long``,
     ``malformed_csv``, ``too_many_rows``, ``too_many_cells`` or ``too_much_text``.
     """
-    text = decode_text(raw)
-    delimiter = options.delimiter or detect_delimiter(text, options.header_row)
+    delimiter = options.delimiter or detect_delimiter(raw, options.header_row)
     notes: list[str] = []
     if options.delimiter is None and delimiter != ",":
         notes.append(DELIMITER_NOTE.format(name=DELIMITER_NAMES[delimiter]))
@@ -107,12 +128,12 @@ def read_csv(raw: bytes, options: TableOptions) -> RawGrid:
     rows: list[list[Cell]] = []
     skipped = 0
     kept = 0
-    for index, record in enumerate(_records(text, delimiter), start=1):
+    for index, record in enumerate(_records(raw, delimiter), start=1):
         cells = [_cell(value) for value in record]
         while cells and not (cells[-1] or "").strip():
             cells.pop()
         del cells[MAX_COLUMNS + 1 :]
-        budget.take(cells)
+        budget.take(cells, count_cells=index > options.header_row)
         if index <= options.header_row:
             rows.append(cells)
             continue

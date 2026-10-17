@@ -13,8 +13,9 @@ from typing import Any, BinaryIO
 from tl_core.derivation import ExtractionResult, SourceFile
 
 from tl_extract.kinds import file_kind
+from tl_extract.options import reject_options
 from tl_extract.pdfinfo import read_pdf_info
-from tl_extract.reading import STUBBED_NOTE, metadata_for, read_exact, run_guarded
+from tl_extract.reading import STUBBED_NOTE, metadata_for, problem, read_exact, run_guarded
 
 
 class PdfExtractor:
@@ -28,10 +29,12 @@ class PdfExtractor:
         self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
     ) -> ExtractionResult:
         def body() -> ExtractionResult:
+            reject_options(options)
             info = read_pdf_info(read_exact(source, data))
             notes = [STUBBED_NOTE.format(what="no text, table or image of the PDF was read")]
             if info.page_count is None:
                 notes.append("the page count could not be read")
+            problems = [problem(code, message) for code, message in info.problems]
             return ExtractionResult(
                 extractor=self.name,
                 extractor_version=self.version,
@@ -45,6 +48,7 @@ class PdfExtractor:
                     modified=info.modified,
                     producer=info.producer,
                 ),
+                problems=problems,
                 notes=notes,
             )
 

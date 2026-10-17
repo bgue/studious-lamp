@@ -112,3 +112,8 @@ def test_the_same_bytes_give_the_same_result_and_it_survives_json() -> None:
     first, second = (image_run("a.tif", "image/tiff", data) for _ in range(2))
     assert first == second
     assert ExtractionResult.model_validate_json(first.model_dump_json()) == first
+
+
+def test_the_image_extractor_takes_no_options() -> None:
+    result = run(EXTRACTOR, "a.png", "image/png", make_png(), {"language": "en"})
+    assert result.status == "failed" and [p.code for p in result.problems] == ["unknown_option"]

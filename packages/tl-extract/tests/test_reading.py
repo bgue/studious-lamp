@@ -8,7 +8,7 @@ import pytest
 from extractsupport import source_for
 from tl_core.derivation import MAX_SOURCE_BYTES
 from tl_extract.kinds import extension_of, file_kind
-from tl_extract.options import TableOptions, parse_options
+from tl_extract.options import TableOptions, parse_options, reject_options
 from tl_extract.reading import (
     MAX_MESSAGE_CHARS,
     CellBudget,
@@ -72,7 +72,6 @@ def test_options_default_and_valid() -> None:
 @pytest.mark.parametrize(
     "options",
     [
-        {"shet": "Index"},
         {"header_row": 0},
         {"header_row": 1001},
         {"header_row": "2"},
@@ -190,3 +189,36 @@ def test_the_cell_budget_refuses_past_its_limits() -> None:
     with pytest.raises(Refusal) as caught2:
         CellBudget(chars=64 * 1024 * 1024).take(["a"])
     assert caught2.value.code == "too_much_text"
+
+
+def test_a_key_that_is_not_an_option_is_unknown_and_named() -> None:
+    with pytest.raises(Refusal) as caught:
+        parse_options({"shet": "Index"})
+    assert (caught.value.code, caught.value.message) == ("unknown_option", "unknown option: shet")
+    with pytest.raises(Refusal) as caught2:
+        parse_options({"header_row": 2, "bad\x00key": 1})
+    assert caught2.value.code == "unknown_option" and "\x00" not in caught2.value.message
+
+
+def test_an_extractor_without_options_refuses_any() -> None:
+    reject_options({})
+    with pytest.raises(Refusal) as caught:
+        reject_options({"header_row": 1})
+    assert caught.value.code == "unknown_option"
+
+
+def test_two_header_map_keys_for_one_header_naming_different_columns_collide() -> None:
+    with pytest.raises(Refusal) as caught:
+        parse_options({"header_map": {"Tag No.": "a", "TAG_NO": "b"}})
+    assert caught.value.code == "duplicate_header"
+    assert parse_options({"header_map": {"Tag No.": "a", "TAG_NO": "a"}}).header_map
+
+
+def test_huge_text_costs_no_more_than_a_short_one() -> None:
+    import time
+
+    started = time.monotonic()
+    assert clean_metadata_text("t" * 20_000_000) == "t" * 1000
+    assert clean_metadata_text("\x00" * 20_000_000) is None
+    assert shown("y" * 20_000_000, 10) == "y" * 9 + "…"
+    assert time.monotonic() - started < 0.5

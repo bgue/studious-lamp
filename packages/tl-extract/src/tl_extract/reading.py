@@ -3,8 +3,10 @@
 Extractors read untrusted bytes. The rules that keep that safe live here, once:
 
 * the bounds of the contract (``MAX_SOURCE_BYTES``, ``MAX_ROWS``, ``MAX_COLUMNS``,
-  ``MAX_CELL_CHARS``) plus three of our own that cap memory (``MAX_CELLS``, ``MAX_TOTAL_CHARS``)
-  and time (``MAX_BLANK_RUN``); a bigger input is refused with a problem, never truncated;
+  ``MAX_CELL_CHARS``, ``MAX_CELLS``) plus the ones of our own that cap memory and time
+  (``MAX_TOTAL_CHARS``, ``MAX_BLANK_RUN``, ``MAX_PROBLEMS``); a bigger input is refused with a
+  problem, never truncated. The job runner's subprocess limits (FANOUT D9) are the backstop; every
+  reader still bounds its own cost, and a reader that streams counts as it goes;
 * a reader that cannot go on raises ``Refusal``; ``run_guarded`` turns that, and any other error,
   into a ``failed`` result whose messages hold fixed text and a short, cleaned excerpt of what the
   file said, never a path, never a stack trace;
@@ -17,10 +19,12 @@ Extractors read untrusted bytes. The rules that keep that safe live here, once:
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import BinaryIO
 
+from tl_core.derivation import MAX_CELLS as MAX_CELLS  # the contract's, re-exported
 from tl_core.derivation import (
     MAX_SOURCE_BYTES,
     Cell,
@@ -30,18 +34,15 @@ from tl_core.derivation import (
     SourceFile,
 )
 
-#: Cells of one table (rows times named columns). The contract allows 20 000 x 200 = 4 million,
-#: which would hold gigabytes of text; one million is more than any index or list needs.
-MAX_CELLS = 1_000_000
 #: Characters of cell text read from one file, over all cells.
 MAX_TOTAL_CHARS = 64 * 1024 * 1024
 #: The header is a row number a person types; titles above a header block are rarely deeper.
 MAX_HEADER_ROW = 1000
 #: A column name longer than this is a sign of a wrong header row, not a name.
 MAX_HEADER_CHARS = 200
-#: A sheet that was formatted down to row one million has blank rows with cells; after this many
-#: blank rows in a row the XLSX reader stops and says so in a note. The CSV reader has no such
-#: stop: a text file is bounded by its size.
+#: A sheet that was formatted down to row one million has blank rows (with styled cells) after its
+#: data, which is harmless. A gap of this many blank rows *followed by data* is refused: the data
+#: would otherwise be skipped without a word.
 MAX_BLANK_RUN = 1000
 #: The note every ``metadata_only`` result carries (the contract checks for "ADR-0008").
 STUBBED_NOTE = "content extraction stubbed (ADR-0008 decision 8): {what}"
@@ -65,21 +66,25 @@ class Refusal(Exception):
         self.row = row
 
 
+_UNSTORABLE = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\ud800-\udfff]")
+
+
 def has_unstorable_character(text: str) -> bool:
     """A control character other than tab, CR and LF (as the P1-I2 import reads them), or a
-    character that cannot be encoded as UTF-8 (a lone surrogate)."""
-    for ch in text:
-        code = ord(ch)
-        if (code < 32 and ch not in "\t\r\n") or code == 127 or 0xD800 <= code <= 0xDFFF:
-            return True
-    return False
+    character that cannot be encoded as UTF-8 (a lone surrogate). Runs in C: the 50 MiB file of
+    the contract has tens of millions of characters to look at."""
+    return _UNSTORABLE.search(text) is not None
+
+
+def _cleaned(text: str, replacement: str) -> str:
+    return " ".join(_UNSTORABLE.sub(replacement, text).split())
 
 
 def shown(text: str, limit: int = 60) -> str:
     """Text that came from a file, made safe to put in a message: control characters become ``?``
-    and a long text is cut with an ellipsis."""
-    cleaned = "".join("?" if has_unstorable_character(ch) else ch for ch in text)
-    cleaned = " ".join(cleaned.split())
+    and a long text is cut with an ellipsis. Only the first ``4 * limit`` characters are looked at,
+    so a huge text costs no more than a short one."""
+    cleaned = _cleaned(text[: limit * 4], "?")
     return cleaned if len(cleaned) <= limit else cleaned[: limit - 1] + "…"
 
 
@@ -87,12 +92,13 @@ def clean_metadata_text(text: str | None, limit: int = 1000) -> str | None:
     """A metadata string of a file (title, author, producer) made storable: unstorable characters
     become spaces, runs of whitespace one space, and the text is cut at ``limit``.
 
-    None and an empty result are None.
+    The text is cut to ``4 * limit`` raw characters first, then cleaned, then cut to ``limit``, so
+    a title of 47 million characters costs the same as one of a few thousand. None and an empty
+    result are None.
     """
     if text is None:
         return None
-    cleaned = "".join(" " if has_unstorable_character(ch) else ch for ch in text)
-    cleaned = " ".join(cleaned.split())
+    cleaned = _cleaned(text[: limit * 4], " ")
     if not cleaned:
         return None
     return cleaned[:limit]
@@ -174,7 +180,7 @@ def run_guarded(
     except Refusal as refusal:
         return failed(name, version, source, [problem(refusal.code, refusal.message, refusal.row)])
     except Exception as exc:
-        logging.getLogger(__name__).debug("extractor %s failed: %r", name, exc)
+        logging.getLogger(__name__).debug("extractor %s failed: %s", name, type(exc).__name__)
         return failed(
             name,
             version,
@@ -190,10 +196,12 @@ class CellBudget:
     cells: int = 0
     chars: int = 0
 
-    def take(self, record: Sequence[Cell]) -> None:
-        """Count one record (a row of cells). Raises ``Refusal`` at ``MAX_CELLS`` or
-        ``MAX_TOTAL_CHARS``."""
-        self.cells += len(record)
+    def take(self, record: Sequence[Cell], *, count_cells: bool = True) -> None:
+        """Count one record (a row of cells). Raises ``Refusal`` at ``MAX_CELLS`` data cells or
+        ``MAX_TOTAL_CHARS``. The records above and including the header are counted for their
+        characters only (``count_cells=False``): the contract's ``MAX_CELLS`` is data cells."""
+        if count_cells:
+            self.cells += len(record)
         self.chars += sum(len(cell) for cell in record if cell is not None)
         if self.cells > MAX_CELLS:
             raise Refusal(

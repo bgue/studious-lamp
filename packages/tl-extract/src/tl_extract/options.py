@@ -6,6 +6,7 @@ ignored silently (the person would think a mapping was applied), so every key is
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Annotated, Any, Literal
 
@@ -44,12 +45,35 @@ class TableOptions(BaseModel):
     duplicate_headers: Literal["refuse", "suffix"] = "refuse"
 
 
+UNKNOWN_OPTION = "unknown option: {name}"
+
+
+def reject_options(options: Mapping[str, Any]) -> None:
+    """For an extractor that takes no options: any key is ``unknown_option``."""
+    for name in options:
+        raise Refusal("unknown_option", UNKNOWN_OPTION.format(name=shown(str(name), 40)))
+
+
 def parse_options(options: Mapping[str, Any]) -> TableOptions:
-    """Validate ``options``. Raises ``Refusal("bad_option", ...)`` naming the option and the rule,
-    never echoing the value."""
+    """Validate ``options``. Raises ``Refusal("unknown_option", ...)`` for a key that is not an
+    option, ``Refusal("bad_option", ...)`` naming the option and the rule, never echoing the
+    value, and ``Refusal("duplicate_header", ...)`` when two ``header_map`` keys are the same
+    header (spelt alike once case and punctuation are ignored) but name different columns."""
+    for name in options:
+        if name not in TableOptions.model_fields:
+            raise Refusal("unknown_option", UNKNOWN_OPTION.format(name=shown(str(name), 40)))
     try:
-        return TableOptions.model_validate(dict(options))
+        parsed = TableOptions.model_validate(dict(options))
     except ValidationError as exc:
         error = exc.errors()[0]
         where = shown(".".join(str(part) for part in error["loc"][:1])) or "options"
         raise Refusal("bad_option", f"option {where}: {error['msg']}") from exc
+    seen: dict[str, str] = {}
+    for key, value in parsed.header_map.items():
+        loose = re.sub(r"[\W_]+", "_", key.lower()).strip("_")
+        if seen.setdefault(loose, value) != value:
+            raise Refusal(
+                "duplicate_header",
+                f"header_map names {shown(key, 40)} twice, for different columns",
+            )
+    return parsed

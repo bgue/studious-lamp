@@ -304,3 +304,48 @@ def pdf_from_objects(objects: Sequence[bytes]) -> bytes:
         f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
     )
     return out.getvalue()
+
+
+def pdf_with_object_stream(padding: int = 0, info: bytes | None = None) -> bytes:
+    """A PDF 1.5 whose catalog and page tree live in a compressed object stream (the form that
+    makes a reader decode the stream to answer anything). ``padding`` bytes of blanks are added to
+    the stream before it is compressed: a small file that expands to that much when decoded."""
+    first = b"2 0 3 0 "
+    catalog = b"<< /Type /Catalog /Pages 3 0 R >>"
+    pages = b"<< /Type /Pages /Kids [] /Count 1 >>"
+    body = first.replace(b"3 0 ", b"3 %d " % (len(catalog) + 1)) + catalog + b" " + pages
+    index_first = len(first.replace(b"3 0 ", b"3 %d " % (len(catalog) + 1)))
+    compressor = zlib.compressobj(9)
+    parts = [compressor.compress(body)]
+    block = b" " * (1024 * 1024)
+    for _ in range(padding // len(block)):
+        parts.append(compressor.compress(block))
+    parts.append(compressor.compress(b" " * (padding % len(block))))
+    parts.append(compressor.flush())
+    packed = b"".join(parts)
+    out = io.BytesIO()
+    out.write(b"%PDF-1.5\n")
+    offset1 = out.tell()
+    out.write(
+        b"1 0 obj\n<< /Type /ObjStm /N 2 /First %d /Filter /FlateDecode /Length %d >>\nstream\n"
+        % (index_first, len(packed))
+        + packed
+        + b"\nendstream\nendobj\n"
+    )
+    offset4 = out.tell()
+    entries = (
+        struct.pack(">BHB", 0, 0, 255)
+        + struct.pack(">BHB", 1, offset1, 0)
+        + struct.pack(">BHB", 2, 1, 0)
+        + struct.pack(">BHB", 2, 1, 1)
+        + struct.pack(">BHB", 1, offset4, 0)
+    )
+    info_entry = b" /Info 2 0 R" if info is not None else b""
+    out.write(
+        b"4 0 obj\n<< /Type /XRef /Size 5 /W [1 2 1] /Root 2 0 R%s /Length %d >>\nstream\n"
+        % (info_entry, len(entries))
+        + entries
+        + b"\nendstream\nendobj\n"
+    )
+    out.write(b"startxref\n%d\n%%%%EOF\n" % offset4)
+    return out.getvalue()

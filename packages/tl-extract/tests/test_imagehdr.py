@@ -326,3 +326,15 @@ def test_reading_is_deterministic_and_leaks_nothing() -> None:
     assert read_image_header(raw) == read_image_header(raw)
     error = refusal(make_png()[:20])
     assert "Traceback" not in error.message and "/home" not in error.message
+
+
+def test_jpeg_fill_bytes_are_bounded() -> None:
+    sof = struct.pack(">BHHB", 8, 20, 10, 1) + b"\x01\x11\x00"
+    frame = b"\xff\xc0" + struct.pack(">H", 2 + len(sof)) + sof
+    assert read_image_header(b"\xff\xd8" + b"\xff" * 64 + frame).width == 10
+    assert refusal(b"\xff\xd8" + b"\xff" * 1_000_000 + frame).code == "broken_image"
+
+
+def test_tiff_sizes_past_a_signed_32_bits_are_refused() -> None:
+    assert read_image_header(make_tiff(0x7FFFFFFF, 6)).width == 0x7FFFFFFF
+    assert refusal(make_tiff(0x80000000, 6)).code == "broken_image"

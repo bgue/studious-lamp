@@ -29,20 +29,22 @@ def deep_chain(depth: int) -> list[bytes]:
 
 
 @pytest.mark.parametrize(
-    "objects",
+    ("objects", "count", "problems"),
     [
-        self_referencing(b""),
-        self_referencing(b"/Count 7 "),
-        self_referencing(b"/Count 5000000000 "),
-        two_node_cycle(),
-        deep_chain(5000),
+        (self_referencing(b""), None, []),
+        (self_referencing(b"/Count 7 "), 7, []),  # the page count is what /Count says, no more
+        (self_referencing(b"/Count 5000000000 "), None, ["bad_page_count"]),
+        (self_referencing(b"/Count -1 "), None, ["bad_page_count"]),
+        (self_referencing(b"/Count (seven) "), None, []),
+        (two_node_cycle(), None, []),
+        (deep_chain(5000), None, []),
     ],
-    ids=["self", "self-with-count", "self-with-huge-count", "two-node-cycle", "depth-5000"],
+    ids=["self", "self-with-count", "huge-count", "negative-count", "text-count", "cycle", "deep"],
 )
-def test_a_page_tree_that_loops_or_nests_deeply_ends_quickly_with_no_page_count(
-    objects: list[bytes],
+def test_the_page_count_is_the_root_pages_count_and_no_page_tree_is_walked(
+    objects: list[bytes], count: int | None, problems: list[str]
 ) -> None:
     started = time.monotonic()
     info = read_pdf_info(pdf_from_objects(objects))
-    assert info.page_count is None
-    assert time.monotonic() - started < 5
+    assert (info.page_count, [code for code, _ in info.problems]) == (count, problems)
+    assert time.monotonic() - started < 2

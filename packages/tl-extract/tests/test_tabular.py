@@ -120,9 +120,11 @@ def test_options_reach_the_reader_and_the_table() -> None:
 
 
 def test_a_bad_option_fails_before_the_file_is_read() -> None:
-    for options in ({"shet": "x"}, {"header_row": 0}, {"delimiter": "x"}):
+    for options in ({"header_row": 0}, {"delimiter": "x"}):
         result = csv_run("A\n1\n", options)
         assert result.status == "failed" and codes(result) == ["bad_option"]
+    unknown = csv_run("A\n1\n", {"shet": "x"})
+    assert unknown.status == "failed" and codes(unknown) == ["unknown_option"]
 
 
 def test_an_xlsx_is_read_with_its_sheet_and_properties() -> None:

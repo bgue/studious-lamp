@@ -15,6 +15,7 @@ from tl_core.derivation import ExtractionResult, SourceFile
 
 from tl_extract.imagehdr import read_image_header
 from tl_extract.kinds import file_kind
+from tl_extract.options import reject_options
 from tl_extract.reading import STUBBED_NOTE, metadata_for, read_exact, run_guarded
 
 
@@ -29,6 +30,7 @@ class OcrExtractor:
         self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
     ) -> ExtractionResult:
         def body() -> ExtractionResult:
+            reject_options(options)
             info = read_image_header(read_exact(source, data))
             return ExtractionResult(
                 extractor=self.name,
