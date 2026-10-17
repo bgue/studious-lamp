@@ -72,6 +72,10 @@ class FileMetadata(BaseModel):
     modified: str | None = None
     #: PDF producer or the application that wrote the file.
     producer: str | None = None
+    #: Images: the format as read from the header (e.g. "png", "jpeg", "tiff") and pixel size.
+    image_format: str | None = None
+    width: int | None = None
+    height: int | None = None
 
 
 class ColumnProfile(BaseModel):
