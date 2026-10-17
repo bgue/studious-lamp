@@ -40,8 +40,9 @@ DERIVATION_READ_TOOLS = {
     "validate_against_schema",
 }
 DERIVATION_PROPOSE_TOOLS = {"start_extraction", "propose_import"}
+SCHEDULE_PROPOSE_TOOLS = {"propose_publish_schedule_snapshot"}
 READING = READ_TOOLS | TYPE_TOOLS | ENGINEERING_TOOLS | DOCUMENT_TOOLS | DERIVATION_READ_TOOLS
-TOOLS = READING | PROPOSE_TOOLS | DERIVATION_PROPOSE_TOOLS | {"post_feed"}
+TOOLS = READING | PROPOSE_TOOLS | DERIVATION_PROPOSE_TOOLS | SCHEDULE_PROPOSE_TOOLS | {"post_feed"}
 
 
 def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(

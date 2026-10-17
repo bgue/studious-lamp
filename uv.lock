@@ -2614,11 +2614,14 @@ dependencies = [
     { name = "tl-api" },
     { name = "tl-core" },
     { name = "tl-lake" },
+    { name = "tl-mod-cost" },
     { name = "tl-mod-documents" },
     { name = "tl-mod-engineering" },
+    { name = "tl-mod-schedule" },
     { name = "tl-schema" },
     { name = "tl-sim" },
     { name = "tl-tui" },
+    { name = "tl-xer" },
     { name = "typer" },
 ]
 
@@ -2630,11 +2633,14 @@ requires-dist = [
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-lake", editable = "packages/tl-lake" },
+    { name = "tl-mod-cost", editable = "packages/tl-modules/cost" },
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
+    { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
     { name = "tl-schema", editable = "packages/tl-schema" },
     { name = "tl-sim", editable = "packages/tl-sim" },
     { name = "tl-tui", editable = "packages/tl-tui" },
+    { name = "tl-xer", editable = "packages/tl-xer" },
     { name = "typer" },
 ]
 
@@ -2730,6 +2736,7 @@ dependencies = [
     { name = "tl-api" },
     { name = "tl-core" },
     { name = "tl-lake" },
+    { name = "tl-mod-schedule" },
     { name = "tl-schema" },
     { name = "tl-tui" },
 ]
@@ -2742,6 +2749,7 @@ requires-dist = [
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-lake", editable = "packages/tl-lake" },
+    { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
     { name = "tl-schema", editable = "packages/tl-schema" },
     { name = "tl-tui", editable = "packages/tl-tui" },
 ]
@@ -2900,8 +2908,10 @@ dependencies = [
     { name = "tl-adapters" },
     { name = "tl-api" },
     { name = "tl-core" },
+    { name = "tl-mod-cost" },
     { name = "tl-mod-documents" },
     { name = "tl-mod-engineering" },
+    { name = "tl-mod-schedule" },
     { name = "tl-schema" },
 ]
 
@@ -2914,8 +2924,10 @@ requires-dist = [
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-api", editable = "packages/tl-api" },
     { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-mod-cost", editable = "packages/tl-modules/cost" },
     { name = "tl-mod-documents", editable = "packages/tl-modules/documents" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
+    { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
     { name = "tl-schema", editable = "packages/tl-schema" },
 ]
 

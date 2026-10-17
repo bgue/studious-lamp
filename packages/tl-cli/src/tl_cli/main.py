@@ -41,6 +41,7 @@ from tl_cli import (
     archive,
     backup,
     config,
+    cost,
     derive,
     dev,
     doc,
@@ -76,6 +77,7 @@ from tl_cli import (
     tui,
     webhook,
     wf,
+    xer,
 )
 from tl_cli.session import open_backend
 
@@ -120,6 +122,8 @@ standards.app.add_typer(standards_class.app, name="class")
 app.add_typer(tag.app, name="tag")
 app.add_typer(doc.app, name="doc")
 app.add_typer(derive.app, name="derive")
+app.add_typer(xer.app, name="xer")
+app.add_typer(cost.app, name="cost")
 app.add_typer(transmittal.app, name="transmittal")
 app.add_typer(review.app, name="review")
 doc.app.add_typer(doc_rev.app, name="rev")
