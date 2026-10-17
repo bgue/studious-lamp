@@ -2,7 +2,10 @@
 
 from tl_core.derivation.types import (
     EXTRACTOR_ENTRY_POINT,
+    EXTRACT_MAX_MEMORY_BYTES,
+    EXTRACT_MAX_SECONDS,
     MAX_CELL_CHARS,
+    MAX_CELLS,
     MAX_COLUMNS,
     MAX_ROWS,
     MAX_SOURCE_BYTES,
@@ -18,7 +21,10 @@ from tl_core.derivation.types import (
 
 __all__ = [
     "EXTRACTOR_ENTRY_POINT",
+    "EXTRACT_MAX_MEMORY_BYTES",
+    "EXTRACT_MAX_SECONDS",
     "MAX_CELL_CHARS",
+    "MAX_CELLS",
     "MAX_COLUMNS",
     "MAX_ROWS",
     "MAX_SOURCE_BYTES",
