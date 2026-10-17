@@ -87,6 +87,7 @@ The `tl` command: a thin typer front end over the `tl_core` command and query se
 | `tl lake sync --watch` | option | Keep syncing, waiting `lake.sync.interval` (read again before every wait; `tl_cli.lake.watch_loop`) until Ctrl+C; a failed sync prints `error:` and the watcher goes on |
 | `tl projections rebuild` | command | Also records that the `rebuild` and `reindex` setting effects were carried out when it rebuilds every projector |
 | `tl_cli.main:app` | typer app | The `tl` entry point |
+| `tl derive schema register|ls|show|retire`, `tl derive open|content|start|ls|jobs|cancel|worker`, `tl derive show|report|rows|diff|check|validate`, `tl derive publish|compensate` | commands | Derived documents (P1-I3, ADR-0014; modules `derive`, `derive_schema`, `derive_run`, `derive_read`, `derive_publish`, shared helpers in `derive_support`). Registering schemas, publishing tags and compensating need an admin, publishing documents a controller (`require_admin`, `require_controller`); every writing command declares `--actor` with the hooked default and checks it again (`acting`). `worker --once` runs the queue (`--requeue` after a restore). Runbook: `docs/runbooks/derivation-pipeline.md` |
 
 ## Depends on / used by
 - Depends on: `tl_core`, `tl_schema`, `tl_adapters`, `tl_api` (token file helper), `typer`, `rich`.

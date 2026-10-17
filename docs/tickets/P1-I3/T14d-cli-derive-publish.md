@@ -50,7 +50,7 @@ Learnings that apply (pasted from `docs/memory/LEARNINGS.md` and the build's con
 - No new dependencies. When you implement the stub, remove the `STUB` paragraph from the module docstring, every `STEPS` comment, the `# ruff: noqa: F401` line and the `# pyright: reportUnusedImport=false, ...` line.
 - Never change `schema/**` or anything under `generated/`. Never edit a file outside *Allowed paths*.
 - Do not run `just test`, `just test-parity` or `just test-tui` (they take an hour); run the scoped commands in *Acceptance*.
-Expected: `just check` clean; 8 pass on SQLite; with both adapters 14 pass and 2 skip (the role test and the actor test, which are about a setup the Postgres conftest replaces).
+Expected: `just check` clean; 9 pass on SQLite; with both adapters 15 pass and 3 skip (the role test, the document-controller test and the actor test, which are about a setup the Postgres conftest replaces).
 
 ## Allowed paths
 - pytest runs in importlib mode: a test cannot import a sibling test file; the helpers it needs are `packages/tl-cli/tests/derivecli_support.py`, `doccli_support.py` and `auth_support.py` (all in the tree, read only) (L-P0-I2-B1).

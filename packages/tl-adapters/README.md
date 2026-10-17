@@ -35,6 +35,7 @@ Storage adapters that implement the `tl_core` Protocols: SQLite, PostgreSQL 16 a
 | `tl_adapters.objectstore.s3.S3ObjectStore(client, bucket, prefix=...)` | class | `ObjectStore` on S3/MinIO through a boto3 client: verify while spooling, then upload; `iter_keys()`; single `put_object` (no multipart in Phase 0) |
 | `tl_adapters.objectstore.make_object_store(env=None)` | function | Build the store named by `TL_OBJECT_STORE` (`fs` default, or `s3`) |
 | `tl_adapters.objectstore.object_secret(env=None)` | function | Signing secret for upload ids and fs URLs; fails closed (see Configuration) |
+| `tl_adapters.queue` (`job_queue_for`, `SqliteJobQueue`, `PostgresJobQueue`) | package | The job queue table `job_queue` on both databases (P1-I3): lease-based claim; `FOR UPDATE SKIP LOCKED` only on Postgres. Operational, not rebuilt from events |
 
 ## Depends on / used by
 - Depends on: `tl_core`, `sqlalchemy`, `pg8000` (Postgres driver, BSD-3-Clause), `python-ulid`, `boto3` (s3 backend; tests use `moto`, no MinIO).

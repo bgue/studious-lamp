@@ -25,6 +25,7 @@ Decisions: ADR-0010, ADR-0011 (superseded in part), ADR-0012, ADR-0013.
 | `tl_mod_documents.imports` | package | Legacy register import: `mapping` (template, `read_file_text`, `read_rows`), `diff` (`plan_import`), `apply` (`apply_plan`, all or nothing, source `import:<job>`), `model` |
 | `tl_mod_documents.limits` | module | Size limits of commands and of an import file; `CONFIDENTIALITY_NOTE` |
 | `tl_mod_documents.testing` | module | `DocumentsWorld`: documents, revisions, files and links in a ledger, for tests of other packages |
+| `tl_mod_documents.derivation` | package | The derivation pipeline (P1-I3, ADR-0014; spec `docs/modules/documents/derivation.md`): `schemas`, `derived`, `jobs` (the `extract` and `validate` job kinds), `validation` and `validation_isolated` (validation in a child process), `diff`, `mapping`, `publish` (create-only, correlated, compensation by recorded ids), `views` (the reads), `store` (rows and reports as files, a small parse cache), `worker` (`build_worker`, `requeue_orphans`) |
 
 ## Depends on / used by
 - Depends on: `tl_core` (ledger, services, `tl_core.modules`), `tl_schema` (generated DDL), `tl_adapters`, `tl_mod_engineering` (code lists and the document number pattern), `pydantic`, `pyyaml`, `sqlalchemy`.

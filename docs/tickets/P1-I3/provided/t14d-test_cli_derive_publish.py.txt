@@ -181,3 +181,46 @@ def test_publish_and_compensate_cannot_act_as_someone_else(
     )
     assert refused.exit_code == 1 and "is not the signed-in user" in refused.output
     assert tags(env) == 3
+
+
+def test_a_document_controller_publishes_documents_but_not_tags(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    if is_postgres(as_target(env["TL_DB"])):
+        pytest.skip("on Postgres the conftest signs an admin in for every command")
+    schema = schema_file(
+        tmp_path,
+        code="doc-list",
+        json_schema={
+            "type": "object",
+            "required": ["number", "title"],
+            "properties": {"number": {"type": "string"}, "title": {"type": "string"}},
+        },
+        key_column="number",
+        target_kind="documents",
+        mapping={
+            "target": "documents",
+            "key_column": "number",
+            "columns": [
+                {"column": "number", "to": "number"},
+                {"column": "title", "to": "title"},
+            ],
+        },
+    )
+    assert tl(env, "derive", "schema", "register", str(schema), "--company").exit_code == 0
+    derive(env, "open", "ISD-001", "A", "--schema", "doc-list", *P)
+    data = tmp_path / "docs.csv"
+    data.write_text("number,title\nDOC-0001,First\nDOC-0002,Second\n", encoding="utf-8")
+    key = "ISD-001@A/doc-list"
+    derive(env, "content", key, str(data), *P)
+    derive(env, "start", key, *P)
+    derive(env, "worker", "--once", "--factory", FACTORY)
+    dora = sign_in_as(env, tmp_path, "dora", ["user", "document_controller"])
+    ursula = sign_in_as(env, tmp_path, "ursula", ["user"])
+    refused = tl(ursula, "derive", "publish", key, *P, "--apply")
+    assert refused.exit_code == 1 and "forbidden" in refused.output
+    made = tl(dora, "derive", "publish", key, *P, "--apply")
+    assert made.exit_code == 0, made.output
+    assert f"published 2 records from {key}" in made.stdout
+    listed = tl(dora, "doc", "ls", *P).stdout
+    assert "DOC-0001" in listed and "DOC-0002" in listed
