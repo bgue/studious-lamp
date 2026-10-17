@@ -70,6 +70,7 @@ extraPaths = [
   "packages/tl-tui/tests",
   "tests/bench",
   "tests/auth",
+  "tests/jobs",
   "packages/tl-modules/engineering/tests",
   "packages/tl-modules/documents/tests",
 ]
