@@ -19,6 +19,7 @@ members = [
     "tl-mod-cost",
     "tl-mod-documents",
     "tl-mod-engineering",
+    "tl-mod-schedule",
     "tl-schema",
     "tl-sim",
     "tl-tui",
@@ -2808,6 +2809,29 @@ requires-dist = [
     { name = "tl-adapters", editable = "packages/tl-adapters" },
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-schema", editable = "packages/tl-schema" },
+]
+
+[[package]]
+name = "tl-mod-schedule"
+version = "0.0.1"
+source = { editable = "packages/tl-modules/schedule" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+    { name = "tl-adapters" },
+    { name = "tl-core" },
+    { name = "tl-schema" },
+    { name = "tl-xer" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "sqlalchemy", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
+    { name = "tl-xer", editable = "packages/tl-xer" },
 ]
 
 [[package]]
