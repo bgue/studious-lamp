@@ -54,8 +54,8 @@ Build the correspondence core of M10 as a new module, `correspondence` (package 
 | T03a | Projector `CorrespondenceProjector` (item and clearance tables) | H | T02 | ready | |
 | T03b | Projectors `ThreadProjector`, `ClockProjector` | H | T02 | ready | |
 | T03c | Projectors `ClauseProjector`, `PartyProjector` (party and contacts) | H | T02 | ready | |
-| T04 | Clock engine | S | T03b | planned | S3 |
-| T05 | Domain definition compiler | S | T02 | planned | S4 |
+| T04 | Clock engine | S | T03b | in progress | S3: calendars, replay, warnings built (`calendars.py`, `clocks.py`); handlers and sweep follow |
+| T05 | Domain definition compiler | S | T02 | done | `domains.py`, S6 |
 | T06 | Confidentiality classes and filters on every read path | S | T03a | planned | S5 |
 | T07a | Commands: receive, update, reclassify, record response, close, void | H | S6 | planned | |
 | T07b | Triage: suggestion engine, `ConfirmTriage`, proposal | H | S6 | planned | |
@@ -63,7 +63,7 @@ Build the correspondence core of M10 as a new module, `correspondence` (package 
 | T07d | Letter template filling and deterministic PDF (`letter.py`) | H | — | ready | |
 | T08a | Threading keys: subject, message ids, item numbers, `match_thread` | H | — | ready | |
 | T08b | Threading wiring: threads from headers, subject and keys; `responds to` and `superseded by` links | H | T07a, T08a | planned | |
-| T09 | General and Document-control domain definition files, letter templates | H | T05 | planned | |
+| T09 | General and Document-control domain definition files, letter templates | H | T05 | built by supervisor | `schema/fixtures/correspondence/domains/*.yaml`; the compiler and the files cannot be tested apart (L-P1-I3-5) |
 | T10a–d | TUI: master register, item view, triage inbox, clocks screen | H | S6 | planned | |
 | T11a | EML parser (bounded, `policy.default`) | H | — | planned | |
 | T11b | Email ingest command and `tl corr mail ingest` | H | T07a, T11a | planned | |
@@ -84,4 +84,4 @@ Build the correspondence core of M10 as a new module, `correspondence` (package 
 - Stop and escalate if a core contract (`ModuleSpec`, `Principal`, the proposal table) must change in a way another workstream consumes, or the class model needs a role that does not exist.
 
 ## Blocked / Decision
-None yet.
+None. Known red on the base until T03a-c merge: `tests/contract/test_webhook_catalog_contract.py` (two cases): the catalog has the new event types and the scenario that produces them is held until the projectors exist (L-P1-I0A-17).
