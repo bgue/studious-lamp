@@ -10,6 +10,7 @@ import tl_core
 from pydantic import ValidationError
 from tl_api.errors import (
     ERROR_TABLE,
+    EXTRACTOR_UNAVAILABLE,
     HTTP_ERRORS,
     ApiError,
     ApiValidationError,
@@ -17,6 +18,7 @@ from tl_api.errors import (
     exception_for,
     spec_for,
 )
+from tl_core.derivation.registry import ExtractorLoadError
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
 from tl_core.services import errors as svc
@@ -76,6 +78,9 @@ def test_every_row_round_trips_to_its_exception_class(spec) -> None:  # type: ig
     assert body.error == spec.error
     rebuilt = exception_for(status, body.model_dump(mode="json", exclude_none=True))
     assert type(rebuilt) is spec.exc
+    if spec.exc is ExtractorLoadError:  # the text is fixed: the original's detail never leaves
+        assert str(rebuilt) == EXTRACTOR_UNAVAILABLE
+        return
     assert str(rebuilt) == str(original)
 
 
@@ -121,3 +126,9 @@ def test_unknown_codes_become_api_error() -> None:
 
 def test_an_unmapped_exception_has_no_body() -> None:
     assert body_for(RuntimeError("boom")) is None
+
+
+def test_a_failing_extractor_load_is_a_fixed_503_that_names_nothing() -> None:
+    status, body = body_for(ExtractorLoadError("extractor 'x' cannot be loaded: /home/u/secret.py"))  # type: ignore[misc]
+    assert status == 503 and body.error == "extractor_unavailable"
+    assert body.message == EXTRACTOR_UNAVAILABLE and "secret" not in body.message

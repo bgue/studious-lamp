@@ -82,6 +82,13 @@ KEYMAP: tuple[KeyEntry, ...] = (
     ),
     KeyEntry("App", "F9", "about:config: the settings of this project", "TlApp", "f9"),
     KeyEntry("App", "F10", "Accounts and agent tokens (admins only)", "TlApp", "f10"),
+    KeyEntry(
+        "App",
+        "F11",
+        "Derived documents: extracted data, validation report, jobs, publish preview",
+        "TlApp",
+        "f11",
+    ),
     KeyEntry("App", "Ctrl+Q", "Quit"),
     KeyEntry(
         "Grid",

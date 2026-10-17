@@ -3,7 +3,7 @@
 The envelope and the typed fields of a module record change only through the module's own
 commands. Each record type's allow-list is stated in ``module.py`` and the state guards in
 ``guards.py``; this test pins both from the outside, through the real handlers and the real file
-service, for all five record types, so a handler that forgets ``require_generic`` fails here.
+service, for all eight record types, so a handler that forgets ``require_generic`` fails here.
 """
 
 from __future__ import annotations
@@ -40,6 +40,7 @@ from tl_core.services.links import (
 from tl_core.services.psets import SetPsetValues, handle_set_pset_values
 from tl_core.services.records import handle_update_record, handle_void_record
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
+from tl_core.util import new_ulid
 from tl_mod_documents.handlers.reviews import (
     OpenReviewCycle,
     ReviewerRequest,
@@ -51,12 +52,15 @@ from tl_mod_documents.handlers.transmittals import (
     handle_create_transmittal,
 )
 from tl_mod_documents.module import (
+    DERIVED_GENERIC_COMMANDS,
     DOCUMENT_GENERIC_COMMANDS,
     REVISION_GENERIC_COMMANDS,
+    SCHEMA_GENERIC_COMMANDS,
     TRANSMITTAL_GENERIC_COMMANDS,
     spec,
 )
 from tl_mod_documents.names import RECORD_TYPES
+from tl_mod_documents.testing import forge
 
 LINK_LIFE = {
     "AcceptLink": (AcceptLink, handle_accept_link, {}),
@@ -75,7 +79,7 @@ def run(world: World, handler: Any, command: Any) -> Any:
 
 @pytest.fixture
 def ids(world: World) -> dict[str, str]:
-    """One record of each of the five types, each made by its own command."""
+    """One record of each of the eight types, each made by its own command."""
     world.register()
     world.create_revision()
     world.attach("ISO-1234", "A")
@@ -108,12 +112,76 @@ def ids(world: World) -> dict[str, str]:
         ),
     )
     world.tag("47-FV-9999")  # a link target
+    schema_id, derived_id, job_id = new_ulid(), new_ulid(), new_ulid()
+    forge(
+        world,
+        schema_id,
+        "documents.DocumentSchema",
+        "idx@1.0.0",
+        [
+            (
+                "DocumentSchema.Defined",
+                {
+                    "code": "idx",
+                    "semver": "1.0.0",
+                    "ordinal": 1,
+                    "json_schema": {"type": "object"},
+                    "content_hash": "ab" * 32,
+                },
+            )
+        ],
+    )
+    forge(
+        world,
+        derived_id,
+        "documents.DerivedDocument",
+        "ISO-1234@A/idx",
+        [
+            (
+                "DerivedDocument.Defined",
+                {
+                    "source_document_id": doc.id,
+                    "source_revision_id": rev.id,
+                    "source_document_number": "ISO-1234",
+                    "source_revision_code": "A",
+                    "source_ref": "src.doc.ISO-1234@A",
+                    "schema_id": schema_id,
+                    "schema_code": "idx",
+                    "schema_version": "1.0.0",
+                    "method": "manual",
+                },
+            )
+        ],
+    )
+    forge(
+        world,
+        job_id,
+        "documents.ProcessingJob",
+        f"JOB-{job_id}",
+        [
+            (
+                "ProcessingJob.Defined",
+                {
+                    "kind": "extract",
+                    "derived_id": derived_id,
+                    "derived_key": "ISO-1234@A/idx",
+                    "source_ref": "src.doc.ISO-1234@A",
+                    "schema_id": schema_id,
+                    "requested_by": "user:u",
+                    "max_attempts": 3,
+                },
+            )
+        ],
+    )
     return {
         "documents.Document": doc.id,
         "documents.Revision": rev.id,
         "documents.Rendition": rendition_id,
         "documents.Transmittal": sent.stream_id,
         "documents.ReviewCycle": review.stream_id,
+        "documents.DocumentSchema": schema_id,
+        "documents.DerivedDocument": derived_id,
+        "documents.ProcessingJob": job_id,
     }
 
 
@@ -175,7 +243,9 @@ def attempt(world: World, command: str, record_id: str, record_type: str) -> Non
             handler: Any = handle_add_link if command == "AddLink" else handle_suggest_link
             handler(uow, cls(**BASE, from_id=record_id, to_id=target, relation="references"))
         elif command == "AttachFile":
-            slot = "markup" if record_type == "documents.Revision" else None
+            slot = {"documents.Revision": "markup", "documents.DerivedDocument": "content"}.get(
+                record_type
+            )
             world.files.register_upload(
                 uow,
                 RegisterUpload(
@@ -183,7 +253,7 @@ def attempt(world: World, command: str, record_id: str, record_type: str) -> Non
                     record_id=record_id,
                     slot=slot,
                     filename="a.txt",
-                    content_type="application/pdf" if slot else "text/plain",
+                    content_type="application/pdf" if slot == "markup" else "text/plain",
                     size=1,
                     sha256=hashlib.sha256(b"a").hexdigest(),
                 ),
@@ -207,6 +277,9 @@ ALLOWED: dict[str, frozenset[str]] = {
     "documents.Rendition": frozenset(),
     "documents.Transmittal": TRANSMITTAL_GENERIC_COMMANDS,
     "documents.ReviewCycle": frozenset(),
+    "documents.DocumentSchema": SCHEMA_GENERIC_COMMANDS,
+    "documents.DerivedDocument": DERIVED_GENERIC_COMMANDS,
+    "documents.ProcessingJob": frozenset(),
 }
 
 

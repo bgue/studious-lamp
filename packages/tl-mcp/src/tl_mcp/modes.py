@@ -11,7 +11,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import get_args
 
-from tl_core.proposals.types import PROPOSABLE_TOOLS, ToolMode
+from tl_core.proposals.types import ToolMode
+from tl_core.services.proposals import proposable_tools
 
 HUMAN_GATE_MESSAGE = (
     "tool mode 'write' is not available: deciding who may change records directly is part of the "
@@ -34,14 +35,15 @@ def resolve_tool_modes(requested: Mapping[str, str] | None = None) -> dict[str, 
     ``HUMAN_GATE_MESSAGE``; so does an unknown mode, an unknown tool, and ``post_feed``, which has
     no mode: it always writes directly and is labelled with the agent.
     """
-    modes: dict[str, ToolMode] = {tool: "propose" for tool in PROPOSABLE_TOOLS}
+    known_tools = proposable_tools()  # the core tools and the modules' (ADR-0014)
+    modes: dict[str, ToolMode] = {tool: "propose" for tool in known_tools}
     for tool, mode in (requested or {}).items():
         if tool in DIRECT_TOOLS:
             raise ToolModeError(
                 f"{tool} has no mode: it always writes directly, labelled with the agent"
             )
-        if tool not in PROPOSABLE_TOOLS:
-            known = ", ".join(sorted(PROPOSABLE_TOOLS))
+        if tool not in known_tools:
+            known = ", ".join(sorted(known_tools))
             raise ToolModeError(f"{tool!r} is not a record-changing tool (modes apply to: {known})")
         if mode == "write":
             raise ToolModeError(HUMAN_GATE_MESSAGE)

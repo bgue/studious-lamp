@@ -1,0 +1,31 @@
+CREATE TABLE IF NOT EXISTS cur_documents_derived_content (
+  content_id TEXT COLLATE "C" PRIMARY KEY,
+  scope TEXT COLLATE "C" NOT NULL,
+  derived_id TEXT COLLATE "C" NOT NULL,
+  content_rev BIGINT NOT NULL,
+  job_id TEXT COLLATE "C",
+  source_kind TEXT COLLATE "C" NOT NULL,
+  source_file_id TEXT COLLATE "C" NOT NULL,
+  extractor TEXT COLLATE "C" NOT NULL,
+  extractor_version TEXT COLLATE "C" NOT NULL,
+  extraction_status TEXT COLLATE "C" NOT NULL,
+  result_file_id TEXT COLLATE "C",
+  result_sha256 TEXT COLLATE "C",
+  row_count BIGINT NOT NULL DEFAULT 0,
+  column_count BIGINT NOT NULL DEFAULT 0,
+  problem_count BIGINT NOT NULL DEFAULT 0,
+  file_metadata_json JSONB,
+  extractor_notes_json JSONB,
+  schema_id TEXT COLLATE "C",
+  schema_version TEXT COLLATE "C",
+  validation_status TEXT COLLATE "C" NOT NULL DEFAULT 'none',
+  error_count BIGINT NOT NULL DEFAULT 0,
+  warning_count BIGINT NOT NULL DEFAULT 0,
+  report_file_id TEXT COLLATE "C",
+  report_sha256 TEXT COLLATE "C",
+  published BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TEXT COLLATE "C" NOT NULL,
+  last_seq BIGINT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_cur_documents_derived_content_derived_rev ON cur_documents_derived_content (derived_id, content_rev);

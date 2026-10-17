@@ -377,7 +377,14 @@ def test_a_user_actor_server_also_proposes_and_tags_its_source(tmp_path: Path) -
 
 
 def test_write_mode_is_refused_with_the_human_gate_message(env: McpHarness) -> None:
-    assert resolve_tool_modes({"create_record": "propose"}) == {t: "propose" for t in PROPOSING}
+    modes = resolve_tool_modes({"create_record": "propose"})
+    # the core tools and the modules' (ADR-0014): every one of them only proposes
+    assert set(modes.values()) == {"propose"}
+    assert set(modes) - set(PROPOSING) == {
+        "start_extraction",
+        "propose_import_tags",
+        "propose_import_documents",
+    }
     for tool in PROPOSING:
         with pytest.raises(ToolModeError, match="human gate") as refused:
             build_server(env.factory, actor=ACTOR, tool_modes={tool: "write"})

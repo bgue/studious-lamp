@@ -17,6 +17,7 @@ from typing import Any, cast
 
 from pydantic import BaseModel, ValidationError
 from tl_core.auth import errors as auth
+from tl_core.derivation.registry import ExtractorLoadError
 from tl_core.extypes import errors as ext
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
@@ -26,6 +27,11 @@ from tl_core.workflow.engine import GuardResult
 from tl_mod_documents import errors as doc
 from tl_mod_documents.imports.apply import ImportRefusedError
 from tl_mod_engineering import errors as eng
+
+#: What a client is told when an installed extractor cannot be loaded (detail: the server log).
+EXTRACTOR_UNAVAILABLE = (
+    "an extractor could not be loaded; the administrator can see why in the server log"
+)
 
 
 @dataclass(frozen=True)
@@ -45,6 +51,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.DuplicateKeyError, "duplicate_key", 409),
         s(svc.ReservedKeyError, "reserved_key", 422),
         s(svc.ReservedLinkSourceError, "reserved_link_source", 422),
+        s(svc.ReservedIdentifierError, "reserved_identifier", 422),
         s(svc.UnsupportedRecordTypeError, "unsupported_record_type", 422),
         s(svc.RecordNotFoundError, "record_not_found", 404),
         s(svc.RecordVoidedError, "record_voided", 409),
@@ -107,6 +114,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.InvalidProposalError, "invalid_proposal", 422),
         s(svc.BudgetExceededError, "budget_exceeded", 429),
         s(svc.ProposalDeciderError, "proposal_decider", 403),
+        s(svc.ProposalAccessError, "proposal_access", 403),
         # --- extension types (P0-I8 workstream B) ---------------------------------------------
         s(ext.UnknownTypeError, "type_not_found", 404),
         s(ext.TypeNotActiveError, "type_not_active", 409),
@@ -193,6 +201,20 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(doc.InvalidReviewError, "invalid_review", 422),
         s(ImportRefusedError, "import_refused", 422),  # `tl doc import`; no route offers it yet
         s(doc.NotYourReviewError, "not_your_review", 403),
+        s(doc.SchemaNotFoundError, "schema_not_found", 404),
+        s(doc.InvalidDocumentSchemaError, "invalid_document_schema", 422),
+        s(doc.DerivedNotFoundError, "derived_not_found", 404),
+        s(doc.DerivedStateError, "derived_state", 409),
+        s(doc.InvalidSourceError, "invalid_source", 422),
+        s(doc.JobNotFoundError, "job_not_found", 404),
+        s(doc.JobStateError, "job_state", 409),
+        s(doc.DerivationNotConfiguredError, "derivation_unavailable", 503),
+        s(doc.ValidationFailedError, "validation_failed", 422),
+        s(doc.ValidationLimitError, "validation_limit", 422),
+        s(doc.SchemaUnusableError, "schema_unusable", 422),
+        s(ExtractorLoadError, "extractor_unavailable", 503),
+        s(doc.PublishRefusedError, "publish_refused", 422),
+        s(doc.CompensationRefusedError, "compensation_refused", 409),
     )
 
 
@@ -270,7 +292,10 @@ def body_for(exc: BaseException) -> tuple[int, ErrorBody] | None:
     spec = spec_for(exc)
     if spec is None:
         return None
-    body = ErrorBody(error=spec.error, message=str(exc) or spec.error)
+    message = str(exc) or spec.error
+    if isinstance(exc, ExtractorLoadError):  # the server log has the detail, the client has this
+        message = EXTRACTOR_UNAVAILABLE
+    body = ErrorBody(error=spec.error, message=message)
     if isinstance(exc, QuerySyntaxError):
         body.position = exc.position
     elif isinstance(exc, svc.GuardFailedError):
@@ -283,7 +308,16 @@ def body_for(exc: BaseException) -> tuple[int, ErrorBody] | None:
         body.issues = list(exc.issues)
     elif isinstance(exc, (eng.InvalidTagNumberError, doc.InvalidDocumentNumberError)):
         body.issues = list(exc.issues)  # one dict per problem: segment, rule, level, message
-    elif isinstance(exc, (eng.StandardsLoadError, eng.ImportApplyError)):
+    elif isinstance(
+        exc,
+        (
+            eng.StandardsLoadError,
+            eng.ImportApplyError,
+            doc.InvalidDocumentSchemaError,
+            doc.PublishRefusedError,
+            doc.CompensationRefusedError,
+        ),
+    ):
         body.issues = list(exc.problems)
     elif isinstance(exc, auth.AccountLockedError):
         body.locked_until = exc.locked_until
@@ -324,6 +358,12 @@ def exception_for(status: int, body: dict[str, Any]) -> Exception:
             return eng.StandardsLoadError(message, [str(i) for i in body.get("issues") or []])
         if spec.exc is eng.ImportApplyError:
             return eng.ImportApplyError(message, [str(i) for i in body.get("issues") or []])
+        if spec.exc in (
+            doc.InvalidDocumentSchemaError,
+            doc.PublishRefusedError,
+            doc.CompensationRefusedError,
+        ):
+            return spec.exc(message, [str(i) for i in body.get("issues") or []])
         if spec.exc is auth.AccountLockedError:
             until = body.get("locked_until")
             return auth.AccountLockedError(message, None if until is None else str(until))

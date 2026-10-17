@@ -391,6 +391,14 @@ AGENT_MAY_NOT = {
     "control.command.IssueTransmittal",
     "control.command.RecordReviewOutcomeOnBehalf",
     "control.command.OverrideReviewOutcome",
+    # the derivation pipeline (P1-I3, ADR-0014): schemas and rollback are the admin's, publishing
+    # into tags the admin's and into documents the controller's; an agent proposes
+    "admin.command.RegisterDocumentSchema",
+    "admin.command.RetireDocumentSchema",
+    "admin.command.PublishDerivedTags",
+    "admin.command.CompensatePublication",
+    "control.command.PublishDerivedDocuments",
+    "control.command.VoidDerivedDocument",
 }
 FEED_COMMANDS = {"PostToFeed", "EditPost", "RetractPost", "ReactToPost"}
 

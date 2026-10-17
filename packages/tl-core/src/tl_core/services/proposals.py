@@ -44,6 +44,7 @@ from pydantic import ValidationError
 from sqlalchemy import Connection, text
 
 from tl_core.ledger import ConcurrencyError, NewEvent
+from tl_core.modules import module_proposables
 from tl_core.projection.proposals import PROPOSAL_STREAM_TYPE
 from tl_core.proposals.types import (
     AGENT_DAILY_PROPOSALS,
@@ -61,6 +62,7 @@ from tl_core.services.errors import (
     BudgetExceededError,
     GuardFailedError,
     InvalidProposalError,
+    ProposalAccessError,
     ProposalDeciderError,
     ProposalNotFoundError,
     ProposalNotPendingError,
@@ -71,6 +73,7 @@ from tl_core.services.errors import (
 from tl_core.services.links import AddLink, handle_add_link
 from tl_core.services.psets import SetPsetValues, handle_set_pset_values
 from tl_core.services.records import handle_create_record
+from tl_core.services.reserved import refuse_reserved
 from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.settings.layers import parse_layer
@@ -100,7 +103,8 @@ ROLE_GUARD_KIND = "roles"
 _PROPOSER = re.compile(r"(?:agent|user):[A-Za-z0-9][A-Za-z0-9_.@-]*")
 _PERSON = re.compile(r"user:[A-Za-z0-9][A-Za-z0-9_.@-]*")
 
-#: command type name -> (model, handler). The keys are the values of ``PROPOSABLE_TOOLS``.
+#: command type name -> (model, handler) of the core commands. The keys are the values of
+#: ``PROPOSABLE_TOOLS``. Use :func:`command_table` to include the modules' proposable commands.
 COMMANDS: dict[str, tuple[type[Command], Handler]] = {
     "CreateRecord": (CreateRecord, handle_create_record),
     "SetPsetValues": (SetPsetValues, handle_set_pset_values),
@@ -108,6 +112,39 @@ COMMANDS: dict[str, tuple[type[Command], Handler]] = {
     "TransitionWorkflow": (TransitionWorkflow, handle_transition_workflow),
     "ChangeSetting": (ChangeSetting, handle_change_setting),
 }
+
+#: Who must accept a proposal of each core command: any signed-in person (ADR-0014).
+CORE_ACCESS = dict.fromkeys(COMMANDS, "user")
+
+
+def proposable_tools() -> dict[str, str]:
+    """Tool name -> command type: the core tools and the proposable commands of the modules."""
+    return {
+        **PROPOSABLE_TOOLS,
+        **{tool: item.model.__name__ for tool, item in module_proposables().items()},
+    }
+
+
+def command_table() -> dict[str, tuple[type[Command], Handler]]:
+    """Command type name -> (model, handler), the core commands and the modules' proposable ones."""
+    table = dict(COMMANDS)
+    for item in module_proposables().values():
+        table[item.model.__name__] = (item.model, item.handler)
+    return table
+
+
+def access_of(command_type: str) -> str | None:
+    """What the accepting person must hold for a command type; ``None`` when nothing declares it.
+
+    A command type with no declared access cannot be accepted (fail closed).
+    """
+    if command_type in CORE_ACCESS:
+        return CORE_ACCESS[command_type]
+    for item in module_proposables().values():
+        if item.model.__name__ == command_type:
+            return item.access
+    return None
+
 
 _COLUMNS = (
     "SELECT proposal_id, scope, tool, agent, command_type, command_json, summary, status, "
@@ -264,17 +301,18 @@ def proposals_today(conn: Connection, agent: str, *, now: datetime | None = None
 
 
 def _check_proposal(tool: str, agent: str, command: Command, summary: str) -> str:
-    command_type = PROPOSABLE_TOOLS.get(tool)
+    tools = proposable_tools()
+    command_type = tools.get(tool)
     if command_type is None:
         raise InvalidProposalError(
-            f"{tool!r} does not propose changes; the tools that do are "
-            f"{', '.join(sorted(PROPOSABLE_TOOLS))}"
+            f"{tool!r} does not propose changes; the tools that do are {', '.join(sorted(tools))}"
         )
     if type(command).__name__ != command_type:
         raise InvalidProposalError(
             f"{tool} carries a {command_type}, not a {type(command).__name__}"
         )
     source_for(agent)  # checks the shape
+    refuse_reserved(command)
     clean = summary.strip()
     if not clean or len(clean) > MAX_SUMMARY:
         raise InvalidProposalError(f"summary must be 1 to {MAX_SUMMARY} characters")
@@ -370,10 +408,10 @@ def precheck(factory: Factory, *, tool: str, command: Command) -> None:
     event is published and a number the allocator took goes back. A transition that is refused only
     by a role guard passes, because the agent has no roles; the accepting person supplies theirs.
     """
-    command_type = PROPOSABLE_TOOLS.get(tool)
+    command_type = proposable_tools().get(tool)
     if command_type is None or type(command).__name__ != command_type:
         raise InvalidProposalError(f"{tool!r} does not carry a {type(command).__name__}")
-    handler = COMMANDS[command_type][1]
+    handler = command_table()[command_type][1]
     try:
         with factory(readonly=False) as uow:
             try:
@@ -453,6 +491,24 @@ def _decide(
     )
 
 
+def _require_access(command_type: str, holds: Callable[[str], bool] | None) -> None:
+    """Refuse to run a command whose accepting person lacks the access it needs (fail closed).
+
+    ``holds(level)`` says whether the accepting person has ``controller`` or ``admin``; without it
+    only ``user`` commands run. A command type nobody declared access for never runs.
+    """
+    needed = access_of(command_type)
+    if needed is None:
+        raise ProposalAccessError(
+            f"{command_type} has no declared access, so it cannot be accepted"
+        )
+    if needed != "user" and (holds is None or not holds(needed)):
+        raise ProposalAccessError(
+            f"accepting a {command_type} proposal needs the {needed} role"
+            + (" (admin or document controller)" if needed == "controller" else "")
+        )
+
+
 def accept_proposal(
     uow: UnitOfWork,
     *,
@@ -461,6 +517,7 @@ def accept_proposal(
     roles: Sequence[str] = (),
     accept_risk: bool = False,
     source: str = DEFAULT_SOURCE,
+    holds: Callable[[str], bool] | None = None,
 ) -> ProposalView:
     """Run the stored command as ``by`` and append ``Proposal.Accepted``, in ``uow``.
 
@@ -472,10 +529,16 @@ def accept_proposal(
     on a ``dangerous`` key (the stored command never carries it). If the command is refused its
     error propagates and the caller's block rolls back; callers use :func:`accept_or_fail`, which
     then records ``Proposal.Failed``. ``source`` labels the decision event (``cli``, ``api``).
+
+    ``holds(level)`` tells whether ``by`` holds the ``controller`` or ``admin`` access a command may
+    need (ADR-0014): the command runs as ``by`` and gets no more rights through a proposal than
+    ``by`` has. Without it only commands that any signed-in person may run are accepted;
+    ``ProposalAccessError`` otherwise, with the proposal still pending.
     """
     _require_person(by, "accept")
     row = _pending(uow, proposal_id)
-    model, handler = COMMANDS[row.command_type]
+    _require_access(row.command_type, holds)
+    model, handler = command_table()[row.command_type]
     data = _as_object(row.command_json)
     data.update(
         actor=by,
@@ -545,6 +608,7 @@ def accept_or_fail(
     roles: Sequence[str] = (),
     accept_risk: bool = False,
     source: str = DEFAULT_SOURCE,
+    holds: Callable[[str], bool] | None = None,
 ) -> ProposalView:
     """Accept; if the command is refused, roll it back and record ``Proposal.Failed``.
 
@@ -565,8 +629,14 @@ def accept_or_fail(
                 roles=roles,
                 accept_risk=accept_risk,
                 source=source,
+                holds=holds,
             )
-    except (ProposalNotFoundError, ProposalNotPendingError, ProposalDeciderError):
+    except (
+        ProposalNotFoundError,
+        ProposalNotPendingError,
+        ProposalDeciderError,
+        ProposalAccessError,
+    ):
         raise
     except RiskNotAcceptedError:
         raise  # the person has not confirmed the risk yet: the proposal stays pending

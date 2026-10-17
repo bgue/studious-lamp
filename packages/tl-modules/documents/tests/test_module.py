@@ -50,11 +50,11 @@ def test_every_document_event_type_is_handled_by_exactly_one_projector() -> None
         for event_type in projector.handles:
             owners.setdefault(event_type, []).append(projector.name)
     assert all(len(names) == 1 for names in owners.values())
-    catalogued = set()
-    for path in (ROOT / "schema" / "modules" / "documents").glob("events.yaml"):
-        import re
+    import re
 
-        catalogued = set(re.findall(r"tl:event_type: (\S+)", path.read_text(encoding="utf-8")))
+    catalogued: set[str] = set()
+    for path in (ROOT / "schema" / "modules" / "documents").glob("*events.yaml"):
+        catalogued |= set(re.findall(r"tl:event_type: (\S+)", path.read_text(encoding="utf-8")))
     assert catalogued == set(owners)
 
 

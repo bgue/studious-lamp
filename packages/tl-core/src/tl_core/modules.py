@@ -35,11 +35,14 @@ from collections.abc import Callable, Generator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from importlib.metadata import entry_points
+from typing import Any, Literal
 
 from sqlalchemy import Connection
 
 from tl_core.numbering.config import NumberingPattern
 from tl_core.projection.types import Projector
+from tl_core.services.commands import Command, CommandResult
+from tl_core.uow import UnitOfWork
 
 ENTRY_POINT_GROUP = "throughline.modules"
 
@@ -78,6 +81,28 @@ BoundPsetsHook = Callable[[Connection, str, str], tuple[str, ...]]
 NumberingPatternsHook = Callable[[Connection], Sequence[NumberingPattern]]
 
 
+#: What the person who accepts a proposal must hold: ``user`` is any signed-in person.
+ProposalAccess = Literal["user", "controller", "admin"]
+ProposalHandler = Callable[[UnitOfWork, Any], CommandResult]
+
+
+@dataclass(frozen=True)
+class ProposableCommand:
+    """A module command an agent may *propose* through an MCP tool (ADR-0014 section 8).
+
+    ``tool`` is the proposal's tool name (it must not collide with a core tool), ``model`` and
+    ``handler`` the command and its handler. ``access`` is required and has no default: accepting
+    the proposal runs the command as the accepting person, who must hold that access (the role
+    check of the API route or the CLI), so a command is never proposable without someone having
+    decided who may approve it.
+    """
+
+    tool: str
+    model: type[Command]
+    handler: ProposalHandler
+    access: ProposalAccess
+
+
 class ModuleLoadError(RuntimeError):
     """An installed module could not be loaded, or two modules claim the same name or type."""
 
@@ -106,6 +131,8 @@ class ModuleSpec:
     #: was issued takes no new PDF). Called by ``require_generic`` from the same places as the
     #: allow-list, including the file upload path, so every entry point inherits it.
     generic_guards: Mapping[tuple[str, str], GenericGuard] = field(default_factory=_no_guards)
+    #: Module commands an agent may propose, each with the access the accepting person needs.
+    proposable: Sequence[ProposableCommand] = ()
 
     def __post_init__(self) -> None:
         for record_type, commands in self.generic_commands.items():
@@ -266,3 +293,14 @@ def ledger_numbering_patterns(conn: Connection) -> list[NumberingPattern]:
         if spec.numbering_patterns is not None:
             patterns.extend(spec.numbering_patterns(conn))
     return patterns
+
+
+def module_proposables() -> dict[str, ProposableCommand]:
+    """The modules' proposable commands by tool name; two modules claiming a tool is an error."""
+    found: dict[str, ProposableCommand] = {}
+    for spec in load_modules():
+        for item in spec.proposable:
+            if item.tool in found:
+                raise ModuleLoadError(f"proposal tool {item.tool!r} is declared twice")
+            found[item.tool] = item
+    return found

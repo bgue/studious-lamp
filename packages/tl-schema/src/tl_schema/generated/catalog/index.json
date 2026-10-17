@@ -82,6 +82,51 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.DerivedDocument.ContentRecorded.v1",
+      "event_type": "DerivedDocument.ContentRecorded",
+      "payload_class": "DerivedDocumentContentRecordedPayload",
+      "sample": "samples/DerivedDocument.ContentRecorded.v1.json",
+      "schema": "schemas/DerivedDocument.ContentRecorded.v1.json",
+      "title": "One extractor pass over a source file finished: a new content revision of the derived document.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.DerivedDocument.Defined.v1",
+      "event_type": "DerivedDocument.Defined",
+      "payload_class": "DerivedDocumentDefinedPayload",
+      "sample": "samples/DerivedDocument.Defined.v1.json",
+      "schema": "schemas/DerivedDocument.Defined.v1.json",
+      "title": "A derived document was opened for a source revision and a document schema.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.DerivedDocument.PublicationCompensated.v1",
+      "event_type": "DerivedDocument.PublicationCompensated",
+      "payload_class": "DerivedDocumentPublicationCompensatedPayload",
+      "sample": "samples/DerivedDocument.PublicationCompensated.v1.json",
+      "schema": "schemas/DerivedDocument.PublicationCompensated.v1.json",
+      "title": "The publication of a derived document was rolled back: reversing events for everything its import made were appended under a correlation id of their own.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.DerivedDocument.Published.v1",
+      "event_type": "DerivedDocument.Published",
+      "payload_class": "DerivedDocumentPublishedPayload",
+      "sample": "samples/DerivedDocument.Published.v1.json",
+      "schema": "schemas/DerivedDocument.Published.v1.json",
+      "title": "The rows of a valid content revision were published into target records as one correlated import.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.DerivedDocument.Validated.v1",
+      "event_type": "DerivedDocument.Validated",
+      "payload_class": "DerivedDocumentValidatedPayload",
+      "sample": "samples/DerivedDocument.Validated.v1.json",
+      "schema": "schemas/DerivedDocument.Validated.v1.json",
+      "title": "A content revision was checked against a document schema version.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Document.CurrentRevisionChanged.v1",
       "event_type": "Document.CurrentRevisionChanged",
       "payload_class": "DocumentCurrentRevisionChangedPayload",
@@ -115,6 +160,24 @@
       "sample": "samples/Document.Updated.v1.json",
       "schema": "schemas/Document.Updated.v1.json",
       "title": "The register fields of a document changed (the title changes through the core `Record.Updated`).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.DocumentSchema.Defined.v1",
+      "event_type": "DocumentSchema.Defined",
+      "payload_class": "DocumentSchemaDefinedPayload",
+      "sample": "samples/DocumentSchema.Defined.v1.json",
+      "schema": "schemas/DocumentSchema.Defined.v1.json",
+      "title": "A version of a document schema was registered.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.DocumentSchema.Retired.v1",
+      "event_type": "DocumentSchema.Retired",
+      "payload_class": "DocumentSchemaRetiredPayload",
+      "sample": "samples/DocumentSchema.Retired.v1.json",
+      "schema": "schemas/DocumentSchema.Retired.v1.json",
+      "title": "A version of a document schema was retired; documents that named it keep it.",
       "version": 1
     },
     {
@@ -259,6 +322,51 @@
       "sample": "samples/Numbering.Allocated.v1.json",
       "schema": "schemas/Numbering.Allocated.v1.json",
       "title": "A number was allocated from a counter.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ProcessingJob.Cancelled.v1",
+      "event_type": "ProcessingJob.Cancelled",
+      "payload_class": "ProcessingJobCancelledPayload",
+      "sample": "samples/ProcessingJob.Cancelled.v1.json",
+      "schema": "schemas/ProcessingJob.Cancelled.v1.json",
+      "title": "A queued job was cancelled before a worker took it.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ProcessingJob.Defined.v1",
+      "event_type": "ProcessingJob.Defined",
+      "payload_class": "ProcessingJobDefinedPayload",
+      "sample": "samples/ProcessingJob.Defined.v1.json",
+      "schema": "schemas/ProcessingJob.Defined.v1.json",
+      "title": "A processing job was queued.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ProcessingJob.Failed.v1",
+      "event_type": "ProcessingJob.Failed",
+      "payload_class": "ProcessingJobFailedPayload",
+      "sample": "samples/ProcessingJob.Failed.v1.json",
+      "schema": "schemas/ProcessingJob.Failed.v1.json",
+      "title": "The claimed attempt failed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ProcessingJob.Started.v1",
+      "event_type": "ProcessingJob.Started",
+      "payload_class": "ProcessingJobStartedPayload",
+      "sample": "samples/ProcessingJob.Started.v1.json",
+      "schema": "schemas/ProcessingJob.Started.v1.json",
+      "title": "A worker claimed a job (attempt n).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ProcessingJob.Succeeded.v1",
+      "event_type": "ProcessingJob.Succeeded",
+      "payload_class": "ProcessingJobSucceededPayload",
+      "sample": "samples/ProcessingJob.Succeeded.v1.json",
+      "schema": "schemas/ProcessingJob.Succeeded.v1.json",
+      "title": "The claimed attempt finished and its results were recorded.",
       "version": 1
     },
     {

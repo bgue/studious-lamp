@@ -1,0 +1,93 @@
+id: https://example.org/throughline/modules/documents/document_schema
+name: tl_mod_documents_document_schema
+title: Document schemas (brief 9, M1 derivation; P1-I3)
+description: >-
+  A `DocumentSchema` is a named, versioned description of the table a derived document must contain: a JSON
+  Schema that every extracted row is validated against, a sample, notes, and optionally the declarative mapping
+  that turns a valid row into module commands when the derived document is published (ADR-0014). A version is
+  never edited: a change is a new version (a new record) and the old one is retired, so a derived document
+  always names the exact schema it was validated against. Spec: docs/modules/documents/derivation.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: documents
+
+classes:
+  DocumentSchema:
+    description: >-
+      One version of a document schema. Record type `documents.DocumentSchema`; its key is `<code>@<semver>`
+      (`instrument-index@1.0.0`). The title is the envelope title. It lives in the `company` scope (a company
+      standard) or in a project scope (a project's own variant); a project reads its own first, then the company's.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "documents.DocumentSchema"
+      tl:ix_scope_code: "scope, code, ordinal"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: "`company` or `project:<id>`."
+      code:
+        required: true
+        description: "The schema's name, lower case with hyphens (`instrument-index`)."
+      semver:
+        required: true
+        description: "Semantic version `major.minor.patch`."
+      ordinal:
+        range: integer
+        required: true
+        description: Position among the versions of the same code in the same scope, from 1; orders versions whatever their numbers.
+      target_kind:
+        description: "What a valid row is published as: `tags`, `documents`, or null when the schema is for validation only."
+      key_column:
+        description: The column that identifies a row (a tag number); used to diff two derived documents and to refuse duplicate rows.
+      json_schema:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: The JSON Schema (draft 2020-12) of one row, an object whose properties are the columns.
+      sample:
+        range: Any
+        annotations:
+          tl:json: true
+        description: A short list of example rows that validate; shown to people who prepare a file.
+      mapping:
+        range: Any
+        annotations:
+          tl:json: true
+        description: The publish mapping (ADR-0014), already checked against its LinkML model; null when the schema cannot be published.
+      mapping_notes:
+        description: Free text about how the columns are read and how rows become records.
+      doc_types:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: JSON list of document type codes the schema applies to; empty means any.
+      content_hash:
+        required: true
+        description: Hex SHA-256 of the canonical JSON of the schema and its mapping; a derived document records it.
+      is_active:
+        range: boolean
+        required: true
+        ifabsent: "true"
+        description: False once the version is retired; a retired version still validates documents that named it.
+      retired_reason:
+        description: Why the version was retired.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

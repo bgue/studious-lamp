@@ -94,6 +94,31 @@ from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
 from tl_mod_documents import reports as document_reports
 from tl_mod_documents import views as document_views
+from tl_mod_documents.derivation import views as derivation_views
+from tl_mod_documents.derivation.derived import (
+    CancelJob,
+    OpenDerivedDocument,
+    StartExtraction,
+    ValidateDerived,
+    VoidDerivedDocument,
+    handle_cancel_job,
+    handle_open_derived_document,
+    handle_start_extraction,
+    handle_validate_derived,
+    handle_void_derived_document,
+)
+from tl_mod_documents.derivation.diff import DerivedDiff
+from tl_mod_documents.derivation.publish import (
+    CompensatePublication,
+    CompensationPlan,
+    PublishDerivedDocuments,
+    PublishDerivedTags,
+    PublishPlan,
+    handle_compensate_publication,
+    handle_publish_derived_documents,
+    handle_publish_derived_tags,
+)
+from tl_mod_documents.derivation.validation import ValidationReport
 from tl_mod_documents.handlers.transmittals import (
     CreateTransmittal,
     IssueTransmittal,
@@ -679,6 +704,144 @@ class EmbeddedClient:
             if cmd.actor != self.actor:  # the gate checked this client's actor, so must the command
                 raise ForbiddenError("the command names an actor other than the signed-in person")
             return self.own_writes.note(handle_issue_transmittal(uow, cmd))
+
+    # --- derivation (P1-I3) -------------------------------------------------------------------
+    #
+    # Rows, reports and the publication read and write files, so a process that embeds this client
+    # must have said which file service to use (``tl_mod_documents.derivation.store.configure``);
+    # without one those calls raise ``DerivationNotConfiguredError``.
+
+    def list_derived_documents(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        document: str | None = None,
+        schema: str | None = None,
+        include_void: bool = False,
+        limit: int = 200,
+    ) -> list[derivation_views.DerivedSummary]:
+        with self._uow(True) as uow:
+            return derivation_views.derived_summaries(
+                uow.conn(),
+                f"project:{project}",
+                state=state,
+                document=document,
+                schema_code=schema,
+                include_void=include_void,
+                limit=limit,
+            )
+
+    def get_derived_document(self, project: str, ref: str) -> derivation_views.DerivedView:
+        with self._uow(True) as uow:
+            return derivation_views.derived_view(uow.conn(), f"project:{project}", ref)
+
+    def list_processing_jobs(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        derived: str | None = None,
+        limit: int = 200,
+    ) -> list[derivation_views.JobView]:
+        with self._uow(True) as uow:
+            return derivation_views.job_views(
+                uow.conn(), f"project:{project}", state=state, derived=derived, limit=limit
+            )
+
+    def get_processing_job(self, project: str, job_id: str) -> derivation_views.JobView:
+        with self._uow(True) as uow:
+            return derivation_views.job_view(uow.conn(), f"project:{project}", job_id)
+
+    def get_derived_rows(
+        self,
+        project: str,
+        ref: str,
+        *,
+        content_rev: int | None = None,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> derivation_views.RowsPage:
+        with self._uow(True) as uow:
+            return derivation_views.derived_rows(
+                uow, f"project:{project}", ref, content_rev=content_rev, offset=offset, limit=limit
+            )
+
+    def get_derived_report(
+        self, project: str, ref: str, *, content_rev: int | None = None
+    ) -> ValidationReport:
+        with self._uow(True) as uow:
+            return derivation_views.derived_report(
+                uow, f"project:{project}", ref, content_rev=content_rev
+            )
+
+    def get_derived_diff(
+        self,
+        project: str,
+        ref: str,
+        *,
+        against: str = "previous_pass",
+        content_rev: int | None = None,
+    ) -> DerivedDiff:
+        with self._uow(True) as uow:
+            return derivation_views.derived_diff(
+                uow, f"project:{project}", ref, against=against, content_rev=content_rev
+            )
+
+    def get_publish_preview(
+        self, project: str, ref: str, *, target: str | None = None
+    ) -> PublishPlan:
+        with self._uow(True) as uow:
+            return derivation_views.publish_preview(uow, f"project:{project}", ref, target=target)
+
+    def get_compensation_preview(self, project: str, ref: str) -> CompensationPlan:
+        with self._uow(True) as uow:
+            return derivation_views.compensation_preview(uow, f"project:{project}", ref)
+
+    def open_derived_document(self, cmd: OpenDerivedDocument) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_open_derived_document(uow, cmd))
+
+    def start_extraction(self, cmd: StartExtraction) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_start_extraction(uow, cmd))
+
+    def validate_derived(self, cmd: ValidateDerived) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_validate_derived(uow, cmd))
+
+    def cancel_job(self, cmd: CancelJob) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_cancel_job(uow, cmd))
+
+    def void_derived_document(self, cmd: VoidDerivedDocument) -> CommandResult:
+        with self._uow(False) as uow:
+            self._controller_gate(uow)  # voiding another person's data is a controller's act
+            self._own_command(cmd.actor)
+            return self.own_writes.note(handle_void_derived_document(uow, cmd))
+
+    def publish_derived_tags(self, cmd: PublishDerivedTags) -> CommandResult:
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            self._own_command(cmd.actor)
+            return self.own_writes.note(handle_publish_derived_tags(uow, cmd))
+
+    def publish_derived_documents(self, cmd: PublishDerivedDocuments) -> CommandResult:
+        with self._uow(False) as uow:
+            self._controller_gate(uow)
+            self._own_command(cmd.actor)
+            return self.own_writes.note(handle_publish_derived_documents(uow, cmd))
+
+    def compensate_publication(self, cmd: CompensatePublication) -> CommandResult:
+        with self._uow(False) as uow:
+            self._admin_gate(uow)
+            self._own_command(cmd.actor)
+            return self.own_writes.note(handle_compensate_publication(uow, cmd))
+
+    def _own_command(self, actor: str) -> None:
+        """The gate checked this client's actor, so the command must name the same one."""
+        if actor != self.actor:
+            raise ForbiddenError("the command names an actor other than the signed-in person")
 
     # --- settings (P0-I8) ---------------------------------------------------------------------
 

@@ -23,6 +23,7 @@ from pydantic import Field
 from tl_api.auth import authorize
 from tl_api.tokens import check_actor
 from tl_core.extypes.provider import attach as attach_extension_types
+from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
 from tl_core.query.parser import MAX_QUERY_LENGTH
 from tl_core.services.link_queries import LinkView
@@ -30,9 +31,11 @@ from tl_core.services.link_trace import TraceDirection, TraceNode
 from tl_core.settings.views import SettingView
 from tl_lake import LakeConfig, LakeQueryService
 from tl_lake.guard import MAX_SQL_CHARS
+from tl_mod_documents.derivation import store as derivation_store
 
 from tl_mcp import resources, tools
 from tl_mcp.context import Authorizer, McpContext, UowFactory
+from tl_mcp.derivation_tools import register_derivation_tools
 from tl_mcp.document_tools import register_document_tools
 from tl_mcp.engineering_tools import register_engineering_tools
 from tl_mcp.errors import MAX_PART, guarded, resource_name
@@ -99,6 +102,7 @@ def build_server(
     tool_modes: Mapping[str, str] | None = None,
     lake_dir: str | Path | None = None,
     object_store: ObjectStore | None = None,
+    files: FileService | None = None,
 ) -> MCPServer:
     """An MCP server over ``factory`` acting as ``actor`` (``agent:<id>`` or ``user:<id>``).
 
@@ -107,9 +111,12 @@ def build_server(
     ``lake_dir`` is the DuckLake directory ``lake_query`` reads (default ``TL_LAKE_DIR``, else
     ``./dev/data/lake``). The lake is opened per call, so it may not exist yet. ``object_store``
     holds the bodies of object-backed extension records (default: none, so body reads say so).
+    ``files`` is the file service the derivation tools read rows and reports with (default: none).
     The registered extension types of ``factory``'s ledger join the effective schema.
     """
     check_actor(actor)
+    if files is not None:  # rows and reports of derived documents are files (ADR-0014)
+        derivation_store.configure(files)
     attach_extension_types(factory, prime=True)
     modes = resolve_tool_modes(tool_modes)
     lake = LakeQueryService(
@@ -126,6 +133,7 @@ def build_server(
     register_type_tools(server, ctx)
     register_engineering_tools(server, ctx)
     register_document_tools(server, ctx)
+    register_derivation_tools(server, ctx)
 
     @server.tool(annotations=READ_ONLY)
     def search_records(

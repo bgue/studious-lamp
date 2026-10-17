@@ -1902,6 +1902,97 @@
             "title": "Importance",
             "type": "string"
         },
+        "JobQueue": {
+            "additionalProperties": false,
+            "description": "One queued, running or finished job. `job_id` is the id of the job record. A worker claims a row by moving it to `running` with a lease; a lease that expired makes the row claimable again (the work is retried, or failed when `attempt` has reached `max_attempts`). Completion is accepted for the claimed `attempt` only, so a late worker whose lease was taken over cannot finish a job twice.",
+            "properties": {
+                "attempt": {
+                    "description": "Number of times the job has been claimed; the claim that is running now is this attempt.",
+                    "type": "integer"
+                },
+                "enqueued_at": {
+                    "type": "string"
+                },
+                "finished_at": {
+                    "description": "ISO-8601 UTC when the job reached done, failed or cancelled.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "job_id": {
+                    "description": "The id of the job record (a ledger stream id).",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "kind": {
+                    "description": "The job kind a handler is registered for, for example `extract`.",
+                    "type": "string"
+                },
+                "last_error": {
+                    "description": "The latest failure, cut to 500 characters; never a stack trace.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "lease_owner": {
+                    "description": "The worker that holds the claim; null when not running.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "lease_until": {
+                    "description": "ISO-8601 UTC; the claim of a running job expires here.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "max_attempts": {
+                    "description": "A job is failed for good when a claim would be attempt `max_attempts` + 1.",
+                    "type": "integer"
+                },
+                "priority": {
+                    "description": "Higher runs first among claimable jobs.",
+                    "type": "integer"
+                },
+                "run_after": {
+                    "description": "ISO-8601 UTC; the job is not claimable before this moment (a retry waits here).",
+                    "type": "string"
+                },
+                "scope": {
+                    "description": "The scope of the job record.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "started_at": {
+                    "description": "ISO-8601 UTC of the latest claim.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "state": {
+                    "description": "queued, running, done, failed or cancelled.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "job_id",
+                "kind",
+                "scope",
+                "state",
+                "priority",
+                "attempt",
+                "max_attempts",
+                "run_after",
+                "enqueued_at"
+            ],
+            "title": "JobQueue",
+            "type": "object"
+        },
         "Link": {
             "additionalProperties": false,
             "description": "One link between two records, in its current lifecycle state.",
