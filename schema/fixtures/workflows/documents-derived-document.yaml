@@ -1,0 +1,49 @@
+# Workflow of a derived document (brief 9 M1: Pending -> Processing -> Invalid or Valid -> Published).
+# A derived document is Pending until a job has read data into it, Processing while a job runs, Invalid
+# when the latest content failed its schema, Valid when it passed, Published once its rows were
+# published into target records. A finished job returns it to the state its validation status names
+# (Pending when there are no rows yet), so a failed job loses nothing. `compensate` is the move back from
+# Published after a publication was rolled back (brief 24.5). The moves are made by the documents module's
+# commands (StartExtraction, ValidateDerived, the job runner, PublishDerived*, CompensatePublication,
+# VoidDerivedDocument); people cannot run them directly.
+id: documents.derived-document
+version: 1
+record_type: documents.DerivedDocument
+scope: company
+initial_state: Pending
+states:
+  - name: Pending
+  - name: Processing
+  - name: Invalid
+  - name: Valid
+  - name: Published
+  - name: Void
+transitions:
+  - name: start
+    label: A job starts reading or checking
+    from: [Pending, Invalid, Valid]
+    to: Processing
+  - name: finish_pending
+    label: The job ended and there are no rows yet
+    from: [Processing]
+    to: Pending
+  - name: finish_invalid
+    label: The latest content failed its schema
+    from: [Processing]
+    to: Invalid
+  - name: finish_valid
+    label: The latest content passed its schema
+    from: [Processing]
+    to: Valid
+  - name: publish
+    label: Publish the rows into target records
+    from: [Valid]
+    to: Published
+  - name: compensate
+    label: Roll the publication back
+    from: [Published]
+    to: Valid
+  - name: void
+    label: Void the derived document
+    from: [Pending, Invalid, Valid]
+    to: Void

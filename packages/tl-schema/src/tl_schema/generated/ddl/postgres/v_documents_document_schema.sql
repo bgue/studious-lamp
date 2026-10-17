@@ -1,0 +1,30 @@
+CREATE OR REPLACE VIEW v_documents_document_schema AS
+SELECT
+  r.id AS id,
+  r.key AS key,
+  r.type AS record_type,
+  r.scope AS scope,
+  r.title AS title,
+  r.description AS description,
+  r.status AS status,
+  r.voided AS voided,
+  r.version AS version,
+  r.conformance AS conformance,
+  r.psets_json AS psets_json,
+  r.created_at AS created_at,
+  r.updated_at AS updated_at,
+  t.code AS code,
+  t.semver AS semver,
+  t.ordinal AS ordinal,
+  t.target_kind AS target_kind,
+  t.key_column AS key_column,
+  t.json_schema_json AS json_schema_json,
+  t.sample_json AS sample_json,
+  t.mapping_json AS mapping_json,
+  t.mapping_notes AS mapping_notes,
+  t.doc_types_json AS doc_types_json,
+  t.content_hash AS content_hash,
+  t.is_active AS is_active,
+  t.retired_reason AS retired_reason
+FROM cur_documents_document_schema AS t
+JOIN cur_core_record AS r ON r.id = t.id;

@@ -40,6 +40,23 @@ from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView
 from tl_mod_documents import reports as document_reports
 from tl_mod_documents import views as document_views
+from tl_mod_documents.derivation import views as derivation_views
+from tl_mod_documents.derivation.derived import (
+    CancelJob,
+    OpenDerivedDocument,
+    StartExtraction,
+    ValidateDerived,
+    VoidDerivedDocument,
+)
+from tl_mod_documents.derivation.diff import DerivedDiff
+from tl_mod_documents.derivation.publish import (
+    CompensatePublication,
+    CompensationPlan,
+    PublishDerivedDocuments,
+    PublishDerivedTags,
+    PublishPlan,
+)
+from tl_mod_documents.derivation.validation import ValidationReport
 from tl_mod_documents.handlers.transmittals import CreateTransmittal, IssueTransmittal
 from tl_mod_documents.resolver import RepinDocumentLink
 from tl_mod_engineering.views import TagView
@@ -348,6 +365,121 @@ class ClientInterface(Protocol):
 
     def issue_transmittal(self, cmd: IssueTransmittal) -> CommandResult:
         """Issue a draft transmittal (a controller's act: ``ForbiddenError`` for anyone else)."""
+        ...
+
+    # --- derivation (P1-I3; ADR-0014) --------------------------------------------------------
+    #
+    # The same names and signatures as ``tl_api.client.ApiClient``. ``project`` is the project id;
+    # ``ref`` is a derived document's id or key (``ISD-001@A/instrument-index``). Unknown names
+    # raise the module's ``DerivedNotFoundError`` / ``JobNotFoundError`` / ``SchemaNotFoundError``;
+    # a read that needs a stage the document has not reached (rows before a pass, a report before
+    # a validation) raises ``DerivedStateError``. The commands are the module's
+    # (``tl_mod_documents.derivation``): starting, validating and cancelling are open to any
+    # signed-in person; publishing into tags and compensating are admin acts and publishing into
+    # documents a document controller's, refused with ``ForbiddenError`` to anyone else. Registering
+    # a schema is not offered here (it is an admin command, ``tl derive schema``).
+
+    def list_derived_documents(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        document: str | None = None,
+        schema: str | None = None,
+        include_void: bool = False,
+        limit: int = 200,
+    ) -> list[derivation_views.DerivedSummary]:
+        """A project's derived documents, newest first; no content revisions in a listing."""
+        ...
+
+    def get_derived_document(self, project: str, ref: str) -> derivation_views.DerivedView:
+        """One derived document with its content revisions and its running job."""
+        ...
+
+    def list_processing_jobs(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        derived: str | None = None,
+        limit: int = 200,
+    ) -> list[derivation_views.JobView]:
+        """A project's jobs, newest first (``state``: queued, running, succeeded, failed, ...)."""
+        ...
+
+    def get_processing_job(self, project: str, job_id: str) -> derivation_views.JobView:
+        """One job."""
+        ...
+
+    def get_derived_rows(
+        self,
+        project: str,
+        ref: str,
+        *,
+        content_rev: int | None = None,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> derivation_views.RowsPage:
+        """A page of the extracted rows of a content revision (the latest by default)."""
+        ...
+
+    def get_derived_report(
+        self, project: str, ref: str, *, content_rev: int | None = None
+    ) -> ValidationReport:
+        """The stored validation report of a content revision."""
+        ...
+
+    def get_derived_diff(
+        self,
+        project: str,
+        ref: str,
+        *,
+        against: str = "previous_pass",
+        content_rev: int | None = None,
+    ) -> DerivedDiff:
+        """What changed against the previous pass or the previous revision of the document."""
+        ...
+
+    def get_publish_preview(
+        self, project: str, ref: str, *, target: str | None = None
+    ) -> PublishPlan:
+        """What publishing would do with each row now; writes nothing."""
+        ...
+
+    def get_compensation_preview(self, project: str, ref: str) -> CompensationPlan:
+        """What compensating the publication in force would reverse; writes nothing."""
+        ...
+
+    def open_derived_document(self, cmd: OpenDerivedDocument) -> CommandResult:
+        """Open the derived document of a revision for a schema (the person's, no job yet)."""
+        ...
+
+    def start_extraction(self, cmd: StartExtraction) -> CommandResult:
+        """Queue an extraction job (any signed-in person)."""
+        ...
+
+    def validate_derived(self, cmd: ValidateDerived) -> CommandResult:
+        """Queue a validation job over a content revision (any signed-in person)."""
+        ...
+
+    def cancel_job(self, cmd: CancelJob) -> CommandResult:
+        """Cancel a queued job."""
+        ...
+
+    def void_derived_document(self, cmd: VoidDerivedDocument) -> CommandResult:
+        """Void a derived document that is not published (controller or admin)."""
+        ...
+
+    def publish_derived_tags(self, cmd: PublishDerivedTags) -> CommandResult:
+        """Create the tags of a valid derived document (admin; ``ForbiddenError`` otherwise)."""
+        ...
+
+    def publish_derived_documents(self, cmd: PublishDerivedDocuments) -> CommandResult:
+        """Register the documents of a valid derived document (controller or admin)."""
+        ...
+
+    def compensate_publication(self, cmd: CompensatePublication) -> CommandResult:
+        """Roll back the publication in force (admin; all or nothing)."""
         ...
 
     # --- settings (P0-I8; brief 30) -----------------------------------------------------------

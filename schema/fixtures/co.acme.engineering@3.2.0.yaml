@@ -85,3 +85,25 @@ psets:
         minimum: 0
         maximum: 4
         required_in_states: [Installed]
+
+  provenance:
+    label: Provenance
+    description: >-
+      Where the values of a record came from (P1-I3, ADR-0014). A publication of a derived document
+      writes `source` as `src.doc.<document number>@<revision code>` and `derived_document` as the key
+      of the derived document, on every record it creates. Every company that publishes derived
+      documents defines this pset for the record types it publishes into.
+    applies_to: [engineering.Tag, documents.Document]
+    enforcement: advisory
+    adoption: mandatory
+    custom_section: {allowed: false}
+    properties:
+      source:
+        label: Source
+        description: "The source revision, as src.doc.<number>@<revision>."
+        range: string
+      derived_document:
+        label: Derived document
+        description: Key of the derived document the values were published from.
+        range: string
+

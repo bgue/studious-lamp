@@ -50,6 +50,7 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.services.errors` | exceptions | `ServiceError` and its subclasses (record, pset, link, numbering, workflow, file, lock, feed and proposal refusals) |
 | `tl_core.util`: `utcnow`, `new_ulid` | functions | Clock and id helpers |
 | `tl_core.util.effective_time(dt)`, `current_effective_time()` | context manager, function | Simulated time (FANOUT D5): the ledger adapters stamp `dt` as `effective_at` on events that do not set their own; `recorded_at` and the hash chain are unchanged |
+| `tl_core.jobs`, `tl_core.derivation` (`types`, `registry`, `envelope`, `isolated`, `testing`), `tl_core.services.reserved` | packages | The job queue and runner (leases, compare-and-set settlement, orphans after a restore) and the extractor side of the pipeline (P1-I3, ADR-0014): the frozen contract in `derivation/types.py`, the registry (entry points `throughline.extractors`, fail loud), `run_in_envelope` (a child process with a scrubbed environment, `RLIMIT_AS` and `RLIMIT_CPU`, a wall clock, `SIGKILL`; nothing from the child is unpickled) and `run_isolated`. `reserved` lists the identifiers only the server may set on a command |
 
 ## Settings (`tl_core.settings`, P0-I8 workstream A; brief 30)
 | Symbol | Kind | Purpose |

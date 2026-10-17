@@ -1,0 +1,82 @@
+id: https://example.org/throughline/core/jobs
+name: tl_core_jobs
+title: Throughline job queue (P1-I3, ADR-0014)
+description: >-
+  The claim queue behind background work: extraction and validation jobs of the derivation pipeline
+  (brief 9, M1) and any later job kind. A *job* the business cares about is a module record whose state
+  changes are ledger events (`documents.ProcessingJob`); this table is only the queue that decides who runs
+  it next. Like the `wh_*` and `auth_*` tables it is operational: no event produces it, a rebuild never
+  clears it, and the archive, the lake and webhooks never read it. It uses `tl:current_state` and `tl:table`
+  only to get one DDL for both dialects. A restore from the archive brings back the job records but not the
+  queue; `tl_core.jobs.reconcile` re-enqueues queued and running jobs that have no queue row. Timestamps are
+  ISO-8601 UTC strings with microseconds and a `Z` suffix, which sort correctly as text on both databases.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+default_range: string
+annotations:
+  tl:module: core
+
+classes:
+  JobQueue:
+    description: >-
+      One queued, running or finished job. `job_id` is the id of the job record. A worker claims a row by moving
+      it to `running` with a lease; a lease that expired makes the row claimable again (the work is retried, or
+      failed when `attempt` has reached `max_attempts`). Completion is accepted for the claimed `attempt` only,
+      so a late worker whose lease was taken over cannot finish a job twice.
+    annotations:
+      tl:current_state: true
+      tl:table: job_queue
+      tl:ix_claim: "state, run_after"
+      tl:ix_scope_state: "scope, state"
+    attributes:
+      job_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: The id of the job record (a ledger stream id).
+      kind:
+        required: true
+        description: "The job kind a handler is registered for, for example `extract`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The scope of the job record.
+      state:
+        required: true
+        description: "queued, running, done, failed or cancelled."
+      priority:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Higher runs first among claimable jobs.
+      attempt:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Number of times the job has been claimed; the claim that is running now is this attempt.
+      max_attempts:
+        range: integer
+        required: true
+        ifabsent: int(3)
+        description: A job is failed for good when a claim would be attempt `max_attempts` + 1.
+      run_after:
+        required: true
+        description: ISO-8601 UTC; the job is not claimable before this moment (a retry waits here).
+      lease_owner:
+        description: The worker that holds the claim; null when not running.
+      lease_until:
+        description: ISO-8601 UTC; the claim of a running job expires here.
+      enqueued_at:
+        required: true
+      started_at:
+        description: ISO-8601 UTC of the latest claim.
+      finished_at:
+        description: ISO-8601 UTC when the job reached done, failed or cancelled.
+      last_error:
+        description: The latest failure, cut to 500 characters; never a stack trace.

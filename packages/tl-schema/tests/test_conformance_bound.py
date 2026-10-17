@@ -20,8 +20,10 @@ def summary(schema: EffectiveSchema, psets: dict[str, Any], **kwargs: Any) -> li
 
 
 def test_psets_for_adds_the_bound_psets_to_those_of_the_type(effective: EffectiveSchema) -> None:
-    assert effective.psets_for(TAG) == []
-    assert [p.name for p in effective.psets_for(TAG, ["valve_data"])] == ["valve_data"]
+    # a tag's own pset is provenance (P1-I3); the bound ones come after it
+    assert [p.name for p in effective.psets_for(TAG)] == ["provenance"]
+    bound = effective.psets_for(TAG, ["valve_data"])
+    assert [p.name for p in bound] == ["provenance", "valve_data"]
     # psets of the type itself keep applying; unknown names are ignored; no duplicates
     plain = [p.name for p in effective.psets_for("core.Record")]
     assert [p.name for p in effective.psets_for("core.Record", ["valve_data", "nope"])] == plain
@@ -85,7 +87,7 @@ def test_the_json_schema_of_a_bound_record_includes_the_bound_psets(
 
 
 def test_the_form_of_a_bound_record_lists_the_bound_psets(effective: EffectiveSchema) -> None:
-    assert form_metadata(effective, TAG).psets == []
+    assert [g.name for g in form_metadata(effective, TAG).psets] == ["provenance"]
     groups = form_metadata(effective, TAG, ["valve_data"]).psets
-    assert [g.name for g in groups] == ["valve_data"]
-    assert "psets.valve_data.size_in" in [f.path for f in groups[0].fields]
+    assert [g.name for g in groups] == ["provenance", "valve_data"]
+    assert "psets.valve_data.size_in" in [f.path for f in groups[1].fields]

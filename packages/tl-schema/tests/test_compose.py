@@ -23,8 +23,9 @@ def test_project_scope_composes_all_layers(build_docs: Build) -> None:
         ("prj.P123", "1.0.0"),
         ("x.P123", "1.4.0"),
     ]
-    # safety_data has adoption "optional" and is not extended, so P123 does not get it.
-    assert list(schema.psets) == ["prj.shutdown_tie_in", "valve_data"]
+    # safety_data has adoption "optional" and is not extended, so P123 does not get it;
+    # provenance is mandatory (P1-I3) and every project gets it.
+    assert list(schema.psets) == ["prj.shutdown_tie_in", "provenance", "valve_data"]
     assert len(schema.hash) == 64
     assert schema.hash == compute_hash(schema)
     assert schema.core_digest == core_digest()
@@ -33,7 +34,7 @@ def test_project_scope_composes_all_layers(build_docs: Build) -> None:
 def test_company_scope_keeps_every_company_pset(build_docs: Build) -> None:
     company = [d for d in build_docs() if d.kind == "company"]
     schema = compose(company, "company")
-    assert list(schema.psets) == ["safety_data", "valve_data"]
+    assert list(schema.psets) == ["provenance", "safety_data", "valve_data"]
     assert schema.psets["valve_data"].extension is None
     assert schema.psets["valve_data"].custom == {}
 

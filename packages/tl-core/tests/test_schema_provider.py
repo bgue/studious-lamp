@@ -30,10 +30,14 @@ def directory(tmp_path: Path) -> Path:
 def test_effective_schema_for_a_project(directory: Path) -> None:
     provider = DirectorySchemaProvider(directory)
     schema = provider.effective("project:P123")
-    assert list(schema.psets) == ["prj.shutdown_tie_in", "valve_data"]
+    assert list(schema.psets) == ["prj.shutdown_tie_in", "provenance", "valve_data"]
     assert provider.effective("project:P123") is schema  # cached
     assert provider.scopes() == ["company", "project:P123"]
-    assert list(provider.effective("company").psets) == ["safety_data", "valve_data"]
+    assert list(provider.effective("company").psets) == [
+        "provenance",
+        "safety_data",
+        "valve_data",
+    ]
 
 
 def test_a_changed_file_is_noticed_on_the_next_call(directory: Path) -> None:
@@ -161,7 +165,7 @@ def test_a_project_without_packages_gets_the_company_set_rescoped(directory: Pat
     provider = DirectorySchemaProvider(directory)
     other = provider.effective("project:P999")
     assert other.scope == "project:P999"
-    assert list(other.psets) == ["valve_data"]  # mandatory psets only
+    assert list(other.psets) == ["provenance", "valve_data"]  # mandatory psets only
     assert other.psets["valve_data"].extension is None
     assert other.hash != provider.effective("company").hash
     assert other.hash != provider.effective("project:P123").hash

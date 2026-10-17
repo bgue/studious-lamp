@@ -71,8 +71,8 @@ def run(client: TestClient, name: str) -> tuple[int, str]:
     return response.status_code, str(response.json().get("message", ""))
 
 
-def test_the_controlling_set_is_the_ten_and_the_actions_follow() -> None:
-    assert len(CONTROLLING) == 10
+def test_the_controlling_set_is_the_twelve_and_the_actions_follow() -> None:
+    assert len(CONTROLLING) == 12  # the ten acts of document control, PublishDerivedDocuments, void
     assert controller_actions() == {f"control.command.{n}" for n in CONTROLLING}
 
 
@@ -93,7 +93,7 @@ def test_a_document_controller_an_admin_and_a_sim_controller_pass_the_access_che
 
 def test_the_user_commands_are_open_to_everyone_with_a_role(cast: Cast) -> None:
     prepare = {c.model.__name__ for c in API_COMMANDS if c.access == "user"}
-    assert len(prepare) == 14
+    assert len(prepare) == 18  # 14 of document control, 4 of the derivation pipeline
     for who in ("bob", "dora", "solo", "boss"):
         for name in sorted(prepare):
             assert run(cast.clients[who], name)[0] != 403, (who, name)

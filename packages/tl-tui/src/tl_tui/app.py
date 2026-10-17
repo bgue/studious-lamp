@@ -94,6 +94,7 @@ class TlApp(App[None]):
         Binding("f8", "tags", "Tags", show=False),
         Binding("f9", "settings", "Settings", show=False),
         Binding("f10", "admin", "Accounts", show=False),
+        Binding("f11", "derived", "Derived documents", show=False),
         Binding("alt+left", "back", "Back", show=False),
         Binding("alt+right", "forward", "Forward", show=False),
     ]
@@ -545,6 +546,28 @@ class TlApp(App[None]):
         self.push_screen(
             DocumentRegisterScreen(
                 self.client, project, self.actor, is_controller=self.is_controller
+            )
+        )
+
+    def action_derived(self) -> None:
+        """Derived documents of this project: extracted data, validation, jobs and publishing."""
+        if self._modal_open():
+            return
+        from tl_core.settings.layers import project_of_scope
+
+        from tl_tui.widgets.derived_documents import DerivedDocumentsScreen
+
+        project = project_of_scope(self.scope)
+        if project is None:
+            self.notify("The derived documents need a project.", severity="warning")
+            return
+        self.push_screen(
+            DerivedDocumentsScreen(
+                self.client,
+                project,
+                self.actor,
+                is_admin=self.is_admin,
+                is_controller=self.is_controller,
             )
         )
 

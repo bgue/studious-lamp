@@ -41,6 +41,7 @@ from tl_cli import (
     archive,
     backup,
     config,
+    derive,
     dev,
     doc,
     doc_import,
@@ -118,6 +119,7 @@ app.add_typer(standards.app, name="standards")
 standards.app.add_typer(standards_class.app, name="class")
 app.add_typer(tag.app, name="tag")
 app.add_typer(doc.app, name="doc")
+app.add_typer(derive.app, name="derive")
 app.add_typer(transmittal.app, name="transmittal")
 app.add_typer(review.app, name="review")
 doc.app.add_typer(doc_rev.app, name="rev")

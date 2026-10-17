@@ -138,6 +138,12 @@ _COMMAND_OF = {
 #: A relation only a module may write onto a module record: the module's own commands say
 #: "this replaces that"; a person cannot claim it with a generic link.
 RESERVED_RELATION = "supersedes"
+#: A relation only the derivation pipeline writes onto a derived document: the publication's
+#: `derived_from` link is the trusted record of what a publication made (ADR-0014), so a generic
+#: link of that relation to a derived document is refused (security review of P1-I3, finding 9).
+PIPELINE_OWNED_TARGETS: dict[str, frozenset[str]] = {
+    "derived_from": frozenset({"documents.DerivedDocument"})
+}
 #: Link sources only the system may claim: a rule, an enricher, an import and a mapping write
 #: links no person made, and a link of such a source is kept by the module that wrote it. A client
 #: that could claim one would make a link nobody can retract (P1-I2 security review).
@@ -223,6 +229,12 @@ def _create(
         raise UnsupportedRecordTypeError(
             f"a {relation} link to a {target.type} record is made by that module's own "
             "commands (a rename, a split, a merge, a supersession), not by a generic link"
+        )
+
+    if not by_module and target.type in PIPELINE_OWNED_TARGETS.get(relation, frozenset()):
+        raise UnsupportedRecordTypeError(
+            f"a {relation} link to a {target.type} record is written by the derivation pipeline "
+            "when it publishes, not by a generic link"
         )
 
     link_id = new_ulid()

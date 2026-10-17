@@ -1,0 +1,76 @@
+{
+  "envelope": {
+    "data": {
+      "changes": {},
+      "detail": {
+        "column_count": 0,
+        "content_rev": 1,
+        "extraction_status": "metadata_only",
+        "extractor": "pdf",
+        "extractor_notes": [
+          "content extraction stubbed (ADR-0008 decision 8)"
+        ],
+        "extractor_version": "1",
+        "file_metadata": {
+          "content_type": "application/pdf",
+          "page_count": 2,
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "size": 1024
+        },
+        "job_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P8",
+        "method": "automated",
+        "problem_count": 0,
+        "result_file_id": null,
+        "result_sha256": null,
+        "row_count": 0,
+        "source_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+        "source_kind": "rendition"
+      },
+      "links": [],
+      "origin": {
+        "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+        "key": "47-1234-W012",
+        "type": "core.Record",
+        "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+        "version": 7
+      }
+    },
+    "datacontenttype": "application/json",
+    "dataschema": "https://tl.example.com/schema/events/DerivedDocument.ContentRecorded/1",
+    "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+    "source": "https://tl.example.com/c/acme/p/P123",
+    "specversion": "1.0",
+    "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+    "time": "2026-10-09T03:14:07.000000Z",
+    "tlactor": "user:jsmith",
+    "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+    "tlseq": 48211933,
+    "tlstreamversion": 7,
+    "type": "tl.core.DerivedDocument.ContentRecorded.v1"
+  },
+  "payload": {
+    "column_count": 0,
+    "content_rev": 1,
+    "extraction_status": "metadata_only",
+    "extractor": "pdf",
+    "extractor_notes": [
+      "content extraction stubbed (ADR-0008 decision 8)"
+    ],
+    "extractor_version": "1",
+    "file_metadata": {
+      "content_type": "application/pdf",
+      "page_count": 2,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "size": 1024
+    },
+    "job_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P8",
+    "method": "automated",
+    "problem_count": 0,
+    "result_file_id": null,
+    "result_sha256": null,
+    "row_count": 0,
+    "source_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+    "source_kind": "rendition"
+  }
+}

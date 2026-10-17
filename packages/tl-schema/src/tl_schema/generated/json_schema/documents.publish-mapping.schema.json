@@ -1,0 +1,113 @@
+{
+    "$defs": {
+        "PublishColumn": {
+            "additionalProperties": false,
+            "description": "One column of the derived table and where its value goes.",
+            "properties": {
+                "column": {
+                    "description": "The column of the derived table (a property of the schema's JSON Schema).",
+                    "type": "string"
+                },
+                "to": {
+                    "description": "The target field.",
+                    "pattern": "^(number|class|service|title|description|doc_type|discipline|originator|psets\\.[a-z][a-z0-9_]*\\.(x\\.)?[a-z][a-z0-9_]*)$",
+                    "type": "string"
+                },
+                "values": {
+                    "description": "Optional translation of the cell text into the value the target takes (an object of text to text)."
+                }
+            },
+            "required": [
+                "column",
+                "to"
+            ],
+            "title": "PublishColumn",
+            "type": "object"
+        },
+        "PublishMapping": {
+            "additionalProperties": false,
+            "description": "The mapping of one document schema version.",
+            "properties": {
+                "columns": {
+                    "description": "The columns that are published; a column that is not listed is not published.",
+                    "items": {
+                        "$ref": "#/$defs/PublishColumn"
+                    },
+                    "maxItems": 200,
+                    "minItems": 1,
+                    "type": "array"
+                },
+                "key_column": {
+                    "description": "The column that holds the key of the record (the tag number, the document number); it must be mapped to `number`.",
+                    "type": "string"
+                },
+                "note": {
+                    "description": "Free text for the person who approves a publication.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "target": {
+                    "$ref": "#/$defs/PublishTarget",
+                    "description": "What is created."
+                }
+            },
+            "required": [
+                "target",
+                "key_column",
+                "columns"
+            ],
+            "title": "PublishMapping",
+            "type": "object"
+        },
+        "PublishTarget": {
+            "description": "What a valid row is published as.",
+            "enum": [
+                "tags",
+                "documents"
+            ],
+            "title": "PublishTarget",
+            "type": "string"
+        }
+    },
+    "$id": "https://example.org/throughline/modules/documents/publish_mapping",
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "additionalProperties": false,
+    "description": "The mapping of one document schema version.",
+    "metamodel_version": "1.12.0",
+    "properties": {
+        "columns": {
+            "description": "The columns that are published; a column that is not listed is not published.",
+            "items": {
+                "$ref": "#/$defs/PublishColumn"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "type": "array"
+        },
+        "key_column": {
+            "description": "The column that holds the key of the record (the tag number, the document number); it must be mapped to `number`.",
+            "type": "string"
+        },
+        "note": {
+            "description": "Free text for the person who approves a publication.",
+            "type": [
+                "string",
+                "null"
+            ]
+        },
+        "target": {
+            "$ref": "#/$defs/PublishTarget",
+            "description": "What is created."
+        }
+    },
+    "required": [
+        "target",
+        "key_column",
+        "columns"
+    ],
+    "title": "tl_mod_documents_publish_mapping",
+    "type": "object",
+    "version": null
+}

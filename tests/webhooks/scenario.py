@@ -59,13 +59,38 @@ MODULE_STREAMS = (
         "ReviewCycle.Defined",
         ("ReviewCycle.OutcomeRecorded", "ReviewCycle.Closed"),
     ),
+    ("documents.DocumentSchema", "DocumentSchema.Defined", ("DocumentSchema.Retired",)),
+    (
+        "documents.DerivedDocument",
+        "DerivedDocument.Defined",
+        (
+            "DerivedDocument.ContentRecorded",
+            "DerivedDocument.Validated",
+            "DerivedDocument.Published",
+            "DerivedDocument.PublicationCompensated",
+        ),
+    ),
+    (
+        "documents.ProcessingJob",
+        "ProcessingJob.Defined",
+        (
+            "ProcessingJob.Started",
+            "ProcessingJob.Failed",
+            "ProcessingJob.Cancelled",
+            "ProcessingJob.Succeeded",
+        ),
+    ),
 )
 
 
 def append_module_events(world: World) -> None:
     """One stream per module record type: the envelope event, then the module's own events."""
     for index, (record_type, defined, followers) in enumerate(MODULE_STREAMS, start=1):
-        stream = f"01J9Z6Q4W3X2Y1V0T9S8R7Q6M{index}"
+        stream = (
+            f"01J9Z6Q4W3X2Y1V0T9S8R7Q6M{index}"
+            if index < 10
+            else f"01J9Z6Q4W3X2Y1V0T9S8R7Q6N{index - 10}"
+        )
         created = {
             "record_type": record_type,
             "key": f"MOD-{index}",

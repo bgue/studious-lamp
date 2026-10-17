@@ -22,6 +22,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from tl_adapters.db import DbTarget, as_target, display_target
+from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
 
 from tl_mcp.identity import (
@@ -67,6 +68,16 @@ def object_store_from_env() -> ObjectStore | None:
 
     try:
         return make_object_store()
+    except ValueError:
+        return None
+
+
+def file_service_from_env() -> FileService | None:
+    """The file service the derivation tools read rows with, or ``None`` (those reads say so)."""
+    from tl_adapters.objectstore import make_object_store, object_secret
+
+    try:
+        return FileService(make_object_store(), secret=object_secret())
     except ValueError:
         return None
 
@@ -127,6 +138,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             tool_modes=requested,
             lake_dir=args.lake_dir,
             object_store=object_store_from_env(),
+            files=file_service_from_env(),
         ).run("stdio")
     finally:
         factory.close()

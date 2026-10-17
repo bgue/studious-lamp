@@ -1,0 +1,109 @@
+id: https://example.org/throughline/modules/documents/processing_job
+name: tl_mod_documents_processing_job
+title: Processing jobs (brief 9, M1 derivation; P1-I3)
+description: >-
+  A `ProcessingJob` is one unit of background work of the derivation pipeline: run an extractor over a source file
+  and validate what it read, or validate a stored result against another schema version (ADR-0014). The record and
+  its events are the business history (who asked, which attempts, what came out); the claim queue that decides which
+  worker runs it next is the operational table `job_queue` (schema/core/jobs.yaml). Spec:
+  docs/modules/documents/derivation.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: documents
+
+classes:
+  ProcessingJob:
+    description: >-
+      One job. Record type `documents.ProcessingJob`; its key is `JOB-<id>`. It has no workflow: `state` is a
+      column moved by the job events (queued, running, succeeded, failed, cancelled), so a retry is not a
+      sequence of workflow transitions.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "documents.ProcessingJob"
+      tl:ix_scope_state: "scope, state"
+      tl:ix_derived: "derived_id, created_seq"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id, the `cur_core_record` id and `job_queue.job_id`.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      kind:
+        required: true
+        description: "extract (run an extractor, then validate) or validate (validate a stored result)."
+      derived_id:
+        range: Ulid
+        required: true
+        description: The derived document the job works for.
+      derived_key:
+        required: true
+        description: Its key, copied so a monitor needs no join.
+      source_ref:
+        required: true
+        description: "`src.doc.<number>@<revision>`, copied."
+      source_file_id:
+        range: Ulid
+        description: The file to read (extract jobs).
+      extractor:
+        description: The extractor name asked for; null means the one that accepts the file.
+      options:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: "Extractor options as given (for example `{\"sheet\": \"Index\"}`), checked by the extractor."
+      schema_id:
+        range: Ulid
+        required: true
+        description: The schema version to validate against.
+      requested_by:
+        required: true
+        description: The actor who asked (`user:<id>`); a proposal accepted for an agent names the person who accepted.
+      state:
+        required: true
+        ifabsent: string(queued)
+        description: "queued, running, succeeded, failed or cancelled."
+      attempt:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: The latest claim number.
+      max_attempts:
+        range: integer
+        required: true
+        ifabsent: int(3)
+      worker:
+        description: The worker of the latest claim.
+      started_at:
+        description: ISO-8601 UTC of the latest claim.
+      finished_at:
+        description: ISO-8601 UTC when the job ended.
+      error_code:
+        description: Short code of the latest failure (`source_not_available`, `extractor_failed`, `lease_expired` ...).
+      error_message:
+        description: The latest failure in words; fixed text and the caller's values, never a stack trace or a path.
+      result:
+        range: Any
+        annotations:
+          tl:json: true
+        description: A small summary of the outcome (status, rows, content revision, validation status).
+      created_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the event that defined the job; orders jobs of one derived document.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

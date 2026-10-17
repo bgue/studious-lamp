@@ -25,6 +25,7 @@ from tl_core.auth.types import IdentityProvider
 from tl_core.extypes.provider import attach as attach_extension_types
 from tl_core.files.service import FileService
 from tl_core.files.types import ObjectStore
+from tl_mod_documents.derivation import store as derivation_store
 
 from tl_api import commands
 from tl_api.auth import (
@@ -46,6 +47,7 @@ from tl_api.ratelimit import RateLimitMiddleware, SourceLimiter
 from tl_api.routes import (
     admin,
     auth,
+    derivation,
     documents,
     engineering,
     events,
@@ -217,6 +219,8 @@ def create_app(
         files=files_service,
         objects=object_store,
     )
+    if files_service is not None:  # derivation commands and reads store/read rows as files
+        derivation_store.configure(files_service)
     install_error_handlers(app)
     app.add_middleware(AuthenticationMiddleware, resolver=resolver)
     app.add_middleware(  # the limit applies before anything reads
@@ -265,6 +269,7 @@ def create_app(
         settings_routes,
         engineering,
         documents,
+        derivation,
     ):
         app.include_router(module.router)
     app.include_router(commands.router)

@@ -15,12 +15,17 @@ from typing import Annotated, NoReturn, cast
 import typer
 from pydantic import ValidationError
 from tl_adapters.db import DbTarget, open_uow
+from tl_adapters.objectstore import make_object_store, object_secret
+from tl_core.files.service import FileService
 from tl_core.ledger import ConcurrencyError
 from tl_core.proposals.types import ProposalStatus, ProposalView
 from tl_core.services import proposals
 from tl_core.services.errors import ServiceError
 from tl_core.settings.values import format_value
 from tl_core.uow import UnitOfWork
+from tl_mod_documents.derivation import store
+
+from tl_cli import session
 
 app = typer.Typer(
     help="Review what agents proposed: list, show, accept, reject.", no_args_is_help=True
@@ -196,6 +201,17 @@ def accept(
     ``result <view.result_stream_id>``.
     """
     db: DbTarget = ctx.obj
+    principal = session.current_principal(db)
+
+    def holds(level: str) -> bool:
+        # the command runs as `actor`, so the session must be that person's (L-P1-I2b-6)
+        if principal is None or principal.actor != actor:
+            return False
+        return {"admin": principal.is_admin, "controller": principal.is_controller}.get(
+            level, level == "user"
+        )
+
+    _configure_derivation_files()
     with _service_errors():
         view = proposals.accept_or_fail(
             _factory(db),
@@ -204,12 +220,26 @@ def accept(
             roles=role or [],
             accept_risk=accept_risk,
             source="cli",
+            holds=holds,
         )
     if view.status == "failed":
         typer.echo(f"failed {view.proposal_id}")
         _fail(view.reason or "the command was refused")
     typer.echo(f"accepted {view.proposal_id}")
     typer.echo(f"result {view.result_stream_id}")
+
+
+def _configure_derivation_files() -> None:
+    """Accepting a publication proposal runs the publication here, which reads the stored rows.
+
+    So this process must say which file service the derivation module reads them with, as
+    ``tl derive`` does. With no object store configured nothing is set, and a proposal that needs
+    one fails with the module's own message (P1-I3 demo, clause 6).
+    """
+    try:
+        store.configure(FileService(make_object_store(), secret=object_secret()))
+    except ValueError:
+        pass
 
 
 @app.command("reject")

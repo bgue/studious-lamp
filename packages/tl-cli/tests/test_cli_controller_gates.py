@@ -154,10 +154,17 @@ def sites(tmp_path: Path) -> dict[str, tuple[str, ...]]:
 
 
 def test_there_are_eleven_controller_sites(tmp_path: Path) -> None:
-    """The sites below are all of them: `require_controller` appears 11 times in the CLI."""
+    """The sites below are all of them: `require_controller` appears 11 times in `tl doc` and
+    friends, and once more in `tl derive publish` (a controller publishes documents; its own test
+    is `test_cli_derive_publish.py`)."""
     src = Path(__file__).resolve().parents[1] / "src" / "tl_cli"
-    found = sum(p.read_text().count("require_controller(db)") for p in src.glob("*.py"))
-    assert found == 11
+    found = {
+        p.name: p.read_text().count("require_controller(db)")
+        for p in src.glob("*.py")
+        if "require_controller(db)" in p.read_text()
+    }
+    assert found.pop("derive_publish.py") == 1
+    assert sum(found.values()) == 11
     assert tuple(sites(tmp_path)) == SITE_NAMES
 
 

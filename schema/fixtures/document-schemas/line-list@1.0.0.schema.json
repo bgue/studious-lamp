@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:throughline:document-schema:line-list:1.0.0",
+  "title": "Line list",
+  "description": "One row per process pipe line: its number, size, fluid, end points and design conditions.",
+  "type": "object",
+  "required": [
+    "line_number",
+    "size_in",
+    "fluid_code",
+    "from",
+    "to"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "line_number": {
+      "type": "string",
+      "description": "Line number, for example 47-P-101-4in-CS150.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9./-]{2,39}$"
+    },
+    "size_in": {
+      "type": "string",
+      "description": "Nominal pipe size in inches.",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$",
+      "maxLength": 10,
+      "x-tl-type": "decimal"
+    },
+    "fluid_code": {
+      "type": "string",
+      "description": "Fluid service code.",
+      "pattern": "^[A-Z]{1,4}$"
+    },
+    "service": {
+      "type": "string",
+      "description": "Fluid service description.",
+      "maxLength": 200
+    },
+    "from": {
+      "type": "string",
+      "description": "Equipment or line the pipe starts at.",
+      "minLength": 1,
+      "maxLength": 60
+    },
+    "to": {
+      "type": "string",
+      "description": "Equipment or line the pipe ends at.",
+      "minLength": 1,
+      "maxLength": 60
+    },
+    "pipe_class": {
+      "type": "string",
+      "description": "Piping class (material and rating).",
+      "maxLength": 20
+    },
+    "design_pressure_barg": {
+      "type": "string",
+      "description": "Design pressure in barg.",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$",
+      "maxLength": 10,
+      "x-tl-type": "decimal"
+    },
+    "design_temp_degc": {
+      "type": "string",
+      "description": "Design temperature in degrees Celsius.",
+      "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+      "maxLength": 10,
+      "x-tl-type": "decimal"
+    },
+    "insulation": {
+      "type": "string",
+      "description": "Insulation type code.",
+      "enum": [
+        "N",
+        "H",
+        "C",
+        "PP"
+      ]
+    },
+    "p_and_id": {
+      "type": "string",
+      "description": "Drawing number of the P&ID the line appears on.",
+      "maxLength": 40
+    }
+  },
+  "x-throughline": {
+    "code": "line-list",
+    "version": "1.0.0",
+    "title": "Line list",
+    "target": null,
+    "unique": [
+      "line_number"
+    ],
+    "header_aliases": {
+      "line_number": [
+        "LINE NO",
+        "Line No.",
+        "Line Number"
+      ],
+      "size_in": [
+        "SIZE (IN)",
+        "Size",
+        "NPS"
+      ],
+      "fluid_code": [
+        "FLUID",
+        "Fluid Code"
+      ],
+      "service": [
+        "Service",
+        "SERVICE"
+      ],
+      "from": [
+        "From",
+        "FROM"
+      ],
+      "to": [
+        "To",
+        "TO"
+      ],
+      "pipe_class": [
+        "CLASS",
+        "Pipe Class",
+        "Piping Class"
+      ],
+      "design_pressure_barg": [
+        "DP (BARG)",
+        "Design Pressure"
+      ],
+      "design_temp_degc": [
+        "DT (C)",
+        "Design Temp"
+      ],
+      "insulation": [
+        "INSUL",
+        "Insulation"
+      ],
+      "p_and_id": [
+        "P&ID",
+        "PID"
+      ]
+    },
+    "sample": "line-list@1.0.0.sample.csv"
+  }
+}

@@ -12,10 +12,10 @@ endpoints' annotations at run time, and one of them closes over a local (the act
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, cast
 
 from fastapi import APIRouter, Depends, Header, Request
-from pydantic import BaseModel, ConfigDict, Field, create_model
+from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
 from tl_core.auth.types import Principal
 from tl_core.services import links, psets
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
@@ -29,6 +29,7 @@ from tl_core.services.feed_actions import (
 )
 from tl_core.services.proposals import source_for
 from tl_core.services.records import handle_create_record, handle_update_record
+from tl_core.services.reserved import refuse_reserved, refuse_reserved_fields
 from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
 from tl_core.uow import UnitOfWork
@@ -93,10 +94,15 @@ voiding is not in the Phase 0 client contract, pin staleness is a system command
 their own upload routes."""
 
 
+COMMAND_BODIES: dict[str, type[BaseModel]] = {}
+"""Every body model ``request_model`` made, by name: a test walks the routes against it."""
+
+
 def request_model(model: type[Command], name: str) -> type[BaseModel]:
     """The body model for a command: its fields minus ``actor``, ``source`` made optional.
 
-    Unknown fields (``actor`` included) are refused. Used for the commands here and for the
+    Unknown fields (``actor`` included) are refused, and so is a reserved ``source``,
+    ``correlation_id`` or ``causation_id`` (ADR-0014). Used for the commands here and for the
     upload commands in ``routes/files.py``.
     """
     fields: dict[str, Any] = {}
@@ -107,11 +113,33 @@ def request_model(model: type[Command], name: str) -> type[BaseModel]:
             fields[field_name] = (str, Field(default=DEFAULT_SOURCE, pattern=SOURCE_PATTERN))
         else:
             fields[field_name] = (info.annotation, info)
-    return create_model(
+    body = create_model(
         f"{name}Body",
         __config__=ConfigDict(extra="forbid"),
+        __validators__=cast(
+            Any, {"refuse_reserved": model_validator(mode="before")(_refuse_reserved_body)}
+        ),
         **fields,
     )
+    COMMAND_BODIES[body.__name__] = body  # the walking test's key
+    return body
+
+
+def _refuse_reserved_body(data: Any) -> Any:
+    """Every client body is checked here, once, before any field is: a route cannot forget it.
+
+    The error is the service's ``ReservedIdentifierError`` (not a validation error), so the client
+    sees the same 422 ``reserved_identifier`` from every route that takes a command body, the
+    upload routes included (ADR-0014; security re-review of b5f5d41).
+    """
+    if isinstance(data, dict):
+        body = cast(dict[str, Any], data)
+        refuse_reserved_fields(
+            source=body.get("source"),
+            correlation_id=body.get("correlation_id"),
+            causation_id=body.get("causation_id"),
+        )
+    return data
 
 
 def action_for(spec: CommandSpec) -> str:
@@ -154,6 +182,7 @@ def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[.
         if actor.startswith("agent:"):  # an agent cannot claim another source (brief 18.12)
             fields["source"] = source_for(actor)
         command = spec.model(**fields, actor=actor)
+        refuse_reserved(command)  # a client cannot pose as a publication (ADR-0014)
         if spec.access == "company" and command.scope == "company":
             ctx.authorizer.authorize(principal, f"admin.command.{spec.name}", request.url.path)
         when = resolve_effective_at(effective_at, command.scope)
