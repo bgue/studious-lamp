@@ -218,6 +218,62 @@ class OversizedExtractor(FakeExtractor):
         )
 
 
+class EnvExtractor(FakeExtractor):
+    """Reports the names of the environment variables and the open descriptors it can see."""
+
+    name = "env"
+
+    def accepts(self, source: SourceFile) -> bool:
+        return source.filename.endswith(".env")
+
+    def extract(
+        self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
+    ) -> ExtractionResult:
+        import os
+
+        try:
+            descriptors = sorted(int(n) for n in os.listdir("/proc/self/fd"))
+        except OSError:
+            descriptors = []
+        return ExtractionResult(
+            extractor=self.name,
+            extractor_version=self.version,
+            status="metadata_only",
+            metadata=FileMetadata(
+                content_type=source.content_type, size=source.size, sha256=source.sha256
+            ),
+            notes=[",".join(sorted(os.environ)), ",".join(str(n) for n in descriptors)],
+        )
+
+
+def write_marker(path: str) -> str:
+    """What a hostile pickle asks the unpickler to call: it leaves a file where it ran."""
+    from pathlib import Path
+
+    Path(path).write_text("executed")
+    return path
+
+
+class _Evil:
+    def __init__(self, path: str) -> None:
+        self.path = path
+
+    def __reduce__(self) -> tuple[Any, tuple[Any, ...]]:
+        return write_marker, (self.path,)
+
+
+def hostile_pickle_entry(header: Mapping[str, Any], data: bytes) -> tuple[bytes, bytes]:
+    """An envelope entry that answers with a pickle that runs code when it is unpickled."""
+    import pickle
+
+    return b"R", pickle.dumps(_Evil(str(header["options"]["marker"])))
+
+
+def big_answer_entry(header: Mapping[str, Any], data: bytes) -> tuple[bytes, bytes]:
+    """An envelope entry that answers with more bytes than any cap in a test allows."""
+    return b"R", b"x" * 100_000
+
+
 class PdfStubExtractor:
     """Reads no content from a PDF, as ADR-0008 decision 8 says: metadata only, rows empty."""
 
@@ -253,6 +309,7 @@ def make_extractors() -> dict[str, Any]:
             GreedyExtractor(),
             SpinExtractor(),
             OversizedExtractor(),
+            EnvExtractor(),
             PdfStubExtractor(),
         )
     }

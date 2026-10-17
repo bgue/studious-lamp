@@ -35,6 +35,13 @@ MAX_COLUMNS = 200
 MAX_CELL_CHARS = 10_000
 #: Data cells per result (rows x columns, header excluded); 20 000 x 50 fits, 20 000 x 200 does not.
 MAX_CELLS = 1_000_000
+#: Bounds on the rest of a result (FANOUT D10): the parent refuses a result past any of them.
+MAX_TEXT_CHARS = 1_000
+MAX_NAME_CHARS = 255
+MAX_SHEET_NAMES = 256
+MAX_NOTES = 100
+MAX_PROBLEMS = 1_000
+MAX_MESSAGE_CHARS = 500
 #: Resource envelope the pipeline runs every extractor in (FANOUT D9): a separate process.
 EXTRACT_MAX_SECONDS = 60
 EXTRACT_MAX_MEMORY_BYTES = 1024 * 1024 * 1024

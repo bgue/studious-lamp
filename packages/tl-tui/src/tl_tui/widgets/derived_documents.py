@@ -6,15 +6,7 @@ one: its passes and running job, and either its validation report (issues by row
 its diff against the previous pass (``d`` toggles). ``x`` queues an extraction, ``v`` queues a
 validation again, ``j`` opens the job monitor and ``p`` the publish preview. Everything is read
 and written through the client; the screen shows what the module found and decides nothing.
-
-STUB (P1-I3-T07b): the bodies of _describe, _fill, action_extract, action_validate, reload raise
-NotImplementedError; their signatures, options, docstrings and the helpers are final. Each body
-has a STEPS comment. Implement them, then delete this paragraph, the STEPS comments and the
-lint-silencing lines.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
-# pyright: reportUnusedImport=false, reportUnusedVariable=false
 
 from __future__ import annotations
 
@@ -119,25 +111,35 @@ class DerivedDocumentsScreen(ModalScreen[None]):
 
     def reload(self) -> None:
         """Read the list again and keep the highlighted derived document where it is."""
-        # STEPS (P1-I3-T07b)
-        # 1. keep = self._key().
-        # 2. Try self.views = self.client.list_derived_documents(self.project,
-        #    limit=MAX_DERIVED); on CLIENT_ERRORS say describe_error(exc) with error=True and
-        #    return.
-        # 3. Call self._fill(keep).
-        raise NotImplementedError
+        keep = self._key()
+        try:
+            self.views = self.client.list_derived_documents(self.project, limit=MAX_DERIVED)
+        except CLIENT_ERRORS as exc:
+            self._say(describe_error(exc), error=True)
+            return
+        self._fill(keep)
 
     def _fill(self, keep: str | None = None) -> None:
         """Apply the screen's filters to ``self.views`` and fill the table."""
-        # STEPS (P1-I3-T07b)
-        # 1. needle = self.text.strip().lower(); self.shown = views whose state matches
-        #    self.state (when set) and whose key or title contains the needle (when set).
-        # 2. table = #dd-table: clear it and add one row per shown view: Text(cell) for each cell
-        #    of derived_cells(view), key=view.key.
-        # 3. When there are rows, move the cursor to the row of keep (else row 0).
-        # 4. Update #dd-status with summary_line(len(self.shown), len(self.views),
-        #    state=self.state, text=self.text), then call self._describe().
-        raise NotImplementedError
+        needle = self.text.strip().lower()
+        self.shown = [
+            v
+            for v in self.views
+            if (self.state is None or v.state == self.state)
+            and (not needle or needle in v.key.lower() or needle in v.title.lower())
+        ]
+        table = self.query_one("#dd-table", DataTable)
+        table.clear()
+        for view in self.shown:
+            # Text, not str: a cell is read as markup, and a title such as [a, b] is not markup
+            table.add_row(*(Text(cell) for cell in derived_cells(view)), key=view.key)
+        if self.shown:
+            keys = [v.key for v in self.shown]
+            table.move_cursor(row=keys.index(keep) if keep in keys else 0)
+        self.query_one("#dd-status", Static).update(
+            summary_line(len(self.shown), len(self.views), state=self.state, text=self.text)
+        )
+        self._describe()
 
     def _key(self) -> str | None:
         view = self.current()
@@ -151,15 +153,26 @@ class DerivedDocumentsScreen(ModalScreen[None]):
 
     def _describe(self) -> None:
         """Show the highlighted document with its passes and its report or diff."""
-        # STEPS (P1-I3-T07b)
-        # 1. detail = #dd-detail; view = self.current(). With none set self.detail = None and
-        #    show "No derived document matches.".
-        # 2. Try full = self.client.get_derived_document(self.project, view.key); on
-        #    CLIENT_ERRORS set self.detail = None, show describe_error(exc) in the panel and on
-        #    the status line (error=True), and return.
-        # 3. Set self.detail = full; lines = derived_detail_lines(full); when full.content_rev >
-        #    0 append "" and then self._body(full); show "\n".join(lines).
-        raise NotImplementedError
+        detail = self.query_one("#dd-detail", Static)
+        view = self.current()
+        if view is None:
+            self.detail = None
+            detail.update("No derived document matches.")
+            return
+        try:
+            full = self.client.get_derived_document(self.project, view.key)
+        except CLIENT_ERRORS as exc:
+            self.detail = None
+            message = describe_error(exc)
+            detail.update(message)
+            self._say(message, error=True)
+            return
+        self.detail = full
+        lines = derived_detail_lines(full)
+        if full.content_rev > 0:
+            lines.append("")
+            lines.extend(self._body(full))
+        detail.update("\n".join(lines))
 
     def _body(self, full: DerivedView) -> list[str]:
         """The report of the latest pass, or the diff against the pass before it."""
@@ -216,25 +229,49 @@ class DerivedDocumentsScreen(ModalScreen[None]):
 
     def action_extract(self) -> None:
         """Queue an extraction for the highlighted derived document (any signed-in person)."""
-        # STEPS (P1-I3-T07b)
-        # 1. If self.focused is an Input return (the key is text).
-        # 2. view = self.current(); with none say "No derived document is highlighted." and
-        #    return.
-        # 3. Try self.client.start_extraction(StartExtraction(actor=self.actor, source="tui",
-        #    scope=f"project:{self.project}", derived_id=view.id)); on CLIENT_ERRORS say
-        #    describe_error(exc) with error=True and return.
-        # 4. Call self.reload() and then say f"Queued an extraction for {view.key}." (say it
-        #    last: the reload rewrites the status line).
-        raise NotImplementedError
+        if isinstance(self.focused, Input):
+            return  # the key is text
+        view = self.current()
+        if view is None:
+            self._say("No derived document is highlighted.")
+            return
+        try:
+            self.client.start_extraction(
+                StartExtraction(
+                    actor=self.actor,
+                    source="tui",
+                    scope=f"project:{self.project}",
+                    derived_id=view.id,
+                )
+            )
+        except CLIENT_ERRORS as exc:
+            self._say(describe_error(exc), error=True)
+            return
+        self.reload()
+        self._say(f"Queued an extraction for {view.key}.")  # last: the reload rewrites the line
 
     def action_validate(self) -> None:
         """Queue a validation of the latest pass of the highlighted derived document."""
-        # STEPS (P1-I3-T07b)
-        # 1. As action_extract, but call
-        #    self.client.validate_derived(ValidateDerived(actor=self.actor, source="tui",
-        #    scope=f"project:{self.project}", derived_id=view.id)).
-        # 2. After self.reload() say f"Queued a validation of {view.key}."
-        raise NotImplementedError
+        if isinstance(self.focused, Input):
+            return  # the key is text
+        view = self.current()
+        if view is None:
+            self._say("No derived document is highlighted.")
+            return
+        try:
+            self.client.validate_derived(
+                ValidateDerived(
+                    actor=self.actor,
+                    source="tui",
+                    scope=f"project:{self.project}",
+                    derived_id=view.id,
+                )
+            )
+        except CLIENT_ERRORS as exc:
+            self._say(describe_error(exc), error=True)
+            return
+        self.reload()
+        self._say(f"Queued a validation of {view.key}.")
 
     def action_jobs(self) -> None:
         """Open the job monitor, on the highlighted document's jobs when one is highlighted."""
