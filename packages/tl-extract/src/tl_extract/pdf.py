@@ -29,7 +29,7 @@ class PdfExtractor:
     ) -> ExtractionResult:
         def body() -> ExtractionResult:
             info = read_pdf_info(read_exact(source, data))
-            notes = [STUBBED_NOTE.format(what="the text and tables of the PDF")]
+            notes = [STUBBED_NOTE.format(what="no text, table or image of the PDF was read")]
             if info.page_count is None:
                 notes.append("the page count could not be read")
             return ExtractionResult(

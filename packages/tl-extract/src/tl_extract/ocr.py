@@ -44,7 +44,7 @@ class OcrExtractor:
                 ),
                 notes=[
                     f"image: format={info.format} width={info.width} height={info.height}",
-                    STUBBED_NOTE.format(what="the text in the image"),
+                    STUBBED_NOTE.format(what="no text in the image was read"),
                 ],
             )
 

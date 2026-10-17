@@ -74,6 +74,7 @@ extraPaths = [
   "packages/tl-modules/engineering/tests",
   "packages/tl-modules/documents/tests",
   "packages/tl-extract/tests",
+  "packages/tl-extract/tests/golden",
   "tests/contract",
 ]
 typeCheckingMode = "standard"

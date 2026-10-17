@@ -56,7 +56,7 @@ def test_the_metadata_is_real_and_the_content_is_stubbed() -> None:
     assert (meta.content_type, meta.sheet_names) == (PDF, None)
     assert result.notes == [
         "content extraction stubbed (ADR-0008 decision 8): "
-        "the text and tables of the PDF was not read"
+        "no text, table or image of the PDF was read"
     ]
 
 

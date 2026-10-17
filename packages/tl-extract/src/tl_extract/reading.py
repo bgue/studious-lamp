@@ -43,7 +43,7 @@ MAX_HEADER_CHARS = 200
 #: blank rows in a row the reader stops and says so in a note.
 MAX_BLANK_RUN = 1000
 #: The note every ``metadata_only`` result carries (the contract checks for "ADR-0008").
-STUBBED_NOTE = "content extraction stubbed (ADR-0008 decision 8): {what} was not read"
+STUBBED_NOTE = "content extraction stubbed (ADR-0008 decision 8): {what}"
 
 #: Row problems a result lists; the rest are counted in one closing problem.
 MAX_PROBLEMS = 1000

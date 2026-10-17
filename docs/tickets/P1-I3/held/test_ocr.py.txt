@@ -44,7 +44,7 @@ def test_the_format_and_size_are_real_and_the_content_is_stubbed(
     assert result.rows == [] and result.columns == [] and result.problems == []
     assert result.notes == [
         f"image: format={fmt} width=800 height=600",
-        "content extraction stubbed (ADR-0008 decision 8): the text in the image was not read",
+        "content extraction stubbed (ADR-0008 decision 8): no text in the image was read",
     ]
     assert result.metadata is not None
     assert (result.metadata.size, result.metadata.content_type) == (len(data), content_type)
