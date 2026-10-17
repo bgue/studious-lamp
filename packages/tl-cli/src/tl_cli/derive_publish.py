@@ -5,14 +5,7 @@ Both preview by default and write only with `--apply`. Publishing into tags need
 into documents the document controller (or admin) role; compensating needs admin. A publication
 creates records and never changes existing ones. The rules are the module's
 (`tl_mod_documents.derivation.publish`); these commands parse options and print.
-
-STUB (P1-I3-T14d): the bodies of compensate, publish raise NotImplementedError; their
-signatures, options, docstrings and the helpers are final. Each body has a STEPS comment.
-Implement them, then delete this paragraph, the STEPS comments and the lint-silencing lines.
 """
-
-# ruff: noqa: F401, F841 -- STUB: these imports are used once the bodies are written
-# pyright: reportUnusedImport=false, reportUnusedVariable=false
 
 from __future__ import annotations
 
@@ -25,6 +18,7 @@ from tl_mod_documents.derivation.publish import (
     CompensatePublication,
     PublishDerivedDocuments,
     PublishDerivedTags,
+    PublishPlan,
     handle_compensate_publication,
     handle_publish_derived_documents,
     handle_publish_derived_tags,
@@ -62,6 +56,33 @@ def _require_publisher(db: DbTarget, scope: str, ref: str) -> None:
         require_controller(db)
 
 
+def _print_preview(plan: PublishPlan, limit: int) -> None:
+    """The preview of a publication: header, counts, one line per row, then the problems."""
+    typer.echo(
+        f"publish {plan.derived_key} pass {plan.content_rev} to {cell(plan.target)} "
+        f"({cell(plan.schema_key)})"
+    )
+    counts = plan.counts
+    typer.echo(
+        f"create {counts['create']}  exists {counts['exists']}  differs {counts['differs']}  "
+        f"invalid {counts['invalid']}"
+    )
+    shown = plan.rows[:limit]
+    for row in shown:
+        name = row.key or "no key"
+        if row.action == "create":
+            typer.echo(f"+ {name}")
+        elif row.action == "invalid":
+            typer.echo(f"! row {row.row} {name}: {'; '.join(row.problems)}")
+        else:
+            typer.echo(f"= {name} {row.action}")
+    total = sum(counts.values())
+    if total > len(shown):
+        typer.echo(f"... {total - len(shown)} more rows not shown")
+    for problem in plan.problems:
+        typer.echo(f"problem: {problem}")
+
+
 @app.command("publish")
 def publish(
     ctx: typer.Context,
@@ -95,26 +116,49 @@ def publish(
     who = acting(db, actor)  # final: the actor is checked before anything is read or written
     if apply:
         _require_publisher(db, scope, ref)  # final: the role gate, before the first write
-    # STEPS (P1-I3-T14d)
-    # 1. (done above: db, scope, configure_files, who and the role gate.)
-    # 2. Readonly block: found = views.find_derived(...); plan = views.publish_preview(uow,
-    #    scope, ref).
-    # 3. Print the header, the counts line, one line per row (at most `limit`: `+ key` create, `=
-    #    key exists|differs`, `! row n key: problems`), `... n more rows not shown` when cut,
-    #    then `problem: <p>` per plan.problems (exact formats in the docstring).
-    # 4. Without --apply: if plan.can_publish or plan.needs_skip_existing print `dry run: nothing
-    #    written; add --apply to publish` plus ` (add --skip-existing)` when
-    #    plan.needs_skip_existing and not skip_existing, and return; otherwise print `cannot
-    #    publish` and raise typer.Exit(code=1).
-    # 5. (done above: the role gate.)
-    # 6. Inside `with service_errors(), open_uow(db) as uow:` call
-    #    handle_publish_derived_tags(uow, PublishDerivedTags(**fields)) or
-    #    handle_publish_derived_documents(uow, PublishDerivedDocuments(**fields)); fields = actor
-    #    (`who`), source, scope, derived_id=found.id, expected_content_rev=rev or
-    #    plan.content_rev, skip_existing.
-    # 7. Read the derived document again (views.derived_view) and print `published
-    #    <published_count> records from <key>` and `correlation <published_correlation_id>`.
-    raise NotImplementedError
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        found = views.find_derived(uow.conn(), scope, ref)
+        plan = views.publish_preview(uow, scope, ref)
+    _print_preview(plan, limit)
+    if not apply:
+        if plan.can_publish or plan.needs_skip_existing:
+            hint = ""
+            if plan.needs_skip_existing and not skip_existing:
+                hint = " (add --skip-existing)"
+            typer.echo(f"dry run: nothing written; add --apply to publish{hint}")
+            return
+        typer.echo("cannot publish")
+        raise typer.Exit(code=1)
+    expected = rev or plan.content_rev
+    with service_errors(), open_uow(db) as uow:
+        if plan.target == TARGET_TAGS:
+            handle_publish_derived_tags(
+                uow,
+                PublishDerivedTags(
+                    actor=who,
+                    source=SOURCE,
+                    scope=scope,
+                    derived_id=found.id,
+                    expected_content_rev=expected,
+                    skip_existing=skip_existing,
+                ),
+            )
+        else:
+            handle_publish_derived_documents(
+                uow,
+                PublishDerivedDocuments(
+                    actor=who,
+                    source=SOURCE,
+                    scope=scope,
+                    derived_id=found.id,
+                    expected_content_rev=expected,
+                    skip_existing=skip_existing,
+                ),
+            )
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        view = views.derived_view(uow.conn(), scope, found.id)
+    typer.echo(f"published {view.published_count} records from {view.key}")
+    typer.echo(f"correlation {view.published_correlation_id}")
 
 
 @app.command("compensate")
@@ -140,18 +184,31 @@ def compensate(
     who = acting(db, actor)  # final: the actor is checked before anything is read or written
     if apply:
         require_admin(db)  # final: compensation is an admin's act, checked before the first write
-    # STEPS (P1-I3-T14d)
-    # 1. (done above: db, scope, configure_files, who and the admin gate.)
-    # 2. Readonly block: found = views.find_derived(...); plan = views.compensation_preview(uow,
-    #    scope, ref).
-    # 3. Print `compensate <key> correlation <id or ->`, then per item `<action> <key or
-    #    record_id>  <state or ->  reversible|blocked: <problem>` (state through cell), then
-    #    `problem: <p>` per plan.problems.
-    # 4. Without --apply: if plan.can_compensate print `dry run: nothing written; add --apply to
-    #    roll back` and return; otherwise print `cannot compensate` and raise typer.Exit(code=1).
-    # 5. With --apply: inside `with service_errors(), open_uow(db) as uow:`
-    #    handle_compensate_publication(uow, CompensatePublication(actor=who,
-    #    source=SOURCE, scope=scope, derived_id=found.id, reason=reason)).
-    # 6. Print `compensated <n> records of <key>` where n counts the plan items whose action is
-    #    not `retract_link`.
-    raise NotImplementedError
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        found = views.find_derived(uow.conn(), scope, ref)
+        plan = views.compensation_preview(uow, scope, ref)
+    typer.echo(f"compensate {plan.derived_key} correlation {cell(plan.import_correlation_id)}")
+    for item in plan.items:
+        status = "reversible" if item.reversible else f"blocked: {item.problem or '-'}"
+        typer.echo(f"{item.action} {item.key or item.record_id}  {cell(item.state)}  {status}")
+    for problem in plan.problems:
+        typer.echo(f"problem: {problem}")
+    if not apply:
+        if plan.can_compensate:
+            typer.echo("dry run: nothing written; add --apply to roll back")
+            return
+        typer.echo("cannot compensate")
+        raise typer.Exit(code=1)
+    with service_errors(), open_uow(db) as uow:
+        handle_compensate_publication(
+            uow,
+            CompensatePublication(
+                actor=who,
+                source=SOURCE,
+                scope=scope,
+                derived_id=found.id,
+                reason=reason,
+            ),
+        )
+    reversed_count = sum(1 for item in plan.items if item.action != "retract_link")
+    typer.echo(f"compensated {reversed_count} records of {plan.derived_key}")
