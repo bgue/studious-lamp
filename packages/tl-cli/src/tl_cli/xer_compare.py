@@ -1,15 +1,8 @@
-# ruff: noqa: F401, F841
-# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 """`tl xer compare|look-ahead|trend`: what changed between snapshots and what comes next (T09c).
 
 None of these writes anything. The reads are the module's (`tl_mod_schedule.views`); these
 commands parse options and print one line per fact, with two spaces between fields. Floats and
 shifts are in days (of the activity's own calendar), as the views give them.
-
-
-STUB (P1-I4-T09c): the bodies of `compare`, `look_ahead` and `trend` are `NotImplementedError`;
-the options, docstrings (the exact output), the helpers `days` and `shift` and `register` are
-written. The ticket fills the bodies by their STEPS comments.
 """
 
 from __future__ import annotations
@@ -66,30 +59,57 @@ def compare(
     `critical <id>  <entered|left>  float <old>d -> <new>d  <name>`.
     A list longer than `--limit` ends with `... <list> <k> more not shown`.
     """
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`.
-    # 2. Open the read with `with service_errors(), open_uow(db, readonly=True) as uow:`
-    #    (reads write nothing, and a module error becomes `error: ...` on stderr with exit
-    #    1), call the view with `uow.conn()` and the scope `f"project:{project}"`, and leave
-    #    the `with` before you print. The view is `views.comparison(conn, scope, schedule,
-    #    new, old, limit=limit)`; it already cuts each list to `limit` rows and keeps the
-    #    full counts in `c.totals`.
-    # 3. Print, in this order: the `compare` line (`c.new.key`, `c.new.data_date`,
-    #    `c.old.key`, `c.old.data_date`), the `data date shift` line with
-    #    `shift(c.data_date_shift_days)`, the `latest finish` line (`cell()` of both dates,
-    #    then `shift(c.finish_shift_days)` after two spaces) and the `summary` line.
-    # 4. The `summary` line is `summary ` and then, for each name in `LIST_FIELDS` (imported
-    #    above), `<name with _ replaced by a space> <c.totals.get(name, 0)>`, joined by two
-    #    spaces.
-    # 5. Then for each name in `LIST_FIELDS`, in that order: print the rows of that list in
-    #    the format of the docstring (the attribute `c.<name>` is a tuple of rows), and if
-    #    `c.totals.get(name, 0)` is more than the rows printed, print `... <name> <k> more
-    #    not shown` with k the difference.
-    # 6. Row formats: `float` uses `days(old_days) -> days(new_days)` and `eroded` when
-    #    `r.eroded` else `improved`; `shift` uses `shift(r.start_shift_days)`,
-    #    `shift(r.finish_shift_days)` and `r.largest_days`; `logic` uses `cell(old_type) ->
-    #    cell(new_type)`; progress percents with `:g`; names with `cell(name, 60)`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        c = views.comparison(uow.conn(), f"project:{project}", schedule, new, old, limit=limit)
+    typer.echo(f"compare {c.new.key} ({c.new.data_date}) with {c.old.key} ({c.old.data_date})")
+    typer.echo(f"data date shift {shift(c.data_date_shift_days)}")
+    typer.echo(
+        f"latest finish {cell(c.latest_finish_old)} -> {cell(c.latest_finish_new)}  "
+        f"{shift(c.finish_shift_days)}"
+    )
+    counts = "  ".join(f"{name.replace('_', ' ')} {c.totals.get(name, 0)}" for name in LIST_FIELDS)
+    typer.echo(f"summary {counts}")
+    rows: dict[str, list[str]] = {
+        "added": [f"added {r.activity_id}  {cell(r.name, 60)}" for r in c.added],
+        "removed": [f"removed {r.activity_id}  {cell(r.name, 60)}" for r in c.removed],
+        "date_shifts": [
+            f"shift {r.activity_id}  start {shift(r.start_shift_days)}  "
+            f"finish {shift(r.finish_shift_days)}  largest {r.largest_days}d  {cell(r.name, 60)}"
+            for r in c.date_shifts
+        ],
+        "float_changes": [
+            f"float {r.activity_id}  {days(r.old_days)} -> {days(r.new_days)}  "
+            f"{'eroded' if r.eroded else 'improved'}  {cell(r.name, 60)}"
+            for r in c.float_changes
+        ],
+        "logic_changes": [
+            f"logic {r.kind} {r.pred_activity_id} -> {r.succ_activity_id}  "
+            f"{cell(r.old_type)} -> {cell(r.new_type)}"
+            for r in c.logic_changes
+        ],
+        "progress_changes": [
+            f"progress {r.activity_id}  {r.old_percent:g}% -> {r.new_percent:g}%  "
+            f"{cell(r.old_status)} -> {cell(r.new_status)}  {cell(r.name, 60)}"
+            for r in c.progress_changes
+        ],
+        "duration_changes": [
+            f"duration {r.activity_id}  {days(r.old_days)} -> {days(r.new_days)}  "
+            f"{cell(r.name, 60)}"
+            for r in c.duration_changes
+        ],
+        "critical_changes": [
+            f"critical {r.activity_id}  {r.direction}  "
+            f"float {days(r.old_float_days)} -> {days(r.new_float_days)}  {cell(r.name, 60)}"
+            for r in c.critical_changes
+        ],
+    }
+    for name in LIST_FIELDS:
+        for line in rows[name]:
+            typer.echo(line)
+        more = c.totals.get(name, 0) - len(rows[name])
+        if more > 0:
+            typer.echo(f"... {name} {more} more not shown")
 
 
 def look_ahead(
@@ -109,21 +129,26 @@ def look_ahead(
     <critical or ok>  <name>` per activity, in the order the module gives. A `--weeks` outside 1
     to 26 is `error: ...` on stderr, exit 1.
     """
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`.
-    # 2. Open the read with `with service_errors(), open_uow(db, readonly=True) as uow:`
-    #    (reads write nothing, and a module error becomes `error: ...` on stderr with exit
-    #    1), call the view with `uow.conn()` and the scope `f"project:{project}"`, and leave
-    #    the `with` before you print. The view is `views.look_ahead_view(conn, scope,
-    #    schedule, snapshot, weeks)`; it raises `ValueError` for a `weeks` outside 1 to 26.
-    #    Catch it inside the `with` and call `fail(str(problem))` (it prints `error: ...`
-    #    and exits 1).
-    # 3. Print the `look-ahead` line (`r.snapshot_key`, `r.window_start`, `r.window_end`,
-    #    `r.weeks`) and the counts line from `r.counts` (`.get(name, 0)` for `in_progress`,
-    #    `late_start`, `starting`, `critical`, `total`).
-    # 4. Per row print the line of the docstring: float with `days(a.total_float_days)`,
-    #    percent with `:g`, `critical` or `ok`, the name with `cell(a.name, 60)`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        try:
+            r = views.look_ahead_view(uow.conn(), f"project:{project}", schedule, snapshot, weeks)
+        except ValueError as problem:
+            fail(str(problem))
+    typer.echo(f"look-ahead {r.snapshot_key}  {r.window_start} to {r.window_end}  {r.weeks} weeks")
+    typer.echo(
+        f"in progress {r.counts.get('in_progress', 0)}  "
+        f"late start {r.counts.get('late_start', 0)}  "
+        f"starting {r.counts.get('starting', 0)}  "
+        f"critical {r.counts.get('critical', 0)}  "
+        f"total {r.counts.get('total', 0)}"
+    )
+    for a in r.rows:
+        typer.echo(
+            f"{a.activity_id}  {a.phase}  start {cell(a.early_start)}  "
+            f"finish {cell(a.early_finish)}  float {days(a.total_float_days)}  "
+            f"{a.percent_complete:g}%  {'critical' if a.critical else 'ok'}  {cell(a.name, 60)}"
+        )
 
 
 def trend(
@@ -138,17 +163,17 @@ def trend(
     start <early start>  finish <early finish>  <percent>%  <critical or ok>` per snapshot that
     has the activity.
     """
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`.
-    # 2. Open the read with `with service_errors(), open_uow(db, readonly=True) as uow:`
-    #    (reads write nothing, and a module error becomes `error: ...` on stderr with exit
-    #    1), call the view with `uow.conn()` and the scope `f"project:{project}"`, and leave
-    #    the `with` before you print. The view is `views.float_trend(conn, scope, schedule,
-    #    activity_id)`.
-    # 3. Print `trend <activity_id> in <schedule>`, then one line per point as in the
-    #    docstring: `<schedule>#<number>  <state>  data date <cell>  float <days(...)>
-    #    start <cell>  finish <cell>  <percent:g>%  critical|ok`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        points = views.float_trend(uow.conn(), f"project:{project}", schedule, activity_id)
+    typer.echo(f"trend {activity_id} in {schedule}")
+    for p in points:
+        typer.echo(
+            f"{schedule}#{p.snapshot_number}  {p.state}  data date {cell(p.data_date)}  "
+            f"float {days(p.total_float_days)}  start {cell(p.early_start)}  "
+            f"finish {cell(p.early_finish)}  {p.percent_complete:g}%  "
+            f"{'critical' if p.critical else 'ok'}"
+        )
 
 
 def register(app: typer.Typer) -> None:
