@@ -242,7 +242,7 @@ def test_a_part_that_expands_past_its_limit_is_refused_before_it_is_read() -> No
     raw = hand_xlsx(sheet_xml(""), {"xl/sharedStrings.xml": bomb})
     assert len(raw) < 100_000  # it is small on disk
     error = refusal(raw)
-    assert error.code == "zip_bomb"
+    assert error.code == "sheet_too_large"  # honest but too big, not a lie about the size
 
 
 def test_parts_that_together_expand_past_the_total_are_refused() -> None:

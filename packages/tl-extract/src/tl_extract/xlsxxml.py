@@ -17,6 +17,7 @@ from __future__ import annotations
 import datetime as dt
 import posixpath
 import re
+import time
 import xml.etree.ElementTree as ET
 import zipfile
 from collections.abc import Iterator
@@ -35,12 +36,19 @@ from tl_extract.reading import (
 
 MAX_XML_DEPTH = 64
 MAX_ELEMENTS = 5_000_000
+#: Elements of a worksheet that a worksheet does not have (anything but rows, cells and their text).
+MAX_FOREIGN = 200_000
+#: A sheet that takes longer than this to read is refused (the job runner's limit is 60 s).
+MAX_SHEET_SECONDS = 40.0
 MAX_SHEETS = 256
 MAX_SHEET_NAME = 255
 MAX_SHARED_STRINGS = 1_000_000
 #: A shared string is cut here: a cell this long is refused by the table builder anyway.
 MAX_STRING_CHARS = 40_000
 MAX_STYLES = 65_536
+SHEET_TAGS = frozenset(
+    {"worksheet", "sheetData", "row", "c", "v", "f", "is", "t", "r", "rPh", "rPr"}
+)
 WORKBOOK = "xl/workbook.xml"
 WORKBOOK_RELS = "xl/_rels/workbook.xml.rels"
 
@@ -93,24 +101,43 @@ def attribute(element: ET.Element, name: str) -> str | None:
     return None
 
 
-def events(archive: zipfile.ZipFile, name: str) -> Iterator[tuple[str, ET.Element, list[str]]]:
+def events(
+    archive: zipfile.ZipFile, name: str, known: frozenset[str] | None = None
+) -> Iterator[tuple[str, ET.Element, list[str]]]:
     """``(event, element, path)`` for each start and end of an element of the part, ``path`` being
-    the local names of the open elements, innermost last. Raises ``Refusal`` for a part that is not
-    well formed, nests deeper than ``MAX_XML_DEPTH`` or has more than ``MAX_ELEMENTS`` elements."""
+    the local names of the open elements, innermost last.
+
+    Each element is cleared and detached from its parent as soon as the consumer has seen its end
+    event, so that memory stays flat however many elements follow; a consumer reads what it needs
+    (attributes, text) at the end event and keeps nothing else. Elements and attributes both count
+    toward ``MAX_ELEMENTS``; with ``known`` given, elements whose name is not in it count toward
+    ``MAX_FOREIGN`` as well. Raises ``Refusal`` for a part that is not well formed, nests deeper
+    than ``MAX_XML_DEPTH`` or passes a count.
+    """
     path: list[str] = []
+    open_elements: list[ET.Element] = []
     count = 0
+    foreign = 0
     try:
         with archive.open(name) as part:
             for event, element in ET.iterparse(part, events=("start", "end")):
                 if event == "start":
-                    path.append(local(element.tag))
-                    count += 1
-                    if len(path) > MAX_XML_DEPTH or count > MAX_ELEMENTS:
+                    tag = local(element.tag)
+                    path.append(tag)
+                    open_elements.append(element)
+                    count += 1 + len(element.attrib)
+                    if known is not None and tag not in known:
+                        foreign += 1
+                    if len(path) > MAX_XML_DEPTH or count > MAX_ELEMENTS or foreign > MAX_FOREIGN:
                         raise Refusal("unsafe_xlsx", "the workbook has an XML part that is too big")
                     yield event, element, path
                 else:
                     yield event, element, path
                     path.pop()
+                    open_elements.pop()
+                    element.clear()
+                    if open_elements:
+                        open_elements[-1].remove(element)
     except ET.ParseError as exc:
         raise Refusal("not_xlsx", "the workbook has an XML part that is not well formed") from exc
 
@@ -170,8 +197,6 @@ def read_rels(archive: zipfile.ZipFile) -> dict[str, tuple[str, str]]:
             ident, kind, target = element.get("Id"), element.get("Type"), element.get("Target")
             if ident and kind and target and len(found) < 4 * MAX_SHEETS:
                 found[ident] = (kind.rsplit("/", 1)[-1], target)
-        if event == "end":
-            element.clear()
     return found
 
 
@@ -206,7 +231,6 @@ def read_book(archive: zipfile.ZipFile, names: set[str]) -> Book:
                     part=part,
                 )
             )
-        element.clear()
     for kind, target in rels.values():
         if kind == "sharedStrings" and book.shared_strings is None:
             candidate = part_name(target)
@@ -222,30 +246,27 @@ def read_shared_strings(archive: zipfile.ZipFile, name: str) -> list[str]:
     left out), cut at ``MAX_STRING_CHARS``. Raises ``Refusal("too_many_cells")`` past
     ``MAX_SHARED_STRINGS`` strings and ``Refusal("too_much_text")`` past ``MAX_TOTAL_CHARS``."""
     strings: list[str] = []
-    stack: list[ET.Element] = []
     pieces: list[str] = []
+    kept = 0
     chars = 0
     for event, element, path in events(archive, name):
-        if event == "start":
-            stack.append(element)
+        if event != "end":
             continue
-        stack.pop()
         tag = path[-1]
         if tag == "t" and "rPh" not in path and (len(path) < 2 or path[-2] in ("si", "r")):
             piece = element.text or ""
             chars += len(piece)
             if chars > MAX_TOTAL_CHARS:
                 raise Refusal("too_much_text", "the shared strings hold too much text")
-            pieces.append(piece)
+            if kept < MAX_STRING_CHARS:
+                pieces.append(piece[: MAX_STRING_CHARS - kept])
+                kept += len(pieces[-1])
         elif tag == "si":
             if len(strings) >= MAX_SHARED_STRINGS:
                 raise Refusal("too_many_cells", "the workbook has too many shared strings")
-            strings.append("".join(pieces)[:MAX_STRING_CHARS])
+            strings.append("".join(pieces))
             pieces = []
-            if stack:
-                stack[-1].remove(element)
-        if tag != "t":
-            element.clear()
+            kept = 0
     return strings
 
 
@@ -277,7 +298,6 @@ def read_date_styles(archive: zipfile.ZipFile, name: str) -> frozenset[int]:
             if index < MAX_STYLES and is_date_format(number, codes.get(number)):
                 date_styles.add(index)
             index += 1
-        element.clear()
     return frozenset(date_styles)
 
 
@@ -298,7 +318,6 @@ def read_core(archive: zipfile.ZipFile, name: str) -> GridMeta:
             value = text.strip()[:40]
             if _W3CDTF.match(value):
                 setattr(meta, tag, value)
-        element.clear()
     return meta
 
 
@@ -320,16 +339,25 @@ def from_serial(value: float, date1904: bool) -> dt.datetime | dt.time | None:
     return moment
 
 
+_NUMBER = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?\Z", re.ASCII)
+_CELL_REFERENCE = re.compile(r"([A-Za-z]{1,3})[0-9]{1,7}\Z")
+_ROW_NUMBER = re.compile(r"[0-9]{1,7}\Z")
+_INDEX = re.compile(r"[0-9]{1,9}\Z")
+MAX_SHEET_ROW = 1_048_576
+MAX_SHEET_COLUMN = 16_384
+
+
 def number_value(text: str) -> int | float | str:
     """The number a ``<v>`` holds: an int when it has no point or exponent, else a float; the text
-    itself when it is not a number (a number of thousands of digits included)."""
+    (cut to 40 characters) when it is not written as a plain decimal number. Python's own leniency
+    (underscores, ``nan``, ``inf``, non-ASCII digits) is not accepted, and a number of thousands of
+    digits is kept as text."""
     text = text.strip()
-    try:
-        if "." in text or "e" in text or "E" in text:
-            return float(text)
-        return int(text) if len(text) < 400 else text[:40]
-    except ValueError:
+    if _NUMBER.match(text) is None:
         return text[:40]
+    if "." in text or "e" in text or "E" in text:
+        return float(text)
+    return int(text) if len(text) < 400 else text[:40]
 
 
 @dataclass
@@ -339,17 +367,16 @@ class SheetReading:
 
 
 def column_index(reference: str) -> int:
-    """The 1-based column of a cell reference such as ``AB12`` (0 when it has none)."""
+    """The 1-based column of a cell reference such as ``AB12``. Raises ``Refusal("bad_cell_ref")``
+    for a reference that is not letters and digits, or a column past ``XFD`` (16 384)."""
+    match = _CELL_REFERENCE.match(reference)
+    if match is None:
+        raise Refusal("bad_cell_ref", "a cell has a reference that is not a cell")
     index = 0
-    for char in reference:
-        if "A" <= char <= "Z":
-            index = index * 26 + ord(char) - 64
-        elif "a" <= char <= "z":
-            index = index * 26 + ord(char) - 96
-        else:
-            break
-        if index > 1_000_000:
-            return 0
+    for char in match.group(1).upper():
+        index = index * 26 + ord(char) - 64
+    if index > MAX_SHEET_COLUMN:
+        raise Refusal("bad_cell_ref", "a cell is in a column past the last column of a sheet")
     return index
 
 
@@ -368,13 +395,15 @@ def read_sheet(
     is an empty record); after it a blank record is skipped and counted, and ``MAX_ROWS`` data
     rows are allowed. A record is cut after the last non-empty cell and at ``MAX_COLUMNS + 1``
     cells. Raises ``Refusal`` (``too_many_rows``, ``too_many_cells``, ``too_much_text``,
-    ``too_many_blank_rows`` when data follows ``MAX_BLANK_RUN`` blank rows, and the XML refusals
-    of ``events``).
+    ``too_many_blank_rows`` when data follows ``MAX_BLANK_RUN`` blank rows, ``bad_row_number``,
+    ``bad_cell_ref``, ``bad_shared_string``, ``sheet_too_slow`` and the XML refusals of
+    ``events``).
     """
     out = SheetReading()
     budget = CellBudget()
     width = MAX_COLUMNS + 1
-    stack: list[ET.Element] = []
+    started = time.monotonic()
+    ticks = 0
     expected = 1  # the number of the next row to be written
     blank_run = 0
     kept = 0
@@ -385,6 +414,7 @@ def read_sheet(
     cell_style = -1
     cell_value: str | None = None
     cell_inline: list[str] = []
+    inline_chars = 0
 
     def blank_rows(count: int) -> None:
         nonlocal blank_run
@@ -394,31 +424,39 @@ def read_sheet(
         out.skipped_blank_rows += count
         blank_run += count
 
-    for event, element, path in events(archive, name):
+    for event, element, path in events(archive, name, SHEET_TAGS):
         tag = path[-1]
         if event == "start":
-            stack.append(element)
+            ticks += 1
+            if ticks % 4096 == 0 and time.monotonic() - started > MAX_SHEET_SECONDS:
+                raise Refusal("sheet_too_slow", "the sheet takes too long to read")
             if tag == "row":
                 values = []
-                number = element.get("r") or ""
-                row_number = (
-                    int(number) if number.isdigit() and int(number) >= expected else expected
-                )
+                number = element.get("r")
+                row_number = expected
+                if number is not None:
+                    if _ROW_NUMBER.match(number) is None or int(number) > MAX_SHEET_ROW:
+                        raise Refusal("bad_row_number", "a row has a number that is not a row")
+                    row_number = max(int(number), expected)
                 blank_rows(row_number - expected)
                 expected = row_number
             elif tag == "c":
-                cell_col = column_index(element.get("r") or "") or len(values) + 1
+                reference = element.get("r")
+                cell_col = column_index(reference) if reference else len(values) + 1
                 cell_type = element.get("t") or "n"
                 style = element.get("s") or ""
-                cell_style = int(style) if style.isdigit() else -1
+                cell_style = int(style) if _INDEX.match(style) else -1
                 cell_value = None
                 cell_inline = []
+                inline_chars = 0
             continue
-        stack.pop()
         if tag == "v" and "c" in path:
             cell_value = element.text or ""
         elif tag == "t" and "is" in path and "rPh" not in path:
-            cell_inline.append(element.text or "")
+            if inline_chars < MAX_STRING_CHARS:
+                piece = (element.text or "")[: MAX_STRING_CHARS - inline_chars]
+                cell_inline.append(piece)
+                inline_chars += len(piece)
         elif tag == "c":
             if cell_col <= width:
                 text = _cell(
@@ -461,10 +499,6 @@ def read_sheet(
                     )
                 budget.take(cells)
                 out.rows.append(cells)
-            if stack:
-                stack[-1].remove(element)
-        if tag in ("c", "row", "v", "t", "is", "f", "si"):
-            element.clear()
     return out
 
 
@@ -482,9 +516,10 @@ def _cell(
     if value is None:
         return None
     if kind == "s":
-        if value.strip().isdigit() and int(value) < len(strings):
-            return cell_text(strings[int(value)])
-        return None
+        index = value.strip()
+        if _INDEX.match(index) is None or int(index) >= len(strings):
+            raise Refusal("bad_shared_string", "a cell names a shared string the workbook lacks")
+        return cell_text(strings[int(index)])
     if kind in ("str", "e", "d"):
         return cell_text(value)
     if kind == "b":

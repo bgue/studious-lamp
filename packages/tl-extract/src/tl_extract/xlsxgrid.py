@@ -46,6 +46,8 @@ MAX_TOTAL_UNCOMPRESSED = 128 * 1024 * 1024
 MAX_SHARED_STRINGS_BYTES = 24 * 1024 * 1024
 MAX_SHEET_BYTES = 48 * 1024 * 1024
 MAX_OTHER_BYTES = 4 * 1024 * 1024
+#: Deflate cannot expand a byte to more than about 1032 bytes; a part that claims more lies.
+MAX_DEFLATE_RATIO = 1100
 XML_SUFFIXES = (".xml", ".rels", ".vml")
 SCAN_CHUNK = 64 * 1024
 FORBIDDEN = (b"<!DOCTYPE", b"<!ENTITY")
@@ -98,7 +100,19 @@ def check_archive(archive: zipfile.ZipFile) -> None:
             raise Refusal("not_xlsx", "the workbook has a part with an unsafe name")
         if info.flag_bits & 0x1:
             raise Refusal("encrypted_file", "the workbook is encrypted; it cannot be read")
+        if info.compress_type == zipfile.ZIP_DEFLATED and (
+            info.file_size > info.compress_size * MAX_DEFLATE_RATIO + 1024
+        ):
+            raise Refusal(
+                "zip_bomb", "a part of the workbook claims to expand more than deflate can"
+            )
         if info.file_size > _member_limit(name):
+            if name == "xl/sharedStrings.xml" or name.startswith("xl/worksheets/"):
+                raise Refusal(
+                    "sheet_too_large",
+                    f"a sheet or the shared strings expand to {info.file_size} bytes; "
+                    "split the workbook",
+                )
             raise Refusal(
                 "zip_bomb", f"a part of the workbook expands to {info.file_size} bytes; too big"
             )

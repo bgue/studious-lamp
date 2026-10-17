@@ -205,7 +205,7 @@ def test_exactly_at_the_limits_is_read() -> None:
 
 def test_an_xlsx_zip_bomb_and_an_entity_bomb_are_failed_results() -> None:
     bomb = hand_xlsx(sheet_xml(""), {"xl/sharedStrings.xml": b"<sst>" + b" " * (33 * 1024 * 1024)})
-    assert codes(xlsx_run(bomb)) == ["zip_bomb"]
+    assert codes(xlsx_run(bomb)) == ["sheet_too_large"]
     entity = b'<?xml version="1.0"?><!DOCTYPE x [<!ENTITY a "aaaa">]><worksheet/>'
     assert codes(xlsx_run(hand_xlsx(entity))) == ["unsafe_xlsx"]
 

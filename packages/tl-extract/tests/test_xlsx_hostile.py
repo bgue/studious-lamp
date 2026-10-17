@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime as dt
 import time
 import zipfile
+from pathlib import Path
 
 import pytest
 from extractsupport import (
@@ -340,7 +341,7 @@ def test_the_cell_types_of_the_format() -> None:
         '<c r="B1" t="str"><f>"x"&amp;"y"</f><v>xy</v></c>'
         '<c r="C1" t="b"><v>1</v></c>'
         '<c r="D1" t="d"><v>2024-03-01</v></c>'
-        '<c r="E1" t="s"><v>99</v></c>'
+        '<c r="E1" t="n"/>'
         '<c r="F1" t="inlineStr"><is><r><t>a</t></r><r><t>b</t></r><rPh><t>PH</t></rPh></is></c>'
         '<c r="G1"><f>SUM(A1:A9)</f></c>'
         f'<c r="H1"><v>{"9" * 5000}</v></c>'
@@ -392,3 +393,156 @@ def test_from_serial() -> None:
 def test_a_sheet_without_data_is_empty() -> None:
     assert read_xlsx(hand_xlsx(sheet_xml("")), OPTIONS).rows == []
     assert read_xlsx(hand_xlsx(b'<worksheet xmlns="' + MAIN.encode() + b'"/>'), OPTIONS).rows == []
+
+
+# --- the second review: memory that grows with elements nobody asked for ----------------------
+
+
+def junk_after_the_data(count: int) -> bytes:
+    body = '<row r="1"><c r="A1" t="inlineStr"><is><t>A</t></is></c></row>'
+    sheet = (
+        f'<?xml version="1.0"?><worksheet xmlns="{MAIN}"><sheetData>{body}</sheetData>'
+        + '<x a="1"/>' * count
+        + "</worksheet>"
+    )
+    return hand_xlsx(sheet.encode())
+
+
+def test_elements_are_detached_as_they_are_read_so_memory_stays_flat(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import tracemalloc
+
+    monkeypatch.setattr(xlsxxml, "MAX_FOREIGN", 10_000_000)
+    raw = junk_after_the_data(60_000)
+    tracemalloc.start()
+    try:
+        grid = read_xlsx(raw, OPTIONS)
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert grid.rows == [["A"]]
+    assert peak < PEAK_LIMIT  # 60 000 attached elements would be about 10 MiB
+
+
+def test_elements_a_worksheet_does_not_have_are_counted_and_refused() -> None:
+    started = time.monotonic()
+    assert refusal(junk_after_the_data(xlsxxml.MAX_FOREIGN + 10)).code == "unsafe_xlsx"
+    assert time.monotonic() - started < 1.5
+
+
+def test_attributes_count_toward_the_element_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(xlsxxml, "MAX_ELEMENTS", 100)
+    cell = "<c " + " ".join(f'a{i}="1"' for i in range(60)) + "/>"
+    assert refusal(hand_xlsx(sheet_xml(f'<row r="1">{cell}{cell}</row>'))).code == "unsafe_xlsx"
+
+
+def test_the_97_kilobyte_file_that_took_gigabytes_fails_quickly_under_a_memory_limit(
+    tmp_path: Path,
+) -> None:
+    """4.9 million elements after the data: about 100 KB of file that grew a tree without bound."""
+    import subprocess
+    import sys
+    import textwrap
+
+    path = tmp_path / "bomb.xlsx"
+    path.write_bytes(junk_after_the_data(4_900_000))
+    assert path.stat().st_size < 200_000
+    script = textwrap.dedent(
+        """
+        import hashlib, io, resource, sys
+        resource.setrlimit(resource.RLIMIT_AS, (1 << 30, 1 << 30))
+        from tl_core.derivation import SourceFile
+        from tl_extract.tabular import TabularExtractor
+        raw = open(sys.argv[1], "rb").read()
+        source = SourceFile(file_id="f", filename="a.xlsx", content_type="x/y", size=len(raw),
+                            sha256=hashlib.sha256(raw).hexdigest(), source_ref="r")
+        result = TabularExtractor().extract(source, io.BytesIO(raw), {})
+        print(result.status, [p.code for p in result.problems])
+        """
+    )
+    done = subprocess.run(
+        [sys.executable, "-I", "-c", script, str(path)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr[-500:]
+    assert done.stdout.strip() == "failed ['unsafe_xlsx']"
+
+
+def test_a_shared_string_index_the_workbook_lacks_is_refused() -> None:
+    for index in ("99", "-1", "1e3", "٣"):
+        row = f'<row r="1"><c r="A1" t="s"><v>{index}</v></c></row>'
+        assert refusal(hand_xlsx(sheet_xml(row))).code == "bad_shared_string", index
+
+
+@pytest.mark.parametrize(
+    "reference", ["", "1A", "A", "A0x", "AAAA1", "XFE1", "A99999999", "\u0661"]
+)
+def test_a_cell_reference_that_is_not_one_is_refused(reference: str) -> None:
+    row = f'<row r="1"><c r="{reference}" t="inlineStr"><is><t>x</t></is></c></row>'
+    code = "bad_cell_ref"
+    if reference == "":
+        row = row.replace('r=""', "")  # no reference at all is positional, and fine
+        assert read_xlsx(hand_xlsx(sheet_xml(row)), OPTIONS).rows == [["x"]]
+        return
+    assert refusal(hand_xlsx(sheet_xml(row))).code == code
+
+
+@pytest.mark.parametrize("number", ["99999999999999999999", "0x10", "-1", "1e3", "٣", "1.5"])
+def test_a_row_number_that_is_not_a_row_is_refused_without_echoing_it(number: str) -> None:
+    error = refusal(hand_xlsx(sheet_xml(f'<row r="{number}"><c r="A1"/></row>')))
+    assert error.code == "bad_row_number" and number not in error.message
+
+
+def test_the_last_row_of_a_sheet_is_a_row() -> None:
+    row = f'<row r="{xlsxxml.MAX_SHEET_ROW}"><c r="A{xlsxxml.MAX_SHEET_ROW}"/></row>'
+    started = time.monotonic()
+    assert read_xlsx(hand_xlsx(sheet_xml(inline_row(1, ["A"]) + row)), OPTIONS).rows == [["A"]]
+    assert time.monotonic() - started < 1
+
+
+@pytest.mark.parametrize(
+    ("text", "value"),
+    [
+        ("5", 5),
+        ("-5", -5),
+        ("+5", 5),
+        ("5.", 5.0),
+        (".5", 0.5),
+        ("1e3", 1000.0),
+        ("1E-2", 0.01),
+        (" 7 ", 7),
+        ("1_000", "1_000"),
+        ("nan", "nan"),
+        ("inf", "inf"),
+        ("-Infinity", "-Infinity"),
+        ("١٢٣", "١٢٣"),
+        ("0x10", "0x10"),
+        ("1e", "1e"),
+        ("", ""),
+        ("5" * 500, "5" * 40),
+    ],
+)
+def test_numbers_are_plain_decimals_and_nothing_else(text: str, value: object) -> None:
+    assert xlsxxml.number_value(text) == value
+
+
+def test_a_sheet_that_takes_too_long_to_read_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(xlsxxml, "MAX_SHEET_SECONDS", -1.0)
+    body = "".join(inline_row(n, ["x"]) for n in range(1, 4_000))
+    assert refusal(hand_xlsx(sheet_xml(body))).code == "sheet_too_slow"
+
+
+def test_a_part_that_claims_more_than_deflate_can_do_is_a_lie() -> None:
+    raw = bytearray(hand_xlsx(sheet_xml(inline_row(1, ["A"])), {"xl/media/x.bin": b"\x00" * 2000}))
+    # the declared uncompressed size sits 24 bytes into the part's central-directory header
+    header = next(
+        at
+        for at in range(len(raw))
+        if raw[at : at + 4] == b"PK\x01\x02" and raw[at + 46 : at + 60] == b"xl/media/x.bin"
+    )
+    raw[header + 24 : header + 28] = (3_000_000).to_bytes(4, "little")
+    assert refusal(bytes(raw)).code == "zip_bomb"

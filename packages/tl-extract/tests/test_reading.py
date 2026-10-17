@@ -222,3 +222,34 @@ def test_huge_text_costs_no_more_than_a_short_one() -> None:
     assert clean_metadata_text("\x00" * 20_000_000) is None
     assert shown("y" * 20_000_000, 10) == "y" * 9 + "…"
     assert time.monotonic() - started < 0.5
+
+
+def test_the_failed_result_is_built_after_the_exception_and_its_frames_are_gone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import weakref
+
+    from tl_extract import reading
+
+    class Big:
+        pass
+
+    refs: list[weakref.ref[Big]] = []
+
+    def body() -> None:
+        big = Big()
+        refs.append(weakref.ref(big))
+        raise MemoryError
+
+    alive_when_building: list[bool] = []
+    real = reading.failed
+
+    def spy(*args: object, **kwargs: object):  # type: ignore[no-untyped-def]
+        alive_when_building.append(refs[0]() is not None)
+        return real(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(reading, "failed", spy)
+    source = source_for("a.csv", "text/csv", b"abc")
+    result = run_guarded("x", "1", source, body)  # type: ignore[arg-type]
+    assert result.status == "failed" and [p.code for p in result.problems] == ["unreadable"]
+    assert alive_when_building == [False]  # what the body held was freed before the result

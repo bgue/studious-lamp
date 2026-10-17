@@ -175,18 +175,24 @@ def run_guarded(
     ``failed`` with the code ``unreadable`` and fixed text: the exception's text can hold names and
     paths from inside the file or the machine, so it is logged at debug level and not returned.
     """
+    # The result is built after the except clauses have ended: while one is running, the exception
+    # still holds its traceback, and the traceback holds every frame (and the tree or the table a
+    # parser had built) that ran out of memory in the first place.
+    refused: tuple[str, str, int | None] | None = None
     try:
         return body()
     except Refusal as refusal:
-        return failed(name, version, source, [problem(refusal.code, refusal.message, refusal.row)])
+        refused = (refusal.code, refusal.message, refusal.row)
     except Exception as exc:
         logging.getLogger(__name__).debug("extractor %s failed: %s", name, type(exc).__name__)
-        return failed(
-            name,
-            version,
-            source,
-            [problem("unreadable", "the file could not be read as the format it claims to be")],
-        )
+    if refused is not None:
+        return failed(name, version, source, [problem(*refused)])
+    return failed(
+        name,
+        version,
+        source,
+        [problem("unreadable", "the file could not be read as the format it claims to be")],
+    )
 
 
 @dataclass
