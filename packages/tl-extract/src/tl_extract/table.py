@@ -41,10 +41,12 @@ from tl_extract.options import TableOptions
 from tl_extract.reading import (
     MAX_CELLS,
     MAX_HEADER_CHARS,
+    MAX_NAME_CHARS,
     MAX_PROBLEMS,
     RawGrid,
     Refusal,
     has_unstorable_character,
+    note,
     problem,
     shown,
 )
@@ -74,10 +76,13 @@ class Problems:
             self._more += 1
 
     def listed(self) -> list[ExtractionProblem]:
+        """The problems, at most ``MAX_PROBLEMS`` of them: when some did not fit, the last place
+        holds the count of the ones left out, itself included."""
         if not self._more:
             return list(self._items)
-        closing = problem("more_problems", f"{self._more} more problem(s) are not listed")
-        return [*self._items, closing]
+        left_out = self._more + 1
+        closing = problem("more_problems", f"{left_out} more problem(s) are not listed")
+        return [*self._items[: MAX_PROBLEMS - 1], closing]
 
 
 def match_key(header: str) -> str:
@@ -139,7 +144,7 @@ def _rename(
         else:
             renamed.append((position, name))
     if mapped:
-        notes.append("header hints applied: " + "; ".join(mapped))
+        notes.append(note("header hints applied: " + "; ".join(mapped)))
     return renamed
 
 
@@ -165,16 +170,22 @@ def _unique(
         if count == 1:
             result.append((position, name))
             continue
-        candidate = f"{name}_{count}"
+        candidate = _suffixed(name, count)
         while candidate in taken:
             count += 1
             seen[name] = count
-            candidate = f"{name}_{count}"
+            candidate = _suffixed(name, count)
         taken.add(candidate)
         result.append((position, candidate))
         renamed.append(f"{shown(name)} -> {shown(candidate)}")
-    notes.append("duplicate headers renamed: " + "; ".join(renamed))
+    notes.append(note("duplicate headers renamed: " + "; ".join(renamed)))
     return result
+
+
+def _suffixed(name: str, count: int) -> str:
+    """``name_2``, with the name cut so that the result is still a name the contract allows."""
+    suffix = f"_{count}"
+    return name[: MAX_NAME_CHARS - len(suffix)] + suffix
 
 
 def _profile(name: str, values: list[Cell]) -> ColumnProfile:
@@ -210,7 +221,7 @@ def build_table(grid: RawGrid, options: TableOptions) -> Table:
         raise Refusal("no_header", f"row {options.header_row} has no column names")
     if unnamed:
         listed = ", ".join(str(p) for p in unnamed[:10]) + (", ..." if len(unnamed) > 10 else "")
-        notes.append(f"ignored {len(unnamed)} unnamed column(s) at position(s) {listed}")
+        notes.append(note(f"ignored {len(unnamed)} unnamed column(s) at position(s) {listed}"))
     named = _unique(_rename(named, options, notes), options, notes)
     columns = [name for _, name in named]
     named_positions = {position for position, _ in named}

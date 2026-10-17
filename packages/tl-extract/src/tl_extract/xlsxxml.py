@@ -23,10 +23,11 @@ import zipfile
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
-from tl_core.derivation import MAX_COLUMNS, MAX_ROWS, Cell
+from tl_core.derivation import MAX_COLUMNS, MAX_ROWS, MAX_SHEET_NAMES, Cell
 
 from tl_extract.reading import (
     MAX_BLANK_RUN,
+    MAX_NAME_CHARS,
     MAX_TOTAL_CHARS,
     CellBudget,
     GridMeta,
@@ -40,8 +41,8 @@ MAX_ELEMENTS = 5_000_000
 MAX_FOREIGN = 200_000
 #: A sheet that takes longer than this to read is refused (the job runner's limit is 60 s).
 MAX_SHEET_SECONDS = 40.0
-MAX_SHEETS = 256
-MAX_SHEET_NAME = 255
+MAX_SHEETS = MAX_SHEET_NAMES
+MAX_SHEET_NAME = MAX_NAME_CHARS
 MAX_SHARED_STRINGS = 1_000_000
 #: A shared string is cut here: a cell this long is refused by the table builder anyway.
 MAX_STRING_CHARS = 40_000

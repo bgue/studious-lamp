@@ -24,7 +24,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import BinaryIO
 
-from tl_core.derivation import MAX_CELLS as MAX_CELLS  # the contract's, re-exported
+from tl_core import derivation as contract
 from tl_core.derivation import (
     MAX_SOURCE_BYTES,
     Cell,
@@ -34,23 +34,24 @@ from tl_core.derivation import (
     SourceFile,
 )
 
+# The contract's limits (FANOUT D4, D10), named here so that the readers import them from one place.
+MAX_CELLS = contract.MAX_CELLS
+MAX_TEXT_CHARS = contract.MAX_TEXT_CHARS
+MAX_NAME_CHARS = contract.MAX_NAME_CHARS
+MAX_PROBLEMS = contract.MAX_PROBLEMS
+MAX_MESSAGE_CHARS = contract.MAX_MESSAGE_CHARS
 #: Characters of cell text read from one file, over all cells.
 MAX_TOTAL_CHARS = 64 * 1024 * 1024
 #: The header is a row number a person types; titles above a header block are rarely deeper.
 MAX_HEADER_ROW = 1000
 #: A column name longer than this is a sign of a wrong header row, not a name.
-MAX_HEADER_CHARS = 200
+MAX_HEADER_CHARS = MAX_NAME_CHARS
 #: A sheet that was formatted down to row one million has blank rows (with styled cells) after its
 #: data, which is harmless. A gap of this many blank rows *followed by data* is refused: the data
 #: would otherwise be skipped without a word.
 MAX_BLANK_RUN = 1000
 #: The note every ``metadata_only`` result carries (the contract checks for "ADR-0008").
 STUBBED_NOTE = "content extraction stubbed (ADR-0008 decision 8): {what}"
-
-#: Row problems a result lists; the rest are counted in one closing problem.
-MAX_PROBLEMS = 1000
-#: Longest message a problem carries.
-MAX_MESSAGE_CHARS = 300
 
 
 class Refusal(Exception):
@@ -88,7 +89,7 @@ def shown(text: str, limit: int = 60) -> str:
     return cleaned if len(cleaned) <= limit else cleaned[: limit - 1] + "…"
 
 
-def clean_metadata_text(text: str | None, limit: int = 1000) -> str | None:
+def clean_metadata_text(text: str | None, limit: int = MAX_TEXT_CHARS) -> str | None:
     """A metadata string of a file (title, author, producer) made storable: unstorable characters
     become spaces, runs of whitespace one space, and the text is cut at ``limit``.
 
@@ -102,6 +103,11 @@ def clean_metadata_text(text: str | None, limit: int = 1000) -> str | None:
     if not cleaned:
         return None
     return cleaned[:limit]
+
+
+def note(text: str) -> str:
+    """A note cut to the contract's ``MAX_TEXT_CHARS``."""
+    return text if len(text) <= MAX_TEXT_CHARS else text[: MAX_TEXT_CHARS - 1] + "…"
 
 
 def problem(code: str, message: str, row: int | None = None) -> ExtractionProblem:

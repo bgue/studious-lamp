@@ -357,3 +357,19 @@ def pdf_with_object_stream(
     )
     out.write(b"startxref\n%d\n%%%%EOF\n" % offset4)
     return out.getvalue()
+
+
+def many_sheet_workbook(count: int, prefix: str = "S") -> bytes:
+    """A workbook that lists ``count`` sheets named ``<prefix><n>``, all pointing at one worksheet."""
+    sheets = "".join(
+        f'<sheet name="{prefix}{n}" sheetId="{n}" r:id="rId1"/>' for n in range(1, count + 1)
+    )
+    workbook = (
+        '<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/'
+        '2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        f"<sheets>{sheets}</sheets></workbook>"
+    )
+    return hand_xlsx(
+        sheet_xml(inline_row(1, ["A"]) + inline_row(2, ["1"])),
+        {"xl/workbook.xml": workbook.encode()},
+    )

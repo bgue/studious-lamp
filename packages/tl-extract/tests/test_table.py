@@ -181,10 +181,14 @@ def test_too_many_cells_is_refused() -> None:
 def test_problems_are_listed_up_to_a_limit_and_the_rest_counted() -> None:
     grid = grid_of(["A"], *[["\x01"]] * (MAX_PROBLEMS + 5))
     table = build_table(grid, OPTIONS)
-    assert len(table.problems) == MAX_PROBLEMS + 1
+    assert len(table.problems) == MAX_PROBLEMS  # the contract's bound, the closing one included
     assert (table.problems[-1].code, table.problems[-1].message) == (
         "more_problems",
-        "5 more problem(s) are not listed",
+        "6 more problem(s) are not listed",
+    )
+    exactly = build_table(grid_of(["A"], *[["\x01"]] * MAX_PROBLEMS), OPTIONS)
+    assert (
+        len(exactly.problems) == MAX_PROBLEMS and exactly.problems[-1].code == "control_character"
     )
 
 
