@@ -77,21 +77,28 @@ def has_unstorable_character(text: str) -> bool:
     return _UNSTORABLE.search(text) is not None
 
 
+# Characters that reorder the text around them (left-to-right and right-to-left marks, embeddings,
+# overrides and isolates). They are valid text, but in a title or a message they can make a name
+# read as another, so text that came from a file does not keep them.
+_BIDI = re.compile("[\u200e\u200f\u202a-\u202e\u2066-\u2069]")
+
+
 def _cleaned(text: str, replacement: str) -> str:
-    return " ".join(_UNSTORABLE.sub(replacement, text).split())
+    return " ".join(_BIDI.sub(" ", _UNSTORABLE.sub(replacement, text)).split())
 
 
 def shown(text: str, limit: int = 60) -> str:
-    """Text that came from a file, made safe to put in a message: control characters become ``?``
-    and a long text is cut with an ellipsis. Only the first ``4 * limit`` characters are looked at,
-    so a huge text costs no more than a short one."""
+    """Text that came from a file, made safe to put in a message: control characters become ``?``,
+    bidirectional controls become spaces and a long text is cut with an ellipsis. Only the first
+    ``4 * limit`` characters are looked at, so a huge text costs no more than a short one."""
     cleaned = _cleaned(text[: limit * 4], "?")
     return cleaned if len(cleaned) <= limit else cleaned[: limit - 1] + "…"
 
 
 def clean_metadata_text(text: str | None, limit: int = MAX_TEXT_CHARS) -> str | None:
     """A metadata string of a file (title, author, producer) made storable: unstorable characters
-    become spaces, runs of whitespace one space, and the text is cut at ``limit``.
+    and bidirectional controls become spaces, runs of whitespace one space, and the text is cut at
+    ``limit``.
 
     The text is cut to ``4 * limit`` raw characters first, then cleaned, then cut to ``limit``, so
     a title of 47 million characters costs the same as one of a few thousand. None and an empty

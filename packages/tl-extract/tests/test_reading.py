@@ -253,3 +253,18 @@ def test_the_failed_result_is_built_after_the_exception_and_its_frames_are_gone(
     result = run_guarded("x", "1", source, body)  # type: ignore[arg-type]
     assert result.status == "failed" and [p.code for p in result.problems] == ["unreadable"]
     assert alive_when_building == [False]  # what the body held was freed before the result
+
+
+BIDI = "\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
+
+
+@pytest.mark.parametrize("mark", list(BIDI))
+def test_bidirectional_controls_do_not_survive_in_messages_or_metadata(mark: str) -> None:
+    assert shown(f"invoice{mark}fdp.exe") == "invoice fdp.exe"
+    assert clean_metadata_text(f"gpj{mark}.txt") == "gpj .txt"
+
+
+def test_a_text_of_nothing_but_bidirectional_controls_is_empty() -> None:
+    assert clean_metadata_text(BIDI * 3) is None
+    assert shown(BIDI) == ""
+    assert shown("plain \u00e9 \u65e5\u672c \u05e2\u05d1\u05e8\u05d9\u05ea") == "plain é 日本 עברית"
