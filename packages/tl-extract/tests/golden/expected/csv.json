@@ -15,13 +15,16 @@
     "author": null,
     "content_type": "text/csv",
     "created": null,
+    "height": null,
+    "image_format": null,
     "modified": null,
     "page_count": null,
     "producer": null,
     "sha256": "174da394586ee5379721ae4868176b560d48ab04e4f7d08cd3d5ac5e3edd0726",
     "sheet_names": null,
     "size": 725,
-    "title": null
+    "title": null,
+    "width": null
   },
   "notes": [
     "delimiter detected: semicolon",

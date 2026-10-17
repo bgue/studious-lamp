@@ -6,13 +6,16 @@
     "author": "Acme Instrumentation",
     "content_type": "application/pdf",
     "created": "2024-03-01T10:15:30+02:00",
+    "height": null,
+    "image_format": null,
     "modified": "2024-03-05T17:00:00Z",
     "page_count": 3,
     "producer": "Throughline golden script",
     "sha256": "9892d69ef34e25e2c02f67be74d9b2c0c96abe14327eaafc6a7dd3e127bfd482",
     "sheet_names": null,
     "size": 832,
-    "title": "Instrument index – ISD-001"
+    "title": "Instrument index – ISD-001",
+    "width": null
   },
   "notes": [
     "content extraction stubbed (ADR-0008 decision 8): no text, table or image of the PDF was read"

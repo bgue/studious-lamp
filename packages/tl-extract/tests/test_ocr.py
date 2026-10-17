@@ -40,14 +40,15 @@ def test_the_format_and_size_are_real_and_the_content_is_stubbed(
 ) -> None:
     result = image_run(filename, content_type, data)
     assert result.status == "metadata_only"
-    assert (result.extractor, result.extractor_version) == ("ocr", "1")
+    assert (result.extractor, result.extractor_version) == ("ocr", "2")
     assert result.rows == [] and result.columns == [] and result.problems == []
     assert result.notes == [
-        f"image: format={fmt} width=800 height=600",
-        "content extraction stubbed (ADR-0008 decision 8): no text in the image was read",
+        "content extraction stubbed (ADR-0008 decision 8): no text in the image was read"
     ]
     assert result.metadata is not None
     assert (result.metadata.size, result.metadata.content_type) == (len(data), content_type)
+    meta = result.metadata
+    assert (meta.image_format, meta.width, meta.height) == (fmt, 800, 600)
 
 
 def test_header_text_becomes_metadata() -> None:
@@ -69,13 +70,17 @@ def test_header_text_becomes_metadata() -> None:
 def test_the_bytes_decide_the_format_not_the_name() -> None:
     result = image_run("scan.png", "image/png", make_jpeg(30, 20))
     assert result.status == "metadata_only"
-    assert result.notes[0] == "image: format=jpeg width=30 height=20"
+    meta = result.metadata
+    assert meta is not None
+    assert (meta.image_format, meta.width, meta.height) == ("jpeg", 30, 20)
 
 
 def test_a_huge_declared_size_costs_nothing() -> None:
     result = image_run("map.png", "image/png", make_png(60_000, 80_000))
     assert result.status == "metadata_only"
-    assert result.notes[0] == "image: format=png width=60000 height=80000"
+    meta = result.metadata
+    assert meta is not None
+    assert (meta.image_format, meta.width, meta.height) == ("png", 60_000, 80_000)
 
 
 @pytest.mark.parametrize(

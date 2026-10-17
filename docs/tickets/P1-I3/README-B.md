@@ -67,7 +67,7 @@ that `struct.error` also catches). The tickets were generated from the stubs, an
 ## Risks and escalation triggers
 - **XLSX parsing** is the largest attack surface. If a reviewer finds a way around the archive guard or the XML scan, the ticket is taken over by the supervisor (the reference is at `36447c0`).
 - **No time limit.** Extractors are pure functions without a clock. A pypdf or openpyxl input that loops would hold a worker until its lease expires. The job runner (workstream A, T02) should run `extract` somewhere it can be abandoned; this is a note for the orchestrator, not a change here.
-- **Contract gap.** `FileMetadata` has no width, height or format field, so the image extractor writes `image: format=png width=800 height=600` to `notes`. Proposal for the orchestrator in the relay NOTE: add `width`, `height` and `format` (all optional) to `FileMetadata`; no extractor needs to change except `ocr.py`.
+- **Contract gap (closed).** `FileMetadata` had no width, height or format field. The orchestrator added optional `image_format`, `width` and `height` (916b5a8) and `ocr` version 2 fills them.
 - **Memory.** The contract allows 20 000 rows by 200 columns (4 million cells). The package adds `MAX_CELLS` = 1 000 000 and `MAX_TOTAL_CHARS` = 64 MiB; a larger table is refused. Workstream A's job result store should expect up to about 1 million cells.
 - **Escalate** if a ticket fails review twice (two-strikes: the supervisor finishes it), or if the contract needs to change.
 

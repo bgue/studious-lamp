@@ -2,8 +2,8 @@
 
 Reports the format and pixel size of a PNG, JPEG or TIFF, and the text properties its header
 carries. No engine reads the pixels: the result is ``metadata_only`` with an empty ``rows`` and a
-note naming the decision. The contract's ``FileMetadata`` has no width or height field, so they
-are written to a note in a fixed form, ``image: format=png width=800 height=600``.
+note naming the decision. The format and the pixel size are ``FileMetadata.image_format``,
+``width`` and ``height``.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from tl_extract.reading import STUBBED_NOTE, metadata_for, read_exact, run_guard
 
 class OcrExtractor:
     name = "ocr"
-    version = "1"
+    version = "2"  # 2: the format and size are FileMetadata fields, not a note
 
     def accepts(self, source: SourceFile) -> bool:
         return file_kind(source) == "image"
@@ -41,11 +41,11 @@ class OcrExtractor:
                     created=info.created,
                     modified=info.modified,
                     producer=info.producer,
+                    image_format=info.format,
+                    width=info.width,
+                    height=info.height,
                 ),
-                notes=[
-                    f"image: format={info.format} width={info.width} height={info.height}",
-                    STUBBED_NOTE.format(what="no text in the image was read"),
-                ],
+                notes=[STUBBED_NOTE.format(what="no text in the image was read")],
             )
 
         return run_guarded(self.name, self.version, source, body)

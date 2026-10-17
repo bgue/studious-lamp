@@ -27,7 +27,7 @@ paths, no stack traces), and the same bytes give the same result.
 |---|---|---|
 | CSV, XLSX | `ok` | `columns`, `rows` (text or None), `profiles`, `problems` per row, `notes`; XLSX also `sheet`, `sheet_names`, title/author/dates |
 | PDF | `metadata_only` | page count, title, author, producer, created, modified; a note naming ADR-0008 |
-| PNG, JPEG, TIFF | `metadata_only` | title, author, producer, dates where the header has them; a note `image: format=png width=800 height=600` (the contract has no width or height field) and the ADR-0008 note |
+| PNG, JPEG, TIFF | `metadata_only` | title, author, producer, dates where the header has them; `image_format`, `width` and `height`; the ADR-0008 note |
 | anything unreadable | `failed` | a problem with a code: `not_utf8`, `too_many_rows`, `duplicate_header`, `zip_bomb`, `unsafe_xlsx`, `encrypted_pdf`, `broken_pdf`, `broken_image`, ... |
 
 ## Depends on / used by

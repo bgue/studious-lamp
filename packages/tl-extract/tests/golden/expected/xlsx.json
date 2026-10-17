@@ -17,6 +17,8 @@
     "author": "Acme Instrumentation",
     "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "created": "2024-03-01T10:15:30Z",
+    "height": null,
+    "image_format": null,
     "modified": "2024-03-05T17:00:00Z",
     "page_count": null,
     "producer": null,
@@ -27,7 +29,8 @@
       "Archive"
     ],
     "size": 22034,
-    "title": "Instrument index"
+    "title": "Instrument index",
+    "width": null
   },
   "notes": [
     "header hints applied: Tag No. -> tag_number; Service -> service; Class -> tag_class; Size (in) -> size_in; Material -> body_material; MFR -> manufacturer; Fail -> fail_action; Remarks -> remarks",
