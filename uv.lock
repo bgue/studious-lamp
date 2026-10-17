@@ -16,11 +16,13 @@ members = [
     "tl-extract",
     "tl-lake",
     "tl-mcp",
+    "tl-mod-cost",
     "tl-mod-documents",
     "tl-mod-engineering",
     "tl-schema",
     "tl-sim",
     "tl-tui",
+    "tl-xer",
 ]
 overrides = [{ name = "jsonschema", extras = ["format-nongpl"], specifier = ">=4.26" }]
 
@@ -2740,6 +2742,27 @@ requires-dist = [
 ]
 
 [[package]]
+name = "tl-mod-cost"
+version = "0.0.1"
+source = { editable = "packages/tl-modules/cost" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+    { name = "tl-adapters" },
+    { name = "tl-core" },
+    { name = "tl-schema" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "sqlalchemy", specifier = ">=2" },
+    { name = "tl-adapters", editable = "packages/tl-adapters" },
+    { name = "tl-core", editable = "packages/tl-core" },
+    { name = "tl-schema", editable = "packages/tl-schema" },
+]
+
+[[package]]
 name = "tl-mod-documents"
 version = "0.0.1"
 source = { editable = "packages/tl-modules/documents" }
@@ -2867,6 +2890,17 @@ requires-dist = [
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
     { name = "tl-schema", editable = "packages/tl-schema" },
 ]
+
+[[package]]
+name = "tl-xer"
+version = "0.0.1"
+source = { editable = "packages/tl-xer" }
+dependencies = [
+    { name = "tl-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "tl-core", editable = "packages/tl-core" }]
 
 [[package]]
 name = "tqdm"

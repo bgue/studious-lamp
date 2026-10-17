@@ -39,6 +39,7 @@ tl-lake = { workspace = true }
 tl-mod-engineering = { workspace = true }
 tl-mod-documents = { workspace = true }
 tl-extract = { workspace = true }
+tl-xer = { workspace = true }
 
 [tool.ruff]
 line-length = 100
