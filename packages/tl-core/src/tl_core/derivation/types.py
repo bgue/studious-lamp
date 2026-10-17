@@ -33,6 +33,11 @@ MAX_SOURCE_BYTES = 50 * 1024 * 1024
 MAX_ROWS = 20_000
 MAX_COLUMNS = 200
 MAX_CELL_CHARS = 10_000
+#: Data cells per result (rows x columns, header excluded); 20 000 x 50 fits, 20 000 x 200 does not.
+MAX_CELLS = 1_000_000
+#: Resource envelope the pipeline runs every extractor in (FANOUT D9): a separate process.
+EXTRACT_MAX_SECONDS = 60
+EXTRACT_MAX_MEMORY_BYTES = 1024 * 1024 * 1024
 
 #: ``ok``: rows (if the kind yields rows) and metadata are complete.
 #: ``metadata_only``: metadata only; content extraction is stubbed (ADR-0008 decision 8).
