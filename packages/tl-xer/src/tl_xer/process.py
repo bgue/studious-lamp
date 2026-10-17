@@ -19,10 +19,13 @@ from tl_xer.bundle import write_bundle
 from tl_xer.problems import Problems
 from tl_xer.reader import RawXer, read_xer
 from tl_xer.refusals import XerRefusal
-from tl_xer.typed import Options, Snapshot, analyse, as_json_value
+from tl_xer.typed import TOO_LARGE_MESSAGE, Options, Snapshot, analyse, as_json_value
 
 Status = Literal["valid", "invalid", "refused"]
 REPORT_VERSION = 1
+#: Said in the report of a file read as Windows-1252: it is the P6 default, and it is also what a
+#: UTF-8 file with one stray byte becomes, so a person who sees odd accents knows why.
+CP1252_NOTE = "the file is not valid UTF-8, so it was read as Windows-1252 (the P6 default)"
 
 
 def canonical(value: Any) -> bytes:
@@ -61,6 +64,7 @@ def _report(
         "status": status,
         "p6_version": raw.header[0] if raw is not None and raw.header else None,
         "encoding": raw.encoding if raw is not None else None,
+        "encoding_note": CP1252_NOTE if raw is not None and raw.encoding == "cp1252" else None,
         "project_option": options.project,
         "project": snapshot.project if snapshot is not None else None,
         "counts": counts,
@@ -89,7 +93,12 @@ def refused(refusal: XerRefusal, options: Options) -> Outcome:
     return Outcome("refused", _report("refused", problems, None, None, options))
 
 
-def process(data: bytes, options: Options) -> Outcome:
+def process(data: bytes, options: Options, *, keep_snapshot: bool = True) -> Outcome:
+    """Read, validate and type ``data``.
+
+    ``keep_snapshot=False`` drops the typed rows once their JSON is made (the child of the
+    envelope sends bytes only), before the raw bundle is written: the two never coexist.
+    """
     try:
         raw = read_xer(data)
     except XerRefusal as refusal:
@@ -109,11 +118,17 @@ def process(data: bytes, options: Options) -> Outcome:
     if snapshot is None or problems.errors:
         return Outcome("invalid", _report("invalid", problems, raw, None, options))
     typed_json = canonical(as_json_value(snapshot))
+    if len(typed_json) > limits.MAX_TYPED_JSON:  # the text budget makes this unreachable: a belt
+        problems.error("typed_too_large", TOO_LARGE_MESSAGE)
+        return Outcome("invalid", _report("invalid", problems, raw, None, options))
+    report = _report("valid", problems, raw, snapshot, options)
+    kept: Snapshot | None = snapshot if keep_snapshot else None
+    del snapshot
     raw_gz, raw_sha256 = write_bundle(raw)
     return Outcome(
         "valid",
-        _report("valid", problems, raw, snapshot, options),
-        snapshot=snapshot,
+        report,
+        snapshot=kept,
         typed_json=typed_json,
         typed_sha256=hashlib.sha256(typed_json).hexdigest(),
         raw_gz=raw_gz,

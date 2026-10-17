@@ -46,7 +46,7 @@ def entry(header: Mapping[str, Any], data: bytes) -> tuple[bytes, bytes]:
         return TAG_OK, frame(
             canonical(_meta(refused(XerRefusal("parser_error"), Options())))
         ) + frame(b"")
-    outcome = process(data, options)
+    outcome = process(data, options, keep_snapshot=False)
     typed = outcome.typed_json or b""
     raw = outcome.raw_gz or b""
     return TAG_OK, frame(canonical(_meta(outcome))) + frame(typed) + raw

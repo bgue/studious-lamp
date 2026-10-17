@@ -26,18 +26,30 @@ def test_a_file_near_the_byte_and_cell_limits_is_read_inside_the_envelope() -> N
     assert result.report["counts"]["activities"] == 60_000
     assert result.report["counts"]["cells"] > 4_500_000
     assert time.monotonic() - started < 60
-    assert result.raw_gz is not None and result.typed_json is not None
+    assert result.raw_gz is not None and result.typed_sha256 is not None
 
 
 def test_more_cells_than_the_limit_is_a_refusal_not_a_slow_read() -> None:
-    columns = 16
-    rows = limits.MAX_CELLS // columns + 1000
+    columns = 200
+    rows = limits.MAX_CELLS // columns + 1000  # 101 000 rows of 200 fields: about 40 MB
     data = big_text(10, wide_rows=rows, wide_columns=columns, short_cells=True)
     assert len(data) < limits.MAX_BYTES
     started = time.monotonic()
     result = read_xer_file(data)
     assert result.status == "refused"
     assert [p["code"] for p in result.report["problems"]] == ["too_many_cells"]
+    assert time.monotonic() - started < 30
+
+
+def test_many_narrow_tables_are_a_refusal_by_their_rows_not_a_slow_read() -> None:
+    """The reviewer's file: junk tables of one column, each under the per-table limit."""
+    tables = limits.MAX_ROWS_TOTAL // 300_000 + 1
+    junk = "".join(f"%T\tJ{n}\r\n%F\ta\r\n" + "%R\tx\r\n" * 300_000 for n in range(tables))
+    text = "ERMHDR\t20.12\t2026-10-05\tProject\tu\tU\tDB\tPM\tUSD\r\n" + junk + "%E\r\n"
+    started = time.monotonic()
+    result = read_xer_file(text.encode())
+    assert result.status == "refused"
+    assert [p["code"] for p in result.report["problems"]] == ["too_many_rows"]
     assert time.monotonic() - started < 30
 
 

@@ -25,12 +25,14 @@ class XerLimitError(Exception):
 
 @dataclass(frozen=True)
 class XerResult:
-    """A checked answer. ``snapshot``, the typed JSON and the raw bundle exist only when valid."""
+    """A checked answer. ``snapshot`` and the raw bundle exist only when valid.
+
+    The typed JSON is not kept: ``typed_sha256`` is its hash, and the rows are in ``snapshot``.
+    """
 
     status: Status
     report: dict[str, Any]
     snapshot: Snapshot | None = None
-    typed_json: bytes | None = None
     typed_sha256: str | None = None
     raw_gz: bytes | None = None
     raw_sha256: str | None = None

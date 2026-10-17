@@ -17,14 +17,16 @@ from typing import Any, cast
 
 from tl_xer import limits
 from tl_xer.bundle import BundleError, verify_bundle
-from tl_xer.process import Status
+from tl_xer.process import CP1252_NOTE, Status
+from tl_xer.reader import FORBIDDEN
 from tl_xer.result import XerLimitError, XerResult
 from tl_xer.typed import COLUMN_KINDS, PROJECT_KEYS, TABLE_COLUMNS, TABLE_LIMITS, Snapshot
 
 STATUSES: tuple[Status, ...] = ("valid", "invalid", "refused")
 
 
-def _take(payload: bytes, at: int) -> tuple[bytes, int]:
+def _take(payload: memoryview, at: int) -> tuple[memoryview, int]:
+    """The frame at ``at`` as a view of the payload (no copy), and where the next one starts."""
     if at + 8 > len(payload):
         raise XerLimitError("crash")
     size = int.from_bytes(payload[at : at + 8], "big")
@@ -34,13 +36,18 @@ def _take(payload: bytes, at: int) -> tuple[bytes, int]:
     return payload[at + 8 : end], end
 
 
-def decode(payload: bytes) -> XerResult:
-    """The checked result of an answer payload (see ``tl_xer.child``)."""
+def decode(answer: bytes | memoryview) -> XerResult:
+    """The checked result of an answer payload (see ``tl_xer.child``).
+
+    The frames are views of the payload, never slices: the typed frame is hashed where it lies and
+    read once as text, and only the raw bundle is copied (the result keeps it).
+    """
+    payload = memoryview(answer)
     meta_bytes, at = _take(payload, 0)
     typed_bytes, at = _take(payload, at)
     raw_gz = payload[at:]
     try:
-        meta = _dict(json.loads(meta_bytes))
+        meta = _dict(json.loads(str(meta_bytes, "utf-8")))
         report = _check_report(meta["report"])
         status = cast(Status, report["status"])
         if status != "valid":
@@ -50,11 +57,12 @@ def decode(payload: bytes) -> XerResult:
         typed_sha, raw_sha = meta["typed_sha256"], meta["raw_sha256"]
         if hashlib.sha256(typed_bytes).hexdigest() != typed_sha or not _is_digest(raw_sha):
             raise XerLimitError("crash")
-        snapshot = _check_snapshot(json.loads(typed_bytes))
-        verify_bundle(raw_gz, raw_sha)
-    except (ValueError, KeyError, TypeError, BundleError):
+        snapshot = _check_snapshot(json.loads(str(typed_bytes, "utf-8")))
+        kept = bytes(raw_gz)
+        verify_bundle(kept, raw_sha)
+    except (ValueError, KeyError, TypeError, BundleError, RecursionError, MemoryError):
         raise XerLimitError("crash") from None
-    return XerResult(status, report, snapshot, typed_bytes, typed_sha, raw_gz, raw_sha)
+    return XerResult(status, report, snapshot, typed_sha, kept, raw_sha)
 
 
 # --- small typed checks ----------------------------------------------------------------------
@@ -127,6 +135,7 @@ def _check_report(value: Any) -> dict[str, Any]:
         "status": status,
         "p6_version": _optional_text(given.get("p6_version"), limits.MAX_HEADER_FIELD_CHARS),
         "encoding": _optional_text(given.get("encoding"), 20),
+        "encoding_note": _encoding_note(given.get("encoding_note")),
         "project_option": _optional_text(given.get("project_option"), limits.MAX_ID_CHARS),
         "project": None if project is None else _check_project(project),
         "counts": {_text(k, limits.MAX_NAME_CHARS): _count(v) for k, v in counts.items()},
@@ -144,6 +153,12 @@ def _check_report(value: Any) -> dict[str, Any]:
         "truncated": bool(given.get("truncated")),
         "problems": [_check_problem(p) for p in _list(given.get("problems"), limits.MAX_PROBLEMS)],
     }
+
+
+def _encoding_note(value: Any) -> str | None:
+    if value is not None and value != CP1252_NOTE:
+        raise ValueError("encoding note")
+    return value
 
 
 def _check_project(value: Any) -> dict[str, Any]:
@@ -166,7 +181,11 @@ def _check_cell(kind: str, cell: Any) -> None:
     if kind in "sS":
         if cell is None and kind == "S":
             return
-        if not isinstance(cell, str) or len(cell) > limits.MAX_FIELD_CHARS:
+        if (
+            not isinstance(cell, str)
+            or len(cell) > limits.MAX_FIELD_CHARS
+            or FORBIDDEN.search(cell) is not None  # the reader refused these: nothing may add them
+        ):
             raise ValueError("text cell")
     elif kind in "fF":
         if cell is None and kind == "F":
@@ -197,11 +216,11 @@ def _check_snapshot(value: Any) -> Snapshot:
         if table.get("columns") != list(columns):
             raise ValueError("columns")
         kinds = COLUMN_KINDS[name]
-        checked: list[tuple[Any, ...]] = []
-        for row in _list(table.get("rows"), TABLE_LIMITS[name]):
+        rows = _list(table.get("rows"), TABLE_LIMITS[name])
+        for index, row in enumerate(rows):
             cells = _list(row, len(kinds))
             for kind, cell in zip(kinds, cells, strict=True):  # strict: a short row is an error
                 _check_cell(kind, cell)
-            checked.append(tuple(cells))
-        snapshot.tables[name] = checked
+            rows[index] = tuple(cells)  # in place: the list of the row is freed at once
+        snapshot.tables[name] = cast(list[tuple[Any, ...]], rows)
     return snapshot

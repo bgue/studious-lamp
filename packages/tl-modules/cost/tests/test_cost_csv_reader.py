@@ -156,10 +156,17 @@ def test_the_delimiter_is_the_one_that_splits_the_header_most(delimiter: str) ->
     assert (row.code, row.description, row.figures) == ("1", "One", {"hours_budget": 5.0})
 
 
-def test_a_quoted_cell_may_hold_the_delimiter_a_quote_and_a_line_break() -> None:
-    data = csv("code,description", '1,"Pipe, ""big"" bore"', '2,"two', 'lines"')
-    first, second = read_cost_csv(data).rows
-    assert first.description == 'Pipe, "big" bore' and second.description == "two\nlines"
+def test_a_quoted_cell_may_hold_the_delimiter_and_a_quote() -> None:
+    data = csv("code,description", '1,"Pipe, ""big"" bore"')
+    [first] = read_cost_csv(data).rows
+    assert first.description == 'Pipe, "big" bore'
+
+
+def test_a_quoted_cell_with_a_line_break_is_refused_as_a_bad_row() -> None:
+    """A name is one line (the shared text check); the error names the field, not the text."""
+    error = refused(csv("code,description", '1,"two', 'lines"'))
+    assert error.code == "bad_row" and error.row == 1
+    assert "description" in str(error) and "lines" not in str(error)
 
 
 def test_windows_line_ends_blank_lines_and_a_missing_final_line_end_are_fine() -> None:

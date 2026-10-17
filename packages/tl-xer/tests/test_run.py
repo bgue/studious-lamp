@@ -22,9 +22,10 @@ def valid_payload() -> tuple[bytes, dict[str, Any], dict[str, Any], bytes]:
     """The payload of a valid file, and its pieces: meta, typed (as objects), raw gzip."""
     tag, payload = entry({"options": {"project": None}}, encode(first_text()))
     assert tag == TAG_OK
-    meta_bytes, at = wire._take(payload, 0)  # pyright: ignore[reportPrivateUsage]
-    typed_bytes, at = wire._take(payload, at)  # pyright: ignore[reportPrivateUsage]
-    return payload, json.loads(meta_bytes), json.loads(typed_bytes), payload[at:]
+    view = memoryview(payload)
+    meta_bytes, at = wire._take(view, 0)  # pyright: ignore[reportPrivateUsage]
+    typed_bytes, at = wire._take(view, at)  # pyright: ignore[reportPrivateUsage]
+    return payload, json.loads(bytes(meta_bytes)), json.loads(bytes(typed_bytes)), payload[at:]
 
 
 def build(
@@ -47,7 +48,7 @@ def test_the_envelope_gives_what_the_pure_function_gives() -> None:
         k: [tuple(r) for r in v] for k, v in direct.snapshot.tables.items()
     }
     assert (through.typed_sha256, through.raw_sha256) == (direct.typed_sha256, direct.raw_sha256)
-    assert through.raw_gz is not None and through.typed_json is not None
+    assert through.raw_gz is not None and through.typed_sha256 is not None
 
 
 def test_the_same_bytes_give_the_same_result_twice() -> None:
@@ -66,7 +67,7 @@ def test_a_bad_file_is_a_normal_result_not_an_exception() -> None:
     assert refused.status == "refused" and refused.snapshot is None and refused.raw_gz is None
     assert [p["code"] for p in refused.report["problems"]] == ["not_xer"]
     invalid = read_xer_file(encode(drop_table(first_text(), "TASK")))
-    assert invalid.status == "invalid" and invalid.typed_json is None
+    assert invalid.status == "invalid" and invalid.typed_sha256 is None
 
 
 def test_the_project_option_reaches_the_child() -> None:

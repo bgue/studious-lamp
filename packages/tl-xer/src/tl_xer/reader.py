@@ -34,7 +34,9 @@ from tl_xer.refusals import XerRefusal
 
 ENCODINGS = ("ascii", "utf-8", "cp1252")
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
-_FORBIDDEN = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f؜‎‏  ‪-‮⁦-⁩﻿]")
+FORBIDDEN = re.compile(
+    "[\x00-\x08\x0b-\x1f\x7f-\x9f\u061c\u200e\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069\ufeff]"
+)
 _CHUNK = 1 << 20
 _UTF8_BOM = b"\xef\xbb\xbf"
 _UTF16_BOMS = (b"\xff\xfe", b"\xfe\xff")
@@ -58,6 +60,7 @@ class RawXer:
     tables: tuple[RawTable, ...]  # in file order
     encoding: str
     cells: int
+    size: int  # bytes of the file: the typed text is bounded by a multiple of it
 
     def table(self, name: str) -> RawTable | None:
         for table in self.tables:
@@ -117,6 +120,8 @@ def read_xer(data: bytes) -> RawXer:
     columns: tuple[str, ...] | None = None
     rows: list[tuple[str, ...]] = []
     cells = 0
+    weight = 0  # what the rows cost, counting a narrow row as MIN_ROW_WEIGHT cells
+    total_rows = 0
     ended = False
 
     def close_table() -> None:
@@ -132,7 +137,7 @@ def read_xer(data: bytes) -> RawXer:
         line = _decode(raw.rstrip(b"\r\n"), encoding)
         if not line:
             continue
-        if _FORBIDDEN.search(line) is not None:
+        if FORBIDDEN.search(line) is not None:
             raise XerRefusal("control_character")
         if ended:
             raise XerRefusal("data_after_end")
@@ -153,8 +158,12 @@ def read_xer(data: bytes) -> RawXer:
                 raise XerRefusal("ragged_row", table=name, row=len(rows) + 1)
             if len(rows) >= limits.MAX_ROWS_PER_TABLE:
                 raise XerRefusal("too_many_rows", table=name)
+            total_rows += 1
+            if total_rows > limits.MAX_ROWS_TOTAL:
+                raise XerRefusal("too_many_rows")
             cells += len(columns)
-            if cells > limits.MAX_CELLS:
+            weight += max(len(columns), limits.MIN_ROW_WEIGHT)
+            if weight > limits.MAX_CELLS:
                 raise XerRefusal("too_many_cells")
             if values and len(max(values, key=len)) > limits.MAX_FIELD_CHARS:
                 raise XerRefusal("field_too_long", table=name, row=len(rows) + 1)
@@ -197,4 +206,6 @@ def read_xer(data: bytes) -> RawXer:
         raise XerRefusal("not_xer")
     if not ended:
         raise XerRefusal("missing_end")
-    return RawXer(header=header, tables=tuple(tables), encoding=encoding, cells=cells)
+    return RawXer(
+        header=header, tables=tuple(tables), encoding=encoding, cells=cells, size=len(data)
+    )

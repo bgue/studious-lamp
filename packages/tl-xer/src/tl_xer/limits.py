@@ -18,10 +18,15 @@ MAX_BYTES: Final = 50 * 1024 * 1024
 MAX_TABLES: Final = 300
 #: Fields of one table (``%F``). P6's widest table (TASK) has about 120.
 MAX_COLUMNS: Final = 200
-#: Rows of one table, and cells (rows x columns) over all tables. 6 million cells is a schedule of
-#: tens of thousands of activities with their relationships, codes and resources.
+#: Rows of one table, rows over all tables, and the weight of all rows. A row weighs its columns,
+#: and at least ``MIN_ROW_WEIGHT``: a row costs a tuple and a few objects whatever its width, so
+#: millions of one-column rows must not pass as a few cells. The totals are what a schedule of tens
+#: of thousands of activities with their relationships, codes, user fields and resources needs,
+#: with room; the worst legal file is measured against the envelope in ADR-0015 section 2.
 MAX_ROWS_PER_TABLE: Final = 400_000
-MAX_CELLS: Final = 6_000_000
+MAX_ROWS_TOTAL: Final = 1_200_000
+MIN_ROW_WEIGHT: Final = 16
+MAX_CELLS: Final = 20_000_000
 #: Characters of one field. P6 notebook memos are the longest text in a schedule.
 MAX_FIELD_CHARS: Final = 32_000
 #: The ``ERMHDR`` line.
@@ -51,8 +56,29 @@ MAX_MESSAGE_CHARS: Final = 300
 MAX_PROJECTS_LISTED: Final = 20
 
 # --- the envelope (ADR-0014: the same limits the extractors run under) ---------------------------
-#: The parent reads at most this much from the child: the typed snapshot (about 100 MB at its
-#: bounds) and the compressed raw tables (at most the source size plus the JSON framing).
-MAX_ANSWER_BYTES: Final = 200 * 1024 * 1024
+#: The text of the typed rows (every string of every cell, in bytes) may be at most this many times
+#: the size of the source, plus a margin. A code or user field is copied into every row that links
+#: it, so a few megabytes of links can name hundreds of megabytes of text; past the bound the file
+#: is invalid with a report, and the worker never holds the copies.
+TYPED_TEXT_FACTOR: Final = 2
+TYPED_TEXT_EXTRA: Final = 16 * 1024 * 1024
+#: The most typed text of any file (the bound for a file at ``MAX_BYTES``).
+MAX_TYPED_TEXT: Final = TYPED_TEXT_FACTOR * MAX_BYTES + TYPED_TEXT_EXTRA
+#: The typed snapshot as canonical JSON: its text plus the quotes, separators and numbers around it.
+MAX_TYPED_JSON: Final = MAX_TYPED_TEXT + 48 * 1024 * 1024
+#: The parent reads at most this much from the child: the typed snapshot, the compressed raw tables
+#: (about the source size; gzip adds under 1 per cent) and the frames around them.
+MAX_ANSWER_BYTES: Final = MAX_TYPED_JSON + MAX_BYTES + 8 * 1024 * 1024
 #: What the parser may inflate the stored raw bundle to when it is read back (the lake loader).
 MAX_BUNDLE_BYTES: Final = 400 * 1024 * 1024
+#: The longest line of the raw bundle: a batch of rows, or one row (200 fields of 32 000 characters,
+#: as UTF-8) with its JSON quotes. Longer is a damaged bundle, never held.
+MAX_BUNDLE_LINE_BYTES: Final = 32 * 1024 * 1024
+#: Rows per line of the raw bundle (a line is also cut at about one megabyte of text).
+BUNDLE_BATCH_ROWS: Final = 2000
+BUNDLE_BATCH_CHARS: Final = 1024 * 1024
+#: The first and last year of a date in a schedule. P6 stores a date for 1 January 1900 for "none"
+#: in some exports; a schedule outside these years is a typing mistake, and one far in the future
+#: would freeze the series of snapshots.
+MIN_YEAR: Final = 1990
+MAX_YEAR: Final = 2100

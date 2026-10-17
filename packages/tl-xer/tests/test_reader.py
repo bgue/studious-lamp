@@ -196,9 +196,33 @@ def test_too_many_rows_and_cells(monkeypatch: pytest.MonkeyPatch) -> None:
     error = refusal_of(tiny("T|a|1;2;3;4"))
     assert (error.code, error.table) == ("too_many_rows", "T")
     monkeypatch.setattr(limits, "MAX_ROWS_PER_TABLE", 100)
+    monkeypatch.setattr(limits, "MIN_ROW_WEIGHT", 1)
     monkeypatch.setattr(limits, "MAX_CELLS", 6)
     assert read_xer(tiny("T|a b|1,2;3,4;5,6")).cells == 6
     assert refusal_of(tiny("T|a b|1,2;3,4;5,6;7,8")).code == "too_many_cells"
+
+
+def test_the_rows_of_all_tables_together_are_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Many small tables, each under the per-table limit, still cost a tuple a row."""
+    monkeypatch.setattr(limits, "MAX_ROWS_TOTAL", 5)
+    two_tables = "\r\n".join(
+        [HEADER, "%T\tA", "%F\ta", "%R\t1", "%R\t2", "%R\t3", "%T\tB", "%F\tb", "%R\t1", "%R\t2"]
+    )
+    assert read_xer((two_tables + "\r\n%E\r\n").encode()).cells == 5
+    over = "\r\n".join([two_tables, "%R\t3", "%E", ""])
+    error = refusal_of(over.encode())
+    assert (error.code, error.table) == ("too_many_rows", None)
+
+
+def test_a_narrow_row_weighs_as_many_cells_as_the_minimum(monkeypatch: pytest.MonkeyPatch) -> None:
+    """One column or sixteen, a row costs about the same: it counts as ``MIN_ROW_WEIGHT`` cells."""
+    monkeypatch.setattr(limits, "MIN_ROW_WEIGHT", 4)
+    monkeypatch.setattr(limits, "MAX_CELLS", 12)
+    assert read_xer(tiny("T|a|1;2;3")).cells == 3  # 3 rows x 4 = 12: at the limit
+    assert refusal_of(tiny("T|a|1;2;3;4")).code == "too_many_cells"  # 16 > 12 though 4 cells
+    wide = tiny("T|a b c d e|1,2,3,4,5;1,2,3,4,5")  # 5 columns weigh 5 each: 10
+    assert len(read_xer(wide).tables[0].rows) == 2
+    assert refusal_of(tiny("T|a b c d e|1,2,3,4,5;1,2,3,4,5;1,2,3,4,5")).code == "too_many_cells"
 
 
 def test_a_field_over_the_length_limit_is_refused_not_cut(monkeypatch: pytest.MonkeyPatch) -> None:

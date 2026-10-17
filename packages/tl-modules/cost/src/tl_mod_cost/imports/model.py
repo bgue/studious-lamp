@@ -6,6 +6,7 @@ import math
 from dataclasses import dataclass, field
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from tl_core.text import clean_optional_text, clean_text
 
 from tl_mod_cost.limits import MAX_CODE, MAX_FIGURE, MAX_TEXT, MAX_UOM
 from tl_mod_cost.names import MEASURE_COLUMNS
@@ -28,11 +29,17 @@ class CostRow(BaseModel):
     uom: str | None = Field(default=None, max_length=MAX_UOM)
     figures: dict[str, float] = Field(default_factory=dict[str, float])
 
+    @field_validator("description", "uom")
+    @classmethod
+    def _one_line(cls, value: str | None) -> str | None:
+        return clean_optional_text(value)
+
     @field_validator("code", "parent_code")
     @classmethod
     def _plain_code(cls, value: str | None) -> str | None:
         if value is None:
             return None
+        clean_text(value)
         if value != value.strip() or not value:
             raise ValueError("a cost code has no leading or trailing space")
         if "@" in value:

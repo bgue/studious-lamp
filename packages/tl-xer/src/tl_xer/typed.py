@@ -33,9 +33,10 @@ Cell = str | float | int | bool | None
 
 #: Major versions of the P6 export that are read. Older ones lack columns the snapshot needs.
 SUPPORTED_MAJOR: Final = range(8, 31)
-_VERSION = re.compile(r"(\d{1,2})\.(\d{1,2})(?:\.\d{1,3})?")
-_DATE = re.compile(r"(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2})(?::\d{2})?)?")
-_NUMBER = re.compile(r"-?\d{1,12}(?:\.\d{1,8})?")
+#: ASCII digits only: ``\d`` matches the digits of every script, and ``int`` reads them all.
+_VERSION = re.compile(r"([0-9]{1,2})\.([0-9]{1,2})(?:\.[0-9]{1,3})?")
+_DATE = re.compile(r"([0-9]{4})-([0-9]{2})-([0-9]{2})(?: ([0-9]{2}):([0-9]{2})(?::[0-9]{2})?)?")
+_NUMBER = re.compile(r"-?[0-9]{1,12}(?:\.[0-9]{1,8})?")
 
 REQUIRED_COLUMNS: Final[dict[str, tuple[str, ...]]] = {
     "PROJECT": ("proj_id", "proj_short_name", "last_recalc_date"),
@@ -188,6 +189,31 @@ class Options:
     project: str | None = None
 
 
+class _Budget:
+    """The text the typed rows may hold, in bytes (``limits.TYPED_TEXT_FACTOR`` times the source).
+
+    A code or user field is copied into every row that links it, so the rows can hold far more
+    text than the file does. ``take`` charges the text of a row and says whether it still fits.
+    """
+
+    def __init__(self, source_size: int) -> None:
+        self.left = min(
+            limits.TYPED_TEXT_FACTOR * source_size + limits.TYPED_TEXT_EXTRA, limits.MAX_TYPED_TEXT
+        )
+
+    def take(self, *texts: str | None) -> bool:
+        for text in texts:
+            if text:
+                self.left -= len(text) if text.isascii() else len(text.encode())
+        return self.left >= 0
+
+
+TOO_LARGE_MESSAGE = (
+    "the typed rows would hold more text than the size of the file allows "
+    "(a code or user field is repeated for every activity that uses it)"
+)
+
+
 @dataclass
 class Snapshot:
     """The typed rows of one P6 project, ready to store."""
@@ -204,7 +230,12 @@ def clean_text(value: str) -> str:
 
 
 def parse_date(value: str) -> str | None:
-    """``YYYY-MM-DDTHH:MM`` for a P6 date, ``None`` for an empty one; ``ValueError`` otherwise."""
+    """``YYYY-MM-DDTHH:MM`` for a P6 date, ``None`` for an empty one; ``ValueError`` otherwise.
+
+    The year must be ``MIN_YEAR`` to ``MAX_YEAR``. The text is built from the numbers with explicit
+    widths (``strftime`` is not zero-padded for a year before 1000 on every platform), so stamps
+    sort as text exactly as they sort as dates.
+    """
     text = value.strip()
     if not text:
         return None
@@ -213,8 +244,10 @@ def parse_date(value: str) -> str | None:
         raise ValueError("not a date")
     year, month, day = (int(found.group(i)) for i in (1, 2, 3))
     hour, minute = int(found.group(4) or 0), int(found.group(5) or 0)
-    stamp = datetime(year, month, day, hour, minute)  # raises ValueError for 2026-02-30
-    return stamp.strftime("%Y-%m-%dT%H:%M")
+    if not limits.MIN_YEAR <= year <= limits.MAX_YEAR:
+        raise ValueError("year out of range")
+    datetime(year, month, day, hour, minute)  # raises ValueError for 2026-02-30
+    return f"{year:04d}-{month:02d}-{day:02d}T{hour:02d}:{minute:02d}"
 
 
 def parse_number(value: str) -> float | None:
@@ -329,14 +362,15 @@ def _select_project(
 
 
 def _wbs_rows(
-    view: _View, project_id: str, problems: Problems
+    view: _View, project_id: str, problems: Problems, budget: _Budget
 ) -> tuple[list[tuple[Cell, ...]], dict[str, str]]:
     nodes: dict[str, tuple[str, str, str, str]] = {}  # id -> parent, short, name, node flag
     order: list[str] = []
     for n, row in enumerate(view.rows, 1):
-        if view.get(row, "proj_id") != project_id:
+        if clean_text(view.get(row, "proj_id")) != project_id:
             continue
         wbs_id = clean_text(view.get(row, "wbs_id"))
+        parent_id = clean_text(view.get(row, "parent_wbs_id"))
         if not wbs_id or wbs_id in nodes:
             problems.error(
                 "bad_wbs_id", "a WBS node has no id or repeats one", table="PROJWBS", row=n
@@ -344,15 +378,15 @@ def _wbs_rows(
             continue
         short = clean_text(view.get(row, "wbs_short_name"))
         name = clean_text(view.get(row, "wbs_name"))
-        if len(short) > limits.MAX_ID_CHARS or len(name) > limits.MAX_TEXT_CHARS:
-            problems.error("text_too_long", "a WBS name is too long", table="PROJWBS", row=n)
+        if (
+            len(wbs_id) > limits.MAX_ID_CHARS
+            or len(parent_id) > limits.MAX_ID_CHARS
+            or len(short) > limits.MAX_ID_CHARS
+            or len(name) > limits.MAX_TEXT_CHARS
+        ):
+            problems.error("text_too_long", "a WBS id or name is too long", table="PROJWBS", row=n)
             continue
-        nodes[wbs_id] = (
-            clean_text(view.get(row, "parent_wbs_id")),
-            short,
-            name,
-            view.get(row, "proj_node_flag").strip(),
-        )
+        nodes[wbs_id] = (parent_id, short, name, view.get(row, "proj_node_flag").strip())
         order.append(wbs_id)
         if len(order) > limits.MAX_WBS:
             problems.error("too_many_wbs", "the project has more WBS nodes than the limit")
@@ -399,6 +433,9 @@ def _wbs_rows(
     rows: list[tuple[Cell, ...]] = []
     for seq, wbs_id in enumerate(order, 1):
         parent, short, name, flag = nodes[wbs_id]
+        if not budget.take(wbs_id, parent, short, name, paths[wbs_id]):
+            problems.error("typed_too_large", TOO_LARGE_MESSAGE, table="PROJWBS")
+            return [], {}
         rows.append((wbs_id, parent or None, short, name, paths[wbs_id], flag == "Y", seq))
     return rows, paths
 
@@ -410,6 +447,9 @@ def _calendar_rows(
     for n, row in enumerate(view.rows, 1):
         calendar_id = clean_text(view.get(row, "clndr_id"))
         if calendar_id not in used and calendar_id != default_id:
+            continue
+        if len(calendar_id) > limits.MAX_ID_CHARS:
+            problems.error("text_too_long", "a calendar id is too long", table="CALENDAR", row=n)
             continue
         try:
             numbers = [
@@ -466,7 +506,12 @@ class _Tasks:
 
 
 def _tasks(
-    view: _View, project_id: str, paths: dict[str, str], calendar_ids: set[str], problems: Problems
+    view: _View,
+    project_id: str,
+    paths: dict[str, str],
+    calendar_ids: set[str],
+    problems: Problems,
+    budget: _Budget,
 ) -> _Tasks | None:
     rows: list[tuple[Cell, ...]] = []
     by_task_id: dict[str, str] = {}
@@ -485,7 +530,7 @@ def _tasks(
         ("constraint_date", "cstr_date"),
     )
     for n, row in enumerate(view.rows, 1):
-        if view.get(row, "proj_id") != project_id:
+        if clean_text(view.get(row, "proj_id")) != project_id:
             continue
         if len(rows) >= limits.MAX_ACTIVITIES:
             problems.error("too_many_activities", "the project has more activities than the limit")
@@ -494,9 +539,12 @@ def _tasks(
         task_id = clean_text(view.get(row, "task_id"))
         code = clean_text(view.get(row, "task_code"))
         name = clean_text(view.get(row, "task_name"))
-        if not task_id or task_id in by_task_id:
+        if not task_id or task_id in by_task_id or len(task_id) > limits.MAX_ID_CHARS:
             problems.error(
-                "bad_task_id", "an activity has no task id or repeats one", table="TASK", row=n
+                "bad_task_id",
+                "an activity has no task id, repeats one or has one that is too long",
+                table="TASK",
+                row=n,
             )
             continue
         rejected.add(task_id)  # until the row is kept: one error is enough for its relationships
@@ -528,7 +576,7 @@ def _tasks(
                 field="task_name",
             )
         wbs_id = clean_text(view.get(row, "wbs_id"))
-        if wbs_id not in paths:
+        if wbs_id not in paths or len(wbs_id) > limits.MAX_ID_CHARS:
             problems.error(
                 "dangling_wbs",
                 f"activity {code} names a WBS node the project does not have",
@@ -541,6 +589,14 @@ def _tasks(
             problems.error(
                 "dangling_calendar",
                 f"activity {code} names a calendar the file does not have",
+                table="TASK",
+                row=n,
+                field="clndr_id",
+            )
+        elif len(calendar_id) > limits.MAX_ID_CHARS:
+            problems.error(
+                "text_too_long",
+                f"activity {code} names a calendar whose id is too long",
                 table="TASK",
                 row=n,
                 field="clndr_id",
@@ -601,6 +657,9 @@ def _tasks(
             continue
         percent_type = view.get(row, "complete_pct_type").strip()
         total_float = numbers["total_float"]
+        if not budget.take(code, task_id, name, wbs_id, paths[wbs_id], calendar_id):
+            problems.error("typed_too_large", TOO_LARGE_MESSAGE, table="TASK")
+            return None
         rejected.discard(task_id)
         by_task_id[task_id] = code
         used_calendars.add(calendar_id)
@@ -647,7 +706,7 @@ def _tasks(
 
 
 def _relationships(
-    view: _View, project_id: str, tasks: _Tasks, problems: Problems
+    view: _View, project_id: str, tasks: _Tasks, problems: Problems, budget: _Budget
 ) -> list[tuple[Cell, ...]]:
     rows: list[tuple[Cell, ...]] = []
     external = 0
@@ -689,6 +748,9 @@ def _relationships(
                 "too_many_relationships", "the project has more relationships than the limit"
             )
             return []
+        if not budget.take(predecessor, successor):
+            problems.error("typed_too_large", TOO_LARGE_MESSAGE, table="TASKPRED")
+            return []
         rows.append((predecessor, successor, kind, lag or 0.0, len(rows) + 1))
     if external:
         problems.warn(
@@ -699,7 +761,9 @@ def _relationships(
     return rows
 
 
-def _codes(raw: RawXer, tasks: _Tasks, problems: Problems) -> list[tuple[Cell, ...]]:
+def _codes(
+    raw: RawXer, tasks: _Tasks, problems: Problems, budget: _Budget
+) -> list[tuple[Cell, ...]]:
     types, codes, links = raw.table("ACTVTYPE"), raw.table("ACTVCODE"), raw.table("TASKACTV")
     if types is None or codes is None or links is None:
         if any(t is not None for t in (types, codes, links)):
@@ -758,6 +822,9 @@ def _codes(raw: RawXer, tasks: _Tasks, problems: Problems) -> list[tuple[Cell, .
         if len(rows) >= limits.MAX_CODES:
             problems.error("too_many_codes", "the project has more activity codes than the limit")
             return []
+        if not budget.take(activity, type_name, value[0], value[1]):
+            problems.error("typed_too_large", TOO_LARGE_MESSAGE, table="TASKACTV")
+            return []
         rows.append((activity, type_name, value[0], value[1], len(rows) + 1))
     return rows
 
@@ -776,7 +843,9 @@ def _udf_value(view: _View, row: tuple[str, ...]) -> tuple[str, str] | None:
     return None
 
 
-def _udfs(raw: RawXer, tasks: _Tasks, problems: Problems) -> list[tuple[Cell, ...]]:
+def _udfs(
+    raw: RawXer, tasks: _Tasks, problems: Problems, budget: _Budget
+) -> list[tuple[Cell, ...]]:
     types, values = raw.table("UDFTYPE"), raw.table("UDFVALUE")
     if types is None or values is None:
         if types is not None or values is not None:
@@ -821,6 +890,9 @@ def _udfs(raw: RawXer, tasks: _Tasks, problems: Problems) -> list[tuple[Cell, ..
         if len(rows) >= limits.MAX_UDFS:
             problems.error("too_many_udfs", "the project has more user field values than the limit")
             return []
+        if not budget.take(activity, spec[0], spec[1], kind, value):
+            problems.error("typed_too_large", TOO_LARGE_MESSAGE, table="UDFVALUE")
+            return []
         rows.append((activity, spec[0], spec[1] or None, kind, value, len(rows) + 1))
     return rows
 
@@ -837,6 +909,10 @@ def analyse(raw: RawXer, options: Options, problems: Problems) -> Snapshot | Non
     project_row, others = chosen
     pv = views["PROJECT"]
     project_id = clean_text(pv.get(project_row, "proj_id"))
+    if len(project_id) > limits.MAX_ID_CHARS:
+        problems.error("text_too_long", "the project id is too long", table="PROJECT")
+        return None
+    budget = _Budget(raw.size)
     try:
         data_date = parse_date(pv.get(project_row, "last_recalc_date"))
         plan_start = parse_date(pv.get(project_row, "plan_start_date"))
@@ -860,7 +936,7 @@ def analyse(raw: RawXer, options: Options, problems: Problems) -> Snapshot | Non
             "bad_project_name", "the project short name is empty or too long", table="PROJECT"
         )
         return None
-    wbs_rows, paths = _wbs_rows(views["PROJWBS"], project_id, problems)
+    wbs_rows, paths = _wbs_rows(views["PROJWBS"], project_id, problems, budget)
     if not paths:
         if not problems.errors:
             problems.error("no_wbs", "the project has no WBS nodes", table="PROJWBS")
@@ -868,17 +944,17 @@ def analyse(raw: RawXer, options: Options, problems: Problems) -> Snapshot | Non
     calendar_ids = {
         clean_text(views["CALENDAR"].get(r, "clndr_id")) for r in views["CALENDAR"].rows
     }
-    tasks = _tasks(views["TASK"], project_id, paths, calendar_ids, problems)
+    tasks = _tasks(views["TASK"], project_id, paths, calendar_ids, problems, budget)
     if tasks is None:
         return None
     if not tasks.rows and not problems.errors:
         problems.error("no_activities", "the project has no activities", table="TASK")
         return None
-    relationships = _relationships(views["TASKPRED"], project_id, tasks, problems)
+    relationships = _relationships(views["TASKPRED"], project_id, tasks, problems, budget)
     default_calendar = clean_text(pv.get(project_row, "clndr_id"))
     calendars = _calendar_rows(views["CALENDAR"], tasks.calendars, default_calendar, problems)
-    codes = _codes(raw, tasks, problems)
-    udfs = _udfs(raw, tasks, problems)
+    codes = _codes(raw, tasks, problems, budget)
+    udfs = _udfs(raw, tasks, problems, budget)
     if problems.errors:
         return None
     header = raw.header
@@ -912,11 +988,12 @@ def table_dicts(snapshot: Snapshot, name: str) -> list[dict[str, Cell]]:
 
 
 def as_json_value(snapshot: Snapshot) -> dict[str, Any]:
-    """The snapshot as plain JSON values: the project, and per table its columns and rows."""
+    """The snapshot as JSON values: the project, and per table its columns and its rows (tuples)."""
     return {
         "project": snapshot.project,
         "tables": {
-            name: {"columns": list(TABLE_COLUMNS[name]), "rows": [list(r) for r in rows]}
+            # the rows are tuples and serialise as arrays: no second copy of every row is made
+            name: {"columns": list(TABLE_COLUMNS[name]), "rows": rows}
             for name, rows in snapshot.tables.items()
         },
     }

@@ -20,6 +20,7 @@ from sqlalchemy import text
 from tl_core.ledger import NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.records import create_module_record
+from tl_core.text import clean_optional_text
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
 
@@ -84,9 +85,7 @@ class ImportCostSnapshot(Command):
     @field_validator("source_name")
     @classmethod
     def _name(cls, value: str | None) -> str | None:
-        if value is not None and any(ord(c) < 32 or ord(c) == 127 for c in value):
-            raise ValueError("source_name must not hold control characters")
-        return value
+        return clean_optional_text(value)
 
 
 def check_as_of(value: str) -> str:

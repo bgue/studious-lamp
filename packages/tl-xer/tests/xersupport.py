@@ -179,3 +179,18 @@ def big_text(
         )
     out.append("%E")
     return ("\r\n".join(out) + "\r\n").encode("cp1252")
+
+
+def add_row(text: str, table: str, fields: list[str]) -> str:
+    """``text`` with one more data row (fields in column order) at the end of ``table``."""
+    lines = text.split("\r\n")
+    out: list[str] = []
+    inside = False
+    for line in lines:
+        if inside and (line.startswith("%T\t") or line == "%E"):
+            out.append("\t".join(["%R", *fields]))
+            inside = False
+        out.append(line)
+        if line == f"%T\t{table}":
+            inside = True
+    return "\r\n".join(out)
