@@ -54,15 +54,15 @@ Ticket numbers T09 to T13 belong to workstream B. The CLI tickets, which the pla
 | T04 | Validation: JSON Schema over extracted rows with typed reading of cells; row- and field-level report model | H | T01, T03 | built by supervisor | In S4 (8361c4d). The `validate` and `extract` job kinds and the pipeline tests cannot run without it, so it was built with them and tested in full (`test_derivation_validation.py`); a stub plus held tests would have held back every pipeline test. No Haiku dispatch. |
 | T05 | Publish (see S5) | S | T04 | todo | |
 | T06 | Diff of two row sets by key column | H | T04 | built by supervisor | In S4 (`diff.py`, `test_derivation_diff.py`), used by S6's `derived_diff`; no Haiku dispatch, for the reason given at T04. |
-| T07a | TUI job monitor | H | S6 | ready | reference 2ee0d18 and 82d709d; stub and ticket in the stub commit |
-| T07b | TUI derived documents and validation report viewer (F11) | H | S6 | ready | as T07a |
-| T07c | TUI publish preview and approve | H | S5, S6 | ready | as T07a |
+| T07a | TUI job monitor | H | S6 | done | merged 5b767d4 (reviewer pass) |
+| T07b | TUI derived documents and validation report viewer (F11) | H | S6 | done | merged 85aa786 (reviewer pass) |
+| T07c | TUI publish preview and approve | H | S5, S6 | done | merged 3080f42 (50380c8; 7 tests) |
 | T08a | API reads and routes for jobs, derived documents, reports, schemas | H | S4, S5 | built by supervisor | In S6 (1f0d86a): routes are a security-reviewed piece and the clients need them. `test_api_derivation_reads.py`, `test_client_derivation.py`. |
 | T08b | MCP: `start_extraction` (proposal), `validate_against_schema` (read only), `propose_import` (proposal), plus two reads | H | S4, S5 | built by supervisor | In S6 (1f0d86a): an agent action (security review). `test_mcp_derivation_tools.py`. |
-| T14a | CLI `tl derive schema` (register, ls, show, retire) | H | S4 | ready | reference 1f0d86a, stub in the stub commit |
-| T14b | CLI `tl derive open`, `start`, `ls`, `jobs`, `cancel` (`content` and `worker` are finished in the stub) | H | S4 | ready | as T14a |
-| T14c | CLI `tl derive show`, `report`, `rows`, `diff`, `check`, `validate` | H | T14b | ready (after T14b) | as T14a |
-| T14d | CLI `tl derive publish` (preview, apply), `compensate` | H | S5, T14a, T14b | ready (after T14a and T14b) | as T14a |
+| T14a | CLI `tl derive schema` (register, ls, show, retire) | H | S4 | done | merged 6f27ecb (reviewer pass) |
+| T14b | CLI `tl derive open`, `start`, `ls`, `jobs`, `cancel` (`content` and `worker` are finished in the stub) | H | S4 | done | merged 15f4527 (post-merge reruns; fresh reviewer passed) |
+| T14c | CLI `tl derive show`, `report`, `rows`, `diff`, `check`, `validate` | H | T14b | done | merged 53d9567 (31b2795); diff notice S38 |
+| T14d | CLI `tl derive publish` (preview, apply), `compensate` | H | S5, T14a, T14b | done | merged 4bbea71 (0ec96fc plus S35/S36 fixes; reruns 15 pass 3 skip on both adapters) |
 
 D8 held for the supervisor-built pieces; the orchestrator told me (2026-10-17) to go on with T04 to T08 before B is in, so the tickets
 that do not need B's extractors are ready now. The extractor is a fake in tests until `p1/i3b` is merged. Batches (disjoint paths):
