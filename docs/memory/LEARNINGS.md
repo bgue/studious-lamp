@@ -426,3 +426,6 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P1-I3B-5** · 2026-10-17 · tags: process, tickets
   A script that rewrites a file in place must compute the new text before it opens the file for writing: `open(path, "w").write(transform(...))` truncates the file first, and an assertion inside `transform` left an empty module. Restore from git and write `result = transform(...)` on its own line. Also keep the exact messages that tests compare as module constants in the stub, so no STEPS line has to wrap a quoted message.
   Evidence: the first run of the stub generator for P1-I3B-S4; commit 36447c0 (message constants). Status: active
+- **L-P1-I3B-6** · 2026-10-17 · tags: process, tickets
+  Four stub-plus-provided-test tickets generated from the stubs all passed review at the first attempt with no finding: the mutation pass on the provided tests (L-P1-I3B-3), exact messages as constants, and STEPS with the bounds named were what the implementers' reports credited. Two small defects came back as notes: a pasted excerpt of a module (`reading.py`) was abridged without saying so, and the report template was not in Context. Say "abridged" over an excerpt, and list `docs/templates/haiku-report.md` in Context.
+  Evidence: `docs/reports/P1-I3/P1-I3-T09a.md` to `T11.md` (Learnings). Status: active

@@ -1,6 +1,6 @@
 # Increment plan — P1-I3 workstream B (extractors)
 
-Status: in-progress
+Status: done
 Supervisor session: 2026-10-17
 Brief sections: §9 M1 (derivation pipeline), §24.5 (correlated imports), §16 Phase 1 exit; ADR-0008 decision 8 (stubs only, no LLM, no spend)
 Branch: `p1/i3b` (base `p1/i3`; the orchestrator merges it into `p1/i3` when it is DONE). Fanout plan: [FANOUT.md](FANOUT.md) (decisions D1 to D8). Workstream A (pipeline) runs on `p1/i3a`.
@@ -37,12 +37,12 @@ T09 of the plan is split: the table logic and the shell are S1 and S2, the two r
 
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| T09a | CSV reader (`csvgrid.py`) | H | S1, S2b, S4 | ready | |
-| T09b | XLSX reader (`xlsxgrid.py`): archive guards, XML scan, openpyxl read-only | H | S1, S2b, S4 | ready | |
-| T10 | PDF properties with pypdf (`pdfinfo.py`) | H | S1, S2b, S4 | ready | |
-| T11 | Image format and size from the header (`imagehdr.py`) | H | S1, S2b, S4 | ready | |
-| T12 | Golden dataset | S | T09a, T09b, T10 | built (S5); its test joins when the three tickets merge | |
-| T13 | Document schema fixtures | S | none | built (S3) | |
+| T09a | CSV reader (`csvgrid.py`) | H | S1, S2b, S4 | merged | pass at attempt 1; `2619f72`, merge `3c4e029` |
+| T09b | XLSX reader (`xlsxgrid.py`): archive guards, XML scan, openpyxl read-only | H | S1, S2b, S4 | merged | pass at attempt 1; `4f9aa91`, merge `b040e72` |
+| T10 | PDF properties with pypdf (`pdfinfo.py`) | H | S1, S2b, S4 | merged | pass at attempt 1; `5944172`, merge `1f2b507` |
+| T11 | Image format and size from the header (`imagehdr.py`) | H | S1, S2b, S4 | merged | pass at attempt 1; `5f0ff38`, merge `9be94d0` |
+| T12 | Golden dataset | S | T09a, T09b, T10 | built (S5); test joined in S10 | `make_golden.py --check` ok |
+| T13 | Document schema fixtures | S | none | built (S3) | approved, APPROVALS.md |
 
 Haiku-ability checklist (`01-tiers.md` §6), 1 to 7: files ≤ 6 / interfaces in the repo / test to pass / diff ≤ 400 lines in ≤ 5 files / avoids the Sonnet table / avoids schema, migrations, dependencies / verifiable from diff and commands.
 

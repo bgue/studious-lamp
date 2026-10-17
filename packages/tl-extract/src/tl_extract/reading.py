@@ -40,7 +40,8 @@ MAX_HEADER_ROW = 1000
 #: A column name longer than this is a sign of a wrong header row, not a name.
 MAX_HEADER_CHARS = 200
 #: A sheet that was formatted down to row one million has blank rows with cells; after this many
-#: blank rows in a row the reader stops and says so in a note.
+#: blank rows in a row the XLSX reader stops and says so in a note. The CSV reader has no such
+#: stop: a text file is bounded by its size.
 MAX_BLANK_RUN = 1000
 #: The note every ``metadata_only`` result carries (the contract checks for "ADR-0008").
 STUBBED_NOTE = "content extraction stubbed (ADR-0008 decision 8): {what}"
