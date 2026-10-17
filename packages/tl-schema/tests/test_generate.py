@@ -129,6 +129,7 @@ STATIC_KEYS = {
     "ddl/sqlite/wh_health.sql",
     "ddl/sqlite/wh_secret.sql",
     "json_schema/core.schema.json",
+    "json_schema/documents.publish-mapping.schema.json",
     "models.py",
 }
 

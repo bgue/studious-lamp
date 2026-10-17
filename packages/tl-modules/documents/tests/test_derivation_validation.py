@@ -272,3 +272,19 @@ def test_rows_are_not_changed_and_a_schema_without_properties_accepts_anything()
     check(rows)
     assert rows == before
     assert check([{"a": "1"}], columns=["a"], schema={"type": "object"}).warning_count == 1
+
+
+def test_typed_row_is_the_object_that_was_validated() -> None:
+    from tl_mod_documents.derivation.validation import typed_row
+
+    got = typed_row(
+        SCHEMA,
+        row(size_in=" 4.5 ", count="x", fat="no", note="", extra="dropped"),  # type: ignore[arg-type]
+    )
+    assert got == {
+        "tag": "47-FV-1001",
+        "size_in": 4.5,
+        "fat": False,
+    }  # count unreadable, note empty
+    assert typed_row({"type": "object"}, {"a": "1"}) == {}
+    assert typed_row(SCHEMA, {}) == {}

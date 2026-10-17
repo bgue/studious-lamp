@@ -1,0 +1,67 @@
+id: https://example.org/throughline/modules/documents/publish_mapping
+name: tl_mod_documents_publish_mapping
+title: Publish mapping (brief 9, M1 derivation; ADR-0014)
+description: >-
+  The declarative mapping that turns the validated rows of a derived document into module commands when it
+  is published. It is data, not code: a `DocumentSchema` carries one (`mapping`), it is checked against this
+  class when the schema version is registered, and nothing else in it can run. Each column of the derived
+  table is mapped to one target field of the record that is created: for tags `number`, `class`, `service`
+  and `psets.<pset>.<property>` (a custom property is `psets.<pset>.x.<property>`); for documents `number`,
+  `title`, `description`, `doc_type`, `discipline` and `originator`. This file is a stand-alone LinkML schema,
+  not imported by the module root: it describes a document format, not a table. The JSON Schema generated
+  from it is `json_schema/documents.publish-mapping.schema.json`.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+default_range: string
+annotations:
+  tl:module: documents
+
+enums:
+  PublishTarget:
+    description: What a valid row is published as.
+    permissible_values:
+      tags:
+        description: Engineering tags (module engineering); needs the admin role.
+      documents:
+        description: Controlled documents (module documents); needs the document controller role.
+
+classes:
+  PublishColumn:
+    description: One column of the derived table and where its value goes.
+    attributes:
+      column:
+        required: true
+        description: The column of the derived table (a property of the schema's JSON Schema).
+      to:
+        required: true
+        pattern: "^(number|class|service|title|description|doc_type|discipline|originator|psets\\.[a-z][a-z0-9_]*\\.(x\\.)?[a-z][a-z0-9_]*)$"
+        description: The target field.
+      values:
+        range: Any
+        description: Optional translation of the cell text into the value the target takes (an object of text to text).
+
+  PublishMapping:
+    tree_root: true
+    description: The mapping of one document schema version.
+    attributes:
+      target:
+        range: PublishTarget
+        required: true
+        description: What is created.
+      key_column:
+        required: true
+        description: The column that holds the key of the record (the tag number, the document number); it must be mapped to `number`.
+      columns:
+        range: PublishColumn
+        multivalued: true
+        inlined_as_list: true
+        required: true
+        minimum_cardinality: 1
+        maximum_cardinality: 200
+        description: The columns that are published; a column that is not listed is not published.
+      note:
+        description: Free text for the person who approves a publication.

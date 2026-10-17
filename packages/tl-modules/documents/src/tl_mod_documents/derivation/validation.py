@@ -123,6 +123,26 @@ def read_cell(prop: Mapping[str, Any], cell: Cell) -> tuple[Any, str | None, str
     return None, "unsupported_type", f"a {kind} cannot be read from a cell"
 
 
+def typed_row(json_schema: Mapping[str, Any], row: Mapping[str, Cell]) -> dict[str, Any]:
+    """The row as the schema reads it: each property it declares, typed, empty and unreadable
+    cells left out, columns the schema does not declare dropped.
+
+    This is the value ``validate_result`` hands to JSON Schema, so what publication maps is what
+    was validated.
+    """
+    found: dict[str, Any] = {}
+    properties = json_schema.get("properties", {})
+    for name, prop in dict(properties).items():
+        if name not in row or not isinstance(prop, Mapping):
+            continue
+        if _declared_type(prop) in ("array", "object"):  # pyright: ignore[reportUnknownArgumentType]
+            continue
+        value, code, _ = read_cell(prop, row[name])  # pyright: ignore[reportUnknownArgumentType]
+        if code is None and value is not None:
+            found[name] = value
+    return found
+
+
 class _Counter:
     """Collects issues, keeping exact counts and the first ``MAX_ISSUES``."""
 
