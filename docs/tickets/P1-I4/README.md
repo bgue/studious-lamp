@@ -31,7 +31,8 @@ The exact commands are fixed when the CLI lands and are copied from `dev/demos/P
 | S4 | Module `schedule`: records, operational tables, build job and worker, publish (supersede, orphan flagging), `LinkActivity`, compare (plan T05 and T06) | Core engine, job, access | security pass; orchestrator review (core engine) | done (2ba0104) |
 | S5 | References for the Haiku tickets (CSV reader, resolver, look-ahead), ADR-0015, learnings L-P1-I4-1 to 7 | Reference implementations, mutation-checked | — | done (27b2170) |
 | S6 | Stubs, provided tests (`provided/`), tickets T02a, T07, T08 | — | — | done (9495b1d) |
-| S7 | API: command table entries (both modules), error rows, read routes, `views.py` of both modules, `ApiClient` methods | Public interface; access table | security pass | todo |
+| S6b | Views for both modules (`views.py`), `registry.activity_page` | Public read shapes | — | done (c01047f) |
+| S7 | API: command table entries (both modules), error rows, read routes, `ApiClient` methods, OpenAPI document | Public interface; access table | security pass | done (c01047f) |
 | S8 | CLI operations: `tl xer upload/worker/reconcile/publish/void/link`, `tl cost import` (preview/apply) | Writes; roles; the actor hook | security pass | todo |
 | S9 | TUI client interface (embedded and remote methods) for the schedule and cost reads | Interface the Haiku TUI ticket codes against | — | todo |
 | S10 | MCP read tools and the proposable `PublishScheduleSnapshot` | Agents propose only | security pass | todo |
@@ -42,14 +43,14 @@ The exact commands are fixed when the CLI lands and are copied from `dev/demos/P
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
 | T01 | LinkML schema of both modules | S | — | done (S2) | built by supervisor |
-| T02a | Cost snapshot CSV reader | H | S6 | ready | — |
+| T02a | Cost snapshot CSV reader | H | S6 | merged (4fa7e18) | passed review first time; 84 provided tests; diff to the reference is cosmetic |
 | T02b | `tl cost` read commands (codes, snapshots, the matrix of a code) | H | S7, S8 | draft | — |
 | T03 | XER parser (all tables raw, typed activities, WBS, relationships, calendars, codes, UDFs) | S | T01 | done (S1) | built by supervisor |
 | T04 | XER `DocumentSchema` validation | S (taken over) | T03 | done (S1) | the plan had this as H; the check list is one security-reviewed table inside `tl_xer.typed`, so it was built with T03 (L-P1-I3-5) |
 | T05 | Snapshot build: operational tables, `Schedule.SnapshotPublished` | S (taken over) | T04 | done (S4) | job, projectors and publish are core-engine work |
 | T06 | Snapshot compare | S | T05 | done (S4) | built by supervisor |
-| T07 | Activity-id link resolution, as-of, orphans | H | S6 | ready | — |
-| T08 | Look-ahead query | H | S6 | ready | — |
+| T07 | Activity-id link resolution, as-of, orphans | H | S6 | merged (ef3baa2) | passed review first time; 22 tests on SQLite, 44 on both adapters |
+| T08 | Look-ahead query | H | S6 | merged (1c5056b) | passed review first time; the reviewer's mutation spot-check was caught |
 | T09a | TUI: schedule list, snapshot compare view, activity record | H | S9 | draft | — |
 | T09b | `tl xer` read commands (`ls`, `show`, `compare`, `look-ahead`, `resolve`, `health`) | H | S8 | draft | — |
 | T10 | Reports: quantities by cost code vs budget, records without cost code, IWP-vs-activity stub | H | S7, T07 | draft | — |

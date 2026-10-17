@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from stubs import needs_t07, needs_t08
 from tl_adapters.db import open_uow
 from tl_mod_schedule import views
 from tl_mod_schedule.errors import (
@@ -201,7 +200,6 @@ def test_a_comparison_is_cut_to_the_limit_and_says_so(world: ScheduleWorld) -> N
     assert len(read(world, views.comparison, "MAIN", limit=0).float_changes) == 1
 
 
-@needs_t08
 def test_the_look_ahead_starts_at_the_data_date_of_the_snapshot(world: ScheduleWorld) -> None:
     published_pair(world)
     ahead = read(world, views.look_ahead_view, "MAIN")
@@ -214,7 +212,6 @@ def test_the_look_ahead_starts_at_the_data_date_of_the_snapshot(world: ScheduleW
         read(world, views.look_ahead_view, "MAIN", None, 0)
 
 
-@needs_t07
 def test_an_activity_resolves_now_and_as_of_a_number_or_a_date(world: ScheduleWorld) -> None:
     published_pair(world)
     now = read(world, views.resolution, "MAIN", "A1230")
@@ -226,7 +223,6 @@ def test_an_activity_resolves_now_and_as_of_a_number_or_a_date(world: ScheduleWo
     assert read(world, views.resolution, "MAIN", "A1230", "2026-10-01").state == "no_snapshot"
 
 
-@needs_t07
 def test_the_activity_links_of_a_record_and_the_orphans_of_a_schedule(
     world: ScheduleWorld,
 ) -> None:

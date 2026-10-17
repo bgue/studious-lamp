@@ -31,7 +31,10 @@ MAX_IGNORED = 50
 DELIMITERS = (",", ";", "\t")
 #: Control characters (other than tab, CR and LF), line and paragraph separators and text-direction
 #: marks have no place in a cost export.
-_FORBIDDEN = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f؜‎‏  ‪-‮⁦-⁩﻿]")
+_FORBIDDEN = re.compile(
+    "[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\u061c\u200e\u200f\u2028\u2029\u202a-\u202e"
+    "\u2066-\u2069\ufeff]"
+)
 _NUMBER = re.compile(r"-?(?:[0-9]{1,15}|[0-9]{1,3}(?:,[0-9]{3}){1,4})(?:\.[0-9]{1,6})?")
 _UNIT_WORDS = {"hours": "hours", "hrs": "hours", "quantity": "quantity", "qty": "quantity",
                "amount": "amount", "cost": "amount"}  # fmt: skip

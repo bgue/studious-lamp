@@ -495,3 +495,9 @@ Before a reference file was stubbed for a Haiku ticket, one guard at a time was 
 
 ### L-P1-I4-7 (ledger) Large typed rows of a snapshot are operational tables, with a hash in the ledger
 20 000 activities of up to 100 columns would be events of megabytes. The snapshot's typed rows (`sched_*`) are written by the build job in its own transaction, never cleared by a projection rebuild, and checked against the SHA-256 of the canonical rows recorded in `ScheduleSnapshot.Built`; `tl xer reconcile` rewrites them from the source file after a restore. Use the same shape for any derived table a job writes that is bigger than an event should be (ADR-0014, ADR-0015). Evidence: `tl_mod_schedule/projectors/tables.py`, `build.py`.
+
+### L-P1-I4-8 (security) Write invisible characters in a source pattern as escapes
+A pattern that refuses control and text-direction characters held the characters themselves; nobody can see in a diff or a file read whether one was added or dropped (the T02a implementer and reviewer both had to prove it with `git diff`). Write them as `\x..` and `\u....` escapes (`_FORBIDDEN` in `tl_mod_cost/imports/reader.py`, same value, compared at the change) and keep a test that feeds each class. Evidence: `docs/reports/P1-I4/P1-I4-T02a.md`.
+
+### L-P1-I4-9 (tooling) A first `just check` in a fresh worktree takes over two minutes: give it a long timeout
+All three implementers of batch 1 lost a run to the 120 s default of the shell tool: `just check` (lint, format, pyright, drift, OpenAPI and licence checks) and the Postgres run of a module suite (2.7 minutes for the resolver) need `timeout` 600000 or a background run waited for on its task output. `ruff format <file>` first, because the format check rewrites a hand-wrapped line. `pgrep -f` matches other worktrees' processes. Tickets now say so in Acceptance. Evidence: the three P1-I4 batch-1 reports.
