@@ -14,7 +14,7 @@
 #      user cannot accept it (the admin can); a client cannot pose as a publication;
 #   7  the API, the TUI screens (F11, job monitor, publish preview) and the agent's MCP tools show
 #      the same derived document;
-#   8  a schema with a pattern that never finishes ends as validation_limit within seconds, and the
+#   8  a schema with a pattern that never finishes fails its job with the fixed validation-limit message within seconds, and the
 #      worker goes on to the next job.
 #
 # Backends: `TL_DEMO_BACKENDS` is a space-separated list, default "sqlite postgres". Postgres is a
@@ -183,7 +183,11 @@ run_backend() {
   as amy tl doc register ISD-002 --project P123 --title "Equipment list, unit 47" >/dev/null
   as amy tl doc rev create ISD-002 --project P123 --purpose "First issue" >/dev/null
   as amy tl derive open ISD-002 A --schema equipment-list --project P123 >/dev/null
-  as amy tl derive content "$EQKEY" "$SAMPLES/equipment-list@1.0.0.sample.csv" --project P123 >/dev/null
+  # the equipment sample repeats tags of the instrument index that clause 5 compensated, and a
+  # compensated key is never reused: publish the same list under other area numbers
+  sed -E 's/^47-/48-/; s/^10-/11-/; s/^20-/21-/' "$SAMPLES/equipment-list@1.0.0.sample.csv" \
+    >"$workdir/equipment-list.csv"
+  as amy tl derive content "$EQKEY" "$workdir/equipment-list.csv" --project P123 >/dev/null
   as amy tl derive start "$EQKEY" --project P123 >/dev/null
   as amy $derive_worker >/dev/null
   out="$(as amy tl derive show "$EQKEY" --project P123)"; expect "state Valid" "$out"
@@ -220,10 +224,10 @@ run_backend() {
   [ $((SECONDS - started)) -lt 90 ] || fail "the hostile pattern held the worker"
   expect "worker done: ran=2" "$out"
   out="$(as amy tl derive jobs --project P123 --state failed)"; echo "$out"
-  expect "validation_limit" "$out"
+  expect "the validation used more time or memory than the limit" "$out"
   out="$(as amy tl derive show ISD-004@A/hostile-pattern --project P123)"
   expect "state Valid" "$out"
-  echo "PASS 8: the hostile pattern failed its job with validation_limit; the next job ran and passed"
+  echo "PASS 8: the hostile pattern failed its job with the validation-limit message; the next job ran and passed"
 
   stop_server
   drop_pg

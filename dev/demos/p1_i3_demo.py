@@ -252,7 +252,7 @@ def propose() -> None:
     found = agent_session("propose_import", {"project": PROJECT, "derived": EQUIPMENT_KEY})
     proposal = found["proposal"]
     assert proposal["status"] == "pending" and proposal["tool"] == "propose_import_tags"
-    tags = rows("SELECT COUNT(*) AS n FROM cur_core_record WHERE key LIKE '47-P-%'")[0]["n"]
+    tags = rows("SELECT COUNT(*) AS n FROM cur_core_record WHERE key LIKE '48-%'")[0]["n"]
     assert tags == 0, tags
     Path(os.environ["TL_DEMO_STATE"]).write_text(proposal["proposal_id"])
     say(f"the agent's proposal {proposal['proposal_id']} is pending; nothing was created")
