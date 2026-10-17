@@ -1,0 +1,171 @@
+id: https://example.org/throughline/modules/correspondence/correspondence
+name: tl_mod_correspondence_correspondence
+title: Correspondence items (brief 9, M10 core)
+description: >-
+  One formal item of the register: a letter, email, portal message or minute, received or issued. The
+  subject is the envelope title (`cur_core_record`) and the item number is the record key. The workflow
+  state (Draft, Received, Triaged, Issued, Responded, Closed, Void) is the envelope `status`. `domain` is
+  null until triage confirms it. `confidentiality` is read by the core filters (ADR-0016): `internal`,
+  `restricted` or `privileged`; any other value is hidden. Spec: docs/modules/correspondence/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: correspondence
+
+classes:
+  Correspondence:
+    description: >-
+      One correspondence item. Record type `correspondence.Correspondence`.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "correspondence.Correspondence"
+      tl:ix_scope_direction: "scope, direction"
+      tl:ix_scope_domain: "scope, domain"
+      tl:ix_scope_received: "scope, received_on"
+      tl:ix_scope_due: "scope, response_due"
+      tl:ix_thread: "thread_id"
+      tl:ix_message_id: "scope, message_id"
+      tl:ix_scope_class: "scope, confidentiality"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      number:
+        required: true
+        description: The item number, equal to the record key.
+      direction:
+        required: true
+        description: "in (received), out (issued by us) or internal."
+      medium:
+        required: true
+        description: "letter, email, portal, minutes or other."
+      received_via:
+        required: true
+        description: "How it entered the system: upload, email or manual."
+      external_ref:
+        description: The sender's own reference number, as written on the letter; null when none.
+      message_id:
+        description: The email Message-ID header, normalised without angle brackets; null for anything that is not an email.
+      in_reply_to:
+        description: The email In-Reply-To header, normalised; null when none.
+      from_party_id:
+        range: Ulid
+        description: The `correspondence.Party` the sender is, when known.
+      from_name:
+        description: Who sent it, as written (a person or an organisation).
+      to_json:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: "JSON list of recipients, each `{name, email, party_id}` (name required)."
+      cc_json:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: "JSON list of copy recipients, same shape as `to_json`."
+      sent_on:
+        description: ISO date (YYYY-MM-DD) the sender dated it; null when unknown.
+      received_on:
+        description: ISO date (YYYY-MM-DD) on which it arrived; null for an item we issue.
+      issued_on:
+        description: ISO date (YYYY-MM-DD) on which we issued it; null until issued.
+      body:
+        description: The text of the item or its summary, plain text, bounded; null when the item is only a file.
+      confidentiality:
+        required: true
+        ifabsent: string(internal)
+        description: "Confidentiality class: internal, restricted or privileged (ADR-0016). Any other value is hidden from everyone."
+      domain:
+        description: Code of the domain (`general`, `document_control`); null until triage confirms it.
+      subtype:
+        description: Subtype within the domain (`letter`, `memo`, `transmittal` ...); null until triage confirms it.
+      thread_id:
+        range: Ulid
+        description: The `correspondence.CorrespondenceThread` the item belongs to; null until threaded.
+      responds_to_id:
+        range: Ulid
+        description: The item this one answers; null when it starts a thread.
+      superseded_by_id:
+        range: Ulid
+        description: The item that replaced this one.
+      response_required:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: True when the other party expects an answer.
+      response_due:
+        description: ISO date (YYYY-MM-DD) by which an answer is due; null when none.
+      responded_on:
+        description: ISO date (YYYY-MM-DD) on which an answer was issued or received.
+      triaged_on:
+        description: ISO date (YYYY-MM-DD) on which triage was confirmed.
+      triaged_by:
+        description: The actor who confirmed triage.
+      rendition_file_id:
+        range: Ulid
+        description: The file of the issued PDF rendition (slot `rendition`); null until issued.
+      rendition_sha256:
+        description: Hex SHA-256 of the issued rendition.
+      delivery:
+        required: true
+        ifabsent: string(none)
+        description: "none, or stub: sending is a stub in Phase 1 and nothing leaves the machine."
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
+
+  Clearance:
+    description: >-
+      A named account that may read a `privileged` item (ADR-0016). Not a record: a row written by
+      `Correspondence.ClearanceGranted` and removed by `Correspondence.ClearanceWithdrawn`.
+    annotations:
+      tl:current_state: true
+      tl:ix_account: "account"
+    unique_keys:
+      record_account:
+        description: An account is cleared once per item.
+        unique_key_slots:
+          - record_id
+          - account
+    attributes:
+      clearance_id:
+        identifier: true
+        required: true
+        description: "`<record id>:<account>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      record_id:
+        range: Ulid
+        required: true
+        description: The item.
+      account:
+        required: true
+        description: The account name, for example `user:amy`.
+      granted_by:
+        required: true
+        description: The actor who granted it.
+      granted_on:
+        required: true
+        description: ISO date (YYYY-MM-DD).
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the event that wrote the row.

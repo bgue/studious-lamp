@@ -19,6 +19,12 @@ DOCUMENT_FORMATS = (
         "PublishMapping",
         "json_schema/documents.publish-mapping.schema.json",
     ),
+    (
+        "correspondence",
+        "domain.yaml",
+        "CorrespondenceDomain",
+        "json_schema/correspondence.domain.schema.json",
+    ),
 )
 
 

@@ -1,0 +1,109 @@
+id: https://example.org/throughline/modules/correspondence/party
+name: tl_mod_correspondence_party
+title: Parties and contact roles (brief 9, M10 core)
+description: >-
+  A party is an organisation with a role on the project (client, engineer, contractor, subcontractor,
+  supplier, authority). Its contact roles are the people who may write or receive for it, for one domain
+  or for every domain. The email domains of a party let the email ingest recognise a sender; nothing is
+  trusted because of them (a match only proposes the party). Spec: docs/modules/correspondence/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: correspondence
+
+classes:
+  Party:
+    description: >-
+      One organisation. Record type `correspondence.Party`; its key is a short code typed in (`CLIENT`,
+      `ENG-1`) and the title is the organisation's name.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "correspondence.Party"
+      tl:ix_scope_role: "scope, project_role"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      code:
+        required: true
+        description: The party code, equal to the record key.
+      project_role:
+        required: true
+        description: "client, engineer, contractor, subcontractor, supplier, authority, internal or other."
+      email_domains_json:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+        description: JSON list of lower-case email domains the party's people write from.
+      is_active:
+        range: boolean
+        required: true
+        ifabsent: "true"
+        description: False once the party is retired.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
+
+  ContactRole:
+    description: >-
+      One person who acts for a party, optionally for one domain only. Not a record: a row written by
+      `Party.Defined` and `Party.ContactAdded` and ended by `Party.ContactEnded`.
+    annotations:
+      tl:current_state: true
+      tl:ix_party: "party_id"
+      tl:ix_email: "scope, email"
+    attributes:
+      contact_id:
+        identifier: true
+        required: true
+        description: "`<party id>:<position, three digits>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      party_id:
+        range: Ulid
+        required: true
+        description: The party.
+      position:
+        range: integer
+        required: true
+        description: Position among the party's contacts, from 1; never reused.
+      name:
+        required: true
+        description: The person's name.
+      email:
+        description: Lower-case email address; null when unknown.
+      title:
+        description: The person's job title or role in the exchange.
+      domain:
+        description: The domain code the person acts for; null for every domain.
+      is_authorised:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: True when the person is an authorised representative who may sign for the party.
+      is_active:
+        range: boolean
+        required: true
+        ifabsent: "true"
+        description: False once the contact is ended.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the event that wrote the row.
