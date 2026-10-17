@@ -456,6 +456,17 @@ def activity_ids_present(
     return present
 
 
+def _relationship(r: Any) -> RelationshipRow:
+    return RelationshipRow(
+        snapshot_id=str(r.snapshot_id),
+        pred_activity_id=str(r.pred_activity_id),
+        succ_activity_id=str(r.succ_activity_id),
+        relationship_type=str(r.relationship_type),
+        lag_hr=float(r.lag_hr),
+        seq=int(r.seq),
+    )
+
+
 def relationships(conn: Connection, snapshot_id: str) -> list[RelationshipRow]:
     found = conn.execute(
         text(
@@ -463,17 +474,7 @@ def relationships(conn: Connection, snapshot_id: str) -> list[RelationshipRow]:
         ),
         {"id": snapshot_id},
     )
-    return [
-        RelationshipRow(
-            snapshot_id=str(r.snapshot_id),
-            pred_activity_id=str(r.pred_activity_id),
-            succ_activity_id=str(r.succ_activity_id),
-            relationship_type=str(r.relationship_type),
-            lag_hr=float(r.lag_hr),
-            seq=int(r.seq),
-        )
-        for r in found
-    ]
+    return [_relationship(r) for r in found]
 
 
 def day_hours(conn: Connection, snapshot_id: str) -> dict[str, float]:
@@ -483,3 +484,60 @@ def day_hours(conn: Connection, snapshot_id: str) -> dict[str, float]:
         {"id": snapshot_id},
     )
     return {str(r.calendar_id): float(r.day_hr) for r in found}
+
+
+def _like(term: str) -> str:
+    """A LIKE pattern that finds ``term`` anywhere, with its own ``%``, ``_`` and ``\\`` literal."""
+    escaped = term.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def activity_page(
+    conn: Connection,
+    snapshot_id: str,
+    *,
+    critical: bool | None = None,
+    status: str | None = None,
+    search: str | None = None,
+    limit: int = 200,
+    offset: int = 0,
+) -> tuple[int, list[ActivityRow]]:
+    """A page of a snapshot's activities in file order, and how many match in all.
+
+    ``search`` finds a text in the activity id or the name, in any case.
+    """
+    where = ["snapshot_id = :id"]
+    params: dict[str, Any] = {"id": snapshot_id}
+    if critical is not None:
+        where.append("critical = :critical")
+        params["critical"] = critical
+    if status is not None:
+        where.append("status = :status")
+        params["status"] = status
+    if search:
+        where.append("(lower(activity_id) LIKE :q ESCAPE '\\' OR lower(name) LIKE :q ESCAPE '\\')")
+        params["q"] = _like(search)
+    clause = " AND ".join(where)
+    total = conn.execute(
+        text(f"SELECT COUNT(*) FROM {ACTIVITY_TABLE} WHERE {clause}"), params
+    ).scalar_one()
+    found = conn.execute(
+        text(
+            f"SELECT {_ACTIVITY_SELECT} FROM {ACTIVITY_TABLE} WHERE {clause} "
+            "ORDER BY seq LIMIT :limit OFFSET :offset"
+        ),
+        {**params, "limit": limit, "offset": offset},
+    )
+    return int(total), [_activity(r) for r in found]
+
+
+def relationships_of(conn: Connection, snapshot_id: str, activity_id: str) -> list[RelationshipRow]:
+    """The relationships that name the activity as predecessor or successor, in file order."""
+    found = conn.execute(
+        text(
+            f"SELECT {_REL_SELECT} FROM {RELATIONSHIP_TABLE} WHERE snapshot_id = :id "
+            "AND (pred_activity_id = :a OR succ_activity_id = :a) ORDER BY seq"
+        ),
+        {"id": snapshot_id, "a": activity_id},
+    )
+    return [_relationship(r) for r in found]
