@@ -8,7 +8,15 @@ publishing into tags needs the admin role and into documents the document contro
 (ADR-0014), and the screen does not offer it to anyone else. ``c`` shows what compensating the
 publication in force would take back and ``u`` does it (admin, also asked twice). The screen decides
 nothing: whether a publication can go ahead is the plan's ``can_publish``.
+
+STUB (P1-I3-T07c): the bodies of _fill, action_compensate, action_publish, reload raise
+NotImplementedError; their signatures, options, docstrings and the helpers are final. Each body
+has a STEPS comment. Implement them, then delete this paragraph, the STEPS comments and the
+lint-silencing lines.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
+# pyright: reportUnusedImport=false, reportUnusedVariable=false
 
 from __future__ import annotations
 
@@ -112,35 +120,25 @@ class PublishPreviewScreen(ModalScreen[bool]):
 
     def reload(self) -> None:
         """Read the plan and the compensation preview again and show them."""
-        self.confirming = None
-        try:
-            self.plan = self.client.get_publish_preview(self.project, self.derived)
-            self.compensation = self.client.get_compensation_preview(self.project, self.derived)
-        except CLIENT_ERRORS as exc:
-            self.plan = None
-            self.compensation = None
-            self._say(describe_error(exc), error=True)
-            self._fill()
-            return
-        self._fill()
+        # STEPS (P1-I3-T07c)
+        # 1. Set self.confirming = None.
+        # 2. Try self.plan = self.client.get_publish_preview(self.project, self.derived) and
+        #    self.compensation = self.client.get_compensation_preview(self.project,
+        #    self.derived).
+        # 3. On CLIENT_ERRORS set both to None, say describe_error(exc) with error=True, call
+        #    self._fill() and return; otherwise call self._fill().
+        raise NotImplementedError
 
     def _fill(self) -> None:
         """Show the header, the rows and the panel for the plan (or the compensation) read."""
-        table = self.query_one("#pp-table", DataTable)
-        table.clear()
-        header = self.query_one("#pp-header", Static)
-        detail = self.query_one("#pp-detail", Static)
-        if self.plan is None:
-            header.update("")
-            detail.update("")
-            return
-        header.update("\n".join(plan_header_lines(self.plan)))
-        for cells in plan_cells(self.plan, MAX_PLAN_ROWS):
-            table.add_row(*(Text(cell) for cell in cells))
-        if self.show_compensation and self.compensation is not None:
-            detail.update("\n".join(compensation_lines(self.compensation)))
-        else:
-            detail.update(self._offer())
+        # STEPS (P1-I3-T07c)
+        # 1. table = #pp-table: clear it; header = #pp-header; detail = #pp-detail.
+        # 2. With no plan clear the header and the panel and return.
+        # 3. header: "\n".join(plan_header_lines(self.plan)); one table row per cells in
+        #    plan_cells(self.plan, MAX_PLAN_ROWS), each cell as Text(cell).
+        # 4. Panel: when self.show_compensation and self.compensation is set,
+        #    "\n".join(compensation_lines(self.compensation)); otherwise self._offer().
+        raise NotImplementedError
 
     def _offer(self) -> str:
         """What the person may do now, in one or two lines."""
@@ -179,84 +177,45 @@ class PublishPreviewScreen(ModalScreen[bool]):
 
     def action_publish(self) -> None:
         """Ask on the first press; on the second create the records as one correlated import."""
-        plan = self.plan
-        if plan is None:
-            self._say("There is no plan to publish.", error=True)
-            return
-        allowed = self.is_admin if plan.target == "tags" else self.is_controller
-        if not allowed:
-            role = "admin" if plan.target == "tags" else "document controller"
-            self._say(f"Publishing into {plan.target} needs the {role} role.", error=True)
-            return
-        if not can_apply(plan, self.skip_existing):
-            self._say(self._offer(), error=True)
-            return
-        if self.confirming != "publish":
-            self.confirming = "publish"
-            self._say(
-                f"Create {plan.counts.get('create', 0)} {plan.target} from {plan.derived_key}? "
-                "Press p again to confirm, Esc to leave."
-            )
-            return
-        self.confirming = None
-        fields = {
-            "actor": self.actor,
-            "source": "tui",
-            "scope": f"project:{self.project}",
-            "derived_id": plan.derived_id,
-            "expected_content_rev": plan.content_rev,
-            "skip_existing": self.skip_existing,
-        }
-        try:
-            if plan.target == "tags":
-                self.client.publish_derived_tags(PublishDerivedTags(**fields))
-            else:
-                self.client.publish_derived_documents(PublishDerivedDocuments(**fields))
-        except CLIENT_ERRORS as exc:
-            self._say(describe_error(exc), error=True)
-            self.reload()
-            return
-        self.changed = True
-        self.reload()
-        self._say(f"Published {plan.counts.get('create', 0)} {plan.target}.")
+        # STEPS (P1-I3-T07c)
+        # 1. plan = self.plan; with none say "There is no plan to publish." (error=True) and
+        #    return.
+        # 2. allowed = self.is_admin for target "tags", else self.is_controller. If not allowed
+        #    say f"Publishing into {plan.target} needs the {role} role." (role is `admin` or
+        #    `document controller`, error=True) and return, with no client call.
+        # 3. If not can_apply(plan, self.skip_existing): say self._offer() (error=True) and
+        #    return.
+        # 4. If self.confirming != "publish": set it, say f"Create {n} {plan.target} from
+        #    {plan.derived_key}? Press p again to confirm, Esc to leave." (n is
+        #    plan.counts.get("create", 0)) and return.
+        # 5. Otherwise self.confirming = None and build fields: actor=self.actor, source="tui",
+        #    scope=f"project:{self.project}", derived_id=plan.derived_id,
+        #    expected_content_rev=plan.content_rev, skip_existing=self.skip_existing.
+        # 6. Try self.client.publish_derived_tags(PublishDerivedTags(**fields)) for tags, else
+        #    self.client.publish_derived_documents(PublishDerivedDocuments(**fields)). On
+        #    CLIENT_ERRORS say describe_error(exc) (error=True), self.reload() and return.
+        # 7. Set self.changed = True, self.reload(), then say f"Published {n} {plan.target}."
+        #    (last: the reload clears the status).
+        raise NotImplementedError
 
     def action_compensate(self) -> None:
         """Ask on the first press; on the second take the publication in force back (admin)."""
-        compensation = self.compensation
-        if compensation is None or not compensation.can_compensate:
-            self._say("There is no publication that can be taken back.", error=True)
-            return
-        if not self.is_admin:
-            self._say("Compensating a publication needs the admin role.", error=True)
-            return
-        if self.confirming != "compensate":
-            self.confirming = "compensate"
-            self.show_compensation = True
-            self._fill()
-            self._say(
-                f"Take back {len(compensation.items)} items of {compensation.derived_key}? "
-                "Press u again to confirm, Esc to leave."
-            )
-            return
-        self.confirming = None
-        try:
-            self.client.compensate_publication(
-                CompensatePublication(
-                    actor=self.actor,
-                    source="tui",
-                    scope=f"project:{self.project}",
-                    derived_id=compensation.derived_id,
-                    reason="compensated in the TUI",
-                )  # fmt: skip
-            )
-        except CLIENT_ERRORS as exc:
-            self._say(describe_error(exc), error=True)
-            self.reload()
-            return
-        self.changed = True
-        self.show_compensation = False
-        self.reload()
-        self._say("Publication taken back.")
+        # STEPS (P1-I3-T07c)
+        # 1. compensation = self.compensation; if it is None or not compensation.can_compensate
+        #    say "There is no publication that can be taken back." (error=True) and return.
+        # 2. If not self.is_admin say "Compensating a publication needs the admin role."
+        #    (error=True) and return, with no client call.
+        # 3. If self.confirming != "compensate": set it, set self.show_compensation = True, call
+        #    self._fill(), say f"Take back {len(compensation.items)} items of
+        #    {compensation.derived_key}? Press u again to confirm, Esc to leave." and return.
+        # 4. Otherwise self.confirming = None; try
+        #    self.client.compensate_publication(CompensatePublication(actor=self.actor,
+        #    source="tui", scope=f"project:{self.project}", derived_id=compensation.derived_id,
+        #    reason="compensated in the TUI")). On CLIENT_ERRORS say describe_error(exc)
+        #    (error=True), self.reload() and return.
+        # 5. Set self.changed = True, self.show_compensation = False, self.reload(), then say
+        #    "Publication taken back."
+        raise NotImplementedError
 
     def action_reload(self) -> None:
         self.reload()

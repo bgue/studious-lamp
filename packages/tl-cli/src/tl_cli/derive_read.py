@@ -3,7 +3,15 @@
 All but `validate` read and write nothing. `check` validates the stored rows against a schema now
 and stores nothing; `validate` queues a job that does it and keeps the report. The reads are the
 module's (`tl_mod_documents.derivation.views`); these commands parse options and print.
+
+STUB (P1-I3-T14c): the bodies of check, diff, report, rows_command, show, validate raise
+NotImplementedError; their signatures, options, docstrings and the helpers are final. Each body
+has a STEPS comment. Implement them, then delete this paragraph, the STEPS comments and the
+lint-silencing lines.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
+# pyright: reportUnusedImport=false, reportUnusedVariable=false
 
 from __future__ import annotations
 
@@ -69,25 +77,15 @@ def show(ctx: typer.Context, ref: _Ref, project: Project) -> None:
     one is queued or running, then `pass <n>  <extractor>  <extraction status>  rows <n>
     validation <status>  errors <n>` for each pass, oldest first.
     """
-    db: DbTarget = ctx.obj
-    with service_errors(), open_uow(db, readonly=True) as uow:
-        d = views.derived_view(uow.conn(), f"project:{project}", ref)
-    typer.echo(f"derived {d.key}")
-    typer.echo(f"state {d.state}")
-    typer.echo(f"source {d.source_ref}")
-    typer.echo(f"schema {d.schema_code}@{d.schema_version}")
-    typer.echo(f"method {d.method}")
-    if d.published_count is None:
-        typer.echo("published -")
-    else:
-        typer.echo(f"published {d.published_count} records at {d.published_at}")
-    if d.active_job is not None:
-        typer.echo(f"job {d.active_job.key} {d.active_job.state}")
-    for c in d.contents:
-        typer.echo(
-            f"pass {c.content_rev}  {c.extractor}  {c.extraction_status}  rows {c.row_count}  "
-            f"validation {c.validation_status}  errors {c.error_count}"
-        )
+    # STEPS (P1-I3-T14c)
+    # 1. db = ctx.obj; inside `with service_errors(), open_uow(db, readonly=True) as uow:` d =
+    #    views.derived_view(uow.conn(), f"project:{project}", ref).
+    # 2. Print the lines in the docstring's order: derived, state, source, schema, method,
+    #    `published <n> records at <time>` or `published -`, `job <key> <state>` only when
+    #    d.active_job is set.
+    # 3. Then one `pass <n>  <extractor>  <extraction_status>  rows <n>  validation <status>
+    #    errors <n>` line per d.contents (two spaces between the first fields, as written).
+    raise NotImplementedError
 
 
 @app.command("report")
@@ -102,15 +100,14 @@ def report(
     ] = False,
 ) -> None:
     """Print the stored validation report of a pass (the latest by default)."""
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    configure_files()
-    with service_errors(), open_uow(db, readonly=True) as uow:
-        found = views.find_derived(uow.conn(), scope, ref)
-        made = views.derived_report(uow, scope, ref, content_rev=rev)
-    _print_report("report", found.key, rev or found.content_rev, made, limit)
-    if strict and made.status != "valid":
-        raise typer.Exit(code=1)
+    # STEPS (P1-I3-T14c)
+    # 1. db = ctx.obj; scope = f"project:{project}"; configure_files().
+    # 2. Inside `with service_errors(), open_uow(db, readonly=True) as uow:` found =
+    #    views.find_derived(uow.conn(), scope, ref); made = views.derived_report(uow, scope, ref,
+    #    content_rev=rev).
+    # 3. _print_report("report", found.key, rev or found.content_rev, made, limit); with --strict
+    #    and made.status != "valid" raise typer.Exit(code=1).
+    raise NotImplementedError
 
 
 @app.command("rows")
@@ -127,17 +124,15 @@ def rows_command(
     `columns <name> <name> ...`, then `<row number>  <cell> | <cell> | ...` (`-` for an empty
     cell), then `showing <first>-<last> of <total>`.
     """
-    db: DbTarget = ctx.obj
-    configure_files()
-    with service_errors(), open_uow(db, readonly=True) as uow:
-        page = views.derived_rows(
-            uow, f"project:{project}", ref, content_rev=rev, offset=offset, limit=limit
-        )
-    typer.echo("columns " + " ".join(page.columns))
-    for index, row in enumerate(page.rows, start=page.offset + 1):
-        typer.echo(f"{index}  " + " | ".join(cell(row.get(c), 30) for c in page.columns))
-    last = page.offset + len(page.rows)
-    typer.echo(f"showing {page.offset + 1 if page.rows else 0}-{last} of {page.total}")
+    # STEPS (P1-I3-T14c)
+    # 1. db = ctx.obj; configure_files(); page = views.derived_rows(uow, f"project:{project}",
+    #    ref, content_rev=rev, offset=offset, limit=limit) inside the usual readonly block.
+    # 2. Print `columns <names joined by one space>`.
+    # 3. For each row, numbered from page.offset + 1, print `<n>  ` plus the cells joined by ` |
+    #    `, each through cell(row.get(c), 30).
+    # 4. Print `showing <first>-<last> of <total>` where first is page.offset + 1 (0 when no
+    #    rows) and last is page.offset + len(page.rows).
+    raise NotImplementedError
 
 
 @app.command("diff")
@@ -155,23 +150,15 @@ def diff(
     `added <n>  removed <n>  changed <n>  unchanged <n>`, then `+ <key>` per added row, `- <key>`
     per removed row and `~ <key>: <column> <old> -> <new>; ...` per changed row.
     """
-    db: DbTarget = ctx.obj
-    if against not in ("previous_pass", "previous_revision"):
-        fail("--against must be previous_pass or previous_revision")
-    configure_files()
-    with service_errors(), open_uow(db, readonly=True) as uow:
-        d = views.derived_diff(uow, f"project:{project}", ref, against=against, content_rev=rev)
-    typer.echo(
-        f"added {d.added_count}  removed {d.removed_count}  changed {d.changed_count}  "
-        f"unchanged {d.unchanged_count}"
-    )
-    for key in d.added:
-        typer.echo(f"+ {key}")
-    for key in d.removed:
-        typer.echo(f"- {key}")
-    for change in d.changed:
-        fields = "; ".join(f"{f.column} {cell(f.old)} -> {cell(f.new)}" for f in change.fields)
-        typer.echo(f"~ {change.key}: {fields}")
+    # STEPS (P1-I3-T14c)
+    # 1. If against is not previous_pass or previous_revision: fail("--against must be
+    #    previous_pass or previous_revision").
+    # 2. configure_files(); d = views.derived_diff(uow, f"project:{project}", ref,
+    #    against=against, content_rev=rev) inside the usual readonly block.
+    # 3. Print `added <n>  removed <n>  changed <n>  unchanged <n>` (the four counts), then `+
+    #    <key>` per added, `- <key>` per removed, `~ <key>: <column> <old> -> <new>; ...` per
+    #    changed row (old and new through cell).
+    raise NotImplementedError
 
 
 @app.command("check")
@@ -187,15 +174,12 @@ def check(
     strict: Annotated[bool, typer.Option("--strict", help="Exit 1 unless the rows pass.")] = False,
 ) -> None:
     """Check the stored rows against a schema now. Nothing is stored and no job runs."""
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    configure_files()
-    with service_errors(), open_uow(db, readonly=True) as uow:
-        found = views.find_derived(uow.conn(), scope, ref)
-        made = views.validate_stored(uow, scope, ref, schema_ref=schema, content_rev=rev)
-    _print_report("check", found.key, rev or found.content_rev, made, limit)
-    if strict and made.status != "valid":
-        raise typer.Exit(code=1)
+    # STEPS (P1-I3-T14c)
+    # 1. As report, but made = views.validate_stored(uow, scope, ref, schema_ref=schema,
+    #    content_rev=rev) and the label is "check".
+    # 2. _print_report("check", found.key, rev or found.content_rev, made, limit); with --strict
+    #    and made.status != "valid" raise typer.Exit(code=1).
+    raise NotImplementedError
 
 
 @app.command("validate")
@@ -210,19 +194,11 @@ def validate(
     actor: Actor = None,
 ) -> None:
     """Queue a job that validates a pass again and keeps the report. `queued <job> for <key>`."""
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    with service_errors(), open_uow(db) as uow:
-        found = views.find_derived(uow.conn(), scope, ref)
-        made = handle_validate_derived(
-            uow,
-            ValidateDerived(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope=scope,
-                derived_id=found.id,
-                content_rev=rev,
-                schema_semver=schema_version,
-            ),
-        )
-    typer.echo(f"queued {made.key} for {found.key}")
+    # STEPS (P1-I3-T14c)
+    # 1. db = ctx.obj; scope = f"project:{project}".
+    # 2. Inside `with service_errors(), open_uow(db) as uow:` found =
+    #    views.find_derived(uow.conn(), scope, ref); made = handle_validate_derived(uow,
+    #    ValidateDerived(actor=acting(db, actor), source=SOURCE, scope=scope,
+    #    derived_id=found.id, content_rev=rev, schema_semver=schema_version)).
+    # 3. Print `queued <made.key> for <found.key>`.
+    raise NotImplementedError

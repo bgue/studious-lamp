@@ -5,7 +5,15 @@ makes it, `content` attaches a CSV or XLSX a person prepared, `start` queues the
 `worker` runs the queue, and `ls` and `jobs` show where things stand. Starting, cancelling and
 opening are open to any signed-in person; nothing here publishes. The rules are the module's
 (`tl_mod_documents.derivation`); these commands parse options and print.
+
+STUB (P1-I3-T14b): the bodies of cancel, jobs, list_derived, open_derived, start raise
+NotImplementedError; their signatures, options, docstrings and the helpers are final. Each body
+has a STEPS comment. Implement them, then delete this paragraph, the STEPS comments and the
+lint-silencing lines.
 """
+
+# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
+# pyright: reportUnusedImport=false, reportUnusedVariable=false
 
 from __future__ import annotations
 
@@ -72,23 +80,16 @@ def open_derived(
 
     Opening twice is harmless: the second call finds the first.
     """
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    code, _, semver = schema.partition("@")
-    revision_id = _revision_id(db, scope, number, revision)
-    with service_errors(), open_uow(db) as uow:
-        made = handle_open_derived_document(
-            uow,
-            OpenDerivedDocument(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope=scope,
-                revision_id=revision_id,
-                schema_code=code,
-                schema_semver=semver or None,
-            ),
-        )
-    typer.echo(f"opened {made.key} {made.stream_id}")
+    # STEPS (P1-I3-T14b)
+    # 1. db = ctx.obj; scope = f"project:{project}"; code, _, semver = schema.partition("@").
+    # 2. revision_id = _revision_id(db, scope, number, revision) (it exits with the message when
+    #    missing).
+    # 3. Inside `with service_errors(), open_uow(db) as uow:` made =
+    #    handle_open_derived_document(uow, OpenDerivedDocument(actor=acting(db, actor),
+    #    source=SOURCE, scope=scope, revision_id=revision_id, schema_code=code,
+    #    schema_semver=semver or None)).
+    # 4. Print `opened <made.key> <made.stream_id>`.
+    raise NotImplementedError
 
 
 @app.command("content")
@@ -161,33 +162,20 @@ def start(
     read is the newest content file, else the revision's PDF, else its native file. A worker
     (`tl derive worker`) runs the job.
     """
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    by_revision = doc is not None and rev is not None and schema is not None
-    if (ref is None) == (not by_revision):
-        fail("give a derived document, or --doc with --rev and --schema, and not both")
-    configure_files()
-    revision_id: str | None = None
-    if by_revision:
-        assert doc is not None and rev is not None
-        revision_id = _revision_id(db, scope, doc, rev)
-    with service_errors(), open_uow(db) as uow:
-        derived_id = views.find_derived(uow.conn(), scope, ref).id if ref is not None else None
-        made = handle_start_extraction(
-            uow,
-            StartExtraction(
-                actor=acting(db, actor),
-                source=SOURCE,
-                scope=scope,
-                derived_id=derived_id,
-                revision_id=revision_id,
-                schema_code=schema if by_revision else None,
-                extractor=extractor,
-                file_id=file_id,
-            ),
-        )
-        derived_key = views.job_view(uow.conn(), scope, made.stream_id).derived_key
-    typer.echo(f"queued {made.key} for {derived_key}")
+    # STEPS (P1-I3-T14b)
+    # 1. db = ctx.obj; scope = f"project:{project}"; by_revision = doc, rev and schema all given.
+    # 2. If (ref is None) == (not by_revision): fail("give a derived document, or --doc with
+    #    --rev and --schema, and not both").
+    # 3. configure_files(); with --doc/--rev/--schema revision_id = _revision_id(db, scope, doc,
+    #    rev).
+    # 4. Inside `with service_errors(), open_uow(db) as uow:` derived_id =
+    #    views.find_derived(uow.conn(), scope, ref).id when ref is given; made =
+    #    handle_start_extraction(uow, StartExtraction(actor=acting(db, actor), source=SOURCE,
+    #    scope=scope, derived_id=derived_id, revision_id=revision_id, schema_code=schema if
+    #    by_revision else None, extractor=extractor, file_id=file_id)); derived_key =
+    #    views.job_view(uow.conn(), scope, made.stream_id).derived_key.
+    # 5. Print `queued <made.key> for <derived_key>`.
+    raise NotImplementedError
 
 
 @app.command("ls")
@@ -201,14 +189,12 @@ def list_derived(
 
     One line each: `<key>  <state>  pass <n>  rows <n or ->  errors <n or ->  <schema>@<version>`.
     """
-    db: DbTarget = ctx.obj
-    with service_errors(), open_uow(db, readonly=True) as uow:
-        found = views.derived_summaries(uow.conn(), f"project:{project}", state=state, document=doc)
-    for d in found:
-        typer.echo(
-            f"{d.key}  {d.state}  pass {d.content_rev}  rows {cell(d.row_count)}  "
-            f"errors {cell(d.error_count)}  {d.schema_code}@{d.schema_version}"
-        )
+    # STEPS (P1-I3-T14b)
+    # 1. db = ctx.obj; inside `with service_errors(), open_uow(db, readonly=True) as uow:` found
+    #    = views.derived_summaries(uow.conn(), f"project:{project}", state=state, document=doc).
+    # 2. Print one line per item as the docstring says; rows and errors through cell(...) so none
+    #    shows `-`; schema is `<schema_code>@<schema_version>`.
+    raise NotImplementedError
 
 
 @app.command("jobs")
@@ -224,14 +210,12 @@ def jobs(
 
     One line each: `<job key>  <kind>  <state>  attempt <n>/<max>  <derived key>  <error or ->`.
     """
-    db: DbTarget = ctx.obj
-    with service_errors(), open_uow(db, readonly=True) as uow:
-        found = views.job_views(uow.conn(), f"project:{project}", state=state, derived=derived)
-    for j in found:
-        typer.echo(
-            f"{j.key}  {j.kind}  {j.state}  attempt {j.attempt}/{j.max_attempts}  "
-            f"{j.derived_key}  {cell(j.error_message, 60)}"
-        )
+    # STEPS (P1-I3-T14b)
+    # 1. db = ctx.obj; inside `with service_errors(), open_uow(db, readonly=True) as uow:` found
+    #    = views.job_views(uow.conn(), f"project:{project}", state=state, derived=derived).
+    # 2. Print one line per job as the docstring says; the error through cell(j.error_message,
+    #    60).
+    raise NotImplementedError
 
 
 @app.command("cancel")
@@ -243,16 +227,13 @@ def cancel(
     actor: Actor = None,
 ) -> None:
     """Cancel a queued job. Prints `cancelled <job key>`. A running job cannot be cancelled."""
-    db: DbTarget = ctx.obj
-    scope = f"project:{project}"
-    with service_errors(), open_uow(db) as uow:
-        made = handle_cancel_job(
-            uow,
-            CancelJob(
-                actor=acting(db, actor), source=SOURCE, scope=scope, job_id=job, reason=reason
-            ),
-        )
-    typer.echo(f"cancelled {made.key}")
+    # STEPS (P1-I3-T14b)
+    # 1. db = ctx.obj; scope = f"project:{project}".
+    # 2. Inside `with service_errors(), open_uow(db) as uow:` made = handle_cancel_job(uow,
+    #    CancelJob(actor=acting(db, actor), source=SOURCE, scope=scope, job_id=job,
+    #    reason=reason)).
+    # 3. Print `cancelled <made.key>`.
+    raise NotImplementedError
 
 
 @app.command("worker")

@@ -423,3 +423,18 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P1-I3-4** · 2026-10-17 · tags: env, process
   A container restart kills background test runs and watchers but leaves the worktree and commits; `/tmp/*.log` names are shared with the other workstream, so put logs in the scratchpad directory and re-run `uv sync --all-packages` and Postgres checks first thing after a restart.
   Evidence: restart at about 02:35 UTC on 2026-10-17 during P1-I3 workstream A. Status: active
+
+### L-P1-I3-5 (process) A ticket whose code other pieces cannot be tested without is built, not stubbed
+Validation and diff (T04, T06) were Haiku tickets in the plan, but the `extract` and `validate` job kinds, the publication preview and every pipeline test call them. A stub plus held tests would have held back all of those, so they were built and tested in the supervisor piece that needed them and the tickets were closed as "built by supervisor". Decide at planning time: a ticket is Haiku work only if nothing else in the increment has to run before it merges (check the Depends column from the other side). Evidence: `docs/tickets/P1-I3/README.md` rows T04, T06, T08a, T08b.
+
+### L-P1-I3-6 (tests) A screen test that mounts its sibling screens breaks parallel tickets
+The first draft of the T07 tests opened the job monitor and the publish preview from the derived-documents screen, so each ticket's test needed the other two to be finished. Tests of a screen ticket mount their own screen directly (`app.push_screen(Screen(...), callback)`) and replace the screens it opens with a probe `ModalScreen` through `monkeypatch.setattr(module, "Name", Probe)`. Evidence: `docs/tickets/P1-I3/provided/t07a-test_job_monitor.py.txt`, `t07b-test_derived_documents.py.txt`.
+
+### L-P1-I3-7 (tests) A CLI test that is about having no session needs AUTO_SIGN_IN = False
+`packages/tl-cli/tests/conftest.py` signs an admin in before every command on Postgres. A test of "nobody is signed in" sets `AUTO_SIGN_IN = False` at module level and accepts either `needs the admin role` or `not signed in` (Postgres refuses earlier than SQLite). Evidence: `packages/tl-cli/tests/test_cli_proposal_access.py`.
+
+### L-P1-I3-8 (tooling) pkill -f kills your own shell
+`pkill -f "pytest packages/tl-api"` matches the command line of the Bash call that contains the pattern and ends it with exit 144. Kill by PID from `ps`, or avoid the pattern appearing in the same command. Evidence: this session.
+
+### L-P1-I3-9 (tests) The full unit suite of the packages takes about 15 minutes; run it in the background and do not edit sources meanwhile
+`pytest packages/tl-tui packages/tl-api packages/tl-modules` took 878 s on a shared container; editing files during a run produced failures that were not real (renamed problem codes, changed fixtures). Start it with output to a log file, work on documents only, then read the log. Evidence: /tmp logs of S13.
