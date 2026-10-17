@@ -35,6 +35,13 @@ Purpose: play a seeded simulated team against the dev API, see what it did, and 
 - `tl sim status` shows the same `digest` for a second run of the same scenario on an empty ledger (the ground truth is byte-identical).
 - `tl sim assert` is green after every `advance`.
 
+## A run with the schedule updater
+The planner who sends the weekly P6 export (`schedule_updater`, scenario `schedule-weeks`) needs a schedule that a controller defined and published, and a worker that builds what is sent, because a simulated person cannot (`user` role only). In order:
+1. `tl sim create schedule-weeks --run-id wk1` (the run's scope is `project:sim-wk1`).
+2. As a controller or admin: `tl xer define MAIN --project sim-wk1 --name "Main schedule"`; upload the first file of the series (`tl_xer.synth.series(7, 1)[0]`, written with `make_xer`) with `tl xer upload`; `tl xer worker --once`; `tl xer publish 1 --project sim-wk1 --schedule MAIN`.
+3. `tl sim advance --run wk1 --days 15`: each Monday the next weekly file is sent and the planner's records are linked to activities of the published snapshot. Run `tl xer worker --once` and publish as the controller when you want a later snapshot to become current; the next links resolve against it.
+4. `tl sim assert --run wk1` is green. The scenario's `operators` (`user:dev`, `svc:schedule`) are the dev session that did step 2 and the worker; if you signed in as someone else, edit the list before step 1, or the assertion reports their events as foreign. Without the schedule the updater does nothing.
+
 ## Roll back
 - A run cannot be undone: events are immutable. Start another with `--run-id`, or delete the ledger (`./dev/data/tl.db`) and `./dev/data/sim/<run>` together. Deleting only the run directory leaves records in the ledger that no log names.
 - "step ... did not finish": a step died after some of its writes, so the log may miss events the suite has. The run refuses to go on. Create a new run with `--run-id`.

@@ -142,3 +142,62 @@ def test_the_scenario_file_is_covered_by_the_same_caps() -> None:
         Scenario.model_validate(
             {**BASE, "inject": [{"day": 1, "event": "design_revision", "count": 10**9}]}
         )
+
+
+# --- operators and the schedule updater (P1-I4) -------------------------------------------------
+
+
+def test_the_schedule_updater_is_off_unless_named_and_acts_after_the_other_people() -> None:
+    assert "schedule_updater" not in Scenario(**BASE).actors.enabled()
+    everyone = Scenario.model_validate(
+        {
+            **BASE,
+            "actors": {
+                "schedule_updater": {},
+                "tag_clerk": {},
+                "document_registrar": {},
+                "assistant": {},
+                "approver": {},
+            },
+        }
+    )
+    assert everyone.actors.enabled() == [
+        "document_controller",
+        "planner",
+        "crew",
+        "tag_clerk",
+        "document_registrar",
+        "schedule_updater",
+        "assistant",
+        "approver",
+    ]
+
+
+def test_operators_are_people_and_services_by_name() -> None:
+    assert Scenario(**BASE).operators == []
+    named = Scenario.model_validate({**BASE, "operators": ["user:dora", "svc:schedule"]})
+    assert named.operators == ["user:dora", "svc:schedule"]
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        ["dora"],
+        ["agent:sim-assistant"],
+        ["user:"],
+        ["user:two words"],
+        ["user:" + "x" * 65],
+        ["user:sim-crew"],
+        [f"user:p{n}" for n in range(9)],
+        [1],
+    ],
+)
+def test_an_operator_must_look_like_an_actor_and_there_are_few(bad: list[object]) -> None:
+    with pytest.raises(ValidationError):
+        Scenario.model_validate({**BASE, "operators": bad})
+
+
+def test_a_post_can_be_injected_for_the_schedule_updater() -> None:
+    assert inject("post", actor="schedule_updater", body="Update sent").args["actor"] == (
+        "schedule_updater"
+    )

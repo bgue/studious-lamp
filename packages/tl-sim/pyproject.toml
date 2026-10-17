@@ -12,6 +12,8 @@ dependencies = [
   "tl-api",
   "tl-mcp",
   "tl-mod-engineering",
+  "tl-mod-schedule",
+  "tl-xer",
 ]
 
 [build-system]

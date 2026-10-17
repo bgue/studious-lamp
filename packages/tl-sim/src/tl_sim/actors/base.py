@@ -15,10 +15,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from tl_core.services.errors import GuardFailedError, InvalidStateError, UnknownTransitionError
+from tl_core.services.errors import (
+    DuplicateLinkError,
+    GuardFailedError,
+    InvalidStateError,
+    UnknownTransitionError,
+)
 
 from tl_sim import groundtruth as gt
-from tl_sim.client import DocumentDesk, ProposalDesk, ProposeUnavailableError, TagDesk
+from tl_sim.client import (
+    DocumentDesk,
+    ProposalDesk,
+    ProposeUnavailableError,
+    ScheduleDesk,
+    TagDesk,
+)
 from tl_sim.mcp_caller import ProposalRefusedError
 from tl_sim.types import GroundTruth, SimContext
 
@@ -28,6 +39,10 @@ REFUSALS = (GuardFailedError, InvalidStateError, UnknownTransitionError)
 TAG_TYPE = "engineering.Tag"
 DOCUMENT_TYPE = "documents.Document"
 REVISION_TYPE = "documents.Revision"
+SCHEDULE_SNAPSHOT_TYPE = "schedule.ScheduleSnapshot"
+ACTIVITY_REF_TYPE = "schedule.ActivityRef"
+ACTIVITY_RELATION = "references"  # what links a record to an activity (ADR-0015 section 5)
+MAX_REF_TITLE = 200  # the module cuts the title of an activity's reference here
 SUPERSEDED = "Superseded"  # the state of a tag that a rename replaced
 MAX_RECORDS = 5000  # the API's page limit; a Phase 0 simulation stays far below it
 
@@ -63,6 +78,36 @@ class Rec:
             title=str(envelope["title"]),
             status=envelope.get("status"),
         )
+
+
+@dataclass(frozen=True)
+class Sched:
+    """A schedule as a person sees it in the list: the code names it, the id is for writing."""
+
+    id: str
+    code: str
+    title: str
+    current: int | None  # the number of the published snapshot, if there is one
+    snapshots: int  # how many snapshots there are, whatever their state
+
+    @classmethod
+    def of(cls, view: dict[str, Any]) -> Sched:
+        number = view.get("current_snapshot_number")
+        return cls(
+            id=str(view["id"]),
+            code=str(view["code"]),
+            title=str(view["title"]),
+            current=None if number is None else int(number),
+            snapshots=int(view["snapshot_count"]),
+        )
+
+
+@dataclass(frozen=True)
+class Activity:
+    """An activity of the current snapshot: the P6 id the link names, and its name."""
+
+    id: str
+    name: str
 
 
 class Recorder:
@@ -168,6 +213,74 @@ class Recorder:
             {"title": title, "record_type": REVISION_TYPE, "voided": False},
         )
         return rec
+
+    def _schedule_desk(self) -> ScheduleDesk:
+        client = self.ctx.client
+        if not isinstance(client, ScheduleDesk):
+            raise ProposeUnavailableError("this client cannot send schedule updates")
+        return client
+
+    def schedules(self) -> list[Sched]:
+        """The project's schedules in code order (a read, not recorded)."""
+        found = [Sched.of(view) for view in self._schedule_desk().schedules()]
+        return sorted(found, key=lambda sched: sched.code)
+
+    def activities(self, sched: Sched, *, limit: int = 200) -> list[Activity]:
+        """The first ``limit`` activities of the schedule's current snapshot, in P6 id order."""
+        rows = self._schedule_desk().current_activities(sched.code, limit=limit)
+        found = [Activity(id=str(row["activity_id"]), name=str(row["name"])) for row in rows]
+        return sorted(found, key=lambda activity: activity.id)
+
+    def send_update(self, sched: Sched, filename: str, data: bytes) -> Rec:
+        """Open the next snapshot of ``sched``, attach the P6 export and queue its build.
+
+        Two things the log names: the snapshot record (``<code>#<n>``, read from the answer as for a
+        revision) and that its build was queued. A controller publishes it once a worker has built
+        it; neither is this person's act.
+        """
+        desk = self._schedule_desk()
+        opened = desk.open_snapshot(sched.id)
+        key = str(opened["key"])
+        title = f"{sched.title} snapshot {key.rsplit('#', 1)[-1]}"
+        snapshot = Rec(id=str(opened["id"]), key=key, title=title)
+        self._note(
+            gt.RECORD_CREATED,
+            snapshot.key,
+            {"title": title, "record_type": SCHEDULE_SNAPSHOT_TYPE, "voided": False},
+        )
+        desk.attach_snapshot_file(snapshot.id, filename, data)
+        desk.start_snapshot(snapshot.id)
+        self._note(gt.SNAPSHOT_QUEUED, snapshot.key, {"file": filename})
+        return snapshot
+
+    def link_activity(self, record: Rec, sched: Sched, activity: Activity) -> bool:
+        """Link ``record`` to an activity of the current snapshot by its P6 id.
+
+        The first link to an activity makes the activity's reference record (``<code>/<id>``): the
+        log names it, then the link. ``False`` (nothing recorded) when the record is already linked
+        to that activity, which a realistic day shrugs off.
+        """
+        try:
+            made = self._schedule_desk().link_activity(record.id, sched.id, activity.id)
+        except DuplicateLinkError:
+            return False
+        ref = f"{sched.code}/{activity.id}"
+        if made["ref_created"]:
+            self._note(
+                gt.RECORD_CREATED,
+                ref,
+                {
+                    "title": f"{activity.id} {activity.name}"[:MAX_REF_TITLE],
+                    "record_type": ACTIVITY_REF_TYPE,
+                    "voided": False,
+                },
+            )
+        self._note(
+            gt.LINK_ADDED,
+            f"{record.key} {ACTIVITY_RELATION} {ref}",
+            {"from": record.key, "to": ref, "relation": ACTIVITY_RELATION},
+        )
+        return True
 
     def set_psets(self, rec: Rec, values: dict[str, dict[str, Any]]) -> None:
         """``values`` is ``{pset: {property: value}}``, e.g. ``{"valve_data": {"size_in": 6}}``."""

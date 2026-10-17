@@ -10,6 +10,7 @@ returns now (the ``cur_*`` projections and the event pager). The two must agree:
 | ``link.added`` | an active link of that relation leaves the ``from`` record for ``to`` |
 | ``workflow.transitioned`` | the latest intended state of each record is its status |
 | ``post.created`` | a live post by that author with that body exists (once per intended post) |
+| ``snapshot.queued`` | that actor queued the snapshot's build (``ScheduleSnapshot.Queued``) |
 | ``proposal.created`` | a proposal by that agent for that tool exists (once per intended one) |
 | ``proposal.accepted`` / ``rejected`` | that person decided such a proposal that way (a link too) |
 
@@ -26,6 +27,11 @@ are checked the same way; the agent's own ``Proposal.Created`` is made over MCP 
 A run must not pass by doing nothing. ``Expected`` says which actors were enabled and bound to
 act: an assistant that is guaranteed at least one proposal a day but made none, or an approver
 who decided nothing about the proposals that were made, is ``actor_silent``.
+
+Operators. A scenario may name the people and services that set the run up by hand or work beside
+it (``Scenario.operators``: the controller who defines and publishes a schedule, the worker that
+builds it). Their events and the records they made are setup, not simulation: no source, time or
+actor rule is applied to them and the scope may hold their records. Nobody else is excused.
 
 Four more checks catch what the scenario did not intend: the scope holds no record the log does
 not name, every event in the scope was written by the simulator (``source`` ``sim:<run>``, or an
@@ -47,6 +53,11 @@ from tl_sim.reader import SimReader
 from tl_sim.types import GroundTruth
 
 DECISION_EVENTS = frozenset({"Proposal.Accepted", "Proposal.Rejected", "Proposal.Failed"})
+#: A file upload goes through the file routes, which stamp the source ``api`` and real time, and the
+#: scanner (a service of the suite) processes it.
+FILE_EVENTS = frozenset({"File.Uploaded", "File.Processed"})
+SCANNER = "svc:scanner"
+QUEUED_EVENT = "ScheduleSnapshot.Queued"
 SIM_ACTORS = ("user:sim-", "agent:sim-")
 #: What an ``agent:*`` actor may write: proposals, posts, and the link suggestions a post makes.
 AGENT_EVENTS = frozenset({"Proposal.Created", "Feed.Posted", "Link.Suggested"})
@@ -74,6 +85,7 @@ class Expected:
 
     proposals: bool = False  # the assistant is on and guaranteed at least one proposal a day
     decisions: bool = False  # the approver is on
+    operators: frozenset[str] = frozenset()  # setup by hand or beside the run; see the docstring
     days_played: int = 0
 
 
@@ -140,6 +152,7 @@ def run_assertions(
 
     by_key = {str(r["key"]): r for r in reader.records()}
     events = reader.events()
+    creator: dict[str, str] = {}  # stream id of a record -> who wrote its Record.Created
     writers: dict[tuple[str, str], set[str]] = {}  # (stream id, event type) -> actors
     posted: Counter[tuple[str, str]] = Counter()  # (actor, body) of Feed.Posted
     proposed: Counter[tuple[str, str, str]] = Counter()  # (actor, agent, tool) of Proposal.Created
@@ -148,6 +161,8 @@ def run_assertions(
             str(event["actor"])
         )
         payload = event.get("payload") or {}
+        if event["event_type"] == "Record.Created":
+            creator[str(event["stream_id"])] = str(event["actor"])
         if event["event_type"] == "Feed.Posted":
             posted[(str(event["actor"]), str(payload.get("body")))] += 1
         elif event["event_type"] == "Proposal.Created":
@@ -180,6 +195,8 @@ def run_assertions(
             check(_same(value, actual), item.intent, item.ref, name, value, actual)
         written_by(item, str(record["id"]), "Record.Created")
     for key in sorted(set(by_key) - created):
+        if creator.get(str(by_key[key]["id"])) in expected.operators:
+            continue  # made by hand before or beside the run
         fail("unexpected_record", key, "key", None, by_key[key].get("title"))
         report.checked += 1
 
@@ -201,6 +218,11 @@ def run_assertions(
         for item in {(i.ref, i.actor): i for i in truth if i.intent == intent}.values():
             record = by_key.get(item.ref)
             written_by(item, str(record["id"]) if record is not None else None, event_type)
+
+    for item in truth:
+        if item.intent == gt.SNAPSHOT_QUEUED:
+            record = by_key.get(item.ref)
+            written_by(item, str(record["id"]) if record is not None else None, QUEUED_EVENT)
 
     # --- links -------------------------------------------------------------------------------
     links_of: dict[str, list[dict[str, Any]]] = {}
@@ -310,6 +332,10 @@ def run_assertions(
     for event in events:
         source = str(event["source"])
         ref = f"seq {event.get('seq')} {event['event_type']}"
+        if str(event["actor"]) in expected.operators:
+            report.checked += 1  # setup by hand or a worker beside the run: not simulated
+            continue
+        scanner = event["event_type"] == "File.Processed" and event["actor"] == SCANNER
         if source == f"sim:{run_id}":
             report.checked += 1
             when = date.fromisoformat(str(event["effective_at"])[:10])
@@ -317,7 +343,7 @@ def run_assertions(
                 fail("event_time", ref, "effective_at", "a played day", event["effective_at"])
         else:
             report.checked += 1
-            decision = event["event_type"] in DECISION_EVENTS  # made over the API or the CLI
+            decision = event["event_type"] in DECISION_EVENTS | FILE_EVENTS  # API, CLI or routes
             if not (source.startswith("mcp:") or decision):
                 fail("event_source", ref, "source", f"sim:{run_id}", source)
         if source != f"sim:{run_id}" and event["event_type"] != "Proposal.Created":
@@ -331,7 +357,7 @@ def run_assertions(
                 if when not in played:
                     fail("event_time", ref, "effective_at", "a played day", event["effective_at"])
         report.checked += 1
-        if not str(event["actor"]).startswith(SIM_ACTORS):
+        if not (str(event["actor"]).startswith(SIM_ACTORS) or scanner):
             fail("event_actor", ref, "actor", "user:sim-* or agent:sim-*", event["actor"])
         if str(event["actor"]).startswith("agent:") and event["event_type"] not in AGENT_EVENTS:
             report.checked += 1

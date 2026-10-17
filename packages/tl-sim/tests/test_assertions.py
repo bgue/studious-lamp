@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from typing import Any
 
 import pytest
 from tl_sim import groundtruth as gt
@@ -431,3 +432,95 @@ def test_the_agents_own_proposal_is_real_time_and_exempt() -> None:
     assert created["effective_at"] == created["recorded_at"]
     created["effective_at"] = "2026-12-25T07:00:00+00:00"  # not judged, simulated or not
     assert "event_time" not in {f.check for f in check(world, log).failures}
+
+
+# --- schedule updates and operators (P1-I4) -----------------------------------------------
+
+UPDATER = "user:sim-schedule_updater"
+
+
+def update_world() -> tuple[FakeWorld, list[GroundTruth]]:
+    """MAIN is defined and published by a controller; the updater sends a file and links."""
+    world = FakeWorld("r1", "project:sim-r1")
+    world.keys.counters.clear()
+    world.define_schedule()
+    other = Recorder(make_context(world, "user:sim-planner"), "user:sim-planner")
+    record = other.create("Activity 001 Install spools on 6-CS-1001")
+    ctx = make_context(world, UPDATER)
+    rec = Recorder(ctx, UPDATER)
+    [sched] = rec.schedules()
+    rec.send_update(sched, "update-02.xer", b"XER")
+    rec.link_activity(record, sched, rec.activities(sched)[0])
+    return world, other.truth + rec.truth
+
+
+OPERATORS = frozenset({"user:operator", "svc:schedule"})
+
+
+def check_as(world: FakeWorld, truth: list[GroundTruth], operators: frozenset[str]) -> Any:
+    return run_assertions(
+        truth, world, run_id="r1", played=PLAYED, expected=Expected(operators=operators)
+    )
+
+
+def test_a_schedule_update_passes_when_the_operators_are_named() -> None:
+    world, truth = update_world()
+    report = check_as(world, truth, OPERATORS)
+    assert report.ok, [f.line() for f in report.failures]
+    assert report.counts[gt.SNAPSHOT_QUEUED] == 1
+
+
+def test_the_setup_by_hand_is_held_against_the_run_unless_named() -> None:
+    world, truth = update_world()
+    report = check_as(world, truth, frozenset())
+    assert {"unexpected_record", "event_source", "event_actor"} <= {
+        f.check for f in report.failures
+    }
+    # one operator named, the other not: the other's events are still a finding
+    only = check_as(world, truth, frozenset({"user:operator"}))
+    assert {f.actual for f in only.failures if f.check == "event_actor"} == {"svc:schedule"}
+
+
+def test_an_operator_excuses_only_what_it_wrote() -> None:
+    world, truth = update_world()
+    stray = Recorder(make_context(world, "user:sim-crew"), "user:sim-crew")
+    stray.create("Stray")  # a simulated person's record that nobody intended
+    report = check_as(world, truth, OPERATORS)
+    assert ("unexpected_record", "key") in failures(report)
+    world.event_rows[-1]["actor"] = "user:somebody"  # an event by somebody who is no operator
+    assert ("event_actor", "actor") in failures(check_as(world, truth, OPERATORS))
+
+
+def test_the_file_routes_and_the_scanner_are_not_foreign_sources() -> None:
+    world, truth = update_world()
+    uploads = [e for e in world.event_rows if e["event_type"].startswith("File.")]
+    assert [(e["event_type"], e["actor"], e["source"]) for e in uploads] == [
+        ("File.Uploaded", UPDATER, "api"),
+        ("File.Processed", "svc:scanner", "api"),
+    ]
+    assert check_as(world, truth, OPERATORS).ok
+    uploads[1]["actor"] = "svc:other"  # only the suite's own scanner may process a file
+    assert ("event_actor", "actor") in failures(check_as(world, truth, OPERATORS))
+    uploads[1]["actor"] = "svc:scanner"
+    uploads[1]["event_type"] = "Record.Created"  # and only for that event
+    assert not check_as(world, truth, OPERATORS).ok
+    uploads[1]["event_type"] = "File.Processed"
+    uploads[0]["actor"] = "svc:scanner"  # the scanner processes files; it does not upload them
+    assert ("event_actor", "actor") in failures(check_as(world, truth, OPERATORS))
+
+
+def test_a_queued_build_must_have_been_queued_by_the_actor_the_log_names() -> None:
+    world, truth = update_world()
+    queued = [e for e in world.event_rows if e["event_type"] == "ScheduleSnapshot.Queued"]
+    queued[0]["actor"] = "user:sim-crew"
+    assert ("actor_mismatch", "snapshot.queued by") in failures(check_as(world, truth, OPERATORS))
+    queued[0]["actor"] = UPDATER
+    world.event_rows.remove(queued[0])  # the build was never queued
+    assert ("actor_mismatch", "snapshot.queued by") in failures(check_as(world, truth, OPERATORS))
+
+
+def test_a_queued_snapshot_that_does_not_exist_is_reported() -> None:
+    world, truth = update_world()
+    world.record_rows = [r for r in world.record_rows if r["key"] != "MAIN#2"]
+    assert ("record.created", "exists") in failures(check_as(world, truth, OPERATORS))
+    assert ("actor_mismatch", "snapshot.queued by") in failures(check_as(world, truth, OPERATORS))

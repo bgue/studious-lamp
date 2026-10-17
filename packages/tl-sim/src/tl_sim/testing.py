@@ -9,11 +9,20 @@ Actor and orchestrator tests use it so they need no server; the end-to-end tests
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from tl_core.services.errors import GuardFailedError, UnknownTransitionError
+from tl_core.services.errors import DuplicateLinkError, GuardFailedError, UnknownTransitionError
+from tl_mod_schedule.errors import (
+    ActivityNotFoundError,
+    DuplicateSnapshotError,
+    NoCurrentSnapshotError,
+    ScheduleNotFoundError,
+    SnapshotNotFoundError,
+    SourceFileError,
+)
 
 from tl_sim.actors.base import Rec, Recorder
 from tl_sim.client import Keys, ProposeUnavailableError
@@ -24,6 +33,15 @@ from tl_sim.scenario import Scenario
 from tl_sim.types import SimContext
 
 REAL_TIME = datetime(2026, 10, 10, 12, 0, tzinfo=UTC)  # "now", outside every played day
+OPERATOR = "user:operator"  # who sets a schedule up in a test: a controller (the sim cannot)
+WORKER = "svc:schedule"  # the worker that builds snapshots
+SCANNER = "svc:scanner"
+ACTIVITIES = (  # what a published snapshot of a test schedule holds
+    ("A1000", "Issue P&IDs IFC"),
+    ("A1100", "Procure valves"),
+    ("A1230", "Fabricate spools"),
+    ("A1990", "Hydrotest"),
+)
 WORKFLOW: dict[str, tuple[tuple[str, ...], str]] = {
     "submit": (("Draft",), "Review"),
     "approve": (("Review",), "Approved"),
@@ -45,6 +63,7 @@ class FakeWorld:
         self.post_rows: list[dict[str, Any]] = []
         self.event_rows: list[dict[str, Any]] = []
         self.proposal_rows: list[dict[str, Any]] = []
+        self.schedule_rows: list[dict[str, Any]] = []
         self._seq = 0
 
     # --- the store -------------------------------------------------------------------------
@@ -78,6 +97,82 @@ class FakeWorld:
             if record["id"] == record_id:
                 return record
         raise LookupError(f"no record {record_id!r}")
+
+    def define_schedule(
+        self,
+        code: str = "MAIN",
+        title: str = "Main schedule",
+        *,
+        activities: Sequence[tuple[str, str]] = ACTIVITIES,
+        published: bool = True,
+    ) -> dict[str, Any]:
+        """What a controller does before a run: define a schedule and (``published``) publish its
+        first snapshot, built by the worker. The events are the operators' (``OPERATOR``,
+        ``WORKER``), written in real time like the CLI and the worker write them."""
+        schedule_id = f"id-{code}"
+        row: dict[str, Any] = {
+            "id": schedule_id,
+            "code": code,
+            "title": title,
+            "snapshots": [],
+            "refs": {},
+        }
+        self.schedule_rows.append(row)
+        self.record_rows.append(self._row(schedule_id, code, "schedule.Schedule", title, None))
+        self.emit("Record.Created", OPERATOR, "cli", REAL_TIME, schedule_id)
+        self.emit("Schedule.Defined", OPERATOR, "cli", REAL_TIME, schedule_id)
+        if published:
+            snapshot = self.open_snapshot_row(row, OPERATOR, "cli", REAL_TIME)
+            snapshot.update(state="Published", activities=list(activities), file=b"first")
+            self.emit("ScheduleSnapshot.Built", WORKER, WORKER, REAL_TIME, snapshot["id"])
+            self.emit("ScheduleSnapshot.MadeCurrent", OPERATOR, "cli", REAL_TIME, snapshot["id"])
+            self.record(snapshot["id"])["status"] = "Published"
+        return row
+
+    def open_snapshot_row(
+        self, schedule: dict[str, Any], actor: str, source: str, when: datetime
+    ) -> dict[str, Any]:
+        """The next snapshot of ``schedule`` as a record and a row (state ``Uploaded``)."""
+        number = len(schedule["snapshots"]) + 1
+        key = f"{schedule['code']}#{number}"
+        snapshot: dict[str, Any] = {
+            "id": f"id-{key}",
+            "key": key,
+            "number": number,
+            "state": "Uploaded",
+            "file": None,
+            "filename": None,
+            "activities": [],
+        }
+        schedule["snapshots"].append(snapshot)
+        title = f"{schedule['title']} snapshot {number}"
+        self.record_rows.append(
+            self._row(snapshot["id"], key, "schedule.ScheduleSnapshot", title, None)
+        )
+        self.emit("Record.Created", actor, source, when, snapshot["id"])
+        self.emit("ScheduleSnapshot.Defined", actor, source, when, snapshot["id"])
+        return snapshot
+
+    def _row(
+        self, record_id: str, key: str, record_type: str, title: str, status: str | None
+    ) -> dict[str, Any]:
+        return {
+            "id": record_id,
+            "key": key,
+            "type": record_type,
+            "scope": self.scope,
+            "title": title,
+            "status": status,
+            "psets": {},
+            "voided": False,
+            "version": 1,
+        }
+
+    def schedule_of(self, key: str, *, by: str = "code") -> dict[str, Any]:
+        for row in self.schedule_rows:
+            if row[by] == key:
+                return row
+        raise ScheduleNotFoundError(f"no schedule {key!r} in scope {self.scope!r}")
 
     def client(
         self,
@@ -141,17 +236,19 @@ class FakeClient:
         payload: dict[str, Any] | None = None,
         source: str | None = None,
         real_time: bool = False,
+        actor: str | None = None,
     ) -> None:
         """Append an event. Like the suite: the simulator's own events and a decision made through
         the API carry simulated time (``effective_at`` is the clock); what the agent does over MCP
         (``real_time``) has ``effective_at`` equal to ``recorded_at``, the real clock."""
         simulated = self.clock.tick()
         src = source or f"sim:{self.world.run_id}"
+        who = actor or self.identity
         if real_time:
-            self.world.emit(event_type, self.identity, src, REAL_TIME, stream, payload, REAL_TIME)
+            self.world.emit(event_type, who, src, REAL_TIME, stream, payload, REAL_TIME)
         else:
             recorded = None if src.startswith("sim:") else REAL_TIME
-            self.world.emit(event_type, self.identity, src, simulated, stream, payload, recorded)
+            self.world.emit(event_type, who, src, simulated, stream, payload, recorded)
 
     def create_record(
         self, *, record_type: str, title: str, psets: dict[str, Any] | None = None
@@ -325,6 +422,135 @@ class FakeClient:
         self.world.record_rows.append(record)
         self._write("Record.Created", record["id"])
         return {"id": record["id"], "key": number, "version": 1}
+
+    # --- the schedule, for the person who sends the weekly update (``ScheduleDesk``) -----------
+
+    def schedules(self) -> list[dict[str, Any]]:
+        self.calls.append(("schedules", ()))
+        out: list[dict[str, Any]] = []
+        for row in self.world.schedule_rows:
+            current = self._current(row)
+            out.append(
+                {
+                    "id": row["id"],
+                    "code": row["code"],
+                    "title": row["title"],
+                    "current_snapshot_number": None if current is None else current["number"],
+                    "snapshot_count": len(row["snapshots"]),
+                }
+            )
+        return out
+
+    @staticmethod
+    def _current(schedule: dict[str, Any]) -> dict[str, Any] | None:
+        return next((s for s in schedule["snapshots"] if s["state"] == "Published"), None)
+
+    def snapshots_of(self, code: str) -> list[dict[str, Any]]:
+        self.calls.append(("snapshots_of", (code,)))
+        schedule = self.world.schedule_of(code)
+        return [
+            {"id": s["id"], "key": s["key"], "number": s["number"], "state": s["state"]}
+            for s in reversed(schedule["snapshots"])
+        ]
+
+    def current_activities(self, code: str, *, limit: int = 200) -> list[dict[str, Any]]:
+        self.calls.append(("current_activities", (code,)))
+        schedule = self.world.schedule_of(code)
+        current = self._current(schedule)
+        if current is None:
+            raise NoCurrentSnapshotError(f"schedule {code} has no published snapshot yet")
+        return [{"activity_id": a, "name": n} for a, n in current["activities"]][:limit]
+
+    def open_snapshot(self, schedule_id: str) -> dict[str, Any]:
+        self.calls.append(("open_snapshot", (schedule_id,)))
+        schedule = self.world.schedule_of(schedule_id, by="id")
+        self.clock.tick()
+        snapshot = self.world.open_snapshot_row(
+            schedule, self.identity, f"sim:{self.world.run_id}", self.clock.now
+        )
+        return {"id": snapshot["id"], "key": snapshot["key"], "version": 2}
+
+    def _snapshot(self, snapshot_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
+        for schedule in self.world.schedule_rows:
+            for snapshot in schedule["snapshots"]:
+                if snapshot["id"] == snapshot_id:
+                    return schedule, snapshot
+        raise SnapshotNotFoundError(f"no snapshot {snapshot_id!r} in scope {self.world.scope!r}")
+
+    def attach_snapshot_file(self, snapshot_id: str, filename: str, data: bytes) -> dict[str, Any]:
+        self.calls.append(("attach_snapshot_file", (snapshot_id, filename)))
+        _, snapshot = self._snapshot(snapshot_id)
+        snapshot.update(file=data, filename=filename)
+        # The file routes stamp the source `api` and real time; the scanner then processes it.
+        self._write("File.Uploaded", f"file-{snapshot_id}", source="api", real_time=True)
+        self._write(
+            "File.Processed", f"file-{snapshot_id}", source="api", real_time=True, actor=SCANNER
+        )
+        return {"id": snapshot_id, "size": len(data)}
+
+    def start_snapshot(self, snapshot_id: str) -> dict[str, Any]:
+        self.calls.append(("start_snapshot", (snapshot_id,)))
+        schedule, snapshot = self._snapshot(snapshot_id)
+        if snapshot["file"] is None:
+            raise SourceFileError(f"snapshot {snapshot['key']} has no XER file")
+        digest = hashlib.sha256(snapshot["file"]).hexdigest()
+        if any(
+            other is not snapshot
+            and other["file"] is not None
+            and hashlib.sha256(other["file"]).hexdigest() == digest
+            for other in schedule["snapshots"]
+        ):
+            raise DuplicateSnapshotError(f"this file is already snapshot of {schedule['code']}")
+        self._write("ScheduleSnapshot.Queued", snapshot_id)
+        return {"id": snapshot_id, "version": 3}
+
+    def link_activity(self, record_id: str, schedule_id: str, activity_id: str) -> dict[str, Any]:
+        self.calls.append(("link_activity", (record_id, schedule_id, activity_id)))
+        schedule = self.world.schedule_of(schedule_id, by="id")
+        current = self._current(schedule)
+        if current is None:
+            raise NoCurrentSnapshotError(f"schedule {schedule['code']} has no published snapshot")
+        names = dict(current["activities"])
+        if activity_id not in names:
+            raise ActivityNotFoundError(f"no activity {activity_id!r} in the current snapshot")
+        source = self.world.record(record_id)
+        ref_id = schedule["refs"].get(activity_id)
+        if ref_id is not None and any(
+            link["from_id"] == record_id
+            and link["to_id"] == ref_id
+            and link["view"]["relation"] == "references"
+            for link in self.world.link_rows
+        ):
+            raise DuplicateLinkError("a references link already exists between these records")
+        made = ref_id is None
+        if made:
+            key = f"{schedule['code']}/{activity_id}"
+            ref_id = f"id-{key}"
+            schedule["refs"][activity_id] = ref_id
+            self.world.record_rows.append(
+                self.world._row(  # pyright: ignore[reportPrivateUsage]
+                    ref_id,
+                    key,
+                    "schedule.ActivityRef",
+                    f"{activity_id} {names[activity_id]}"[:200],
+                    None,
+                )
+            )
+            self._write("Record.Created", ref_id)
+            self._write("ActivityRef.Defined", ref_id)
+        target = self.world.record(str(ref_id))
+        link_id = f"link-{len(self.world.link_rows) + 1}"
+        self.world.link_rows.append(
+            {
+                "from_id": record_id,
+                "to_id": target["id"],
+                "from_key": source["key"],
+                "to_key": target["key"],
+                "view": {"link_id": link_id, "relation": "references", "status": "active"},
+            }
+        )
+        self._write("Link.Added", link_id)
+        return {"link_id": link_id, "version": 1, "ref_created": made}
 
     def propose(self, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
         self.calls.append(("propose", (tool,)))

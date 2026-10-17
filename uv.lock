@@ -2882,6 +2882,8 @@ dependencies = [
     { name = "tl-core" },
     { name = "tl-mcp" },
     { name = "tl-mod-engineering" },
+    { name = "tl-mod-schedule" },
+    { name = "tl-xer" },
     { name = "typer" },
 ]
 
@@ -2895,6 +2897,8 @@ requires-dist = [
     { name = "tl-core", editable = "packages/tl-core" },
     { name = "tl-mcp", editable = "packages/tl-mcp" },
     { name = "tl-mod-engineering", editable = "packages/tl-modules/engineering" },
+    { name = "tl-mod-schedule", editable = "packages/tl-modules/schedule" },
+    { name = "tl-xer", editable = "packages/tl-xer" },
     { name = "typer" },
 ]
 
