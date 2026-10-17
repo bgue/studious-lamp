@@ -16,6 +16,7 @@ returns an object satisfying ``Extractor``. The pipeline never imports a plugin 
 
 from __future__ import annotations
 
+import logging
 import threading
 from collections.abc import Generator, Mapping
 from contextlib import contextmanager
@@ -33,6 +34,8 @@ from tl_core.derivation.types import (
     Extractor,
     SourceFile,
 )
+
+log = logging.getLogger(__name__)
 
 
 class ExtractorLoadError(RuntimeError):
@@ -59,8 +62,11 @@ def _discover() -> dict[str, Extractor]:
         try:
             produced = entry.load()()
         except Exception as exc:
+            # The text of a plugin's error can hold a path or an environment detail and this message
+            # can reach a client: it keeps the type; the full text goes to the server log.
+            log.warning("extractor %r cannot be loaded: %s", entry.name, exc, exc_info=True)
             raise ExtractorLoadError(
-                f"extractor {entry.name!r} cannot be loaded: {type(exc).__name__}: {exc}"
+                f"extractor {entry.name!r} cannot be loaded: {type(exc).__name__}"
             ) from exc
         if not isinstance(produced, Extractor):
             raise ExtractorLoadError(
@@ -69,7 +75,7 @@ def _discover() -> dict[str, Extractor]:
         if produced.name != entry.name:
             raise ExtractorLoadError(
                 f"extractor entry point {entry.name!r} returned an extractor named "
-                f"{produced.name!r}"
+                f"{produced.name[:80]!r}"
             )
         if entry.name in found:
             raise ExtractorLoadError(f"extractor {entry.name!r} is declared twice")
@@ -178,7 +184,12 @@ def contract_problem(
     if result.status in ("ok", "metadata_only"):
         if result.metadata is None:
             return "the result has no file metadata"
-        if result.metadata.sha256 != source.sha256 or result.metadata.size != source.size:
+        meta = result.metadata
+        if (
+            meta.sha256 != source.sha256
+            or meta.size != source.size
+            or meta.content_type != source.content_type
+        ):
             return "the file metadata does not match the source"
     if result.status == "metadata_only" and result.rows:
         return "a metadata-only result must have no rows"
