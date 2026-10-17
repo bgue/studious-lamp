@@ -1,4 +1,3 @@
-# ruff: noqa: F401, F841
 """Read an XLSX workbook into a ``RawGrid`` (P1-I3B-T09b).
 
 An XLSX file is a ZIP archive of XML parts, which makes it the most dangerous input of this
@@ -17,9 +16,6 @@ package. The guards, in the order they run:
    workbooks are never opened). Macros are never run.
 
 Cell values are turned into text here, deterministically (see ``cell_text``).
-
-STUB (P1-I3B-T09b): the functions with a STEPS comment are for you to write. When they are
-written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -72,26 +68,30 @@ def _member_limit(name: str) -> int:
 def check_archive(archive: zipfile.ZipFile) -> None:
     """Refuse an archive by what it declares, before any part is read. Raises ``Refusal``
     (``not_xlsx``, ``zip_bomb`` or ``encrypted_file``)."""
-    # STEPS
-    # 1. members = archive.infolist(). If len(members) > MAX_MEMBERS raise Refusal("zip_bomb",
-    #    f"the workbook has more than {MAX_MEMBERS} parts").
-    # 2. total = 0. For each info in members, name = info.filename, then these checks in this
-    #    order:
-    # 3. (a) an unsafe name: it starts with "/", or ".." is one of the parts of
-    #    name.replace("\\", "/").split("/"), or it contains "\x00": Refusal("not_xlsx", "the
-    #    workbook has a part with an unsafe name").
-    # 4. (b) info.flag_bits & 0x1 (an encrypted part): Refusal("encrypted_file", "the workbook
-    #    is encrypted; it cannot be read").
-    # 5. (c) info.file_size > _member_limit(name): Refusal("zip_bomb", f"a part of the workbook
-    #    expands to {info.file_size} bytes; too big").
-    # 6. (d) total += info.file_size.
-    # 7. After the loop, if total > MAX_TOTAL_UNCOMPRESSED raise Refusal("zip_bomb", f"the
-    #    workbook expands to {total} bytes; the limit is {MAX_TOTAL_UNCOMPRESSED // (1024 *
-    #    1024)} MiB").
-    # 8. names = {info.filename for info in members}. If "xl/workbook.xml" or
-    #    "[Content_Types].xml" is not in names raise Refusal("not_xlsx", "the file is a ZIP
-    #    archive but not an XLSX workbook").
-    raise NotImplementedError
+    members = archive.infolist()
+    if len(members) > MAX_MEMBERS:
+        raise Refusal("zip_bomb", f"the workbook has more than {MAX_MEMBERS} parts")
+    total = 0
+    for info in members:
+        name = info.filename
+        if name.startswith("/") or ".." in name.replace("\\", "/").split("/") or "\x00" in name:
+            raise Refusal("not_xlsx", "the workbook has a part with an unsafe name")
+        if info.flag_bits & 0x1:
+            raise Refusal("encrypted_file", "the workbook is encrypted; it cannot be read")
+        if info.file_size > _member_limit(name):
+            raise Refusal(
+                "zip_bomb", f"a part of the workbook expands to {info.file_size} bytes; too big"
+            )
+        total += info.file_size
+    if total > MAX_TOTAL_UNCOMPRESSED:
+        raise Refusal(
+            "zip_bomb",
+            f"the workbook expands to {total} bytes; the limit is "
+            f"{MAX_TOTAL_UNCOMPRESSED // (1024 * 1024)} MiB",
+        )
+    names = {info.filename for info in members}
+    if "xl/workbook.xml" not in names or "[Content_Types].xml" not in names:
+        raise Refusal("not_xlsx", "the file is a ZIP archive but not an XLSX workbook")
 
 
 def _chunks(archive: zipfile.ZipFile, name: str) -> Iterator[bytes]:
@@ -103,20 +103,27 @@ def _chunks(archive: zipfile.ZipFile, name: str) -> Iterator[bytes]:
 def scan_xml_parts(archive: zipfile.ZipFile) -> None:
     """Refuse a workbook whose XML declares a document type or an entity, or is in an encoding
     that would hide one. Raises ``Refusal("unsafe_xlsx", ...)``."""
-    # STEPS
-    # 1. For each info in archive.infolist(): skip it unless
-    #    info.filename.lower().endswith(XML_SUFFIXES), and skip it when info.file_size == 0.
-    # 2. tail = b""; first = True. For each chunk in _chunks(archive, info.filename):
-    # 3. (a) On the first chunk only: head = chunk[:4]. If head starts with b"\xff\xfe" or
-    #    b"\xfe\xff", or b"\x00" is in head, raise Refusal("unsafe_xlsx", "the workbook has an
-    #    XML part in an unsupported encoding"). UTF-16 text would hide a declaration from the
-    #    byte search below.
-    # 4. (b) window = tail + chunk. If any marker of FORBIDDEN is in window raise
-    #    Refusal("unsafe_xlsx", "the workbook declares a document type or an entity, which a
-    #    spreadsheet program never writes").
-    # 5. (c) tail = window[-(len(FORBIDDEN[0]) - 1) :], the last 8 bytes, so that a marker split
-    #    between two chunks is still found.
-    raise NotImplementedError
+    for info in archive.infolist():
+        if not info.filename.lower().endswith(XML_SUFFIXES) or info.file_size == 0:
+            continue
+        tail = b""
+        first = True
+        for chunk in _chunks(archive, info.filename):
+            if first:
+                head = chunk[:4]
+                if head.startswith((b"\xff\xfe", b"\xfe\xff")) or b"\x00" in head:
+                    raise Refusal(
+                        "unsafe_xlsx", "the workbook has an XML part in an unsupported encoding"
+                    )
+                first = False
+            window = tail + chunk
+            if any(marker in window for marker in FORBIDDEN):
+                raise Refusal(
+                    "unsafe_xlsx",
+                    "the workbook declares a document type or an entity, "
+                    "which a spreadsheet program never writes",
+                )
+            tail = window[-(len(FORBIDDEN[0]) - 1) :]
 
 
 def cell_text(value: object) -> Cell:
@@ -127,17 +134,24 @@ def cell_text(value: object) -> Cell:
     ``2024``). A date is ``YYYY-MM-DD``; a date with a time is ISO 8601 and drops the time when it
     is midnight; a time of day is ``HH:MM:SS``. Everything else is ``str(value)``.
     """
-    # STEPS
-    # 1. Test the value in this order; the first that fits decides (bool must come before int,
-    #    and datetime before date):
-    # 2. None gives None. A bool gives "TRUE" or "FALSE". An int gives str(value). A float gives
-    #    format(value, ".15g").
-    # 3. A datetime.datetime gives value.date().isoformat() when value.time() ==
-    #    datetime.time(0), else value.isoformat(). A datetime.date gives value.isoformat(). A
-    #    datetime.time gives value.isoformat().
-    # 4. Anything else: text = str(value); return text if text else None. The module imports
-    #    datetime as dt.
-    raise NotImplementedError
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return "TRUE" if value else "FALSE"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return format(value, ".15g")
+    if isinstance(value, dt.datetime):
+        if value.time() == dt.time(0):
+            return value.date().isoformat()
+        return value.isoformat()
+    if isinstance(value, dt.date):
+        return value.isoformat()
+    if isinstance(value, dt.time):
+        return value.isoformat()
+    text = str(value)
+    return text if text else None
 
 
 def _iso(value: object) -> str | None:
@@ -157,64 +171,105 @@ def read_xlsx(raw: bytes, options: TableOptions) -> RawGrid:
     ``unsafe_xlsx``, ``sheet_not_found``, ``no_sheet``, ``too_many_rows``, ``too_many_cells`` or
     ``too_much_text``.
     """
-    # STEPS
-    # 1. If not raw.startswith(b"PK\x03\x04") raise Refusal("not_xlsx", NOT_XLSX).
-    # 2. archive = zipfile.ZipFile(io.BytesIO(raw)). zipfile.BadZipFile raises the same Refusal,
-    #    from the error.
-    # 3. with archive: call check_archive(archive) and scan_xml_parts(archive) inside a try;
-    #    zipfile.BadZipFile, EOFError and zlib.error there become Refusal("not_xlsx", "the
-    #    workbook archive is damaged") from the error. Then names = set(archive.namelist()).
-    # 4. notes = []. If any name starts with "xl/externalLinks/" append LINKS_NOTE. If
-    #    "xl/vbaProject.bin" is in names append MACROS_NOTE. In that order.
-    # 5. with warnings.catch_warnings(): warnings.simplefilter("ignore") (openpyxl warns about
-    #    workbooks other programs wrote). Inside it return _read_workbook(raw, options, notes,
-    #    "docProps/core.xml" in names).
-    raise NotImplementedError
+    if not raw.startswith(b"PK\x03\x04"):
+        raise Refusal("not_xlsx", NOT_XLSX)
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(raw))
+    except zipfile.BadZipFile as error:
+        raise Refusal("not_xlsx", NOT_XLSX) from error
+    with archive:
+        try:
+            check_archive(archive)
+            scan_xml_parts(archive)
+        except (zipfile.BadZipFile, EOFError, zlib.error) as error:
+            raise Refusal("not_xlsx", "the workbook archive is damaged") from error
+        names = set(archive.namelist())
+    notes: list[str] = []
+    if any(name.startswith("xl/externalLinks/") for name in names):
+        notes.append(LINKS_NOTE)
+    if "xl/vbaProject.bin" in names:
+        notes.append(MACROS_NOTE)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        return _read_workbook(raw, options, notes, "docProps/core.xml" in names)
 
 
 def _read_workbook(
     raw: bytes, options: TableOptions, notes: list[str], has_core_properties: bool
 ) -> RawGrid:
-    # STEPS
-    # 1. workbook = openpyxl.load_workbook(io.BytesIO(raw), read_only=True, data_only=True,
-    #    keep_links=False). Call it as `openpyxl.load_workbook` (the module attribute, not a
-    #    name imported from it) with exactly these three keyword arguments: the test replaces
-    #    that attribute and checks the call. Everything below runs in a try whose finally clause
-    #    calls workbook.close().
-    # 2. sheets = list(workbook.worksheets). If there are none raise Refusal("no_sheet", "the
-    #    workbook has no worksheet").
-    # 3. sheet_names = [clean_metadata_text(name) or "" for name in workbook.sheetnames].
-    # 4. If options.sheet is not None: chosen is the sheet whose title == options.sheet (exact
-    #    comparison). If there is none raise Refusal("sheet_not_found",
-    #    SHEET_NOT_FOUND.format(name=shown(options.sheet, 40), available=available)) with
-    #    available = ", ".join(shown(s.title, 40) for s in sheets[:10]). Otherwise chosen is the
-    #    first sheet whose sheet_state == "visible", else sheets[0].
-    # 5. meta = GridMeta(). Only when has_core_properties is true: props = workbook.properties;
-    #    meta = GridMeta(title=clean_metadata_text(props.title),
-    #    author=clean_metadata_text(props.creator), created=_iso(props.created),
-    #    modified=_iso(props.modified)). Without a core part openpyxl makes up a creator and a
-    #    time, so it must not be asked.
-    # 6. rows, skipped = _read_rows(chosen.iter_rows(max_col=MAX_COLUMNS + 1, values_only=True),
-    #    options, notes). title = clean_metadata_text(chosen.title) or "".
-    # 7. After the try/finally return RawGrid(rows=rows, sheet=title, sheet_names=sheet_names,
-    #    skipped_blank_rows=skipped, notes=notes, meta=meta).
-    raise NotImplementedError
+    workbook = openpyxl.load_workbook(
+        io.BytesIO(raw), read_only=True, data_only=True, keep_links=False
+    )
+    try:
+        sheets = list(workbook.worksheets)
+        if not sheets:
+            raise Refusal("no_sheet", "the workbook has no worksheet")
+        sheet_names = [clean_metadata_text(name) or "" for name in workbook.sheetnames]
+        if options.sheet is not None:
+            matches = [sheet for sheet in sheets if sheet.title == options.sheet]
+            if not matches:
+                available = ", ".join(shown(sheet.title, 40) for sheet in sheets[:10])
+                raise Refusal(
+                    "sheet_not_found",
+                    SHEET_NOT_FOUND.format(name=shown(options.sheet, 40), available=available),
+                )
+            chosen = matches[0]
+        else:
+            chosen = next((sheet for sheet in sheets if sheet.sheet_state == "visible"), sheets[0])
+        meta = GridMeta()
+        if has_core_properties:
+            props = workbook.properties
+            meta = GridMeta(
+                title=clean_metadata_text(props.title),
+                author=clean_metadata_text(props.creator),
+                created=_iso(props.created),
+                modified=_iso(props.modified),
+            )
+        rows, skipped = _read_rows(
+            chosen.iter_rows(max_col=MAX_COLUMNS + 1, values_only=True), options, notes
+        )
+        title = clean_metadata_text(chosen.title) or ""
+        return RawGrid(
+            rows=rows,
+            sheet=title,
+            sheet_names=sheet_names,
+            skipped_blank_rows=skipped,
+            notes=notes,
+            meta=meta,
+        )
+    finally:
+        workbook.close()
 
 
 def _read_rows(
     source: Iterator[tuple[object, ...]], options: TableOptions, notes: list[str]
 ) -> tuple[list[list[Cell]], int]:
-    # STEPS
-    # 1. budget = CellBudget(); rows = []; skipped = 0; kept = 0; blank_run = 0.
-    # 2. for index, values in enumerate(source, start=1): cells = [cell_text(v) for v in
-    #    values]. Drop trailing cells that are blank (`while cells and not (cells[-1] or
-    #    "").strip(): cells.pop()`). iter_rows has already cut the record at MAX_COLUMNS + 1
-    #    cells. Then budget.take(cells).
-    # 3. If index <= options.header_row: rows.append(cells) and continue (the records up to and
-    #    including the header are kept as they are).
-    # 4. If cells is empty: skipped += 1; blank_run += 1; if blank_run >= MAX_BLANK_RUN then
-    #    notes.append(BLANK_RUN_NOTE.format(count=MAX_BLANK_RUN)) and break; otherwise continue.
-    # 5. blank_run = 0; kept += 1; if kept > MAX_ROWS raise Refusal("too_many_rows", f"the sheet
-    #    has more than {MAX_ROWS} data rows; split the file"); rows.append(cells).
-    # 6. Return rows, skipped.
-    raise NotImplementedError
+    budget = CellBudget()
+    rows: list[list[Cell]] = []
+    skipped = 0
+    kept = 0
+    blank_run = 0
+    for index, values in enumerate(source, start=1):
+        cells = [cell_text(v) for v in values]
+        while cells and not (cells[-1] or "").strip():
+            cells.pop()
+        budget.take(cells)
+        if index <= options.header_row:
+            rows.append(cells)
+            continue
+        if not cells:
+            skipped += 1
+            blank_run += 1
+            if blank_run >= MAX_BLANK_RUN:
+                notes.append(BLANK_RUN_NOTE.format(count=MAX_BLANK_RUN))
+                break
+            continue
+        blank_run = 0
+        kept += 1
+        if kept > MAX_ROWS:
+            raise Refusal(
+                "too_many_rows",
+                f"the sheet has more than {MAX_ROWS} data rows; split the file",
+            )
+        rows.append(cells)
+    return rows, skipped
