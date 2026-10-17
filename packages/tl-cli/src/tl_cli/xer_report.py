@@ -1,13 +1,7 @@
-# ruff: noqa: F401, F841
-# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 """`tl xer unscheduled`: records that point at no schedule activity (P1-I4-T10b).
 
 Read only. The report is the module's (`tl_mod_schedule.reports`); the command parses options and
 prints one line per fact, with two spaces between fields.
-
-
-STUB (P1-I4-T10b): the body of `unscheduled` is `NotImplementedError`; the options, the docstring
-(the exact output) and `register` are written. The ticket fills the body by its STEPS comments.
 """
 
 from __future__ import annotations
@@ -42,17 +36,19 @@ def unscheduled(
     link to an activity that left the schedule does not count. An unknown schedule is
     `error: ...` on stderr, exit 1.
     """
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`.
-    # 2. Open the read with `with service_errors(), open_uow(db, readonly=True) as uow:`
-    #    (reads write nothing, and a module error such as an unknown schedule becomes
-    #    `error: ...` on stderr with exit 1), call `reports.unscheduled_records(conn,
-    #    f"project:{project}", record_type, schedule_code=schedule, limit=limit)` and leave
-    #    the `with` before you print.
-    # 3. Print `records without an activity (<type>)` followed by ` in <schedule>` when
-    #    `--schedule` was given, then `: <n>`.
-    # 4. Then one line per record: `<cell(key)>  <id>  <cell(title, 60)>`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        found = reports.unscheduled_records(
+            uow.conn(),
+            f"project:{project}",
+            record_type,
+            schedule_code=schedule,
+            limit=limit,
+        )
+    scoped = "" if schedule is None else f" in {schedule}"
+    typer.echo(f"records without an activity ({record_type}){scoped}: {len(found)}")
+    for record in found:
+        typer.echo(f"{cell(record.key)}  {record.id}  {cell(record.title, 60)}")
 
 
 def register(app: typer.Typer) -> None:
