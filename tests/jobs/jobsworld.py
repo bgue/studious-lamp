@@ -40,6 +40,7 @@ class Kind:
     work: Callable[[Any], Any] | None = None
     prepare_error: JobFailure | None = None
     settle_error: Exception | None = None
+    expired_error: Exception | None = None
     #: jobs whose record is gone: ``started`` refuses them, as the documents module does
     missing: set[str] = field(default_factory=set[str])
     calls: list[tuple[str, str, int]] = field(default_factory=list[tuple[str, str, int]])
@@ -77,6 +78,8 @@ class Kind:
 
     def expired(self, uow: UnitOfWork, item: Expired) -> None:
         self.calls.append(("expired", item.job_id, item.attempt))
+        if self.expired_error is not None:
+            raise self.expired_error
 
     def count(self, what: str, job_id: str | None = None) -> int:
         return sum(1 for c in self.calls if c[0] == what and job_id in (None, c[1]))

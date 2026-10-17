@@ -219,8 +219,8 @@ def _text_problem(result: ExtractionResult) -> str | None:
     for profile in result.profiles:
         if len(profile.name) > MAX_NAME_CHARS:
             return f"a profile name is longer than {MAX_NAME_CHARS} characters"
-        if any(len(sample) > MAX_TEXT_CHARS for sample in profile.samples):
-            return f"a profile sample is longer than {MAX_TEXT_CHARS} characters"
+        if any(len(sample) > MAX_CELL_CHARS for sample in profile.samples):
+            return f"a profile sample (a cell) is longer than {MAX_CELL_CHARS} characters"
     return None
 
 

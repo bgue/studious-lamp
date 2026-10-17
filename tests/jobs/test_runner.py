@@ -233,3 +233,18 @@ def test_a_queue_row_without_a_record_is_failed_for_good_and_does_not_block_the_
     assert [c[0] for c in kind.calls if c[1] == "J1"] == ["started"]  # never prepared or run
     assert runner.run_once() is None  # and it is not claimed again
     assert world.row("J2").state == "done"
+
+
+def test_a_kind_that_cannot_report_an_expired_job_does_not_stop_the_queue(
+    world: World, clock: Clock
+) -> None:
+    world.enqueue("J1", max_attempts=1)
+    assert world.claim("dead", lease_s=60) is not None
+    clock.advance(seconds=61)
+    world.enqueue("J2")
+    kind = Kind(expired_error=RuntimeError("the event store is unhappy"))
+    first = world.runner(kind).run_once()
+    assert first is not None and (first.job_id, first.outcome) == ("J2", "done")
+    assert ("expired", "J1", 1) in kind.calls
+    assert world.row("J1").state == "failed"  # failed for good by the reap, and not claimed again
+    assert world.row("J2").state == "done"

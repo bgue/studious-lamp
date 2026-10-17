@@ -568,3 +568,16 @@ def test_a_generic_link_cannot_claim_the_publications_relation_on_a_derived_docu
         handle_add_link(
             uow, AddLink(**BASE, from_id=tag_id, to_id=derived.id, relation="references")
         )
+
+
+def test_the_lists_a_publication_records_are_bounded_by_the_row_limit(
+    ready: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tl_mod_documents.derivation import publish as publish_module
+
+    derived = ready.valid_derived(TAGS)  # three rows
+    monkeypatch.setattr(publish_module, "MAX_ROWS", 2)
+    before = ready.scalar("SELECT COUNT(*) FROM events")
+    with pytest.raises(PublishRefusedError, match="at most 2 rows"):
+        publish_tags(ready, derived)
+    assert ready.scalar("SELECT COUNT(*) FROM events") == before and tags(ready) == []

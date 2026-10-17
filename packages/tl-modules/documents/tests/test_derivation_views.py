@@ -201,3 +201,17 @@ def test_the_cache_holds_a_few_entries_and_a_cached_file_is_still_checked(
         pytest.raises(DerivedStateError, match="rejected"),
     ):
         views.derived_rows(uow, SCOPE, derived.key)  # cached, and still refused
+
+
+def test_the_cache_is_bounded_by_bytes_as_well_as_by_count(
+    ready: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tl_mod_documents.derivation import store
+
+    derived = ready.valid_derived(ONE)
+    store.forget_parsed()
+    monkeypatch.setattr(store, "CACHE_BYTES", 10)  # smaller than any stored result
+    with open_uow(ready.db, readonly=True) as uow:
+        rows = views.derived_rows(uow, SCOPE, derived.key)
+    assert rows is not None
+    assert len(store._parsed) == 0  # pyright: ignore[reportPrivateUsage]  # parsed, not kept

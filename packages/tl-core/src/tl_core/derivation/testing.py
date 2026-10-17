@@ -274,6 +274,20 @@ def big_answer_entry(header: Mapping[str, Any], data: bytes) -> tuple[bytes, byt
     return b"R", b"x" * 100_000
 
 
+def grandchild_entry(header: Mapping[str, Any], data: bytes) -> tuple[bytes, bytes]:
+    """An envelope entry that starts a long-lived process of its own and answers with its pid."""
+    import subprocess
+    import sys
+
+    grandchild = subprocess.Popen(  # noqa: S603 - a test double
+        [sys.executable, "-c", "import time; time.sleep(120)"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return b"R", str(grandchild.pid).encode()
+
+
 class PdfStubExtractor:
     """Reads no content from a PDF, as ADR-0008 decision 8 says: metadata only, rows empty."""
 

@@ -105,7 +105,10 @@ keys cannot be published again; the preview of a later publication says so per r
 
 The publication's and the compensation's correlation ids are made by the server with the reserved prefix `derive:`. A client
 command (API, proposal) that carries a correlation id or causation id with that prefix, or a source that starts with
-`import:derived-` or `compensation:`, is refused (`ReservedIdentifierError`, 422 `reserved_identifier`).
+`import:derived-` or `compensation:`, is refused (`ReservedIdentifierError`, 422 `reserved_identifier`). The check is in the
+body model that `request_model` builds, so it covers every route that takes a command body (the `/commands/*` routes and the upload
+routes `POST /uploads` and `POST /files/attach`); a test walks the published API and fails if a route with a `source` field does not
+use it.
 
 **What provenance means.** The pset `provenance` (and its value `src.doc.<number>@<revision>`) can be written by anyone who can
 write psets on a record; it is a convenience for reading, not evidence. The trusted provenance is the event source
@@ -158,11 +161,14 @@ Lease 300 s; `max_attempts` 3; retry delay 30 s times the attempt; at most 100 i
   checked again in the parent; a violation also fails the job for good. The limits are parameters for tests; the defaults are the
   contract's. The registry never exposes plugin error text (`ExtractorLoadError` names the exception type only).
 - **Hardening after the security review of P1-I3 (FANOUT D10).**
-  - *No pickle.* The child answers with one tag byte, a length and JSON bytes; the parent reads at most `MAX_ANSWER_BYTES` (four
-    times `MAX_SOURCE_BYTES`) and parses with pydantic. Nothing the child sends is ever unpickled. The input goes the same way.
+  - *No pickle.* The child answers with one tag byte, a length and JSON bytes; the parent reads at most `MAX_ANSWER_BYTES` (`MAX_CELLS` cells
+    at 64 bytes and 1 MiB around them: about 62 MiB, derived from the cell bound and not from the source size) and parses with
+    pydantic. Nothing the child sends is ever unpickled. The input goes the same way.
   - *Scrubbed child.* `tl_core.derivation.envelope.run_in_envelope` starts the child with `PATH`, `PYTHONPATH`, `LANG` and the locale
     variables only (no `TL_*`, no secrets, no session), no inherited descriptors, a session of its own (the group gets
-    `SIGKILL`), and a limit that cannot be set fails the call as a breach instead of running unlimited.
+    `SIGKILL`), and a limit that cannot be set fails the call as a breach instead of running unlimited. The interpreter runs with `-P`, so the
+    worker's current directory is not on the child's `sys.path`; on a breach or an answer the whole process group is signalled, so
+    a process the extractor started does not outlive the call.
   - *Bounds on every part of a result.* `contract_problem` also bounds names, notes, problems, metadata text, sheet names and
     profiles (`MAX_TEXT_CHARS`, `MAX_NAME_CHARS`, `MAX_SHEET_NAMES`, `MAX_NOTES`, `MAX_PROBLEMS`, `MAX_MESSAGE_CHARS`); a breach
     fails the job, nothing is truncated. The `ContentRecorded` payload still types `file_metadata` and `extractor_notes` as
@@ -173,10 +179,14 @@ Lease 300 s; `max_attempts` 3; retry delay 30 s times the attempt; at most 100 i
     use it. A breach is the fixed `validation_limit`, an unusable schema (a reference loop, a reference that does not resolve) the
     fixed `schema_unusable`; both fail a job for good. Registration caps every `pattern` and `patternProperties` key at 200
     characters. **No HTTP route and no MCP tool runs a JSON Schema on a request**: they return the report a job stored.
-  - *Bounded reads.* The parsed rows and reports of the last four passes are kept (key: file id, sha256, model); the file is
-    still opened (so its permission and scan state are checked) on every read.
+  - *Bounded reads.* The parsed rows and reports of the last four passes, and at most 32 MiB of stored JSON in all, are kept
+    (key: file id, sha256, model; a larger file is parsed for the call and not kept); the file is still opened (so its permission and scan state are checked) on every read.
   - *A queue row without a record* is failed for good when the runner tries to start it, inside the claim, and the next job is
-    claimed (a savepoint keeps the claim alive).
+    claimed (a savepoint keeps the claim alive). The same holds for the "failed" event of a job whose lease ran out: if its kind
+    cannot write it, the row stays failed (the reap did that) and the queue goes on.
+  - *A profile sample is a cell*: the parent bounds it by `MAX_CELL_CHARS`, as every cell, and not by `MAX_TEXT_CHARS`.
+  - *The recorded ids are bounded*: a publication makes one record and one link per row, so `record_ids` and `link_ids` of the
+    `Published` event cannot pass `MAX_ROWS`; the publication is refused and rolled back if they would.
   - *Void* of a derived document is a controller's act (`control.command.VoidDerivedDocument`); starting, validating and
     cancelling stay open (D6).
   - *`ExtractorLoadError`* is a fixed-text 503 `extractor_unavailable` in the API; the detail is in the server log.

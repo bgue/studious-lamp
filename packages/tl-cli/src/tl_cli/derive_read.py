@@ -177,7 +177,8 @@ def check(
     """Check the stored rows against a schema now. Nothing is stored and no job runs."""
     # STEPS (P1-I3-T14c)
     # 1. As report, but made = views.validate_stored(uow, scope, ref, schema_ref=schema,
-    #    content_rev=rev) and the label is "check".
+    #    content_rev=rev) and the label is "check". `validate_stored` runs the JSON Schema in the
+    #    resource envelope (a child process); never import or call `jsonschema` here.
     # 2. _print_report("check", found.key, rev or found.content_rev, made, limit); with --strict
     #    and made.status != "valid" raise typer.Exit(code=1).
     raise NotImplementedError
