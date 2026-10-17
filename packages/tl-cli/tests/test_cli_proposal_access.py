@@ -13,6 +13,7 @@ from tl_mod_documents.derivation.publish import PublishDerivedTags
 from typer.testing import CliRunner
 
 runner = CliRunner()
+AUTO_SIGN_IN = False  # the test is about having no session; on Postgres the conftest would sign in
 AGENT = "agent:triage"
 
 
@@ -42,6 +43,6 @@ def test_without_an_admin_session_a_tag_publication_proposal_stays_pending(
         ).proposal_id
     result = runner.invoke(app, ["proposal", "accept", pid], env=env)
     assert result.exit_code == 1, result.output
-    assert "needs the admin role" in result.output
+    assert "needs the admin role" in result.output or "not signed in" in result.output
     listed = runner.invoke(app, ["proposal", "ls", "--project", "P123"], env=env)
     assert pid in listed.output
