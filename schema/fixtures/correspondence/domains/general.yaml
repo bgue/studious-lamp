@@ -1,0 +1,52 @@
+# The General / Admin domain (brief 9, M10): everything that is not another domain's. Checked against
+# schema/modules/correspondence/domain.yaml and compiled by tl_mod_correspondence.domains.
+code: general
+name: General / Admin
+semver: 1.0.0
+scope: company
+description: Letters, memos, minutes and notifications that belong to no other domain; the default for anything unclassified.
+subtypes:
+  - code: letter
+    label: Letter
+    response_required: true
+    clocks:
+      - label: Reply expected
+        trigger: issue
+        kind: response_from_them
+        duration_days: 14
+        day_type: calendar
+        warn_days: [7, 3, 1]
+  - code: memo
+    label: Memo
+    keywords: [memo, memorandum]
+  - code: minutes
+    label: Minutes of a meeting
+    keywords: [minutes, meeting]
+  - code: notification
+    label: Notification
+    keywords: [notification, notice]
+default_subtype: letter
+workflow_ref: correspondence.correspondence
+numbering_pattern: correspondence.Correspondence
+required_psets: []
+routing:
+  receive_roles: [document_controller]
+  review_roles: [project_manager]
+  approve_roles: [document_controller]
+  party_roles: [client, engineer, subcontractor, supplier, authority]
+confidentiality_default: internal
+feed_policy: full
+integration:
+  webhook_modes: [thin, delta, full]
+  portal_response: false
+templates:
+  - code: general-letter
+    label: General letter
+    subtype: letter
+    header: "ACME CONSTRUCTION | Project P123"
+    footer: "Yours faithfully,\nDocument control, ref {number}"
+  - code: general-memo
+    label: General memo
+    subtype: memo
+    header: "MEMORANDUM"
+triage_keywords: []

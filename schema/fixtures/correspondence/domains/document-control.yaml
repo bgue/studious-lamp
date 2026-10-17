@@ -1,0 +1,48 @@
+# The Document control domain (brief 9, M10): transmittals and review returns. The M1 `Transmittal`
+# is a Document-control item, so all formal exchanges sit in one register: the register source
+# `documents.transmittal` supplies those rows. Checked against schema/modules/correspondence/domain.yaml.
+code: document_control
+name: Document control
+semver: 1.0.0
+scope: company
+description: Transmittals, review returns and document submittals (links module M1).
+subtypes:
+  - code: transmittal
+    label: Transmittal
+    keywords: [transmittal, "for review", "for information"]
+  - code: review_return
+    label: Review return
+    keywords: ["review code", "review return", "returned"]
+  - code: submittal
+    label: Document submittal
+    response_required: true
+    clocks:
+      - label: Review return due
+        trigger: receipt
+        kind: response_from_us
+        duration_days: 10
+        day_type: working
+        warn_days: [3, 1]
+    keywords: [submittal, drawing, revision, as-built]
+default_subtype: transmittal
+workflow_ref: correspondence.correspondence
+numbering_pattern: correspondence.Correspondence
+required_psets: []
+routing:
+  receive_roles: [document_controller]
+  review_roles: [discipline_lead]
+  approve_roles: [document_controller]
+  party_roles: [client, engineer, subcontractor]
+confidentiality_default: internal
+feed_policy: full
+integration:
+  webhook_modes: [thin, delta, full]
+  portal_response: false
+templates:
+  - code: document-control-letter
+    label: Document submittal cover letter
+    subtype: submittal
+    header: "ACME CONSTRUCTION | Document control"
+    footer: "Document control, ref {number}"
+triage_keywords: [transmittal, submittal, drawing, revision, "as-built", "review code"]
+item_source: documents.transmittal
