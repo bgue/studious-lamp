@@ -217,3 +217,19 @@ def test_two_workers_run_forty_jobs_and_each_settles_exactly_once(world: World) 
 def test_two_kinds_cannot_share_a_name(world: World) -> None:
     with pytest.raises(ValueError, match="share a name"):
         JobRunner(world.factory, world.queue, [Kind(), Kind()])
+
+
+def test_a_queue_row_without_a_record_is_failed_for_good_and_does_not_block_the_queue(
+    world: World,
+) -> None:
+    world.enqueue("J1")  # its record is gone
+    world.enqueue("J2")
+    kind = Kind(missing={"J1"})
+    runner = world.runner(kind)
+    first = runner.run_once()
+    assert first is not None and (first.job_id, first.outcome) == ("J2", "done")
+    bad = world.row("J1")
+    assert bad.state == "failed" and bad.last_error == "job_missing: the job record does not exist"
+    assert [c[0] for c in kind.calls if c[1] == "J1"] == ["started"]  # never prepared or run
+    assert runner.run_once() is None  # and it is not claimed again
+    assert world.row("J2").state == "done"

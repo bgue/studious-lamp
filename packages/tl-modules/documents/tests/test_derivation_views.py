@@ -140,3 +140,64 @@ def test_previews_read_the_plan_and_the_compensation_without_writing(ready: Worl
         assert plan.counts["create"] == 2 and plan.can_publish
         nothing = views.compensation_preview(uow, SCOPE, derived.key)
         assert not nothing.can_compensate and "no publication to roll back" in nothing.problems[0]
+
+
+def test_paging_through_one_pass_parses_it_once_and_a_different_pass_again(
+    ready: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tl_core.derivation.types import ExtractionResult
+    from tl_mod_documents.derivation import store
+
+    derived = ready.valid_derived(ONE)
+    store.forget_parsed()
+    parses: list[int] = []
+    real = ExtractionResult.model_validate_json
+
+    def counting(*args: object, **kwargs: object) -> ExtractionResult:
+        parses.append(1)
+        return real(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(ExtractionResult, "model_validate_json", counting)
+    with open_uow(ready.db, readonly=True) as uow:
+        first = views.derived_rows(uow, SCOPE, derived.key, offset=0, limit=1)
+        second = views.derived_rows(uow, SCOPE, derived.key, offset=1, limit=1)
+        views.derived_report(uow, SCOPE, derived.key)
+        views.derived_report(uow, SCOPE, derived.key)
+    assert (len(parses), first.rows[0]["tag"], second.rows[0]["tag"]) == (
+        1,
+        "47-FV-1001",
+        "47-FV-1002",
+    )
+    # a later pass is another file: parsed once more
+    ready.upload_content(derived.id, index_csv(TWO), name="two.csv")
+    ready.start_extraction(derived_id=derived.id)
+    ready.run_jobs()  # (the worker parses the extractor's answer once: not a read)
+    before = len(parses)
+    with open_uow(ready.db, readonly=True) as uow:
+        assert views.derived_rows(uow, SCOPE, derived.key).total == 3
+        views.derived_rows(uow, SCOPE, derived.key)
+    assert len(parses) == before + 1
+
+
+def test_the_cache_holds_a_few_entries_and_a_cached_file_is_still_checked(
+    ready: World,
+) -> None:
+    from tl_mod_documents.derivation import store
+
+    derived = ready.valid_derived(ONE)
+    store.forget_parsed()
+    with open_uow(ready.db, readonly=True) as uow:
+        views.derived_rows(uow, SCOPE, derived.key)
+    assert len(store._parsed) == 1  # pyright: ignore[reportPrivateUsage]
+    assert store.CACHE_ENTRIES == 4
+
+    class Refusing:
+        def open_file(self, *args: object, **kwargs: object) -> None:
+            raise DerivedStateError("the file was rejected")
+
+    with (
+        use_files(Refusing()),  # type: ignore[arg-type]
+        open_uow(ready.db, readonly=True) as uow,
+        pytest.raises(DerivedStateError, match="rejected"),
+    ):
+        views.derived_rows(uow, SCOPE, derived.key)  # cached, and still refused

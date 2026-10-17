@@ -92,13 +92,26 @@ warnings (fields not in the schema) do not block.
   (it decides what an import may contain; it is registry data like the standards).
 
 ### 6. Compensation (brief §24.5)
-`CompensatePublication` reads the events of the recorded import correlation id and appends reversing events under a correlation id
-of its own, with a preview first (`preview_compensation` lists every record and whether it can be reversed). For each created record:
-a tag moves to `Deleted` through the workflow (`by_module`) and its provenance link is retracted; a document is voided by
+`CompensatePublication` reverses **exactly the records and links the publication wrote down**: the `DerivedDocument.Published`
+event carries `record_ids` and `link_ids` (at most `MAX_ROWS` records and as many links). It never reads "the events that carry this
+correlation id", because a client can set a correlation id on its own commands and could otherwise get a record voided, a
+publication made irreversible or a link retracted (security review of P1-I3, finding 1). The preview (`preview_compensation`) lists
+every recorded record and whether it can be reversed; a recorded record that is gone is listed as blocked. For each created
+record: a tag moves to `Deleted` through the workflow (`by_module`) and its provenance link is retracted; a document is voided by
 `VoidDocument`. A record that can no longer be reversed (a tag that was superseded, a document that has revisions) is listed and the
 whole compensation is refused: all or nothing. The original events stay. The derived document returns to `Valid` and
 `DerivedDocument.PublicationCompensated` names both correlation ids. A key is used once (ADR-0010 addendum 4), so the compensated
 keys cannot be published again; the preview of a later publication says so per row.
+
+The publication's and the compensation's correlation ids are made by the server with the reserved prefix `derive:`. A client
+command (API, proposal) that carries a correlation id or causation id with that prefix, or a source that starts with
+`import:derived-` or `compensation:`, is refused (`ReservedIdentifierError`, 422 `reserved_identifier`).
+
+**What provenance means.** The pset `provenance` (and its value `src.doc.<number>@<revision>`) can be written by anyone who can
+write psets on a record; it is a convenience for reading, not evidence. The trusted provenance is the event source
+`import:derived-<id>` of the records' creation, the `Published` event's recorded ids, and the `derived_from` link written with link
+source `import` (which only the system may claim). A generic `AddLink` or `SuggestLink` of the relation `derived_from` to a
+`documents.DerivedDocument` is refused: only the publication writes it.
 
 ### 7. Allow-lists and guards (ADR-0010 addenda)
 | Type | Generic commands allowed | Guard |
@@ -144,6 +157,34 @@ Lease 300 s; `max_attempts` 3; retry delay 30 s times the attempt; at most 100 i
   written for the derived document. A result is parsed as JSON and its bounds (rows, columns, cell length, `MAX_CELLS`) are
   checked again in the parent; a violation also fails the job for good. The limits are parameters for tests; the defaults are the
   contract's. The registry never exposes plugin error text (`ExtractorLoadError` names the exception type only).
+- **Hardening after the security review of P1-I3 (FANOUT D10).**
+  - *No pickle.* The child answers with one tag byte, a length and JSON bytes; the parent reads at most `MAX_ANSWER_BYTES` (four
+    times `MAX_SOURCE_BYTES`) and parses with pydantic. Nothing the child sends is ever unpickled. The input goes the same way.
+  - *Scrubbed child.* `tl_core.derivation.envelope.run_in_envelope` starts the child with `PATH`, `PYTHONPATH`, `LANG` and the locale
+    variables only (no `TL_*`, no secrets, no session), no inherited descriptors, a session of its own (the group gets
+    `SIGKILL`), and a limit that cannot be set fails the call as a breach instead of running unlimited.
+  - *Bounds on every part of a result.* `contract_problem` also bounds names, notes, problems, metadata text, sheet names and
+    profiles (`MAX_TEXT_CHARS`, `MAX_NAME_CHARS`, `MAX_SHEET_NAMES`, `MAX_NOTES`, `MAX_PROBLEMS`, `MAX_MESSAGE_CHARS`); a breach
+    fails the job, nothing is truncated. The `ContentRecorded` payload still types `file_metadata` and `extractor_notes` as
+    `Any`: the bounds make that safe, and typing them is a follow-up (a schema change).
+  - *Validation in the envelope.* A schema's patterns run on cells a stranger typed (`^(a+)+$` takes a minute on thirty
+    characters), so `validate_isolated` applies a schema in the same kind of child, under the wall clock and the memory limit. The
+    extract job, the validate job, the sample check at registration (or a probe row when there is no sample) and the CLI `check`
+    use it. A breach is the fixed `validation_limit`, an unusable schema (a reference loop, a reference that does not resolve) the
+    fixed `schema_unusable`; both fail a job for good. Registration caps every `pattern` and `patternProperties` key at 200
+    characters. **No HTTP route and no MCP tool runs a JSON Schema on a request**: they return the report a job stored.
+  - *Bounded reads.* The parsed rows and reports of the last four passes are kept (key: file id, sha256, model); the file is
+    still opened (so its permission and scan state are checked) on every read.
+  - *A queue row without a record* is failed for good when the runner tries to start it, inside the claim, and the next job is
+    claimed (a savepoint keeps the claim alive).
+  - *Void* of a derived document is a controller's act (`control.command.VoidDerivedDocument`); starting, validating and
+    cancelling stay open (D6).
+  - *`ExtractorLoadError`* is a fixed-text 503 `extractor_unavailable` in the API; the detail is in the server log.
+- **Rlimits do not confine the filesystem or the network.** The child runs plugin code as the server's user. It has no secrets in its
+  environment and none of the worker's descriptors, but it can still open files that user can read and open sockets. A seccomp or
+  namespace sandbox is a follow-up for the risk register (the container's network policy is today's only guard).
+- The `propose_import` dry run (the proposal is checked by running the command in a transaction that is rolled back) is accepted for
+  now; it reads rows and the plan and writes nothing.
 - Known limits: no updates through publication in Phase 1 (create only, no key reuse; a changed row is imported with
   `tl tag import --apply`); publication cannot change existing records; a compensated key is not reusable; queue rows are not in the archive
   (reconcile restores them); one derived document per source revision and schema code.

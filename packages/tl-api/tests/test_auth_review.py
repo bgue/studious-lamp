@@ -398,6 +398,7 @@ AGENT_MAY_NOT = {
     "admin.command.PublishDerivedTags",
     "admin.command.CompensatePublication",
     "control.command.PublishDerivedDocuments",
+    "control.command.VoidDerivedDocument",
 }
 FEED_COMMANDS = {"PostToFeed", "EditPost", "RetractPost", "ReactToPost"}
 

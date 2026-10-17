@@ -40,10 +40,14 @@ class Kind:
     work: Callable[[Any], Any] | None = None
     prepare_error: JobFailure | None = None
     settle_error: Exception | None = None
+    #: jobs whose record is gone: ``started`` refuses them, as the documents module does
+    missing: set[str] = field(default_factory=set[str])
     calls: list[tuple[str, str, int]] = field(default_factory=list[tuple[str, str, int]])
 
     def started(self, uow: UnitOfWork, claim: Claim) -> None:
         self.calls.append(("started", claim.job_id, claim.attempt))
+        if claim.job_id in self.missing:
+            raise JobFailure("job_missing", "the job record does not exist", retryable=False)
 
     def prepare(self, uow: UnitOfWork, claim: Claim) -> Any:
         self.calls.append(("prepare", claim.job_id, claim.attempt))

@@ -816,6 +816,8 @@ class EmbeddedClient:
 
     def void_derived_document(self, cmd: VoidDerivedDocument) -> CommandResult:
         with self._uow(False) as uow:
+            self._controller_gate(uow)  # voiding another person's data is a controller's act
+            self._own_command(cmd.actor)
             return self.own_writes.note(handle_void_derived_document(uow, cmd))
 
     def publish_derived_tags(self, cmd: PublishDerivedTags) -> CommandResult:

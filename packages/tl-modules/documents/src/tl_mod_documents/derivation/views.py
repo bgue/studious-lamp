@@ -308,10 +308,9 @@ def derived_report(
         raise DerivedStateError(
             f"{derived.key} revision {content.content_rev} has not been validated"
         )
-    data = store.result_files().read(
-        uow, scope, content.report_file_id, expect_sha256=content.report_sha256
+    return store.result_files().read_report(
+        uow, scope, content.report_file_id, content.report_sha256
     )
-    return ValidationReport.model_validate_json(data)
 
 
 def derived_diff(

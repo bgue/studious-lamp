@@ -112,3 +112,16 @@ def test_documents_publication_accepts_a_controller(client: FakeClient) -> None:
         client.publish_derived_documents(command)
     client.is_controller = True
     client.publish_derived_documents(command)
+
+
+def test_voiding_needs_the_controller_role(client: FakeClient) -> None:
+    from tl_mod_documents.derivation.derived import VoidDerivedDocument
+
+    bad = client.get_derived_document(P, key(client, "ISD-002"))
+    command = VoidDerivedDocument(**BASE, stream_id=bad.id, reason="opened in error")
+    client.is_admin, client.is_controller = False, False
+    with pytest.raises(ForbiddenError):
+        client.void_derived_document(command)
+    client.is_controller = True
+    client.void_derived_document(command)
+    assert client.get_derived_document(P, bad.id).state == "Void"

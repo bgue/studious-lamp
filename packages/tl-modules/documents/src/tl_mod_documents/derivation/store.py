@@ -17,14 +17,17 @@ from __future__ import annotations
 import hashlib
 import io
 import threading
+from collections import OrderedDict
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 
+from pydantic import BaseModel
 from tl_core.derivation.types import ExtractionResult
 from tl_core.files.service import CompleteUpload, FileResult, FileService, RegisterUpload
 from tl_core.uow import UnitOfWork
 
+from tl_mod_documents.derivation.validation import ValidationReport
 from tl_mod_documents.errors import DerivationNotConfiguredError, InvalidSourceError
 from tl_mod_documents.names import SLOT_EXTRACTED, SLOT_REPORT
 
@@ -34,6 +37,18 @@ JSON_TYPE = "application/json"
 
 _lock = threading.Lock()
 _files: FileService | None = None
+
+#: Parsed results and reports, by (file id, sha256, model): a few, newest last. A read of the same
+#: pass again (a screen paging through rows) then costs a permission check and no parse.
+CACHE_ENTRIES = 4
+_parsed: OrderedDict[tuple[str, str, str], BaseModel] = OrderedDict()
+_parsed_lock = threading.Lock()
+
+
+def forget_parsed() -> None:
+    """Empty the cache of parsed files (tests)."""
+    with _parsed_lock:
+        _parsed.clear()
 
 
 def configure(files: FileService | None) -> None:
@@ -98,12 +113,53 @@ class ResultFiles:
             raise InvalidSourceError(f"file {file_id} does not match the hash the ledger holds")
         return data
 
+    def _parsed_as[M: BaseModel](
+        self,
+        uow: UnitOfWork,
+        scope: str,
+        file_id: str,
+        sha256: str | None,
+        model: type[M],
+    ) -> M:
+        """The file parsed as ``model``. The file is opened every time, so a file that was
+        rejected or is quarantined is refused even when its parse is cached; the bytes are read
+        and parsed only on a miss."""
+        opened = self._files.open_file(uow, scope, file_id, actor=ACTOR)
+        key = (file_id, sha256 or opened.info.sha256, model.__name__)
+        with _parsed_lock:
+            hit = _parsed.get(key)
+            if hit is not None:
+                _parsed.move_to_end(key)
+        if hit is not None:
+            opened.data.close()
+            assert isinstance(hit, model)
+            return hit
+        try:
+            data = opened.data.read()
+        finally:
+            opened.data.close()
+        digest = hashlib.sha256(data).hexdigest()
+        wanted = sha256 or opened.info.sha256
+        if digest != wanted or len(data) != opened.info.size:
+            raise InvalidSourceError(f"file {file_id} does not match the hash the ledger holds")
+        parsed = model.model_validate_json(data)
+        with _parsed_lock:
+            _parsed[key] = parsed
+            while len(_parsed) > CACHE_ENTRIES:
+                _parsed.popitem(last=False)
+        return parsed
+
     def read_result(
         self, uow: UnitOfWork, scope: str, file_id: str, sha256: str | None
     ) -> ExtractionResult:
         """The stored ``ExtractionResult`` (columns, rows, profiles, problems, metadata)."""
-        data = self.read(uow, scope, file_id, expect_sha256=sha256)
-        return ExtractionResult.model_validate_json(data)
+        return self._parsed_as(uow, scope, file_id, sha256, ExtractionResult)
+
+    def read_report(
+        self, uow: UnitOfWork, scope: str, file_id: str, sha256: str | None
+    ) -> ValidationReport:
+        """The stored ``ValidationReport`` of a pass."""
+        return self._parsed_as(uow, scope, file_id, sha256, ValidationReport)
 
     def write(
         self,

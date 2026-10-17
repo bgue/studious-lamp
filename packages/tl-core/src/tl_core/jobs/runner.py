@@ -215,17 +215,35 @@ class JobRunner:
                 kind = self._kinds.get(item.kind)
                 if kind is not None:
                     kind.expired(uow, item)
-            claim = self._queue.claim(
-                uow.conn(),
-                owner=self.worker_id,
-                now=now,
-                lease_s=self._lease_s,
-                kinds=self.kinds,
-                scope=scope,
-            )
-            if claim is not None:
-                self._kinds[claim.kind].started(uow, claim)
-            return claim
+            while True:
+                claim = self._queue.claim(
+                    uow.conn(),
+                    owner=self.worker_id,
+                    now=now,
+                    lease_s=self._lease_s,
+                    kinds=self.kinds,
+                    scope=scope,
+                )
+                if claim is None:
+                    return None
+                try:
+                    # a savepoint: a kind that cannot start the job (its record is gone) must not
+                    # abort the claim, or the same row would be claimed and refused for ever
+                    with uow.conn().begin_nested():
+                        self._kinds[claim.kind].started(uow, claim)
+                except Exception as exc:  # noqa: BLE001 - any refusal of the kind is the job's
+                    failure = failure_from(exc)
+                    log.warning("job %s cannot start: %s", claim.job_id, failure.code)
+                    self._queue.fail(
+                        uow.conn(),
+                        claim,
+                        now=now,
+                        error=f"{failure.code}: {failure.message}",
+                        retry_delay_s=0,
+                        permanent=True,
+                    )
+                    continue  # the next job in the queue
+                return claim
 
     def _record_failure(self, kind: JobKind, claim: Claim, failure: JobFailure) -> RunResult:
         log.info("job %s attempt %d failed: %s", claim.job_id, claim.attempt, failure.code)

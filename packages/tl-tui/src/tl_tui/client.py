@@ -467,7 +467,7 @@ class ClientInterface(Protocol):
         ...
 
     def void_derived_document(self, cmd: VoidDerivedDocument) -> CommandResult:
-        """Void a derived document that is not published."""
+        """Void a derived document that is not published (controller or admin)."""
         ...
 
     def publish_derived_tags(self, cmd: PublishDerivedTags) -> CommandResult:

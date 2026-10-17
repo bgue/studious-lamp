@@ -140,3 +140,19 @@ def test_publishing_documents_needs_the_controller_and_compensating_the_admin(
         undo.model_copy(update={"actor": "user:boss"})
     )
     assert ledger.client("user:boss").get_derived_document(PROJECT, ledger.key).state == "Valid"
+
+
+def test_voiding_a_derived_document_is_a_controllers_act(ledger: Ledger) -> None:
+    from tl_mod_documents.derivation.derived import VoidDerivedDocument
+
+    def void(actor: str) -> VoidDerivedDocument:
+        return VoidDerivedDocument(
+            **{**BASE, "actor": actor}, stream_id=ledger.derived_id, reason="opened in error"
+        )
+
+    for actor in ("user:ursula", "user:nobody"):
+        with pytest.raises(ForbiddenError, match="document_controller or admin"):
+            ledger.client(actor).void_derived_document(void(actor))
+    done = ledger.client("user:dora").void_derived_document(void("user:dora"))
+    assert done.stream_id == ledger.derived_id
+    assert ledger.client("user:dora").list_derived_documents(PROJECT) == []  # void is left out

@@ -55,7 +55,7 @@ EXPECTED_ACCESS = {
     "StartExtraction": "user",
     "ValidateDerived": "user",
     "CancelJob": "user",
-    "VoidDerivedDocument": "user",
+    "VoidDerivedDocument": "controller",
     "PublishDerivedTags": "admin",
     "PublishDerivedDocuments": "controller",
     "CompensatePublication": "admin",

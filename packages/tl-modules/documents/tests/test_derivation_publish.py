@@ -546,3 +546,25 @@ def test_a_recorded_record_that_is_gone_blocks_the_compensation(ready: World) ->
     with open_uow(ready.db, readonly=True) as uow:
         plan = preview_compensation(uow, BASE["scope"], derived.id)
     assert not plan.can_compensate and any("not there" in p for p in plan.problems)
+
+
+def test_a_generic_link_cannot_claim_the_publications_relation_on_a_derived_document(
+    ready: World,
+) -> None:
+    from tl_core.services.errors import UnsupportedRecordTypeError
+    from tl_core.services.links import AddLink, SuggestLink, handle_add_link, handle_suggest_link
+
+    derived = ready.valid_derived(TAGS)
+    tag_id = ready.tag("47-ZZ-9999")
+    fields = {"from_id": tag_id, "to_id": derived.id, "relation": "derived_from"}
+    with open_uow(ready.db) as uow, pytest.raises(UnsupportedRecordTypeError, match="pipeline"):
+        handle_add_link(uow, AddLink(**BASE, **fields))
+    with open_uow(ready.db) as uow, pytest.raises(UnsupportedRecordTypeError, match="pipeline"):
+        handle_suggest_link(uow, SuggestLink(**BASE, **fields))
+    # other relations to a derived document, and derived_from between other records, still work
+    other = ready.tag("47-ZZ-9998")
+    with open_uow(ready.db) as uow:
+        handle_add_link(uow, AddLink(**BASE, from_id=tag_id, to_id=other, relation="derived_from"))
+        handle_add_link(
+            uow, AddLink(**BASE, from_id=tag_id, to_id=derived.id, relation="references")
+        )

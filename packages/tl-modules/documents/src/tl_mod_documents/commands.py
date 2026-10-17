@@ -158,7 +158,7 @@ API_COMMANDS: tuple[ApiCommand, ...] = (
     ApiCommand(StartExtraction, handle_start_extraction, "user"),
     ApiCommand(ValidateDerived, handle_validate_derived, "user"),
     ApiCommand(CancelJob, handle_cancel_job, "user"),
-    ApiCommand(VoidDerivedDocument, handle_void_derived_document, "user"),
+    ApiCommand(VoidDerivedDocument, handle_void_derived_document, "controller"),
     ApiCommand(PublishDerivedTags, handle_publish_derived_tags, "admin"),
     ApiCommand(PublishDerivedDocuments, handle_publish_derived_documents, "controller"),
     ApiCommand(CompensatePublication, handle_compensate_publication, "admin"),

@@ -440,6 +440,8 @@ class FakeDerivationSupport:
     def void_derived_document(self, cmd: VoidDerivedDocument) -> CommandResult:
         self.calls.append("void_derived_document")  # type: ignore[attr-defined]
         self.derivation_commands.append(cmd)
+        if not (self.is_admin or self.is_controller):  # type: ignore[attr-defined]
+            raise ForbiddenError("this action needs the document_controller or admin role")
         derived = self._dv_find(self._dv_project_of(cmd.scope), cmd.stream_id)
         if derived.state in ("Processing", "Published"):
             raise DerivedStateError(f"{derived.key} is {derived.state}: it cannot be voided")
