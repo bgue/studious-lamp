@@ -4,20 +4,13 @@ A document schema says what one row of derived data must look like (a JSON Schem
 is the key, and optionally how rows become tags or documents (the publish mapping). Registering
 and retiring are admin acts. The rules are the module's
 (`tl_mod_documents.derivation.schemas`); these commands parse options and print.
-
-STUB (P1-I3-T14a): the bodies of list_schemas, register, retire, show raise NotImplementedError;
-their signatures, options, docstrings and the helpers are final. Each body has a STEPS comment.
-Implement them, then delete this paragraph, the STEPS comments and the lint-silencing lines.
 """
-
-# ruff: noqa: F401 -- STUB: these imports are used once the bodies are written
-# pyright: reportUnusedImport=false, reportUnusedVariable=false
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 import typer
 import yaml
@@ -75,15 +68,16 @@ def register(
     `mapping_notes`. Prints `registered <code>@<semver> <scope>`; every problem of a refused
     schema is listed on stderr.
     """
-    # STEPS (P1-I3-T14a)
-    # 1. db = ctx.obj; scope = scope_of(project, company) (the helper exits with the message when
-    #    both or neither is given).
-    # 2. require_admin(db), then fields = _load(file).
-    # 3. Inside `with service_errors(), open_uow(db) as uow:` call
-    #    handle_register_document_schema(uow, RegisterDocumentSchema(actor=acting(db, actor),
-    #    source=SOURCE, scope=scope, **fields)).
-    # 4. Print `registered <result.key> <scope>`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = scope_of(project, company)
+    require_admin(db)
+    fields = _load(file)
+    with service_errors(), open_uow(db) as uow:
+        result = handle_register_document_schema(
+            uow,
+            RegisterDocumentSchema(actor=acting(db, actor), source=SOURCE, scope=scope, **fields),
+        )
+    typer.echo(f"registered {result.key} {scope}")
 
 
 @app.command("ls")
@@ -97,13 +91,16 @@ def list_schemas(
     One line per version: `<code>@<semver>  <scope>  <target or ->  <key column or ->
     <active|retired>  <title>`.
     """
-    # STEPS (P1-I3-T14a)
-    # 1. db = ctx.obj; scope = f"project:{project}" if project else "company".
-    # 2. Inside `with service_errors(), open_uow(db, readonly=True) as uow:` found =
-    #    views.schema_summaries(uow.conn(), scope, active_only=not all_versions).
-    # 3. Print one line per item exactly as the docstring says; state is `active` or `retired`;
-    #    title through cell(item.title, 60).
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}" if project else "company"
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        found = views.schema_summaries(uow.conn(), scope, active_only=not all_versions)
+    for item in found:
+        state = "active" if item.is_active else "retired"
+        typer.echo(
+            f"{item.key}  {item.scope}  {cell(item.target_kind)}  {cell(item.key_column)}  "
+            f"{state}  {cell(item.title, 60)}"
+        )
 
 
 @app.command("show")
@@ -120,17 +117,30 @@ def show(
     Prints `schema <key>`, `scope`, `title`, `target`, `key column`, `status`, `content hash`
     lines, then `column <name> <type> required|optional` for each property.
     """
-    # STEPS (P1-I3-T14a)
-    # 1. Read found = views.schema_view(uow.conn(), scope, ref) as in list_schemas (readonly,
-    #    service_errors).
-    # 2. With --json print json.dumps(found.model_dump(mode="json"), indent=2, sort_keys=True)
-    #    and return.
-    # 3. Otherwise print the lines `schema <key>`, `scope`, `title`, `target`, `key column`,
-    #    `status`, `content hash` (first 12 characters); `-` for none; status is `active` or
-    #    `retired: <reason or ->`.
-    # 4. Then one `column <name> <type> required|optional` line per property of
-    #    found.json_schema["properties"] (type is the property's `type`, or `any`).
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = f"project:{project}" if project else "company"
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        found = views.schema_view(uow.conn(), scope, ref)
+    if json_out:
+        typer.echo(json.dumps(found.model_dump(mode="json"), indent=2, sort_keys=True))
+        return
+    status = "active" if found.is_active else f"retired: {cell(found.retired_reason, 200)}"
+    typer.echo(f"schema {found.key}")
+    typer.echo(f"scope {found.scope}")
+    typer.echo(f"title {cell(found.title, 200)}")
+    typer.echo(f"target {cell(found.target_kind)}")
+    typer.echo(f"key column {cell(found.key_column)}")
+    typer.echo(f"status {status}")
+    typer.echo(f"content hash {cell(found.content_hash[:12])}")
+    required = found.json_schema.get("required", [])
+    required_names = set(required) if isinstance(required, list) else set()
+    properties: dict[str, Any] = found.json_schema.get("properties", {})
+    for name, prop in properties.items():
+        kind: Any = prop.get("type", "any") if isinstance(prop, dict) else "any"
+        if isinstance(kind, list):
+            kind = "|".join(str(item) for item in cast(list[Any], kind))
+        flag = "required" if name in required_names else "optional"
+        typer.echo(f"column {name} {kind} {flag}")
 
 
 @app.command("retire")
@@ -143,13 +153,24 @@ def retire(
     actor: Actor = None,
 ) -> None:
     """Retire a schema version (admin). Documents that named it keep it; new work cannot pick it."""
-    # STEPS (P1-I3-T14a)
-    # 1. db = ctx.obj; scope = scope_of(project, company); require_admin(db).
-    # 2. Split ref at `@`; with no version call fail("name the version: code@version").
-    # 3. Inside `with service_errors(), open_uow(db) as uow:` found =
-    #    rows.find_schema(uow.conn(), scope, code, semver); if None raise
-    #    SchemaNotFoundError(f"no document schema {ref!r} in {scope}").
-    # 4. Call handle_retire_document_schema(uow, RetireDocumentSchema(actor=acting(db, actor),
-    #    source=SOURCE, scope=scope, stream_id=found.id, reason=reason)); print `retired
-    #    <found.key> <scope>`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    scope = scope_of(project, company)
+    require_admin(db)
+    code, _, semver = ref.partition("@")
+    if not semver:
+        fail("name the version: code@version")
+    with service_errors(), open_uow(db) as uow:
+        found = rows.find_schema(uow.conn(), scope, code, semver)
+        if found is None:
+            raise SchemaNotFoundError(f"no document schema {ref!r} in {scope}")
+        handle_retire_document_schema(
+            uow,
+            RetireDocumentSchema(
+                actor=acting(db, actor),
+                source=SOURCE,
+                scope=scope,
+                stream_id=found.id,
+                reason=reason,
+            ),
+        )
+    typer.echo(f"retired {found.key} {scope}")
