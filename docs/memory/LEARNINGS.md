@@ -410,3 +410,16 @@ test or a generated artefact already enforces, or narrative history (that belong
 - **L-P1-I2b-6** · 2026-10-13 · tags: security, tui
   A role toggle that computes the new list from a row read earlier overwrites a concurrent change (the list is replaced as a whole). `accounts.set_roles` takes `expected_roles` (the list the caller read) and refuses a mismatch with 409 `account_state`; the API body, the clients and the accounts screen pass it, and `tl admin user roles --add/--remove` reads the roles inside the write unit of work instead. A client that gates a command by role must also compare `cmd.actor` with the actor it vetted, or the gate checks one person and the event names another.
   Evidence: `tests/auth/test_document_controller.py`, `packages/tl-tui/tests/test_embedded_controller_gate.py`. Status: active
+
+- **L-P1-I3-1** · 2026-10-17 · tags: schema, tests
+  A pset added to the shared sample company package (`co.acme.engineering`) changes every test that lists psets: ten tests in `tl-schema` and `tl-core` pinned `["safety_data", "valve_data"]` style lists, and a pset whose `applies_to` names a module type (`engineering.Tag`) also appears in `psets_for(TAG)` and in the tag form. Run `pytest packages/tl-schema packages/tl-core` right after touching a fixture package, and let a script rewrite the pinned DDL name lists (`test_generate.py`, `test_ddl.py`) instead of editing them.
+  Evidence: the first run of P1-I3A-S2; commit 4016789. Status: active
+- **L-P1-I3-2** · 2026-10-17 · tags: schema, tooling
+  Two LinkML traps in a module class: a slot named `version` clashes with the envelope column in the generated flat view (`DdlError: column 'version' clashes with the envelope`; the schema version slot is `semver`), and a description that holds a quoted JSON example needs its own YAML quoting (L-P1-I1-2 again).
+  Evidence: `schema/modules/documents/document_schema.yaml`, `processing_job.yaml`. Status: active
+- **L-P1-I3-3** · 2026-10-17 · tags: tickets, tooling
+  L-P1-I1-9 for a pyright-strict package (`tl-core`): a stub also fails pyright on unused imports and unused private helpers, so its header needs `# pyright: reportUnusedImport=false, reportUnusedFunction=false` next to the `ruff: noqa: F401` line, and the ticket tells the implementer to remove both. Before dispatch copy the provided test into the package and run ruff and pyright on the stub state, then the test against the reference.
+  Evidence: `registry.py` stub of P1-I3-T03 (3 pyright errors before the header was added). Status: active
+- **L-P1-I3-4** · 2026-10-17 · tags: env, process
+  A container restart kills background test runs and watchers but leaves the worktree and commits; `/tmp/*.log` names are shared with the other workstream, so put logs in the scratchpad directory and re-run `uv sync --all-packages` and Postgres checks first thing after a restart.
+  Evidence: restart at about 02:35 UTC on 2026-10-17 during P1-I3 workstream A. Status: active

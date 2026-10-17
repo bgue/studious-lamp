@@ -34,9 +34,9 @@ FANOUT demo:
 ## Supervisor-built pieces (in order)
 | # | Piece | Why supervisor-tier | Reviewer | Status |
 |---|---|---|---|---|
-| S1 | ADR-0014 and this plan | Contract and permission decisions | orchestrator | in progress |
-| S2 (T01) | LinkML for the three records and the derivation events, the derived workflow and file slots (fixtures), `job_queue`, projectors, readers, module spec, provenance pset, tests | Schema (human-gated; listed under SCHEMA_APPROVALS) | reviewer, orchestrator | in progress |
-| S3 (T02) | Job queue: core types and portable SQL, `FOR UPDATE SKIP LOCKED` claim on Postgres, runner loop, leases, idempotent completion, reconcile, job events | Concurrency and a job claim (security review) | reviewer, orchestrator | todo |
+| S1 | ADR-0014 and this plan | Contract and permission decisions | orchestrator | done (ADR proposed) |
+| S2 (T01) | LinkML for the three records and the derivation events, the derived workflow and file slots (fixtures), `job_queue`, projectors, readers, module spec, provenance pset, tests | Schema (human-gated; listed under SCHEMA_APPROVALS) | reviewer, orchestrator | done (4016789) |
+| S3 (T02) | Job queue: core types and portable SQL, `FOR UPDATE SKIP LOCKED` claim on Postgres, runner loop, leases, idempotent completion, job events (the `reconcile` of orphan jobs comes with S4, it reads the module table) | Concurrency and a job claim (security review) | reviewer, orchestrator | done (c46b4c8) |
 | S4 | Derivation commands: `RegisterDocumentSchema`, `RetireDocumentSchema`, `StartExtraction`, `ValidateDerived`, `CancelJob`, the `extract` and `validate` job kinds, server-written files (`by_module` on the file service) | Ledger writes, files, access | reviewer, orchestrator | todo |
 | S5 (T05) | Publish: mapping model, preview, one correlated apply through module commands, provenance, compensation by correlation; `PublishDerivedTags`, `PublishDerivedDocuments`, `CompensatePublication`; access check when a proposal is accepted | Permissions, correlated import, compensation (§24.5) | reviewer, orchestrator | todo |
 | S6 | Client interface: derivation methods on the API client, the embedded client, the fake, and the MCP context (the tickets T07, T08 and T14 call them) | Interfaces first (L-P1-I0A-11) | reviewer | todo |
@@ -46,9 +46,9 @@ FANOUT demo:
 Ticket numbers T09 to T13 belong to workstream B. The CLI tickets, which the plan did not list, are numbered from T14.
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| T01 | LinkML: `DocumentSchema`, `DerivedDocument`, `ProcessingJob`; derived workflow (see S2) | S | — | in progress | |
-| T02 | Job runner v1 (see S3) | S | T01 | todo | |
-| T03 | Extractor registry (`load_extractors`, `choose`, fail loud) and `run_extraction`, the guard around a plugin call | H | contract | todo | |
+| T01 | LinkML: `DocumentSchema`, `DerivedDocument`, `ProcessingJob`; derived workflow (see S2) | S | — | merged (supervisor) | built on `p1/i3a` |
+| T02 | Job runner v1 (see S3) | S | T01 | merged (supervisor) | built on `p1/i3a`; awaits the orchestrator's review |
+| T03 | Extractor registry (`load_extractors`, `choose`, fail loud) and `run_extraction`, the guard around a plugin call. The ledger-facing half of "job wiring" is the `extract` job kind of S4 | H | contract | ready | reference ad63051, stub fc049b5 |
 | T04 | Validation: JSON Schema over extracted rows with typed reading of cells; row- and field-level report model | H | T01, T03 | todo | |
 | T05 | Publish (see S5) | S | T04 | todo | |
 | T06 | Diff of two row sets by key column | H | T04 | todo | |
