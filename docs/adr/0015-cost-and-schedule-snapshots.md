@@ -1,8 +1,8 @@
 # ADR-0015 — M11: cost snapshots and P6 schedule snapshots
 
-Status: proposed 2026-10-17 (P1-I4 supervisor; for the orchestrator to accept under ADR-0008 decision 6)
+Status: accepted 2026-10-17 by the orchestrator under ADR-0008 decision 6 (proposed by the P1-I4 supervisor)
 Date: 2026-10-17
-Deciders: P1-I4 supervisor (proposal)
+Deciders: P1-I4 supervisor (proposal); accepted by the orchestrator
 Brief sections: §9 M11, §7.2 and §7.3 (links by stable id, orphans), §9 M1 (derivation, shared with ADR-0014), §28 (lake bronze and silver), §8 and §18 (access, agents propose)
 
 ## Context
