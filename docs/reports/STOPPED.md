@@ -1,4 +1,6 @@
-# Run paused: owner request after P1-I2b
+# Run paused after P1-I2b; resumed 2026-10-17
+
+**Resumed:** the owner asked on 2026-10-17 to continue to the end of Phase 1. The run resumed at P1-I3; STATUS.md tracks progress from here. The rest of this file is the record of the pause.
 
 The autonomous build run paused on 2026-10-13 after increment P1-I2, because the owner asked to stop there to keep
 capacity for the rest of the week. This is not a failure, and no stop condition in `docs/build-spec/KICKOFF.md` fired.
