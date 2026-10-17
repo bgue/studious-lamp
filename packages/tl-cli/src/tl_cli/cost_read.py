@@ -1,15 +1,8 @@
-# ruff: noqa: F401, F841
-# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 """`tl cost snapshots|codes|show`: reads of cost codes and snapshots (P1-I4-T02b).
 
 None of these writes anything. The reads are the module's (`tl_mod_cost.views`); these commands
 parse options and print one line per fact, with two spaces between fields. Figures are printed
 with thousands separators and two decimals; a figure the snapshot did not state is `-`.
-
-
-STUB (P1-I4-T02b): the bodies of `snapshots`, `codes` and `show` are `NotImplementedError`; the
-options, docstrings (the exact output), the helpers `money` and `matrix` and `register` are
-written. The ticket fills the bodies by their STEPS comments.
 """
 
 from __future__ import annotations
@@ -45,17 +38,17 @@ def snapshots(ctx: typer.Context, project: Project) -> None:
     `<period>@<revision>  as of <date>  rows <n>  new <n>  revised <n>  <currency or ->
     <source file or ->`. With none: `no cost snapshots in project <project>`.
     """
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`.
-    # 2. Open the read with `with service_errors(), open_uow(db, readonly=True) as uow:`
-    #    (reads write nothing, and a module error becomes `error: ...` on stderr with exit
-    #    1), call the view with `uow.conn()` and the scope `f"project:{project}"`, and leave
-    #    the `with` before you print. The view is `views.cost_snapshots(conn, scope)`.
-    # 3. No snapshots: print `no cost snapshots in project <project>`.
-    # 4. Per snapshot print the line of the docstring (`s.key`, `s.as_of`, `s.row_count`,
-    #    `s.new_code_count`, `s.revised_code_count`, `cell(s.currency)`,
-    #    `cell(s.source_name)`).
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        found = views.cost_snapshots(uow.conn(), f"project:{project}")
+    if not found:
+        typer.echo(f"no cost snapshots in project {project}")
+        return
+    for s in found:
+        typer.echo(
+            f"{s.key}  as of {s.as_of}  rows {s.row_count}  new {s.new_code_count}  "
+            f"revised {s.revised_code_count}  {cell(s.currency)}  {cell(s.source_name)}"
+        )
 
 
 def codes(
@@ -75,17 +68,19 @@ def codes(
     eac <amount>  <title>` for each, the amounts being the `amount_*` figures of the latest
     snapshot that stated the code.
     """
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`.
-    # 2. Open the read with `with service_errors(), open_uow(db, readonly=True) as uow:`
-    #    (reads write nothing, and a module error becomes `error: ...` on stderr with exit
-    #    1), call the view with `uow.conn()` and the scope `f"project:{project}"`, and leave
-    #    the `with` before you print. The view is `views.cost_codes(conn, scope,
-    #    parent=parent, search=search, limit=limit)`.
-    # 3. Print `cost codes: <n>`, then one line per code: the amounts are
-    #    `money(c.figures.get('amount_budget'))`, `'amount_actual'` and `'amount_eac'`;
-    #    `cell(c.uom)` and `cell(c.title, 60)`.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        found = views.cost_codes(
+            uow.conn(), f"project:{project}", parent=parent, search=search, limit=limit
+        )
+    typer.echo(f"cost codes: {len(found)}")
+    for c in found:
+        typer.echo(
+            f"{c.code}  level {c.level}  uom {cell(c.uom)}  "
+            f"budget {money(c.figures.get('amount_budget'))}  "
+            f"actual {money(c.figures.get('amount_actual'))}  "
+            f"eac {money(c.figures.get('amount_eac'))}  {cell(c.title, 60)}"
+        )
 
 
 def show(
@@ -102,21 +97,31 @@ def show(
     eac <x>`, then `history <n>` and for each snapshot, oldest first,
     `  <period>@<revision>  as of <date>  amount budget <x>  actual <x>  eac <x>  hours actual <x>`.
     """
-    # STEPS
-    # 1. `db: DbTarget = ctx.obj`.
-    # 2. Open the read with `with service_errors(), open_uow(db, readonly=True) as uow:`
-    #    (reads write nothing, and a module error becomes `error: ...` on stderr with exit
-    #    1), call the view with `uow.conn()` and the scope `f"project:{project}"`, and leave
-    #    the `with` before you print. The view is `views.cost_code_detail(conn, scope,
-    #    code)`.
-    # 3. Collect the lines of the docstring in a list: the eight header lines (`children`
-    #    joins `d.children` with `, ` and is `-` when empty; `figures from` uses `d.period`
-    #    or `-`), one `matrix(unit, d.figures)` line for each of `UNITS`, then `history <n>`
-    #    and one line per entry of `d.history` in the order given.
-    # 4. A history line is `  <period>@<revision>  as of <as_of>  amount budget <x>  actual
-    #    <x>  eac <x>  hours actual <x>` with `money()` of `amount_budget`, `amount_actual`,
-    #    `amount_eac` and `hours_actual`. Print each line.
-    raise NotImplementedError
+    db: DbTarget = ctx.obj
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        d = views.cost_code_detail(uow.conn(), f"project:{project}", code)
+    lines = [
+        f"cost code {d.code}",
+        f"title {d.title}",
+        f"parent {cell(d.parent_code)}",
+        f"level {d.level}",
+        f"uom {cell(d.uom)}",
+        f"active {'yes' if d.is_active else 'no'}",
+        f"children {', '.join(d.children) if d.children else '-'}",
+        f"figures from {d.period or '-'} as of {d.as_of or '-'}",
+    ]
+    lines.extend(matrix(unit, d.figures) for unit in UNITS)
+    lines.append(f"history {len(d.history)}")
+    for h in d.history:
+        lines.append(
+            f"  {h.period}@{h.revision}  as of {h.as_of}  "
+            f"amount budget {money(h.figures.get('amount_budget'))}  "
+            f"actual {money(h.figures.get('amount_actual'))}  "
+            f"eac {money(h.figures.get('amount_eac'))}  "
+            f"hours actual {money(h.figures.get('hours_actual'))}"
+        )
+    for line in lines:
+        typer.echo(line)
 
 
 def register(app: typer.Typer) -> None:
