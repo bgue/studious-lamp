@@ -47,6 +47,14 @@ class SnapshotFiles:
             raise SourceFileError("the XER file is not the one the ledger recorded")
         return data
 
+    def read_raw(self, uow: UnitOfWork, scope: str, file_id: str) -> bytes:
+        """The bytes of a raw bundle the module wrote (gzip); the caller checks its digest."""
+        opened = self._files.open_file(uow, scope, file_id, actor=ACTOR)
+        try:
+            return opened.data.read()
+        finally:
+            opened.data.close()
+
     def write(
         self,
         uow: UnitOfWork,

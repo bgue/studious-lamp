@@ -58,6 +58,20 @@ If a run fails with `typed rows missing`, the current snapshot's `sched_*` rows 
    Expected: the codes it would create and change, the problems that would refuse it (at most 100 shown), and `dry run: nothing written`.
 2. Apply (admin): add `--apply`. A period already imported becomes the next revision (`2026-09@2`).
 
+## Read the schedule
+```
+uv run tl xer ls --project P123
+uv run tl xer show --project P123 --schedule MAIN
+uv run tl xer compare --project P123 --schedule MAIN              # the current snapshot against the one before
+uv run tl xer look-ahead --project P123 --schedule MAIN --weeks 4
+uv run tl xer resolve A1230 --project P123 --schedule MAIN --as-of 1       # or a date, or `current`
+uv run tl xer health --project P123 --schedule MAIN                # links whose activity left
+uv run tl xer unscheduled --project P123 --type core.Record        # records with no activity
+uv run tl cost report budget --project P123 --unit quantity --over
+uv run tl cost report uncoded --project P123 --type core.Record
+```
+The TUI shows the same on `F12`; an agent reads them with the MCP tools of `tl_mcp.schedule_read_tools`. Any signed-in person may read (`document.read`).
+
 ## Verify
 - `uv run tl xer worker --once` prints `ran=0` when the queue is empty.
 - A snapshot is `Valid` or `Invalid`, never stuck in `Processing` once the worker has run. A snapshot still `Processing` with no job means a lost queue: `uv run tl xer worker --once --requeue`.

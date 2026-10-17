@@ -36,7 +36,7 @@ from tl_mod_schedule.handlers.snapshots import OpenScheduleSnapshot, VoidSchedul
 from tl_mod_schedule.lookahead import look_ahead
 from tl_mod_schedule.names import ORPHAN_REASON, SERVICE
 from tl_mod_schedule.orphans import outstanding, run_once
-from tl_mod_schedule.reconcile import requeue_orphans
+from tl_mod_schedule.reconcile import reconcile_tables, requeue_orphans
 from tl_mod_schedule.testing import BASE, ScheduleWorld
 from tl_xer.synth import Spec, make_xer, slipped, week_pair
 from tl_xer.typed import Snapshot
@@ -543,3 +543,47 @@ def test_the_lease_outlasts_the_envelope_and_the_settle() -> None:
     from tl_core.derivation.envelope import DEFAULT_TIMEOUT_S
 
     assert limits.BUILD_LEASE_S >= 5 * (DEFAULT_TIMEOUT_S + 60)  # read + settle at the limits: 60 s
+
+
+# --- a restore that has not been reconciled must not read as "nothing there" -------------------
+
+
+def test_every_read_refuses_while_the_typed_rows_are_missing_and_works_after_reconcile(
+    world: ScheduleWorld,
+) -> None:
+    _, two, [link] = linked_pair(world)
+    world.publish(two)
+    reads = {
+        "activities": lambda c: views.activity_page(c, SCOPE, "MAIN"),
+        "activity": lambda c: views.activity_detail(c, SCOPE, "MAIN", "A1230"),
+        "comparison": lambda c: views.comparison(c, SCOPE, "MAIN"),
+        "look-ahead": lambda c: views.look_ahead_view(c, SCOPE, "MAIN"),
+        "resolution": lambda c: views.resolution(c, SCOPE, "MAIN", "A1230"),
+        "resolution as of": lambda c: views.resolution(c, SCOPE, "MAIN", "A1230", 1),
+        "trend": lambda c: views.float_trend(c, SCOPE, "MAIN", "A1230"),
+        "activity links": lambda c: views.activity_links(c, SCOPE, world.link_row(link)["from_id"]),
+    }
+
+    def attempt(name: str) -> None:
+        with open_uow(world.db, readonly=True) as uow:
+            reads[name](uow.conn())
+
+    with open_uow(world.db) as uow:
+        uow.conn().execute(text("DELETE FROM sched_activity"))
+    for name in reads:
+        with pytest.raises(TypedRowsMissingError, match="tl xer reconcile"):
+            attempt(name)
+    reconcile_tables(world.db, world.files)
+    for name in reads:
+        attempt(name)  # all well again
+
+
+def test_a_snapshot_that_lost_only_some_rows_is_refused_too(world: ScheduleWorld) -> None:
+    linked_pair(world)  # snapshot 1 is the current one
+    with open_uow(world.db) as uow:
+        uow.conn().execute(
+            text("DELETE FROM sched_activity WHERE activity_id = 'A1230' AND snapshot_id = :i"),
+            {"i": world.schedule().current_snapshot_id},
+        )
+    with open_uow(world.db, readonly=True) as uow, pytest.raises(TypedRowsMissingError):
+        views.activity_page(uow.conn(), SCOPE, "MAIN")

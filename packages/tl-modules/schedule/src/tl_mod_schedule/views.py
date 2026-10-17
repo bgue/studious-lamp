@@ -201,6 +201,8 @@ def find_snapshot(
         raise SnapshotStateError(
             f"snapshot {found.key} is {found.state}: it has no activities to read"
         )
+    if built:
+        orphans_module.require_rows(conn, found)
     return found
 
 
@@ -315,6 +317,7 @@ def float_trend(conn: Connection, scope: str, code: str, activity_id: str) -> li
     schedule = find_schedule(conn, scope, code)
     points: list[TrendPoint] = []
     for snapshot in registry.history(conn, schedule.id)[-MAX_TREND_POINTS:]:
+        orphans_module.require_rows(conn, snapshot)
         a = registry.get_activity(conn, snapshot.id, activity_id)
         if a is None:
             continue

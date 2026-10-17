@@ -8,6 +8,7 @@ The DuckLake analytics copy of the ledger: an incremental sync by `seq`, a silve
 | `LakeConfig.at(dir=None)` | class | Lake paths: `dir`, else `$TL_LAKE_DIR`, else `dev/data/lake`. Holds `catalog.ducklake`, `data/` (Parquet), the lock file and the audit log |
 | `read_snapshot(engine)` | context manager | The ledger as one consistent read snapshot: `tl_adapters.db.read_tx` (REPEATABLE READ READ ONLY on Postgres) |
 | `sync_lake(config, conn, rebuild=False)` | function | One sync = one DuckLake snapshot: bronze `events`, silver `cur_core_record`, `links`, `pset_values`, and the `_tl_sync` row, in one transaction. Returns `SyncResult` |
+| `sync_xer(config, conn, raw_reader=None)` | function | The second pass of `tl lake sync` (P1-I4, ADR-0015 section 4): loads the built P6 schedule snapshots whole (they are operational tables, not events): bronze `xer_<table>`, silver `schedule_snapshot` and `schedule_activity`, the mart `mart_float_trend` (`tl_lake.xer_marts`), and the control tables `_tl_xer` and `_tl_xer_state`. Returns `XerSyncResult`. `raw_reader` gives the bytes of a snapshot's raw bundle; without one the bronze tables wait |
 | `lake_status(config)` | function | `LakeStatus`: as-of seq, snapshot id, sync count, rows per table |
 | `describe_lake(config)` | function | Tables and columns |
 | `LakeQueryService(config).query(sql, limit=, caller=)` | class | Guarded read-only SQL: row limit, timeout, audit line. Returns `LakeQueryResult` (rows, `truncated`, `as_of_seq`, `snapshot_id`) |
@@ -35,6 +36,11 @@ A crash before COMMIT changes nothing. The lake and the ledger are compared by t
 | `links` | silver | `cur_links` | |
 | `pset_values` | silver | `cur_pset_values` | Long form |
 | `_tl_sync` | control | | `snapshot_id, first_seq, last_seq, synced_at`: one row per sync |
+| `schedule_snapshot` | silver | `cur_schedule_schedule_snapshot` | One row per built snapshot (Valid, Published, Superseded): schedule code, number, state, `is_current`, data date, counts. Replaced as a whole when it differs |
+| `schedule_activity` | silver | `sched_activity` | The typed activities of every built snapshot, with schedule code, snapshot number, data date and floats in days (`total_float_days`, `free_float_days`) of the activity's own calendar. Added once per snapshot |
+| `xer_<table>` | bronze | raw bundle of the snapshot | Every table of the XER file, every field as text, plus `_snapshot_id` and `_row_no` |
+| `mart_float_trend` | mart | the two silver tables | Per activity and published snapshot: float, the float before, the change in days and `eroded` |
+| `_tl_xer`, `_tl_xer_state` | control | | Which snapshots the lake holds (and whether their bronze tables are in), and the signature of the last `schedule_snapshot` written |
 
 Types come from the generated Postgres DDL: `BOOLEAN`, `BIGINT`, `DOUBLE`, `VARCHAR`, and `TIMESTAMP` holding UTC. JSON columns (`events.payload`, `psets_json`, `value_json`) are stored as canonical JSON text on every adapter. A promoted pset column takes its type from the effective schema of the scopes in the ledger (the mapping that created it), so a boolean is `BOOLEAN` on SQLite and Postgres alike; a column no schema knows is typed from its first value.
 
@@ -42,7 +48,7 @@ Types come from the generated Postgres DDL: `BOOLEAN`, `BIGINT`, `DOUBLE`, `VARC
 Exactly one statement, parsed by DuckDB; SELECT only; tables must be lake tables or CTEs visible at that point; table functions limited to `range`, `generate_series`, `unnest`, `generate_subscripts`; no `getenv`, `current_setting`, `read_*`, `glob`, `duckdb_*` and similar. Refused: stacked statements, DDL, DML, ATTACH, INSTALL, LOAD, COPY, PRAGMA, SET, EXPLAIN, file-reading functions and other catalogs. Two more layers sit behind it: the catalog is attached READ_ONLY, and external file access is switched off and the configuration locked before the statement runs. Default limit 100, maximum 10 000, result size cap 8 MiB of JSON (`truncated_by` says `limit` or `bytes`), timeout 30 s (best effort: DuckDB checks for interruption between chunks of work, so a long scalar computation can overrun it; the 1 GB memory limit bounds the damage). Table and CTE names that look like paths or globs are refused, and a CTE is visible only where SQL scopes it. Time travel (`AT (VERSION => n)`) is allowed on purpose. Errors are a short message plus the DuckDB error class, with filesystem paths removed; every call writes one audit line with the same keys (`ts, caller, sql, limit, outcome, detail, error_class, rows, truncated, as_of_seq, snapshot_id, elapsed_ms`), ASCII-escaped so one call is one line. Every call, accepted or refused, appends a line to `lake_query.log.jsonl`.
 
 ## Depends on / used by
-- Depends on: `duckdb==1.5.5`, `duckdb-extensions`, `duckdb-extension-ducklake` (all MIT; the extension wheel's version must equal duckdb's), `sqlalchemy`, `tl_schema` (generated DDL), `tl_core`.
+- Depends on: `tl_xer` (the raw bundle reader), `duckdb==1.5.5`, `duckdb-extensions`, `duckdb-extension-ducklake` (all MIT; the extension wheel's version must equal duckdb's), `sqlalchemy`, `tl_schema` (generated DDL), `tl_core`.
 - Used by: `tl_cli` (`tl lake`), the `lake_query` MCP tool (P0-I4 and later), `just demo P0-I7-lake`. Runbook: `docs/runbooks/lake-sync.md`.
 
 ## Commands

@@ -15,6 +15,7 @@ The schedule module (M11): P6 schedules as immutable XER snapshots, built by a j
 | `tl_mod_schedule.resolver` | module | `resolve_activity`: current, a numbered snapshot, or as of a date; orphaned links |
 | `tl_mod_schedule.compare` / `lookahead` | module | Comparison of two snapshots; the look-ahead of the current one |
 | `tl_mod_schedule.registry` / `views` | module | Reads (frozen rows) and the views the API, CLI, TUI and MCP return |
+| `tl_mod_schedule.reports` | module | `unscheduled_records`: records of a type with no active link to an activity (of one schedule or any), read-only and bound to a project scope |
 | `tl_mod_schedule.typed_store` | module | Writes and clears the typed `sched_*` rows (JSON-per-chunk on Postgres, `executemany` on SQLite) |
 | `tl_mod_schedule.projectors` | package | The three record projectors and `ScheduleTables` (the operational tables, never cleared by a rebuild) |
 | `tl_mod_schedule.commands` | module | `API_COMMANDS` with their access (`user` or `controller`) |

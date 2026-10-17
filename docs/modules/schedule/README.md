@@ -59,5 +59,17 @@ When a published snapshot lacks an activity that links point at, those links are
 ## Reading a comparison
 Between any two snapshots (default: the built snapshot with the latest earlier data date): activities added and removed by id; date shifts of the eight dates in calendar days (positive is later); total-float change in days of the activity's own calendar (negative is erosion); relationships added, removed or changed (type, lag); percent complete, status, remaining and original duration; activities that entered or left the critical set; the shift of the latest early finish as a stand-in for the project finish. Lists are sorted; a view cuts them at a limit and says how many there were.
 
+## Reading it
+| Surface | What | Where |
+|---|---|---|
+| CLI | `tl xer ls`, `show`, `activities`, `activity`, `resolve`, `health`, `compare`, `look-ahead`, `trend`, `unscheduled` | `tl_cli.xer_read`, `xer_compare`, `xer_report` |
+| TUI | `F12`: schedules, snapshots, look-ahead, orphans; `c` the comparison, `a` the activities with relationships and float trend, `p` publish | `tl_tui.widgets.schedule_screen`, `compare_screen`, `activity_screen` |
+| API | `GET /projects/{project}/schedules`, `.../{code}`, `.../activities`, `.../comparison`, `.../look-ahead`, `.../orphans`, `.../activity-details/{id}`, `.../activity-trends/{id}`, `.../activity-resolutions/{id}`, `GET /projects/{project}/records/{id}/activity-links` | `tl_api.routes.schedule` |
+| MCP | thirteen read tools (schedules, activities, comparison, look-ahead, resolution, float trend, orphans, a record's activity links, cost codes and snapshots) and the proposal `propose_publish_schedule_snapshot` | `tl_mcp.schedule_read_tools`, `schedule_tools` |
+| Lake | silver `schedule_snapshot`, `schedule_activity`; bronze `xer_<table>`; mart `mart_float_trend` | `tl_lake.xer` (second pass of `tl lake sync`) |
+| Report | records of a type with no activity (`unscheduled_records`) | `tl_mod_schedule.reports` |
+
+Every surface calls the module's views (`tl_mod_schedule.views`); none decides what moved or eroded.
+
 ## Limits worth knowing
 See ADR-0015 §2 for the bounds of the XER reader (file, tables, rows, cells, text, typed rows, dates) and §4 for the measured times. A snapshot at the limits settles in about 13 s on SQLite and 25 s on Postgres; the worker's claim is 600 s.

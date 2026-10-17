@@ -128,6 +128,15 @@ def rows_present(conn: Connection, snapshot: registry.SnapshotRow) -> bool:
     return int(found) == (snapshot.activity_count or 0)
 
 
+def require_rows(conn: Connection, snapshot: registry.SnapshotRow) -> None:
+    """``TypedRowsMissingError`` unless the snapshot's activities are all in the database."""
+    if not rows_present(conn, snapshot):
+        raise TypedRowsMissingError(
+            f"the activities of {snapshot.key} are not in the database (after a restore?): "
+            "an admin runs `tl xer reconcile`"
+        )
+
+
 def outstanding(conn: Connection, schedule_id: str) -> bool:
     """Whether the current snapshot of the schedule and its links disagree anywhere.
 

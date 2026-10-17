@@ -30,5 +30,11 @@ The cost module is a read-only mirror of the cost system. It keeps the cost code
 | Reads: codes, snapshots, one code's history | `document.read` |
 | Agents | read only; no agent applies an import |
 
+## Reports and reading
+* `tl cost report budget [--unit hours|quantity|amount] [--parent CODE] [--over]`: per cost code the budget, actual, earned, forecast to complete and estimate at completion of the latest snapshot, the variance (budget minus EAC, negative is over budget), the percentage spent and how many records link to the code. A figure the snapshot did not state is `-`, never zero.
+* `tl cost report uncoded --type T`: the records of a type that no active link `references` a cost code from.
+* Reads: `tl cost snapshots|codes|show`, the API (`/projects/{project}/cost-snapshots`, `/projects/{project}/cost-codes`), the TUI client and thirteen MCP tools shared with the schedule module (`list_cost_codes`, `get_cost_code`, `list_cost_snapshots`).
+* The functions are `tl_mod_cost.reports`; every query is bound to the project scope.
+
 ## Links
 A record may link to a cost code with the core `AddLink` (relation `references`); the link follows the code key and does not pin a snapshot.

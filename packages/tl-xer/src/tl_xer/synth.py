@@ -15,6 +15,7 @@ randomness). ``slipped`` derives a later file from a scenario for the simulated 
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 
@@ -466,3 +467,90 @@ def slipped(scenario: Scenario, *, days: int, codes: tuple[str, ...]) -> Scenari
     moved = scenario.data_date + timedelta(days=7)
     specs = tuple(replace(s, days=s.days + days) if s.code in codes else s for s in scenario.specs)
     return replace(scenario, data_date=moved, specs=specs)
+
+
+# --- a series of weekly updates -----------------------------------------------------------------
+
+#: Weeks of a series are Mondays; the working week before a data date ends on this day earlier.
+_LAST_WORKDAY_BEFORE = timedelta(days=3)
+
+
+def _pick(seed: int, *parts: object) -> int:
+    """A number from the seed and the parts: the same arguments give the same number, and nothing
+    else does (a hash, not a random generator, so no state and no clock)."""
+    text = ":".join(str(part) for part in (seed, *parts))
+    return int.from_bytes(hashlib.sha256(text.encode()).digest()[:4], "big")
+
+
+def next_week(scenario: Scenario, seed: int, week: int) -> Scenario:
+    """The scenario one week on: work done, a few activities slipped, now and then one added.
+
+    ``week`` counts the update (1 for the first after ``scenario``). The data date moves seven
+    days. An activity in progress advances by the share of its duration a working week is, unless
+    it slipped that week (it stalls and is lengthened by one to four days); one whose predecessors
+    are complete starts on its early start; a milestone is reached when its predecessors are. One
+    to three activities slip a week. Every third week an inspection of two to five days is added
+    after an unfinished activity.
+    """
+    moved = scenario.data_date + timedelta(days=7)
+    last_workday = moved - _LAST_WORKDAY_BEFORE
+    early = schedule(scenario)
+    open_codes = sorted(
+        s.code
+        for s in scenario.specs
+        if s.days > 0 and not (scenario.progress.get(s.code) or Progress(moved)).finish
+    )
+    ranked = sorted(open_codes, key=lambda code: _pick(seed, week, "slip", code))
+    slips = {
+        code: 1 + _pick(seed, week, "by", code) % 4
+        for code in ranked[: 1 + _pick(seed, week, "n") % 3]
+    }
+    progress = dict(scenario.progress)
+    for spec in scenario.specs:
+        done = progress.get(spec.code)
+        if done is not None and done.finish is not None:
+            continue
+        if not all((progress.get(p) or Progress(moved)).finish for p in spec.preds):
+            continue
+        if spec.days == 0:
+            reached = max(
+                [early[spec.code].es or moved, *(progress[p].finish or moved for p in spec.preds)]
+            )
+            progress[spec.code] = Progress(reached, 100, reached)
+            continue
+        if spec.code in slips:
+            continue  # it stalls: an activity due to start does not, one under way does not advance
+        start = done.start if done is not None else early[spec.code].es
+        if start is None or start >= moved:
+            continue
+        percent = (done.percent if done is not None else 0.0) + 100.0 * 5 / spec.days
+        if percent >= 100:
+            progress[spec.code] = Progress(start, 100, max(start, last_workday))
+        else:
+            progress[spec.code] = Progress(start, round(percent, 1))
+    specs = tuple(
+        replace(s, days=s.days + slips[s.code]) if s.code in slips else s for s in scenario.specs
+    )
+    if week % 3 == 0 and open_codes:
+        after = open_codes[_pick(seed, week, "after") % len(open_codes)]
+        extra = Spec(
+            f"A25{week:02d}", f"Extra inspection {week}", "CON", 2 + _pick(seed, week, "len") % 4,
+            (after,),
+        )  # fmt: skip
+        specs = (*specs, extra)
+    return replace(scenario, data_date=moved, specs=specs, progress=progress)
+
+
+def series(seed: int, weeks: int, *, start: Scenario | None = None) -> tuple[Scenario, ...]:
+    """``weeks`` weekly updates of a schedule, the first being ``start`` (the demo's first file).
+
+    A pure function of its arguments: the same seed gives the same files byte for byte, another
+    seed gives other slips. Each file is a valid P6 export (``make_xer``), a week after the one
+    before. ``ValueError`` for fewer than one week or more than 52.
+    """
+    if not 1 <= weeks <= 52:
+        raise ValueError("a series has 1 to 52 weekly updates")
+    scenarios = [start or week_pair()[0]]
+    for week in range(1, weeks):
+        scenarios.append(next_week(scenarios[-1], seed, week))
+    return tuple(scenarios)

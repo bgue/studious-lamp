@@ -12,6 +12,7 @@ The cost module (M11): a read-only mirror of the cost system's codes and period 
 | `tl_mod_cost.imports` | package | `reader.read_cost_csv` (bounded, strict, no clock), `plan.plan_import` (what would be created, revised or refused), `model` |
 | `tl_mod_cost.registry` / `views` | module | Reads: codes, snapshots, one code's history; the views the API, TUI and MCP return |
 | `tl_mod_cost.commands` | module | `API_COMMANDS`: `ImportCostSnapshot` with access `admin` |
+| `tl_mod_cost.reports` | module | `budget_report` (per cost code and unit: budget, actual, earned, FTC, EAC, variance, percent spent, over budget, linked records) and `records_without_cost_code`; both read-only and bound to a project scope |
 | `tl_mod_cost.limits` | module | Size limits of the file and the commands |
 | `tl_mod_cost.testing` | module | A ledger and the cost commands for tests of other packages |
 

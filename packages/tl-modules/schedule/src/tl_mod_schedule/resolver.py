@@ -28,7 +28,7 @@ from tl_mod_schedule import registry
 from tl_mod_schedule.common import stamp
 from tl_mod_schedule.errors import ScheduleNotFoundError
 from tl_mod_schedule.names import ACTIVITY_REF_TABLE, SERVICE
-from tl_mod_schedule.orphans import MODULE_FLAG_SQL
+from tl_mod_schedule.orphans import MODULE_FLAG_SQL, require_rows
 
 #: ``None`` is the current snapshot; an ``int`` a snapshot number; a ``str`` a date written
 #: ``YYYY-MM-DD`` (the end of that day) or ``YYYY-MM-DDTHH:MM``.
@@ -133,6 +133,13 @@ def resolve_activity(
             cache[key] = snapshot
     if snapshot is None:
         return Resolution("no_snapshot", schedule.code, activity_id, None, None, None, None)
+    checked = (f"rows:{snapshot.id}", None)
+    if cache is None or checked not in cache:
+        require_rows(
+            conn, snapshot
+        )  # none read as "gone" because a restore has not been reconciled
+        if cache is not None:
+            cache[checked] = snapshot
     activity = registry.get_activity(conn, snapshot.id, activity_id)
     state: State
     if activity is not None:

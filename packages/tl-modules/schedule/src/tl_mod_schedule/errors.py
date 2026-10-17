@@ -69,8 +69,9 @@ class TooManyReferencesError(ScheduleError):
 
 
 class TypedRowsMissingError(ScheduleError):
-    """The current snapshot's activities are not in the database (after a restore): run
-    ``tl xer reconcile`` first. Judging links against missing rows would call every activity gone.
+    """A built snapshot's activities are not in the database (after a restore): run
+    ``tl xer reconcile`` first. Reading them as none would show an empty comparison, say every
+    activity is gone and flag every link.
     """
 
 

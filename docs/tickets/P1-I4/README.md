@@ -40,8 +40,8 @@ The exact commands are fixed when the CLI lands and are copied from `dev/demos/P
 | S10 | MCP proposable `PublishScheduleSnapshot` (read tools are T13) | Agents propose only | security pass | done (532cbeb) |
 | S11 | `reconcile` (typed rows from the source file after a restore) and the runbook | Recovery path | — | done (532cbeb, runbook F3) |
 | S12 | Reports of both modules (`tl_mod_cost.reports`, `tl_mod_schedule.reports`) and the TUI text helpers (`schedule_text.py`) the tickets use | Reads that decide (variance, over budget, which records have no cost code or activity) | — | done |
-| S13 | Lake loader for schedule snapshots (bronze `xer_*`, silver `schedule_activity`) | Core engine: sync, transaction, rebuild equality | orchestrator review | todo |
-| S14 | Demo script, gates, package READMEs and AGENTS.md, report with the Showcase | — | — | todo |
+| S13 | Lake loader for schedule snapshots (bronze `xer_*`, silver `schedule_snapshot` and `schedule_activity`, mart `mart_float_trend`), the weekly series generator `tl_xer.synth.series`, reads that refuse while the typed rows are missing | Core engine: sync, transaction, rebuild equality | orchestrator review | done |
+| S14 | Demo script `dev/demos/P1-I4.sh`, module pages, package READMEs and AGENTS.md, runbook | — | — | done; gates and report after the tickets |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
@@ -62,18 +62,18 @@ The exact commands are fixed when the CLI lands and are copied from `dev/demos/P
 | T09c | `tl xer compare\|look-ahead\|trend` (split from T09b: two files) | H | S8 | ready | stub, 12 provided tests, mutation-checked |
 | T10a | `tl cost report budget\|uncoded` (the report functions are S12) | H | S12 | ready | stub, 7 provided tests, mutation-checked |
 | T10b | `tl xer unscheduled` (the report function is S12; the IWP-vs-activity report takes the record type as an option until Phase 2) | H | S12 | ready | stub, 5 provided tests, mutation-checked |
-| T11 | Lake: `xer_*` bronze, `schedule_activity` silver, float-trend mart | H | S13 | draft | — |
+| T11 | Lake: `xer_*` bronze, `schedule_activity` silver, float-trend mart | S (taken over) | S13 | done (S13) | the typed rows are not events, so the seq-driven sync cannot carry them: a second pass loads whole snapshots (core engine, rebuild equality, a transaction); the mart is one query inside it |
 | T13 | MCP read tools for schedules and cost (13 tools) | H | S10 | ready | stub, 13 provided tests, mutation-checked |
-| T12 | Simulator planner actor (XER with slips), demo support | H | T11, S8 | draft | — |
+| T12 | Simulator planner actor (XER with slips), demo support | H | T11, S8 | partly done | the generator of the slips is `tl_xer.synth.series` (S13, tested, no survivor of 20 mutations); the actor that uploads an update through the API needs the simulator's client and `FakeWorld` extended first (S15), then the ticket |
 
 Haiku-ability (`01-tiers.md` §6) for the ready tickets: T02a reads 6 files, T07 reads 6, T08 reads 4; every interface is in the tree; each has a provided test that fails on the stub and passes on the reference; each diff is one source file plus a report; none touches `schema/**`, a dependency or a public interface; a reviewer verifies from the diff and the three commands. The reader and resolver are security-sensitive, so their merged code also goes through the security pass.
 
 ## Order of work
-1. Done: S1 to S6. Dispatch T02a, T07, T08 (disjoint paths; at most three at once).
-2. The relay returns to the orchestrator, which runs the implementers and reviewers; the supervisor resumes on their results.
-3. S7 to S11 (plumbing), then write and dispatch T02b, T09a, T09b, T10 (their interfaces now exist), then T11 and T12 once the bronze path is built.
-4. Merge only reviewed tickets with green `just check && just test`. Two failed reviews: the supervisor finishes the ticket.
-5. S12: demo on SQLite and Postgres, `just test-parity` alone in the background, docs, report.
+1. Done: S1 to S6; batch 1 (T02a, T07, T08) merged; the security review of c709ebe..27b2170 fixed (F1 to F3); the plumbing S7 to S11.
+2. Done: S12 to S14 (reports, TUI text helpers, lake loader, the weekly series, the demo, docs). Dispatch round 2: T02b, T09a1, T09a2, T09a3, T09b, T09c, T10a, T10b, T13 (disjoint paths: three CLI files, one file each for the cli reports, three TUI screens, one MCP file; at most four at once).
+3. The relay returns to the orchestrator, which runs the implementers and reviewers; the supervisor resumes on their results.
+4. S15 and T12 (the simulator planner actor), then the gates, `just test-parity` in the background alone, the report with the Showcase.
+5. Merge only reviewed tickets with green `just check && just test`. Two failed reviews: the supervisor finishes the ticket.
 
 ## Risks and escalation triggers
 - **XER reader resource use.** Measured after the security review (ADR-0015 §2, §4): the worst legal file (the typed maximum: 60 000 activities, 200 000 relationships, 300 000 codes, 300 000 user fields; 42.6 MB) reads in 16.8 s with 582 MB in the child; the hostile shapes of the review are refused in about 3 s. Settle of the maximum snapshot: 25 s on Postgres (JSON per chunk; 535 s with `executemany`) and about 13 s on SQLite; the worker's claim is 600 s. Envelope 60 s and 1 GiB. A bound that cannot be met is an escalation.
