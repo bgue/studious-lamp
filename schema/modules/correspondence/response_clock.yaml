@@ -69,7 +69,7 @@ classes:
       calendar:
         required: true
         description: "The calendar and version the count used, `<code>@<version>` (for example `P123-default@1`)."
-      warn_days_json:
+      warn_days:
         range: Any
         required: true
         annotations:

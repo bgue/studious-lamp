@@ -21,7 +21,7 @@ SELECT
   t.duration_days AS duration_days,
   t.day_type AS day_type,
   t.calendar AS calendar,
-  t.warn_days_json_json AS warn_days_json_json,
+  t.warn_days_json AS warn_days_json,
   t.due_on AS due_on,
   t.state AS state,
   t.paused_on AS paused_on,

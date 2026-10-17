@@ -49,7 +49,7 @@ classes:
         description: "calendar or working; null when there is no time bar."
       notice_requirements:
         description: What the notice must contain, in the clause's words.
-      required_recipients_json:
+      required_recipients:
         range: Any
         required: true
         annotations:
@@ -60,7 +60,7 @@ classes:
       contract_document_id:
         range: Ulid
         description: The `documents.Document` that holds the contract, when it is in the register.
-      domains_json:
+      domains:
         range: Any
         required: true
         annotations:

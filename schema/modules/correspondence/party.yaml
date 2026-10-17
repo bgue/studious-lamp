@@ -43,7 +43,7 @@ classes:
       project_role:
         required: true
         description: "client, engineer, contractor, subcontractor, supplier, authority, internal or other."
-      email_domains_json:
+      email_domains:
         range: Any
         required: true
         annotations:

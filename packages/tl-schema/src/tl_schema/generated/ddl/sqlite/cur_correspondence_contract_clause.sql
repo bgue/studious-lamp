@@ -6,10 +6,10 @@ CREATE TABLE IF NOT EXISTS cur_correspondence_contract_clause (
   time_bar_days INTEGER,
   time_bar_day_type TEXT,
   notice_requirements TEXT,
-  required_recipients_json_json TEXT NOT NULL DEFAULT '{}',
+  required_recipients_json TEXT NOT NULL DEFAULT '{}',
   service_method TEXT,
   contract_document_id TEXT,
-  domains_json_json TEXT NOT NULL DEFAULT '{}',
+  domains_json TEXT NOT NULL DEFAULT '{}',
   is_active INTEGER NOT NULL DEFAULT 1,
   last_seq INTEGER NOT NULL
 );

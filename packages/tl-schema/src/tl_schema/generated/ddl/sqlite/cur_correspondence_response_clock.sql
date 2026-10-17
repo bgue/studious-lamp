@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS cur_correspondence_response_clock (
   duration_days INTEGER NOT NULL,
   day_type TEXT NOT NULL,
   calendar TEXT NOT NULL,
-  warn_days_json_json TEXT NOT NULL DEFAULT '{}',
+  warn_days_json TEXT NOT NULL DEFAULT '{}',
   due_on TEXT NOT NULL,
   state TEXT NOT NULL DEFAULT 'running',
   paused_on TEXT,

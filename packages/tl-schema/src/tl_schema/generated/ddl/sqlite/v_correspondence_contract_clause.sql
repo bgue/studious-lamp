@@ -18,10 +18,10 @@ SELECT
   t.time_bar_days AS time_bar_days,
   t.time_bar_day_type AS time_bar_day_type,
   t.notice_requirements AS notice_requirements,
-  t.required_recipients_json_json AS required_recipients_json_json,
+  t.required_recipients_json AS required_recipients_json,
   t.service_method AS service_method,
   t.contract_document_id AS contract_document_id,
-  t.domains_json_json AS domains_json_json,
+  t.domains_json AS domains_json,
   t.is_active AS is_active
 FROM cur_correspondence_contract_clause AS t
 JOIN cur_core_record AS r ON r.id = t.id;

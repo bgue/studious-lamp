@@ -6,10 +6,10 @@ CREATE TABLE IF NOT EXISTS cur_correspondence_contract_clause (
   time_bar_days BIGINT,
   time_bar_day_type TEXT COLLATE "C",
   notice_requirements TEXT COLLATE "C",
-  required_recipients_json_json JSONB NOT NULL DEFAULT '{}',
+  required_recipients_json JSONB NOT NULL DEFAULT '{}',
   service_method TEXT COLLATE "C",
   contract_document_id TEXT COLLATE "C",
-  domains_json_json JSONB NOT NULL DEFAULT '{}',
+  domains_json JSONB NOT NULL DEFAULT '{}',
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   last_seq BIGINT NOT NULL
 );

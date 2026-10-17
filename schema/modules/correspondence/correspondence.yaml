@@ -66,13 +66,13 @@ classes:
         description: The `correspondence.Party` the sender is, when known.
       from_name:
         description: Who sent it, as written (a person or an organisation).
-      to_json:
+      to_parties:
         range: Any
         required: true
         annotations:
           tl:json: true
-        description: "JSON list of recipients, each `{name, email, party_id}` (name required)."
-      cc_json:
+        description: "JSON list of recipients, each `{name, email, party_id}` (name required). Column `to_parties_json`."
+      cc_parties:
         range: Any
         required: true
         annotations:

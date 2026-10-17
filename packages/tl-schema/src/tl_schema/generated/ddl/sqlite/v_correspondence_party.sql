@@ -15,7 +15,7 @@ SELECT
   r.updated_at AS updated_at,
   t.code AS code,
   t.project_role AS project_role,
-  t.email_domains_json_json AS email_domains_json_json,
+  t.email_domains_json AS email_domains_json,
   t.is_active AS is_active
 FROM cur_correspondence_party AS t
 JOIN cur_core_record AS r ON r.id = t.id;

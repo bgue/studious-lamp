@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS cur_correspondence_party (
   scope TEXT NOT NULL,
   code TEXT NOT NULL,
   project_role TEXT NOT NULL,
-  email_domains_json_json TEXT NOT NULL DEFAULT '{}',
+  email_domains_json TEXT NOT NULL DEFAULT '{}',
   is_active INTEGER NOT NULL DEFAULT 1,
   last_seq INTEGER NOT NULL
 );
