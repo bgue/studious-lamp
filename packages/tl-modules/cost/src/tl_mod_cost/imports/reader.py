@@ -1,5 +1,3 @@
-# ruff: noqa: F401, F841
-# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 """Read the CSV of a cost snapshot into rows (P1-I4-T02a).
 
 A cost export is a stranger's text, so the reader is strict and bounded: the size, the number of
@@ -11,10 +9,6 @@ The header names the columns, in any order and in any case. ``code`` is required
 ``parent`` (or ``parent_code``) and ``uom`` are optional; the fifteen figures are ``hours_budget``
 ... ``amount_eac`` (the swapped spelling ``budget_hours`` and the words ``qty`` and ``cost`` are
 accepted). A column the reader does not know is ignored and listed in ``ignored_columns``.
-
-STUB (P1-I4-T02a): the functions with a STEPS comment are for you to write; the signatures, the
-docstrings, the constants and the helpers without STEPS are final. When they are written, delete
-this paragraph, the STEPS comments and the `ruff: noqa` and `pyright` lines at the top.
 """
 
 from __future__ import annotations
@@ -75,13 +69,16 @@ def decode(data: bytes) -> str:
 
     Raises ``CostFileError("not_text")`` for a byte neither encoding allows.
     """
-    # STEPS
-    # 1. Try data.decode("utf-8-sig") (it drops a UTF-8 byte-order mark) and return the
-    #    text.
-    # 2. On UnicodeDecodeError try data.decode("cp1252") and return the text.
-    # 3. On UnicodeDecodeError of that raise CostFileError("not_text", "the file is neither
-    #    UTF-8 nor Windows-1252 text") from the error.
-    raise NotImplementedError
+    try:
+        return data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        pass
+    try:
+        return data.decode("cp1252")
+    except UnicodeDecodeError as error:
+        raise CostFileError(
+            "not_text", "the file is neither UTF-8 nor Windows-1252 text"
+        ) from error
 
 
 def _lines(text: str) -> Iterator[str]:
@@ -95,24 +92,21 @@ def _lines(text: str) -> Iterator[str]:
 
 def _delimiter(text: str) -> str:
     """The delimiter that splits the first line into the most cells (a comma on a tie)."""
-    # STEPS
-    # 1. first = text.split("\n", 1)[0][:MAX_LINE_CHARS]: the first line, cut so that a file
-    #    of one enormous line is not counted whole.
-    # 2. best = ","; count = first.count(",").
-    # 3. For each candidate of DELIMITERS[1:]: when first.count(candidate) is strictly
-    #    larger than count, candidate becomes best and its count becomes count. A tie keeps
-    #    the earlier delimiter.
-    # 4. Return best.
-    raise NotImplementedError
+    first = text.split("\n", 1)[0][:MAX_LINE_CHARS]
+    best = ","
+    count = first.count(",")
+    for candidate in DELIMITERS[1:]:
+        if first.count(candidate) > count:
+            best = candidate
+            count = first.count(candidate)
+    return best
 
 
 def figure(text: str) -> float:
     """A figure written as a plain decimal, with an optional sign and thousands commas."""
-    # STEPS
-    # 1. If _NUMBER.fullmatch(text) is None raise ValueError("not a number").
-    # 2. Return float(text.replace(",", "")). _NUMBER allows at most 15 integer digits, so
-    #    the result is always under MAX_FIGURE.
-    raise NotImplementedError
+    if _NUMBER.fullmatch(text) is None:
+        raise ValueError("not a number")
+    return float(text.replace(",", ""))
 
 
 def read_cost_csv(data: bytes) -> CostFile:
@@ -123,40 +117,57 @@ def read_cost_csv(data: bytes) -> CostFile:
     ``too_many_columns``, ``too_many_rows``, ``too_many_cells``, ``missing_code``, ``bad_number``
     and ``bad_row``.
     """
-    # STEPS
-    # 1. If len(data) > MAX_IMPORT_BYTES raise CostFileError("too_large", f"the file is
-    #    larger than {MAX_IMPORT_BYTES} bytes"). Then text = decode(data).
-    # 2. If _FORBIDDEN.search(text) is not None raise CostFileError("control_character",
-    #    "the file holds a control character"). If not text.strip() raise
-    #    CostFileError("empty_file", "the file is empty").
-    # 3. reader = csv.reader(_lines(text), delimiter=_delimiter(text), strict=True). header
-    #    = next(reader) inside try; a csv.Error is CostFileError("malformed_csv", "the
-    #    header is not valid CSV") from the error. (A CostFileError raised by _lines passes
-    #    through.)
-    # 4. Drop trailing blank cells of the header (`while header and not header[-1].strip():
-    #    header.pop()`): an export that ends every line with a comma. More than MAX_COLUMNS
-    #    cells left: CostFileError("too_many_columns", f"the file has more than
-    #    {MAX_COLUMNS} columns").
-    # 5. columns = {} (canonical name to position) and ignored = []. For each (position,
-    #    cell) of the header: canonical = ALIASES.get(normalise(cell)). When it is None: if
-    #    cell.strip() is not empty and len(ignored) < MAX_IGNORED append cell.strip()[:64]
-    #    to ignored; continue. When canonical is already in columns raise
-    #    CostFileError("duplicate_column", f"the column {canonical} appears twice"). Else
-    #    columns[canonical] = position.
-    # 6. If "code" is not in columns raise CostFileError("missing_code_column", "the file
-    #    has no code column").
-    # 7. rows = []; row_number = 0. Loop `while True`: record = next(reader) inside try;
-    #    StopIteration breaks; a csv.Error raises CostFileError("malformed_csv", f"the file
-    #    is not valid CSV near line {reader.line_num}") from the error.
-    # 8. A record whose cells are all blank (`not any(cell.strip() for cell in record)`) is
-    #    skipped without being counted. Otherwise row_number += 1. When row_number >
-    #    MAX_ROWS raise CostFileError("too_many_rows", f"the file has more than {MAX_ROWS}
-    #    rows").
-    # 9. When len(record) > MAX_COLUMNS * 2 raise CostFileError("too_many_cells", "a row has
-    #    far more cells than the header", row_number). Then rows.append(_row(record,
-    #    columns, row_number)).
-    # 10. Return CostFile(rows=tuple(rows), ignored_columns=tuple(ignored)).
-    raise NotImplementedError
+    if len(data) > MAX_IMPORT_BYTES:
+        raise CostFileError("too_large", f"the file is larger than {MAX_IMPORT_BYTES} bytes")
+    text = decode(data)
+    if _FORBIDDEN.search(text) is not None:
+        raise CostFileError("control_character", "the file holds a control character")
+    if not text.strip():
+        raise CostFileError("empty_file", "the file is empty")
+    reader = csv.reader(_lines(text), delimiter=_delimiter(text), strict=True)
+    try:
+        header = next(reader)
+    except csv.Error as error:
+        raise CostFileError("malformed_csv", "the header is not valid CSV") from error
+    while header and not header[-1].strip():
+        header.pop()
+    if len(header) > MAX_COLUMNS:
+        raise CostFileError("too_many_columns", f"the file has more than {MAX_COLUMNS} columns")
+    columns: dict[str, int] = {}
+    ignored: list[str] = []
+    for position, cell in enumerate(header):
+        canonical = ALIASES.get(normalise(cell))
+        if canonical is None:
+            if cell.strip() and len(ignored) < MAX_IGNORED:
+                ignored.append(cell.strip()[:64])
+            continue
+        if canonical in columns:
+            raise CostFileError("duplicate_column", f"the column {canonical} appears twice")
+        columns[canonical] = position
+    if "code" not in columns:
+        raise CostFileError("missing_code_column", "the file has no code column")
+    rows: list[CostRow] = []
+    row_number = 0
+    while True:
+        try:
+            record = next(reader)
+        except StopIteration:
+            break
+        except csv.Error as error:
+            raise CostFileError(
+                "malformed_csv", f"the file is not valid CSV near line {reader.line_num}"
+            ) from error
+        if not any(cell.strip() for cell in record):
+            continue
+        row_number += 1
+        if row_number > MAX_ROWS:
+            raise CostFileError("too_many_rows", f"the file has more than {MAX_ROWS} rows")
+        if len(record) > MAX_COLUMNS * 2:
+            raise CostFileError(
+                "too_many_cells", "a row has far more cells than the header", row_number
+            )
+        rows.append(_row(record, columns, row_number))
+    return CostFile(rows=tuple(rows), ignored_columns=tuple(ignored))
 
 
 def _cell(record: list[str], columns: dict[str, int], name: str) -> str | None:
@@ -167,18 +178,30 @@ def _cell(record: list[str], columns: dict[str, int], name: str) -> str | None:
 
 
 def _row(record: list[str], columns: dict[str, int], row_number: int) -> CostRow:
-    # STEPS
-    # 1. code = _cell(record, columns, "code"). When it is None raise
-    #    CostFileError("missing_code", f"row {row_number} has no cost code", row_number).
-    # 2. figures = {}. For each name of MEASURE_COLUMNS: text = _cell(record, columns,
-    #    name); a None text is skipped; otherwise figures[name] = figure(text). A ValueError
-    #    from figure is CostFileError("bad_number", f"row {row_number}: {name} is not a
-    #    plain number", row_number) raised `from None` (the cell text never goes into a
-    #    message).
-    # 3. Return CostRow(code=code, description=_cell(..., "description"),
-    #    parent_code=_cell(..., "parent_code"), uom=_cell(..., "uom"), figures=figures).
-    # 4. A pydantic ValidationError from CostRow becomes CostFileError("bad_row", f"row
-    #    {row_number}: {fields} is not usable", row_number) `from None`, where fields = ',
-    #    '.join(sorted({'.'.join(str(p) for p in e['loc']) for e in exc.errors()})). Only
-    #    the field names go into the message, never the values.
-    raise NotImplementedError
+    code = _cell(record, columns, "code")
+    if code is None:
+        raise CostFileError("missing_code", f"row {row_number} has no cost code", row_number)
+    figures: dict[str, float] = {}
+    for name in MEASURE_COLUMNS:
+        text = _cell(record, columns, name)
+        if text is None:
+            continue
+        try:
+            figures[name] = figure(text)
+        except ValueError:
+            raise CostFileError(
+                "bad_number", f"row {row_number}: {name} is not a plain number", row_number
+            ) from None
+    try:
+        return CostRow(
+            code=code,
+            description=_cell(record, columns, "description"),
+            parent_code=_cell(record, columns, "parent_code"),
+            uom=_cell(record, columns, "uom"),
+            figures=figures,
+        )
+    except ValidationError as exc:
+        fields = ", ".join(sorted({".".join(str(p) for p in e["loc"]) for e in exc.errors()}))
+        raise CostFileError(
+            "bad_row", f"row {row_number}: {fields} is not usable", row_number
+        ) from None
