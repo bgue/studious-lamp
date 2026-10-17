@@ -306,7 +306,9 @@ def pdf_from_objects(objects: Sequence[bytes]) -> bytes:
     return out.getvalue()
 
 
-def pdf_with_object_stream(padding: int = 0, info: bytes | None = None) -> bytes:
+def pdf_with_object_stream(
+    padding: int = 0, info: bytes | None = None, xref_padding: int = 0
+) -> bytes:
     """A PDF 1.5 whose catalog and page tree live in a compressed object stream (the form that
     makes a reader decode the stream to answer anything). ``padding`` bytes of blanks are added to
     the stream before it is compressed: a small file that expands to that much when decoded."""
@@ -341,9 +343,15 @@ def pdf_with_object_stream(padding: int = 0, info: bytes | None = None) -> bytes
         + struct.pack(">BHB", 1, offset4, 0)
     )
     info_entry = b" /Info 2 0 R" if info is not None else b""
+    filter_entry = b""
+    if xref_padding:  # a cross-reference stream that expands far past its table
+        packer = zlib.compressobj(9)
+        entries = packer.compress(entries) + packer.compress(b"\x00" * xref_padding)
+        entries += packer.flush()
+        filter_entry = b" /Filter /FlateDecode"
     out.write(
-        b"4 0 obj\n<< /Type /XRef /Size 5 /W [1 2 1] /Root 2 0 R%s /Length %d >>\nstream\n"
-        % (info_entry, len(entries))
+        b"4 0 obj\n<< /Type /XRef /Size 5 /W [1 2 1] /Root 2 0 R%s%s /Length %d >>\nstream\n"
+        % (info_entry, filter_entry, len(entries))
         + entries
         + b"\nendstream\nendobj\n"
     )

@@ -9,12 +9,19 @@ pypdf itself is not a bounded reader: asked for ``len(reader.pages)`` it decodes
 a crafted file of a megabyte costs minutes and gigabytes. What bounds the cost here, in order:
 
 1. the bytes are scanned before pypdf sees them (``check_pdf_bytes``): a fixed number of object
-   streams, of ``startxref`` records and of ``/Length`` values, no ``/Length`` past the end of the
-   file, no string longer than ``MAX_STRING_BYTES``;
-2. the reader is opened with ``strict=True`` (no repair paths, which are the slow ones) and with
-   pypdf's own decompression limits lowered (``apply_configuration``, per call, per thread);
-3. the page count is the integer ``/Root/Pages/Count`` and nothing else: no page tree is walked;
-4. pypdf's log records are dropped while it runs (they can quote the file).
+   streams, cross-reference sections (``startxref``, ``/Prev``, ``/XRef``, names spelt with ``#xx``
+   escapes included), ``/Length`` values, no ``/Length`` past the end of the file, no ``/Size``
+   past ``MAX_SIZE``;
+2. pypdf reads through a stream that counts its operations (``_BudgetStream``): every byte of a
+   string, an array or an xref line that pypdf looks at costs an operation, and past
+   ``MAX_STREAM_OPS`` the read is ``pdf_too_complex``. This bounds the work whatever the file
+   puts in the objects pypdf parses (a 47 MB title, a million-entry ``/Kids``, a long ``/Prev``
+   chain) without parsing the file a second time to find out;
+3. the reader is opened with ``strict=True`` (no repair paths, which are the slow ones) and with
+   pypdf's own decompression limits lowered to ``PYPDF_LIMIT`` (``apply_configuration``, per call,
+   per thread);
+4. the page count is the integer ``/Root/Pages/Count`` and nothing else: no page tree is walked;
+5. pypdf's log records are dropped while it runs (they can quote the file).
 
 The job runner's subprocess limits (FANOUT D9) are the backstop, not the plan.
 """
@@ -48,17 +55,64 @@ BAD_PAGE_COUNT = "the PDF states a page count that is out of range"
 
 #: Limits of the byte scan.
 MAX_OBJSTM = 500
-MAX_STARTXREF = 100
+#: Cross-reference sections: ``startxref`` records, ``/Prev`` links and ``/XRef`` streams.
+MAX_XREF_SECTIONS = 32
 MAX_LENGTH_VALUES = 100_000
-MAX_STRING_BYTES = 1024 * 1024
+#: The most objects a file may declare (``/Size``). A PDF of the 50 MiB the contract allows has
+#: fewer than a million.
+MAX_SIZE = 2_000_000
 MAX_PAGES = 1_000_000
-#: pypdf's decompression limits are 75 MB each; the objects we read are small.
-PYPDF_LIMIT = 8 * 1024 * 1024
+#: pypdf's decompression limits are 75 MB each; the streams we decode are object streams and
+#: cross-reference streams (about 5 bytes per object): 2 MiB is 400 000 objects.
+PYPDF_LIMIT = 2 * 1024 * 1024
+#: Operations (reads, line reads, seeks) pypdf may make on the file in one call. It reads a
+#: string one byte at a time, so this is also the longest string, array or run of garbage it will
+#: look at; a classic cross-reference table costs about one operation per object.
+MAX_STREAM_OPS = 600_000
 
 _LENGTH = re.compile(rb"/Length\s+(\d+)(?!\s+\d+\s+R)")
-# a string that goes on for a megabyte without a bare parenthesis (a backslash escape is one unit)
-_LONG_LITERAL = re.compile(rb"\((?:[^()\\]|\\.){%d,}" % MAX_STRING_BYTES, re.DOTALL)
-_LONG_HEX = re.compile(rb"<[0-9A-Fa-f\s]{%d,}" % MAX_STRING_BYTES)
+_SIZE = re.compile(rb"/Size\s+(\d+)")
+
+
+def _name(text: bytes) -> re.Pattern[bytes]:
+    """A pattern for the PDF name ``/text`` in any spelling: each letter may be written ``#xx``."""
+    letters = b"".join(b"(?:%s|#%02X|#%02x)" % (bytes([c]), c, c) for c in text)
+    return re.compile(b"/" + letters)
+
+
+_OBJSTM = _name(b"ObjStm")
+_XREF_NAMES = (_name(b"Prev"), _name(b"XRef"), re.compile(b"startxref"))
+
+
+class _OutOfBudget(BaseException):
+    """Raised by ``_BudgetStream``; not an ``Exception``, so that pypdf's own handlers, which catch
+    ``Exception`` and carry on, cannot swallow it."""
+
+
+class _BudgetStream(io.BytesIO):
+    """The bytes of the file, counting every operation pypdf makes on them."""
+
+    def __init__(self, data: bytes) -> None:
+        super().__init__(data)
+        self.operations = 0
+
+    def _count(self) -> None:
+        self.operations += 1
+        if self.operations > MAX_STREAM_OPS:
+            raise _OutOfBudget
+
+    def read(self, size: int | None = -1) -> bytes:
+        self._count()
+        return super().read(size)
+
+    def readline(self, size: int | None = -1) -> bytes:
+        self._count()
+        return super().readline(size)
+
+    def seek(self, offset: int, whence: int = 0) -> int:
+        self._count()
+        return super().seek(offset, whence)
+
 
 _DATE = re.compile(
     r"^(?:D:)?(\d{4})(\d{2})?(\d{2})?(\d{2})?(\d{2})?(\d{2})?"
@@ -130,23 +184,35 @@ def _text(value: object) -> str | None:
     return clean_metadata_text(str(value)) if isinstance(value, str) else None
 
 
+def _more_than(pattern: re.Pattern[bytes], raw: bytes, limit: int) -> bool:
+    count = 0
+    for _ in pattern.finditer(raw):
+        count += 1
+        if count > limit:
+            return True
+    return False
+
+
 def check_pdf_bytes(raw: bytes) -> None:
     """Refuse a PDF that is built to make a reader work too hard, before pypdf is asked anything.
 
     Raises ``Refusal`` with the code ``pdf_too_complex`` (more than ``MAX_OBJSTM`` object streams,
-    ``MAX_STARTXREF`` cross-reference sections or ``MAX_LENGTH_VALUES`` lengths, or a string of
-    ``MAX_STRING_BYTES`` or more) or ``damaged_pdf`` (a ``/Length`` that is longer than the file).
-    Every step is a linear pass over the bytes, in C.
+    ``MAX_XREF_SECTIONS`` cross-reference sections, ``MAX_LENGTH_VALUES`` lengths, or a ``/Size``
+    over ``MAX_SIZE``) or ``damaged_pdf`` (a ``/Length`` that is longer than the file). Names are
+    matched in any ``#xx`` spelling. Every step is a linear pass over the bytes, in C.
     """
-    if raw.count(b"/ObjStm") > MAX_OBJSTM or raw.count(b"startxref") > MAX_STARTXREF:
+    if _more_than(_OBJSTM, raw, MAX_OBJSTM):
+        raise Refusal("pdf_too_complex", TOO_COMPLEX)
+    if any(_more_than(pattern, raw, MAX_XREF_SECTIONS) for pattern in _XREF_NAMES):
         raise Refusal("pdf_too_complex", TOO_COMPLEX)
     if raw.count(b"/Length") > MAX_LENGTH_VALUES:
         raise Refusal("pdf_too_complex", TOO_COMPLEX)
     for match in _LENGTH.finditer(raw):
         if int(match.group(1)) > len(raw):
             raise Refusal("damaged_pdf", DAMAGED_PDF)
-    if _LONG_LITERAL.search(raw) or _LONG_HEX.search(raw):
-        raise Refusal("pdf_too_complex", TOO_COMPLEX)
+    for match in _SIZE.finditer(raw):
+        if int(match.group(1)) > MAX_SIZE:
+            raise Refusal("pdf_too_complex", TOO_COMPLEX)
 
 
 @contextmanager
@@ -190,36 +256,44 @@ def read_pdf_info(raw: bytes) -> PdfInfo:
     info = PdfInfo()
     with _guarded_pypdf():
         try:
-            reader = PdfReader(io.BytesIO(raw), strict=True)
-            if reader.is_encrypted:
-                raise Refusal("encrypted_pdf", ENCRYPTED_PDF)
-            metadata = reader.metadata
-            root = reader.trailer["/Root"]
-        except Refusal:
-            raise
-        except Exception as exc:
-            raise Refusal("damaged_pdf", DAMAGED_PDF) from exc
+            _read_into(info, raw)
+        except _OutOfBudget as exc:
+            raise Refusal("pdf_too_complex", TOO_COMPLEX) from exc
+    return info
+
+
+def _read_into(info: PdfInfo, raw: bytes) -> None:
+    """Fill ``info`` from the PDF. May raise ``Refusal`` and ``_OutOfBudget``."""
+    try:
+        reader = PdfReader(_BudgetStream(raw), strict=True)
+        if reader.is_encrypted:
+            raise Refusal("encrypted_pdf", ENCRYPTED_PDF)
+        metadata = reader.metadata
+        root = reader.trailer["/Root"]
+    except (Refusal, _OutOfBudget):
+        raise
+    except Exception as exc:
+        raise Refusal("damaged_pdf", DAMAGED_PDF) from exc
+    try:
+        pages = root["/Pages"]  # type: ignore[index]
+        count = pages["/Count"]
+        if isinstance(count, int) and not isinstance(count, bool):
+            if 0 <= count <= MAX_PAGES:
+                info.page_count = int(count)
+            else:
+                info.problems.append(("bad_page_count", BAD_PAGE_COUNT))
+    except Exception:
+        pass
+    if metadata is not None:
         try:
-            pages = root["/Pages"]  # type: ignore[index]
-            count = pages["/Count"]
-            if isinstance(count, int) and not isinstance(count, bool):
-                if 0 <= count <= MAX_PAGES:
-                    info.page_count = int(count)
-                else:
-                    info.problems.append(("bad_page_count", BAD_PAGE_COUNT))
+            info.title = _text(metadata.title)
+            info.author = _text(metadata.author)
+            info.producer = _text(metadata.producer)
+            created = metadata.get("/CreationDate")
+            modified = metadata.get("/ModDate")
+            if created is not None:
+                info.created = pdf_date_to_iso(str(created)[:64])
+            if modified is not None:
+                info.modified = pdf_date_to_iso(str(modified)[:64])
         except Exception:
             pass
-        if metadata is not None:
-            try:
-                info.title = _text(metadata.title)
-                info.author = _text(metadata.author)
-                info.producer = _text(metadata.producer)
-                created = metadata.get("/CreationDate")
-                modified = metadata.get("/ModDate")
-                if created is not None:
-                    info.created = pdf_date_to_iso(str(created)[:64])
-                if modified is not None:
-                    info.modified = pdf_date_to_iso(str(modified)[:64])
-            except Exception:
-                pass
-    return info

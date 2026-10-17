@@ -68,6 +68,18 @@ Deviations from the review text: the sheet limit is 48 MiB uncompressed and the 
 cells is about 40 MB of sheet XML, and the real bounds are the element, cell, string and character counts taken while streaming. The largest legal XLSX
 (20 000 x 50 numeric cells) costs 8 s and 34 MB over the interpreter. The full `just test` was not re-run for this round, as asked.
 
+## Security re-review (d1e2b7a) and the second round of fixes
+The re-review passed every original finding and found three new problems in the rewrite; all are fixed (S16 `c021ce8`, S17 below).
+
+| Item | Fix |
+|---|---|
+| N2 unbounded XML tree | `events()` clears and detaches each element at its end event, counts attributes and elements a worksheet does not have; `run_guarded` builds the failed result after the except clauses end. The 97 KB file with 4.9 million elements fails with `unsafe_xlsx` under a 1 GiB address-space limit (a subprocess test) |
+| N1 regex memory | the regular expressions on strings are gone; pypdf reads through a stream that counts its operations (600 000 allowed), which bounds a 47 MB title, a huge `/Kids` array and a long `/Prev` chain alike |
+| N3 PDF pre-scan bypasses | `/Prev`, `/XRef` and `startxref` counted together (any `#xx` spelling), `/Size` capped, decompression limits 2 MiB (an xref stream of 400 000 objects). Replaced, with the same effect: "string bytes per file" and "bytes of Root, Pages and Info" are bounded by the operation budget instead of by a second parse |
+| L2 to L4, L1 | `sheet_too_large` for an honest sheet over its limit, `zip_bomb` for a part that claims more than deflate can (ratio 1100); `bad_shared_string`, `bad_cell_ref`, `bad_row_number` (never echoed); numbers by strict regex; a sheet over 40 s is `sheet_too_slow` |
+
+A flat `/Kids` array of more than about 100 000 pages and a PDF with more than about 400 000 objects are now refused (`pdf_too_complex`, `damaged_pdf`); the job runner's limits are the backstop for the rest.
+
 ## Security
 Extractors read untrusted bytes. The commits to read are listed in the relay (SECURITY_REVIEW). The rules, each with a test: refuse before parsing
 (declared sizes of ZIP parts, member count, encrypted parts, unsafe names); scan every XML part for a document type or entity, including
