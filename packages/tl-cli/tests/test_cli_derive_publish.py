@@ -1,0 +1,158 @@
+"""`tl derive publish|compensate` (P1-I3-T14d). Provided; do not edit."""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Iterator
+from pathlib import Path
+
+import pytest
+from auth_support import bootstrap, sign_in
+from auth_support import run as tl
+from derivecli_support import (
+    FACTORY,
+    KEY,
+    ROWS,
+    as_admin,
+    csv_file,
+    derive_env,
+    runtime,
+    schema_file,
+    seed,
+)
+from sqlalchemy import text
+from tl_adapters.db import DbTarget, as_target, is_postgres, open_uow
+from typer.testing import Result as RunResult
+
+P = ["--project", "P123"]
+BAD = [*ROWS[:2], ("47-HV-2001", "Vent", "XX", "2")]
+
+
+@pytest.fixture
+def env(
+    new_db: Callable[[], DbTarget], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> Iterator[dict[str, str]]:
+    values = derive_env(new_db, monkeypatch, tmp_path)
+    made = seed(values, tmp_path)
+    with runtime(made):
+        as_admin(values)
+        schema = str(schema_file(tmp_path))
+        assert tl(values, "derive", "schema", "register", schema, "--company").exit_code == 0
+        yield values
+
+
+def derive(env: dict[str, str], *args: str, ok: bool = True) -> RunResult:
+    result = tl(env, "derive", *args)
+    assert (result.exit_code == 0) is ok, result.output
+    return result
+
+
+def valid(
+    env: dict[str, str], tmp_path: Path, rows: list[tuple[str, str, str, str]] = ROWS
+) -> None:
+    derive(env, "open", "ISD-001", "A", "--schema", "instrument-index", *P)
+    derive(env, "content", KEY, str(csv_file(tmp_path, rows)), *P)
+    derive(env, "start", KEY, *P)
+    derive(env, "worker", "--once", "--factory", FACTORY)
+
+
+def tags(env: dict[str, str]) -> int:
+    with open_uow(as_target(env["TL_DB"]), readonly=True) as uow:
+        sql = (
+            "SELECT COUNT(*) FROM cur_core_record "
+            "WHERE key LIKE '47-%' AND voided = :no AND COALESCE(status, '') <> 'Deleted'"
+        )
+        return int(uow.conn().execute(text(sql), {"no": False}).scalar_one())
+
+
+def test_preview_lists_what_would_be_created_and_writes_nothing(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    valid(env, tmp_path)
+    out = derive(env, "publish", KEY, *P).stdout.splitlines()
+    assert out[0] == f"publish {KEY} pass 1 to tags (instrument-index@1.0.0)"
+    assert out[1] == "create 3  exists 0  differs 0  invalid 0"
+    assert out[2:5] == ["+ 47-FV-1001", "+ 47-FV-1002", "+ 47-HV-2001"]
+    assert out[-1] == "dry run: nothing written; add --apply to publish"
+    assert tags(env) == 0
+
+
+def test_apply_creates_the_tags_and_the_derived_document_is_published(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    valid(env, tmp_path)
+    out = derive(env, "publish", KEY, *P, "--apply").stdout.splitlines()
+    assert out[-2] == f"published 3 records from {KEY}"
+    assert out[-1].startswith("correlation ") and len(out[-1].split()[1]) == 26
+    assert tags(env) == 3
+    assert "state Published" in derive(env, "show", KEY, *P).stdout
+    again = derive(env, "publish", KEY, *P, "--apply", ok=False)
+    assert "error:" in again.output and tags(env) == 3
+
+
+def test_an_invalid_derived_document_cannot_be_published(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    valid(env, tmp_path, BAD)
+    out = derive(env, "publish", KEY, *P, ok=False)
+    assert "cannot publish" in out.stdout and "problem:" in out.stdout
+    apply = derive(env, "publish", KEY, *P, "--apply", ok=False)
+    assert "error:" in apply.output and tags(env) == 0
+
+
+def test_existing_tags_need_skip_existing(env: dict[str, str], tmp_path: Path) -> None:
+    from tl_mod_engineering.handlers.tags import RecordTag, handle_record_tag
+
+    with open_uow(as_target(env["TL_DB"])) as uow:  # made by someone else before the publication
+        handle_record_tag(
+            uow,
+            RecordTag(
+                actor="user:u", source="test", scope="project:P123",
+                number="47-FV-1001", class_code="ControlValve",
+            ),
+        )  # fmt: skip
+    assert tags(env) == 1
+    valid(env, tmp_path)
+    preview = derive(env, "publish", KEY, *P).stdout.splitlines()
+    assert preview[1].startswith("create 2  exists")
+    assert "= 47-FV-1001 exists" in preview or "= 47-FV-1001 differs" in preview
+    assert preview[-1] == "dry run: nothing written; add --apply to publish (add --skip-existing)"
+    refused = derive(env, "publish", KEY, *P, "--apply", ok=False)
+    assert "skip_existing" in refused.output and tags(env) == 1
+    done = derive(env, "publish", KEY, *P, "--apply", "--skip-existing").stdout
+    assert f"published 2 records from {KEY}" in done and tags(env) == 3
+
+
+def test_compensate_previews_then_rolls_the_batch_back(env: dict[str, str], tmp_path: Path) -> None:
+    valid(env, tmp_path)
+    derive(env, "publish", KEY, *P, "--apply")
+    out = derive(env, "compensate", KEY, *P, "--reason", "wrong file").stdout.splitlines()
+    assert out[0].startswith(f"compensate {KEY} correlation ")
+    assert sum(1 for line in out if line.startswith("delete_tag ")) == 3
+    assert out[-1] == "dry run: nothing written; add --apply to roll back"
+    assert tags(env) == 3
+    done = derive(env, "compensate", KEY, *P, "--reason", "wrong file", "--apply").stdout
+    assert done.strip().endswith(f"records of {KEY}") and tags(env) == 0
+    assert "state Valid" in derive(env, "show", KEY, *P).stdout
+
+
+def test_compensating_what_was_never_published_is_refused(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    valid(env, tmp_path)
+    out = derive(env, "compensate", KEY, *P, "--reason", "x", ok=False)
+    assert "no publication to roll back" in out.stdout and "cannot compensate" in out.stdout
+
+
+def test_publishing_needs_the_admin_role(env: dict[str, str], tmp_path: Path) -> None:
+    if is_postgres(as_target(env["TL_DB"])):
+        pytest.skip("on Postgres the conftest signs an admin in for every command")
+    valid(env, tmp_path)
+    from auth_support import separate_session
+
+    other = separate_session(env, tmp_path, "nobody")
+    assert bootstrap(other, name="root").exit_code in (0, 1)
+    # a person who is not signed in cannot publish
+    result = derive(other, "publish", KEY, *P, "--apply", ok=False)
+    assert "not signed in" in result.output or "forbidden" in result.output
+    assert tags(env) == 0
+    sign_in(env)

@@ -34,7 +34,14 @@ DOCUMENT_TOOLS = {
     "list_transmittals",
     "get_transmittal",
 }
-TOOLS = READ_TOOLS | TYPE_TOOLS | ENGINEERING_TOOLS | DOCUMENT_TOOLS | PROPOSE_TOOLS | {"post_feed"}
+DERIVATION_READ_TOOLS = {
+    "list_derived_documents",
+    "get_derived_document",
+    "validate_against_schema",
+}
+DERIVATION_PROPOSE_TOOLS = {"start_extraction", "propose_import"}
+READING = READ_TOOLS | TYPE_TOOLS | ENGINEERING_TOOLS | DOCUMENT_TOOLS | DERIVATION_READ_TOOLS
+TOOLS = READING | PROPOSE_TOOLS | DERIVATION_PROPOSE_TOOLS | {"post_feed"}
 
 
 def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
@@ -45,9 +52,7 @@ def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
     for tool in tools:
         assert tool.annotations is not None
         assert tool.annotations.destructive_hint is False
-        assert (tool.annotations.read_only_hint is True) == (
-            tool.name in READ_TOOLS | TYPE_TOOLS | ENGINEERING_TOOLS | DOCUMENT_TOOLS
-        )
+        assert (tool.annotations.read_only_hint is True) == (tool.name in READING)
         assert tool.description
     by_name = {t.name: t for t in tools}
     search = by_name["search_records"].input_schema

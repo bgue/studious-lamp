@@ -1693,6 +1693,125 @@
         "title": "CompensatePublicationBody",
         "type": "object"
       },
+      "CompensationItem": {
+        "properties": {
+          "action": {
+            "enum": [
+              "delete_tag",
+              "void_document",
+              "retract_link"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "string"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          },
+          "reversible": {
+            "title": "Reversible",
+            "type": "boolean"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "required": [
+          "record_id",
+          "key",
+          "record_type",
+          "state",
+          "action",
+          "reversible"
+        ],
+        "title": "CompensationItem",
+        "type": "object"
+      },
+      "CompensationPlan": {
+        "properties": {
+          "can_compensate": {
+            "title": "Can Compensate",
+            "type": "boolean"
+          },
+          "derived_id": {
+            "title": "Derived Id",
+            "type": "string"
+          },
+          "derived_key": {
+            "title": "Derived Key",
+            "type": "string"
+          },
+          "import_correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Correlation Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CompensationItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          }
+        },
+        "required": [
+          "derived_id",
+          "derived_key",
+          "import_correlation_id",
+          "items",
+          "problems",
+          "can_compensate"
+        ],
+        "title": "CompensationPlan",
+        "type": "object"
+      },
       "Completion": {
         "description": "A candidate for the composer after ``#`` or ``@``. ``text`` has no sigil.",
         "properties": {
@@ -1786,6 +1905,153 @@
           "effective_schema_hash"
         ],
         "title": "ConformanceReport",
+        "type": "object"
+      },
+      "ContentView": {
+        "properties": {
+          "column_count": {
+            "title": "Column Count",
+            "type": "integer"
+          },
+          "content_rev": {
+            "title": "Content Rev",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_count": {
+            "title": "Error Count",
+            "type": "integer"
+          },
+          "extraction_status": {
+            "title": "Extraction Status",
+            "type": "string"
+          },
+          "extractor": {
+            "title": "Extractor",
+            "type": "string"
+          },
+          "extractor_notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Extractor Notes",
+            "type": "array"
+          },
+          "extractor_version": {
+            "title": "Extractor Version",
+            "type": "string"
+          },
+          "file_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Metadata"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "problem_count": {
+            "title": "Problem Count",
+            "type": "integer"
+          },
+          "published": {
+            "title": "Published",
+            "type": "boolean"
+          },
+          "report_file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report File Id"
+          },
+          "result_file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result File Id"
+          },
+          "row_count": {
+            "title": "Row Count",
+            "type": "integer"
+          },
+          "schema_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema Version"
+          },
+          "source_file_id": {
+            "title": "Source File Id",
+            "type": "string"
+          },
+          "source_kind": {
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "validation_status": {
+            "title": "Validation Status",
+            "type": "string"
+          },
+          "warning_count": {
+            "title": "Warning Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "content_rev",
+          "job_id",
+          "source_kind",
+          "source_file_id",
+          "extractor",
+          "extractor_version",
+          "extraction_status",
+          "result_file_id",
+          "row_count",
+          "column_count",
+          "problem_count",
+          "file_metadata",
+          "extractor_notes",
+          "schema_version",
+          "validation_status",
+          "error_count",
+          "warning_count",
+          "report_file_id",
+          "published",
+          "created_at"
+        ],
+        "title": "ContentView",
         "type": "object"
       },
       "CountOut": {
@@ -2629,6 +2895,512 @@
         "title": "DefineTagClassBody",
         "type": "object"
       },
+      "DerivedDiff": {
+        "properties": {
+          "added": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Added",
+            "type": "array"
+          },
+          "added_count": {
+            "title": "Added Count",
+            "type": "integer"
+          },
+          "blank_key_rows": {
+            "title": "Blank Key Rows",
+            "type": "integer"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/RowChange"
+            },
+            "title": "Changed",
+            "type": "array"
+          },
+          "changed_count": {
+            "title": "Changed Count",
+            "type": "integer"
+          },
+          "columns_added": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns Added",
+            "type": "array"
+          },
+          "columns_removed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns Removed",
+            "type": "array"
+          },
+          "duplicate_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Duplicate Keys",
+            "type": "array"
+          },
+          "key_column": {
+            "title": "Key Column",
+            "type": "string"
+          },
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Removed",
+            "type": "array"
+          },
+          "removed_count": {
+            "title": "Removed Count",
+            "type": "integer"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          },
+          "unchanged_count": {
+            "title": "Unchanged Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key_column",
+          "added",
+          "removed",
+          "changed",
+          "added_count",
+          "removed_count",
+          "changed_count",
+          "unchanged_count",
+          "columns_added",
+          "columns_removed",
+          "duplicate_keys",
+          "blank_key_rows",
+          "truncated"
+        ],
+        "title": "DerivedDiff",
+        "type": "object"
+      },
+      "DerivedSummary": {
+        "properties": {
+          "content_rev": {
+            "title": "Content Rev",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Count"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "last_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Job Id"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "previous_derived_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Derived Id"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "published_correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Correlation Id"
+          },
+          "published_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Count"
+          },
+          "published_rev": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Rev"
+          },
+          "row_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Count"
+          },
+          "schema_code": {
+            "title": "Schema Code",
+            "type": "string"
+          },
+          "schema_id": {
+            "title": "Schema Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source_document_id": {
+            "title": "Source Document Id",
+            "type": "string"
+          },
+          "source_document_number": {
+            "title": "Source Document Number",
+            "type": "string"
+          },
+          "source_ref": {
+            "title": "Source Ref",
+            "type": "string"
+          },
+          "source_revision_code": {
+            "title": "Source Revision Code",
+            "type": "string"
+          },
+          "source_revision_id": {
+            "title": "Source Revision Id",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "validation_status": {
+            "title": "Validation Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "key",
+          "title",
+          "state",
+          "version",
+          "source_document_id",
+          "source_revision_id",
+          "source_document_number",
+          "source_revision_code",
+          "source_ref",
+          "schema_id",
+          "schema_code",
+          "schema_version",
+          "method",
+          "previous_derived_id",
+          "content_rev",
+          "published_rev",
+          "validation_status",
+          "row_count",
+          "error_count",
+          "published_correlation_id",
+          "published_at",
+          "published_count",
+          "last_job_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DerivedSummary",
+        "type": "object"
+      },
+      "DerivedView": {
+        "properties": {
+          "active_job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "content_rev": {
+            "title": "Content Rev",
+            "type": "integer"
+          },
+          "contents": {
+            "items": {
+              "$ref": "#/components/schemas/ContentView"
+            },
+            "title": "Contents",
+            "type": "array"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Count"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "last_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Job Id"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "previous_derived_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Derived Id"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "published_correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Correlation Id"
+          },
+          "published_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Count"
+          },
+          "published_rev": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Rev"
+          },
+          "row_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Count"
+          },
+          "schema_code": {
+            "title": "Schema Code",
+            "type": "string"
+          },
+          "schema_id": {
+            "title": "Schema Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source_document_id": {
+            "title": "Source Document Id",
+            "type": "string"
+          },
+          "source_document_number": {
+            "title": "Source Document Number",
+            "type": "string"
+          },
+          "source_ref": {
+            "title": "Source Ref",
+            "type": "string"
+          },
+          "source_revision_code": {
+            "title": "Source Revision Code",
+            "type": "string"
+          },
+          "source_revision_id": {
+            "title": "Source Revision Id",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "validation_status": {
+            "title": "Validation Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "key",
+          "title",
+          "state",
+          "version",
+          "source_document_id",
+          "source_revision_id",
+          "source_document_number",
+          "source_revision_code",
+          "source_ref",
+          "schema_id",
+          "schema_code",
+          "schema_version",
+          "method",
+          "previous_derived_id",
+          "content_rev",
+          "published_rev",
+          "validation_status",
+          "row_count",
+          "error_count",
+          "published_correlation_id",
+          "published_at",
+          "published_count",
+          "last_job_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DerivedView",
+        "type": "object"
+      },
       "DetectKeysBody": {
         "description": "Body of ``POST /keys/detect`` (a read: it only looks keys up).",
         "properties": {
@@ -3470,6 +4242,36 @@
         "title": "ExpectedLink",
         "type": "object"
       },
+      "ExtractionProblem": {
+        "description": "A file- or row-level reading problem. Messages hold fixed text and the caller's values.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "row": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ExtractionProblem",
+        "type": "object"
+      },
       "FeedItem": {
         "description": "One row of a feed query: a post or an event card, newest first by ``at`` then ``seq``.\n\nFor a post, ``id`` is the post id; for a card, a deterministic card id derived from its first\nevent id. ``event_count`` is 1 for a post; for a card, the number of aggregated ledger events.",
         "properties": {
@@ -3647,6 +4449,43 @@
           "prompt"
         ],
         "title": "FeedSuggestion",
+        "type": "object"
+      },
+      "FieldChange": {
+        "properties": {
+          "column": {
+            "title": "Column",
+            "type": "string"
+          },
+          "new": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New"
+          },
+          "old": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old"
+          }
+        },
+        "required": [
+          "column",
+          "old",
+          "new"
+        ],
+        "title": "FieldChange",
         "type": "object"
       },
       "FieldMeta": {
@@ -4186,6 +5025,67 @@
         "title": "ImportResult",
         "type": "object"
       },
+      "Issue": {
+        "description": "One problem. ``row`` is the 1-based data row (header excluded); ``None`` for the file.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "column": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Column"
+          },
+          "level": {
+            "enum": [
+              "error",
+              "warning"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "row": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "level",
+          "code",
+          "message"
+        ],
+        "title": "Issue",
+        "type": "object"
+      },
       "IssueRevisionBody": {
         "additionalProperties": false,
         "properties": {
@@ -4432,6 +5332,182 @@
           "view"
         ],
         "title": "IssuedToken",
+        "type": "object"
+      },
+      "JobView": {
+        "properties": {
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "derived_id": {
+            "title": "Derived Id",
+            "type": "string"
+          },
+          "derived_key": {
+            "title": "Derived Key",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "extractor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extractor"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "max_attempts": {
+            "title": "Max Attempts",
+            "type": "integer"
+          },
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          },
+          "requested_by": {
+            "title": "Requested By",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "schema_id": {
+            "title": "Schema Id",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source_file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source File Id"
+          },
+          "source_ref": {
+            "title": "Source Ref",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "worker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worker"
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "key",
+          "kind",
+          "derived_id",
+          "derived_key",
+          "source_ref",
+          "source_file_id",
+          "extractor",
+          "options",
+          "schema_id",
+          "requested_by",
+          "state",
+          "attempt",
+          "max_attempts",
+          "worker",
+          "started_at",
+          "finished_at",
+          "error_code",
+          "error_message",
+          "result",
+          "created_at"
+        ],
+        "title": "JobView",
         "type": "object"
       },
       "KeyChip": {
@@ -5385,6 +6461,57 @@
         "title": "PasswordBody",
         "type": "object"
       },
+      "PlanRow": {
+        "description": "What publishing would do with one data row (1-based, header excluded).",
+        "properties": {
+          "action": {
+            "enum": [
+              "create",
+              "exists",
+              "differs",
+              "invalid"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "problems": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "row": {
+            "title": "Row",
+            "type": "integer"
+          },
+          "values": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "row",
+          "key",
+          "action"
+        ],
+        "title": "PlanRow",
+        "type": "object"
+      },
       "PostToFeedBody": {
         "additionalProperties": false,
         "properties": {
@@ -5853,6 +6980,121 @@
           "expected_content_rev"
         ],
         "title": "PublishDerivedTagsBody",
+        "type": "object"
+      },
+      "PublishPlan": {
+        "properties": {
+          "can_publish": {
+            "title": "Can Publish",
+            "type": "boolean"
+          },
+          "content_rev": {
+            "title": "Content Rev",
+            "type": "integer"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "derived_id": {
+            "title": "Derived Id",
+            "type": "string"
+          },
+          "derived_key": {
+            "title": "Derived Key",
+            "type": "string"
+          },
+          "mapping_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapping Hash"
+          },
+          "needs_skip_existing": {
+            "title": "Needs Skip Existing",
+            "type": "boolean"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "result_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Sha256"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PlanRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "schema_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema Key"
+          },
+          "source_ref": {
+            "title": "Source Ref",
+            "type": "string"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "derived_id",
+          "derived_key",
+          "content_rev",
+          "target",
+          "schema_key",
+          "source_ref",
+          "mapping_hash",
+          "result_sha256",
+          "counts",
+          "rows",
+          "problems",
+          "can_publish",
+          "needs_skip_existing",
+          "truncated"
+        ],
+        "title": "PublishPlan",
         "type": "object"
       },
       "PutBodyIn": {
@@ -8718,6 +9960,103 @@
         "title": "RolesBody",
         "type": "object"
       },
+      "RowChange": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldChange"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "fields"
+        ],
+        "title": "RowChange",
+        "type": "object"
+      },
+      "RowsPage": {
+        "description": "A page of the rows of one content revision, as the extractor read them (all text).",
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "content_rev": {
+            "title": "Content Rev",
+            "type": "integer"
+          },
+          "derived_id": {
+            "title": "Derived Id",
+            "type": "string"
+          },
+          "extractor": {
+            "title": "Extractor",
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/ExtractionProblem"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "derived_id",
+          "content_rev",
+          "extractor",
+          "columns",
+          "total",
+          "offset",
+          "rows",
+          "problems",
+          "notes"
+        ],
+        "title": "RowsPage",
+        "type": "object"
+      },
       "ScheduledChange": {
         "properties": {
           "applies_at": {
@@ -8738,6 +10077,250 @@
           "seq"
         ],
         "title": "ScheduledChange",
+        "type": "object"
+      },
+      "SchemaSummary": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "doc_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Doc Types",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "key_column": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Column"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "retired_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retired Reason"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "semver": {
+            "title": "Semver",
+            "type": "string"
+          },
+          "target_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Kind"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "key",
+          "title",
+          "code",
+          "semver",
+          "ordinal",
+          "target_kind",
+          "key_column",
+          "doc_types",
+          "content_hash",
+          "is_active",
+          "retired_reason",
+          "created_at"
+        ],
+        "title": "SchemaSummary",
+        "type": "object"
+      },
+      "SchemaView": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "doc_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Doc Types",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "json_schema": {
+            "additionalProperties": true,
+            "title": "Json Schema",
+            "type": "object"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "key_column": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Column"
+          },
+          "mapping": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapping"
+          },
+          "mapping_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapping Notes"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "retired_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retired Reason"
+          },
+          "sample": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Sample",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "semver": {
+            "title": "Semver",
+            "type": "string"
+          },
+          "target_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Kind"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "key",
+          "title",
+          "code",
+          "semver",
+          "ordinal",
+          "target_kind",
+          "key_column",
+          "doc_types",
+          "content_hash",
+          "is_active",
+          "retired_reason",
+          "created_at",
+          "json_schema",
+          "sample",
+          "mapping",
+          "mapping_notes"
+        ],
+        "title": "SchemaView",
         "type": "object"
       },
       "SegmentDef": {
@@ -11671,6 +13254,66 @@
           "derived_id"
         ],
         "title": "ValidateDerivedBody",
+        "type": "object"
+      },
+      "ValidationReport": {
+        "properties": {
+          "error_count": {
+            "title": "Error Count",
+            "type": "integer"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "rows_checked": {
+            "title": "Rows Checked",
+            "type": "integer"
+          },
+          "rows_with_errors": {
+            "title": "Rows With Errors",
+            "type": "integer"
+          },
+          "schema_code": {
+            "title": "Schema Code",
+            "type": "string"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "valid",
+              "invalid"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          },
+          "warning_count": {
+            "title": "Warning Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_code",
+          "schema_version",
+          "status",
+          "rows_checked",
+          "rows_with_errors",
+          "error_count",
+          "warning_count",
+          "issues",
+          "truncated"
+        ],
+        "title": "ValidationReport",
         "type": "object"
       },
       "VerifyLinkBody": {
@@ -22067,6 +23710,1003 @@
         ]
       }
     },
+    "/projects/{project}/derived-compensation-previews/{ref}": {
+      "get": {
+        "description": "What compensating the publication in force would reverse. Writes nothing.",
+        "operationId": "get_derived_compensation_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompensationPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Derived Compensation Preview",
+        "tags": [
+          "derivation"
+        ]
+      }
+    },
+    "/projects/{project}/derived-diffs/{ref}": {
+      "get": {
+        "description": "What changed against the previous pass, or the previous revision of the document.",
+        "operationId": "get_derived_diff",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          },
+          {
+            "description": "What to compare.",
+            "in": "query",
+            "name": "against",
+            "required": false,
+            "schema": {
+              "default": "previous_pass",
+              "description": "What to compare.",
+              "pattern": "^(previous_pass|previous_revision)$",
+              "title": "Against",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A content revision; the latest if omitted.",
+            "in": "query",
+            "name": "content_rev",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A content revision; the latest if omitted.",
+              "title": "Content Rev"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DerivedDiff"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Derived Diff",
+        "tags": [
+          "derivation"
+        ]
+      }
+    },
+    "/projects/{project}/derived-documents": {
+      "get": {
+        "description": "A project's derived documents, newest first, without content revisions.",
+        "operationId": "list_derived_documents",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "For example Valid.",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "For example Valid.",
+              "title": "State"
+            }
+          },
+          {
+            "description": "Source number.",
+            "in": "query",
+            "name": "document",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 300,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Source number.",
+              "title": "Document"
+            }
+          },
+          {
+            "description": "Schema code.",
+            "in": "query",
+            "name": "schema",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Schema code.",
+              "title": "Schema"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_void",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Void",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DerivedSummary"
+                  },
+                  "title": "Response List Derived Documents",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Derived Documents",
+        "tags": [
+          "derivation"
+        ]
+      }
+    },
+    "/projects/{project}/derived-documents/{ref}": {
+      "get": {
+        "description": "One derived document by id or key, with its content revisions and running job.",
+        "operationId": "get_derived_document",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DerivedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Derived Document",
+        "tags": [
+          "derivation"
+        ]
+      }
+    },
+    "/projects/{project}/derived-publish-previews/{ref}": {
+      "get": {
+        "description": "What publishing would do with each row now. Writes nothing.",
+        "operationId": "get_derived_publish_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "target",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(tags|documents)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishPlan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Derived Publish Preview",
+        "tags": [
+          "derivation"
+        ]
+      }
+    },
+    "/projects/{project}/derived-reports/{ref}": {
+      "get": {
+        "description": "The stored validation report of a content revision. 409 `derived_state` before one.",
+        "operationId": "get_derived_report",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A content revision; the latest if omitted.",
+            "in": "query",
+            "name": "content_rev",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A content revision; the latest if omitted.",
+              "title": "Content Rev"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Derived Report",
+        "tags": [
+          "derivation"
+        ]
+      }
+    },
+    "/projects/{project}/derived-rows/{ref}": {
+      "get": {
+        "description": "A page of the extracted rows of a content revision, as read (all text).",
+        "operationId": "get_derived_rows",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A content revision; the latest if omitted.",
+            "in": "query",
+            "name": "content_rev",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A content revision; the latest if omitted.",
+              "title": "Content Rev"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RowsPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Derived Rows",
+        "tags": [
+          "derivation"
+        ]
+      }
+    },
+    "/projects/{project}/derived-validations/{ref}": {
+      "get": {
+        "description": "Check stored rows against a schema now; nothing is stored. The default is its own schema.",
+        "operationId": "check_derived_document",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          },
+          {
+            "description": "code or code@semver",
+            "in": "query",
+            "name": "schema",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "code or code@semver",
+              "title": "Schema"
+            }
+          },
+          {
+            "description": "A content revision; the latest if omitted.",
+            "in": "query",
+            "name": "content_rev",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A content revision; the latest if omitted.",
+              "title": "Content Rev"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Check Derived Document",
+        "tags": [
+          "derivation"
+        ]
+      }
+    },
     "/projects/{project}/document-diffs/{number}": {
       "get": {
         "description": "What changed between two issued revisions. 422 `invalid_pin` for a code that is not one.\n\nA separate prefix, not `.../documents/{number}/diff`: a number may hold `/`, so a document\nnumbered `X/diff` must stay reachable at `.../documents/X/diff`.",
@@ -22183,6 +24823,222 @@
         "summary": "Get Document Diff",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/projects/{project}/document-schemas": {
+      "get": {
+        "description": "The schemas a project sees (its own and the company's) by code and version.",
+        "operationId": "list_document_schemas",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_retired",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Retired",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SchemaSummary"
+                  },
+                  "title": "Response List Document Schemas",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Document Schemas",
+        "tags": [
+          "derivation"
+        ]
+      }
+    },
+    "/projects/{project}/document-schemas/{ref}": {
+      "get": {
+        "description": "One schema by `code` (newest active) or `code@semver`. 404 `schema_not_found`.",
+        "operationId": "get_document_schema",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "title": "Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Document Schema",
+        "tags": [
+          "derivation"
         ]
       }
     },
@@ -22557,6 +25413,244 @@
         "summary": "List Overdue Reviews",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/projects/{project}/processing-jobs": {
+      "get": {
+        "description": "A project's processing jobs, newest first.",
+        "operationId": "list_processing_jobs",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "queued, running, succeeded, ...",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "queued, running, succeeded, ...",
+              "title": "State"
+            }
+          },
+          {
+            "description": "Id or key.",
+            "in": "query",
+            "name": "derived",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 300,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Id or key.",
+              "title": "Derived"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/JobView"
+                  },
+                  "title": "Response List Processing Jobs",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Processing Jobs",
+        "tags": [
+          "derivation"
+        ]
+      }
+    },
+    "/projects/{project}/processing-jobs/{job_id}": {
+      "get": {
+        "description": "One job. 404 `job_not_found`.",
+        "operationId": "get_processing_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Processing Job",
+        "tags": [
+          "derivation"
         ]
       }
     },

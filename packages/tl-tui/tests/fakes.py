@@ -16,6 +16,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from fakes_admin import FakeAdminSupport
+from fakes_derivation import FakeDerivationSupport
 from fakes_documents import FakeDocumentSupport
 from fakes_feed import FakeFeedSupport
 from fakes_links import FakeLinkSupport
@@ -216,6 +217,7 @@ class FakeClient(
     FakeAdminSupport,
     FakeTagSupport,
     FakeDocumentSupport,
+    FakeDerivationSupport,
 ):
     """Implements `tl_tui.client.ClientInterface` in memory."""
 
@@ -237,6 +239,7 @@ class FakeClient(
         self._init_types()
         self._init_tags()
         self._init_documents()
+        self._init_derivation()
 
     # --- seeding -----------------------------------------------------------------------------
 
