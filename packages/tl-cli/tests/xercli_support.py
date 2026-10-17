@@ -16,11 +16,13 @@ from unittest import mock
 
 import pytest
 from doccli_support import docs_env
-from tl_adapters.db import DbTarget, as_target
+from tl_adapters.db import DbTarget, as_target, open_uow
 from tl_cli import session
 from tl_cli.main import app
 from tl_core.auth import accounts, sessions
 from tl_core.auth.password import prepare_password
+from tl_core.services.commands import CreateRecord
+from tl_core.services.records import handle_create_record
 from tl_xer.synth import make_xer, week_pair
 from typer.testing import CliRunner
 from typer.testing import Result as RunResult
@@ -84,6 +86,43 @@ class Cast:
                 )
             )
         return mine
+
+
+def published_pair(cast: Cast, tmp_path: Path, *, worker_after: bool = True) -> tuple[str, str]:
+    """The story of the demo: schedule MAIN (owner Planning, P6 project DEMO-RACK) with both files
+    built and published in turn.
+
+    REC-A is linked to A1230 (it stays) and REC-B to A1990 (it leaves with snapshot 2). Returns
+    the two link ids. With ``worker_after`` the worker has run after the second publication, so
+    REC-B's link is flagged; without it the flagging job is still queued ("links being checked").
+    """
+    sched = ("--schedule", "MAIN")
+    tl(
+        cast.dora, "xer", "define", "MAIN", *P, "--name", "Main schedule",
+        "--owner", "Planning", "--p6-project", "DEMO-RACK", ok=True,
+    )  # fmt: skip
+    tl(cast.ursula, "xer", "upload", str(xer_file(tmp_path, 0)), *P, *sched, ok=True)
+    tl(cast.boss, "xer", "worker", "--once", ok=True)
+    tl(cast.dora, "xer", "publish", "1", *P, *sched, ok=True)
+    for key in ("REC-A", "REC-B"):
+        with open_uow(cast.target) as uow:
+            handle_create_record(
+                uow,
+                CreateRecord(
+                    actor="user:ursula", source="test", scope="project:P123",
+                    record_type="core.Record", title=key, key=key,
+                ),
+            )  # fmt: skip
+    links = [
+        tl(cast.ursula, "xer", "link", record, activity, *P, *sched, ok=True).stdout.split()[4]
+        for record, activity in (("REC-A", "A1230"), ("REC-B", "A1990"))
+    ]
+    tl(cast.ursula, "xer", "upload", str(xer_file(tmp_path, 1)), *P, *sched, ok=True)
+    tl(cast.boss, "xer", "worker", "--once", ok=True)
+    tl(cast.dora, "xer", "publish", "2", *P, *sched, ok=True)
+    if worker_after:
+        tl(cast.boss, "xer", "worker", "--once", ok=True)
+    return links[0], links[1]
 
 
 def tl(who: dict[str, str], *args: str, ok: bool | None = None) -> RunResult:

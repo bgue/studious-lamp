@@ -43,7 +43,7 @@ from tl_mod_schedule.reconcile import reconcile_tables, requeue
 from tl_mod_schedule.worker import build_worker
 from tl_xer import limits as xer_limits
 
-from tl_cli import xer_read
+from tl_cli import xer_compare, xer_read, xer_report
 from tl_cli.derive_support import (
     DEV_ACTOR,
     SOURCE,
@@ -58,6 +58,8 @@ from tl_cli.session import require_admin, require_controller
 
 app = typer.Typer(help="P6 schedules as XER snapshots.", no_args_is_help=True)
 xer_read.register(app)
+xer_compare.register(app)
+xer_report.register(app)
 
 _Schedule = Annotated[
     str, typer.Option("--schedule", help="The schedule's code, for example MAIN.")

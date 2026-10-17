@@ -21,7 +21,7 @@ from tl_mod_cost.imports.plan import plan_import
 from tl_mod_cost.imports.reader import read_cost_csv
 from tl_mod_cost.limits import MAX_IMPORT_BYTES
 
-from tl_cli import cost_read
+from tl_cli import cost_read, cost_report
 from tl_cli.derive_support import (
     DEV_ACTOR,
     SOURCE,
@@ -36,6 +36,7 @@ from tl_cli.session import require_admin
 
 app = typer.Typer(help="Cost codes and period snapshots.", no_args_is_help=True)
 cost_read.register(app)
+cost_report.register(app)
 
 MAX_SHOWN = 50
 

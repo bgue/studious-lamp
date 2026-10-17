@@ -39,24 +39,31 @@ The exact commands are fixed when the CLI lands and are copied from `dev/demos/P
 | S9 | TUI client interface (embedded and remote methods) for the schedule and cost reads | Interface the Haiku TUI ticket codes against | — | done (532cbeb) |
 | S10 | MCP proposable `PublishScheduleSnapshot` (read tools are T13) | Agents propose only | security pass | done (532cbeb) |
 | S11 | `reconcile` (typed rows from the source file after a restore) and the runbook | Recovery path | — | done (532cbeb, runbook F3) |
-| S12 | Demo script, gates, module pages, package READMEs and AGENTS.md, report with the Showcase | — | — | todo |
+| S12 | Reports of both modules (`tl_mod_cost.reports`, `tl_mod_schedule.reports`) and the TUI text helpers (`schedule_text.py`) the tickets use | Reads that decide (variance, over budget, which records have no cost code or activity) | — | done |
+| S13 | Lake loader for schedule snapshots (bronze `xer_*`, silver `schedule_activity`) | Core engine: sync, transaction, rebuild equality | orchestrator review | todo |
+| S14 | Demo script, gates, package READMEs and AGENTS.md, report with the Showcase | — | — | todo |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
 | T01 | LinkML schema of both modules | S | — | done (S2) | built by supervisor |
 | T02a | Cost snapshot CSV reader | H | S6 | merged (4fa7e18) | passed review first time; 84 provided tests; diff to the reference is cosmetic |
-| T02b | `tl cost` read commands (codes, snapshots, the matrix of a code) | H | S7, S8 | draft | — |
+| T02b | `tl cost snapshots\|codes\|show` (reads) | H | S8 | ready | stub, 9 provided tests, mutation-checked |
 | T03 | XER parser (all tables raw, typed activities, WBS, relationships, calendars, codes, UDFs) | S | T01 | done (S1) | built by supervisor |
 | T04 | XER `DocumentSchema` validation | S (taken over) | T03 | done (S1) | the plan had this as H; the check list is one security-reviewed table inside `tl_xer.typed`, so it was built with T03 (L-P1-I3-5) |
 | T05 | Snapshot build: operational tables, `Schedule.SnapshotPublished` | S (taken over) | T04 | done (S4) | job, projectors and publish are core-engine work |
 | T06 | Snapshot compare | S | T05 | done (S4) | built by supervisor |
 | T07 | Activity-id link resolution, as-of, orphans | H | S6 | merged (ef3baa2) | passed review first time; 22 tests on SQLite, 44 on both adapters |
 | T08 | Look-ahead query | H | S6 | merged (1c5056b) | passed review first time; the reviewer's mutation spot-check was caught |
-| T09a | TUI: schedule list, snapshot compare view, activity record | H | S9 | draft | — |
-| T09b | `tl xer` read commands (`ls`, `show`, `compare`, `look-ahead`, `resolve`, `health`) | H | S8 | draft | — |
-| T10 | Reports: quantities by cost code vs budget, records without cost code, IWP-vs-activity stub | H | S7, T07 | draft | — |
-| T11 | Lake: `xer_*` bronze, `schedule_activity` silver, float-trend mart | H | S4 | draft | — |
+| T09a1 | TUI: the schedules and their snapshots (F12), look-ahead, orphans, publish | H | S9 | ready | stub, 15 provided tests, mutation-checked |
+| T09a2 | TUI: the comparison of two snapshots | H | S9 | ready | stub, 9 provided tests, mutation-checked |
+| T09a3 | TUI: the activities of a snapshot and one activity | H | S9 | ready | stub, 15 provided tests, mutation-checked |
+| T09b | `tl xer ls\|show\|activities\|activity\|resolve\|health` | H | S8 | ready | stub, 18 provided tests, mutation-checked |
+| T09c | `tl xer compare\|look-ahead\|trend` (split from T09b: two files) | H | S8 | ready | stub, 12 provided tests, mutation-checked |
+| T10a | `tl cost report budget\|uncoded` (the report functions are S12) | H | S12 | ready | stub, 7 provided tests, mutation-checked |
+| T10b | `tl xer unscheduled` (the report function is S12; the IWP-vs-activity report takes the record type as an option until Phase 2) | H | S12 | ready | stub, 5 provided tests, mutation-checked |
+| T11 | Lake: `xer_*` bronze, `schedule_activity` silver, float-trend mart | H | S13 | draft | — |
+| T13 | MCP read tools for schedules and cost (13 tools) | H | S10 | ready | stub, 13 provided tests, mutation-checked |
 | T12 | Simulator planner actor (XER with slips), demo support | H | T11, S8 | draft | — |
 
 Haiku-ability (`01-tiers.md` §6) for the ready tickets: T02a reads 6 files, T07 reads 6, T08 reads 4; every interface is in the tree; each has a provided test that fails on the stub and passes on the reference; each diff is one source file plus a report; none touches `schema/**`, a dependency or a public interface; a reviewer verifies from the diff and the three commands. The reader and resolver are security-sensitive, so their merged code also goes through the security pass.
