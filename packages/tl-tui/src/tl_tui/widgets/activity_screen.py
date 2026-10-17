@@ -1,5 +1,3 @@
-# ruff: noqa: F401, F841
-# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 """The activities of a schedule snapshot, one activity with its neighbours and float trend (P1-I4).
 
 A full-size modal opened from the schedule screen with ``a``. The table lists the activities of
@@ -8,11 +6,6 @@ its dates, float, the relationships that name it and how its float moved through
 snapshots. ``c`` keeps only the critical activities, ``/`` filters by id or name, ``n`` and ``b``
 page forward and back. Everything is read through the client; the screen shows what the module
 found and decides nothing.
-
-
-STUB (P1-I4-T09a3): `reload`, `_fill` and `_describe` are `NotImplementedError`; the layout, the
-bindings, the event handlers, the actions and the text helpers (`tl_tui/schedule_text.py`) are
-written. The ticket fills the three bodies by their STEPS comments.
 """
 
 from __future__ import annotations
@@ -102,31 +95,43 @@ class ActivityScreen(ModalScreen[None]):
 
     def reload(self) -> None:
         """Read the page again and keep the highlighted activity where it is."""
-        # STEPS
-        # 1. `keep = self._current_id()`: the highlighted activity, to put the cursor
-        #    back.
-        # 2. Read `self.page = self.client.list_activities(self.project, self.code,
-        #    snapshot=self.number, critical=True if self.critical_only else None,
-        #    q=self.text.strip() or None, limit=PAGE, offset=self.first)`
-        #    (`critical=False` would ask for the non-critical ones).
-        # 3. On `CLIENT_ERRORS`: set `self.page = None` and `self.shown = []`, clear
-        #    `#ac-table`, write `describe_error(exc)` to `#ac-detail` and (as an error)
-        #    to the status line, and return.
-        # 4. Otherwise call `self._fill(keep)`.
-        raise NotImplementedError
+        keep = self._current_id()
+        try:
+            self.page = self.client.list_activities(
+                self.project,
+                self.code,
+                snapshot=self.number,
+                critical=True if self.critical_only else None,
+                q=self.text.strip() or None,
+                limit=PAGE,
+                offset=self.first,
+            )
+        except CLIENT_ERRORS as exc:
+            self.page = None
+            self.shown = []
+            self.query_one("#ac-table", DataTable).clear()
+            self.query_one("#ac-detail", Static).update(describe_error(exc))
+            self._say(describe_error(exc), error=True)
+            return
+        self._fill(keep)
 
     def _fill(self, keep: str | None = None) -> None:
         """Fill the table from ``self.page`` and describe the highlighted activity."""
-        # STEPS
-        # 1. `self.shown = list(self.page.rows)`. Clear `#ac-table` and add one row per
-        #    activity with `Text(cell)` for each cell of `activity_cells(a)` (a cell is
-        #    read as markup, a `Text` is not) and `key=a.activity_id`.
-        # 2. Put the cursor on the row of `keep` when it is still shown, else on row 0,
-        #    when there are rows.
-        # 3. Write `Activities of <page.snapshot_key>` to `#ac-title`,
-        #    `page_line(self.page, critical=self.critical_only, text=self.text)` to the
-        #    status line, and call `self._describe()`.
-        raise NotImplementedError
+        page = self.page
+        if page is None:
+            return
+        self.shown = list(page.rows)
+        table = self.query_one("#ac-table", DataTable)
+        table.clear()
+        for a in self.shown:
+            # Text, not str: a cell is read as markup, and a name such as [a, b] is not markup
+            table.add_row(*(Text(cell) for cell in activity_cells(a)), key=a.activity_id)
+        if self.shown:
+            ids = [a.activity_id for a in self.shown]
+            table.move_cursor(row=ids.index(keep) if keep in ids else 0)
+        self.query_one("#ac-title", Static).update(f"Activities of {page.snapshot_key}")
+        self._say(page_line(page, critical=self.critical_only, text=self.text))
+        self._describe()
 
     def _current_id(self) -> str | None:
         row = self.current()
@@ -140,20 +145,29 @@ class ActivityScreen(ModalScreen[None]):
 
     def _describe(self) -> None:
         """The highlighted activity with its relationships and its float trend."""
-        # STEPS
-        # 1. `panel` is `#ac-detail`. The highlighted activity is `self.current()`; with
-        #    none write `No activity matches.` and return.
-        # 2. Read `self.client.get_schedule_activity(self.project, self.code,
-        #    row.activity_id, snapshot=self.number)` and make `lines =
-        #    activity_detail_lines(detail)`. On `CLIENT_ERRORS` write
-        #    `describe_error(exc)` to the panel and (as an error) to the status line,
-        #    and return.
-        # 3. In a second `try`: append an empty line and
-        #    `trend_lines(self.client.get_activity_trend(self.project, self.code,
-        #    row.activity_id))`. On `CLIENT_ERRORS` append an empty line and
-        #    `describe_error(exc)` instead: an activity can have no published snapshot.
-        # 4. Write the lines joined by newlines to the panel.
-        raise NotImplementedError
+        panel = self.query_one("#ac-detail", Static)
+        row = self.current()
+        if row is None:
+            panel.update("No activity matches.")
+            return
+        try:
+            detail = self.client.get_schedule_activity(
+                self.project, self.code, row.activity_id, snapshot=self.number
+            )
+        except CLIENT_ERRORS as exc:
+            message = describe_error(exc)
+            panel.update(message)
+            self._say(message, error=True)
+            return
+        lines = activity_detail_lines(detail)
+        try:
+            trend = self.client.get_activity_trend(self.project, self.code, row.activity_id)
+            lines.append("")
+            lines.extend(trend_lines(trend))
+        except CLIENT_ERRORS as exc:
+            lines.append("")
+            lines.append(describe_error(exc))
+        panel.update("\n".join(lines))
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#ac-status", Static).update(("! " if error else "") + text)
