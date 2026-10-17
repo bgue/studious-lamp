@@ -31,7 +31,7 @@ S6 `c2a27fc`, S7 `9aa212f`, S8 `dc54172`, S9 `e53e962`, S10 `78503fc`, merge of 
 ## Gates
 | Gate | Result |
 |---|---|
-| `just check` | clean on `ac72f81` (ruff, format, pyright 0 errors, codegen and OpenAPI drift, licences) |
+| `just check` | clean on `ac72f81` and again after the review fixes (see the relay) |
 | `uv run pytest packages/tl-extract` | 387 passed |
 | `make_golden.py --check` | golden dataset ok |
 | `dev/tools/audit_docs.py --package tl-extract` | 0 findings |
@@ -49,6 +49,24 @@ S6 `c2a27fc`, S7 `9aa212f`, S8 `dc54172`, S9 `e53e962`, S10 `78503fc`, merge of 
 - The CSV reader does not stop at a run of blank records (`MAX_BLANK_RUN` is the XLSX reader's guard): a CSV is bounded by its size, and a provided test requires 30 000 blank lines to be read.
 - A TIFF that repeats a text tag: the last entry wins. No test pins it; it is harmless.
 - Time: extractors are pure and have no clock. The orchestrator told workstream A that the job runner will run `extract` under a wall-clock limit.
+
+## Security review round 1 (b1c4e60) and the fixes
+The review asked for changes; all are made on `p1/i3b` (commits S13 `137bd80`, S14 `a33078b`, after the merge of `p1/i3` at d2a4850, `c7dcbf3`).
+Each fix has a crafted-file test of a few hundred kilobytes at most that finishes well inside a second.
+
+| Item | Fix |
+|---|---|
+| H1 PDF page count and object streams | `/Root/Pages/Count` only; byte scan before pypdf (object streams, `startxref`, `/Length` values and one past the end of the file, any string of a megabyte); `strict=True`; pypdf's decompression limits lowered per call; AGENTS.md corrected |
+| H2 XLSX in openpyxl | openpyxl removed from the extractors; stdlib `iterparse` readers (`xlsxxml.py`) count elements, depth, shared strings, cells and characters as they stream and drop each row; sheets capped at 256 |
+| H3 metadata cost | text is cut to four times the limit before it is cleaned; the PDF byte scan refuses a string of a megabyte |
+| M1 to M3 | only parts that were scanned and end in `.xml` are read; the end-of-central-directory record is checked before `zipfile` loads the directory; core properties come from `docProps/core.xml` and a missing field stays None |
+| M4 CSV cost | decoded and parsed as a stream; control-character checks run in C; MAX_CELLS is the contract's and counts data cells. Measured: 41 MB CSV of 1 million cells 2.7 s and 124 MB over the interpreter (was 6.4 s and 409 MB) |
+| M5, M6 | strict PDF reading with the junk before the header cut away (`damaged_pdf`); JPEG fill bytes capped at 64 |
+| L1 to L8 | TIFF sizes capped at 2**31-1; data after 1000 blank rows is refused (`too_many_blank_rows`) instead of dropped; pdf and ocr refuse any option, tabular refuses unknown ones (`unknown_option`); two `header_map` keys for one header are a `duplicate_header`; a compound document is `encrypted_xlsx`; sheet count and name length capped; MAX_CELLS aligned (20 000 x 50 fits, 20 000 x 200 does not); pypdf log records dropped while it runs and no file content goes into logs |
+
+Deviations from the review text: the sheet limit is 48 MiB uncompressed and the shared-strings limit 24 MiB (not "a few MiB"): a table of 20 000 x 50
+cells is about 40 MB of sheet XML, and the real bounds are the element, cell, string and character counts taken while streaming. The largest legal XLSX
+(20 000 x 50 numeric cells) costs 8 s and 34 MB over the interpreter. The full `just test` was not re-run for this round, as asked.
 
 ## Security
 Extractors read untrusted bytes. The commits to read are listed in the relay (SECURITY_REVIEW). The rules, each with a test: refuse before parsing
