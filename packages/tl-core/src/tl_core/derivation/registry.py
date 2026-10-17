@@ -26,6 +26,7 @@ from typing import Any, BinaryIO
 from tl_core.derivation.types import (
     EXTRACTOR_ENTRY_POINT,
     MAX_CELL_CHARS,
+    MAX_CELLS,
     MAX_COLUMNS,
     MAX_ROWS,
     MAX_SOURCE_BYTES,
@@ -36,6 +37,10 @@ from tl_core.derivation.types import (
 )
 
 log = logging.getLogger(__name__)
+
+#: The one problem a breach of the resource envelope reports (FANOUT D9): fixed text, no detail.
+LIMIT_CODE = "extraction_limit"
+LIMIT_MESSAGE = "the extraction used more time or memory than the limit allows"
 
 
 class ExtractorLoadError(RuntimeError):
@@ -199,6 +204,8 @@ def contract_problem(
         return "the column names are not unique"
     if len(result.rows) > MAX_ROWS:
         return f"more than {MAX_ROWS} rows"
+    if len(result.rows) * len(result.columns) > MAX_CELLS:
+        return f"more than {MAX_CELLS} cells"
     for row in result.rows:
         if list(row) != result.columns:
             return "a row does not have exactly the columns, in order"
@@ -233,6 +240,8 @@ def run_extraction(
         )
     try:
         produced = _opaque(extractor.extract(source, data, dict(options or {})))
+    except MemoryError:  # the memory limit of the child (FANOUT D9): a fixed problem, no detail
+        return _failed(extractor, LIMIT_CODE, LIMIT_MESSAGE)
     except Exception as exc:
         return _failed(
             extractor,

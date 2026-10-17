@@ -136,8 +136,14 @@ Lease 300 s; `max_attempts` 3; retry delay 30 s times the attempt; at most 100 i
   All additive; no migration of existing data.
 - Security review (D7): the job claim and lease, the proposal-accept access check, the file service keyword, the new commands'
   access levels and allow-lists, the upload slot, and compensation.
-- Extractors run in a child process with a wall-clock limit (60 s) and a memory limit; the parent never imports plugin code
-  that has not passed the registry's checks (`ExtractorLoadError` names the exception type only, never its text).
+- Extractors run in a **resource envelope** (FANOUT D9): every `Extractor.extract` runs in a separate `spawn`ed process (no
+  inherited connection or file), which gets the bytes over a pipe and no path, `RLIMIT_AS` of `EXTRACT_MAX_MEMORY_BYTES` (1 GiB)
+  and `RLIMIT_CPU` near `EXTRACT_MAX_SECONDS` (60 s); the parent keeps the wall clock and ends the child with `SIGTERM`, then
+  `SIGKILL` after a short grace, and reaps it. A breach (clock, memory, CPU, death by signal, exit with no answer) is one
+  `failed` result with the fixed problem `extraction_limit` and fixed text, and the job fails for good (not retried); nothing is
+  written for the derived document. A result is parsed as JSON and its bounds (rows, columns, cell length, `MAX_CELLS`) are
+  checked again in the parent; a violation also fails the job for good. The limits are parameters for tests; the defaults are the
+  contract's. The registry never exposes plugin error text (`ExtractorLoadError` names the exception type only).
 - Known limits: no updates through publication in Phase 1 (create only, no key reuse; a changed row is imported with
   `tl tag import --apply`); publication cannot change existing records; a compensated key is not reusable; queue rows are not in the archive
   (reconcile restores them); one derived document per source revision and schema code.

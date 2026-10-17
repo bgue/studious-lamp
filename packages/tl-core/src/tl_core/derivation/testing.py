@@ -177,6 +177,47 @@ class GreedyExtractor(FakeExtractor):
         )
 
 
+class SpinExtractor(FakeExtractor):
+    """Burns CPU without end, as a decompression bomb would."""
+
+    name = "spin"
+
+    def accepts(self, source: SourceFile) -> bool:
+        return source.filename.endswith(".spin")
+
+    def extract(
+        self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
+    ) -> ExtractionResult:
+        total = 0
+        while True:
+            total += 1
+
+
+class OversizedExtractor(FakeExtractor):
+    """Returns a table inside the row and column bounds but over the bound on cells."""
+
+    name = "oversized"
+
+    def accepts(self, source: SourceFile) -> bool:
+        return source.filename.endswith(".big")
+
+    def extract(
+        self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
+    ) -> ExtractionResult:
+        columns = [f"c{n}" for n in range(200)]
+        row: dict[str, str | None] = dict.fromkeys(columns, "x")
+        return ExtractionResult(
+            extractor=self.name,
+            extractor_version=self.version,
+            status="ok",
+            metadata=FileMetadata(
+                content_type=source.content_type, size=source.size, sha256=source.sha256
+            ),
+            columns=columns,
+            rows=[dict(row) for _ in range(5001)],  # 200 x 5001 = 1 000 200 cells
+        )
+
+
 class PdfStubExtractor:
     """Reads no content from a PDF, as ADR-0008 decision 8 says: metadata only, rows empty."""
 
@@ -210,6 +251,8 @@ def make_extractors() -> dict[str, Any]:
             SlowExtractor(),
             DyingExtractor(),
             GreedyExtractor(),
+            SpinExtractor(),
+            OversizedExtractor(),
             PdfStubExtractor(),
         )
     }

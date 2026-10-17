@@ -362,7 +362,12 @@ class DocumentsWorld:
             return handle_start_extraction(uow, StartExtraction(**{**BASE, **fields}))
 
     def run_jobs(
-        self, *, timeout_s: float = 60.0, worker: str = "test-worker", clock: Any = None
+        self,
+        *,
+        timeout_s: float = 60.0,
+        memory_limit_mb: int | None = 1024,
+        worker: str = "test-worker",
+        clock: Any = None,
     ) -> list[Any]:
         """Run the job queue to idle with the real job kinds and the child-process extractors."""
         from tl_adapters.db import make_uow_factory
@@ -379,7 +384,12 @@ class DocumentsWorld:
             runner = JobRunner(
                 factory,
                 queue,
-                make_kinds(self.files, timeout_s=timeout_s, factory=EXTRACTOR_FACTORY),
+                make_kinds(
+                    self.files,
+                    timeout_s=timeout_s,
+                    memory_limit_mb=memory_limit_mb,
+                    factory=EXTRACTOR_FACTORY,
+                ),
                 worker_id=worker,
                 **kwargs,
             )

@@ -222,12 +222,43 @@ def test_a_stuck_extractor_fails_the_job_for_good_and_frees_the_derived_document
     results = ready.run_jobs(timeout_s=2)
     assert [r.outcome for r in results] == ["final"]  # a timeout is not retried
     job = [j for j in ready.jobs() if j.id == job_id][0]
-    assert (job.state, job.attempt, job.error_code) == ("failed", 1, "timeout")
-    assert job.error_message == "extraction timed out after 2 s"
+    assert (job.state, job.attempt, job.error_code) == ("failed", 1, "extraction_limit")
+    assert job.error_message == ("the extraction used more time or memory than the limit allows")
     after = ready.derived_row(derived.id)
     assert after.state == "Pending" and after.content_rev == 0  # nothing was recorded
     assert ready.scalar("SELECT state FROM job_queue WHERE job_id = :j", j=job_id) == "failed"
     start(ready, derived_id=derived.id)  # and a new job can be queued
+
+
+@pytest.mark.parametrize(
+    ("extractor", "filename", "options"),
+    [
+        ("slow", "a.slow", {"seconds": 30}),
+        ("dying", "a.die", {}),
+        ("greedy", "a.greedy", {}),
+        ("spin", "a.spin", {}),
+        ("oversized", "a.big", {}),
+    ],
+)
+def test_every_breach_of_the_envelope_fails_the_job_for_good_and_the_worker_goes_on(
+    ready: World, extractor: str, filename: str, options: dict[str, Any]
+) -> None:
+    derived = ready.open_derived("ISD-001", "A")
+    ready.upload_content(derived.id, b"a,b\n1,2\n", name=filename)
+    bad = start(ready, derived_id=derived.id, extractor=extractor, options=options)
+    assert [r.outcome for r in ready.run_jobs(timeout_s=2, memory_limit_mb=512)] == ["final"]
+    job = [j for j in ready.jobs() if j.id == bad][0]
+    wanted = "contract_violation" if extractor == "oversized" else "extraction_limit"
+    assert (job.state, job.attempt, job.error_code) == ("failed", 1, wanted)
+    assert "Traceback" not in (job.error_message or "") and "/" not in (job.error_message or "")
+    after = ready.derived_row(derived.id)
+    assert after.state == "Pending" and after.content_rev == 0  # nothing was recorded
+    # the same worker process goes on: the next job runs and succeeds
+    ready.upload_content(derived.id, index_csv(GOOD), name="good.csv")
+    good = start(ready, derived_id=derived.id)
+    assert [r.outcome for r in ready.run_jobs(timeout_s=2, memory_limit_mb=512)] == ["done"]
+    assert [j for j in ready.jobs() if j.id == good][0].state == "succeeded"
+    assert ready.derived_row(derived.id).state == "Valid"
 
 
 def test_a_file_the_extractor_cannot_read_is_a_pass_with_a_report_not_a_failed_job(

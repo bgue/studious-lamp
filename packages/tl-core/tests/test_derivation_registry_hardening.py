@@ -113,3 +113,52 @@ def test_metadata_with_another_content_type_is_a_contract_violation() -> None:
 
 def test_metadata_with_the_sources_content_type_passes() -> None:
     assert run("text/csv").status == "ok"
+
+
+class Hoarder:
+    name = "hoarder"
+    version = "1"
+
+    def accepts(self, source: SourceFile) -> bool:
+        return True
+
+    def extract(
+        self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
+    ) -> ExtractionResult:
+        raise MemoryError("secret path /home/x/file.pdf")
+
+
+class Wide:
+    name = "wide"
+    version = "1"
+
+    def accepts(self, source: SourceFile) -> bool:
+        return True
+
+    def extract(
+        self, source: SourceFile, data: BinaryIO, options: Mapping[str, Any]
+    ) -> ExtractionResult:
+        columns = [f"c{n}" for n in range(200)]
+        return ExtractionResult(
+            extractor=self.name,
+            extractor_version=self.version,
+            status="ok",
+            metadata=FileMetadata(
+                content_type=source.content_type, size=source.size, sha256=source.sha256
+            ),
+            columns=columns,
+            rows=[dict.fromkeys(columns, "x") for _ in range(5001)],
+        )
+
+
+def test_a_memory_error_in_a_plugin_is_the_fixed_limit_problem() -> None:
+    result = run_extraction({"hoarder": Hoarder()}, SOURCE, io.BytesIO(DATA))
+    (problem,) = result.problems
+    assert (result.status, problem.code) == ("failed", "extraction_limit")
+    assert problem.message == registry.LIMIT_MESSAGE and "secret" not in problem.message
+
+
+def test_a_result_over_the_cell_bound_is_a_contract_violation() -> None:
+    result = run_extraction({"wide": Wide()}, SOURCE, io.BytesIO(DATA))
+    assert result.status == "failed" and result.problems[0].code == "contract_violation"
+    assert "more than 1000000 cells" in result.problems[0].message

@@ -64,7 +64,13 @@ from tl_mod_documents.names import (
 )
 
 #: Problem codes of the child-process wrapper that fail the job instead of recording a pass.
-JOB_FAILING_CODES = {"timeout": False, "extractor_crashed": True}  # code to "may be retried"
+#: ``extraction_limit`` (FANOUT D9: time, memory, CPU, a crash of the child) and a result that
+#: breaks the contract are final; a failure inside the plugin may be tried again.
+JOB_FAILING_CODES = {
+    "extraction_limit": False,
+    "contract_violation": False,
+    "extractor_crashed": True,
+}  # code to "may be retried"
 
 
 @dataclass(frozen=True)
