@@ -38,6 +38,7 @@ tl-sim = { workspace = true }
 tl-lake = { workspace = true }
 tl-mod-engineering = { workspace = true }
 tl-mod-documents = { workspace = true }
+tl-extract = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -73,6 +74,9 @@ extraPaths = [
   "tests/jobs",
   "packages/tl-modules/engineering/tests",
   "packages/tl-modules/documents/tests",
+  "packages/tl-extract/tests",
+  "packages/tl-extract/tests/golden",
+  "tests/contract",
 ]
 typeCheckingMode = "standard"
 strict = [

@@ -1,0 +1,11 @@
+equipment_tag,equipment_class,description,area,p_and_id,design_pressure_barg,design_temp_degc,weight_kg,manufacturer
+47-P-1024,Pump,Condensate pump,47,PID-4704,22,95,1800,Borealis
+47-P-1025,Pump,"Condensate pump, standby",47,PID-4704,22,95,1800,Borealis
+47-E-1026,HeatExchanger,Reactor effluent cooler,47,PID-4704,70,400,14500,Acme Process
+47-V-1027,Vessel,Feed separator,47,PID-4703,25,120,9200,Acme Process
+47-K-1028,Compressor,Recycle gas compressor,47,PID-4705,45,180,32000,Borealis
+47-M-1029,Motor,Recycle gas compressor motor,47,PID-4705,,,4200,Acme Drives
+47-M-1030,Motor,Condensate pump motor,47,PID-4704,,,650,Acme Drives
+10-P-0105,Pump,Tank T-101 transfer pump,10,PID-1001,12,70,950,Borealis
+20-V-0204,Vessel,Crude overhead accumulator,20,PID-2001,10,230,6100,Acme Process
+20-E-0205,HeatExchanger,Crude preheat exchanger,20,PID-2002,12,260,8800,Acme Process

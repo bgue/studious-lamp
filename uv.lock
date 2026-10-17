@@ -13,6 +13,7 @@ members = [
     "tl-api",
     "tl-cli",
     "tl-core",
+    "tl-extract",
     "tl-lake",
     "tl-mcp",
     "tl-mod-documents",
@@ -1712,6 +1713,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pypdf"
+version = "6.21.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d5/40/08cc87810195e5ee37a6917d4b19abc907c8def3a7ce265a81c7f5073304/pypdf-6.21.0.tar.gz", hash = "sha256:c16174c8653abafbe4d023b3c9227d226938d9579ffb5a73b4fac7756c0895a6", size = 7088285, upload-time = "2026-10-16T10:23:18.47Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f4/64/5cea5792cae22892a4ddba8ed9f7424c77b4cb49fdca5016bd62145c12c6/pypdf-6.21.0-py3-none-any.whl", hash = "sha256:3aec619699dacb1b73f57e87d9adaa4424814517b2cc028de20adba5a37af4c4", size = 405135, upload-time = "2026-10-16T10:23:16.38Z" },
+]
+
+[[package]]
 name = "pyright"
 version = "1.1.414"
 source = { registry = "https://pypi.org/simple" }
@@ -2646,6 +2656,35 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6" },
     { name = "sqlalchemy", specifier = ">=2" },
     { name = "tl-schema", editable = "packages/tl-schema" },
+]
+
+[[package]]
+name = "tl-extract"
+version = "0.0.1"
+source = { editable = "packages/tl-extract" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "pypdf" },
+    { name = "tl-core" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "jsonschema", extra = ["format-nongpl"] },
+    { name = "openpyxl" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2" },
+    { name = "pypdf", specifier = ">=6.21" },
+    { name = "tl-core", editable = "packages/tl-core" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "jsonschema", specifier = ">=4" },
+    { name = "openpyxl", specifier = ">=3.1" },
 ]
 
 [[package]]

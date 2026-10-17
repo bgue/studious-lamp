@@ -1,0 +1,244 @@
+{
+  "columns": [
+    "tag_number",
+    "service",
+    "tag_class",
+    "size_in",
+    "body_material",
+    "manufacturer",
+    "fail_action",
+    "remarks"
+  ],
+  "extractor": "tabular",
+  "extractor_version": "1",
+  "metadata": {
+    "author": null,
+    "content_type": "text/csv",
+    "created": null,
+    "height": null,
+    "image_format": null,
+    "modified": null,
+    "page_count": null,
+    "producer": null,
+    "sha256": "174da394586ee5379721ae4868176b560d48ab04e4f7d08cd3d5ac5e3edd0726",
+    "sheet_names": null,
+    "size": 725,
+    "title": null,
+    "width": null
+  },
+  "notes": [
+    "delimiter detected: semicolon",
+    "header hints applied: Tag No. -> tag_number; Service -> service; Class -> tag_class; Size (in) -> size_in; Material -> body_material; MFR -> manufacturer; Fail -> fail_action; Remarks -> remarks",
+    "skipped 2 blank row(s)"
+  ],
+  "problems": [
+    {
+      "code": "control_character",
+      "message": "remarks: holds a control character; the cell is left empty",
+      "row": 8
+    },
+    {
+      "code": "extra_cells",
+      "message": "the row has data in a column that has no name; it is not read",
+      "row": 10
+    }
+  ],
+  "profiles": [
+    {
+      "distinct": 10,
+      "max_length": 11,
+      "name": "tag_number",
+      "non_empty": 10,
+      "samples": [
+        "47-FV-1001",
+        "47-FV-1002",
+        "47-PV-1003",
+        "47-HV-1004",
+        "47-PSV-1005"
+      ]
+    },
+    {
+      "distinct": 10,
+      "max_length": 41,
+      "name": "service",
+      "non_empty": 10,
+      "samples": [
+        "Feed gas flow control",
+        "Fuel gas flow control",
+        "Flare header; north leg, pressure control",
+        "Feed gas isolation",
+        "Separator relief"
+      ]
+    },
+    {
+      "distinct": 8,
+      "max_length": 13,
+      "name": "tag_class",
+      "non_empty": 10,
+      "samples": [
+        "ControlValve",
+        "ManualValve",
+        "SafetyValve",
+        "Transmitter",
+        "Controller"
+      ]
+    },
+    {
+      "distinct": 4,
+      "max_length": 1,
+      "name": "size_in",
+      "non_empty": 5,
+      "samples": [
+        "4",
+        "6",
+        "8",
+        "3"
+      ]
+    },
+    {
+      "distinct": 2,
+      "max_length": 6,
+      "name": "body_material",
+      "non_empty": 5,
+      "samples": [
+        "SS316L",
+        "CS"
+      ]
+    },
+    {
+      "distinct": 2,
+      "max_length": 11,
+      "name": "manufacturer",
+      "non_empty": 5,
+      "samples": [
+        "Acme Valves",
+        "Borealis"
+      ]
+    },
+    {
+      "distinct": 2,
+      "max_length": 2,
+      "name": "fail_action",
+      "non_empty": 3,
+      "samples": [
+        "FC",
+        "FO"
+      ]
+    },
+    {
+      "distinct": 3,
+      "max_length": 17,
+      "name": "remarks",
+      "non_empty": 3,
+      "samples": [
+        "Replaces FV-0902",
+        "Set 18 barg",
+        "Shown on PID-4703"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "body_material": "SS316L",
+      "fail_action": "FC",
+      "manufacturer": "Acme Valves",
+      "remarks": null,
+      "service": "Feed gas flow control",
+      "size_in": "4",
+      "tag_class": "ControlValve",
+      "tag_number": "47-FV-1001"
+    },
+    {
+      "body_material": "CS",
+      "fail_action": "FO",
+      "manufacturer": "Acme Valves",
+      "remarks": "Replaces FV-0902",
+      "service": "Fuel gas flow control",
+      "size_in": "6",
+      "tag_class": "ControlValve",
+      "tag_number": "47-FV-1002"
+    },
+    {
+      "body_material": "SS316L",
+      "fail_action": "FO",
+      "manufacturer": "Borealis",
+      "remarks": null,
+      "service": "Flare header; north leg, pressure control",
+      "size_in": "8",
+      "tag_class": "ControlValve",
+      "tag_number": "47-PV-1003"
+    },
+    {
+      "body_material": "CS",
+      "fail_action": null,
+      "manufacturer": "Borealis",
+      "remarks": null,
+      "service": "Feed gas isolation",
+      "size_in": "4",
+      "tag_class": "ManualValve",
+      "tag_number": "47-HV-1004"
+    },
+    {
+      "body_material": "SS316L",
+      "fail_action": null,
+      "manufacturer": "Borealis",
+      "remarks": "Set 18 barg",
+      "service": "Separator relief",
+      "size_in": "3",
+      "tag_class": "SafetyValve",
+      "tag_number": "47-PSV-1005"
+    },
+    {
+      "body_material": null,
+      "fail_action": null,
+      "manufacturer": null,
+      "remarks": null,
+      "service": "Feed gas flow transmitter",
+      "size_in": null,
+      "tag_class": "Transmitter",
+      "tag_number": "47-FT-1006"
+    },
+    {
+      "body_material": null,
+      "fail_action": null,
+      "manufacturer": null,
+      "remarks": "Shown on PID-4703",
+      "service": "Separator level\ncontroller",
+      "size_in": null,
+      "tag_class": "Controller",
+      "tag_number": "47-LIC-1007"
+    },
+    {
+      "body_material": null,
+      "fail_action": null,
+      "manufacturer": null,
+      "remarks": null,
+      "service": "Condensate pump",
+      "size_in": null,
+      "tag_class": "Pump",
+      "tag_number": "47-P-1008"
+    },
+    {
+      "body_material": null,
+      "fail_action": null,
+      "manufacturer": null,
+      "remarks": null,
+      "service": "Feed separator",
+      "size_in": null,
+      "tag_class": "Vessel",
+      "tag_number": "47-V-1009"
+    },
+    {
+      "body_material": null,
+      "fail_action": null,
+      "manufacturer": null,
+      "remarks": null,
+      "service": "Reactor effluent cooler",
+      "size_in": null,
+      "tag_class": "HeatExchanger",
+      "tag_number": "47-E-1010"
+    }
+  ],
+  "sheet": null,
+  "status": "ok"
+}
