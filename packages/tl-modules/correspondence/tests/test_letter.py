@@ -148,3 +148,43 @@ def test_more_pages_than_the_bound_is_refused() -> None:
     with pytest.raises(lt.LetterError, match="pages"):
         lt.render_pdf(too_many, "t")
     assert lt.render_pdf(too_many[:-1], "t")  # exactly the bound is fine
+
+
+def test_a_very_long_title_is_cut_for_the_info_dictionary() -> None:
+    pdf = lt.render_pdf(["x"], "T" * 1000)
+    assert b"(" + b"T" * 200 + b") >>" in pdf and b"T" * 201 not in pdf
+
+
+def test_the_letter_may_be_exactly_as_long_as_the_bound_and_not_one_character_longer() -> None:
+    empty = lt.LetterFields("N", "D", "S", "T", "")
+    overhead = len("Our ref: N\nDate: D\n\nTo: T\n\nSubject: S\n\n")
+    assert lt.compose_letter(
+        None, None, lt.LetterFields("N", "D", "S", "T", "x" * (lt.MAX_CHARS - overhead))
+    )
+    with pytest.raises(lt.LetterError):
+        lt.compose_letter(
+            None, None, lt.LetterFields("N", "D", "S", "T", "x" * (lt.MAX_CHARS - overhead + 1))
+        )
+    assert empty.body == ""
+
+
+def test_windows_and_old_mac_line_ends_are_line_ends() -> None:
+    lines = lt.compose_letter(None, None, lt.LetterFields("N", "D", "S", "T", "a\r\nb\rc"))
+    assert lines[-3:] == ["a", "b", "c"]
+
+
+def test_the_page_and_line_sizes_are_the_documented_ones() -> None:
+    assert lt.LINES_PER_PAGE == 52 and lt.LINE_WIDTH == 90 and lt.MAX_PAGES == 30
+
+
+def test_each_stream_declares_its_exact_length() -> None:
+    pdf = lt.render_pdf([f"line {i}" for i in range(60)], "t")
+    streams = re.findall(rb"/Length (\d+) >>\nstream\n(.*?)\nendstream", pdf, re.DOTALL)
+    assert len(streams) == 2
+    for declared, body in streams:
+        assert int(declared) == len(body)
+
+
+def test_the_header_is_filled_like_the_footer() -> None:
+    lines = lt.compose_letter("Ref {number}", None, FIELDS)
+    assert lines[0] == "Ref P123-COR-0002"

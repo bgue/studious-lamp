@@ -203,6 +203,46 @@ def test_a_defined_item_has_the_fields_of_its_event(engine: Engine) -> None:
     assert row["delivery"] == "none" and row["last_seq"] == 2
 
 
+def test_an_outgoing_draft_may_state_its_domain_and_subtype_at_creation(engine: Engine) -> None:
+    apply(
+        engine,
+        *defined(
+            Events(), ITEM, "P123-COR-0004", direction="out", domain="general", subtype="memo"
+        ),
+    )
+    (row,) = table_rows(engine, ITEM_TABLE)
+    assert row["domain"] == "general" and row["subtype"] == "memo"
+    assert row["triaged_on"] is None  # stated, not triaged
+
+
+def test_an_update_changes_every_register_field_it_names(engine: Engine) -> None:
+    events = Events()
+    changes = {
+        "external_ref": [None, "REF-9"],
+        "from_name": [None, "Northgate"],
+        "from_party_id": [None, "PARTY2"],
+        "medium": ["letter", "email"],
+        "sent_on": [None, "2026-10-01"],
+        "received_on": [None, "2026-10-02"],
+        "response_required": [False, True],
+        "response_due": [None, "2026-10-30"],
+        "to": [[], [{"name": "Site", "email": None, "party_id": None}]],
+    }
+    apply(
+        engine,
+        *defined(events, ITEM, "P123-COR-0005"),
+        events.make(
+            "Correspondence.Updated", {"changes": changes}, stream_id=ITEM, stream_type=TYPE
+        ),
+    )
+    (row,) = table_rows(engine, ITEM_TABLE)
+    assert row["external_ref"] == "REF-9" and row["from_name"] == "Northgate"
+    assert row["from_party_id"] == "PARTY2" and row["medium"] == "email"
+    assert row["sent_on"] == "2026-10-01" and row["received_on"] == "2026-10-02"
+    assert bool(row["response_required"]) is True and row["response_due"] == "2026-10-30"
+    assert as_json(row["to_parties_json"]) == [{"name": "Site", "email": None, "party_id": None}]
+
+
 def test_an_item_with_only_the_required_fields_gets_the_defaults(engine: Engine) -> None:
     apply(engine, *defined(Events(), ITEM, "P123-COR-0003"))
     (row,) = table_rows(engine, ITEM_TABLE)

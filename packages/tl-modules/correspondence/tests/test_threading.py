@@ -107,6 +107,12 @@ def test_a_project_or_code_that_is_not_plain_gives_nothing(
     assert t.find_item_numbers("P123-COR-0042", project, codes) == []
 
 
+def test_a_project_or_code_that_is_not_plain_is_refused_even_when_the_text_has_it() -> None:
+    assert t.find_item_numbers("P 123-COR-0042", "P 123", ("COR",)) == []
+    assert t.find_item_numbers("P123-C.R-0042", "P123", ("C.R",)) == []
+    assert t.find_item_numbers("P123-COR-0042", "P123", ("cor",)) == ["P123-COR-0042"]  # case only
+
+
 def test_a_project_id_with_regex_characters_is_matched_literally() -> None:
     assert t.find_item_numbers("A.B-COR-0001 AxB-COR-0001", "A.B", ("COR",)) == ["A.B-COR-0001"]
 

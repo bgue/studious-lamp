@@ -183,6 +183,24 @@ def test_a_restart_reopens_a_clock_that_had_expired(engine: Engine) -> None:
     assert row["state"] == "running" and row["closed_on"] is None
 
 
+def test_a_restart_reopens_a_clock_that_was_met(engine: Engine) -> None:
+    events = Events()
+    apply(engine, *started(events))
+    apply(
+        engine, clock_event(events, "ResponseClock.Met", {"on": "2026-10-25", "response_id": "I9"})
+    )
+    apply(
+        engine,
+        clock_event(
+            events,
+            "ResponseClock.Restarted",
+            {"start_on": "2026-10-27", "due_on": "2026-11-10", "reason": "Again"},
+        ),
+    )
+    (row,) = table_rows(engine, CLOCK_TABLE)
+    assert row["state"] == "running" and row["closed_on"] is None and row["closed_reason"] is None
+
+
 def test_met_and_cancelled_close_the_clock_with_a_date_and_a_reason(engine: Engine) -> None:
     events = Events()
     apply(engine, *started(events))
