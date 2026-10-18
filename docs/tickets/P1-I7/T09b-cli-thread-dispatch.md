@@ -3,7 +3,7 @@
 Status: ready
 Tier: haiku
 Labels: cli
-Depends on: S2 (in the tree): `tl_core/threads/{planner,dispatch,reminders}.py`, `tl_api/thread_runner.py`, `tl_cli/thread_common.py` (`record_of`, `holds_of`); T10a, T10b, T10c, T10d merged (the test previews `/link`, `/raise record`, `/summarise` and `/remind` and runs a reminder job); the fixture `packages/tl-cli/tests/thread_cli_support.py`
+Depends on: S2 (in the tree): `tl_core/threads/{planner,dispatch,reminders}.py`, `tl_api/thread_runner.py`, `tl_cli/thread_common.py` (`record_of`, `holds_of`); T09a merged (the test calls `tl thread show` and `tl thread post`); T10a, T10b, T10c, T10d merged (the test previews `/link`, `/raise record`, `/summarise` and `/remind` and runs a reminder job); the fixture `packages/tl-cli/tests/thread_cli_support.py`
 Branch: `p1/i7b-t09b-cli-thread-dispatch`
 
 ## Goal
@@ -202,4 +202,4 @@ Standard report (`docs/templates/haiku-report.md`). Put `Deviations` first (or "
 (implementer writes here)
 
 ## Decision
-(supervisor or orchestrator writes here)
+The block was an ordering fault of the ticket (third in this workstream, L-P1-I7B-9): three of the ten tests call `tl thread show` and `tl thread post`, which are T09a's. T09a merged first, `p1/i7b` was merged into this branch, all 10 tests then passed and the branch was merged. Depends now names T09a.
