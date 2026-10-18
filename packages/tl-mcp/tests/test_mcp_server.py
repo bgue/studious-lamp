@@ -40,8 +40,29 @@ DERIVATION_READ_TOOLS = {
     "validate_against_schema",
 }
 DERIVATION_PROPOSE_TOOLS = {"start_extraction", "propose_import"}
-READING = READ_TOOLS | TYPE_TOOLS | ENGINEERING_TOOLS | DOCUMENT_TOOLS | DERIVATION_READ_TOOLS
-TOOLS = READING | PROPOSE_TOOLS | DERIVATION_PROPOSE_TOOLS | {"post_feed"}
+CORRESPONDENCE_TOOLS = {  # P1-I5: five reads and one proposal (an agent only proposes a triage)
+    "list_correspondence",
+    "get_correspondence",
+    "list_response_clocks",
+    "list_parties",
+    "suggest_triage",
+}
+CORRESPONDENCE_PROPOSE_TOOLS = {"propose_triage"}
+READING = (
+    READ_TOOLS
+    | TYPE_TOOLS
+    | ENGINEERING_TOOLS
+    | DOCUMENT_TOOLS
+    | DERIVATION_READ_TOOLS
+    | CORRESPONDENCE_TOOLS
+)
+TOOLS = (
+    READING
+    | PROPOSE_TOOLS
+    | DERIVATION_PROPOSE_TOOLS
+    | CORRESPONDENCE_PROPOSE_TOOLS
+    | {"post_feed"}
+)
 
 
 def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(

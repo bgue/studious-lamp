@@ -360,6 +360,7 @@ def thread_candidates(conn: Connection, scope: str, subject_key: str) -> list[Th
 @dataclass(frozen=True)
 class ClockRow:
     id: str
+    key: str  # <item number>-C<nn>
     scope: str
     item_id: str
     item_number: str
@@ -385,7 +386,8 @@ class ClockRow:
 
 
 _CLOCK_COLUMNS = (
-    "id, scope, item_id, item_number, label, kind, start_on, duration_days, day_type, calendar, "
+    "id, key, scope, item_id, item_number, label, kind, start_on, duration_days, day_type, "
+    "calendar, "
     "warn_days_json, due_on, state, paused_on, pause_reason, closed_on, closed_reason, "
     "warned_level, owner, clause_id, restarts, voided, version"
 )
@@ -394,6 +396,7 @@ _CLOCK_COLUMNS = (
 def _clock(row: Any) -> ClockRow:
     return ClockRow(
         id=row.id,
+        key=row.key,
         scope=row.scope,
         item_id=row.item_id,
         item_number=row.item_number,
@@ -424,6 +427,15 @@ def get_clock(conn: Connection, clock_id: str) -> ClockRow | None:
         text(f"SELECT {_CLOCK_COLUMNS} FROM {CLOCK_VIEW} WHERE id = :id"), {"id": clock_id}
     ).first()
     return None if row is None or _hidden(conn, clock_id) else _clock(row)
+
+
+def find_clock(conn: Connection, scope: str, key: str) -> ClockRow | None:
+    """The clock with this key (``<item number>-C<nn>``) in the scope, under the item's rule."""
+    row = conn.execute(
+        text(f"SELECT {_CLOCK_COLUMNS} FROM {CLOCK_VIEW} WHERE scope = :scope AND key = :key"),
+        {"scope": scope, "key": key},
+    ).first()
+    return None if row is None or _hidden(conn, row.id) else _clock(row)
 
 
 def clocks_of(conn: Connection, item_id: str) -> list[ClockRow]:
