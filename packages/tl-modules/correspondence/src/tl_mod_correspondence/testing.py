@@ -100,7 +100,16 @@ from tl_mod_correspondence.handlers.triage import (
     handle_confirm_triage,
     handle_reclassify_correspondence,
 )
-from tl_mod_correspondence.names import CLOCK, CORR_DEFINED, CORRESPONDENCE
+from tl_mod_correspondence.names import (
+    CLAUSE,
+    CLAUSE_DEFINED,
+    CLOCK,
+    CORR_DEFINED,
+    CORR_TRIAGED,
+    CORRESPONDENCE,
+    PARTY,
+    PARTY_DEFINED,
+)
 
 PROJECT = "project:P123"
 BASE: dict[str, Any] = {"actor": "user:u", "source": "test", "scope": PROJECT}
@@ -182,8 +191,8 @@ class CorrWorld:
     ) -> str:
         """An item written with raw events (no command rules); returns its id.
 
-        ``state`` is one of Draft or Received here (a test that needs another state moves the item
-        with the command that does it).
+        ``state`` is Draft, Received or Triaged here (a test that needs another state moves the
+        item with the command that does it).
         """
         payload: dict[str, Any] = {
             "number": number,
@@ -206,10 +215,79 @@ class CorrWorld:
                 key=number,
                 extra_events=[NewEvent(event_type=CORR_DEFINED, payload=payload)],
             )
-            if state == "Received":
+            if state in ("Received", "Triaged"):
                 common.transition(uow, cmd, made.stream_id, "receive")
-            elif state != "Draft":
-                raise ValueError("forge_item makes a Draft or a Received item")
+            if state == "Triaged":
+                common.append(
+                    uow,
+                    cmd,
+                    made.stream_id,
+                    CORRESPONDENCE,
+                    [
+                        NewEvent(
+                            event_type=CORR_TRIAGED,
+                            payload={
+                                "domain": "general",
+                                "subtype": "letter",
+                                "referenced_ids": [],
+                                "clock_ids": [],
+                                "triaged_on": "2026-10-17",
+                                "suggestion": None,
+                            },
+                        )
+                    ],
+                )
+                common.transition(uow, cmd, made.stream_id, "triage")
+            elif state not in ("Draft", "Received"):
+                raise ValueError("forge_item makes a Draft, Received or Triaged item")
+        return made.stream_id
+
+    def forge_clause(self, contract: str = "CT-1", number: str = "20.1") -> str:
+        """A contract clause written with raw events; returns its id."""
+        with cf.system_view(), open_uow(self.db) as uow:
+            made = create_module_record(
+                uow,
+                _Forge(**BASE),
+                record_type=CLAUSE,
+                title=f"{contract} clause {number}",
+                key=f"{contract}/{number}",
+                extra_events=[
+                    NewEvent(
+                        event_type=CLAUSE_DEFINED,
+                        payload={
+                            "contract": contract,
+                            "clause_number": number,
+                            "time_bar_days": 28,
+                            "time_bar_day_type": "calendar",
+                            "required_recipients": [],
+                            "domains": [],
+                        },
+                    )
+                ],
+            )
+        return made.stream_id
+
+    def forge_party(self, code: str = "MER", name: str = "Meridian Energy") -> str:
+        """A party written with raw events (no command rules); returns its id."""
+        with cf.system_view(), open_uow(self.db) as uow:
+            made = create_module_record(
+                uow,
+                _Forge(**BASE),
+                record_type=PARTY,
+                title=name,
+                key=code,
+                extra_events=[
+                    NewEvent(
+                        event_type=PARTY_DEFINED,
+                        payload={
+                            "code": code,
+                            "project_role": "client",
+                            "email_domains": ["meridian.example"],
+                            "contacts": [],
+                        },
+                    )
+                ],
+            )
         return made.stream_id
 
     # --- the commands, one call each ------------------------------------------------------
@@ -220,14 +298,13 @@ class CorrWorld:
             return handler(uow, model(**{**BASE, **fields}))
 
     def receive(self, subject: str = "Revised programme", **more: Any) -> CommandResult:
-        return self.run(
-            ReceiveCorrespondence,
-            handle_receive_correspondence,
-            subject=subject,
-            from_name="Meridian Energy",
-            body="Please confirm the revised programme.",
+        fields: dict[str, Any] = {
+            "subject": subject,
+            "from_name": "Meridian Energy",
+            "body": "Please confirm the revised programme.",
             **more,
-        )
+        }
+        return self.run(ReceiveCorrespondence, handle_receive_correspondence, **fields)
 
     def update(self, item_id: str, **more: Any) -> CommandResult:
         return self.run(

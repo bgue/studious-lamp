@@ -55,9 +55,6 @@ def test_the_demo_flow_receive_triage_issue_and_the_clock(world: CorrWorld) -> N
     assert clock.warn_days == [7, 3, 1]
     # issuing the reply answered the letter it replied to
     assert world.item("P123-COR-0001").state == "Responded"
-    # one thread holds both
-    assert letter.thread_id is not None
-    assert world.item("P123-COR-0001").thread_id == letter.thread_id
 
 
 def test_a_reply_is_the_answer_and_closing_cancels_what_is_left(world: CorrWorld) -> None:

@@ -168,23 +168,31 @@ def _join(
     item: registry.ItemRow,
     responds_to_id: str | None,
     matched_by: str,
+    *,
+    first: bool = False,
 ) -> list[Event]:
-    """``ThreadItemAdded`` on the thread and ``ThreadAssigned`` on the item."""
-    added = append(
-        uow,
-        cmd,
-        thread_id,
-        THREAD,
-        [
-            NewEvent(
-                event_type=THREAD_ITEM_ADDED,
-                payload={
-                    "item_id": item.id,
-                    "item_on": item.received_on or item.sent_on or today(),
-                },
-            )
-        ],
-    )
+    """``ItemAdded`` on the thread and ``ThreadAssigned`` on the item.
+
+    ``first=True`` is the item that opened the thread: ``Defined`` counted it already, so only
+    the item gets an event.
+    """
+    added: list[Event] = []
+    if not first:
+        added = append(
+            uow,
+            cmd,
+            thread_id,
+            THREAD,
+            [
+                NewEvent(
+                    event_type=THREAD_ITEM_ADDED,
+                    payload={
+                        "item_id": item.id,
+                        "item_on": item.received_on or item.sent_on or today(),
+                    },
+                )
+            ],
+        ).events
     assigned = append(
         uow,
         cmd,
@@ -201,7 +209,7 @@ def _join(
             )
         ],
     )
-    return [*added.events, *assigned.events]
+    return [*added, *assigned.events]
 
 
 def assign_thread(
@@ -217,15 +225,15 @@ def assign_thread(
     events: list[Event] = []
     if match is None:
         thread_id, events = _open_thread(uow, cmd, item)
-        return [*events, *_join(uow, cmd, thread_id, item, None, "manual")]
+        return [*events, *_join(uow, cmd, thread_id, item, None, "manual", first=True)]
     thread_id = match.thread_id
     if thread_id is None:
         earlier = registry.get_item(uow.conn(), match.responds_to_id or "")
         if earlier is None:
             thread_id, events = _open_thread(uow, cmd, item)
-            return [*events, *_join(uow, cmd, thread_id, item, None, "manual")]
+            return [*events, *_join(uow, cmd, thread_id, item, None, "manual", first=True)]
         thread_id, events = _open_thread(uow, cmd, earlier)
-        events += _join(uow, cmd, thread_id, earlier, None, match.matched_by)
+        events += _join(uow, cmd, thread_id, earlier, None, match.matched_by, first=True)
     return [*events, *_join(uow, cmd, thread_id, item, match.responds_to_id, match.matched_by)]
 
 
@@ -271,7 +279,9 @@ def handle_assign_thread(uow: UnitOfWork, cmd: AssignThread) -> CommandResult:
         if item.thread_id == thread.id and cmd.responds_to_id in (None, item.responds_to_id):
             raise NoChangesError(f"item {item.number} is already in thread {thread.number}")
         thread_id = thread.id
-    events += _join(uow, cmd, thread_id, item, cmd.responds_to_id, "manual")
+    events += _join(
+        uow, cmd, thread_id, item, cmd.responds_to_id, "manual", first=cmd.thread_id is None
+    )
     current = registry.get_item(uow.conn(), item.id)
     return CommandResult(
         stream_id=item.id,

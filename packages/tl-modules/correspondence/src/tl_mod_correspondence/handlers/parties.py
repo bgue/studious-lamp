@@ -137,7 +137,7 @@ class EndContact(Command):
     model_config = ConfigDict(extra="forbid")
 
     party_id: str = Field(max_length=MAX_NUMBER)
-    position: int = Field(ge=0, le=MAX_CONTACTS * 50)
+    position: int = Field(ge=1, le=MAX_CONTACTS * 50)
     reason: str | None = Field(default=None, max_length=MAX_REASON)
 
 
@@ -214,7 +214,7 @@ def handle_register_party(uow: UnitOfWork, cmd: RegisterParty) -> CommandResult:
 
 
 def handle_add_contact(uow: UnitOfWork, cmd: AddContact) -> CommandResult:
-    """Append ``Party.ContactAdded`` at the next position.
+    """Append ``Party.ContactAdded`` at the next position (from 1; a position is never reused).
 
     Raises ``PartyNotFoundError``, ``InvalidPartyError`` (the party is retired, or has too many
     contacts).
@@ -226,7 +226,7 @@ def handle_add_contact(uow: UnitOfWork, cmd: AddContact) -> CommandResult:
     existing = registry.contacts_of(uow.conn(), party.id, include_ended=True)
     if len(existing) >= MAX_CONTACTS:
         raise InvalidPartyError(f"party {party.code} already has {MAX_CONTACTS} contacts")
-    position = max((c.position for c in existing), default=-1) + 1
+    position = max((c.position for c in existing), default=0) + 1
     done = append(
         uow,
         cmd,
