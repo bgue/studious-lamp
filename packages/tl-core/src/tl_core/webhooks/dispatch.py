@@ -69,6 +69,7 @@ _INSERT_DELIVERY = text(
     "(:delivery_id, :subscription_id, :dedupe_key, :seq, :event_id, :subject_id, :origin, "
     "'pending', :body, 0, :now, :now, :replay_of) ON CONFLICT DO NOTHING"
 )
+_EVENT_PAYLOAD = text("SELECT payload FROM events WHERE event_id = :event_id")
 _DELIVERY_EXISTS = text(
     "SELECT 1 FROM wh_delivery "
     "WHERE subscription_id = :subscription_id AND dedupe_key = :dedupe_key"
@@ -347,6 +348,13 @@ class Dispatcher:
         # not read is not delivered; a privileged or unknown class is never delivered; a
         # restricted record goes out as `thin` only.
         owner = confidentiality.viewer_for_actor(conn, sub.owner)
+        if row.stream_type in confidentiality.SCANNED_STREAM_TYPES:  # a counter or a proposal
+            stored = conn.execute(_EVENT_PAYLOAD, {"event_id": row.event_id}).scalar_one_or_none()
+            for who in (owner, confidentiality.RESTRICTED_ONLY):
+                if stored is not None and confidentiality.names_hidden_record(
+                    conn, row.stream_type, stored, who
+                ):
+                    return False
         if confidentiality.is_hidden(conn, row.subject_id, owner) or confidentiality.is_hidden(
             conn, row.subject_id, confidentiality.RESTRICTED_ONLY
         ):

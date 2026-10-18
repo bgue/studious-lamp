@@ -20,7 +20,9 @@ helpers every read path uses. The rules, in short:
 
 from __future__ import annotations
 
-from collections.abc import Generator, Iterable, Sequence
+import json
+import re
+from collections.abc import Generator, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass
@@ -283,16 +285,75 @@ def hidden_event_streams(
     return hidden
 
 
+#: Streams that are not records but whose events *name* records in their payload: the numbering
+#: counters (`Numbering.Allocated` holds the key and the id of the record it numbered) and the
+#: proposals (the command an agent proposed). An event of such a stream is hidden when any record
+#: it names is. (Found by the walking test of the routes.)
+SCANNED_STREAM_TYPES: Final = frozenset({"numbering.Counter", "core.Proposal"})
+_ULID = re.compile(r"(?<![0-9A-Za-z])[0-9A-HJKMNP-TV-Z]{26}(?![0-9A-Za-z])")
+
+
+def payload_record_ids(payload: Any) -> set[str]:
+    """Every id-shaped (26-character ULID) token in a payload given as text or as a mapping."""
+    raw = payload if isinstance(payload, str) else json.dumps(payload, default=str)
+    return set(_ULID.findall(raw))
+
+
+def names_hidden_record(
+    conn: Connection, stream_type: str, payload: Any, viewer: Viewer | None = None
+) -> bool:
+    """True when an event of a scanned stream type names a record the viewer must not read."""
+    if stream_type not in SCANNED_STREAM_TYPES or hidden_sql(viewer) is None:
+        return False
+    ids = sorted(payload_record_ids(payload))
+    return bool(ids) and bool(hidden_among(conn, ids, viewer))
+
+
+def hidden_event_ids(
+    conn: Connection, events: Iterable[Any], viewer: Viewer | None = None
+) -> set[str]:
+    """The ``event_id`` of each event (any object with ``event_id``, ``stream_id``,
+    ``stream_type`` and ``payload``) the viewer must not read: it is of a hidden stream, or it is
+    of a scanned stream type and names a hidden record."""
+    who = viewer if viewer is not None else current_viewer()
+    items = list(events)
+    if who.system or not items or hidden_sql(who) is None:
+        return set()
+    streams = hidden_event_streams(conn, [(e.stream_id, e.stream_type) for e in items], who)
+    hidden = {e.event_id for e in items if e.stream_id in streams}
+    for e in items:
+        if e.event_id not in hidden and names_hidden_record(conn, e.stream_type, e.payload, who):
+            hidden.add(e.event_id)
+    return hidden
+
+
 def filter_events(
     conn: Connection, events: Sequence[Event], viewer: Viewer | None = None
 ) -> list[Event]:
-    """``events`` without those of streams the viewer must not read (ADR-0016).
+    """``events`` without those the viewer must not read (ADR-0016): the events of hidden streams
+    and those of a counter or a proposal that name a hidden record.
 
     Give the viewer explicitly when the call runs in a worker thread: a thread started with
     ``run_in_executor`` does not inherit the context variable.
     """
-    hidden = hidden_event_streams(conn, [(e.stream_id, e.stream_type) for e in events], viewer)
-    return [e for e in events if e.stream_id not in hidden] if hidden else list(events)
+    hidden = hidden_event_ids(conn, events, viewer)
+    return [e for e in events if e.event_id not in hidden] if hidden else list(events)
+
+
+def hidden_row_ids(
+    conn: Connection, rows: Sequence[Mapping[str, Any]], viewer: Viewer | None = None
+) -> set[str]:
+    """Like ``hidden_event_ids`` for ledger rows (mappings with ``event_id``, ``stream_id``,
+    ``stream_type`` and ``payload``; the payload may be the stored JSON text)."""
+
+    class _Row:
+        def __init__(self, row: Mapping[str, Any]) -> None:
+            self.event_id = str(row["event_id"])
+            self.stream_id = str(row["stream_id"])
+            self.stream_type = str(row["stream_type"])
+            self.payload = row["payload"]
+
+    return hidden_event_ids(conn, [_Row(r) for r in rows], viewer)
 
 
 def viewer_for_actor(conn: Connection, actor: str) -> Viewer:
