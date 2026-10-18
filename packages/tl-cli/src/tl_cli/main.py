@@ -59,6 +59,7 @@ from tl_cli import (
     extypes_quarantine,
     feed,
     file,
+    integration,
     lake,
     ledger,
     link,
@@ -151,6 +152,7 @@ app.add_typer(delivery.app, name="delivery")
 app.add_typer(enrich.app, name="enrich")
 app.add_typer(enricher.app, name="enricher")
 app.add_typer(action.app, name="action")
+app.add_typer(integration.app, name="integration")
 sim_cli.AGENT_TOKEN_SOURCE = sim_agent.provider  # the simulated assistant's MCP token
 app.add_typer(sim_cli.app, name="sim")
 app.add_typer(admin.app, name="admin")
