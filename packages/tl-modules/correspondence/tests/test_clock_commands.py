@@ -98,8 +98,8 @@ def test_clocks_of_one_item_are_numbered_in_order(world: CorrWorld, item: str) -
 
 
 def test_a_start_the_calendar_cannot_count_is_refused(world: CorrWorld, item: str) -> None:
-    with frozen_today(MONDAY), pytest.raises(CalendarUnavailableError):
-        world.start_clock(item, start_on="2028-12-20", duration_days=30, day_type="working")
+    with frozen_today("2028-12-20"), pytest.raises(CalendarUnavailableError):
+        world.start_clock(item, duration_days=30, day_type="working")  # runs past 2028-12-31
 
 
 def test_a_clock_with_bad_parameters_is_refused_before_anything_is_written(
