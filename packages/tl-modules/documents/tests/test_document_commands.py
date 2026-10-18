@@ -323,10 +323,9 @@ def test_confidentiality_changes_only_through_its_own_command(world: World) -> N
             **BASE, stream_id=doc.id, confidentiality="restricted", reason=" "
         )
     for not_a_class in ("x", "privileged", "Confidential", ""):  # ADR-0016: two classes only
+        fields: dict[str, Any] = {**BASE, "stream_id": doc.id, "confidentiality": not_a_class}
         with pytest.raises(ValidationError):
-            SetDocumentConfidentiality(  # type: ignore[arg-type]
-                **BASE, stream_id=doc.id, confidentiality=not_a_class, reason="r"
-            )
+            SetDocumentConfidentiality(**fields, reason="r")
 
 
 def test_a_document_number_with_a_slash_is_accepted_and_its_revision_keys_work(

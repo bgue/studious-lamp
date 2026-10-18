@@ -30,6 +30,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Literal, Protocol
 
+from tl_core.confidentiality import system_view
 from tl_core.jobs.queue import JobQueue
 from tl_core.jobs.types import (
     DEFAULT_LEASE_S,
@@ -159,7 +160,15 @@ class JobRunner:
     # --- one pass -------------------------------------------------------------------------
 
     def run_once(self, *, scope: str | None = None) -> RunResult | None:
-        """Claim and run at most one job. ``None`` when there is nothing to do."""
+        """Claim and run at most one job. ``None`` when there is nothing to do.
+
+        A job is system work: whoever queued it was checked when they queued it, so it reads
+        everything (``system_view``, ADR-0016), whichever process the worker runs in.
+        """
+        with system_view():
+            return self._run_once(scope)
+
+    def _run_once(self, scope: str | None) -> RunResult | None:
         claim = self._claim(scope)
         if claim is None:
             return None
