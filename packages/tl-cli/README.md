@@ -112,6 +112,10 @@ just demo P0-I1
 | `TL_ARCHIVE_DIR`, `TL_ARCHIVE_KEY`, `TL_ARCHIVE_PUBLIC_KEY` | `./dev/data/archive`, `dev/data/archive-signing.key`, `dev/data/archive-signing.pub` | Archive directory and keys for `tl archive` and `tl restore` |
 | `TL_OBJECT_STORE`, `TL_OBJECT_ROOT`, `TL_OBJECT_SECRET`, `TL_ENV`, `TL_S3_*` | `fs`, `./dev/data/objects`, none, unset | Object store for `tl file`; see `packages/tl-adapters/README.md`. `just` exports `TL_ENV=dev` |
 
+### Record threads (P1-I7 WS-B)
+`tl thread show|post|edit|retract` and `tl thread preview|dispatch|reminders`. `dispatch` takes the `--token` of a
+preview, or `--yes` to preview, print and run in one go. The dispatching person needs an account (`tl admin user add`).
+
 ## Rules specific to this package
 See `AGENTS.md` in this directory.
 

@@ -138,6 +138,12 @@ just test tests/services
 
 Adapters supply connections.
 
+### Record threads (P1-I7 WS-B; ADR-0018)
+`tl_core.threads`: a thread per record (`thread:<record id>`, events `Thread.MessagePosted/Edited/Retracted/Dispatched`),
+the slash-command parser, `ThreadPlanner` (preview, token), `handle_dispatch_from_thread` (confirm), the targets that map
+a verb to existing commands, `build_summary` and the `thread.reminder` job. Settings: `threads.*` (five keys). Read
+`docs/runbooks/record-threads.md` to switch it on.
+
 ## Rules specific to this package
 See `AGENTS.md` in this directory.
 

@@ -115,7 +115,7 @@ def test_an_agent_cannot_accept_its_own_proposal(db: DbTarget) -> None:
     )
     with pytest.raises(ProposalDeciderError):
         proposals.accept_or_fail(
-            factory, proposal_id=view.proposal_id, by=AGENT, holds=everyone, runner=runner
+            factory, proposal_id=view.proposal_id, by=AGENT, holds=lambda level: True, runner=runner
         )
     assert count(db, "SELECT COUNT(*) FROM cur_links") == 0
 

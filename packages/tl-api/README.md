@@ -67,6 +67,11 @@ Runbook: `docs/runbooks/api-and-mcp-dev.md`.
 - Review queue: agents propose through MCP, a person decides here. Accept runs the stored command as the token's actor with `source=mcp:<agent>`; a command that can no longer be applied is a 200 whose proposal has `status: failed` and the error in `reason`. An `agent:` token is refused with 403 `proposal_decider`. An `agent:<id>` token cannot change a record over REST (B15): every command except `PostToFeed`, `EditPost`, `RetractPost`, `ReactToPost`, and the file writes, answer 403 `agent_must_propose`; agents read, post, and propose through MCP. People may do everything except `admin.*` (admins only); an agent only what `AGENT_ACTIONS` lists. Budget refusals are 429 `budget_exceeded`.
 - Downloads are `application/octet-stream` with `Content-Disposition: attachment` and `nosniff`; a quarantined file goes to its uploader only.
 
+### Record threads (P1-I7 WS-B)
+`GET /records/{id}/thread`, `POST .../thread/preview` and `.../thread/dispatch`, and the three message commands
+(`PostThreadMessage`, `EditThreadMessage`, `RetractThreadMessage`; agents may run these directly). `thread_runner()` is
+`command_runner()`: a dispatch runs each command as the caller, who needs an account.
+
 ## Rules specific to this package
 See `AGENTS.md` in this directory.
 

@@ -357,7 +357,7 @@ class ThreadPlanner:
         holds: Callable[[Access], bool],
         runner: CommandRunner,
     ) -> DispatchPreview | ParseProblem:
-        """The preview a person sees. An agent has none: it proposes (``build_dispatch_proposal``)."""
+        """The preview a person sees. An agent has none: it proposes a dispatch instead."""
         if not actor.startswith("user:"):
             raise DispatchForbiddenError("only a person previews a dispatch; an agent proposes one")
         made = self.plan(
