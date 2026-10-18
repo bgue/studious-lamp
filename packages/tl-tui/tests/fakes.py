@@ -23,6 +23,7 @@ from fakes_links import FakeLinkSupport
 from fakes_query import FakeQuerySupport
 from fakes_settings import FakeSettingsSupport
 from fakes_tags import FakeTagSupport
+from fakes_threads import FakeThreadSupport
 from fakes_types import FakeTypeSupport
 from tl_core.ledger import ConcurrencyError, Event
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
@@ -212,6 +213,7 @@ class FakeClient(
     FakeQuerySupport,
     FakeLinkSupport,
     FakeFeedSupport,
+    FakeThreadSupport,
     FakeSettingsSupport,
     FakeTypeSupport,
     FakeAdminSupport,
@@ -234,6 +236,7 @@ class FakeClient(
         self._id = 0
         self._init_links()
         self._init_feed()
+        self._init_threads()
         self._init_settings()
         self._init_admin()
         self._init_types()

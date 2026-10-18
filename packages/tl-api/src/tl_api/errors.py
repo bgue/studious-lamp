@@ -22,6 +22,7 @@ from tl_core.extypes import errors as ext
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
 from tl_core.services import errors as svc
+from tl_core.threads import errors as thr
 from tl_core.webhooks import subscriptions as wh
 from tl_core.workflow.engine import GuardResult
 from tl_mod_documents import errors as doc
@@ -215,6 +216,18 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(ExtractorLoadError, "extractor_unavailable", 503),
         s(doc.PublishRefusedError, "publish_refused", 422),
         s(doc.CompensationRefusedError, "compensation_refused", 409),
+        # --- record threads and dispatch (P1-I7 workstream B) ---------------------------------
+        s(thr.ThreadError, "thread_error", 422),
+        s(thr.ThreadsDisabledError, "threads_disabled", 403),
+        s(thr.ThreadMessageNotFoundError, "thread_message_not_found", 404),
+        s(thr.NotMessageAuthorError, "not_message_author", 403),
+        s(thr.MessageRetractedError, "message_retracted", 409),
+        s(thr.MessageNotEditableError, "message_not_editable", 409),
+        s(thr.DispatchDisabledError, "dispatch_disabled", 403),
+        s(thr.DispatchForbiddenError, "dispatch_forbidden", 403),
+        s(thr.DispatchStaleError, "dispatch_stale", 409),
+        s(thr.DispatchRefusedError, "dispatch_refused", 422),
+        s(thr.DispatchSyntaxError, "dispatch_syntax", 422),
     )
 
 
@@ -319,6 +332,8 @@ def body_for(exc: BaseException) -> tuple[int, ErrorBody] | None:
         ),
     ):
         body.issues = list(exc.problems)
+    elif isinstance(exc, thr.DispatchRefusedError):
+        body.issues = list(exc.problems)  # one {code, message} per problem of the plan
     elif isinstance(exc, auth.AccountLockedError):
         body.locked_until = exc.locked_until
     return spec.status, body
@@ -364,6 +379,10 @@ def exception_for(status: int, body: dict[str, Any]) -> Exception:
             doc.CompensationRefusedError,
         ):
             return spec.exc(message, [str(i) for i in body.get("issues") or []])
+        if spec.exc is thr.DispatchRefusedError:
+            return thr.DispatchRefusedError(
+                message, [dict(i) for i in body.get("issues") or [] if isinstance(i, dict)]
+            )
         if spec.exc is auth.AccountLockedError:
             until = body.get("locked_until")
             return auth.AccountLockedError(message, None if until is None else str(until))

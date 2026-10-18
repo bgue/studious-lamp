@@ -33,7 +33,7 @@ def test_list_and_get_return_the_models_the_routes_serve(harness: Harness) -> No
     api = harness.api()
     rows = api.list_settings()
     keys = [row.effective.key for row in rows]
-    assert keys == sorted(keys) and len(keys) == 10
+    assert keys == sorted(keys) and len(keys) == 15
     assert all(isinstance(row, SettingView) for row in rows)
     one = api.get_setting(KEY)
     assert one.definition.type == "bool" and one.effective.value is True
@@ -146,7 +146,7 @@ def test_an_agent_token_reads_but_every_write_is_refused(harness: Harness) -> No
     token = add_token(harness.settings.tokens_path, "agent:triage")
     http = TestClient(harness.app, raise_server_exceptions=False)
     api = ApiClient("http://testserver", token, http=http)
-    assert len(api.list_settings()) == 10
+    assert len(api.list_settings()) == 15
     attempts = [
         lambda: api.set_setting(KEY, layer="company", value=False),
         lambda: api.reset_setting(KEY, layer="company"),

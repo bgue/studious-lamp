@@ -164,7 +164,15 @@ def test_the_queue_needs_a_token(harness: Harness) -> None:
 
 # --- B15: an agent token proposes, it does not change records ----------------------------------
 
-FEED_COMMANDS = {"PostToFeed", "EditPost", "RetractPost", "ReactToPost"}
+FEED_COMMANDS = {
+    "PostToFeed",
+    "EditPost",
+    "RetractPost",
+    "ReactToPost",
+    "PostThreadMessage",  # P1-I7 WS-B: a message, not a record change
+    "EditThreadMessage",
+    "RetractThreadMessage",
+}
 MESSAGE = "agents propose record changes through MCP (P0-I6 D4); a human accepts them"
 
 

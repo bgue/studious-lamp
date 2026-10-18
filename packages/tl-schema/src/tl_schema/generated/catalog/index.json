@@ -640,6 +640,42 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Thread.Dispatched.v1",
+      "event_type": "Thread.Dispatched",
+      "payload_class": "ThreadDispatchedPayload",
+      "sample": "samples/Thread.Dispatched.v1.json",
+      "schema": "schemas/Thread.Dispatched.v1.json",
+      "title": "A slash command in a thread was confirmed and its commands ran, in the same transaction as the message of kind `dispatch` that carries the command line.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Thread.MessageEdited.v1",
+      "event_type": "Thread.MessageEdited",
+      "payload_class": "ThreadMessageEditedPayload",
+      "sample": "samples/Thread.MessageEdited.v1.json",
+      "schema": "schemas/Thread.MessageEdited.v1.json",
+      "title": "The author replaced the body of a message.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Thread.MessagePosted.v1",
+      "event_type": "Thread.MessagePosted",
+      "payload_class": "ThreadMessagePostedPayload",
+      "sample": "samples/Thread.MessagePosted.v1.json",
+      "schema": "schemas/Thread.MessagePosted.v1.json",
+      "title": "A message was posted in a record thread.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Thread.MessageRetracted.v1",
+      "event_type": "Thread.MessageRetracted",
+      "payload_class": "ThreadMessageRetractedPayload",
+      "sample": "samples/Thread.MessageRetracted.v1.json",
+      "schema": "schemas/Thread.MessageRetracted.v1.json",
+      "title": "The author retracted a message.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Transmittal.Defined.v1",
       "event_type": "Transmittal.Defined",
       "payload_class": "TransmittalDefinedPayload",

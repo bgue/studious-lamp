@@ -43,6 +43,7 @@ from typing import Any, Protocol
 from pydantic import ValidationError
 from sqlalchemy import Connection, text
 
+from tl_core.integration.contract import CommandRunner
 from tl_core.ledger import ConcurrencyError, NewEvent
 from tl_core.modules import module_proposables
 from tl_core.projection.proposals import PROPOSAL_STREAM_TYPE
@@ -80,6 +81,11 @@ from tl_core.settings.layers import parse_layer
 from tl_core.settings.registry import get_definition
 from tl_core.settings.resolver import value_of
 from tl_core.settings.views import get_view
+from tl_core.threads.dispatch import (
+    DispatchFromThread,
+    check_dispatch_proposal,
+    handle_dispatch_from_thread,
+)
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid, utcnow
 
@@ -92,6 +98,12 @@ class Factory(Protocol):
 
 
 Handler = Callable[[UnitOfWork, Any], CommandResult]
+
+
+def _dispatch_needs_a_runner(uow: UnitOfWork, cmd: Any) -> CommandResult:
+    """The table entry of ``DispatchFromThread``: it runs only through :func:`accept_proposal`."""
+    raise ProposalAccessError("a dispatch is accepted with the accepting person's access")
+
 
 BUDGET_ENV = "TL_AGENT_DAILY_PROPOSALS"
 BUDGET_SETTING = "ai.agents.daily_proposals"
@@ -111,6 +123,8 @@ COMMANDS: dict[str, tuple[type[Command], Handler]] = {
     "AddLink": (AddLink, handle_add_link),
     "TransitionWorkflow": (TransitionWorkflow, handle_transition_workflow),
     "ChangeSetting": (ChangeSetting, handle_change_setting),
+    # P1-I7 WS-B: ``accept_proposal`` runs it with the accepting person's ``holds`` and a runner.
+    "DispatchFromThread": (DispatchFromThread, _dispatch_needs_a_runner),
 }
 
 #: Who must accept a proposal of each core command: any signed-in person (ADR-0014).
@@ -399,7 +413,9 @@ def _only_role_guards_failed(exc: GuardFailedError) -> bool:
     return bool(failed) and all(r.kind == ROLE_GUARD_KIND for r in failed)
 
 
-def precheck(factory: Factory, *, tool: str, command: Command) -> None:
+def precheck(
+    factory: Factory, *, tool: str, command: Command, runner: CommandRunner | None = None
+) -> None:
     """Run ``command`` through its handler in a unit of work that is rolled back.
 
     Raises what the handler raises (``RecordNotFoundError``, ``PsetValidationError``,
@@ -407,10 +423,18 @@ def precheck(factory: Factory, *, tool: str, command: Command) -> None:
     change could not be applied now. Nothing is kept: the unit of work ends in an exception, so no
     event is published and a number the allocator took goes back. A transition that is refused only
     by a role guard passes, because the agent has no roles; the accepting person supplies theirs.
+
+    A ``DispatchFromThread`` is not run: it is planned as the agent (``check_dispatch_proposal``),
+    which needs ``runner``.
     """
     command_type = proposable_tools().get(tool)
     if command_type is None or type(command).__name__ != command_type:
         raise InvalidProposalError(f"{tool!r} does not carry a {type(command).__name__}")
+    if isinstance(command, DispatchFromThread):
+        if runner is None:
+            raise InvalidProposalError("a dispatch is checked where commands can run")
+        check_dispatch_proposal(factory, command, runner=runner)
+        return
     handler = command_table()[command_type][1]
     try:
         with factory(readonly=False) as uow:
@@ -435,6 +459,7 @@ def submit(
     summary: str,
     now: datetime | None = None,
     budget: int | None = None,
+    runner: CommandRunner | None = None,
 ) -> ProposalView:
     """:func:`precheck` the command, then :func:`propose` it in a fresh unit of work.
 
@@ -448,7 +473,7 @@ def submit(
             raise BudgetExceededError(
                 f"{agent} has used its {limit} proposals for today (UTC); try again tomorrow"
             )
-    precheck(factory, tool=tool, command=command.model_copy(update={"actor": agent}))
+    precheck(factory, tool=tool, command=command.model_copy(update={"actor": agent}), runner=runner)
     with factory(readonly=False) as uow:
         return propose(
             uow, tool=tool, agent=agent, command=command, summary=summary, now=now, budget=budget
@@ -518,6 +543,7 @@ def accept_proposal(
     accept_risk: bool = False,
     source: str = DEFAULT_SOURCE,
     holds: Callable[[str], bool] | None = None,
+    runner: CommandRunner | None = None,
 ) -> ProposalView:
     """Run the stored command as ``by`` and append ``Proposal.Accepted``, in ``uow``.
 
@@ -534,6 +560,11 @@ def accept_proposal(
     need (ADR-0014): the command runs as ``by`` and gets no more rights through a proposal than
     ``by`` has. Without it only commands that any signed-in person may run are accepted;
     ``ProposalAccessError`` otherwise, with the proposal still pending.
+
+    A ``DispatchFromThread`` proposal needs ``runner`` (the typed command table, ADR-0018): its
+    access depends on its content, so the handler plans the stored command line again as ``by``,
+    with ``by``'s ``holds``, and runs it only if every planned command is permitted to ``by`` and
+    the plan is the one the agent proposed (the stored token). Otherwise the proposal fails.
     """
     _require_person(by, "accept")
     row = _pending(uow, proposal_id)
@@ -550,7 +581,17 @@ def accept_proposal(
         data["actor_roles"] = list(roles)
     if model is ChangeSetting:
         data["accept_risk"] = accept_risk
-    result = handler(uow, model.model_validate(data))
+    if model is DispatchFromThread:
+        if runner is None:
+            raise ProposalAccessError("a dispatch proposal is accepted where commands can run")
+        result = handle_dispatch_from_thread(
+            uow,
+            DispatchFromThread.model_validate(data),
+            holds=lambda level: level == "user" or (holds is not None and holds(level)),
+            runner=runner,
+        )
+    else:
+        result = handler(uow, model.model_validate(data))
     _decide(
         uow,
         row,
@@ -609,6 +650,7 @@ def accept_or_fail(
     accept_risk: bool = False,
     source: str = DEFAULT_SOURCE,
     holds: Callable[[str], bool] | None = None,
+    runner: CommandRunner | None = None,
 ) -> ProposalView:
     """Accept; if the command is refused, roll it back and record ``Proposal.Failed``.
 
@@ -630,6 +672,7 @@ def accept_or_fail(
                 accept_risk=accept_risk,
                 source=source,
                 holds=holds,
+                runner=runner,
             )
     except (
         ProposalNotFoundError,

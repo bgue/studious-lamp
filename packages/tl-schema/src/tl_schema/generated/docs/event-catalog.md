@@ -77,6 +77,10 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`TagClass.Closed`](#tagclassclosed) | `tl.core.TagClass.Closed.v1` | A tag class was retired; tags already of that class keep it. |
 | [`TagClass.Defined`](#tagclassdefined) | `tl.core.TagClass.Defined.v1` | A tag class was defined. |
 | [`TagClass.Revised`](#tagclassrevised) | `tl.core.TagClass.Revised.v1` | A tag class changed. |
+| [`Thread.Dispatched`](#threaddispatched) | `tl.core.Thread.Dispatched.v1` | A slash command in a thread was confirmed and its commands ran, in the same transaction as the message of kind `dispatch` that carries the command line. |
+| [`Thread.MessageEdited`](#threadmessageedited) | `tl.core.Thread.MessageEdited.v1` | The author replaced the body of a message. |
+| [`Thread.MessagePosted`](#threadmessageposted) | `tl.core.Thread.MessagePosted.v1` | A message was posted in a record thread. |
+| [`Thread.MessageRetracted`](#threadmessageretracted) | `tl.core.Thread.MessageRetracted.v1` | The author retracted a message. |
 | [`Transmittal.Defined`](#transmittaldefined) | `tl.core.Transmittal.Defined.v1` | A transmittal was drafted with the revisions it carries and its recipients. |
 | [`Transmittal.Issued`](#transmittalissued) | `tl.core.Transmittal.Issued.v1` | A transmittal was issued to its recipients. |
 | [`Transmittal.ResponseRecorded`](#transmittalresponserecorded) | `tl.core.Transmittal.ResponseRecorded.v1` | The recipients answered a transmittal. |
@@ -4212,6 +4216,247 @@ A tag class changed. Adding a required pset is a constraining change: existing t
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.TagClass.Revised.v1"
+}
+```
+
+## Thread.Dispatched
+
+A slash command in a thread was confirmed and its commands ran, in the same transaction as the message of kind `dispatch` that carries the command line. `results` lists the commands, `link_ids` the `dispatched_from` links from created records back to the thread's record. Each command's own events carry the source `thread:<record id>`, the correlation id `dispatch:<message id>` and this message's event as their cause.
+
+- CloudEvents type: `tl.core.Thread.Dispatched.v1`
+- Ledger payload class: `ThreadDispatchedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `link_ids` | array or null | no |  |
+| `message_id` | string | yes |  |
+| `record_id` | string | yes |  |
+| `results` | array or null | no |  |
+| `summary` | string or null | no | One line for the result card. |
+| `verb` | string | yes | The slash command verb (`link`, `status`, `raise`, `dispatch`, `notify`, `remind`, `summarise`...). |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "link_ids": [
+        "01J9Z6Q4W3X2Y1V0T9S8R7Q6P8"
+      ],
+      "message_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "results": [
+        {
+          "command_type": "CreateRecord",
+          "key": "P123-REC-0044",
+          "stream_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+          "version": 1
+        }
+      ],
+      "summary": "Created P123-REC-0044",
+      "verb": "raise"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Thread.Dispatched/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Thread.Dispatched.v1"
+}
+```
+
+## Thread.MessageEdited
+
+The author replaced the body of a message. The payload is a full replacement of the body, the mentions and the record references; the earlier text stays in the ledger.
+
+- CloudEvents type: `tl.core.Thread.MessageEdited.v1`
+- Ledger payload class: `ThreadMessageEditedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `body` | string | yes |  |
+| `mentions` | array or null | no |  |
+| `message_id` | string | yes |  |
+| `record_id` | string | yes |  |
+| `record_refs` | array or null | no |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "body": "Flanges short for W019 and W020 @lchen",
+      "mentions": [
+        "lchen"
+      ],
+      "message_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "record_refs": []
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Thread.MessageEdited/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Thread.MessageEdited.v1"
+}
+```
+
+## Thread.MessagePosted
+
+A message was posted in a record thread. The first message of a record creates the thread stream and also carries `record_creator`, the actor that created the record, who joins the participants.
+
+- CloudEvents type: `tl.core.Thread.MessagePosted.v1`
+- Ledger payload class: `ThreadMessagePostedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `author` | string | yes |  |
+| `body` | string | yes |  |
+| `kind` | string | yes | What a message is. A person's message is `message`; the others are written by the server. |
+| `mentions` | array or null | no |  |
+| `message_id` | string | yes |  |
+| `record_creator` | string or null | no | First message of the thread only; the actor that created the record. |
+| `record_id` | string | yes |  |
+| `record_refs` | array or null | no |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "author": "user:rgarcia",
+      "body": "Flanges short for W019 @lchen",
+      "kind": "message",
+      "mentions": [
+        "lchen"
+      ],
+      "message_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "record_creator": "user:mlee",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "record_refs": []
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Thread.MessagePosted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Thread.MessagePosted.v1"
+}
+```
+
+## Thread.MessageRetracted
+
+The author retracted a message. The projection keeps a tombstone row and drops the body.
+
+- CloudEvents type: `tl.core.Thread.MessageRetracted.v1`
+- Ledger payload class: `ThreadMessageRetractedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `message_id` | string | yes |  |
+| `reason` | string | yes | Why the message was retracted. |
+| `record_id` | string | yes |  |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "message_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "reason": "Wrong record",
+      "record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/Thread.MessageRetracted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.Thread.MessageRetracted.v1"
 }
 ```
 

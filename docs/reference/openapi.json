@@ -646,6 +646,50 @@
         "title": "AgentTokenView",
         "type": "object"
       },
+      "AssignArgs": {
+        "properties": {
+          "assignees": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Assignees",
+            "type": "array"
+          },
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "verb": {
+            "const": "assign",
+            "default": "assign",
+            "title": "Verb",
+            "type": "string"
+          }
+        },
+        "required": [
+          "assignees"
+        ],
+        "title": "AssignArgs",
+        "type": "object"
+      },
       "AttachFileBody": {
         "additionalProperties": false,
         "properties": {
@@ -3431,6 +3475,245 @@
         "title": "DetectKeysBody",
         "type": "object"
       },
+      "DispatchArgs": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Parameters",
+            "type": "object"
+          },
+          "request_type": {
+            "title": "Request Type",
+            "type": "string"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "verb": {
+            "const": "dispatch",
+            "default": "dispatch",
+            "title": "Verb",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_type"
+        ],
+        "title": "DispatchArgs",
+        "type": "object"
+      },
+      "DispatchBody": {
+        "additionalProperties": false,
+        "description": "What a confirmation carries: the line, the token the preview returned and its expiry.",
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "text": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "token": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "token"
+        ],
+        "title": "DispatchBody",
+        "type": "object"
+      },
+      "DispatchOutcome": {
+        "description": "The payload of ``Thread.Dispatched`` and the result card in the thread.",
+        "properties": {
+          "link_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Link Ids",
+            "type": "array"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/DispatchResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "summary": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Summary",
+            "type": "string"
+          },
+          "verb": {
+            "enum": [
+              "assign",
+              "dispatch",
+              "raise",
+              "link",
+              "status",
+              "hold",
+              "release",
+              "due",
+              "notify",
+              "remind",
+              "summarise"
+            ],
+            "title": "Verb",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id",
+          "verb"
+        ],
+        "title": "DispatchOutcome",
+        "type": "object"
+      },
+      "DispatchPreview": {
+        "description": "What the caller sees before a side-effecting dispatch runs.\n\n``can_dispatch`` is true when every planned command is ``permitted`` and has no ``problem``.\n``token`` is the SHA-256 of the canonical JSON of (record id, record version, ``line``,\n``planned``); a confirmation names it, and the run is refused (``dispatch_stale``) when the\nplan made then differs or ``expires_at`` has passed.",
+        "properties": {
+          "can_dispatch": {
+            "title": "Can Dispatch",
+            "type": "boolean"
+          },
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/PlannedLink"
+            },
+            "title": "Links",
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Notes",
+            "type": "array"
+          },
+          "parsed": {
+            "$ref": "#/components/schemas/ParsedDispatch"
+          },
+          "planned": {
+            "items": {
+              "$ref": "#/components/schemas/PlannedCommand"
+            },
+            "maxItems": 20,
+            "title": "Planned",
+            "type": "array"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "record": {
+            "$ref": "#/components/schemas/RecordRef"
+          },
+          "side_effecting": {
+            "title": "Side Effecting",
+            "type": "boolean"
+          },
+          "token": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "record",
+          "parsed",
+          "side_effecting",
+          "can_dispatch",
+          "token",
+          "expires_at"
+        ],
+        "title": "DispatchPreview",
+        "type": "object"
+      },
+      "DispatchResult": {
+        "description": "One command a confirmed dispatch ran.",
+        "properties": {
+          "command_type": {
+            "title": "Command Type",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "stream_id": {
+            "title": "Stream Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "command_type",
+          "stream_id",
+          "version"
+        ],
+        "title": "DispatchResult",
+        "type": "object"
+      },
       "DocumentLinkView": {
         "description": "A link to the document and what its pin means now.",
         "properties": {
@@ -3706,6 +3989,37 @@
         "title": "DocumentView",
         "type": "object"
       },
+      "DueArgs": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "verb": {
+            "const": "due",
+            "default": "due",
+            "title": "Verb",
+            "type": "string"
+          },
+          "when": {
+            "title": "When",
+            "type": "string"
+          }
+        },
+        "required": [
+          "when"
+        ],
+        "title": "DueArgs",
+        "type": "object"
+      },
       "EditPostBody": {
         "additionalProperties": false,
         "properties": {
@@ -3855,6 +4169,74 @@
           "expected_version"
         ],
         "title": "EditRecordBody",
+        "type": "object"
+      },
+      "EditThreadMessageBody": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "record_id",
+          "message_id",
+          "body"
+        ],
+        "title": "EditThreadMessageBody",
         "type": "object"
       },
       "EffectiveSetting": {
@@ -4960,6 +5342,41 @@
         "title": "Health",
         "type": "object"
       },
+      "HoldArgs": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "verb": {
+            "const": "hold",
+            "default": "hold",
+            "title": "Verb",
+            "type": "string"
+          }
+        },
+        "title": "HoldArgs",
+        "type": "object"
+      },
       "ImportBody": {
         "additionalProperties": false,
         "description": "Body of ``POST /settings/import``.",
@@ -5600,6 +6017,53 @@
         "title": "KeyChip",
         "type": "object"
       },
+      "LinkArgs": {
+        "properties": {
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Keys",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "relation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relation"
+          },
+          "verb": {
+            "const": "link",
+            "default": "link",
+            "title": "Verb",
+            "type": "string"
+          }
+        },
+        "required": [
+          "keys"
+        ],
+        "title": "LinkArgs",
+        "type": "object"
+      },
       "LinkCounts": {
         "properties": {
           "active_in": {
@@ -6098,6 +6562,53 @@
         "title": "MissingLink",
         "type": "object"
       },
+      "NotifyArgs": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "verb": {
+            "const": "notify",
+            "default": "notify",
+            "title": "Verb",
+            "type": "string"
+          },
+          "who": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Who",
+            "type": "array"
+          }
+        },
+        "required": [
+          "who"
+        ],
+        "title": "NotifyArgs",
+        "type": "object"
+      },
       "OpenDerivedDocumentBody": {
         "additionalProperties": false,
         "properties": {
@@ -6379,6 +6890,108 @@
         "title": "OverrideReviewOutcomeBody",
         "type": "object"
       },
+      "ParseProblem": {
+        "description": "A command line the parser refused. ``column`` is 0-based in ``line`` when known.",
+        "properties": {
+          "code": {
+            "pattern": "^[a-z][a-z0-9_]{0,63}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "column": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Column"
+          },
+          "message": {
+            "maxLength": 500,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ParseProblem",
+        "type": "object"
+      },
+      "ParsedDispatch": {
+        "description": "A command line the parser understood. ``line`` is the first line as typed (bounded).",
+        "properties": {
+          "args": {
+            "discriminator": {
+              "mapping": {
+                "assign": "#/components/schemas/AssignArgs",
+                "dispatch": "#/components/schemas/DispatchArgs",
+                "due": "#/components/schemas/DueArgs",
+                "hold": "#/components/schemas/HoldArgs",
+                "link": "#/components/schemas/LinkArgs",
+                "notify": "#/components/schemas/NotifyArgs",
+                "raise": "#/components/schemas/RaiseArgs",
+                "release": "#/components/schemas/ReleaseArgs",
+                "remind": "#/components/schemas/RemindArgs",
+                "status": "#/components/schemas/StatusArgs",
+                "summarise": "#/components/schemas/SummariseArgs"
+              },
+              "propertyName": "verb"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AssignArgs"
+              },
+              {
+                "$ref": "#/components/schemas/DispatchArgs"
+              },
+              {
+                "$ref": "#/components/schemas/RaiseArgs"
+              },
+              {
+                "$ref": "#/components/schemas/LinkArgs"
+              },
+              {
+                "$ref": "#/components/schemas/StatusArgs"
+              },
+              {
+                "$ref": "#/components/schemas/HoldArgs"
+              },
+              {
+                "$ref": "#/components/schemas/ReleaseArgs"
+              },
+              {
+                "$ref": "#/components/schemas/DueArgs"
+              },
+              {
+                "$ref": "#/components/schemas/NotifyArgs"
+              },
+              {
+                "$ref": "#/components/schemas/RemindArgs"
+              },
+              {
+                "$ref": "#/components/schemas/SummariseArgs"
+              }
+            ],
+            "title": "Args"
+          },
+          "line": {
+            "maxLength": 2000,
+            "title": "Line",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line",
+          "args"
+        ],
+        "title": "ParsedDispatch",
+        "type": "object"
+      },
       "ParsedTag": {
         "description": "One `#tag` or `@mention` found in a post body.\n\ntext: as written, without the leading sigil (``47-1234-S03``, ``area:A12``, ``hold``,\n  ``party:acme-nde``).\nkind: record (fits a numbering pattern of the scope), code (``ns:value``), signal (in the\n  signal set), mention (``@``), otherwise topic. Precedence: mention, record, code, signal,\n  topic.\nstart, end: character offsets of the whole token including the sigil, for highlighting.\nnamespace: for code and mention tags, the part before ``:`` (``area``, ``party``), else None.\nrecord_id: for a record tag that resolved to an existing record in the scope or company,\n  else None.",
         "properties": {
@@ -6512,6 +7125,161 @@
         "title": "PlanRow",
         "type": "object"
       },
+      "PlannedCommand": {
+        "description": "One command that automation or a dispatch would run, as a preview shows it.\n\n``command`` holds the fields of the command model except ``actor`` (which the runner sets).\n``access`` is what the command needs (``None``: nothing declares it, so it is refused);\n``permitted`` says whether the actor that would run it holds that access. ``problem`` is set\nwhen the command would be refused (validation, access, a missing record, a stale state).",
+        "properties": {
+          "access": {
+            "anyOf": [
+              {
+                "enum": [
+                  "user",
+                  "controller",
+                  "admin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access"
+          },
+          "command": {
+            "additionalProperties": true,
+            "title": "Command",
+            "type": "object"
+          },
+          "command_type": {
+            "title": "Command Type",
+            "type": "string"
+          },
+          "permitted": {
+            "default": false,
+            "title": "Permitted",
+            "type": "boolean"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Problem"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "summary": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_type"
+        ],
+        "title": "PlannedCommand",
+        "type": "object"
+      },
+      "PlannedLink": {
+        "description": "A ``dispatched_from`` link the dispatch adds: from a record it creates (``from_record_id``\n``None`` until it exists) to the thread's record; ``note`` names the message.",
+        "properties": {
+          "from_record_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Record Id"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "relation": {
+            "const": "dispatched_from",
+            "default": "dispatched_from",
+            "title": "Relation",
+            "type": "string"
+          },
+          "to_record_id": {
+            "title": "To Record Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to_record_id",
+          "note"
+        ],
+        "title": "PlannedLink",
+        "type": "object"
+      },
+      "PostThreadMessageBody": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "record_id",
+          "body"
+        ],
+        "title": "PostThreadMessageBody",
+        "type": "object"
+      },
       "PostToFeedBody": {
         "additionalProperties": false,
         "properties": {
@@ -6591,6 +7359,49 @@
         "title": "PostToFeedBody",
         "type": "object"
       },
+      "PreviewBody": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "PreviewBody",
+        "type": "object"
+      },
+      "PreviewResult": {
+        "description": "What the preview route and client return: a preview, or the parse problem to show.\n\nA command line that does not parse is feedback for the composer, not a failed request.",
+        "properties": {
+          "preview": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DispatchPreview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ParseProblem"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "PreviewResult",
+        "type": "object"
+      },
       "Principal": {
         "description": "Who is calling. The only identity callers see.",
         "properties": {
@@ -6643,6 +7454,27 @@
           "via"
         ],
         "title": "Principal",
+        "type": "object"
+      },
+      "Problem": {
+        "description": "A refusal or a failure: a short fixed code and words for a person (no paths, no traces).",
+        "properties": {
+          "code": {
+            "pattern": "^[a-z][a-z0-9_]{0,63}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 500,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "Problem",
         "type": "object"
       },
       "ProposalView": {
@@ -7132,6 +7964,56 @@
         "title": "PutBodyIn",
         "type": "object"
       },
+      "RaiseArgs": {
+        "properties": {
+          "against": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Against",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "verb": {
+            "const": "raise",
+            "default": "raise",
+            "title": "Verb",
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_type"
+        ],
+        "title": "RaiseArgs",
+        "type": "object"
+      },
       "ReactToPostBody": {
         "additionalProperties": false,
         "properties": {
@@ -7469,6 +8351,58 @@
           "updated_at"
         ],
         "title": "RecordOut",
+        "type": "object"
+      },
+      "RecordRef": {
+        "description": "A pointer to a record at a version (§19.2 ``RecordRef``; §19.3: every object carries one).",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "record_type": {
+            "title": "Record Type",
+            "type": "string"
+          },
+          "seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seq"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "id",
+          "record_type"
+        ],
+        "title": "RecordRef",
         "type": "object"
       },
       "RecordReviewOutcomeBody": {
@@ -8894,6 +9828,91 @@
         "title": "RelationOut",
         "type": "object"
       },
+      "ReleaseArgs": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "verb": {
+            "const": "release",
+            "default": "release",
+            "title": "Verb",
+            "type": "string"
+          }
+        },
+        "title": "ReleaseArgs",
+        "type": "object"
+      },
+      "RemindArgs": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "verb": {
+            "const": "remind",
+            "default": "remind",
+            "title": "Verb",
+            "type": "string"
+          },
+          "when": {
+            "title": "When",
+            "type": "string"
+          },
+          "who": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Who",
+            "type": "array"
+          }
+        },
+        "required": [
+          "when"
+        ],
+        "title": "RemindArgs",
+        "type": "object"
+      },
       "RenameTagBody": {
         "additionalProperties": false,
         "properties": {
@@ -9559,6 +10578,74 @@
           "reason"
         ],
         "title": "RetractPostBody",
+        "type": "object"
+      },
+      "RetractThreadMessageBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "record_id",
+          "message_id",
+          "reason"
+        ],
+        "title": "RetractThreadMessageBody",
         "type": "object"
       },
       "RevertBody": {
@@ -11365,6 +12452,48 @@
         "title": "StartExtractionBody",
         "type": "object"
       },
+      "StatusArgs": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "verb": {
+            "const": "status",
+            "default": "status",
+            "title": "Verb",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "StatusArgs",
+        "type": "object"
+      },
       "SuggestLinkBody": {
         "additionalProperties": false,
         "properties": {
@@ -11489,6 +12618,30 @@
           "to_id"
         ],
         "title": "SuggestLinkBody",
+        "type": "object"
+      },
+      "SummariseArgs": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "verb": {
+            "const": "summarise",
+            "default": "summarise",
+            "title": "Verb",
+            "type": "string"
+          }
+        },
+        "title": "SummariseArgs",
         "type": "object"
       },
       "SupersedeDocumentBody": {
@@ -12037,6 +13190,162 @@
           "psets"
         ],
         "title": "TagOut",
+        "type": "object"
+      },
+      "ThreadMessageView": {
+        "description": "A message as the thread tab, the API and ``read_thread`` show it.",
+        "properties": {
+          "author": {
+            "title": "Author",
+            "type": "string"
+          },
+          "body": {
+            "maxLength": 10000,
+            "title": "Body",
+            "type": "string"
+          },
+          "dispatch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DispatchOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "edited": {
+            "default": false,
+            "title": "Edited",
+            "type": "boolean"
+          },
+          "mentions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Mentions",
+            "type": "array"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "posted_at": {
+            "title": "Posted At",
+            "type": "string"
+          },
+          "record_id": {
+            "title": "Record Id",
+            "type": "string"
+          },
+          "record_refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Record Refs",
+            "type": "array"
+          },
+          "retracted": {
+            "default": false,
+            "title": "Retracted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "message_id",
+          "record_id",
+          "author",
+          "body",
+          "posted_at"
+        ],
+        "title": "ThreadMessageView",
+        "type": "object"
+      },
+      "ThreadPage": {
+        "description": "A page of a thread, oldest message first. ``next_before`` is the cursor of the older page.",
+        "properties": {
+          "dispatch_enabled": {
+            "title": "Dispatch Enabled",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "kinds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Kinds",
+            "type": "array"
+          },
+          "message_count": {
+            "default": 0,
+            "title": "Message Count",
+            "type": "integer"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ThreadMessageView"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "next_before": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Before"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/ThreadParticipant"
+            },
+            "title": "Participants",
+            "type": "array"
+          },
+          "record": {
+            "$ref": "#/components/schemas/RecordRef"
+          },
+          "seqs": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Seqs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "record",
+          "enabled",
+          "dispatch_enabled"
+        ],
+        "title": "ThreadPage",
+        "type": "object"
+      },
+      "ThreadParticipant": {
+        "properties": {
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "actor"
+        ],
+        "title": "ThreadParticipant",
         "type": "object"
       },
       "TraceNode": {
@@ -17500,6 +18809,113 @@
         ]
       }
     },
+    "/commands/EditThreadMessage": {
+      "post": {
+        "description": "Replace the body of the author's own message.",
+        "operationId": "command_EditThreadMessage",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditThreadMessageBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "EditThreadMessage",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/FlagLink": {
       "post": {
         "description": "Run the FlagLink command.",
@@ -18351,6 +19767,113 @@
           }
         ],
         "summary": "OverrideReviewOutcome",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/PostThreadMessage": {
+      "post": {
+        "description": "Post ``body`` to the thread of ``record_id`` as ``actor`` (person or agent).\n\nIt never dispatches: a body that starts with ``/`` is stored as the text it is.",
+        "operationId": "command_PostThreadMessage",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostThreadMessageBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "PostThreadMessage",
         "tags": [
           "commands"
         ]
@@ -20705,6 +22228,113 @@
           }
         ],
         "summary": "RetractPost",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/RetractThreadMessage": {
+      "post": {
+        "description": "Retract the author's own message; a tombstone stays.",
+        "operationId": "command_RetractThreadMessage",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetractThreadMessageBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "RetractThreadMessage",
         "tags": [
           "commands"
         ]
@@ -27877,6 +29507,321 @@
         "summary": "Get Record Links",
         "tags": [
           "links"
+        ]
+      }
+    },
+    "/records/{record_id}/thread": {
+      "get": {
+        "description": "The newest messages of a record's thread (oldest first), with its participants.\n\nA record the caller cannot read is a 404 `record_not_found`; a record whose type has no thread\nanswers with `enabled` false and no messages.",
+        "operationId": "get_thread",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "`next_before` of the previous page.",
+            "in": "query",
+            "name": "before_seq",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`next_before` of the previous page.",
+              "title": "Before Seq"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Thread",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/records/{record_id}/thread/dispatch": {
+      "post": {
+        "description": "Run what the preview showed, in one transaction, as the caller.\n\n409 `dispatch_stale` when the plan is not the previewed one or the preview expired; 422\n`dispatch_refused` when a planned command is not permitted or is refused; 403\n`dispatch_forbidden` or `dispatch_disabled` when the caller's role or the settings say no.\nAny refusal rolls back everything, the message included.",
+        "operationId": "dispatch_from_thread",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DispatchBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dispatch From Thread",
+        "tags": [
+          "threads"
+        ]
+      }
+    },
+    "/records/{record_id}/thread/preview": {
+      "post": {
+        "description": "Plan a slash command as the caller. Nothing is written.\n\n`preview` holds what the command would do, each planned command with the access it needs and\nwhether the caller holds it, and the `token` to confirm with. A line that does not parse gives\n`problem` instead.",
+        "operationId": "preview_dispatch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Dispatch",
+        "tags": [
+          "threads"
         ]
       }
     },

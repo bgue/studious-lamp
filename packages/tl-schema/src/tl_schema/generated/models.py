@@ -81,6 +81,7 @@ linkml_meta = LinkMLMeta({'default_prefix': 'throughline',
                  'numbering',
                  'workflow',
                  'feed',
+                 'threads',
                  'proposals',
                  'settings',
                  'files',
@@ -201,6 +202,28 @@ class Importance(str, Enum):
     low = "low"
     normal = "normal"
     high = "high"
+
+
+class ThreadMessageKind(str, Enum):
+    """
+    What a message is. A person's message is `message`; the others are written by the server.
+    """
+    message = "message"
+    """
+    Written by a person or an agent.
+    """
+    dispatch = "dispatch"
+    """
+    A confirmed slash command; the outcome is in `Thread.Dispatched`.
+    """
+    summary = "summary"
+    """
+    A deterministic summary of the thread posted by `/summarise`.
+    """
+    reminder = "reminder"
+    """
+    Posted by the server when a `/remind` falls due.
+    """
 
 
 class ProposalStatus(str, Enum):
@@ -519,6 +542,7 @@ class RecordEnvelope(ConfiguredBaseModel):
     key: Optional[str] = Field(default=None, description="""Human-readable number, unique within a scope. Null until numbering assigns one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'ThreadDispatchResult',
                        'SettingDefinition',
                        'SettingChangedPayload',
                        'SettingLockedPayload',
@@ -543,6 +567,8 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -575,6 +601,8 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -590,6 +618,7 @@ class RecordEnvelope(ConfiguredBaseModel):
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -607,6 +636,7 @@ class RecordEnvelope(ConfiguredBaseModel):
          'ifabsent': 'string(ok)'} })
     created_at: datetime  = Field(default=..., description="""Timestamp of the creating event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ThreadRow',
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -655,6 +685,7 @@ class Record(RecordEnvelope):
     key: Optional[str] = Field(default=None, description="""Human-readable number, unique within a scope. Null until numbering assigns one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'ThreadDispatchResult',
                        'SettingDefinition',
                        'SettingChangedPayload',
                        'SettingLockedPayload',
@@ -679,6 +710,8 @@ class Record(RecordEnvelope):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -711,6 +744,8 @@ class Record(RecordEnvelope):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -726,6 +761,7 @@ class Record(RecordEnvelope):
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -743,6 +779,7 @@ class Record(RecordEnvelope):
          'ifabsent': 'string(ok)'} })
     created_at: datetime  = Field(default=..., description="""Timestamp of the creating event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ThreadRow',
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -771,13 +808,17 @@ class Event(ConfiguredBaseModel):
     seq: int = Field(default=..., description="""Global monotonic sequence; the ordering backbone.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
                        'WebhookDelivery']} })
     event_id: str = Field(default=..., description="""Unique event identifier (ULID).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent', 'WebhookDelivery']} })
-    stream_id: str = Field(default=..., description="""The record (aggregate) the event belongs to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent', 'RecordBodyStoredPayload']} })
+    stream_id: str = Field(default=..., description="""The record (aggregate) the event belongs to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'ThreadDispatchResult',
+                       'OutboxEvent',
+                       'RecordBodyStoredPayload']} })
     stream_type: str = Field(default=..., description="""Record type of the stream, for example `core.Record`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent']} })
     stream_version: int = Field(default=..., description="""Per-stream version, used for optimistic concurrency.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent']} })
     event_type: str = Field(default=..., description="""`<Class>.<PastTenseVerb>`, for example `Record.Created`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'EventCard', 'FeedItemRow', 'OutboxEvent']} })
@@ -794,6 +835,8 @@ class Event(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -807,6 +850,7 @@ class Event(ConfiguredBaseModel):
     actor: str = Field(default=..., description="""`user:<id>`, `svc:<name>` or `agent:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
+                       'ThreadParticipantRow',
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
@@ -850,6 +894,14 @@ class PsetValue(ConfiguredBaseModel):
                        'FileUploadedPayload',
                        'FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
                        'File',
                        'RecordBody',
                        'BodyQuarantine']} })
@@ -865,6 +917,8 @@ class PsetValue(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -896,6 +950,7 @@ class PsetValue(ConfiguredBaseModel):
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -943,6 +998,8 @@ class Link(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -997,6 +1054,7 @@ class Link(ConfiguredBaseModel):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -1014,9 +1072,10 @@ class Link(ConfiguredBaseModel):
     declined: bool = Field(default=False, description="""True when the link was a suggestion that a person declined. Declines are remembered.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link'], 'ifabsent': 'false'} })
     verified_by: Optional[str] = Field(default=None, description="""Actor of the last `Link.Verified` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
     verified_at: Optional[datetime ] = Field(default=None, description="""Time of the last `Link.Verified` event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link']} })
-    created_by: str = Field(default=..., description="""Actor of the creating event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'WebhookSubscription', 'Account']} })
+    created_by: str = Field(default=..., description="""Actor of the creating event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'ThreadRow', 'WebhookSubscription', 'Account']} })
     created_at: datetime  = Field(default=..., description="""Time of the creating event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ThreadRow',
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -1039,6 +1098,8 @@ class Link(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -1054,6 +1115,7 @@ class Link(ConfiguredBaseModel):
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -1078,6 +1140,14 @@ class LinkCount(ConfiguredBaseModel):
                        'FileUploadedPayload',
                        'FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
                        'File',
                        'RecordBody',
                        'BodyQuarantine']} })
@@ -1093,6 +1163,8 @@ class LinkCount(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -1112,6 +1184,7 @@ class LinkCount(ConfiguredBaseModel):
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -1142,6 +1215,8 @@ class NumberingCounter(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -1163,6 +1238,8 @@ class NumberingCounter(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -1178,6 +1255,7 @@ class NumberingCounter(ConfiguredBaseModel):
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -1213,6 +1291,14 @@ class WorkflowState(ConfiguredBaseModel):
                        'FileUploadedPayload',
                        'FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
                        'File',
                        'RecordBody',
                        'BodyQuarantine']} })
@@ -1228,6 +1314,8 @@ class WorkflowState(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -1249,6 +1337,7 @@ class WorkflowState(ConfiguredBaseModel):
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -1306,6 +1395,7 @@ class RecordCreatedPayload(EventPayload):
     key: Optional[str] = Field(default=None, description="""Human-readable key; null until numbering assigns one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'ThreadDispatchResult',
                        'SettingDefinition',
                        'SettingChangedPayload',
                        'SettingLockedPayload',
@@ -1360,6 +1450,7 @@ class RecordVoidedPayload(EventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -1405,6 +1496,7 @@ class RecordCorrectedPayload(EventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -1568,6 +1660,7 @@ class LinkDeclinedPayload(LinkPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -1647,6 +1740,7 @@ class LinkFlaggedPayload(LinkPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -1683,6 +1777,7 @@ class LinkRetractedPayload(LinkPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -1736,6 +1831,7 @@ class WorkflowTransitionedPayload(EventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -1778,6 +1874,7 @@ class NumberingAllocatedPayload(EventPayload):
     key: str = Field(default=..., description="""The key built.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'ThreadDispatchResult',
                        'SettingDefinition',
                        'SettingChangedPayload',
                        'SettingLockedPayload',
@@ -1794,6 +1891,14 @@ class NumberingAllocatedPayload(EventPayload):
                        'FileUploadedPayload',
                        'FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
                        'File',
                        'RecordBody',
                        'BodyQuarantine']} })
@@ -1828,6 +1933,14 @@ class FileUploadedPayload(EventPayload):
                        'FileUploadedPayload',
                        'FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
                        'File',
                        'RecordBody',
                        'BodyQuarantine']} })
@@ -1934,6 +2047,7 @@ class FileRejectedPayload(EventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -1980,6 +2094,8 @@ class SchemaEffectiveChangedPayload(EventPayload):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -2013,6 +2129,8 @@ class SchemaPackagePublishedPayload(EventPayload):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -2112,6 +2230,7 @@ class WebhookSubscriptionDisabledPayload(WebhookEventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -2173,6 +2292,9 @@ class FeedTag(ConfiguredBaseModel):
     text: str = Field(default=..., description="""The tag as written, without its leading sigil (`47-1234-S03`, `area:A12`, `party:acme-nde`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag']} })
     kind: TagKind = Field(default=..., description="""Kind of the tag after resolution.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageRow',
                        'Account',
                        'AccountCreatedPayload',
                        'JobQueue']} })
@@ -2189,6 +2311,14 @@ class FeedTag(ConfiguredBaseModel):
                        'FileUploadedPayload',
                        'FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
                        'File',
                        'RecordBody',
                        'BodyQuarantine']} })
@@ -2218,6 +2348,8 @@ class ActivityPost(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -2226,10 +2358,18 @@ class ActivityPost(ConfiguredBaseModel):
                        'RecordBody',
                        'BodyQuarantine',
                        'JobQueue']} })
-    author: str = Field(default=..., description="""Actor that posted (`user:<id>`, `agent:<id>` or `svc:<name>`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost', 'FeedPostedPayload']} })
+    author: str = Field(default=..., description="""Actor that posted (`user:<id>`, `agent:<id>` or `svc:<name>`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
+                       'FeedPostedPayload',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageRow']} })
     body: str = Field(default=..., description="""Text of the post, with its `#tags` and `@mentions`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
                        'FeedPostedPayload',
                        'FeedEditedPayload',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow',
                        'WebhookDelivery']} })
     importance: Importance = Field(default=Importance("normal"), description="""Importance the author gave; a signal tag raises the effective level to high.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost', 'EventCard', 'FeedPostedPayload', 'FeedItemRow'],
          'ifabsent': 'string(normal)'} })
@@ -2260,6 +2400,8 @@ class EventCard(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -2271,12 +2413,14 @@ class EventCard(ConfiguredBaseModel):
     actor: str = Field(default=..., description="""Actor of the aggregated events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
+                       'ThreadParticipantRow',
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
                        'AuthAudit']} })
     summary: str = Field(default=..., description="""Rendered one-line summary, for example `jsmith created 14 records`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
                        'FeedItemRow',
+                       'ThreadDispatchedPayload',
                        'ProposalCreatedPayload',
                        'ProposalRow']} })
     importance: Importance = Field(default=Importance("low"), description="""System cards are low importance.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost', 'EventCard', 'FeedPostedPayload', 'FeedItemRow'],
@@ -2312,8 +2456,16 @@ class FeedPostedPayload(EventPayload):
     body: str = Field(default=..., description="""Text of the post.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
                        'FeedPostedPayload',
                        'FeedEditedPayload',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow',
                        'WebhookDelivery']} })
-    author: str = Field(default=..., description="""Actor that posted.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost', 'FeedPostedPayload']} })
+    author: str = Field(default=..., description="""Actor that posted.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
+                       'FeedPostedPayload',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageRow']} })
     importance: Importance = Field(default=Importance("normal"), description="""Importance the author gave. The projection derives the effective level from it and the tags.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost', 'EventCard', 'FeedPostedPayload', 'FeedItemRow'],
          'ifabsent': 'string(normal)'} })
     tags: Optional[list[FeedTag]] = Field(default=None, description="""Tags found in the body, after resolution.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost', 'FeedPostedPayload', 'FeedEditedPayload']} })
@@ -2343,6 +2495,10 @@ class FeedEditedPayload(EventPayload):
     body: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
                        'FeedPostedPayload',
                        'FeedEditedPayload',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow',
                        'WebhookDelivery']} })
     tags: Optional[list[FeedTag]] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost', 'FeedPostedPayload', 'FeedEditedPayload']} })
     record_ids: Optional[list[str]] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
@@ -2377,6 +2533,7 @@ class FeedRetractedPayload(EventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -2451,6 +2608,8 @@ class FeedItemRow(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -2462,6 +2621,7 @@ class FeedItemRow(ConfiguredBaseModel):
     actor: str = Field(default=..., description="""Author of a post, or the actor of a card's events.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
+                       'ThreadParticipantRow',
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
@@ -2471,6 +2631,7 @@ class FeedItemRow(ConfiguredBaseModel):
          'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -2478,6 +2639,7 @@ class FeedItemRow(ConfiguredBaseModel):
                        'WebhookDelivery']} })
     summary: str = Field(default=..., description="""Body of a post (empty once retracted) or the rendered summary of a card.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
                        'FeedItemRow',
+                       'ThreadDispatchedPayload',
                        'ProposalCreatedPayload',
                        'ProposalRow']} })
     importance: Importance = Field(default=Importance("normal"), description="""Effective importance. High when a post has a signal tag, else `base_importance`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost', 'EventCard', 'FeedPostedPayload', 'FeedItemRow'],
@@ -2486,11 +2648,11 @@ class FeedItemRow(ConfiguredBaseModel):
     event_type: Optional[str] = Field(default=None, description="""Cards only; the event type of every aggregated event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'EventCard', 'FeedItemRow', 'OutboxEvent']} })
     event_count: int = Field(default=1, description="""1 for a post; the number of aggregated ledger events for a card.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard', 'FeedItemRow'], 'ifabsent': 'int(1)'} })
     first_us: Optional[int] = Field(default=None, description="""Cards only; `recorded_at` of the first aggregated event in microseconds since the Unix epoch. An integer so the window test does not depend on how a dialect returns timestamps.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow']} })
-    first_seq: Optional[int] = Field(default=None, description="""Cards only; `seq` of the first aggregated event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'TypeRegistrationRow']} })
+    first_seq: Optional[int] = Field(default=None, description="""Cards only; `seq` of the first aggregated event.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'ThreadParticipantRow', 'TypeRegistrationRow']} })
     open_scope: Optional[str] = Field(default=None, description="""Cards only; the scope while the card can still be extended, else null.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow']} })
-    retracted: bool = Field(default=False, description="""True once the post was retracted. The row stays as a tombstone.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow'], 'ifabsent': 'false'} })
-    retract_reason: Optional[str] = Field(default=None, description="""Reason given with `Feed.Retracted`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow']} })
-    edit_count: int = Field(default=0, description="""Number of `Feed.Edited` events applied to the post.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow'], 'ifabsent': 'int(0)'} })
+    retracted: bool = Field(default=False, description="""True once the post was retracted. The row stays as a tombstone.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'ThreadMessageRow'], 'ifabsent': 'false'} })
+    retract_reason: Optional[str] = Field(default=None, description="""Reason given with `Feed.Retracted`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'ThreadMessageRow']} })
+    edit_count: int = Field(default=0, description="""Number of `Feed.Edited` events applied to the post.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'ThreadMessageRow'], 'ifabsent': 'int(0)'} })
     reactions: Any = Field(default=..., description="""Reacting actors by reaction (a JSON object such as ack: [user:a]); empty lists are dropped.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['FeedItemRow']} })
     version: Optional[int] = Field(default=None, description="""Posts only; ledger `stream_version` of the post stream after the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
@@ -2498,6 +2660,8 @@ class FeedItemRow(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -2532,6 +2696,8 @@ class Hashtag(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -2542,6 +2708,9 @@ class Hashtag(ConfiguredBaseModel):
                        'JobQueue']} })
     kind: TagKind = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageRow',
                        'Account',
                        'AccountCreatedPayload',
                        'JobQueue']} })
@@ -2560,6 +2729,14 @@ class Hashtag(ConfiguredBaseModel):
                        'FileUploadedPayload',
                        'FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
                        'File',
                        'RecordBody',
                        'BodyQuarantine']} })
@@ -2568,11 +2745,598 @@ class Hashtag(ConfiguredBaseModel):
     seq: int = Field(default=..., description="""`seq` of the event that added the row; orders a card's subjects.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
                        'WebhookDelivery']} })
+
+
+class ThreadMessage(ConfiguredBaseModel):
+    """
+    One message in a record thread (brief 21.5). Keys in the body are detected with the feed's key detection and kept as `record_refs`; mentions are kept as typed. The body is plain text.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'from_schema': 'https://example.org/throughline/core/threads'})
+
+    message_id: str = Field(default=..., description="""Immutable message identifier.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadMessageRow']} })
+    record_id: str = Field(default=..., description="""The record the thread belongs to; the stream is `thread:<record_id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue',
+                       'LinkCount',
+                       'WorkflowState',
+                       'NumberingAllocatedPayload',
+                       'FileUploadedPayload',
+                       'FeedTag',
+                       'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
+                       'File',
+                       'RecordBody',
+                       'BodyQuarantine']} })
+    author: str = Field(default=..., description="""Actor that wrote it (`user:<id>`, `agent:<id>` or `svc:threads`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
+                       'FeedPostedPayload',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageRow']} })
+    body: str = Field(default=..., description="""Text of the message.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
+                       'FeedPostedPayload',
+                       'FeedEditedPayload',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow',
+                       'WebhookDelivery']} })
+    mentions: Optional[list[str]] = Field(default=None, description="""The `@mentions` of the body, as typed without the sigil, without repeats.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow']} })
+    record_refs: Optional[list[str]] = Field(default=None, description="""The records the body names by key, without repeats.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow']} })
+    kind: ThreadMessageKind = Field(default=ThreadMessageKind("message"), json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag',
+                       'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageRow',
+                       'Account',
+                       'AccountCreatedPayload',
+                       'JobQueue'],
+         'ifabsent': 'string(message)'} })
+
+
+class ThreadDispatchResult(ConfiguredBaseModel):
+    """
+    One command a confirmed dispatch ran, as carried in `Thread.Dispatched`.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'from_schema': 'https://example.org/throughline/core/threads'})
+
+    command_type: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadDispatchResult', 'ProposalCreatedPayload', 'ProposalRow']} })
+    stream_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'ThreadDispatchResult',
+                       'OutboxEvent',
+                       'RecordBodyStoredPayload']} })
+    key: Optional[str] = Field(default=None, description="""Key of the record the command touched, when it has one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'RecordCreatedPayload',
+                       'NumberingAllocatedPayload',
+                       'ThreadDispatchResult',
+                       'SettingDefinition',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'EventOrigin',
+                       'EventLinkRef']} })
+    version: int = Field(default=..., description="""Stream version after the command.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Link',
+                       'NumberingCounter',
+                       'SchemaPackagePublishedPayload',
+                       'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
+                       'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File',
+                       'WebhookSubscription',
+                       'EventOrigin',
+                       'TypeRegistrationRegisteredPayload',
+                       'TypeRegistrationRow',
+                       'Account']} })
+
+
+class ThreadMessagePostedPayload(EventPayload):
+    """
+    A message was posted in a record thread. The first message of a record creates the thread stream and also carries `record_creator`, the actor that created the record, who joins the participants.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Thread.MessagePosted'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"author": "user:rgarcia", "body": "Flanges short for '
+                                'W019 @lchen", "kind": "message", "mentions": '
+                                '["lchen"], "message_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5", "record_creator": '
+                                '"user:mlee", "record_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6", "record_refs": []}'}],
+         'from_schema': 'https://example.org/throughline/core/threads'})
+
+    message_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadMessageRow']} })
+    record_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue',
+                       'LinkCount',
+                       'WorkflowState',
+                       'NumberingAllocatedPayload',
+                       'FileUploadedPayload',
+                       'FeedTag',
+                       'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
+                       'File',
+                       'RecordBody',
+                       'BodyQuarantine']} })
+    author: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
+                       'FeedPostedPayload',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageRow']} })
+    body: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
+                       'FeedPostedPayload',
+                       'FeedEditedPayload',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow',
+                       'WebhookDelivery']} })
+    mentions: Optional[list[str]] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow']} })
+    record_refs: Optional[list[str]] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow']} })
+    kind: ThreadMessageKind = Field(default=ThreadMessageKind("message"), json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag',
+                       'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageRow',
+                       'Account',
+                       'AccountCreatedPayload',
+                       'JobQueue'],
+         'ifabsent': 'string(message)'} })
+    record_creator: Optional[str] = Field(default=None, description="""First message of the thread only; the actor that created the record.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadMessagePostedPayload']} })
+
+
+class ThreadMessageEditedPayload(EventPayload):
+    """
+    The author replaced the body of a message. The payload is a full replacement of the body, the mentions and the record references; the earlier text stays in the ledger.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Thread.MessageEdited'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"body": "Flanges short for W019 and W020 @lchen", '
+                                '"mentions": ["lchen"], "message_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5", "record_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6", "record_refs": []}'}],
+         'from_schema': 'https://example.org/throughline/core/threads'})
+
+    message_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadMessageRow']} })
+    record_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue',
+                       'LinkCount',
+                       'WorkflowState',
+                       'NumberingAllocatedPayload',
+                       'FileUploadedPayload',
+                       'FeedTag',
+                       'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
+                       'File',
+                       'RecordBody',
+                       'BodyQuarantine']} })
+    body: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
+                       'FeedPostedPayload',
+                       'FeedEditedPayload',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow',
+                       'WebhookDelivery']} })
+    mentions: Optional[list[str]] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow']} })
+    record_refs: Optional[list[str]] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow']} })
+
+
+class ThreadMessageRetractedPayload(EventPayload):
+    """
+    The author retracted a message. The projection keeps a tombstone row and drops the body.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Thread.MessageRetracted'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"message_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5", '
+                                '"reason": "Wrong record", "record_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6"}'}],
+         'from_schema': 'https://example.org/throughline/core/threads'})
+
+    message_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadMessageRow']} })
+    record_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue',
+                       'LinkCount',
+                       'WorkflowState',
+                       'NumberingAllocatedPayload',
+                       'FileUploadedPayload',
+                       'FeedTag',
+                       'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
+                       'File',
+                       'RecordBody',
+                       'BodyQuarantine']} })
+    reason: str = Field(default=..., description="""Why the message was retracted.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link',
+                       'RecordVoidedPayload',
+                       'RecordCorrectedPayload',
+                       'LinkDeclinedPayload',
+                       'LinkFlaggedPayload',
+                       'LinkRetractedPayload',
+                       'WorkflowTransitionedPayload',
+                       'FileRejectedPayload',
+                       'WebhookSubscriptionDisabledPayload',
+                       'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ProposalRejectedPayload',
+                       'ProposalRow',
+                       'SettingChangedPayload',
+                       'SettingLockedPayload',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File',
+                       'TypeRegistrationDeprecatedPayload',
+                       'TypeRegistrationRow',
+                       'BodyQuarantine',
+                       'AccountRolesSetPayload',
+                       'AccountDisabledPayload',
+                       'AccountEnabledPayload',
+                       'AgentTokenRevokedPayload']} })
+
+
+class ThreadDispatchedPayload(EventPayload):
+    """
+    A slash command in a thread was confirmed and its commands ran, in the same transaction as the message of kind `dispatch` that carries the command line. `results` lists the commands, `link_ids` the `dispatched_from` links from created records back to the thread's record. Each command's own events carry the source `thread:<record id>`, the correlation id `dispatch:<message id>` and this message's event as their cause.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:event_type': {'tag': 'tl:event_type',
+                                           'value': 'Thread.Dispatched'},
+                         'tl:event_version': {'tag': 'tl:event_version', 'value': '1'}},
+         'examples': [{'value': '{"link_ids": ["01J9Z6Q4W3X2Y1V0T9S8R7Q6P8"], '
+                                '"message_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5", '
+                                '"record_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6", "results": '
+                                '[{"command_type": "CreateRecord", "key": '
+                                '"P123-REC-0044", "stream_id": '
+                                '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7", "version": 1}], '
+                                '"summary": "Created P123-REC-0044", "verb": '
+                                '"raise"}'}],
+         'from_schema': 'https://example.org/throughline/core/threads'})
+
+    message_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadMessageRow']} })
+    record_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue',
+                       'LinkCount',
+                       'WorkflowState',
+                       'NumberingAllocatedPayload',
+                       'FileUploadedPayload',
+                       'FeedTag',
+                       'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
+                       'File',
+                       'RecordBody',
+                       'BodyQuarantine']} })
+    verb: str = Field(default=..., description="""The slash command verb (`link`, `status`, `raise`, `dispatch`, `notify`, `remind`, `summarise`...).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadDispatchedPayload']} })
+    results: Optional[list[ThreadDispatchResult]] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadDispatchedPayload']} })
+    link_ids: Optional[list[str]] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadDispatchedPayload']} })
+    summary: Optional[str] = Field(default=None, description="""One line for the result card.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
+                       'FeedItemRow',
+                       'ThreadDispatchedPayload',
+                       'ProposalCreatedPayload',
+                       'ProposalRow']} })
+
+
+class ThreadRow(ConfiguredBaseModel):
+    """
+    One row per thread, with the counts. The id of the record it belongs to is the key.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table', 'value': 'cur_thread'}},
+         'from_schema': 'https://example.org/throughline/core/threads'})
+
+    record_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['PsetValue',
+                       'LinkCount',
+                       'WorkflowState',
+                       'NumberingAllocatedPayload',
+                       'FileUploadedPayload',
+                       'FeedTag',
+                       'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
+                       'File',
+                       'RecordBody',
+                       'BodyQuarantine']} })
+    scope: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['RecordEnvelope',
+                       'Event',
+                       'PsetValue',
+                       'Link',
+                       'LinkCount',
+                       'NumberingCounter',
+                       'WorkflowState',
+                       'SchemaEffectiveChangedPayload',
+                       'ActivityPost',
+                       'EventCard',
+                       'FeedItemRow',
+                       'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ProposalRow',
+                       'SettingChangeRow',
+                       'File',
+                       'WebhookSubscription',
+                       'OutboxEvent',
+                       'RecordBody',
+                       'BodyQuarantine',
+                       'JobQueue']} })
+    message_count: int = Field(default=0, description="""Messages posted, retracted ones included.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadRow'], 'ifabsent': 'int(0)'} })
+    created_by: str = Field(default=..., description="""Author of the first message.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'ThreadRow', 'WebhookSubscription', 'Account']} })
+    created_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Link',
+                       'ThreadRow',
+                       'ProposalRow',
+                       'WebhookSubscription',
+                       'WebhookDelivery',
+                       'WebhookSecret',
+                       'Account',
+                       'AuthSession',
+                       'AuthTokenSecret']} })
+    last_message_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadRow']} })
+    last_seq: int = Field(default=..., description="""`seq` of the latest event of the thread.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'PsetValue',
+                       'Link',
+                       'LinkCount',
+                       'NumberingCounter',
+                       'WorkflowState',
+                       'ThreadRow',
+                       'File',
+                       'WebhookSubscription',
+                       'WebhookCursor',
+                       'TypeRegistrationRow',
+                       'RecordBody',
+                       'Account',
+                       'AgentToken']} })
+    version: int = Field(default=..., description="""Ledger `stream_version` of the thread stream after the last event applied.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Link',
+                       'NumberingCounter',
+                       'SchemaPackagePublishedPayload',
+                       'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
+                       'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'File',
+                       'WebhookSubscription',
+                       'EventOrigin',
+                       'TypeRegistrationRegisteredPayload',
+                       'TypeRegistrationRow',
+                       'Account']} })
+
+
+class ThreadMessageRow(ConfiguredBaseModel):
+    """
+    One message of a thread. A retracted message keeps its row with an empty `body` and `retracted` true. A `dispatch` message carries the outcome of its commands in `dispatch` once `Thread.Dispatched` is applied.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:ix_record_seq': {'tag': 'tl:ix_record_seq',
+                                              'value': 'record_id, seq'},
+                         'tl:table': {'tag': 'tl:table',
+                                      'value': 'cur_thread_message'}},
+         'from_schema': 'https://example.org/throughline/core/threads'})
+
+    message_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadMessageRow']} })
+    record_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['PsetValue',
+                       'LinkCount',
+                       'WorkflowState',
+                       'NumberingAllocatedPayload',
+                       'FileUploadedPayload',
+                       'FeedTag',
+                       'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
+                       'File',
+                       'RecordBody',
+                       'BodyQuarantine']} })
+    scope: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
+                       'Event',
+                       'PsetValue',
+                       'Link',
+                       'LinkCount',
+                       'NumberingCounter',
+                       'WorkflowState',
+                       'SchemaEffectiveChangedPayload',
+                       'ActivityPost',
+                       'EventCard',
+                       'FeedItemRow',
+                       'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ProposalRow',
+                       'SettingChangeRow',
+                       'File',
+                       'WebhookSubscription',
+                       'OutboxEvent',
+                       'RecordBody',
+                       'BodyQuarantine',
+                       'JobQueue']} })
+    seq: int = Field(default=..., description="""`seq` of `Thread.MessagePosted`; orders the thread.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'FeedItemRow',
+                       'Hashtag',
+                       'ThreadMessageRow',
+                       'ProposalRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent',
+                       'WebhookDelivery']} })
+    author: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
+                       'FeedPostedPayload',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageRow']} })
+    kind: ThreadMessageKind = Field(default=ThreadMessageKind("message"), json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag',
+                       'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageRow',
+                       'Account',
+                       'AccountCreatedPayload',
+                       'JobQueue'],
+         'ifabsent': 'string(message)'} })
+    body: str = Field(default=..., description="""Text of the message; empty once retracted.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
+                       'FeedPostedPayload',
+                       'FeedEditedPayload',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow',
+                       'WebhookDelivery']} })
+    mentions: Any = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow']} })
+    record_refs: Any = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow']} })
+    posted_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadMessageRow']} })
+    edit_count: int = Field(default=0, json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'ThreadMessageRow'], 'ifabsent': 'int(0)'} })
+    retracted: bool = Field(default=False, json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'ThreadMessageRow'], 'ifabsent': 'false'} })
+    retract_reason: Optional[str] = Field(default=None, description="""Reason given with `Thread.MessageRetracted`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'ThreadMessageRow']} })
+    dispatch: Optional[Any] = Field(default=None, description="""The `DispatchOutcome` of a dispatch message; null for the others.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['ThreadMessageRow']} })
+
+
+class ThreadParticipantRow(ConfiguredBaseModel):
+    """
+    One person in a thread, with why: the record's creator, an author, someone mentioned or a dispatcher. Followers and assignees wait for their models.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'annotations': {'tl:current_state': {'tag': 'tl:current_state', 'value': True},
+                         'tl:table': {'tag': 'tl:table',
+                                      'value': 'cur_thread_participant'}},
+         'from_schema': 'https://example.org/throughline/core/threads'})
+
+    participant_row_id: str = Field(default=..., description="""`<record id>|<actor>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadParticipantRow']} })
+    record_id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
+         'domain_of': ['PsetValue',
+                       'LinkCount',
+                       'WorkflowState',
+                       'NumberingAllocatedPayload',
+                       'FileUploadedPayload',
+                       'FeedTag',
+                       'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
+                       'File',
+                       'RecordBody',
+                       'BodyQuarantine']} })
+    actor: str = Field(default=..., description="""`user:<id>`, `agent:<id>` or a mention as typed (`crew:P-07`) when it names no account.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'EventCard',
+                       'FeedItemRow',
+                       'ThreadParticipantRow',
+                       'SettingChangeRow',
+                       'SettingLockRow',
+                       'OutboxEvent',
+                       'AuthAudit']} })
+    reasons: Any = Field(default=..., description="""A sorted JSON list of `creator`, `author`, `mentioned`, `dispatcher`.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
+         'domain_of': ['ThreadParticipantRow']} })
+    first_seq: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'ThreadParticipantRow', 'TypeRegistrationRow']} })
 
 
 class ProposalCreatedPayload(EventPayload):
@@ -2598,11 +3362,12 @@ class ProposalCreatedPayload(EventPayload):
                        'ProposalRow']} })
     tool: str = Field(default=..., description="""The MCP tool that was called (`create_record`, `update_psets`, `link_records`, `transition_workflow`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
     agent: str = Field(default=..., description="""The proposing actor, `agent:<id>`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
-    command_type: str = Field(default=..., description="""Name of the command model (`CreateRecord`, `SetPsetValues`, `AddLink`, `TransitionWorkflow`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
+    command_type: str = Field(default=..., description="""Name of the command model (`CreateRecord`, `SetPsetValues`, `AddLink`, `TransitionWorkflow`).""", json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadDispatchResult', 'ProposalCreatedPayload', 'ProposalRow']} })
     command: Any = Field(default=..., description="""The command, as JSON.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
     summary: str = Field(default=..., description="""One line for the review queue.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
                        'FeedItemRow',
+                       'ThreadDispatchedPayload',
                        'ProposalCreatedPayload',
                        'ProposalRow']} })
 
@@ -2663,6 +3428,7 @@ class ProposalRejectedPayload(EventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -2729,6 +3495,8 @@ class ProposalRow(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -2740,11 +3508,12 @@ class ProposalRow(ConfiguredBaseModel):
     tool: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
     agent: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
          'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
-    command_type: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
+    command_type: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['ThreadDispatchResult', 'ProposalCreatedPayload', 'ProposalRow']} })
     command: Any = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['ProposalCreatedPayload', 'ProposalRow']} })
     summary: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['EventCard',
                        'FeedItemRow',
+                       'ThreadDispatchedPayload',
                        'ProposalCreatedPayload',
                        'ProposalRow']} })
     status: ProposalStatus = Field(default=ProposalStatus("pending"), json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
@@ -2767,6 +3536,7 @@ class ProposalRow(ConfiguredBaseModel):
          'domain_of': ['ProposalRow']} })
     created_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ThreadRow',
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -2787,6 +3557,7 @@ class ProposalRow(ConfiguredBaseModel):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -2806,6 +3577,7 @@ class ProposalRow(ConfiguredBaseModel):
          'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -2816,6 +3588,8 @@ class ProposalRow(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -2851,6 +3625,7 @@ class SettingDefinition(ConfiguredBaseModel):
     key: str = Field(default=..., description="""Dotted and namespaced, lower-case words, for example `feed.reactions.enabled`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'ThreadDispatchResult',
                        'SettingDefinition',
                        'SettingChangedPayload',
                        'SettingLockedPayload',
@@ -2913,6 +3688,7 @@ class SettingChangedPayload(EventPayload):
     key: str = Field(default=..., description="""The setting key.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'ThreadDispatchResult',
                        'SettingDefinition',
                        'SettingChangedPayload',
                        'SettingLockedPayload',
@@ -2941,6 +3717,7 @@ class SettingChangedPayload(EventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -2974,6 +3751,7 @@ class SettingLockedPayload(EventPayload):
     key: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'ThreadDispatchResult',
                        'SettingDefinition',
                        'SettingChangedPayload',
                        'SettingLockedPayload',
@@ -2999,6 +3777,7 @@ class SettingLockedPayload(EventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -3028,6 +3807,7 @@ class SettingChangeRow(ConfiguredBaseModel):
          'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'ThreadDispatchResult',
                        'SettingDefinition',
                        'SettingChangedPayload',
                        'SettingLockedPayload',
@@ -3053,6 +3833,8 @@ class SettingChangeRow(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -3079,6 +3861,7 @@ class SettingChangeRow(ConfiguredBaseModel):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -3096,6 +3879,7 @@ class SettingChangeRow(ConfiguredBaseModel):
     actor: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
+                       'ThreadParticipantRow',
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
@@ -3116,6 +3900,7 @@ class SettingChangeRow(ConfiguredBaseModel):
          'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -3126,6 +3911,8 @@ class SettingChangeRow(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -3148,6 +3935,7 @@ class SettingLockRow(ConfiguredBaseModel):
     key: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'ThreadDispatchResult',
                        'SettingDefinition',
                        'SettingChangedPayload',
                        'SettingLockedPayload',
@@ -3168,6 +3956,7 @@ class SettingLockRow(ConfiguredBaseModel):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -3185,6 +3974,7 @@ class SettingLockRow(ConfiguredBaseModel):
     actor: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
+                       'ThreadParticipantRow',
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
@@ -3192,6 +3982,7 @@ class SettingLockRow(ConfiguredBaseModel):
     seq: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -3202,6 +3993,8 @@ class SettingLockRow(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -3254,6 +4047,8 @@ class File(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -3270,6 +4065,14 @@ class File(ConfiguredBaseModel):
                        'FileUploadedPayload',
                        'FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
                        'File',
                        'RecordBody',
                        'BodyQuarantine']} })
@@ -3313,6 +4116,7 @@ class File(ConfiguredBaseModel):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -3345,6 +4149,8 @@ class File(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -3360,6 +4166,7 @@ class File(ConfiguredBaseModel):
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -3417,6 +4224,8 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -3468,9 +4277,10 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'AuthSession',
                        'AgentTokenIssuedPayload']} })
     current_secret_id: Optional[str] = Field(default=None, description="""The newest signing secret (the value lives in `wh_secret`, never here).""", json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookSubscription']} })
-    created_by: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'WebhookSubscription', 'Account']} })
+    created_by: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'ThreadRow', 'WebhookSubscription', 'Account']} })
     created_at: datetime  = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ThreadRow',
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -3493,6 +4303,8 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -3508,6 +4320,7 @@ class WebhookSubscription(ConfiguredBaseModel):
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -3527,6 +4340,7 @@ class EventOrigin(ConfiguredBaseModel):
     key: Optional[str] = Field(default=None, description="""Human-readable key.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'ThreadDispatchResult',
                        'SettingDefinition',
                        'SettingChangedPayload',
                        'SettingLockedPayload',
@@ -3545,6 +4359,8 @@ class EventOrigin(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -3573,6 +4389,7 @@ class EventLinkRef(ConfiguredBaseModel):
     key: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'ThreadDispatchResult',
                        'SettingDefinition',
                        'SettingChangedPayload',
                        'SettingLockedPayload',
@@ -3659,6 +4476,7 @@ class OutboxEvent(ConfiguredBaseModel):
     seq: int = Field(default=..., description="""Ledger `seq` of the event; the delivery cursor and ordering backbone.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -3678,6 +4496,8 @@ class OutboxEvent(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -3688,7 +4508,10 @@ class OutboxEvent(ConfiguredBaseModel):
                        'JobQueue']} })
     event_type: str = Field(default=..., description="""Ledger event type, for example `Record.Created`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'EventCard', 'FeedItemRow', 'OutboxEvent']} })
     schema_version: int = Field(default=1, json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent'], 'ifabsent': 'int(1)'} })
-    stream_id: str = Field(default=..., description="""The stream the event was appended to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent', 'RecordBodyStoredPayload']} })
+    stream_id: str = Field(default=..., description="""The stream the event was appended to.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'ThreadDispatchResult',
+                       'OutboxEvent',
+                       'RecordBodyStoredPayload']} })
     stream_type: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent']} })
     stream_version: int = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent']} })
     subject_id: str = Field(default=..., description="""The record the event is about, and the delivery ordering key: the stream for record events, the `from` record for link events, the record of a file, the record of a numbering allocation. Equal to `stream_id` when the event has no other subject.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:indexed': {'tag': 'tl:indexed', 'value': True}},
@@ -3699,6 +4522,7 @@ class OutboxEvent(ConfiguredBaseModel):
     actor: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
+                       'ThreadParticipantRow',
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
@@ -3754,6 +4578,7 @@ class WebhookDelivery(ConfiguredBaseModel):
     seq: int = Field(default=..., description="""Ledger `seq` of the event; deliveries of one subject go out in this order.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -3781,10 +4606,15 @@ class WebhookDelivery(ConfiguredBaseModel):
     body: str = Field(default=..., description="""The exact JSON text that is sent (and re-sent on every retry), built once when the delivery was created.""", json_schema_extra = { "linkml_meta": {'domain_of': ['ActivityPost',
                        'FeedPostedPayload',
                        'FeedEditedPayload',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRow',
                        'WebhookDelivery']} })
     attempts: int = Field(default=0, json_schema_extra = { "linkml_meta": {'domain_of': ['WebhookDelivery'], 'ifabsent': 'int(0)'} })
     created_at: str = Field(default=..., description="""ISO-8601 UTC. The retry deadline counts from here.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ThreadRow',
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -3866,6 +4696,7 @@ class WebhookSecret(ConfiguredBaseModel):
          'ifabsent': 'string(active)'} })
     created_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ThreadRow',
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -3922,6 +4753,7 @@ class WebhookCursor(ConfiguredBaseModel):
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -3943,6 +4775,7 @@ class ExtensionRecord(RecordEnvelope):
     key: Optional[str] = Field(default=None, description="""Human-readable number, unique within a scope. Null until numbering assigns one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'RecordCreatedPayload',
                        'NumberingAllocatedPayload',
+                       'ThreadDispatchResult',
                        'SettingDefinition',
                        'SettingChangedPayload',
                        'SettingLockedPayload',
@@ -3967,6 +4800,8 @@ class ExtensionRecord(RecordEnvelope):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -3999,6 +4834,8 @@ class ExtensionRecord(RecordEnvelope):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -4014,6 +4851,7 @@ class ExtensionRecord(RecordEnvelope):
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -4031,6 +4869,7 @@ class ExtensionRecord(RecordEnvelope):
          'ifabsent': 'string(ok)'} })
     created_at: datetime  = Field(default=..., description="""Timestamp of the creating event (system time).""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ThreadRow',
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -4084,6 +4923,8 @@ class TypeRegistrationRegisteredPayload(EventPayload):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -4189,6 +5030,7 @@ class TypeRegistrationDeprecatedPayload(EventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -4222,7 +5064,10 @@ class RecordBodyStoredPayload(EventPayload):
                                 '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5"}'}],
          'from_schema': 'https://example.org/throughline/core/extension'})
 
-    stream_id: str = Field(default=..., description="""The record (this stream).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event', 'OutboxEvent', 'RecordBodyStoredPayload']} })
+    stream_id: str = Field(default=..., description="""The record (this stream).""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
+                       'ThreadDispatchResult',
+                       'OutboxEvent',
+                       'RecordBodyStoredPayload']} })
     pointer: Any = Field(default=..., description="""`{uri, hash, size, schema_hash}`: object key, sha256 of the stored bytes, size, schema the body validated against.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['RecordBodyStoredPayload']} })
     previous_hash: Optional[str] = Field(default=None, description="""Hash of the body this one replaces; null for the first body.""", json_schema_extra = { "linkml_meta": {'domain_of': ['SchemaEffectiveChangedPayload', 'RecordBodyStoredPayload']} })
@@ -4257,6 +5102,8 @@ class TypeRegistrationRow(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -4316,6 +5163,7 @@ class TypeRegistrationRow(ConfiguredBaseModel):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -4330,13 +5178,14 @@ class TypeRegistrationRow(ConfiguredBaseModel):
                        'AccountDisabledPayload',
                        'AccountEnabledPayload',
                        'AgentTokenRevokedPayload']} })
-    first_seq: int = Field(default=..., description="""`seq` of the first event of the stream.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'TypeRegistrationRow']} })
+    first_seq: int = Field(default=..., description="""`seq` of the first event of the stream.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedItemRow', 'ThreadParticipantRow', 'TypeRegistrationRow']} })
     last_seq: int = Field(default=..., description="""`seq` of the last event of the stream.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'PsetValue',
                        'Link',
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -4373,6 +5222,14 @@ class RecordBody(ConfiguredBaseModel):
                        'FileUploadedPayload',
                        'FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
                        'File',
                        'RecordBody',
                        'BodyQuarantine']} })
@@ -4388,6 +5245,8 @@ class RecordBody(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -4411,6 +5270,7 @@ class RecordBody(ConfiguredBaseModel):
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -4446,6 +5306,14 @@ class BodyQuarantine(ConfiguredBaseModel):
                        'FileUploadedPayload',
                        'FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageEditedPayload',
+                       'ThreadMessageRetractedPayload',
+                       'ThreadDispatchedPayload',
+                       'ThreadRow',
+                       'ThreadMessageRow',
+                       'ThreadParticipantRow',
                        'File',
                        'RecordBody',
                        'BodyQuarantine']} })
@@ -4461,6 +5329,8 @@ class BodyQuarantine(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -4483,6 +5353,7 @@ class BodyQuarantine(ConfiguredBaseModel):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -4528,6 +5399,9 @@ class Account(ConfiguredBaseModel):
     display_name: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Account', 'AccountCreatedPayload']} })
     kind: AccountKind = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageRow',
                        'Account',
                        'AccountCreatedPayload',
                        'JobQueue']} })
@@ -4551,9 +5425,10 @@ class Account(ConfiguredBaseModel):
                        'TypeRegistrationRow',
                        'Account'],
          'ifabsent': 'string(active)'} })
-    created_by: str = Field(default=..., description="""Actor that created the account.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'WebhookSubscription', 'Account']} })
+    created_by: str = Field(default=..., description="""Actor that created the account.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Link', 'ThreadRow', 'WebhookSubscription', 'Account']} })
     created_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ThreadRow',
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -4576,6 +5451,8 @@ class Account(ConfiguredBaseModel):
                        'NumberingCounter',
                        'SchemaPackagePublishedPayload',
                        'FeedItemRow',
+                       'ThreadDispatchResult',
+                       'ThreadRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'SettingLockRow',
@@ -4591,6 +5468,7 @@ class Account(ConfiguredBaseModel):
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -4643,6 +5521,7 @@ class AgentToken(ConfiguredBaseModel):
                        'LinkCount',
                        'NumberingCounter',
                        'WorkflowState',
+                       'ThreadRow',
                        'File',
                        'WebhookSubscription',
                        'WebhookCursor',
@@ -4709,6 +5588,7 @@ class AuthSession(ConfiguredBaseModel):
                        'AgentTokenRevokedPayload']} })
     created_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ThreadRow',
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -4740,6 +5620,7 @@ class AuthTokenSecret(ConfiguredBaseModel):
                        'AgentTokenRevokedPayload']} })
     created_at: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['RecordEnvelope',
                        'Link',
+                       'ThreadRow',
                        'ProposalRow',
                        'WebhookSubscription',
                        'WebhookDelivery',
@@ -4794,6 +5675,7 @@ class AuthAudit(ConfiguredBaseModel):
     actor: Optional[str] = Field(default=None, description="""The actor that did it, when there is one.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Event',
                        'EventCard',
                        'FeedItemRow',
+                       'ThreadParticipantRow',
                        'SettingChangeRow',
                        'SettingLockRow',
                        'OutboxEvent',
@@ -4841,6 +5723,9 @@ class AccountCreatedPayload(AccountEventPayload):
     display_name: str = Field(default=..., description="""Name shown in lists.""", json_schema_extra = { "linkml_meta": {'domain_of': ['Account', 'AccountCreatedPayload']} })
     kind: AccountKind = Field(default=..., description="""person, agent or sim.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageRow',
                        'Account',
                        'AccountCreatedPayload',
                        'JobQueue']} })
@@ -4884,6 +5769,7 @@ class AccountRolesSetPayload(AccountEventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -4933,6 +5819,7 @@ class AccountDisabledPayload(AccountEventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -4982,6 +5869,7 @@ class AccountEnabledPayload(AccountEventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -5104,6 +5992,7 @@ class AgentTokenRevokedPayload(AccountEventPayload):
                        'FileRejectedPayload',
                        'WebhookSubscriptionDisabledPayload',
                        'FeedRetractedPayload',
+                       'ThreadMessageRetractedPayload',
                        'ProposalRejectedPayload',
                        'ProposalRow',
                        'SettingChangedPayload',
@@ -5135,6 +6024,9 @@ class JobQueue(ConfiguredBaseModel):
     job_id: str = Field(default=..., description="""The id of the job record (a ledger stream id).""", json_schema_extra = { "linkml_meta": {'domain_of': ['JobQueue']} })
     kind: str = Field(default=..., description="""The job kind a handler is registered for, for example `extract`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['FeedTag',
                        'Hashtag',
+                       'ThreadMessage',
+                       'ThreadMessagePostedPayload',
+                       'ThreadMessageRow',
                        'Account',
                        'AccountCreatedPayload',
                        'JobQueue']} })
@@ -5150,6 +6042,8 @@ class JobQueue(ConfiguredBaseModel):
                        'EventCard',
                        'FeedItemRow',
                        'Hashtag',
+                       'ThreadRow',
+                       'ThreadMessageRow',
                        'ProposalRow',
                        'SettingChangeRow',
                        'File',
@@ -5218,6 +6112,15 @@ FeedRetractedPayload.model_rebuild()
 FeedReactedPayload.model_rebuild()
 FeedItemRow.model_rebuild()
 Hashtag.model_rebuild()
+ThreadMessage.model_rebuild()
+ThreadDispatchResult.model_rebuild()
+ThreadMessagePostedPayload.model_rebuild()
+ThreadMessageEditedPayload.model_rebuild()
+ThreadMessageRetractedPayload.model_rebuild()
+ThreadDispatchedPayload.model_rebuild()
+ThreadRow.model_rebuild()
+ThreadMessageRow.model_rebuild()
+ThreadParticipantRow.model_rebuild()
 ProposalCreatedPayload.model_rebuild()
 ProposalAcceptedPayload.model_rebuild()
 ProposalRejectedPayload.model_rebuild()

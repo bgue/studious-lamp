@@ -4214,6 +4214,459 @@
             "title": "TagKind",
             "type": "string"
         },
+        "ThreadDispatchResult": {
+            "additionalProperties": false,
+            "description": "One command a confirmed dispatch ran, as carried in `Thread.Dispatched`.",
+            "properties": {
+                "command_type": {
+                    "type": "string"
+                },
+                "key": {
+                    "description": "Key of the record the command touched, when it has one.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "stream_id": {
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Stream version after the command.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "command_type",
+                "stream_id",
+                "version"
+            ],
+            "title": "ThreadDispatchResult",
+            "type": "object"
+        },
+        "ThreadDispatchedPayload": {
+            "additionalProperties": false,
+            "description": "A slash command in a thread was confirmed and its commands ran, in the same transaction as the message of kind `dispatch` that carries the command line. `results` lists the commands, `link_ids` the `dispatched_from` links from created records back to the thread's record. Each command's own events carry the source `thread:<record id>`, the correlation id `dispatch:<message id>` and this message's event as their cause.",
+            "examples": [
+                "{\"link_ids\": [\"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\"], \"message_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"results\": [{\"command_type\": \"CreateRecord\", \"key\": \"P123-REC-0044\", \"stream_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"version\": 1}], \"summary\": \"Created P123-REC-0044\", \"verb\": \"raise\"}"
+            ],
+            "properties": {
+                "link_ids": {
+                    "items": {
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "message_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "record_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "results": {
+                    "items": {
+                        "$ref": "#/$defs/ThreadDispatchResult"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "summary": {
+                    "description": "One line for the result card.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "verb": {
+                    "description": "The slash command verb (`link`, `status`, `raise`, `dispatch`, `notify`, `remind`, `summarise`...).",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "message_id",
+                "record_id",
+                "verb"
+            ],
+            "title": "ThreadDispatchedPayload",
+            "type": "object"
+        },
+        "ThreadMessage": {
+            "additionalProperties": false,
+            "description": "One message in a record thread (brief 21.5). Keys in the body are detected with the feed's key detection and kept as `record_refs`; mentions are kept as typed. The body is plain text.",
+            "properties": {
+                "author": {
+                    "description": "Actor that wrote it (`user:<id>`, `agent:<id>` or `svc:threads`).",
+                    "type": "string"
+                },
+                "body": {
+                    "description": "Text of the message.",
+                    "type": "string"
+                },
+                "kind": {
+                    "$ref": "#/$defs/ThreadMessageKind"
+                },
+                "mentions": {
+                    "description": "The `@mentions` of the body, as typed without the sigil, without repeats.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "message_id": {
+                    "description": "Immutable message identifier.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "record_id": {
+                    "description": "The record the thread belongs to; the stream is `thread:<record_id>`.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "record_refs": {
+                    "description": "The records the body names by key, without repeats.",
+                    "items": {
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "message_id",
+                "record_id",
+                "author",
+                "body",
+                "kind"
+            ],
+            "title": "ThreadMessage",
+            "type": "object"
+        },
+        "ThreadMessageEditedPayload": {
+            "additionalProperties": false,
+            "description": "The author replaced the body of a message. The payload is a full replacement of the body, the mentions and the record references; the earlier text stays in the ledger.",
+            "examples": [
+                "{\"body\": \"Flanges short for W019 and W020 @lchen\", \"mentions\": [\"lchen\"], \"message_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"record_refs\": []}"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "mentions": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "message_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "record_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "record_refs": {
+                    "items": {
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "message_id",
+                "record_id",
+                "body"
+            ],
+            "title": "ThreadMessageEditedPayload",
+            "type": "object"
+        },
+        "ThreadMessageKind": {
+            "description": "What a message is. A person's message is `message`; the others are written by the server.",
+            "enum": [
+                "message",
+                "dispatch",
+                "summary",
+                "reminder"
+            ],
+            "title": "ThreadMessageKind",
+            "type": "string"
+        },
+        "ThreadMessagePostedPayload": {
+            "additionalProperties": false,
+            "description": "A message was posted in a record thread. The first message of a record creates the thread stream and also carries `record_creator`, the actor that created the record, who joins the participants.",
+            "examples": [
+                "{\"author\": \"user:rgarcia\", \"body\": \"Flanges short for W019 @lchen\", \"kind\": \"message\", \"mentions\": [\"lchen\"], \"message_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"record_creator\": \"user:mlee\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"record_refs\": []}"
+            ],
+            "properties": {
+                "author": {
+                    "type": "string"
+                },
+                "body": {
+                    "type": "string"
+                },
+                "kind": {
+                    "$ref": "#/$defs/ThreadMessageKind"
+                },
+                "mentions": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                },
+                "message_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "record_creator": {
+                    "description": "First message of the thread only; the actor that created the record.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "record_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "record_refs": {
+                    "items": {
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                        "type": "string"
+                    },
+                    "type": [
+                        "array",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "message_id",
+                "record_id",
+                "author",
+                "body",
+                "kind"
+            ],
+            "title": "ThreadMessagePostedPayload",
+            "type": "object"
+        },
+        "ThreadMessageRetractedPayload": {
+            "additionalProperties": false,
+            "description": "The author retracted a message. The projection keeps a tombstone row and drops the body.",
+            "examples": [
+                "{\"message_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"reason\": \"Wrong record\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+            ],
+            "properties": {
+                "message_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why the message was retracted.",
+                    "type": "string"
+                },
+                "record_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "message_id",
+                "record_id",
+                "reason"
+            ],
+            "title": "ThreadMessageRetractedPayload",
+            "type": "object"
+        },
+        "ThreadMessageRow": {
+            "additionalProperties": false,
+            "description": "One message of a thread. A retracted message keeps its row with an empty `body` and `retracted` true. A `dispatch` message carries the outcome of its commands in `dispatch` once `Thread.Dispatched` is applied.",
+            "properties": {
+                "author": {
+                    "type": "string"
+                },
+                "body": {
+                    "description": "Text of the message; empty once retracted.",
+                    "type": "string"
+                },
+                "dispatch": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "The `DispatchOutcome` of a dispatch message; null for the others."
+                },
+                "edit_count": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "$ref": "#/$defs/ThreadMessageKind"
+                },
+                "mentions": {
+                    "$ref": "#/$defs/Any"
+                },
+                "message_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "posted_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "record_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "record_refs": {
+                    "$ref": "#/$defs/Any"
+                },
+                "retract_reason": {
+                    "description": "Reason given with `Thread.MessageRetracted`.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "retracted": {
+                    "type": "boolean"
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "seq": {
+                    "description": "`seq` of `Thread.MessagePosted`; orders the thread.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "message_id",
+                "record_id",
+                "scope",
+                "seq",
+                "author",
+                "kind",
+                "body",
+                "mentions",
+                "record_refs",
+                "posted_at",
+                "edit_count",
+                "retracted"
+            ],
+            "title": "ThreadMessageRow",
+            "type": "object"
+        },
+        "ThreadParticipantRow": {
+            "additionalProperties": false,
+            "description": "One person in a thread, with why: the record's creator, an author, someone mentioned or a dispatcher. Followers and assignees wait for their models.",
+            "properties": {
+                "actor": {
+                    "description": "`user:<id>`, `agent:<id>` or a mention as typed (`crew:P-07`) when it names no account.",
+                    "type": "string"
+                },
+                "first_seq": {
+                    "type": "integer"
+                },
+                "participant_row_id": {
+                    "description": "`<record id>|<actor>`.",
+                    "type": "string"
+                },
+                "reasons": {
+                    "$ref": "#/$defs/Any",
+                    "description": "A sorted JSON list of `creator`, `author`, `mentioned`, `dispatcher`."
+                },
+                "record_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "participant_row_id",
+                "record_id",
+                "actor",
+                "reasons",
+                "first_seq"
+            ],
+            "title": "ThreadParticipantRow",
+            "type": "object"
+        },
+        "ThreadRow": {
+            "additionalProperties": false,
+            "description": "One row per thread, with the counts. The id of the record it belongs to is the key.",
+            "properties": {
+                "created_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "created_by": {
+                    "description": "Author of the first message.",
+                    "type": "string"
+                },
+                "last_message_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "last_seq": {
+                    "description": "`seq` of the latest event of the thread.",
+                    "type": "integer"
+                },
+                "message_count": {
+                    "description": "Messages posted, retracted ones included.",
+                    "type": "integer"
+                },
+                "record_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Ledger `stream_version` of the thread stream after the last event applied.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "record_id",
+                "scope",
+                "message_count",
+                "created_by",
+                "created_at",
+                "last_message_at",
+                "last_seq",
+                "version"
+            ],
+            "title": "ThreadRow",
+            "type": "object"
+        },
         "TypeRegistrationDeprecatedPayload": {
             "additionalProperties": false,
             "description": "The owner retired a version. Existing instances stay readable and editable; no new instance can be created.",

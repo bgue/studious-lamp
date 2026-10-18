@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from tl_api.auth import AGENT_MUST_PROPOSE
+from tl_api.thread_runner import thread_runner
 from tl_core.auth import accounts as account_services
 from tl_core.auth import queries as account_queries
 from tl_core.auth.env import current_env, demo_allowed
@@ -38,6 +39,7 @@ from tl_core.extypes.service import (
 )
 from tl_core.extypes.types import TypeStatus
 from tl_core.files.types import ObjectStore
+from tl_core.integration.contract import Access
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink, missing_expected_links
 from tl_core.links.provider import get_vocabulary
@@ -90,6 +92,19 @@ from tl_core.settings import revert_setting as revert_in_force
 from tl_core.settings import set_setting as set_in_force
 from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView, get_view, list_views, view_at
+from tl_core.threads.contract import ParseProblem
+from tl_core.threads.dispatch import DispatchFromThread, handle_dispatch_from_thread
+from tl_core.threads.messages import (
+    EditThreadMessage,
+    PostThreadMessage,
+    RetractThreadMessage,
+    handle_edit_thread_message,
+    handle_post_thread_message,
+    handle_retract_thread_message,
+)
+from tl_core.threads.planner import PreviewResult, ThreadPlanner
+from tl_core.threads.queries import ThreadPage, read_thread
+from tl_core.threads.visibility import readable_record
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
 from tl_mod_documents import reports as document_reports
@@ -600,6 +615,78 @@ class EmbeddedClient:
     ) -> list[Completion]:
         with self._uow(True) as uow:
             return feed_completion.complete_tags(uow, scope, sigil, prefix, limit=limit)
+
+    # --- record threads (P1-I7 WS-B) --------------------------------------------------------------
+
+    def _holds(self, uow: UnitOfWork) -> Callable[[Access], bool]:
+        """What the signed-in person holds, read from their account now: ``holds(level)``.
+
+        The actor must be the account's own, character for character, and active; an agent holds
+        nothing here (it proposes). ADR-0014 section 8: access comes from the account, never from
+        a request.
+        """
+        found = account_queries.find_account(uow.conn(), username=self.actor.partition(":")[2])
+        valid = (
+            found is not None
+            and account_queries.actor_of(found) == self.actor
+            and found.status == "active"
+            and found.kind != "agent"
+        )
+        roles = set(found.roles) if found is not None and valid else set()
+
+        def holds(level: Access) -> bool:
+            if level == "admin":
+                return "admin" in roles
+            if level == "controller":
+                return bool({"admin", "document_controller"} & roles)
+            return valid
+
+        return holds
+
+    def thread_page(
+        self, record_id: str, *, limit: int = 50, before_seq: int | None = None
+    ) -> ThreadPage:
+        with self._uow(True) as uow:
+            return read_thread(uow, record_id, actor=self.actor, limit=limit, before_seq=before_seq)
+
+    def thread_post(self, cmd: PostThreadMessage) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_post_thread_message(uow, cmd))
+
+    def thread_edit(self, cmd: EditThreadMessage) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_edit_thread_message(uow, cmd))
+
+    def thread_retract(self, cmd: RetractThreadMessage) -> CommandResult:
+        with self._uow(False) as uow:
+            return self.own_writes.note(handle_retract_thread_message(uow, cmd))
+
+    def thread_preview(self, record_id: str, text: str) -> PreviewResult:
+        planner = ThreadPlanner(factory=lambda readonly=False: self._uow(readonly))
+        with self._uow(True) as uow:
+            found = planner.preview(
+                uow,
+                record_id=record_id,
+                text=text,
+                actor=self.actor,
+                holds=self._holds(uow),
+                runner=thread_runner(),
+            )
+        if isinstance(found, ParseProblem):
+            return PreviewResult(problem=found)
+        return PreviewResult(preview=found)
+
+    def thread_dispatch(self, cmd: DispatchFromThread) -> CommandResult:
+        if cmd.actor != self.actor:  # the person this client was signed in as, nobody else
+            raise ForbiddenError("a dispatch is made as the signed-in person")
+        with self._uow(False) as uow:
+            record = readable_record(uow, cmd.record_id, actor=self.actor)
+            command = cmd.model_copy(update={"scope": record.scope, "source": SOURCE})
+            return self.own_writes.note(
+                handle_dispatch_from_thread(
+                    uow, command, holds=self._holds(uow), runner=thread_runner()
+                )
+            )
 
     # --- engineering tags (P1-I1) -------------------------------------------------------------
 

@@ -33,6 +33,7 @@ from tl_core.auth.projector import ACCOUNT_STREAM_TYPE
 from tl_core.query.api import QuerySpec, count_query, parse
 from tl_core.query.ast import And, Compare
 from tl_core.services.queries import get_record_by_id
+from tl_core.threads.contract import THREAD_STREAM_TYPE, THREAD_WEBHOOK_EVENT_TYPES
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
 from tl_core.webhooks.base import Clock, UowFactory, iso_z, parse_iso, utc_now
@@ -121,9 +122,15 @@ class SubscriptionRow:
     def receives(self, row: OutboxRow) -> bool:
         """Whether ``row`` falls inside this subscription's window, scope and expiry.
 
-        Account events (ADR-0009) are internal and never delivered, whatever the filter says.
+        Account events (ADR-0009) are internal and never delivered, whatever the filter says. Of a
+        thread's events only a posted message and a dispatch are delivered (brief 21.5).
         """
         if row.stream_type == ACCOUNT_STREAM_TYPE:
+            return False
+        if (
+            row.stream_type == THREAD_STREAM_TYPE
+            and row.event_type not in THREAD_WEBHOOK_EVENT_TYPES
+        ):
             return False
         if not any(
             start < row.seq and (end is None or row.seq <= end) for start, end in self.windows

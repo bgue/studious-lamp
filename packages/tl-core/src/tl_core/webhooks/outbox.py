@@ -33,6 +33,7 @@ from tl_core.webhooks.rows import as_list, as_object, dumps, load_json
 
 LINK_PREFIX = "Link."
 FILE_PREFIX = "File."
+THREAD_PREFIX = "Thread."
 
 _INSERT_SQL = text(
     "INSERT INTO outbox_events (seq, event_id, scope, event_type, schema_version, stream_id, "
@@ -165,6 +166,10 @@ class OutboxProjector:
                     record_id, file_slot = row.record_id, file_slot or row.slot
             if isinstance(record_id, str):
                 subject_id = record_id
+        elif event.event_type.startswith(THREAD_PREFIX) and isinstance(
+            payload.get("record_id"), str
+        ):
+            subject_id = payload["record_id"]  # a thread event is about its record (P1-I7 WS-B)
         elif event.event_type == "Numbering.Allocated" and isinstance(
             payload.get("record_id"), str
         ):

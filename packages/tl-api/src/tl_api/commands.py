@@ -32,6 +32,7 @@ from tl_core.services.records import handle_create_record, handle_update_record
 from tl_core.services.reserved import refuse_reserved, refuse_reserved_fields
 from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
+from tl_core.threads import messages as thread_messages
 from tl_core.uow import UnitOfWork
 from tl_core.util import effective_time
 from tl_mod_documents.commands import API_COMMANDS as DOCUMENT_COMMANDS
@@ -88,6 +89,12 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(ChangeSetting, handle_change_setting),
     *(CommandSpec(c.model, c.handler, c.access) for c in API_COMMANDS),
     *(CommandSpec(c.model, c.handler, c.access) for c in DOCUMENT_COMMANDS),
+    # P1-I7 WS-B: record threads. A message changes no record and never dispatches (D9).
+    CommandSpec(thread_messages.PostThreadMessage, thread_messages.handle_post_thread_message),
+    CommandSpec(thread_messages.EditThreadMessage, thread_messages.handle_edit_thread_message),
+    CommandSpec(
+        thread_messages.RetractThreadMessage, thread_messages.handle_retract_thread_message
+    ),
 )
 """Every command the API accepts. Void, mark-pins-stale and the file commands are not here:
 voiding is not in the Phase 0 client contract, pin staleness is a system command, and files have

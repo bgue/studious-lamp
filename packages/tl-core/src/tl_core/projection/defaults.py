@@ -20,6 +20,7 @@ from tl_core.projection.record import RecordProjector
 from tl_core.projection.registry import InMemoryRegistry
 from tl_core.projection.settings import SettingProjector
 from tl_core.projection.workflow import WorkflowProjector
+from tl_core.threads.projector import ThreadProjector
 from tl_core.webhooks.outbox import OutboxProjector
 from tl_core.webhooks.state import WebhookStateTables
 from tl_core.webhooks.subscription_projector import WebhookSubscriptionProjector
@@ -48,6 +49,7 @@ def default_registry() -> InMemoryRegistry:
     registry.register(BodyQuarantineTable())  # operational; never reset by a rebuild
     registry.register(SettingProjector())  # independent: settings are their own streams
     registry.register(FeedProjector())  # sees every event; reads only its own tables
+    registry.register(ThreadProjector())  # P1-I7 WS-B: threads are their own streams
     registry.register(JobQueueTables())  # operational table; never reset by a rebuild
     # Module projectors (ADR-0010) read and update the rows of the projectors above, so they come
     # after them; the outbox stays last.
