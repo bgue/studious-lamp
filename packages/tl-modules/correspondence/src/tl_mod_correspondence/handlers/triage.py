@@ -1,3 +1,4 @@
+# ruff: noqa: F401, F841
 """Triage: confirm the domain and subtype of a received item, and reclassify before issue.
 
 A received item is **triaged** when a person confirms which domain it belongs to and what kind of
@@ -10,6 +11,9 @@ Triaged. The clocks that start on *issue* start when a reply is issued (``IssueC
 ``ReclassifyCorrespondence`` corrects the domain or subtype of a draft, a received or a triaged
 item. After issue a misfiled item gets a linked item in the right domain instead (the issued item
 is the record of what was sent).
+
+STUB (P1-I5-T07b2): the functions with a STEPS comment are for you to write. When they are
+written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -93,19 +97,17 @@ class ReclassifyCorrespondence(Command):
 def _check_references(uow: UnitOfWork, cmd: Command, ids: list[str], own_id: str) -> list[str]:
     """The ids once each is a record of the scope the viewer may read (else ``RecordNotFoundError``,
     the same for an unknown, a foreign and a hidden record)."""
-    if len(set(ids)) != len(ids):
-        raise InvalidItemError("a record can be referenced only once")
-    for record_id in ids:
-        row = uow.conn().execute(_RECORD_SQL, {"id": record_id}).first()
-        if (
-            row is None
-            or row.scope != cmd.scope
-            or confidentiality.is_hidden(uow.conn(), record_id)
-        ):
-            raise RecordNotFoundError(f"no record {record_id!r}")
-        if record_id == own_id:
-            raise InvalidItemError("an item cannot refer to itself")
-    return list(ids)
+    # STEPS
+    # 1. When `len(set(ids)) != len(ids)` raise `InvalidItemError("a record can be referenced
+    #    only once")`.
+    # 2. For each `record_id` in `ids`: `row = uow.conn().execute(_RECORD_SQL, {"id":
+    #    record_id}).first()`. When `row is None`, or `row.scope != cmd.scope`, or
+    #    `confidentiality.is_hidden(uow.conn(), record_id)`, raise `RecordNotFoundError(f"no
+    #    record {record_id!r}")` (the same text for all three: a hidden record must look like a
+    #    missing one). Then, when `record_id == own_id`, raise `InvalidItemError("an item cannot
+    #    refer to itself")`.
+    # 3. Return `list(ids)`.
+    raise NotImplementedError
 
 
 def _clause_id(
@@ -167,78 +169,42 @@ def handle_confirm_triage(uow: UnitOfWork, cmd: ConfirmTriage) -> CommandResult:
     registered). The suggestion the engine makes for the item is kept in the event when it
     differs from the confirmed domain.
     """
-    cmd = correlated(cmd)
-    item = open_item(uow, cmd, cmd.stream_id)
-    require_state(item, ST_RECEIVED)
-    definition = catalog.check_subtype(cmd.scope, cmd.domain, cmd.subtype)
-    references = _check_references(uow, cmd, cmd.referenced_ids, item.id)
-    try:
-        due = plausible_date(cmd.response_due, "response_due")
-    except ValueError as exc:
-        raise InvalidItemError(str(exc)) from exc
-    chosen = definition.subtype(cmd.subtype)
-    assert chosen is not None
-    proposed = suggest(
-        catalog.domain_set().for_scope(cmd.scope), subject=item.subject, body=item.body
-    )
-    clock_ids: list[str] = []
-    clock_events: list[Event] = []
-    if cmd.start_clocks:
-        clock_ids, clock_events = start_template_clocks(
-            uow, cmd, item, definition, cmd.subtype, "receipt", item.received_on or today()
-        )
-    required = chosen.response_required if cmd.response_required is None else cmd.response_required
-    events = [
-        NewEvent(
-            event_type=CORR_TRIAGED,
-            payload={
-                "domain": cmd.domain,
-                "subtype": cmd.subtype,
-                "referenced_ids": references,
-                "clock_ids": clock_ids,
-                "triaged_on": today(),
-                "suggestion": proposed.domain if proposed.domain != cmd.domain else None,
-            },
-        )
-    ]
-    changes: dict[str, list[object]] = {}
-    if required != item.response_required:
-        changes["response_required"] = [item.response_required, required]
-    if due is not None and due != item.response_due:
-        changes["response_due"] = [item.response_due, due]
-    if changes:
-        events.append(
-            NewEvent(event_type=CORR_UPDATED, payload={"changes": changes, "reason": "triage"})
-        )
-    done = append(
-        uow, cmd, item.id, CORRESPONDENCE, events, expected=cmd.expected_version or item.version
-    )
-    link_events: list[Event] = []
-    for target in references:
-        linked = handle_add_link(
-            uow,
-            AddLink(
-                actor=cmd.actor,
-                source=cmd.source,
-                scope=cmd.scope,
-                correlation_id=cmd.correlation_id,
-                causation_id=cmd.causation_id,
-                from_id=item.id,
-                to_id=target,
-                relation="references",
-                link_source="rule",
-                note="confirmed at triage",
-            ),
-            by_module=True,
-        )
-        link_events.extend(linked.events)
-    moved = transition(uow, cmd, item.id, "triage")
-    return CommandResult(
-        stream_id=item.id,
-        key=item.number,
-        version=moved.version,
-        events=[*clock_events, *done.events, *link_events, *moved.events],
-    )
+    # STEPS
+    # 1. `cmd = correlated(cmd)`; `item = open_item(uow, cmd, cmd.stream_id)` (never read the
+    #    item any other way: it answers `RecordNotFoundError` for an unknown, foreign or hidden
+    #    item); `require_state(item, ST_RECEIVED)`.
+    # 2. `definition = catalog.check_subtype(cmd.scope, cmd.domain, cmd.subtype)`; `references =
+    #    _check_references(uow, cmd, cmd.referenced_ids, item.id)`; `due =
+    #    plausible_date(cmd.response_due, "response_due")` (a `ValueError` becomes
+    #    `InvalidItemError(str(exc))`); `chosen = definition.subtype(cmd.subtype)` (assert it is
+    #    not None).
+    # 3. `proposed = suggest(catalog.domain_set().for_scope(cmd.scope), subject=item.subject,
+    #    body=item.body)`.
+    # 4. `clock_ids`, `clock_events` start empty. When `cmd.start_clocks`: `clock_ids,
+    #    clock_events = start_template_clocks(uow, cmd, item, definition, cmd.subtype,
+    #    "receipt", item.received_on or today())` (it creates the clock records and returns
+    #    their ids and events).
+    # 5. `required = chosen.response_required if cmd.response_required is None else
+    #    cmd.response_required`.
+    # 6. `events = [NewEvent(event_type=CORR_TRIAGED, payload={"domain": cmd.domain, "subtype":
+    #    cmd.subtype, "referenced_ids": references, "clock_ids": clock_ids, "triaged_on":
+    #    today(), "suggestion": proposed.domain if proposed.domain != cmd.domain else None})]`.
+    # 7. `changes = {}`: when `required != item.response_required` set
+    #    `changes["response_required"] = [item.response_required, required]`; when `due is not
+    #    None and due != item.response_due` set `changes["response_due"] = [item.response_due,
+    #    due]`. When `changes` is not empty append `NewEvent(event_type=CORR_UPDATED,
+    #    payload={"changes": changes, "reason": "triage"})`.
+    # 8. `done = append(uow, cmd, item.id, CORRESPONDENCE, events, expected=cmd.expected_version
+    #    or item.version)`.
+    # 9. For each `target` in `references`: `linked = handle_add_link(uow,
+    #    AddLink(actor=cmd.actor, source=cmd.source, scope=cmd.scope,
+    #    correlation_id=cmd.correlation_id, causation_id=cmd.causation_id, from_id=item.id,
+    #    to_id=target, relation="references", link_source="rule", note="confirmed at triage"),
+    #    by_module=True)`; collect `linked.events`.
+    # 10. `moved = transition(uow, cmd, item.id, "triage")`. Return
+    #    `CommandResult(stream_id=item.id, key=item.number, version=moved.version,
+    #    events=[*clock_events, *done.events, *link_events, *moved.events])`.
+    raise NotImplementedError
 
 
 def handle_reclassify_correspondence(
@@ -249,31 +215,16 @@ def handle_reclassify_correspondence(
     Raises ``RecordNotFoundError``, ``ItemStateError`` (not a Draft, Received or Triaged item),
     ``UnknownDomainError`` and ``NoChangesError`` (already that domain and subtype).
     """
-    cmd = correlated(cmd)
-    item = open_item(uow, cmd, cmd.stream_id)
-    require_state(item, ST_DRAFT, ST_RECEIVED, ST_TRIAGED)
-    catalog.check_subtype(cmd.scope, cmd.domain, cmd.subtype)
-    if (item.domain, item.subtype) == (cmd.domain, cmd.subtype):
-        raise NoChangesError(f"item {item.number} is already {cmd.domain}/{cmd.subtype}")
-    done = append(
-        uow,
-        cmd,
-        item.id,
-        CORRESPONDENCE,
-        [
-            NewEvent(
-                event_type=CORR_RECLASSIFIED,
-                payload={
-                    "from_domain": item.domain,
-                    "from_subtype": item.subtype,
-                    "domain": cmd.domain,
-                    "subtype": cmd.subtype,
-                    "reason": cmd.reason,
-                },
-            )
-        ],
-        expected=cmd.expected_version or item.version,
-    )
-    return CommandResult(
-        stream_id=item.id, key=item.number, version=done.new_version, events=list(done.events)
-    )
+    # STEPS
+    # 1. `cmd = correlated(cmd)`; `item = open_item(uow, cmd, cmd.stream_id)`;
+    #    `require_state(item, ST_DRAFT, ST_RECEIVED, ST_TRIAGED)`.
+    # 2. `catalog.check_subtype(cmd.scope, cmd.domain, cmd.subtype)`. When `(item.domain,
+    #    item.subtype) == (cmd.domain, cmd.subtype)` raise `NoChangesError(f"item {item.number}
+    #    is already {cmd.domain}/{cmd.subtype}")`.
+    # 3. `done = append(uow, cmd, item.id, CORRESPONDENCE,
+    #    [NewEvent(event_type=CORR_RECLASSIFIED, payload={"from_domain": item.domain,
+    #    "from_subtype": item.subtype, "domain": cmd.domain, "subtype": cmd.subtype, "reason":
+    #    cmd.reason})], expected=cmd.expected_version or item.version)`; return
+    #    `CommandResult(stream_id=item.id, key=item.number, version=done.new_version,
+    #    events=list(done.events))`.
+    raise NotImplementedError

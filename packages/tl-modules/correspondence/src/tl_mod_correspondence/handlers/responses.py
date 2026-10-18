@@ -39,7 +39,6 @@ from tl_mod_correspondence.handlers.common import (
 from tl_mod_correspondence.handlers.confidentiality import inherited_class
 from tl_mod_correspondence.handlers.create import create_item
 from tl_mod_correspondence.handlers.models import Medium, Recipient, non_blank
-from tl_mod_correspondence.handlers.threads import with_thread
 from tl_mod_correspondence.limits import MAX_BODY, MAX_NUMBER, MAX_REASON, MAX_RECIPIENTS, MAX_TEXT
 from tl_mod_correspondence.names import (
     CORR_RESPONDED,
@@ -159,7 +158,7 @@ def handle_draft_correspondence(uow: UnitOfWork, cmd: DraftCorrespondence) -> Co
         confidentiality, clearances = inherited_class(uow, parent, cmd.actor)
         if domain is None and subtype is None:
             domain, subtype = parent.domain, parent.subtype
-    made = create_item(
+    return create_item(
         uow,
         cmd,
         subject=cmd.subject,
@@ -177,7 +176,6 @@ def handle_draft_correspondence(uow: UnitOfWork, cmd: DraftCorrespondence) -> Co
         domain=domain,
         subtype=subtype,
     )
-    return with_thread(uow, cmd, made)
 
 
 def mark_responded(
