@@ -20,7 +20,9 @@ def thread_db(target: DbTarget) -> DbTarget:
 
 def put_setting(db: DbTarget, key: str, value: object, layer: str = "company") -> None:
     with open_uow(db) as uow:
-        settings.set_setting(uow, key=key, layer=layer, value=value, actor="user:a", source="t")
+        settings.set_setting(
+            uow, key=key, layer=layer, value=value, actor="user:a", source="t", reason="test"
+        )
 
 
 def make_record(

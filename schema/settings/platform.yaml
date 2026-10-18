@@ -194,4 +194,5 @@ settings:
     lockable: true
     validation:
       choices: [propose, none]
+    risk: advanced
     since: "0.1.0"
