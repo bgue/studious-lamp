@@ -26,4 +26,6 @@ CREATE TABLE IF NOT EXISTS cur_inbound_endpoint (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_cur_inbound_endpoint_inbound_endpoint_path ON cur_inbound_endpoint (app, name);
 
+CREATE UNIQUE INDEX IF NOT EXISTS ux_cur_inbound_endpoint_inbound_endpoint_service_actor ON cur_inbound_endpoint (service_actor);
+
 CREATE INDEX IF NOT EXISTS ix_cur_inbound_endpoint_scope ON cur_inbound_endpoint (scope);

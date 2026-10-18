@@ -38,6 +38,7 @@ from typing import Any
 from pydantic import ValidationError
 from sqlalchemy import Connection, text
 
+from tl_core.auth.projector import ACCOUNT_STREAM_TYPE
 from tl_core.integration.automation import (
     ServerFields,
     plan_command,
@@ -59,7 +60,11 @@ from tl_core.integration.contract import (
 )
 from tl_core.integration.killswitch import kill_switch_on
 from tl_core.integration.rules.placeholders import substitute
-from tl_core.integration.streams import RULE_BLOCKED, RULE_STREAM_TYPE
+from tl_core.integration.streams import (
+    INTEGRATION_INTERNAL_EVENT_TYPES,
+    RULE_BLOCKED,
+    RULE_STREAM_TYPE,
+)
 from tl_core.ledger import ConcurrencyError, NewEvent
 from tl_core.services import proposals
 from tl_core.services.commands import Command
@@ -183,6 +188,13 @@ _ONE_RULE_SQL = (
     "r.mode, r.service_actor, r.access, r.enabled, r.enabled_from_seq, r.integration_app "
     "FROM cur_rule r WHERE r.rule_id = :id"
 )
+_LIVE_RULE_SQL = (
+    "SELECT r.rule_id, r.key, r.title, r.scope, r.version, r.when_json, r.condition, r.then_json, "
+    "r.mode, r.service_actor, r.access, r.enabled, r.enabled_from_seq, r.integration_app "
+    "FROM cur_rule r WHERE r.rule_id = :id AND r.enabled = :on "
+    "AND (r.integration_app IS NULL OR r.integration_app IN "
+    "(SELECT a.name FROM cur_integration_app a WHERE a.enabled = :on))"
+)
 _FIRING_EXISTS = text("SELECT 1 FROM rule_firing WHERE rule_id = :rule_id AND event_id = :event_id")
 _FIRING_INSERT = text(
     "INSERT INTO rule_firing (firing_id, rule_id, rule_version, event_id, seq, depth, outcome, "
@@ -220,6 +232,23 @@ def load_rules(conn: Connection) -> list[StoredRule]:
     return [stored_rule(row) for row in found]
 
 
+def load_live_rule(conn: Connection, rule_id: str) -> StoredRule | None:
+    """The rule as it is **now**, or ``None`` when it is switched off or its app is.
+
+    The worker loads its rules once per batch; a firing asks again inside its own unit of work, so
+    switching a rule off (or revising it) takes effect at the next event, not at the next batch.
+    """
+    row = (
+        conn.execute(
+            text(_LIVE_RULE_SQL),
+            {"on": True, "id": rule_id},
+        )
+        .mappings()
+        .first()
+    )
+    return None if row is None else stored_rule(row)
+
+
 def load_rule(conn: Connection, rule_id: str) -> StoredRule | None:
     """One rule by id, enabled or not."""
     row = conn.execute(text(_ONE_RULE_SQL), {"id": rule_id}).mappings().first()
@@ -239,6 +268,8 @@ def applies(rule: StoredRule, row: OutboxRow) -> bool:
     The filter's ``record_selector`` and the rule's condition need the database and are judged by
     :func:`plan_firing`.
     """
+    if row.stream_type == ACCOUNT_STREAM_TYPE or row.event_type in INTEGRATION_INTERNAL_EVENT_TYPES:
+        return False  # account events and the layer's own bookkeeping are never offered to a rule
     if rule.scope != "company" and rule.scope != row.scope:
         return False
     if row.seq <= rule.enabled_from_seq:
@@ -444,6 +475,10 @@ class RulesWorker:
                     .first()
                 ):
                     return 0
+                live = load_live_rule(uow.conn(), rule.rule_id)
+                if live is None:  # switched off since the batch was loaded: pass the event over
+                    return 0
+                rule = live
                 if kill_switch_on(uow.conn()):
                     self._write_firing(uow, rule, row, "killed", 0, 0)
                     stats.killed += 1
@@ -622,6 +657,7 @@ __all__ = [
     "applies",
     "causal_chain",
     "depth_of",
+    "load_live_rule",
     "load_rule",
     "load_rules",
     "plan_firing",

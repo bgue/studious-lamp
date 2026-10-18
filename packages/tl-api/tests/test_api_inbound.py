@@ -33,7 +33,7 @@ MAPPING = '{"command": "PostToFeed", "args": {"body": $.text}}'
 
 
 class Endpoint:
-    def __init__(self, harness: Harness, name: str, *, auth: str = "hmac_sha256", **over: Any):
+    def __init__(self, harness: Harness, name: str, *, auth: Any = "hmac_sha256", **over: Any):
         with harness.backend() as uow:
             if uow.conn().exec_driver_sql("SELECT 1 FROM cur_integration_app").first() is None:
                 handle_register_app(
@@ -273,8 +273,8 @@ def test_deliveries_over_the_pending_bound_are_refused(
 def test_no_fastapi_route_sits_under_the_inbound_prefix(harness: Harness) -> None:
     """The route family is the middleware's alone; a FastAPI route there would be unguarded."""
     paths = [getattr(route, "path", "") for route in harness.app.routes]
-    assert not [p for p in paths if p.startswith("/in")]
-    assert not [p for p in harness.app.openapi()["paths"] if p.startswith("/in")]
+    assert not [p for p in paths if p.startswith("/in/")]
+    assert not [p for p in harness.app.openapi()["paths"] if p.startswith("/in/")]
 
 
 def test_the_rest_of_the_api_still_needs_a_token(client: TestClient, endpoint: Endpoint) -> None:

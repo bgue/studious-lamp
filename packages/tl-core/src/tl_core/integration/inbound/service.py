@@ -3,7 +3,7 @@
 All are admin commands (the API table declares it). An endpoint starts **disabled and in dry-run
 mode**; going live is a revision (``dry_run`` false) and then ``enabled``. A mapping is stored only
 when the restricted runtime's ``check`` returns nothing. The service actor is made here from the
-app and endpoint names (``svc:inbound-<app>-<endpoint>``); the declared access is ``user`` or
+app and endpoint names (``svc:inbound-<app>.<endpoint>``); the declared access is ``user`` or
 ``controller``, never ``admin``. Every revision is a new version and a snapshot of it is kept
 (``cur_inbound_endpoint_version``), because a delivery is mapped by the version it was received
 under.
@@ -115,7 +115,10 @@ class EndpointIssued:
 
 
 def actor_for(app: str, name: str) -> str:
-    return f"svc:inbound-{app}-{name}"
+    """The service actor of ``/in/{app}/{name}``. A name is a slug and has no ``.``, so the dot
+    cannot be forged by a name: two different paths never share an actor (``a`` + ``b-c`` and
+    ``a-b`` + ``c`` did under the old ``-`` join, and one borrowed the other's access)."""
+    return f"svc:inbound-{app}.{name}"
 
 
 def _row(uow: UnitOfWork, endpoint_id: str, scope: str) -> Any:

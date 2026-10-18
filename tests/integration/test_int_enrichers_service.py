@@ -6,7 +6,7 @@ import json
 from collections.abc import Iterator
 from typing import Any
 
-import fakes
+import intfakes as fakes
 import pytest
 from intworld import ADMIN, SCOPE, World
 from pydantic import ValidationError
@@ -149,9 +149,10 @@ def test_a_revision_that_changes_nothing_is_refused(world: World) -> None:
 
 def test_the_service_actor_holds_the_declared_access_and_no_more(world: World) -> None:
     """The branch of ``held_access`` for ``svc:enricher-*`` (coordinator decision, D14)."""
-    world.register_enricher(name="fake", access="user")
+    world.switch_enricher(world.register_enricher(name="fake", access="user"), on=True)
     with use_enrichers({"fake": fakes.FakeEnricher, "second": _second()}):
-        world.register_enricher(name="second", access="controller")
+        second = world.register_enricher(name="second", access="controller")
+        world.switch_enricher(second, on=True)
     with world.factory(readonly=True) as uow:
         conn = uow.conn()
         assert held_access(conn, "svc:enricher-fake") == "user"
@@ -164,6 +165,7 @@ def test_the_service_actor_holds_the_declared_access_and_no_more(world: World) -
 
 def test_a_revision_of_access_changes_what_the_actor_holds(world: World) -> None:
     enricher_id = world.register_enricher()
+    world.switch_enricher(enricher_id, on=True)
     revise(world, enricher_id, {"access": "controller"})
     with world.factory(readonly=True) as uow:
         assert held_access(uow.conn(), "svc:enricher-fake") == "controller"

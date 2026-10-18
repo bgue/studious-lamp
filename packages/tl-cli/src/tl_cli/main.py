@@ -34,6 +34,7 @@ from tl_sim import cli as sim_cli
 from typer.core import TyperGroup
 
 from tl_cli import (
+    action,
     actor_hook,
     admin,
     admin_token,
@@ -41,6 +42,7 @@ from tl_cli import (
     archive,
     backup,
     config,
+    delivery,
     derive,
     dev,
     doc,
@@ -49,6 +51,9 @@ from tl_cli import (
     doc_rendition,
     doc_report,
     doc_rev,
+    endpoint,
+    enrich,
+    enricher,
     events,
     extypes,
     extypes_quarantine,
@@ -64,6 +69,7 @@ from tl_cli import (
     record,
     restore,
     review,
+    rule,
     schema,
     serve,
     sim_agent,
@@ -139,6 +145,12 @@ app.add_typer(lake.app, name="lake")
 app.add_typer(dev.app, name="dev")
 app.add_typer(new.app, name="new")
 app.add_typer(webhook.app, name="webhook")
+app.add_typer(rule.app, name="rule")
+app.add_typer(endpoint.app, name="endpoint")
+app.add_typer(delivery.app, name="delivery")
+app.add_typer(enrich.app, name="enrich")
+app.add_typer(enricher.app, name="enricher")
+app.add_typer(action.app, name="action")
 sim_cli.AGENT_TOKEN_SOURCE = sim_agent.provider  # the simulated assistant's MCP token
 app.add_typer(sim_cli.app, name="sim")
 app.add_typer(admin.app, name="admin")

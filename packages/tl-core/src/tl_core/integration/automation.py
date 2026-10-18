@@ -62,6 +62,13 @@ class ServerFields:
     causation_id: str | None
 
 
+#: Fields of some command models that carry a person's authority, not data: the roles a guard
+#: sees (``TransitionWorkflow.actor_roles``) and the acknowledgement of a risk (``accept_risk``).
+#: A proposal refuses them (``tl_core.services.proposals``); so does automation, whose input is
+#: external. They are checked by name, whatever the command.
+CLIENT_ONLY_FIELDS = frozenset({"actor_roles", "accept_risk"})
+
+
 @dataclass(frozen=True)
 class Planned:
     """A built command (``None`` when it was refused) and how a preview shows it."""
@@ -138,6 +145,11 @@ def plan_command(
     named = names_server_field(args)
     if named is not None:
         return refuse("server_field", f"The server sets {named}; the arguments may not.", needed)
+    claimed = sorted(set(args) & CLIENT_ONLY_FIELDS)
+    if claimed:  # external input never supplies roles or accepts a risk (as the propose path)
+        return refuse(
+            "forbidden_field", f"{', '.join(claimed)} cannot be set by automation.", needed
+        )
     unknown = sorted(set(args) - set(model.model_fields))
     if unknown:
         return refuse("unknown_field", f"{name} has no field {', '.join(unknown)[:80]}.", needed)

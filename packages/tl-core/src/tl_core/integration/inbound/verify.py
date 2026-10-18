@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import math
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -142,9 +143,16 @@ def verify_jwt(
 
 
 def _number(value: Any) -> float:
+    """A claim that is a finite number: no bool, NaN, infinity or integer too big for a float."""
     if isinstance(value, bool) or not isinstance(value, int | float):
         raise VerifyError("bad_claims")
-    return float(value)
+    try:
+        number = float(value)
+    except OverflowError:
+        raise VerifyError("bad_claims") from None
+    if not math.isfinite(number):
+        raise VerifyError("bad_claims")
+    return number
 
 
 def _check_claims(claims: Mapping[str, Any], body: bytes, now: float) -> str:

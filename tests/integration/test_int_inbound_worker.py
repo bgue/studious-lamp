@@ -11,9 +11,9 @@ import pytest
 from intworld import ADMIN, SCOPE, World
 from sqlalchemy import text
 from tl_core.integration.apps import SetIntegrationAppEnabled, handle_set_app_enabled
-from tl_core.integration.contract import INBOUND_REPLAY_RETENTION_S
 from tl_core.integration.inbound import store as body_store
 from tl_core.integration.inbound.gate import (
+    REPLAY_KEEP_S,
     InvalidPayload,
     PendingFull,
     ReplayError,
@@ -70,7 +70,7 @@ def test_a_delivery_is_mapped_and_applied_as_the_service_actor(world: World) -> 
     assert (row["state"], row["command_count"], row["attempts"]) == ("applied", 1, 1)
     [post] = world.posts()
     assert post["body"] == "pump 7 tripped"
-    assert post["actor"] == "svc:inbound-erp-orders" and post["source"] == "inbound:erp/orders"
+    assert post["actor"] == "svc:inbound-erp.orders" and post["source"] == "inbound:erp/orders"
     assert post["correlation_id"] == f"inbound:{delivery_id}" and post["causation_id"] is None
     received, applied = world.events("Inbound.Received"), world.events("Inbound.Applied")
     assert [e["stream_id"] for e in (received[0], applied[0])] == [delivery_id, delivery_id]
@@ -388,7 +388,7 @@ def test_a_message_id_is_accepted_once_within_the_retention_window(world: World)
 
 def test_an_old_replay_row_is_pruned_and_the_id_may_come_again(world: World) -> None:
     made = world.endpoint()
-    long_ago = utcnow() - timedelta(seconds=INBOUND_REPLAY_RETENTION_S + 60)
+    long_ago = utcnow() - timedelta(seconds=REPLAY_KEEP_S + 60)
     accept_again(world, made.endpoint_id, "m1", now=long_ago)
     accept_again(world, made.endpoint_id, "m1")
     assert len(world.deliveries()) == 2

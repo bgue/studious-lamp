@@ -4016,7 +4016,7 @@ class InboundEndpointCreatedPayload(InboundEndpointEventPayload):
                                 '"name": "results", "owner": "user:jsmith", '
                                 '"rate_per_minute": 60, "secret_id": '
                                 '"01J9Z6Q4W3X2Y1V0T9S8R7Q6P10", "service_actor": '
-                                '"svc:inbound-acme-nde-results", "version": 1}'}],
+                                '"svc:inbound-acme-nde.results", "version": 1}'}],
          'from_schema': 'https://example.org/throughline/core/events'})
 
     endpoint_id: str = Field(default=..., description="""Endpoint id.""", json_schema_extra = { "linkml_meta": {'domain_of': ['InboundEndpointCreatedPayload',
@@ -4082,7 +4082,7 @@ class InboundEndpointCreatedPayload(InboundEndpointEventPayload):
     external_schema: Optional[str] = Field(default=None, description="""Which external schema the mapping reads.""", json_schema_extra = { "linkml_meta": {'domain_of': ['InboundEndpointCreatedPayload', 'InboundEndpoint']} })
     allowed_commands: Any = Field(default=..., description="""List of command names.""", json_schema_extra = { "linkml_meta": {'annotations': {'tl:json': {'tag': 'tl:json', 'value': True}},
          'domain_of': ['InboundEndpointCreatedPayload', 'InboundEndpoint']} })
-    service_actor: str = Field(default=..., description="""svc:inbound-<slug>.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RuleCreatedPayload',
+    service_actor: str = Field(default=..., description="""svc:inbound-<app>.<endpoint>.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RuleCreatedPayload',
                        'InboundEndpointCreatedPayload',
                        'EnricherRegisteredPayload',
                        'Rule',
@@ -7585,7 +7585,9 @@ class Rule(ConfiguredBaseModel):
                          'tl:table': {'tag': 'tl:table', 'value': 'cur_rule'}},
          'from_schema': 'https://example.org/throughline/core/integration',
          'unique_keys': {'rule_key': {'unique_key_name': 'rule_key',
-                                      'unique_key_slots': ['key']}}})
+                                      'unique_key_slots': ['key']},
+                         'rule_service_actor': {'unique_key_name': 'rule_service_actor',
+                                                'unique_key_slots': ['service_actor']}}})
 
     rule_id: str = Field(default=..., description="""Immutable id; equals the ledger `stream_id`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['RuleCreatedPayload',
                        'RuleRevisedPayload',
@@ -7805,8 +7807,9 @@ class InboundEndpoint(ConfiguredBaseModel):
                                       'value': 'cur_inbound_endpoint'}},
          'from_schema': 'https://example.org/throughline/core/integration',
          'unique_keys': {'inbound_endpoint_path': {'unique_key_name': 'inbound_endpoint_path',
-                                                   'unique_key_slots': ['app',
-                                                                        'name']}}})
+                                                   'unique_key_slots': ['app', 'name']},
+                         'inbound_endpoint_service_actor': {'unique_key_name': 'inbound_endpoint_service_actor',
+                                                            'unique_key_slots': ['service_actor']}}})
 
     endpoint_id: str = Field(default=..., description="""Immutable id; equals the ledger `stream_id`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['InboundEndpointCreatedPayload',
                        'InboundEndpointRevisedPayload',
@@ -8097,7 +8100,9 @@ class Enricher(ConfiguredBaseModel):
                          'tl:table': {'tag': 'tl:table', 'value': 'cur_enricher'}},
          'from_schema': 'https://example.org/throughline/core/integration',
          'unique_keys': {'enricher_name': {'unique_key_name': 'enricher_name',
-                                           'unique_key_slots': ['name']}}})
+                                           'unique_key_slots': ['name']},
+                         'enricher_service_actor': {'unique_key_name': 'enricher_service_actor',
+                                                    'unique_key_slots': ['service_actor']}}})
 
     enricher_id: str = Field(default=..., description="""Immutable id; equals the ledger `stream_id`.""", json_schema_extra = { "linkml_meta": {'domain_of': ['EnricherRegisteredPayload',
                        'EnricherRevisedPayload',

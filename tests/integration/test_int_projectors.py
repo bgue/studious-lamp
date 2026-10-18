@@ -341,7 +341,7 @@ ENDPOINT: dict[str, Any] = {
     "mapping_language": "jsonata-restricted@1",
     "external_schema": None,
     "allowed_commands": ["PostToFeed"],
-    "service_actor": "svc:inbound-acme-nde-results",
+    "service_actor": "svc:inbound-acme-nde.results",
     "access": "user",
     "max_body_bytes": 262144,
     "rate_per_minute": 60,

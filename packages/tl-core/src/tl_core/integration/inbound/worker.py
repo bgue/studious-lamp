@@ -281,30 +281,30 @@ class InboundMapJobKind:
 
     # --- the settlement ---------------------------------------------------------------------
 
-    def settle(self, uow: UnitOfWork, claim: Claim, result: MapResult) -> None:
+    def settle(self, uow: UnitOfWork, claim: Claim, outcome: MapResult) -> None:
         conn = uow.conn()
         delivery = _delivery(conn, claim.job_id)
         if delivery is None or delivery["state"] != "queued":
             return
-        if result.problem is not None:
-            raise JobFailure(result.problem.code, result.problem.message, retryable=False)
-        outcome = result.outcome
-        assert outcome is not None
-        if outcome.status != "ok":
+        if outcome.problem is not None:
+            raise JobFailure(outcome.problem.code, outcome.problem.message, retryable=False)
+        mapped = outcome.outcome
+        assert mapped is not None
+        if mapped.status != "ok":
             problem = (
-                outcome.problems[0]
-                if outcome.problems
-                else Problem(code=outcome.status, message="The mapping gave no commands.")
+                mapped.problems[0]
+                if mapped.problems
+                else Problem(code=mapped.status, message="The mapping gave no commands.")
             )
             raise JobFailure(
-                f"mapping_{outcome.status}", problem.message[:MAX_MESSAGE], retryable=False
+                f"mapping_{mapped.status}", problem.message[:MAX_MESSAGE], retryable=False
             )
         definition = self._definition(conn, delivery)
         access: AutomationAccess = definition["access"]
         built = plan_mapped(
             conn,
             self._runner,
-            outcome,
+            mapped,
             definition=definition,
             scope=str(delivery["scope"]),
             delivery_id=str(delivery["delivery_id"]),

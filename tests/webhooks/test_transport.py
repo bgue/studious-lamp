@@ -34,6 +34,18 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Retry-After", "120")
             self.end_headers()
             self.wfile.write(b"slow down\x00\x01")
+        elif self.path == "/trickle":
+            # an answer that never stops arriving: a byte every 0.2 s, inside any per-read timeout
+            self.send_response(200)
+            self.send_header("Content-Length", "40")
+            self.end_headers()
+            try:
+                for _ in range(40):
+                    self.wfile.write(b"x")
+                    self.wfile.flush()
+                    time.sleep(0.2)
+            except OSError:
+                return
         elif self.path == "/big":
             self.send_response(200)
             self.send_header("Content-Length", "100000")
@@ -101,3 +113,49 @@ def test_timeouts_and_refused_connections_become_errors_not_exceptions(server: i
     assert slow.status is None and slow.error is not None and not slow.ok
     refused = HttpxTransport().send(target(1), {}, b"{}", timeout_s=1)
     assert refused.status is None and refused.error is not None
+
+
+def test_a_server_that_trickles_cannot_hold_the_exchange_past_its_budget(server: int) -> None:
+    """httpx's timeout is per read, so each byte restarts it; the total budget is ours."""
+    started = time.monotonic()
+    result = HttpxTransport(max_response_bytes=100_000).send(
+        target(server, "/trickle"), {}, b"{}", timeout_s=1.0
+    )
+    assert time.monotonic() - started < 4.0
+    assert result.status is None and result.error is not None
+    assert result.error.startswith("DeadlineExceeded")
+
+
+def test_the_action_executor_gets_the_same_deadline(server: int) -> None:
+    """The second caller of the transport: a webhook action with a short ``timeout_s``."""
+    from tl_core.integration.contract import ActionRequest, RecordRef, WebhookExecutorConfig
+    from tl_core.integration.executors.webhook import WebhookExecutor
+    from tl_core.webhooks.signing import SigningSecret, generate_secret
+
+    secret = SigningSecret(generate_secret())
+    executor = WebhookExecutor(
+        policy=EgressPolicy(("hook.test",), lambda host, p: ["127.0.0.1"]),
+        transport=HttpxTransport(max_response_bytes=100_000),
+        secrets=lambda secret_id: [secret],
+    )
+    config = WebhookExecutorConfig(
+        url=f"http://hook.test:{server}/trickle", secret_id="S" * 26, timeout_s=1
+    )
+    request = ActionRequest(
+        invocation_id="01J9Z6Q4W3X2Y1V0T9S8R7Q6PB", action="a", action_version=1,
+        scope="project:P1", targets=[RecordRef(id="r1", record_type="core.Record")],
+        parameters={}, invoked_by="user:x", attempt=1, config=config,
+    )  # fmt: skip
+    started = time.monotonic()
+    outcome = executor.execute(request)
+    assert time.monotonic() - started < 4.0
+    assert outcome.status == "failed" and outcome.retryable
+
+
+def test_a_larger_cap_does_not_cut_the_excerpt(server: int) -> None:
+    result = HttpxTransport(max_response_bytes=100_000).send(
+        target(server, "/big"), {}, b"{}", timeout_s=5
+    )
+    assert len(result.excerpt) == 100_000 and not result.truncated
+    default = HttpxTransport().send(target(server, "/big"), {}, b"{}", timeout_s=5)
+    assert len(default.excerpt) == 512 and default.truncated

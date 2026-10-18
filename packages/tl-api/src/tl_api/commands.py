@@ -51,6 +51,7 @@ from tl_core.integration.enrichers.service import (
     handle_revise_enricher,
     handle_set_enricher_enabled,
 )
+from tl_core.integration.errors import CommandAccessError
 from tl_core.integration.inbound.delivery import RetryInboundDelivery, handle_retry_delivery
 from tl_core.integration.inbound.service import (
     ReviseInboundEndpoint,
@@ -330,6 +331,9 @@ class TableCommandRunner:
         ``holds`` gets it from the same resolved access.
         """
         spec = self._specs[type(command).__name__]
+        if command.actor.startswith("agent:") and spec.name not in AGENT_DIRECT_COMMANDS:
+            # an agent proposes record changes (brief 18.12); the runner is not a way around it
+            raise CommandAccessError(f"{spec.name}: an agent proposes, a person decides")
         needed: Access_ = "user"
         if spec.access in ("admin", "controller"):
             needed = spec.access

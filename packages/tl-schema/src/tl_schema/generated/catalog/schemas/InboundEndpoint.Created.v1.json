@@ -82,7 +82,7 @@
               "type": "string"
             },
             "service_actor": {
-              "description": "svc:inbound-<slug>.",
+              "description": "svc:inbound-<app>.<endpoint>.",
               "type": "string"
             },
             "version": {

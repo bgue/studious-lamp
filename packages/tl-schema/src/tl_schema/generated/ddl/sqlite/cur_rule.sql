@@ -23,4 +23,6 @@ CREATE TABLE IF NOT EXISTS cur_rule (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_cur_rule_rule_key ON cur_rule (key);
 
+CREATE UNIQUE INDEX IF NOT EXISTS ux_cur_rule_rule_service_actor ON cur_rule (service_actor);
+
 CREATE INDEX IF NOT EXISTS ix_cur_rule_scope ON cur_rule (scope);

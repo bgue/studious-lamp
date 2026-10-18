@@ -1,12 +1,12 @@
 """The child side of a mapping evaluation (FANOUT D5): runs inside ``run_in_envelope``.
 
 ``evaluate_entry`` is the entry point the envelope calls in a fresh interpreter with a scrubbed
-environment, a memory limit and a wall clock. It imports nothing but the standard library and
-``jsonata``; it reads the expression from the header and the payload from the data block, evaluates
-with the library's own time box and depth bound, and answers a tag and JSON bytes that the parent
-parses with ``json`` (nothing is unpickled). The JSONata library has no input or output function,
-and the profile of ``tl_core.integration.mapping`` refuses ``$eval``; the limits do not confine the
-filesystem or the network (ADR-0014 known limit).
+environment, a memory limit and a wall clock. It imports the standard library, ``jsonata`` and
+``inbound.profile`` (which imports only those). It checks the expression against the profile
+before it runs anything, reads the payload from the data block, evaluates with the library's own
+time box and depth bound, and answers a tag and JSON bytes that the parent parses with ``json``
+(nothing is unpickled). The JSONata library has no input or output function, and the profile
+refuses ``$eval``; the limits do not confine the filesystem or the network (ADR-0014 known limit).
 """
 
 # jsonata-python ships no type information; its objects are untyped here.
@@ -38,6 +38,15 @@ def evaluate_entry(header: Mapping[str, Any], data: bytes) -> tuple[bytes, bytes
     """
     from jsonata import Jsonata, jexception
 
+    from tl_core.integration.inbound.profile import check_expression
+
+    # The profile is checked here, in the child, before anything is evaluated: the parent never
+    # parses an expression. ``mode`` "check" is the authoring check and evaluates nothing.
+    problems = check_expression(str(header["expression"]), header["allowed"])
+    if problems or header.get("mode") == "check":
+        return _answer(
+            {"status": "refused" if problems else "ok", "problems": [list(p) for p in problems]}
+        )
     try:
         payload = json.loads(data)
         expression = Jsonata(

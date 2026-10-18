@@ -22,4 +22,6 @@ CREATE TABLE IF NOT EXISTS cur_enricher (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_cur_enricher_enricher_name ON cur_enricher (name);
 
+CREATE UNIQUE INDEX IF NOT EXISTS ux_cur_enricher_enricher_service_actor ON cur_enricher (service_actor);
+
 CREATE INDEX IF NOT EXISTS ix_cur_enricher_scope ON cur_enricher (scope);

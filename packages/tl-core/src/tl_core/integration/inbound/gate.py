@@ -45,6 +45,10 @@ from tl_core.ledger import Event, NewEvent
 from tl_core.uow import UnitOfWork
 
 JOB_KIND = "inbound.map"
+#: A signed request is acceptable for up to twice the tolerance (``iat`` may be that far ahead or
+#: behind) plus the lifetime of its token; a replay row outlives that by a margin, so a request
+#: cannot be replayed at the edge of the window.
+REPLAY_KEEP_S = INBOUND_REPLAY_RETENTION_S + 120
 MAX_ATTEMPTS = 3
 #: A JSON number with more digits than this is hostile (Python would parse a huge integer).
 MAX_NUMBER_CHARS = 40
@@ -255,7 +259,7 @@ def accept_delivery(
         raise ReplayError("bad message id")
     conn = uow.conn()
     stamp = iso_z(now)
-    cutoff = iso_z(now - timedelta(seconds=INBOUND_REPLAY_RETENTION_S))
+    cutoff = iso_z(now - timedelta(seconds=REPLAY_KEEP_S))
     conn.execute(_REPLAY_PRUNE, {"e": endpoint.endpoint_id, "cutoff": cutoff})
     inserted = conn.execute(
         _REPLAY_INSERT,

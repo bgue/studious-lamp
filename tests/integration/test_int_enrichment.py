@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Any
 
-import fakes
+import intfakes as fakes
 import pytest
 from intworld import ADMIN, PERSON, SCOPE, World
 from tl_core.integration.enrichers import layer

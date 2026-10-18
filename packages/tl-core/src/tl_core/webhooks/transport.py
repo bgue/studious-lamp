@@ -4,7 +4,8 @@ The engine never imports httpx; tests and the demo use a real local receiver thr
 ``HttpxTransport`` or a fake transport. ``HttpxTransport`` connects to the **pinned IP** that
 :meth:`tl_core.webhooks.egress.EgressPolicy.check` returned and sends the original host in ``Host``
 and in TLS SNI (so the certificate is still checked against the host name). It does not follow
-redirects, sends no cookies and reads at most ``MAX_RESPONSE_BYTES`` of the answer.
+redirects, sends no cookies, reads at most ``MAX_RESPONSE_BYTES`` of the answer and gives the
+whole exchange ``timeout_s`` in total (not per read).
 """
 
 from __future__ import annotations
@@ -20,6 +21,10 @@ from tl_core.webhooks.egress import ResolvedTarget
 MAX_RESPONSE_BYTES = 4096
 EXCERPT_CHARS = 512
 USER_AGENT = "Throughline-Webhooks/1"
+
+
+class _DeadlineError(Exception):
+    """The exchange outlived its total budget."""
 
 
 @dataclass(frozen=True)
@@ -73,9 +78,15 @@ class HttpxTransport:
     """
 
     def __init__(
-        self, *, max_response_bytes: int = MAX_RESPONSE_BYTES, excerpt_chars: int = EXCERPT_CHARS
+        self, *, max_response_bytes: int = MAX_RESPONSE_BYTES, excerpt_chars: int | None = None
     ) -> None:
         self._max_bytes = max_response_bytes
+        # A delivery logs a short excerpt. A larger cap is a caller that needs the answer (an
+        # action's result): the characters follow the bytes, so the cap is never silently cut.
+        if excerpt_chars is None:
+            excerpt_chars = (
+                EXCERPT_CHARS if max_response_bytes <= MAX_RESPONSE_BYTES else max_response_bytes
+            )
         self._excerpt_chars = excerpt_chars
 
     def send(
@@ -100,6 +111,10 @@ class HttpxTransport:
                     received.extend(chunk)
                     if len(received) > self._max_bytes:
                         break
+                    if time.monotonic() - started > timeout_s:
+                        # httpx's timeout is per read: a server that trickles one byte at a time
+                        # never trips it. ``timeout_s`` is also the budget of the whole exchange.
+                        raise _DeadlineError("the response took longer than the time allowed")
                 return TransportResult(
                     status=response.status_code,
                     latency_ms=int((time.monotonic() - started) * 1000),
@@ -109,6 +124,12 @@ class HttpxTransport:
                     retry_after_s=parse_retry_after(response.headers.get("retry-after")),
                     truncated=len(received) > self._max_bytes,
                 )
+        except _DeadlineError as exc:
+            return TransportResult(
+                status=None,
+                latency_ms=int((time.monotonic() - started) * 1000),
+                error=f"DeadlineExceeded: {exc}"[:200],
+            )
         except httpx.HTTPError as exc:
             return TransportResult(
                 status=None,

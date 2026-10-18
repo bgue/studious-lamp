@@ -1092,7 +1092,7 @@ classes:
           tl:json: true
         required: true
       service_actor:
-        description: "svc:inbound-<slug>."
+        description: "svc:inbound-<app>.<endpoint>."
         required: true
       access:
         description: "user or controller."
@@ -1118,7 +1118,7 @@ classes:
         description: "Id of the first secret (not the secret)."
         required: true
     examples:
-      - value: "{\"access\": \"user\", \"allowed_commands\": [\"SetPsetValues\"], \"app\": \"acme-nde\", \"auth\": \"hmac_sha256\", \"dry_run\": true, \"enabled\": false, \"endpoint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"external_schema\": null, \"mapping\": \"results.{\\\"command\\\": \\\"SetPsetValues\\\", \\\"args\\\": {\\\"stream_id\\\": {\\\"$key\\\": weld}, \\\"pset\\\": \\\"nde\\\", \\\"values\\\": {\\\"result\\\": result}}}\", \"mapping_language\": \"jsonata-restricted@1\", \"max_body_bytes\": 262144, \"name\": \"results\", \"owner\": \"user:jsmith\", \"rate_per_minute\": 60, \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P10\", \"service_actor\": \"svc:inbound-acme-nde-results\", \"version\": 1}"
+      - value: "{\"access\": \"user\", \"allowed_commands\": [\"SetPsetValues\"], \"app\": \"acme-nde\", \"auth\": \"hmac_sha256\", \"dry_run\": true, \"enabled\": false, \"endpoint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"external_schema\": null, \"mapping\": \"results.{\\\"command\\\": \\\"SetPsetValues\\\", \\\"args\\\": {\\\"stream_id\\\": {\\\"$key\\\": weld}, \\\"pset\\\": \\\"nde\\\", \\\"values\\\": {\\\"result\\\": result}}}\", \"mapping_language\": \"jsonata-restricted@1\", \"max_body_bytes\": 262144, \"name\": \"results\", \"owner\": \"user:jsmith\", \"rate_per_minute\": 60, \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P10\", \"service_actor\": \"svc:inbound-acme-nde.results\", \"version\": 1}"
   InboundEndpointRevisedPayload:
     is_a: InboundEndpointEventPayload
     description: >-

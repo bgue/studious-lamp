@@ -38,7 +38,7 @@ import re
 from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from pydantic import ValidationError
 from sqlalchemy import Connection, text
@@ -467,6 +467,8 @@ def propose_for_rule(
         raise InvalidProposalError(
             "a rule cannot claim workflow roles; the person who accepts supplies them"
         )
+    if isinstance(command, AddLink) and command.link_source != "rule":
+        raise InvalidProposalError("a link a rule proposes has the link source 'rule'")
     source = source_for(proposer)
     limit = budget if budget is not None else daily_budget(uow.conn())
     if proposals_today(uow.conn(), proposer, now=now) >= limit:
@@ -742,6 +744,11 @@ def accept_proposal(
             )
         except ActionAccessError as exc:  # the proposal stays pending; it is not a failure of it
             raise ProposalAccessError(str(exc)) from exc
+    elif row.tool == RULE_PROPOSAL_TOOL and isinstance(command, AddLink):
+        # A rule's link has the link source ``rule``, which a person cannot claim. The server
+        # applies it here, and only for a proposal a rule made (``propose_for_rule`` checked it).
+        link_handler = cast(Any, handler)
+        result = link_handler(uow, command, system_source="rule")
     else:
         result = handler(uow, command)
     _decide(

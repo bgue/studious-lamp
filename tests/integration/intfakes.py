@@ -79,3 +79,9 @@ class MemStore:
 
     def iter_keys(self) -> Iterator[str]:
         return iter(sorted(self.objects))
+
+    def presign_put(self, key: str, *, expires_s: int) -> str:
+        raise NotImplementedError
+
+    def presign_get(self, key: str, *, expires_s: int) -> str:
+        raise NotImplementedError

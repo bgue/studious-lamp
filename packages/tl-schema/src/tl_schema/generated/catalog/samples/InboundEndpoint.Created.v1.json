@@ -20,7 +20,7 @@
         "owner": "user:jsmith",
         "rate_per_minute": 60,
         "secret_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P10",
-        "service_actor": "svc:inbound-acme-nde-results",
+        "service_actor": "svc:inbound-acme-nde.results",
         "version": 1
       },
       "links": [],
@@ -64,7 +64,7 @@
     "owner": "user:jsmith",
     "rate_per_minute": 60,
     "secret_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P10",
-    "service_actor": "svc:inbound-acme-nde-results",
+    "service_actor": "svc:inbound-acme-nde.results",
     "version": 1
   }
 }

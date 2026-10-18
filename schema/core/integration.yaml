@@ -615,6 +615,9 @@ classes:
       rule_key:
         unique_key_slots:
           - key
+      rule_service_actor:
+        unique_key_slots:
+          - service_actor
     attributes:
       rule_id:
         identifier: true
@@ -703,6 +706,9 @@ classes:
         unique_key_slots:
           - app
           - name
+      inbound_endpoint_service_actor:
+        unique_key_slots:
+          - service_actor
     attributes:
       endpoint_id:
         identifier: true
@@ -827,6 +833,9 @@ classes:
       enricher_name:
         unique_key_slots:
           - name
+      enricher_service_actor:
+        unique_key_slots:
+          - service_actor
     attributes:
       enricher_id:
         identifier: true

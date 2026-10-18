@@ -65,7 +65,7 @@ def test_an_endpoint_starts_disabled_in_dry_run_with_a_secret_shown_once(world: 
     assert (found["app"], found["name"], found["service_actor"]) == (
         "erp",
         "orders",
-        "svc:inbound-erp-orders",
+        "svc:inbound-erp.orders",
     )
     assert not bool(found["enabled"]) and bool(found["dry_run"])
     assert found["current_secret_id"] == made.secret_id

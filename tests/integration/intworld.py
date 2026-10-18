@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from fakes import MemStore
+from intfakes import MemStore
 from sqlalchemy import text
 from tl_adapters.db import create_schema, make_uow_factory
 from tl_adapters.queue import job_queue_for
@@ -211,17 +211,16 @@ class World:
         self, name: str = "orders", *, on: bool = True, live: bool = True, **over: Any
     ) -> Any:
         """An enabled, live (not dry-run) endpoint of the app ``erp``; returns what create gave."""
+        app = over.get("app", "erp")
         with self.factory() as uow:
-            if (
-                uow.conn()
-                .execute(text("SELECT 1 FROM cur_integration_app WHERE name = 'erp'"))
-                .first()
-                is None
-            ):
+            known = uow.conn().execute(
+                text("SELECT 1 FROM cur_integration_app WHERE name = :n"), {"n": app}
+            )
+            if known.first() is None:
                 handle_register_app(
                     uow,
                     RegisterIntegrationApp(
-                        actor=ADMIN, source="test", scope=SCOPE, name="erp", label="ERP"
+                        actor=ADMIN, source="test", scope=SCOPE, name=app, label=app
                     ),
                 )
         values: dict[str, Any] = {
@@ -276,6 +275,7 @@ class World:
         digest = put_body(self.store, key, body)
         with self.factory() as uow:
             row = endpoint_view(uow.conn(), endpoint_id)
+            assert row is not None
             accept_delivery(
                 uow, row, message_id=message_id or new_ulid(), delivery_id=delivery_id,
                 object_key=key, payload_sha256=digest, payload_size=len(body), now=utcnow(),

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import time
+from typing import Any
+
 import pytest
 from tl_core.integration.contract import MAPPING_MAX_COMMANDS, MAPPING_MAX_EXPRESSION_CHARS
 from tl_core.integration.inbound.mapping import JsonataRestricted
@@ -105,3 +108,54 @@ def test_evaluate_stops_runaway_work() -> None:
     expression = '$sum([1..100000000]) ? {"command": "PostToFeed", "args": {}} : []'
     out = RT.evaluate(expression, {})
     assert out.status in ("limit", "error")
+
+
+# --- the server never parses an expression -------------------------------------------------------
+
+
+def test_a_long_expression_is_refused_before_anything_parses_it() -> None:
+    started = time.monotonic()
+    problems = RT.check("a." * 2_000)  # 4000 characters: the case that cost seconds of parent CPU
+    assert [p.code for p in problems] == ["too_long"]
+    assert time.monotonic() - started < 0.5
+    out = RT.evaluate("a." * 2_000, {"a": 1})
+    assert out.status == "error" and out.problems[0].code == "too_long"
+
+
+def test_a_tree_over_the_node_cap_is_refused_in_the_child() -> None:
+    expression = "$sum([" + ",".join(["1"] * 600) + "])"  # short enough, 600+ nodes
+    assert len(expression) <= 2_000
+    assert "too_complex" in _codes(expression)
+    deep = "(" * 70 + "1" + ")" * 70
+    assert "too_complex" in _codes(deep)
+
+
+def test_the_parent_process_does_not_parse_with_the_library(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import jsonata
+
+    def refuse(*_a: object, **_k: object) -> None:
+        raise AssertionError("the server parsed an expression")
+
+    monkeypatch.setattr(jsonata, "Jsonata", refuse)
+    assert RT.check("a.b + 1") == []
+    assert RT.evaluate("a.b", {"a": {"b": 1}}).status == "invalid_output"
+    assert "function_not_allowed" in _codes("$eval('1')")
+
+
+def test_a_checked_expression_is_not_checked_again(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+    real = JsonataRestricted._child
+
+    def counting(header: dict[str, Any], data: bytes) -> bytes:
+        calls.append(str(header.get("mode")))
+        return real(header, data)
+
+    monkeypatch.setattr(JsonataRestricted, "_child", staticmethod(counting))
+    expression = '$uppercase(name) & "-cache-test-1"'
+    assert RT.check(expression) == [] and RT.check(expression) == []
+    assert calls == ["check"]
+    refused = "$eval('cache-test-2')"
+    first = [p.code for p in RT.check(refused)]
+    assert first == [p.code for p in RT.check(refused)] and calls == ["check", "check"]

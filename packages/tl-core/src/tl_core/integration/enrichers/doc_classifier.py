@@ -56,7 +56,7 @@ DOC_TYPE_KEYWORDS: dict[str, tuple[str, ...]] = {
     "MTO": ("material take off", "material takeoff", "mto", "bill of materials"),
     "ITR": ("inspection and test record", "inspection test record", "itr"),
     "WPS": ("welding procedure specification", "wps"),
-    "DRW": ("drawing", "drawings"),
+    "DRW": ("drawing", "drawings", "layout", "layouts"),
 }
 #: Types that are the fallback when only a general word matched.
 FALLBACK_TYPES = frozenset({"DRW"})

@@ -2888,7 +2888,7 @@ An inbound endpoint was created. It starts disabled and in dry-run mode. Its sec
 | `owner` | string | yes | Owner actor. |
 | `rate_per_minute` | integer | yes | Rate bound. |
 | `secret_id` | string | yes | Id of the first secret (not the secret). |
-| `service_actor` | string | yes | svc:inbound-<slug>. |
+| `service_actor` | string | yes | svc:inbound-<app>.<endpoint>. |
 | `version` | integer | yes | Endpoint version. |
 
 ### Sample delivered event
@@ -2915,7 +2915,7 @@ An inbound endpoint was created. It starts disabled and in dry-run mode. Its sec
       "owner": "user:jsmith",
       "rate_per_minute": 60,
       "secret_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P10",
-      "service_actor": "svc:inbound-acme-nde-results",
+      "service_actor": "svc:inbound-acme-nde.results",
       "version": 1
     },
     "links": [],
