@@ -1,10 +1,4 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false, reportUnusedFunction=false
 """``doc_classifier``: a deterministic document classifier (brief §18.9; ADR-0008 decision 8).
-
-STUB (P1-I7-T06): the tables and constants are final; the bodies below raise NotImplementedError.
-Remove this paragraph, every STEPS comment, the two lint-silencing lines above and
-`NotImplementedError` when you implement them.
 
 It reads the facts a document already has (its number, its title, the file's name, its title
 metadata) and proposes two properties of its own layer ``enrich.doc_classifier``:
@@ -85,17 +79,11 @@ _WORD = re.compile(r"[a-z0-9]+")
 def words(text: str) -> tuple[str, ...]:
     """Lower-case words of ``text``: runs of letters and digits. Only the first
     ``MAX_TEXT_CHARS`` characters are read."""
-    # STEPS
-    # 1. Cut `text` to its first MAX_TEXT_CHARS characters, then lower-case it.
-    # 2. Return every match of `_WORD` in it, in order, as a tuple.
-    raise NotImplementedError
+    return tuple(_WORD.findall(text[:MAX_TEXT_CHARS].lower()))
 
 
 def _phrase(text: str) -> tuple[str, ...]:
-    # STEPS
-    # 1. Lower-case `text` and return every match of `_WORD` in it as a tuple. (Unlike `words`
-    #    this is not cut: it reads the table's own short phrases.)
-    raise NotImplementedError
+    return tuple(_WORD.findall(text.lower()))
 
 
 def best_code(table: dict[str, tuple[str, ...]], tokens: tuple[str, ...]) -> tuple[str, int] | None:
@@ -104,25 +92,30 @@ def best_code(table: dict[str, tuple[str, ...]], tokens: tuple[str, ...]) -> tup
     Returns ``(code, number of words in the phrase)``; the longer phrase wins, then the code that
     comes first in ``table``. ``None`` when nothing matches.
     """
-    # STEPS
-    # 1. `best` starts as None.
-    # 2. For each code and each phrase of the code, in table order: `parts = _phrase(phrase)`;
-    #    skip it when it is empty or longer than `tokens`.
-    # 3. If `parts` occurs in `tokens` as consecutive items (compare slices of equal length at
-    #    every start), it is a match of `len(parts)` words. Keep it only when `best` is None or
-    #    the match is strictly longer than `best`'s (so a tie keeps the earlier code).
-    # 4. Return `best`. Do not use regular expressions on `tokens` (they are hostile input).
-    raise NotImplementedError
+    best: tuple[str, int] | None = None
+    for code, phrases in table.items():
+        for phrase in phrases:
+            parts = _phrase(phrase)
+            size = len(parts)
+            if size == 0 or size > len(tokens):
+                continue
+            if best is not None and size <= best[1]:
+                continue
+            if any(
+                tokens[start : start + size] == parts for start in range(len(tokens) - size + 1)
+            ):
+                best = (code, size)
+    return best
 
 
 def number_prefix(key: str | None) -> str | None:
     """The ``DocumentType`` code a document number starts with (``ISO-1234`` gives ``ISO``)."""
-    # STEPS
-    # 1. No key (None or empty): return None.
-    # 2. The head is the part of `key.strip().upper()` before the first "-". A key with no "-"
-    #    has no prefix: return None.
-    # 3. Return the head when it is a code of DOC_TYPE_KEYWORDS, else None.
-    raise NotImplementedError
+    if not key:
+        return None
+    head, separator, _ = key.strip().upper().partition("-")
+    if not separator:
+        return None
+    return head if head in DOC_TYPE_KEYWORDS else None
 
 
 class DocClassifier:
@@ -131,26 +124,54 @@ class DocClassifier:
     model_ref: str | None = None
 
     def accepts(self, subject: EnrichmentSubject) -> bool:
-        # STEPS
-        # 1. True when the title has a non-blank character, or the record has a key, or there is
-        #    a file; False for a subject with none of these.
-        raise NotImplementedError
+        return bool(subject.title.strip()) or bool(subject.record.key) or subject.file is not None
 
     def enrich(self, subject: EnrichmentSubject) -> EnrichmentResult:
-        # STEPS
-        # 1. `title = words(subject.title)`. `file_words` is the words of the file name without
-        #    its last extension (`filename.rsplit(".", 1)[0]`) followed by the words of the file's
-        #    metadata title (None counts as ""); empty when there is no file.
-        # 2. doc_type, in this order, the first that applies:
-        #    a. `number_prefix(subject.record.key)` gives a code: that code with CONFIDENCE_NUMBER.
-        #    b. `best_code(DOC_TYPE_KEYWORDS, title)` gives a code: that code with
-        #       CONFIDENCE_TITLE.
-        #    c. the same on `file_words` with CONFIDENCE_FILE.
-        #    In b and c a code in FALLBACK_TYPES gets at most CONFIDENCE_FALLBACK.
-        #    When one applies, add ProposedValue(property="doc_type", value=code, confidence=...).
-        # 3. discipline: `best_code(DISCIPLINE_KEYWORDS, title)` with CONFIDENCE_TITLE, else the
-        #    same on `file_words` with CONFIDENCE_FILE. Add
-        #    ProposedValue(property="discipline", ...).
-        # 4. Return EnrichmentResult(enricher=NAME, enricher_version=VERSION, status "ok" when
-        #    there is a value else "unsupported", values=the list, notes=[NOTE]).
-        raise NotImplementedError
+        title = words(subject.title)
+        file_words: tuple[str, ...] = ()
+        if subject.file is not None:
+            stem = subject.file.filename.rsplit(".", 1)[0]
+            file_words = words(stem) + words(subject.file.title or "")
+
+        values: list[ProposedValue] = []
+
+        # doc_type: the document number first, then the title, then the file's own words.
+        doc_type: tuple[str, float] | None = None
+        number_code = number_prefix(subject.record.key)
+        if number_code is not None:
+            doc_type = (number_code, CONFIDENCE_NUMBER)
+        else:
+            for tokens, confidence in ((title, CONFIDENCE_TITLE), (file_words, CONFIDENCE_FILE)):
+                found = best_code(DOC_TYPE_KEYWORDS, tokens)
+                if found is not None:
+                    code = found[0]
+                    if code in FALLBACK_TYPES:
+                        confidence = min(confidence, CONFIDENCE_FALLBACK)
+                    doc_type = (code, confidence)
+                    break
+        if doc_type is not None:
+            values.append(
+                ProposedValue(property="doc_type", value=doc_type[0], confidence=doc_type[1])
+            )
+
+        # discipline: the title first, then the file's own words.
+        discipline: tuple[str, float] | None = None
+        found = best_code(DISCIPLINE_KEYWORDS, title)
+        if found is not None:
+            discipline = (found[0], CONFIDENCE_TITLE)
+        else:
+            found = best_code(DISCIPLINE_KEYWORDS, file_words)
+            if found is not None:
+                discipline = (found[0], CONFIDENCE_FILE)
+        if discipline is not None:
+            values.append(
+                ProposedValue(property="discipline", value=discipline[0], confidence=discipline[1])
+            )
+
+        return EnrichmentResult(
+            enricher=NAME,
+            enricher_version=VERSION,
+            status="ok" if values else "unsupported",
+            values=values,
+            notes=[NOTE],
+        )
