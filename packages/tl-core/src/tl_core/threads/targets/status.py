@@ -2,7 +2,13 @@
 
 The target is a state (its name or label) or a transition name. Guards apply when the command
 runs: the dry run of the preview shows a failed guard as the item's problem.
+
+STUB: StatusTarget.plan is yours to write (ticket P1-I7-T10b). Remove this paragraph, every STEPS
+comment and the two lint-silencing lines below when you are done.
 """
+
+# ruff: noqa: F401
+# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 
 from __future__ import annotations
 
@@ -19,49 +25,29 @@ class StatusTarget:
     def plan(
         self, uow: UnitOfWork, context: DispatchContext, parsed: ParsedDispatch
     ) -> list[PlannedCommand] | Problem:
-        args = parsed.args
-        assert isinstance(args, StatusArgs)
-        definition = get_workflows().find(context.record.record_type, context.scope)
-        if definition is None:
-            return Problem(
-                code="no_workflow",
-                message=f"no workflow applies to {context.record.record_type} here",
-            )
-        state = context.record_status or definition.initial_state
-        wanted = args.target.strip().lower()
-        labels = {s.name: (s.label or s.name) for s in definition.states}
-        options = definition.transitions_from(state)
-        matching = [
-            t
-            for t in options
-            if wanted in (t.name.lower(), t.to.lower(), labels.get(t.to, t.to).lower())
-        ]
-        if not matching:
-            reachable = ", ".join(sorted({labels.get(t.to, t.to) for t in options})) or "none"
-            return Problem(
-                code="unknown_state",
-                message=f"from {labels.get(state, state)} the record can go to: {reachable}",
-            )
-        if len(matching) > 1:
-            names = ", ".join(t.name for t in matching)
-            return Problem(
-                code="ambiguous_transition", message=f"several transitions fit; name one: {names}"
-            )
-        transition = matching[0]
-        command: dict[str, object] = {
-            "stream_id": context.record.id,
-            "expected_version": context.record.version,
-            "transition": transition.name,
-        }
-        if args.text:
-            command["reason"] = args.text
-        return [
-            PlannedCommand(
-                command_type="TransitionWorkflow",
-                command=command,
-                summary=(
-                    f"Move {context.record.key or context.record.id} to "
-                    f"{labels.get(transition.to, transition.to)}"
-                ),
-            )
-        ]
+        # STEPS
+        # 1. args = parsed.args; assert isinstance(args, StatusArgs) (this narrows the type
+        #    for pyright).
+        # 2. definition = get_workflows().find(context.record.record_type, context.scope).
+        #    None: return Problem(code="no_workflow", message=f"no workflow applies to
+        #    {context.record.record_type} here").
+        # 3. state = context.record_status or definition.initial_state. labels = {s.name:
+        #    (s.label or s.name) for s in definition.states}. wanted =
+        #    args.target.strip().lower().
+        # 4. options = definition.transitions_from(state). matching = the transitions t of
+        #    options with wanted in (t.name.lower(), t.to.lower(), labels.get(t.to,
+        #    t.to).lower()).
+        # 5. No match: reachable = the sorted labels of the states the options lead to,
+        #    joined by ", " ("none" when there are no options). Return
+        #    Problem(code="unknown_state", message=f"from {labels.get(state, state)} the
+        #    record can go to: {reachable}").
+        # 6. More than one match: return Problem(code="ambiguous_transition",
+        #    message=f"several transitions fit; name one: {names}") with the transition
+        #    names joined by ", ".
+        # 7. One match: command = {"stream_id": context.record.id, "expected_version":
+        #    context.record.version, "transition": transition.name}; add "reason": args.text
+        #    when args.text is set. Never name actor_roles or any server-set field.
+        # 8. Return a list of one PlannedCommand(command_type="TransitionWorkflow",
+        #    command=command, summary=f"Move {record key or id} to {label of the target
+        #    state}").
+        raise NotImplementedError
