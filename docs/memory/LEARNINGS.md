@@ -492,3 +492,12 @@ T14d came back blocked for two reasons that were both in the ticket: the provide
 - **L-P1-I7A-6** · 2026-10-18 · tags: tooling
   `jsonata-python` ships no type information and its syntax tree is a `Parser.Symbol` with `.type`; pyright needs a file-level `# pyright: reportMissingTypeStubs=false` (one directive per line: a comma list is rejected) in the two files that import it. The restricted profile is an allow-list of node types plus an allow-list of function names, so a node type the library adds later is refused, not allowed.
   Evidence: `inbound/mapping.py`, `tests/integration/test_int_inbound_mapping.py`. Status: active
+- **L-P1-I7A-7** · 2026-10-18 · tags: security, architecture
+  A name built by joining two slugs with the character a slug may contain is not injective: `svc:inbound-{app}-{name}` gave app `a` + endpoint `b-c` and app `a-b` + endpoint `c` one actor, and a lookup by actor took `.first()`. Join with a character no slug holds (`svc:inbound-{app}.{name}`), put a unique index on the column that is looked up, and make the lookup fail closed on anything but one row. The same review found that "the owner holds access" must mean "while it is switched on": read the owner's switches where the access is resolved, not only where it is first loaded.
+  Evidence: `tests/integration/test_int_runner_access.py::test_two_endpoints_never_share_an_actor`, `::test_a_disabled_owner_holds_nothing`. Status: active
+- **L-P1-I7A-8** · 2026-10-18 · tags: tests, process
+  A test helper module in a directory on pyright's `extraPaths` can be shadowed by a module of the same name elsewhere (`fakes.py` of the TUI tests hid `tests/integration/fakes.py` from pyright, not from pytest). Name helpers for the work (`intfakes.py`, `intcli_support.py`) and run `just check`, not only `ruff` and the tests, before a commit that adds one.
+  Evidence: the pyright run of 2026-10-18 on 8608be3's parent; renamed to `intfakes.py`. Status: active
+- **L-P1-I7A-9** · 2026-10-18 · tags: tests, tooling
+  A reference-first ticket is mutation-checked by changing one line of the reference at a time and running only that test file: six mutants of the CLI references were killed on the first run except one (a `mode` command that always wrote `act`, because the test only ever set `act`). A command that takes a value needs a test that sets two different values. Scripts: `scratchpad/<ws>/mut2.py` pattern (edit, run, restore in `finally`).
+  Evidence: `packages/tl-cli/tests/` provided tests of T03b to T02b. Status: active

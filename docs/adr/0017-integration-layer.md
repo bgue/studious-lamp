@@ -33,6 +33,22 @@ A rule in `propose` mode proposes as `svc:rule-<slug>` (`proposals.propose_for_r
 ### 7. The command runner
 `tl_api.commands.command_runner()` builds a `CommandRunner` from `COMMANDS`; `tl_core` never imports `tl_api`. A command whose access is `company` counts as `admin` for automation, so it can never run.
 
+`run(uow, command)` also checks the access the table declares against what **the command's own actor holds**, resolved from the ledger in the same unit of work (`tl_core.integration.actor_access`), and fails closed (`CommandAccessError`):
+- a person holds what their active account's roles give (`admin`, `controller` for a document controller, else `user`); the actor must be exactly `user:<username>` of the account (no look-alike spelling), and an account with no role holds nothing;
+- a service actor holds the access declared on the rule, endpoint or enricher that owns it, **only while that owner is switched on and its app is on**; the actor name is unique to its owner (a unique index on `service_actor` in the three tables), so a name with more than one owner holds nothing;
+- an `agent:` actor runs only the commands an agent may run directly (`AGENT_DIRECT_COMMANDS`: the feed commands); everything else it proposes;
+- `svc:action-*`, `system:*` and any unknown name hold nothing.
+A handler that takes `holds` (`InvokeAction`) gets it from the same resolved access. The inbound service actor is `svc:inbound-<app>.<endpoint>`: a name is a slug without a dot, so two paths never share an actor (the first form joined with `-` and let app `a` + endpoint `b-c` borrow app `a-b` + endpoint `c`). Rule and enricher actors are named by their one key or name and were already injective.
+
+### 7a. What automation may and may not put in a command
+`plan_command` refuses `actor_roles` and `accept_risk` by name (as the propose path does): external input never supplies the roles a guard sees or acknowledges a risk. A rule's `AddLink` or `SuggestLink` proposal carries the link source `rule`; accepting it applies that one system source server-side (`system_source`), only for a proposal a rule made. The rules engine is never offered account events or the layer's own bookkeeping events (`INTEGRATION_INTERNAL_EVENT_TYPES`), the set the webhook dispatcher skips, and a firing re-reads the rule inside its unit of work, so switching a rule off stops it at the next event.
+
+### 7b. The `hashtags` of the outbox
+`Feed.Posted` and `Feed.Edited` carry `tags` (kind and text), not a `hashtags` list, so a `hashtags` filter never matched a real post. The outbox now reads both: every tag that is not a mention is a hashtag. Rule `when` filters need it (D7); the change also makes existing webhook subscriptions with a `hashtags` filter match real posts, which is what their authors meant. Pinned by `test_existing_webhook_filters_keep_their_meaning_and_hashtags_now_match_real_posts`.
+
+### 7c. Mapping runtime
+The server never parses an expression. `check` and `evaluate` hand it to the child of the ADR-0014 envelope, which parses it, walks its tree against the profile (`inbound/profile.py`: at most 2000 characters, 500 nodes, depth 60, an allow-list of node types and function names) and runs it. An authoring check is cached by the hash of the expression.
+
 ### 8. Kill switch
 `integration.kill_switch` (platform and company, lockable). When on: inbound answers the fixed 404; the rules worker and the enrichment dispatcher record the events they pass over as `killed` and do not replay them; action jobs fail with `killed` and are not retried. Every engine reads it per batch or per delivery, never once at start.
 
