@@ -10,14 +10,7 @@ naming who it is for. The job is the clock; the ledger is the memory.
 * ``run`` builds the text. Pure.
 * ``settle`` posts the reminder in the settling transaction, which the queue guarantees runs at
   most once per job.
-
-STUB: reminder_text, ThreadReminderKind.prepare and ThreadReminderKind.settle are yours to write
-(ticket P1-I7-T10d). Remove this paragraph, every STEPS comment and the two lint-silencing lines
-below when you are done.
 """
-
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 
 from __future__ import annotations
 
@@ -62,13 +55,12 @@ def reminder_text(work: ReminderWork) -> str:
     ``Reminder from user:rgarcia for @lchen @kpatel: check the bevels``. With nobody named the
     reminder is for the person who set it.
     """
-    # STEPS
-    # 1. Start with f"Reminder from {work.setter}".
-    # 2. When work.who is not empty append " for " and the names, each written "@<name>",
-    #    separated by one space.
-    # 3. When work.note is set append ": " and the note.
-    # 4. Return the string.
-    raise NotImplementedError
+    text = f"Reminder from {work.setter}"
+    if work.who:
+        text += " for " + " ".join(f"@{name}" for name in work.who)
+    if work.note:
+        text += ": " + work.note
+    return text
 
 
 class ThreadReminderKind:
@@ -80,32 +72,40 @@ class ThreadReminderKind:
         """Nothing is written when an attempt starts."""
 
     def prepare(self, uow: UnitOfWork, claim: Claim) -> ReminderWork:
-        # STEPS
-        # 1. row = the cur_thread_message row of claim.job_id (_MESSAGE_SQL with
-        #    {"message_id": claim.job_id}), read with uow.conn().execute(...).first().
-        # 2. No row, a row whose kind is not "dispatch", or a retracted one: raise
-        #    JobFailure("message_missing", "the /remind message is gone", retryable=False).
-        # 3. parsed = CommandLineParser().parse(str(row.body)). Not a ParsedDispatch whose
-        #    args is a RemindArgs: raise JobFailure("message_missing", "the message is not a
-        #    /remind", retryable=False).
-        # 4. Return ReminderWork(message_id=str(row.message_id),
-        #    record_id=str(row.record_id), scope=str(row.scope), setter=str(row.author),
-        #    who=tuple(args.who), note=args.text).
-        raise NotImplementedError
+        row = uow.conn().execute(_MESSAGE_SQL, {"message_id": claim.job_id}).first()
+        if row is None or row.kind != "dispatch" or bool(row.retracted):
+            raise JobFailure("message_missing", "the /remind message is gone", retryable=False)
+        parsed = CommandLineParser().parse(str(row.body))
+        if not isinstance(parsed, ParsedDispatch) or not isinstance(parsed.args, RemindArgs):
+            raise JobFailure("message_missing", "the message is not a /remind", retryable=False)
+        return ReminderWork(
+            message_id=str(row.message_id),
+            record_id=str(row.record_id),
+            scope=str(row.scope),
+            setter=str(row.author),
+            who=tuple(parsed.args.who),
+            note=parsed.args.text,
+        )
 
     def run(self, work: ReminderWork) -> str:
         return reminder_text(work)
 
     def settle(self, uow: UnitOfWork, claim: Claim, outcome: Any) -> None:
-        # STEPS
-        # 1. body: str = outcome (run returned the text).
-        # 2. row = the same message row as in prepare (by claim.job_id). None: raise
-        #    JobFailure("message_missing", "the /remind message is gone", retryable=False).
-        # 3. record = readable_record(uow, str(row.record_id), actor=THREAD_SERVICE_ACTOR).
-        # 4. post_message(uow, record=record, actor=THREAD_SERVICE_ACTOR,
-        #    source=f"thread:{record.id}", body=body, kind="reminder",
-        #    correlation_id=f"dispatch:{claim.job_id}", check_enabled=False).
-        raise NotImplementedError
+        body: str = outcome
+        row = uow.conn().execute(_MESSAGE_SQL, {"message_id": claim.job_id}).first()
+        if row is None:
+            raise JobFailure("message_missing", "the /remind message is gone", retryable=False)
+        record = readable_record(uow, str(row.record_id), actor=THREAD_SERVICE_ACTOR)
+        post_message(
+            uow,
+            record=record,
+            actor=THREAD_SERVICE_ACTOR,
+            source=f"thread:{record.id}",
+            body=body,
+            kind="reminder",
+            correlation_id=f"dispatch:{claim.job_id}",
+            check_enabled=False,
+        )
 
     def failed(
         self,
