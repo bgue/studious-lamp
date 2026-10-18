@@ -859,9 +859,18 @@ class EmbeddedClient:
         with self._uow(True) as uow:
             return schedule_views.schedule_views(uow.conn(), f"project:{project}")
 
-    def get_schedule(self, project: str, code: str) -> schedule_views.ScheduleDetailView:
+    def get_schedule(
+        self,
+        project: str,
+        code: str,
+        *,
+        limit: int = schedule_views.DEFAULT_SNAPSHOT_PAGE,
+        offset: int = 0,
+    ) -> schedule_views.ScheduleDetailView:
         with self._uow(True) as uow:
-            return schedule_views.schedule_detail(uow.conn(), f"project:{project}", code)
+            return schedule_views.schedule_detail(
+                uow.conn(), f"project:{project}", code, limit=limit, offset=offset
+            )
 
     def get_schedule_snapshot(
         self, project: str, code: str, number: int

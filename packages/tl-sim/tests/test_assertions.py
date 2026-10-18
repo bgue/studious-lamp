@@ -576,11 +576,13 @@ def test_a_workflow_event_of_an_operator_is_excused_only_on_a_schedule_record() 
 def test_a_file_must_be_on_a_record_the_log_names_or_an_operator_made() -> None:
     world, truth = operator_world()
     assert check_as(world, truth, OPERATORS).ok
-    uploads = [e for e in world.event_rows if e["event_type"] == "File.Uploaded"]
-    scanned = [e for e in world.event_rows if e["event_type"] == "File.Processed"]
-    for event in (uploads[0], scanned[0]):
-        was = event["stream_id"]
-        event["stream_id"] = "id-nobody-intended"
-        assert ("event_stream", "stream") in failures(check_as(world, truth, OPERATORS))
-        event["stream_id"] = was
+    upload = next(e for e in world.event_rows if e["event_type"] == "File.Uploaded")
+    scanned = next(e for e in world.event_rows if e["event_type"] == "File.Processed")
+    was = upload["payload"]["record_id"]
+    upload["payload"]["record_id"] = "id-nobody-intended"  # attached to a record nobody named
+    found = failures(check_as(world, truth, OPERATORS))
+    assert ("event_stream", "record") in found
+    upload["payload"]["record_id"] = was
     assert check_as(world, truth, OPERATORS).ok
+    scanned["stream_id"] = "file-nobody-uploaded"  # processed a file no upload explains
+    assert ("event_stream", "record") in failures(check_as(world, truth, OPERATORS))

@@ -86,7 +86,11 @@ MODULE_STREAMS = (
         ("CostCode.Revised", "CostCode.MeasuresRecorded"),
     ),
     ("cost.CostSnapshot", "CostSnapshot.Defined", ()),
-    ("schedule.Schedule", "Schedule.Defined", ("Schedule.SnapshotPublished",)),
+    (
+        "schedule.Schedule",
+        "Schedule.Defined",
+        ("Schedule.SnapshotPublished", "Schedule.OrphansChecked"),
+    ),
     (
         "schedule.ScheduleSnapshot",
         "ScheduleSnapshot.Defined",

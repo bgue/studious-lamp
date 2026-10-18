@@ -504,8 +504,15 @@ class ClientInterface(Protocol):
         """A project's schedules by code, without snapshots."""
         ...
 
-    def get_schedule(self, project: str, code: str) -> schedule_views.ScheduleDetailView:
-        """One schedule with its snapshots, newest first."""
+    def get_schedule(
+        self,
+        project: str,
+        code: str,
+        *,
+        limit: int = schedule_views.DEFAULT_SNAPSHOT_PAGE,
+        offset: int = 0,
+    ) -> schedule_views.ScheduleDetailView:
+        """One schedule with a page of its snapshots, newest first (`snapshot_count`: all)."""
         ...
 
     def get_schedule_snapshot(

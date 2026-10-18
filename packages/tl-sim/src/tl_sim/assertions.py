@@ -187,6 +187,7 @@ def run_assertions(
     by_key = {str(r["key"]): r for r in reader.records()}
     events = reader.events()
     creator: dict[str, str] = {}  # stream id of a record -> who wrote its Record.Created
+    file_record: dict[str, str] = {}  # file id -> the id of the record it was uploaded to
     writers: dict[tuple[str, str], set[str]] = {}  # (stream id, event type) -> actors
     posted: Counter[tuple[str, str]] = Counter()  # (actor, body) of Feed.Posted
     proposed: Counter[tuple[str, str, str]] = Counter()  # (actor, agent, tool) of Proposal.Created
@@ -197,6 +198,8 @@ def run_assertions(
         payload = event.get("payload") or {}
         if event["event_type"] == "Record.Created":
             creator[str(event["stream_id"])] = str(event["actor"])
+        if event["event_type"] == "File.Uploaded":  # a file's events are on the file's stream
+            file_record[str(payload.get("file_id"))] = str(payload.get("record_id"))
         if event["event_type"] == "Feed.Posted":
             posted[(str(event["actor"]), str(payload.get("body")))] += 1
         elif event["event_type"] == "Proposal.Created":
@@ -220,13 +223,18 @@ def run_assertions(
         stream for stream, actor in creator.items() if actor in expected.operators
     }
 
+    def record_of(event: dict[str, Any]) -> str:
+        """The record an event is about: a file's events are on the file, which belongs to one."""
+        stream = str(event["stream_id"])
+        return file_record.get(stream, "") if event["event_type"] in FILE_EVENTS else stream
+
     def operator_event(event: dict[str, Any]) -> bool:
         """An event of the schedule setup that an operator may write (see the module docstring)."""
-        kind, stream = str(event["event_type"]), str(event["stream_id"])
+        kind = str(event["event_type"])
         if kind in OPERATOR_EVENTS:
             return True
         if kind in OPERATOR_STREAM_EVENTS:
-            return type_of.get(stream, "").startswith(SCHEDULE_TYPES)
+            return type_of.get(record_of(event), "").startswith(SCHEDULE_TYPES)
         return kind in OPERATOR_LINK_EVENTS and event["actor"] == SERVICE
 
     # --- records ---------------------------------------------------------------------------
@@ -390,9 +398,9 @@ def run_assertions(
         scanner = event["event_type"] == "File.Processed" and event["actor"] == SCANNER
         if event["event_type"] in FILE_EVENTS:
             report.checked += 1
-            stream = str(event["stream_id"])
-            if stream not in intended:
-                fail("event_stream", ref, "stream", "a record the log names", stream)
+            record = record_of(event)
+            if record not in intended:
+                fail("event_stream", ref, "record", "a record the log names", record or None)
         if source == f"sim:{run_id}":
             report.checked += 1
             when = date.fromisoformat(str(event["effective_at"])[:10])
