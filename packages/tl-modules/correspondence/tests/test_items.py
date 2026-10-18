@@ -238,3 +238,15 @@ def test_a_command_with_an_extra_field_is_refused_whole(world: CorrWorld) -> Non
     fields: dict[str, Any] = {**BASE, "subject": "x", "number": "P123-COR-9999"}
     with pytest.raises(ValidationError):
         ReceiveCorrespondence(**fields)
+
+
+def test_an_item_that_was_replaced_takes_no_more_changes(world: CorrWorld) -> None:
+    with frozen_today(MONDAY):
+        old = world.forge_item("P123-COR-0010", state="Draft")
+        new = world.forge_item("P123-COR-0011", state="Draft")
+        world.forge_item_event(
+            old, "Correspondence.Superseded", {"superseded_by_id": new, "reason": "corrected"}
+        )
+        with pytest.raises(ItemStateError, match="replaced"):
+            world.update(old, body="more")
+        world.update(new, body="fine")

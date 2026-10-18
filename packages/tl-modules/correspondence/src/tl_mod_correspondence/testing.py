@@ -465,6 +465,17 @@ class CorrWorld:
                 uow, CompleteUpload(**BASE, upload_id=ticket.upload_id), io.BytesIO(data)
             )
 
+    def forge_item_event(self, item_id: str, event_type: str, payload: dict[str, Any]) -> None:
+        """Append an item event without the checks of the commands (a damaged or old history)."""
+        with cf.system_view(), open_uow(self.db) as uow:
+            common.append(
+                uow,
+                _Forge(**BASE),
+                item_id,
+                CORRESPONDENCE,
+                [NewEvent(event_type=event_type, payload=payload)],
+            )
+
     def forge_clock_event(self, clock_id: str, event_type: str, payload: dict[str, Any]) -> None:
         """Append a clock event without the checks of the commands (a forged or damaged history)."""
         with open_uow(self.db) as uow:
