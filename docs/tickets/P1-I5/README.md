@@ -40,10 +40,10 @@ Build the correspondence core of M10 as a new module, `correspondence` (package 
 |---|---|---|---|---|
 | S1 | This plan, T02 LinkML (`schema/modules/correspondence/`), names, limits, generated DDL and catalog | Schema (human-gated: SCHEMA_APPROVALS) | orchestrator | done |
 | S2 | References of T03a–c (projectors), T08a (threading keys), T07d (letter PDF), workflow, file slots, numbering and calendar and party fixtures (T01) | Interfaces first | — | done |
-| S3 | T04 clock engine: calendars, `compute`, `replay`, handlers, sweep | Contractual clocks (§3 table) | orchestrator | planned |
-| S4 | T05 domain compiler | Defines what a domain may configure | orchestrator | planned |
-| S5 | T06 confidentiality: ADR-0016, `tl_core.confidentiality`, filters on every read path, walking tests | Security (§3 table; a delegated human gate) | orchestrator, security review | planned |
-| S6 | Module reads, `views.py`, master register with sources, commands (receive, triage, issue, response, clocks, parties), API routes and `ApiClient`, MCP tools, client interface | Interfaces, access, agent actions | orchestrator, security review | planned |
+| S3 | T04 clock engine: calendars, `compute`, `replay`, handlers, sweep | Contractual clocks (§3 table) | orchestrator | done |
+| S4 | T05 domain compiler | Defines what a domain may configure | orchestrator | done |
+| S5 | T06 confidentiality: ADR-0016, `tl_core.confidentiality`, filters on every read path, walking tests | Security (§3 table; a delegated human gate) | orchestrator, security review | built; walking tests open |
+| S6 | Module reads, `views.py`, master register with sources, commands (receive, triage, issue, response, clocks, parties), API routes and `ApiClient`, MCP tools, client interface | Interfaces, access, agent actions | orchestrator, security review | built (reads, routes, client, MCP, TUI client); CLI and screens follow as tickets |
 | S7 | T11a EML parser bounds and the envelope call | Parser of untrusted input | orchestrator, security review | planned |
 
 ## Tickets
@@ -51,18 +51,21 @@ Build the correspondence core of M10 as a new module, `correspondence` (package 
 |---|---|---|---|---|---|
 | T01 | Project calendar fixture (working days, holidays) and party fixtures | S (trivial) | — | done | S2 |
 | T02 | LinkML `schema/modules/correspondence/*`: `Correspondence`, `CorrespondenceThread`, `ResponseClock`, `ContractClause`, `Party`, `ContactRole`, `CorrespondenceDomain` | S | — | done | S1 |
-| T03a | Projector `CorrespondenceProjector` (item and clearance tables) | H | T02 | ready | |
-| T03b | Projectors `ThreadProjector`, `ClockProjector` | H | T02 | ready | |
-| T03c | Projectors `ClauseProjector`, `PartyProjector` (party and contacts) | H | T02 | ready | |
-| T04 | Clock engine | S | T03b | in progress | S3: calendars, replay, warnings built (`calendars.py`, `clocks.py`); handlers and sweep follow |
+| T03a | Projector `CorrespondenceProjector` (item and clearance tables) | H | T02 | merged | 8f4498d |
+| T03b | Projectors `ThreadProjector`, `ClockProjector` | H | T02 | merged | 88b0863 |
+| T03c | Projectors `ClauseProjector`, `PartyProjector` (party and contacts) | H | T02 | merged | 8c86dc4; the webhook scenario covers the new record types in the merge commit |
+| T04 | Clock engine | S | T03b | done | S3: `calendars.py`, `clocks.py`, `handlers/clocks.py` (start, pause, resume, restart, meet, cancel, sweep), tests on both adapters |
 | T05 | Domain definition compiler | S | T02 | done | `domains.py`, S6 |
-| T06 | Confidentiality classes and filters on every read path | S | T03a | planned | S5 |
-| T07a | Commands: receive, update, reclassify, record response, close, void | H | S6 | planned | |
-| T07b | Triage: suggestion engine, `ConfirmTriage`, proposal | H | S6 | planned | |
-| T07c | Issue: template to PDF rendition, stub send, clocks started, `IssueCorrespondence` | H | S6, T04 | planned | |
-| T07d | Letter template filling and deterministic PDF (`letter.py`) | H | — | ready | |
-| T08a | Threading keys: subject, message ids, item numbers, `match_thread` | H | — | ready | |
-| T08b | Threading wiring: threads from headers, subject and keys; `responds to` and `superseded by` links | H | T07a, T08a | planned | |
+| T06 | Confidentiality classes and filters on every read path | S | T03a | built; walking test open | S5: `tl_core.confidentiality`, filters on every read path, `tests/confidentiality/test_core.py`; the walking tests of routes and tools follow |
+| T07a | `ReceiveCorrespondence`, `UpdateCorrespondence` | H | S6 | ready (wave 1) | `handlers/items.py` |
+| T07b1 | The triage suggestion engine (`suggest.py`, pure) | H | — | ready (wave 1) | |
+| T07b2 | `ConfirmTriage` (agent-proposable), `ReclassifyCorrespondence` | H | T07a, T07b1 | ready (wave 2) | `handlers/triage.py` |
+| T07c | `IssueCorrespondence`: template to PDF rendition, stub send, clocks started | H | S6, T04, T07d | ready (wave 1) | `handlers/issue.py` |
+| T07f | Parties, contacts and contract clauses (six commands) | H | S6 | ready (wave 1) | `handlers/parties.py`, `handlers/clauses.py` |
+| S6-own | `DraftCorrespondence`, `RecordResponse`, `CloseCorrespondence`, `VoidDraft`, `VoidCorrespondence`, confidentiality commands | S | — | built | `handlers/responses.py`, `handlers/confidentiality.py` (security: the access of each is in `commands.py`) |
+| T07d | Letter template filling and deterministic PDF (`letter.py`) | H | — | merged | 6ef066e |
+| T08a | Threading keys: subject, message ids, item numbers, `match_thread` | H | — | merged | 784e796 |
+| T08b | Threading wiring: threads from headers, subject and keys; `AssignThread`, `SupersedeCorrespondence` | H | T07a, T08a | ready (wave 2) | `handlers/threads.py`; wires `with_thread` into receive and draft |
 | T09 | General and Document-control domain definition files, letter templates | H | T05 | built by supervisor | `schema/fixtures/correspondence/domains/*.yaml`; the compiler and the files cannot be tested apart (L-P1-I3-5) |
 | T10a–d | TUI: master register, item view, triage inbox, clocks screen | H | S6 | planned | |
 | T11a | EML parser (bounded, `policy.default`) | H | — | planned | |
@@ -84,4 +87,6 @@ Build the correspondence core of M10 as a new module, `correspondence` (package 
 - Stop and escalate if a core contract (`ModuleSpec`, `Principal`, the proposal table) must change in a way another workstream consumes, or the class model needs a role that does not exist.
 
 ## Blocked / Decision
-None. Known red on the base until T03a-c merge: `tests/contract/test_webhook_catalog_contract.py` (two cases): the catalog has the new event types and the scenario that produces them is held until the projectors exist (L-P1-I0A-17).
+None. The base is green again after the T03c merge (the webhook scenario was added in that merge commit). Held tests (restored when their wave has merged): `docs/tickets/P1-I5/provided/held-test_flow.py.txt` (the demo flow on a ledger) and `held-test_views.py.txt` (the register, items, clocks, threads, parties).
+
+**Waves of batch 2.** Wave 1: T07a, T07b1, T07c, T07f (disjoint paths). Wave 2: T07b2 (needs the receive command and the suggestion engine) and T08b (needs the receive command). The provided tests are validated against the references twice: without the thread wiring (what wave 1 produces) and with it.
