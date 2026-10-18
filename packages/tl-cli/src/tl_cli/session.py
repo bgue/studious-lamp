@@ -28,12 +28,13 @@ from typing import NoReturn
 
 import typer
 from tl_adapters.backend import ledger_exists
-from tl_adapters.db import DbTarget, open_uow, target_key
+from tl_adapters.db import DbTarget, is_postgres, open_uow, target_key
 from tl_core.auth import sessions
 from tl_core.auth.env import dev_tokens_allowed
 from tl_core.auth.errors import AccountLockedError, InvalidCredentialsError, WeakPasswordError
 from tl_core.auth.sessions import UowFactory
 from tl_core.auth.types import Principal
+from tl_core.confidentiality import LOWEST, Viewer, viewer_for
 from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import ServiceError
 from tl_core.uow import UnitOfWork
@@ -319,3 +320,18 @@ def require_controller(db: DbTarget) -> Principal:
     if not principal.is_controller:
         fail("forbidden: this command needs the document_controller or admin role")
     return principal
+
+
+def session_viewer(db: DbTarget) -> Viewer:
+    """Who reads for this invocation (ADR-0016): the session's account, else, on a dev ledger file,
+    the file's owner (the dev actor, who reads restricted items and is named on nothing), else the
+    lowest clearance. A ledger that cannot be reached or does not exist yet reads as the lowest."""
+    try:
+        principal = current_principal(db)
+    except Exception:  # an unreachable or missing ledger: the command reports it, we read nothing
+        return LOWEST
+    if principal is not None:
+        return viewer_for(principal)
+    if not is_postgres(db) and dev_tokens_allowed():
+        return Viewer(actor=DEV_ACTOR, level=1, account=DEV_ACTOR)
+    return LOWEST

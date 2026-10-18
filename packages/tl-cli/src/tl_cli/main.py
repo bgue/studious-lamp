@@ -26,6 +26,7 @@ from tl_adapters.db import (
     open_uow,
     rebuild_projections,
 )
+from tl_core import confidentiality
 from tl_core.auth.env import current_env, demo_allowed
 from tl_core.auth.seed import DEMO_WARNING, seed_demo
 from tl_core.extypes.provider import attach
@@ -77,7 +78,7 @@ from tl_cli import (
     webhook,
     wf,
 )
-from tl_cli.session import open_backend
+from tl_cli.session import open_backend, session_viewer
 
 
 class TlGroup(TyperGroup):
@@ -187,6 +188,9 @@ def root(
     # the default --actor of every command is the signed-in user (ADR-0009 section 4); a database
     # server is never a file the caller owns, so there only a session lets a command act
     actor_hook.install(ctx.command, target, local=not is_postgres(target))
+    # every read of this invocation sees what the signed-in person may read (ADR-0016)
+    token = confidentiality.set_viewer(session_viewer(target))
+    ctx.call_on_close(lambda: confidentiality.reset_viewer(token))
 
 
 def _has_ledger(target: DbTarget) -> bool:

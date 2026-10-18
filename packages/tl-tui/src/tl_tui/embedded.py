@@ -10,13 +10,14 @@ over HTTP. `for_target` opens the ledger as a `tl_adapters.backend` backend (a S
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Generator, Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
 from tl_api.auth import AGENT_MUST_PROPOSE
+from tl_core import confidentiality
 from tl_core.auth import accounts as account_services
 from tl_core.auth import queries as account_queries
 from tl_core.auth.env import current_env, demo_allowed
@@ -155,6 +156,33 @@ def target_uow_factory(target: str | Path) -> UowFactory:
     return factory
 
 
+class _ViewingFactory:
+    """A unit-of-work factory whose every unit reads as one person (ADR-0016).
+
+    The viewer is read from the account projection each time a unit is opened, so a role taken
+    away or a clearance withdrawn applies to the next call. An actor with no active account (a
+    dev actor in a test) reads as the lowest clearance. Attributes of the wrapped factory (its
+    ledger, bus, ``close``) are passed through.
+    """
+
+    def __init__(self, inner: UowFactory, actor: str) -> None:
+        self._inner = inner
+        self._actor = actor
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
+
+    def __call__(self, readonly: bool = False) -> AbstractContextManager[UnitOfWork]:
+        return self._scope(readonly)
+
+    @contextmanager
+    def _scope(self, readonly: bool) -> Generator[UnitOfWork]:
+        with self._inner(readonly) as uow:
+            viewer = confidentiality.viewer_for_actor(uow.conn(), self._actor)
+            with confidentiality.use_viewer(viewer):
+                yield uow
+
+
 class EmbeddedAuthenticator:
     """Sign-in on the ledger: checks a username and password against its accounts.
 
@@ -213,7 +241,7 @@ class EmbeddedClient:
             raise ValueError(
                 f"{AGENT_MUST_PROPOSE}: an agent cannot use the embedded client to change records"
             )
-        self._uow = uow_factory
+        self._uow: UowFactory = _ViewingFactory(uow_factory, actor)
         self._objects = object_store
         self.actor = actor  # recorded on the writes that take no command (settings, bodies)
         self.own_writes = OwnWrites()

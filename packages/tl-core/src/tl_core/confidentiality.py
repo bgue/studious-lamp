@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
-from contextvars import ContextVar
+from contextvars import ContextVar, Token
 from dataclasses import dataclass
 from typing import Any, Final
 
@@ -86,6 +86,21 @@ def use_viewer(viewer: Viewer) -> Generator[None]:
         yield
     finally:
         _VIEWER.reset(token)
+
+
+def set_viewer(viewer: Viewer) -> Token[Viewer]:
+    """Read as ``viewer`` until ``reset_viewer``; for a process that reads for one person (the CLI).
+
+    Prefer ``use_viewer``; this exists for entry points that cannot wrap the whole command in a
+    ``with`` block. A system viewer is refused.
+    """
+    if viewer.system:
+        raise ValueError("use system_view() to read without filters")
+    return _VIEWER.set(viewer)
+
+
+def reset_viewer(token: Token[Viewer]) -> None:
+    _VIEWER.reset(token)
 
 
 @contextmanager
