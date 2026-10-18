@@ -125,9 +125,57 @@ def register_app(env: dict[str, str], name: str = "erp") -> None:
 # --- inbound: a delivery without HTTP ---------------------------------------------------------
 
 
-def go_live(env: dict[str, str], path: str = "erp/orders") -> None:
-    ok(run(env, "endpoint", "mode", path, "live", "--reason", "test", "--project", P))
-    ok(run(env, "endpoint", "enable", path, "--project", P))
+def make_endpoint(
+    env: dict[str, str], path: str, mapping: str, allow: tuple[str, ...] = ("PostToFeed",)
+) -> str:
+    """An endpoint made through the service, switched on and live; its id. (No CLI is used, so a
+    test of one command does not depend on another command being written.)"""
+    from tl_core.integration.inbound.service import (
+        CreateInboundEndpoint,
+        ReviseInboundEndpoint,
+        SetInboundEndpointEnabled,
+        create_endpoint,
+        handle_revise_endpoint,
+        handle_set_endpoint_enabled,
+    )
+
+    app_name, _, name = path.partition("/")
+    with open_uow(env["TL_DB"]) as uow:
+        made = create_endpoint(
+            uow,
+            CreateInboundEndpoint(
+                actor=ADMIN, source="test", scope=SCOPE, app=app_name, name=name, mapping=mapping,
+                allowed_commands=list(allow),
+            ),
+        )  # fmt: skip
+    with open_uow(env["TL_DB"]) as uow:
+        handle_revise_endpoint(
+            uow,
+            ReviseInboundEndpoint(
+                actor=ADMIN, source="test", scope=SCOPE, endpoint_id=made.endpoint_id,
+                changes={"dry_run": False}, reason="live",
+            ),
+        )  # fmt: skip
+        handle_set_endpoint_enabled(
+            uow,
+            SetInboundEndpointEnabled(
+                actor=ADMIN, source="test", scope=SCOPE, endpoint_id=made.endpoint_id, enabled=True
+            ),
+        )
+    return made.endpoint_id
+
+
+def revise_mapping(env: dict[str, str], endpoint_id: str, mapping: str) -> None:
+    from tl_core.integration.inbound.service import ReviseInboundEndpoint, handle_revise_endpoint
+
+    with open_uow(env["TL_DB"]) as uow:
+        handle_revise_endpoint(
+            uow,
+            ReviseInboundEndpoint(
+                actor=ADMIN, source="test", scope=SCOPE, endpoint_id=endpoint_id,
+                changes={"mapping": mapping}, reason="fix",
+            ),
+        )  # fmt: skip
 
 
 def deliver(env: dict[str, str], path: str, payload: Any) -> str:

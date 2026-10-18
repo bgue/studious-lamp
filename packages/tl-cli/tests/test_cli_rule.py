@@ -108,8 +108,13 @@ def test_mode_is_a_revision_with_a_reason(env: dict[str, str], tmp_path: Path) -
     assert lines(run(env, "rule", "ls", "--project", P)) == [
         "hse-notify  off  act  user  v2  Notify HSE"
     ]
-    revised = sql(env, "SELECT payload FROM events WHERE event_type = 'Rule.Revised'")
-    assert len(revised) == 1 and "go live" in str(revised[0]["payload"])
+    back = run(env, "rule", "mode", "hse-notify", "propose", "--reason", "pause", "--project", P)
+    assert ok(back).stdout == "rule hse-notify mode propose\n"
+    assert lines(run(env, "rule", "ls", "--project", P)) == [
+        "hse-notify  off  propose  user  v3  Notify HSE"
+    ]
+    revised = sql(env, "SELECT payload FROM events WHERE event_type = 'Rule.Revised' ORDER BY seq")
+    assert len(revised) == 2 and "go live" in str(revised[0]["payload"])
     refused(
         run(env, "rule", "mode", "hse-notify", "yolo", "--reason", "x", "--project", P),
         "act or propose",

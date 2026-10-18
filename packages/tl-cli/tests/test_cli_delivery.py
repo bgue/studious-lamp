@@ -10,12 +10,13 @@ from intcli_support import (
     P,
     deliver,
     fields,
-    go_live,
     lines,
+    make_endpoint,
     new_env,
     ok,
     refused,
     register_app,
+    revise_mapping,
     run,
     sql,
     work_inbound,
@@ -34,35 +35,20 @@ def env(new_db: Callable[[], DbTarget], tmp_path: Path) -> dict[str, str]:
     return values
 
 
-def endpoint(
-    env: dict[str, str], tmp_path: Path, mapping: str = BROKEN, path: str = "erp/orders"
-) -> None:
-    file = write_json(tmp_path, "mapping.jsonata", mapping)
-    args = ["--project", P, "--mapping-file", file, "--allow", "PostToFeed"]
-    ok(run(env, "endpoint", "create", path, *args))
-    go_live(env, path)
+def endpoint(env: dict[str, str], mapping: str = BROKEN, path: str = "erp/orders") -> str:
+    return make_endpoint(env, path, mapping)
 
 
-def fix_mapping(env: dict[str, str], tmp_path: Path, path: str = "erp/orders") -> None:
+def fix_mapping(env: dict[str, str], path: str = "erp/orders") -> None:
     """Replace the endpoint's mapping through the service (there is no CLI for it)."""
-    from intcli_support import ADMIN, SCOPE, factory
-    from tl_core.integration.inbound.service import ReviseInboundEndpoint, handle_revise_endpoint
-
     row = sql(
         env, "SELECT endpoint_id FROM cur_inbound_endpoint WHERE name = :n", n=path.split("/")[1]
     )[0]
-    with factory(env)() as uow:
-        handle_revise_endpoint(
-            uow,
-            ReviseInboundEndpoint(
-                actor=ADMIN, source="test", scope=SCOPE, endpoint_id=row["endpoint_id"],
-                changes={"mapping": GOOD}, reason="fix",
-            ),
-        )  # fmt: skip
+    revise_mapping(env, row["endpoint_id"], GOOD)
 
 
-def failed_delivery(env: dict[str, str], tmp_path: Path) -> str:
-    endpoint(env, tmp_path)
+def failed_delivery(env: dict[str, str]) -> str:
+    endpoint(env)
     delivery_id = deliver(env, "erp/orders", {"text": "hello"})
     work_inbound(env)
     assert sql(env, "SELECT state FROM int_delivery")[0]["state"] == "failed"
@@ -72,8 +58,8 @@ def failed_delivery(env: dict[str, str], tmp_path: Path) -> str:
 def test_ls_shows_deliveries_newest_first_and_the_error_queue_by_state(
     env: dict[str, str], tmp_path: Path
 ) -> None:
-    delivery_id = failed_delivery(env, tmp_path)
-    fix_mapping(env, tmp_path)
+    delivery_id = failed_delivery(env)
+    fix_mapping(env)
     second = deliver(env, "erp/orders", {"text": "again"})
     work_inbound(env)
     everything = lines(run(env, "delivery", "ls"))
@@ -93,7 +79,7 @@ def test_ls_shows_deliveries_newest_first_and_the_error_queue_by_state(
 def test_show_prints_what_happened_and_never_the_payload(
     env: dict[str, str], tmp_path: Path
 ) -> None:
-    delivery_id = failed_delivery(env, tmp_path)
+    delivery_id = failed_delivery(env)
     shown = run(env, "delivery", "show", delivery_id, "--project", P)
     out = lines(ok(shown))
     assert [s.split(" ")[0] for s in out] == [
@@ -113,8 +99,8 @@ def test_show_prints_what_happened_and_never_the_payload(
 def test_retry_runs_a_failed_delivery_with_the_current_mapping(
     env: dict[str, str], tmp_path: Path
 ) -> None:
-    delivery_id = failed_delivery(env, tmp_path)
-    fix_mapping(env, tmp_path)
+    delivery_id = failed_delivery(env)
+    fix_mapping(env)
     assert (
         ok(run(env, "delivery", "retry", delivery_id, "--project", P)).stdout
         == f"queued {delivery_id}\n"
@@ -130,8 +116,8 @@ def test_retry_runs_a_failed_delivery_with_the_current_mapping(
 def test_retry_with_a_corrected_payload_stores_it_beside_the_received_one(
     env: dict[str, str], tmp_path: Path
 ) -> None:
-    delivery_id = failed_delivery(env, tmp_path)
-    fix_mapping(env, tmp_path)
+    delivery_id = failed_delivery(env)
+    fix_mapping(env)
     corrected = write_json(tmp_path, "fixed.json", {"text": "corrected"})
     ok(run(env, "delivery", "retry", delivery_id, "--project", P, "--file", corrected))
     work_inbound(env)
@@ -145,12 +131,12 @@ def test_retry_with_a_corrected_payload_stores_it_beside_the_received_one(
 def test_only_a_failed_delivery_retries_and_a_bad_file_is_an_error(
     env: dict[str, str], tmp_path: Path
 ) -> None:
-    delivery_id = failed_delivery(env, tmp_path)
+    delivery_id = failed_delivery(env)
     refused(
         run(env, "delivery", "retry", delivery_id, "--project", P, "--file", str(tmp_path / "x")),
         "cannot read JSON",
     )
-    fix_mapping(env, tmp_path)
+    fix_mapping(env)
     ok(run(env, "delivery", "retry", delivery_id, "--project", P))
     refused(run(env, "delivery", "retry", delivery_id, "--project", P), "queued")  # not failed now
     work_inbound(env)
@@ -161,7 +147,7 @@ def test_only_a_failed_delivery_retries_and_a_bad_file_is_an_error(
 def test_dry_run_over_a_sample_shows_the_planned_commands_and_writes_nothing(
     env: dict[str, str], tmp_path: Path
 ) -> None:
-    endpoint(env, tmp_path, GOOD)
+    endpoint(env, GOOD)
     sample = write_json(tmp_path, "sample.json", {"text": "hello"})
     before = len(sql(env, "SELECT 1 FROM events"))
     result = ok(run(env, "delivery", "dry-run", "erp/orders", "--project", P, "--sample", sample))
@@ -181,7 +167,7 @@ def test_dry_run_reports_a_refused_command_and_a_mapping_error(
         '[{"command": "PostToFeed", "args": {"body": "x"}}, '
         '{"command": "CreateRecord", "args": {"record_type": "core.Record", "title": "T"}}]'
     )
-    endpoint(env, tmp_path, mapping)
+    endpoint(env, mapping)
     out = lines(
         ok(
             run(
@@ -201,9 +187,7 @@ def test_dry_run_reports_a_refused_command_and_a_mapping_error(
     assert out[5].startswith("  problem command_not_allowed: ")
     other = tmp_path / "other"
     other.mkdir()
-    endpoint(
-        env, tmp_path, '{"command": "PostToFeed", "args": {"body": $number($.text)}}', "erp/second"
-    )
+    endpoint(env, '{"command": "PostToFeed", "args": {"body": $number($.text)}}', "erp/second")
     bad = lines(
         ok(
             run(
@@ -224,7 +208,7 @@ def test_dry_run_reports_a_refused_command_and_a_mapping_error(
 def test_dry_run_over_a_stored_delivery_and_its_argument_errors(
     env: dict[str, str], tmp_path: Path
 ) -> None:
-    endpoint(env, tmp_path, GOOD)
+    endpoint(env, GOOD)
     delivery_id = deliver(env, "erp/orders", {"text": "stored"})
     result = ok(
         run(env, "delivery", "dry-run", "erp/orders", "--project", P, "--delivery", delivery_id)
