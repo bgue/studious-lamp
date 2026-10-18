@@ -1,10 +1,4 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedClass=false
 """Key resolution for mapped commands (brief §18.5, §19.3; FANOUT D4).
-
-STUB (P1-I7-T04a): the constants, ``KeyLookup`` and ``_Refused`` are final; the functions raise
-NotImplementedError. Remove this paragraph, every STEPS comment, the two lint-silencing lines above
-and `NotImplementedError` when you implement them.
 
 A mapping names records by their human key: ``{"$key": "47-1234-W012"}`` or ``{"$key": {"type":
 "core.Record", "key": "47-1234-W012"}}``. Before the command model is built, every such object in
@@ -57,25 +51,31 @@ class _Refused(Exception):
 
 def shown(key: str) -> str:
     """``key`` as it appears in a message: printable, cut to ``SHOWN_KEY_CHARS``."""
-    # STEPS
-    # 1. Replace every character that is not `isprintable()` by "?".
-    # 2. If the result is longer than SHOWN_KEY_CHARS, cut it there and add "...".
-    raise NotImplementedError
+    printable = "".join(char if char.isprintable() else "?" for char in key)
+    if len(printable) > SHOWN_KEY_CHARS:
+        return printable[:SHOWN_KEY_CHARS] + "..."
+    return printable
 
 
 def parse_ref(marker: Any) -> tuple[str, str | None]:
     """``(key, record_type)`` of a ``$key`` object's value; ``_Refused(BAD_REF)`` if malformed."""
-    # STEPS
-    # 1. A str: that is the key, with record_type None.
-    # 2. A dict whose key set is exactly {"type", "key"}: record_type = marker["type"] (must be a
-    #    non-empty str) and key = marker["key"].
-    # 3. Anything else (int, None, bool, list, other dicts): raise _Refused(BAD_REF).
-    # 4. The key must be a non-empty str of at most MAX_KEY_CHARS characters, with only printable
-    #    characters (`str.isprintable`), else raise _Refused(BAD_REF).
-    # 5. pyright (strict) sees a dict taken from `Any` as unknown: read it through
-    #    `pair = cast("dict[str, Any]", marker)` and put
-    #    `# pyright: ignore[reportUnknownArgumentType]` on the `set(marker)` test.
-    raise NotImplementedError
+    record_type: str | None = None
+    key: Any
+    if isinstance(marker, str):
+        key = marker
+    elif isinstance(marker, dict):
+        pair = cast("dict[str, Any]", marker)
+        if set(pair) != {"type", "key"}:
+            raise _Refused(BAD_REF)
+        record_type = pair["type"]
+        key = pair["key"]
+        if not isinstance(record_type, str) or not record_type:
+            raise _Refused(BAD_REF)
+    else:
+        raise _Refused(BAD_REF)
+    if not isinstance(key, str) or not key or len(key) > MAX_KEY_CHARS or not key.isprintable():
+        raise _Refused(BAD_REF)
+    return key, record_type
 
 
 def resolve_keys(args: dict[str, Any], lookup: KeyLookup) -> tuple[dict[str, Any], list[Problem]]:
@@ -84,25 +84,49 @@ def resolve_keys(args: dict[str, Any], lookup: KeyLookup) -> tuple[dict[str, Any
     On any problem the result is the unchanged ``args`` and the problems say why (the first one
     found: a walk stops at the first refusal).
     """
-    # STEPS
-    # 1. Keep `seen: dict[(key, record_type), id]` and a counter `nodes`.
-    # 2. A recursive `walk(value, depth)` (nested function) that first adds 1 to `nodes`: more than
-    #    MAX_NODES raises _Refused(TOO_LARGE); `depth` over INBOUND_MAX_JSON_DEPTH raises
-    #    _Refused(TOO_DEEP). The root is depth 0 and each dict value or list item is depth + 1.
-    # 3. A dict that holds KEY_REF_MARKER: if it holds anything else too, raise
-    #    _Refused(STANDS_ALONE); otherwise the result is `find(*parse_ref(value[KEY_REF_MARKER]))`.
-    #    Any other dict: a new dict with the same names and walked values. A list: a new list of
-    #    walked items. Any other value is returned as it is (the text "$key" is just text).
-    # 4. `find(key, record_type)`: a pair already in `seen` is answered from it with no lookup.
-    #    With MAX_KEY_REFS pairs in `seen` already, raise _Refused(TOO_MANY) before looking up.
-    #    Call `lookup.find(key, record_type)` and keep only results with a non-empty `id` whose
-    #    `record_type` equals the asked type (when one was asked). Not exactly one left: raise
-    #    _Refused(Problem(code="key_not_found", message=f"No single record has the key
-    #    {shown(key)}.")): the same words for none and for several. Else remember and return the
-    #    id.
-    # 5. pyright (strict): `len(value)`, `value.items()` and the iteration over a list taken from
-    #    `Any` need `# pyright: ignore[reportUnknownArgumentType]` or
-    #    `# pyright: ignore[reportUnknownVariableType]` on that line (the error message names it).
-    # 6. `try: return walk(args, 0), []` and `except _Refused as refused: return args,
-    #    [refused.problem]`. The arguments given are never changed.
-    raise NotImplementedError
+    seen: dict[tuple[str, str | None], str] = {}
+    nodes = 0
+
+    def find(key: str, record_type: str | None) -> str:
+        pair = (key, record_type)
+        if pair in seen:
+            return seen[pair]
+        if len(seen) >= MAX_KEY_REFS:
+            raise _Refused(TOO_MANY)
+        found = [
+            ref
+            for ref in lookup.find(key, record_type)
+            if ref.id and (record_type is None or ref.record_type == record_type)
+        ]
+        if len(found) != 1:
+            raise _Refused(
+                Problem(
+                    code="key_not_found",
+                    message=f"No single record has the key {shown(key)}.",
+                )
+            )
+        seen[pair] = found[0].id
+        return found[0].id
+
+    def walk(value: Any, depth: int) -> Any:
+        nonlocal nodes
+        nodes += 1
+        if nodes > MAX_NODES:
+            raise _Refused(TOO_LARGE)
+        if depth > INBOUND_MAX_JSON_DEPTH:
+            raise _Refused(TOO_DEEP)
+        if isinstance(value, dict):
+            pairs = cast("dict[str, Any]", value)
+            if KEY_REF_MARKER in pairs:
+                if len(pairs) > 1:
+                    raise _Refused(STANDS_ALONE)
+                return find(*parse_ref(pairs[KEY_REF_MARKER]))
+            return {name: walk(item, depth + 1) for name, item in pairs.items()}
+        if isinstance(value, list):
+            return [walk(item, depth + 1) for item in cast("list[Any]", value)]
+        return value
+
+    try:
+        return walk(args, 0), []
+    except _Refused as refused:
+        return args, [refused.problem]
