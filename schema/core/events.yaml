@@ -562,3 +562,921 @@ classes:
         description: "ISO-8601 time when the previous secret stops signing."
     examples:
       - value: "{\"previous_expires_at\": \"2026-10-10T03:14:07.000000Z\", \"previous_secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PC\", \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6PB\"}"
+
+  # ---- P1-I7 WS-A: the integration layer (actions, rules, inbound endpoints, enrichment; ADR-0017)
+  IntegrationAppEventPayload:
+    abstract: true
+    is_a: EventPayload
+    description: "Payload of an `IntegrationApp.*` event. The stream is the app (`core.IntegrationApp`); no payload holds a secret."
+  ActionDefinitionEventPayload:
+    abstract: true
+    is_a: EventPayload
+    description: "Payload of an `ActionDefinition.*` event. The stream is the definition (`core.ActionDefinition`); a secret is held outside the ledger."
+  ActionInvocationEventPayload:
+    abstract: true
+    is_a: EventPayload
+    description: "Payload of an `Action.*` event. The stream is the invocation (`core.ActionInvocation`)."
+  RuleEventPayload:
+    abstract: true
+    is_a: EventPayload
+    description: "Payload of a `Rule.*` event. The stream is the rule (`core.Rule`)."
+  InboundEndpointEventPayload:
+    abstract: true
+    is_a: EventPayload
+    description: "Payload of an `InboundEndpoint.*` event. The stream is the endpoint (`core.InboundEndpoint`); a secret is held outside the ledger."
+  InboundDeliveryEventPayload:
+    abstract: true
+    is_a: EventPayload
+    description: "Payload of an `Inbound.*` event. The stream is the delivery (`core.InboundDelivery`); no payload holds the request body, a header or a secret."
+  EnricherEventPayload:
+    abstract: true
+    is_a: EventPayload
+    description: "Payload of an `Enricher.*` event. The stream is the enricher (`core.Enricher`)."
+  EnrichmentEventPayload:
+    abstract: true
+    is_a: EventPayload
+    description: "Payload of an `Enrichment.*` event. The stream is the value (`core.EnrichmentValue`)."
+  IntegrationAppRegisteredPayload:
+    is_a: IntegrationAppEventPayload
+    description: >-
+      An integration app was registered. Its name is the first segment of its inbound paths.
+    annotations:
+      tl:event_type: IntegrationApp.Registered
+      tl:event_version: "1"
+    attributes:
+      app_id:
+        description: "App id."
+        required: true
+      name:
+        description: "Slug, unique across the ledger."
+        required: true
+      label:
+        description: "Label."
+        required: true
+      description:
+        description: "Description."
+      owner:
+        description: "Owner actor."
+        required: true
+      enabled:
+        description: "Whether its endpoints, rules, actions and enrichers run."
+        range: boolean
+    examples:
+      - value: "{\"app_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"description\": \"Results from the NDE contractor\", \"enabled\": true, \"label\": \"Acme NDE\", \"name\": \"acme-nde\", \"owner\": \"user:jsmith\"}"
+  IntegrationAppRevisedPayload:
+    is_a: IntegrationAppEventPayload
+    description: >-
+      An app's label, description or owner changed.
+    annotations:
+      tl:event_type: IntegrationApp.Revised
+      tl:event_version: "1"
+    attributes:
+      changes:
+        description: "Object of field name to [old, new]."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      reason:
+        description: "Why."
+    examples:
+      - value: "{\"changes\": {\"label\": [\"Acme NDE\", \"Acme NDE results\"]}, \"reason\": \"renamed\"}"
+  IntegrationAppEnabledPayload:
+    is_a: IntegrationAppEventPayload
+    description: >-
+      An app was switched on: its endpoints, rules, actions and enrichers run again.
+    annotations:
+      tl:event_type: IntegrationApp.Enabled
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why."
+    examples:
+      - value: "{\"reason\": \"contract renewed\"}"
+  IntegrationAppDisabledPayload:
+    is_a: IntegrationAppEventPayload
+    description: >-
+      An app was switched off: its endpoints answer 404 and its rules, actions and enrichers do nothing.
+    annotations:
+      tl:event_type: IntegrationApp.Disabled
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why."
+    examples:
+      - value: "{\"reason\": \"contractor offboarded\"}"
+  ActionDefinitionDefinedPayload:
+    is_a: ActionDefinitionEventPayload
+    description: >-
+      An action was defined (version 1). A webhook action's signing secret is held outside the ledger.
+    annotations:
+      tl:event_type: ActionDefinition.Defined
+      tl:event_version: "1"
+    attributes:
+      definition_id:
+        description: "Definition id."
+        required: true
+      name:
+        description: "Action name (slug)."
+        required: true
+      label:
+        description: "Label."
+        required: true
+      description:
+        description: "Description."
+      version:
+        description: "Definition version."
+        range: integer
+        required: true
+      applies_to:
+        description: "ActionTarget object: record type globs and an optional condition."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      parameters:
+        description: "List of ActionParameter objects."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      executor:
+        description: "job or webhook."
+        required: true
+      executor_config:
+        description: "Executor configuration; never a secret."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      side_effect_class:
+        description: "read, propose, write or external."
+        required: true
+      requires_approval:
+        description: "Whether an invocation waits for a second person."
+        range: boolean
+      access:
+        description: "user, controller or admin."
+        required: true
+      result_handling:
+        description: "List of store and post_to_feed."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      owner:
+        description: "Owner actor."
+        required: true
+      enabled:
+        description: "Whether it can be invoked."
+        range: boolean
+      integration_app:
+        description: "Integration app name."
+      secret_id:
+        description: "Id of the first signing secret of a webhook action (not the secret)."
+    examples:
+      - value: "{\"access\": \"user\", \"applies_to\": {\"condition\": null, \"record_types\": [\"core.Record\"]}, \"definition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"description\": \"Send an inspection request to the NDE contractor\", \"enabled\": true, \"executor\": \"webhook\", \"executor_config\": {\"kind\": \"webhook\", \"timeout_s\": 10.0, \"url\": \"https://nde.example.net/hooks/request\"}, \"integration_app\": \"acme-nde\", \"label\": \"Send to NDE\", \"name\": \"send_to_nde\", \"owner\": \"user:jsmith\", \"parameters\": [{\"choices\": [\"RT\", \"UT\"], \"kind\": \"string\", \"label\": \"Method\", \"max_length\": null, \"name\": \"method\", \"required\": true}], \"requires_approval\": false, \"result_handling\": [\"store\"], \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"side_effect_class\": \"external\", \"version\": 1}"
+  ActionDefinitionRevisedPayload:
+    is_a: ActionDefinitionEventPayload
+    description: >-
+      An action was revised; the event carries the whole new definition and the row is replaced.
+    annotations:
+      tl:event_type: ActionDefinition.Revised
+      tl:event_version: "1"
+    attributes:
+      definition_id:
+        description: "Definition id."
+        required: true
+      version:
+        description: "The new definition version."
+        range: integer
+        required: true
+      definition:
+        description: "The new definition (no secret)."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"definition\": {\"label\": \"Send to NDE contractor\", \"name\": \"send_to_nde\", \"version\": 2}, \"definition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"reason\": \"label\", \"version\": 2}"
+  ActionDefinitionRetiredPayload:
+    is_a: ActionDefinitionEventPayload
+    description: >-
+      An action was retired: it can no longer be invoked; its invocations stay readable.
+    annotations:
+      tl:event_type: ActionDefinition.Retired
+      tl:event_version: "1"
+    attributes:
+      definition_id:
+        description: "Definition id."
+        required: true
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"definition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"reason\": \"replaced by send_to_nde_v2\"}"
+  ActionDefinitionSecretRotatedPayload:
+    is_a: ActionDefinitionEventPayload
+    description: >-
+      A new signing secret was issued for a webhook action; the previous one keeps verifying until the overlap ends.
+    annotations:
+      tl:event_type: ActionDefinition.SecretRotated
+      tl:event_version: "1"
+    attributes:
+      definition_id:
+        description: "Definition id."
+        required: true
+      secret_id:
+        description: "Id of the new secret (not the secret)."
+        required: true
+      previous_secret_id:
+        description: "Id of the secret being replaced."
+      previous_expires_at:
+        description: "ISO-8601 time when the previous secret stops."
+    examples:
+      - value: "{\"definition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"previous_expires_at\": \"2026-10-18T03:14:07.000000Z\", \"previous_secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P4\"}"
+  ActionRequestedPayload:
+    is_a: ActionInvocationEventPayload
+    description: >-
+      An action was requested on records. The execution is queued as a job.
+    annotations:
+      tl:event_type: Action.Requested
+      tl:event_version: "1"
+    attributes:
+      invocation_id:
+        description: "Invocation id."
+        required: true
+      action:
+        description: "Action name."
+        required: true
+      action_version:
+        description: "Definition version run."
+        range: integer
+        required: true
+      definition_id:
+        description: "Definition id."
+        required: true
+      targets:
+        description: "List of RecordRef objects."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      parameters:
+        description: "Parameters as validated against the definition."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      invoked_by:
+        description: "Who asked."
+        required: true
+      proposal_id:
+        description: "The accepted proposal this came from, when the action requires approval."
+    examples:
+      - value: "{\"action\": \"send_to_nde\", \"action_version\": 1, \"definition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"invocation_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"invoked_by\": \"user:jsmith\", \"parameters\": {\"method\": \"RT\"}, \"targets\": [{\"id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"key\": \"47-1234-W012\", \"record_type\": \"core.Record\", \"version\": 3}]}"
+  ActionRunningPayload:
+    is_a: ActionInvocationEventPayload
+    description: >-
+      A worker started an attempt.
+    annotations:
+      tl:event_type: Action.Running
+      tl:event_version: "1"
+    attributes:
+      invocation_id:
+        description: "Invocation id."
+        required: true
+      attempt:
+        description: "Attempt number, from 1."
+        range: integer
+        required: true
+    examples:
+      - value: "{\"attempt\": 1, \"invocation_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\"}"
+  ActionCompletedPayload:
+    is_a: ActionInvocationEventPayload
+    description: >-
+      The executor finished the action.
+    annotations:
+      tl:event_type: Action.Completed
+      tl:event_version: "1"
+    attributes:
+      invocation_id:
+        description: "Invocation id."
+        required: true
+      attempt:
+        description: "Attempt number."
+        range: integer
+        required: true
+      result:
+        description: "The executor's bounded JSON result."
+        range: Any
+        annotations:
+          tl:json: true
+      http_status:
+        description: "HTTP status of a webhook action."
+        range: integer
+    examples:
+      - value: "{\"attempt\": 1, \"http_status\": 200, \"invocation_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"result\": {\"accepted\": true}}"
+  ActionFailedPayload:
+    is_a: ActionInvocationEventPayload
+    description: >-
+      The action failed for good (not retried any more).
+    annotations:
+      tl:event_type: Action.Failed
+      tl:event_version: "1"
+    attributes:
+      invocation_id:
+        description: "Invocation id."
+        required: true
+      attempt:
+        description: "Attempt number."
+        range: integer
+        required: true
+      problems:
+        description: "List of Problem objects (code and message)."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      http_status:
+        description: "HTTP status of a webhook action."
+        range: integer
+    examples:
+      - value: "{\"attempt\": 3, \"http_status\": 503, \"invocation_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"problems\": [{\"code\": \"http_error\", \"message\": \"The receiver answered 503.\"}]}"
+  RuleCreatedPayload:
+    is_a: RuleEventPayload
+    description: >-
+      A rule was created. It starts disabled and in propose mode.
+    annotations:
+      tl:event_type: Rule.Created
+      tl:event_version: "1"
+    attributes:
+      rule_id:
+        description: "Rule id."
+        required: true
+      key:
+        description: "Rule key (slug)."
+        required: true
+      title:
+        description: "Title."
+        required: true
+      version:
+        description: "Rule version."
+        range: integer
+        required: true
+      when:
+        description: "SubscriptionFilter object."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      condition:
+        description: "Query-language condition on the subject record."
+      then:
+        description: "List of RuleStep objects."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      mode:
+        description: "act or propose."
+        required: true
+      service_actor:
+        description: "svc:rule-<slug>."
+        required: true
+      access:
+        description: "user or controller."
+        required: true
+      owner:
+        description: "Owner actor."
+        required: true
+      enabled:
+        description: "Whether it runs."
+        range: boolean
+      integration_app:
+        description: "Integration app name."
+    examples:
+      - value: "{\"access\": \"user\", \"condition\": null, \"enabled\": false, \"integration_app\": null, \"key\": \"hse-notify\", \"mode\": \"propose\", \"owner\": \"user:jsmith\", \"rule_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"service_actor\": \"svc:rule-hse-notify\", \"then\": [{\"args\": {\"body\": \"HSE notified of ${subject_key}\"}, \"command\": \"PostToFeed\"}], \"title\": \"Notify HSE on #safety\", \"version\": 1, \"when\": {\"event_types\": [\"Feed.PostCreated\"], \"hashtags\": [\"safety\"]}}"
+  RuleRevisedPayload:
+    is_a: RuleEventPayload
+    description: >-
+      A rule was revised; the event carries the whole new rule. Switching to act mode is a revision with a reason.
+    annotations:
+      tl:event_type: Rule.Revised
+      tl:event_version: "1"
+    attributes:
+      rule_id:
+        description: "Rule id."
+        required: true
+      version:
+        description: "The new rule version."
+        range: integer
+        required: true
+      rule:
+        description: "The new rule."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"reason\": \"ready to act\", \"rule\": {\"key\": \"hse-notify\", \"mode\": \"act\", \"version\": 2}, \"rule_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"version\": 2}"
+  RuleEnabledPayload:
+    is_a: RuleEventPayload
+    description: >-
+      A rule was switched on, from this event on.
+    annotations:
+      tl:event_type: Rule.Enabled
+      tl:event_version: "1"
+    attributes:
+      rule_id:
+        description: "Rule id."
+        required: true
+      reason:
+        description: "Why."
+    examples:
+      - value: "{\"reason\": \"after dry run\", \"rule_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\"}"
+  RuleDisabledPayload:
+    is_a: RuleEventPayload
+    description: >-
+      A rule was switched off.
+    annotations:
+      tl:event_type: Rule.Disabled
+      tl:event_version: "1"
+    attributes:
+      rule_id:
+        description: "Rule id."
+        required: true
+      reason:
+        description: "Why."
+    examples:
+      - value: "{\"reason\": \"noisy\", \"rule_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\"}"
+  RuleBlockedPayload:
+    is_a: RuleEventPayload
+    description: >-
+      A matched event did not run the rule: the step was refused, the causation depth limit or a budget stopped it.
+    annotations:
+      tl:event_type: Rule.Blocked
+      tl:event_version: "1"
+    attributes:
+      rule_id:
+        description: "Rule id."
+        required: true
+      rule_version:
+        description: "Rule version."
+        range: integer
+        required: true
+      trigger_event_id:
+        description: "The event that matched."
+        required: true
+      trigger_seq:
+        description: "Its seq."
+        range: integer
+        required: true
+      depth:
+        description: "Causation depth of the trigger."
+        range: integer
+        required: true
+      outcome:
+        description: "refused, depth_limit or budget."
+        required: true
+      problems:
+        description: "List of Problem objects."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+    examples:
+      - value: "{\"depth\": 3, \"outcome\": \"depth_limit\", \"problems\": [{\"code\": \"depth_limit\", \"message\": \"The causation depth limit of 3 was reached.\"}], \"rule_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"rule_version\": 2, \"trigger_event_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\", \"trigger_seq\": 412}"
+  InboundEndpointCreatedPayload:
+    is_a: InboundEndpointEventPayload
+    description: >-
+      An inbound endpoint was created. It starts disabled and in dry-run mode. Its secret is held outside the ledger.
+    annotations:
+      tl:event_type: InboundEndpoint.Created
+      tl:event_version: "1"
+    attributes:
+      endpoint_id:
+        description: "Endpoint id."
+        required: true
+      app:
+        description: "Integration app name."
+        required: true
+      name:
+        description: "Endpoint name (slug)."
+        required: true
+      version:
+        description: "Endpoint version."
+        range: integer
+        required: true
+      auth:
+        description: "hmac_sha256 or jwt_hs256."
+        required: true
+      mapping:
+        description: "Restricted JSONata expression."
+        required: true
+      mapping_language:
+        description: "jsonata-restricted@1."
+        required: true
+      external_schema:
+        description: "Which external schema the mapping reads."
+      allowed_commands:
+        description: "List of command names."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      service_actor:
+        description: "svc:inbound-<slug>."
+        required: true
+      access:
+        description: "user or controller."
+        required: true
+      max_body_bytes:
+        description: "Body cap."
+        range: integer
+        required: true
+      rate_per_minute:
+        description: "Rate bound."
+        range: integer
+        required: true
+      dry_run:
+        description: "Verify, map and plan only."
+        range: boolean
+      enabled:
+        description: "Whether it accepts deliveries."
+        range: boolean
+      owner:
+        description: "Owner actor."
+        required: true
+      secret_id:
+        description: "Id of the first secret (not the secret)."
+        required: true
+    examples:
+      - value: "{\"access\": \"user\", \"allowed_commands\": [\"SetPsetValues\"], \"app\": \"acme-nde\", \"auth\": \"hmac_sha256\", \"dry_run\": true, \"enabled\": false, \"endpoint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"external_schema\": null, \"mapping\": \"results.{\\\"command\\\": \\\"SetPsetValues\\\", \\\"args\\\": {\\\"stream_id\\\": {\\\"$key\\\": weld}, \\\"pset\\\": \\\"nde\\\", \\\"values\\\": {\\\"result\\\": result}}}\", \"mapping_language\": \"jsonata-restricted@1\", \"max_body_bytes\": 262144, \"name\": \"results\", \"owner\": \"user:jsmith\", \"rate_per_minute\": 60, \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P10\", \"service_actor\": \"svc:inbound-acme-nde-results\", \"version\": 1}"
+  InboundEndpointRevisedPayload:
+    is_a: InboundEndpointEventPayload
+    description: >-
+      An endpoint was revised; the event carries the whole new definition (no secret).
+    annotations:
+      tl:event_type: InboundEndpoint.Revised
+      tl:event_version: "1"
+    attributes:
+      endpoint_id:
+        description: "Endpoint id."
+        required: true
+      version:
+        description: "The new endpoint version."
+        range: integer
+        required: true
+      endpoint:
+        description: "The new definition."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"endpoint\": {\"dry_run\": false, \"name\": \"results\", \"version\": 2}, \"endpoint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"reason\": \"go live\", \"version\": 2}"
+  InboundEndpointEnabledPayload:
+    is_a: InboundEndpointEventPayload
+    description: >-
+      An endpoint started accepting deliveries.
+    annotations:
+      tl:event_type: InboundEndpoint.Enabled
+      tl:event_version: "1"
+    attributes:
+      endpoint_id:
+        description: "Endpoint id."
+        required: true
+      reason:
+        description: "Why."
+    examples:
+      - value: "{\"endpoint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"reason\": \"go live\"}"
+  InboundEndpointDisabledPayload:
+    is_a: InboundEndpointEventPayload
+    description: >-
+      An endpoint stopped accepting deliveries; it answers 404.
+    annotations:
+      tl:event_type: InboundEndpoint.Disabled
+      tl:event_version: "1"
+    attributes:
+      endpoint_id:
+        description: "Endpoint id."
+        required: true
+      reason:
+        description: "Why."
+    examples:
+      - value: "{\"endpoint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"reason\": \"key leaked\"}"
+  InboundEndpointSecretRotatedPayload:
+    is_a: InboundEndpointEventPayload
+    description: >-
+      A new secret was issued; the previous one keeps verifying until the overlap ends (at most 24 hours).
+    annotations:
+      tl:event_type: InboundEndpoint.SecretRotated
+      tl:event_version: "1"
+    attributes:
+      endpoint_id:
+        description: "Endpoint id."
+        required: true
+      secret_id:
+        description: "Id of the new secret (not the secret)."
+        required: true
+      previous_secret_id:
+        description: "Id of the secret being replaced."
+      previous_expires_at:
+        description: "ISO-8601 time when the previous secret stops."
+    examples:
+      - value: "{\"endpoint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"previous_expires_at\": \"2026-10-18T03:14:07.000000Z\", \"previous_secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P10\", \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P11\"}"
+  InboundReceivedPayload:
+    is_a: InboundDeliveryEventPayload
+    description: >-
+      A signed POST was accepted and queued for mapping. The payload and the headers are not in the event.
+    annotations:
+      tl:event_type: Inbound.Received
+      tl:event_version: "1"
+    attributes:
+      delivery_id:
+        description: "Delivery id."
+        required: true
+      endpoint_id:
+        description: "Endpoint id."
+        required: true
+      endpoint_version:
+        description: "The endpoint version it will be mapped by."
+        range: integer
+        required: true
+      payload_sha256:
+        description: "SHA-256 of the raw body."
+        required: true
+      payload_size:
+        description: "Body size in bytes."
+        range: integer
+        required: true
+    examples:
+      - value: "{\"delivery_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P12\", \"endpoint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"endpoint_version\": 2, \"payload_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"payload_size\": 412}"
+  InboundAppliedPayload:
+    is_a: InboundDeliveryEventPayload
+    description: >-
+      A delivery was mapped and its commands ran (or, for a dry-run endpoint, were planned).
+    annotations:
+      tl:event_type: Inbound.Applied
+      tl:event_version: "1"
+    attributes:
+      delivery_id:
+        description: "Delivery id."
+        required: true
+      command_count:
+        description: "Commands run or planned."
+        range: integer
+        required: true
+      dry_run:
+        description: "True when nothing ran."
+        range: boolean
+        required: true
+    examples:
+      - value: "{\"command_count\": 2, \"delivery_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P12\", \"dry_run\": false}"
+  InboundFailedPayload:
+    is_a: InboundDeliveryEventPayload
+    description: >-
+      A delivery could not be applied; it is in the error queue until an admin retries it.
+    annotations:
+      tl:event_type: Inbound.Failed
+      tl:event_version: "1"
+    attributes:
+      delivery_id:
+        description: "Delivery id."
+        required: true
+      code:
+        description: "A fixed code."
+        required: true
+      message:
+        description: "A bounded message; never a payload excerpt."
+        required: true
+    examples:
+      - value: "{\"code\": \"key_not_found\", \"delivery_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P12\", \"message\": \"No record has the key 47-1234-W099.\"}"
+  InboundRetriedPayload:
+    is_a: InboundDeliveryEventPayload
+    description: >-
+      An admin re-ran a failed delivery, optionally with a corrected payload.
+    annotations:
+      tl:event_type: Inbound.Retried
+      tl:event_version: "1"
+    attributes:
+      delivery_id:
+        description: "Delivery id."
+        required: true
+      by:
+        description: "The admin."
+        required: true
+      original_sha256:
+        description: "SHA-256 of the received body."
+        required: true
+      corrected_sha256:
+        description: "SHA-256 of the corrected body, when one was supplied."
+    examples:
+      - value: "{\"by\": \"user:jsmith\", \"corrected_sha256\": \"1111111111111111111111111111111111111111111111111111111111111111\", \"delivery_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P12\", \"original_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\"}"
+  EnricherRegisteredPayload:
+    is_a: EnricherEventPayload
+    description: >-
+      An enricher was registered. It starts disabled.
+    annotations:
+      tl:event_type: Enricher.Registered
+      tl:event_version: "1"
+    attributes:
+      enricher_id:
+        description: "Enricher id."
+        required: true
+      name:
+        description: "Enricher name; one path segment of the enrich. layer."
+        required: true
+      version:
+        description: "Registration version."
+        range: integer
+        required: true
+      code_version:
+        description: "The plugin's own version."
+        required: true
+      model_ref:
+        description: "Null for a deterministic enricher."
+      when:
+        description: "SubscriptionFilter object."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      properties:
+        description: "List of {name, kind, policy, threshold}."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      service_actor:
+        description: "svc:enricher-<slug>."
+        required: true
+      access:
+        description: "user or controller."
+        required: true
+      owner:
+        description: "Owner actor."
+        required: true
+      enabled:
+        description: "Whether it runs."
+        range: boolean
+      integration_app:
+        description: "Integration app name."
+    examples:
+      - value: "{\"access\": \"user\", \"code_version\": \"1.0.0\", \"enabled\": false, \"enricher_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P13\", \"integration_app\": null, \"model_ref\": null, \"name\": \"doc_classifier\", \"owner\": \"user:jsmith\", \"properties\": [{\"kind\": \"string\", \"name\": \"doc_type\", \"policy\": \"propose\", \"threshold\": 0.9}], \"service_actor\": \"svc:enricher-doc-classifier\", \"version\": 1, \"when\": {\"event_types\": [\"File.Processed\"]}}"
+  EnricherRevisedPayload:
+    is_a: EnricherEventPayload
+    description: >-
+      An enricher's registration changed; the event carries the whole new registration.
+    annotations:
+      tl:event_type: Enricher.Revised
+      tl:event_version: "1"
+    attributes:
+      enricher_id:
+        description: "Enricher id."
+        required: true
+      version:
+        description: "The new registration version."
+        range: integer
+        required: true
+      enricher:
+        description: "The new registration."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"enricher\": {\"name\": \"doc_classifier\", \"version\": 2}, \"enricher_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P13\", \"reason\": \"auto-accept above 0.95\", \"version\": 2}"
+  EnricherEnabledPayload:
+    is_a: EnricherEventPayload
+    description: >-
+      An enricher was switched on.
+    annotations:
+      tl:event_type: Enricher.Enabled
+      tl:event_version: "1"
+    attributes:
+      enricher_id:
+        description: "Enricher id."
+        required: true
+      reason:
+        description: "Why."
+    examples:
+      - value: "{\"enricher_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P13\", \"reason\": \"after evaluation\"}"
+  EnricherDisabledPayload:
+    is_a: EnricherEventPayload
+    description: >-
+      An enricher was switched off.
+    annotations:
+      tl:event_type: Enricher.Disabled
+      tl:event_version: "1"
+    attributes:
+      enricher_id:
+        description: "Enricher id."
+        required: true
+      reason:
+        description: "Why."
+    examples:
+      - value: "{\"enricher_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P13\", \"reason\": \"wrong labels\"}"
+  EnrichmentProposedPayload:
+    is_a: EnrichmentEventPayload
+    description: >-
+      An enricher proposed a value for a property of its own layer of a record. A shadow value is for evaluation and admins only.
+    annotations:
+      tl:event_type: Enrichment.Proposed
+      tl:event_version: "1"
+    attributes:
+      value_id:
+        description: "Value id."
+        required: true
+      target:
+        description: "RecordRef of the record."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      property_path:
+        description: "enrich.<enricher>.<property>."
+        required: true
+      value:
+        description: "A scalar or a list of scalars."
+        range: Any
+        annotations:
+          tl:json: true
+      enricher:
+        description: "Enricher name."
+        required: true
+      enricher_version:
+        description: "The plugin's version."
+        required: true
+      confidence:
+        description: "0 to 1."
+        range: float
+        required: true
+      inputs:
+        description: "List of {record, file_sha256}: what the value was made from."
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+      model_ref:
+        description: "Null for a deterministic enricher."
+      produced_at:
+        description: "ISO-8601 time."
+        required: true
+      acceptance_state:
+        description: "shadow or proposed."
+        required: true
+    examples:
+      - value: "{\"acceptance_state\": \"proposed\", \"confidence\": 0.9, \"enricher\": \"doc_classifier\", \"enricher_version\": \"1.0.0\", \"inputs\": [{\"file_sha256\": \"2222222222222222222222222222222222222222222222222222222222222222\", \"record\": {\"id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"key\": \"ISD-001\", \"record_type\": \"documents.Document\", \"version\": 4}}], \"model_ref\": null, \"produced_at\": \"2026-10-17T03:14:07.000000Z\", \"property_path\": \"enrich.doc_classifier.doc_type\", \"target\": {\"id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"key\": \"ISD-001\", \"record_type\": \"documents.Document\", \"version\": 4}, \"value\": \"ISO\", \"value_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P14\"}"
+  EnrichmentAcceptedPayload:
+    is_a: EnrichmentEventPayload
+    description: >-
+      A person (or the enricher's own auto policy) accepted a value: it is now written to the enricher's layer of the record.
+    annotations:
+      tl:event_type: Enrichment.Accepted
+      tl:event_version: "1"
+    attributes:
+      value_id:
+        description: "Value id."
+        required: true
+      by:
+        description: "The accepting person, or the enricher's service actor."
+        required: true
+      automatic:
+        description: "True for the auto policy."
+        range: boolean
+        required: true
+    examples:
+      - value: "{\"automatic\": false, \"by\": \"user:mlee\", \"value_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P14\"}"
+  EnrichmentRejectedPayload:
+    is_a: EnrichmentEventPayload
+    description: >-
+      A value was rejected by a person, or replaced by a newer proposal.
+    annotations:
+      tl:event_type: Enrichment.Rejected
+      tl:event_version: "1"
+    attributes:
+      value_id:
+        description: "Value id."
+        required: true
+      by:
+        description: "The person, or the enricher's service actor for a replacement."
+        required: true
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"by\": \"user:mlee\", \"reason\": \"wrong type\", \"value_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P14\"}"

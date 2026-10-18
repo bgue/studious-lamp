@@ -103,6 +103,34 @@ def append_module_events(world: World) -> None:
             world.append(kind, payload_of(kind), stream_id=stream, stream_type=record_type)
 
 
+def append_integration_events(world: World) -> None:
+    """The events of the integration layer that webhooks deliver (P1-I7 WS-A, ADR-0017).
+
+    The configuration events (apps, definitions, rules, endpoints, enrichers) and the inbound
+    bookkeeping are in the catalog but never delivered, so the scenario does not make them.
+    """
+    first, second = "01J9Z6Q4W3X2Y1V0T9S8R7Q6AA", "01J9Z6Q4W3X2Y1V0T9S8R7Q6AB"
+    for stream, kinds in (
+        (first, ("Action.Requested", "Action.Running", "Action.Completed")),
+        (second, ("Action.Requested", "Action.Failed")),
+    ):
+        for kind in kinds:
+            world.append(
+                kind,
+                payload_of(kind, invocation_id=stream),
+                stream_id=stream,
+                stream_type="core.ActionInvocation",
+            )
+    value = "01J9Z6Q4W3X2Y1V0T9S8R7Q6AC"
+    for kind in ("Enrichment.Proposed", "Enrichment.Accepted"):
+        world.append(
+            kind,
+            payload_of(kind, value_id=value),
+            stream_id=value,
+            stream_type="core.EnrichmentValue",
+        )
+
+
 def run_scenario(world: World) -> dict[str, list[dict[str, Any]]]:
     """Subscribe in all three modes, produce every catalog event type, deliver everything.
 
@@ -183,6 +211,7 @@ def run_scenario(world: World) -> dict[str, list[dict[str, Any]]]:
         stream_type="schema-package",
     )
     append_module_events(world)
+    append_integration_events(world)  # P1-I7 WS-A
     sid = modes["delta"].subscription_id
     with world.factory() as uow:
         update_subscription(

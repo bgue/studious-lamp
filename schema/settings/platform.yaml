@@ -133,3 +133,18 @@ settings:
     validation:
       choices: [auto, kitty, iterm2, sixel, "off"]
     since: "0.1.0"
+
+  # P1-I7 WS-A: the integration layer (FANOUT D11, ADR-0017)
+  - key: integration.kill_switch
+    type: bool
+    default: false
+    description: Stops every inbound endpoint, rule, action executor and enricher.
+    docs: >-
+      When on, inbound endpoints answer the same 404 as an unknown path, the rules worker and the enrichment
+      dispatcher pass over the events they read and record them as killed (they are not replayed when the switch
+      goes off), and action jobs fail with `killed` and are not retried. Records, people and webhooks are not
+      affected. Read before every batch and every delivery, so a running worker obeys a change at once.
+    scopes: [platform, company]
+    lockable: true
+    risk: advanced
+    since: "0.1.0"

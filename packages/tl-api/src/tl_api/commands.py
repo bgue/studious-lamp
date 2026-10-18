@@ -17,6 +17,40 @@ from typing import Annotated, Any, Literal, cast
 from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
 from tl_core.auth.types import Principal
+from tl_core.integration.actions.service import (
+    RetireAction,
+    ReviseAction,
+    handle_invoke_action,
+    handle_retire_action,
+    handle_revise_action,
+)
+from tl_core.integration.actor_access import holds_for, require_access
+from tl_core.integration.apps import (
+    RegisterIntegrationApp,
+    ReviseIntegrationApp,
+    SetIntegrationAppEnabled,
+    handle_register_app,
+    handle_revise_app,
+    handle_set_app_enabled,
+)
+from tl_core.integration.contract import Access as Access_
+from tl_core.integration.contract import InvokeAction
+from tl_core.integration.inbound.service import (
+    ReviseInboundEndpoint,
+    SetInboundEndpointEnabled,
+    handle_revise_endpoint,
+    handle_set_endpoint_enabled,
+)
+from tl_core.integration.rules.service import (
+    CreateRule,
+    DisableRule,
+    EnableRule,
+    ReviseRule,
+    handle_create_rule,
+    handle_disable_rule,
+    handle_enable_rule,
+    handle_revise_rule,
+)
 from tl_core.services import links, psets
 from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
@@ -58,6 +92,10 @@ class CommandSpec:
     #: "controller": an admin or a document controller (action ``control.command.<Name>``,
     #: ADR-0013); "company": an admin when ``scope`` is ``company``, any signed-in person otherwise.
     access: Access = "user"
+    #: The handler takes ``holds(level)`` (a Python argument made from the caller's principal,
+    #: never a field of the body) because its access depends on the content of the command
+    #: (``InvokeAction``: the access of the action named, ADR-0014 section 8).
+    needs_holds: bool = False
 
     @property
     def name(self) -> str:
@@ -88,6 +126,19 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(ChangeSetting, handle_change_setting),
     *(CommandSpec(c.model, c.handler, c.access) for c in API_COMMANDS),
     *(CommandSpec(c.model, c.handler, c.access) for c in DOCUMENT_COMMANDS),
+    # P1-I7 WS-A: the integration layer. Authoring is the admin's (FANOUT D12).
+    CommandSpec(CreateRule, handle_create_rule, "admin"),
+    CommandSpec(ReviseRule, handle_revise_rule, "admin"),
+    CommandSpec(EnableRule, handle_enable_rule, "admin"),
+    CommandSpec(DisableRule, handle_disable_rule, "admin"),
+    CommandSpec(InvokeAction, handle_invoke_action, needs_holds=True),
+    CommandSpec(ReviseAction, handle_revise_action, "admin"),
+    CommandSpec(RetireAction, handle_retire_action, "admin"),
+    CommandSpec(RegisterIntegrationApp, handle_register_app, "admin"),
+    CommandSpec(ReviseIntegrationApp, handle_revise_app, "admin"),
+    CommandSpec(SetIntegrationAppEnabled, handle_set_app_enabled, "admin"),
+    CommandSpec(ReviseInboundEndpoint, handle_revise_endpoint, "admin"),
+    CommandSpec(SetInboundEndpointEnabled, handle_set_endpoint_enabled, "admin"),
 )
 """Every command the API accepts. Void, mark-pins-stale and the file commands are not here:
 voiding is not in the Phase 0 client contract, pin staleness is a system command, and files have
@@ -187,6 +238,12 @@ def _make_endpoint(spec: CommandSpec, body_model: type[BaseModel]) -> Callable[.
             ctx.authorizer.authorize(principal, f"admin.command.{spec.name}", request.url.path)
         when = resolve_effective_at(effective_at, command.scope)
         with effective_time(when), ctx.backend(False) as uow:
+            if spec.needs_holds:
+                from tl_api.routes.proposals import holds_access
+
+                return cast(Any, spec.handler)(
+                    uow, command, holds=lambda level: holds_access(principal, actor, level)
+                )
             return spec.handler(uow, command)
 
     endpoint.__name__ = f"command_{spec.name}"
@@ -210,3 +267,55 @@ def build_router() -> APIRouter:
 
 
 router = build_router()
+
+
+# P1-I7 WS-A: the command runner (FANOUT D14)
+
+
+class TableCommandRunner:
+    """``CommandRunner`` (``tl_core.integration.contract``) over a typed command table.
+
+    ``tl_core`` never imports ``tl_api``: an entry point builds this from ``COMMANDS`` and passes
+    it to the rules worker, the inbound worker and the dispatch planner. A name the table does not
+    list is unknown (``model_of`` and ``access_of`` answer ``None``, ``run`` raises ``KeyError``),
+    so a command nobody declared is refused rather than guessed.
+    """
+
+    def __init__(self, specs: tuple[CommandSpec, ...] = COMMANDS) -> None:
+        self._specs = {spec.name: spec for spec in specs}
+
+    def model_of(self, command_type: str) -> type[Command] | None:
+        spec = self._specs.get(command_type)
+        return None if spec is None else spec.model
+
+    def access_of(self, command_type: str) -> Literal["user", "controller", "admin"] | None:
+        """What the command needs. ``company`` (an admin when the scope is the company) counts as
+        ``admin``: automation never runs it, and failing closed is the safe reading."""
+        spec = self._specs.get(command_type)
+        if spec is None:
+            return None
+        return "admin" if spec.access == "company" else spec.access
+
+    def run(self, uow: UnitOfWork, command: Command) -> CommandResult:
+        """Run ``command`` only if its own actor holds the access the table declares for it.
+
+        The actor's access is resolved from the ledger in ``uow`` (``tl_core.integration.
+        actor_access``), never from the caller, and the check fails closed: an unknown actor, a
+        disabled account or a service actor with no live owner holds nothing. A handler that takes
+        ``holds`` gets it from the same resolved access.
+        """
+        spec = self._specs[type(command).__name__]
+        needed: Access_ = "user"
+        if spec.access in ("admin", "controller"):
+            needed = spec.access
+        elif spec.access == "company" and command.scope == "company":
+            needed = "admin"
+        held = require_access(uow.conn(), command.actor, needed, spec.name)
+        if spec.needs_holds:
+            return cast(Any, spec.handler)(uow, command, holds=holds_for(held))
+        return spec.handler(uow, command)
+
+
+def command_runner() -> TableCommandRunner:
+    """The runner entry points pass to the rules worker, the inbound worker and the planner."""
+    return TableCommandRunner()

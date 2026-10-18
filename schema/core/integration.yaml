@@ -8,6 +8,15 @@ description: >-
   (`core.WebhookSubscription`, stream id = `subscription_id`; events in events.yaml); `cur_webhook_subscription`
   is the projection delivery reads. Signing secrets are never stored in the ledger: the subscription holds
   `current_secret_id` only and the secret itself lives in `wh_secret` (outbox.yaml).
+
+  P1-I7 adds the rest of the integration layer (brief 18.5, 18.7 to 18.9, 19.2; FANOUT D13, ADR-0017):
+  `IntegrationApp`, `ActionDefinition`, `ActionInvocation`, `Rule`, `InboundEndpoint`, `Enricher` and
+  `EnrichmentValue`. Each is a ledger stream of its own with its own `cur_*` table, like a webhook
+  subscription; they are configuration and activity, not project records (no `cur_core_record` row, no
+  psets, no workflow). The slot names of `ActionDefinition`, `Rule`, `InboundEndpoint` and `EnrichmentValue`
+  are those of the models in `tl_core.integration.contract` (a test compares them). The operational tables
+  (secrets, replay ids, deliveries, cursors, firings) are in integration_ops.yaml. No event carries a
+  secret, a raw inbound payload or a header.
 prefixes:
   linkml: https://w3id.org/linkml/
   throughline: https://example.org/throughline/
@@ -43,6 +52,69 @@ enums:
         description: An owner or operator disabled it.
       sustained_failure:
         description: Dead-lettered deliveries or a long failing period; the owner is to be notified.
+
+  AccessLevel:
+    description: Who may run a command or invoke an action (ADR-0011, ADR-0013).
+    permissible_values:
+      user:
+      controller:
+      admin:
+  AutomationAccess:
+    description: What a service actor (rule, inbound endpoint, enricher) may be declared to hold. Automation never runs an `admin` command in Phase 1.
+    permissible_values:
+      user:
+      controller:
+  ExecutorKind:
+    description: How an action is carried out. Phase 1 builds `job` and `webhook`; a definition naming another is refused.
+    permissible_values:
+      webhook:
+      mcp_tool:
+      connector:
+      job:
+      agent:
+  SideEffectClass:
+    description: What running an action can change (brief 18.7); the confirmation a person sees depends on it.
+    permissible_values:
+      read:
+      propose:
+      write:
+      external:
+  InvocationStatus:
+    description: Where an action invocation is in its life.
+    permissible_values:
+      requested:
+      running:
+      completed:
+      failed:
+  RuleMode:
+    description: Whether a rule runs its steps or proposes them.
+    permissible_values:
+      act:
+      propose:
+  InboundAuth:
+    description: How an inbound request proves who sent it.
+    permissible_values:
+      hmac_sha256:
+        description: Standard Webhooks signature over `id.timestamp.body`.
+      jwt_hs256:
+        description: A bearer JWT signed with HS256 that names the body by its SHA-256.
+  AcceptancePolicy:
+    description: What happens to a value an enricher proposes for a property.
+    permissible_values:
+      auto:
+        description: Accepted at once when the confidence reaches the threshold.
+      propose:
+        description: Waits in the review queue for a person.
+      shadow:
+        description: Stored for evaluation and shown to admins only.
+  AcceptanceState:
+    description: Where a proposed enrichment value is.
+    permissible_values:
+      shadow:
+      proposed:
+      accepted:
+      auto_accepted:
+      rejected:
 
 classes:
   SubscriptionFilter:
@@ -265,3 +337,632 @@ classes:
         range: CloudEventData
         required: true
         inlined: true
+
+  IntegrationApp:
+    description: >-
+      A named external system or internal integration (brief 19.2). Its `enabled` switch turns its inbound
+      endpoints, rules, actions and enrichers off together. The name is unique in the ledger: it is the first
+      segment of an inbound path (`/in/{app}/{endpoint}`).
+    annotations:
+      tl:current_state: true
+      tl:table: cur_integration_app
+    unique_keys:
+      integration_app_name:
+        unique_key_slots:
+          - name
+    attributes:
+      app_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Immutable id; equals the ledger `stream_id`.
+      scope:
+        range: ScopeId
+        required: true
+        annotations:
+          tl:indexed: true
+      name:
+        required: true
+        description: A slug, unique across the ledger.
+      label:
+        required: true
+      description:
+      owner:
+        required: true
+      enabled:
+        range: boolean
+        required: true
+        ifabsent: "true"
+      created_by:
+        required: true
+      created_at:
+        range: datetime
+        required: true
+      updated_at:
+        range: datetime
+        required: true
+      version:
+        range: integer
+        required: true
+        description: Ledger stream version after the last event applied.
+      last_seq:
+        range: integer
+        required: true
+
+  ActionDefinition:
+    description: >-
+      An operation people, rules and agents may ask for (brief 18.7, 19.2). One row per definition in its current
+      version; `ReviseAction` bumps `version`, and an invocation names the version it ran. The webhook signing
+      secret lives in `int_secret`; `secret_id` names it.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_action_definition
+    unique_keys:
+      action_definition_name:
+        unique_key_slots:
+          - name
+    attributes:
+      definition_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Immutable id; equals the ledger `stream_id`.
+      name:
+        required: true
+        description: A slug, unique across the ledger.
+      label:
+        required: true
+      description:
+      scope:
+        range: ScopeId
+        required: true
+        description: "`company` actions may be invoked on any project's records; a project action only on its own."
+        annotations:
+          tl:indexed: true
+      version:
+        range: integer
+        required: true
+        description: Definition version (1, 2, ...). The ledger stream version is `stream_version`.
+      applies_to:
+        range: Any
+        required: true
+        description: "`ActionTarget` as JSON: record type globs and an optional query-language condition."
+        annotations:
+          tl:json: true
+      parameters:
+        range: Any
+        required: true
+        description: A JSON list of `ActionParameter`.
+        annotations:
+          tl:json: true
+      executor:
+        range: ExecutorKind
+        required: true
+      executor_config:
+        range: Any
+        required: true
+        description: "`JobExecutorConfig` or `WebhookExecutorConfig` as JSON. Never holds a secret."
+        annotations:
+          tl:json: true
+      side_effect_class:
+        range: SideEffectClass
+        required: true
+      requires_approval:
+        range: boolean
+        required: true
+        ifabsent: "false"
+      access:
+        range: AccessLevel
+        required: true
+        ifabsent: string(user)
+      result_handling:
+        range: Any
+        required: true
+        description: A JSON list of `store` and `post_to_feed`.
+        annotations:
+          tl:json: true
+      owner:
+        required: true
+      enabled:
+        range: boolean
+        required: true
+        ifabsent: "true"
+      retired:
+        range: boolean
+        required: true
+        ifabsent: "false"
+        description: A retired definition cannot be invoked; its invocations stay readable.
+      integration_app:
+        description: The integration app this action belongs to, when there is one.
+      secret_id:
+        range: Ulid
+        description: The newest signing secret of a webhook action (the value lives in `int_secret`).
+      created_by:
+        required: true
+      created_at:
+        range: datetime
+        required: true
+      updated_at:
+        range: datetime
+        required: true
+      stream_version:
+        range: integer
+        required: true
+      last_seq:
+        range: integer
+        required: true
+
+  ActionInvocation:
+    description: >-
+      One request to run an action (brief 18.7): Requested, then Running, then Completed or Failed. The targets
+      are `RecordRef`s. `result` is bounded JSON; a larger one fails the invocation, it is never cut.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_action_invocation
+      tl:ix_action_seq: "action, seq desc"
+    attributes:
+      invocation_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Immutable id; equals the ledger `stream_id`.
+      scope:
+        range: ScopeId
+        required: true
+        annotations:
+          tl:indexed: true
+      action:
+        required: true
+        description: The definition's name.
+      action_version:
+        range: integer
+        required: true
+      definition_id:
+        range: Ulid
+        required: true
+      status:
+        range: InvocationStatus
+        required: true
+        annotations:
+          tl:indexed: true
+      targets:
+        range: Any
+        required: true
+        description: A JSON list of `RecordRef`.
+        annotations:
+          tl:json: true
+      parameters:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+      invoked_by:
+        required: true
+      attempt:
+        range: integer
+        required: true
+        ifabsent: int(0)
+      requested_at:
+        range: datetime
+        required: true
+      started_at:
+        range: datetime
+      finished_at:
+        range: datetime
+      result:
+        range: Any
+        description: The executor's bounded JSON result of a completed invocation.
+        annotations:
+          tl:json: true
+      http_status:
+        range: integer
+      problems:
+        range: Any
+        description: A JSON list of `Problem` of a failed invocation.
+        annotations:
+          tl:json: true
+      proposal_id:
+        range: Ulid
+        description: Set when the action requires approval and this invocation came from an accepted proposal.
+      seq:
+        range: integer
+        required: true
+        description: "`seq` of `Action.Requested`."
+      version:
+        range: integer
+        required: true
+      last_seq:
+        range: integer
+        required: true
+
+  ActionInvocationTarget:
+    description: One record an invocation acts on, for "what was run on this record" (the record page).
+    annotations:
+      tl:current_state: true
+      tl:table: cur_action_invocation_target
+      tl:ix_record: "record_id, invocation_id"
+    unique_keys:
+      action_target_pair:
+        unique_key_slots:
+          - invocation_id
+          - record_id
+    attributes:
+      target_id:
+        identifier: true
+        range: Ulid
+        required: true
+      invocation_id:
+        range: Ulid
+        required: true
+        annotations:
+          tl:indexed: true
+      record_id:
+        required: true
+      record_key:
+      record_type:
+      record_version:
+        range: integer
+
+  Rule:
+    description: >-
+      A when/if/then rule (brief 18.8): `when` is a `SubscriptionFilter`, `condition` a query-language expression on
+      the subject record, `then` a list of `RuleStep`. It acts or proposes as the service actor `svc:rule-<slug>`,
+      declared `access`. Every revision is a new `version`; a rule starts disabled and in `propose` mode.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_rule
+    unique_keys:
+      rule_key:
+        unique_key_slots:
+          - key
+    attributes:
+      rule_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Immutable id; equals the ledger `stream_id`.
+      key:
+        required: true
+        description: A slug, unique across the ledger; it appears in the `source` of what the rule does.
+      title:
+        required: true
+      scope:
+        range: ScopeId
+        required: true
+        description: "A rule sees the events of its scope; `company` sees every project."
+        annotations:
+          tl:indexed: true
+      version:
+        range: integer
+        required: true
+        description: Rule version (1, 2, ...). The ledger stream version is `stream_version`.
+      when:
+        range: Any
+        required: true
+        description: A `SubscriptionFilter` as JSON.
+        annotations:
+          tl:json: true
+      condition:
+      then:
+        range: Any
+        required: true
+        description: A JSON list of `RuleStep`.
+        annotations:
+          tl:json: true
+      mode:
+        range: RuleMode
+        required: true
+        ifabsent: string(propose)
+      service_actor:
+        required: true
+      access:
+        range: AutomationAccess
+        required: true
+        ifabsent: string(user)
+      owner:
+        required: true
+      enabled:
+        range: boolean
+        required: true
+        ifabsent: "false"
+      enabled_from_seq:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: >-
+          The `seq` of the event that last switched it on. A worker that is behind does not apply it to events
+          from before that moment.
+      integration_app:
+        description: The integration app this rule belongs to, when there is one.
+      created_by:
+        required: true
+      created_at:
+        range: datetime
+        required: true
+      updated_at:
+        range: datetime
+        required: true
+      stream_version:
+        range: integer
+        required: true
+      last_seq:
+        range: integer
+        required: true
+
+  InboundEndpoint:
+    description: >-
+      `POST /in/{app}/{name}` (brief 18.5, 19.3). `mapping` is restricted JSONata; `allowed_commands` is the
+      subset of the automation commands the endpoint may produce; it runs as `service_actor` with `access`.
+      The signing secrets are in `int_secret`; `current_secret_id` names the newest. Every earlier version stays
+      in `cur_inbound_endpoint_version`, because a delivery is mapped by the version it was received under.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_inbound_endpoint
+    unique_keys:
+      inbound_endpoint_path:
+        unique_key_slots:
+          - app
+          - name
+    attributes:
+      endpoint_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Immutable id; equals the ledger `stream_id`.
+      app:
+        required: true
+        description: The integration app's name.
+      name:
+        required: true
+      scope:
+        range: ScopeId
+        required: true
+        annotations:
+          tl:indexed: true
+      version:
+        range: integer
+        required: true
+        description: Endpoint version (1, 2, ...). The ledger stream version is `stream_version`.
+      auth:
+        range: InboundAuth
+        required: true
+        ifabsent: string(hmac_sha256)
+      mapping:
+        required: true
+      mapping_language:
+        required: true
+        ifabsent: string(jsonata-restricted@1)
+      external_schema:
+      allowed_commands:
+        range: Any
+        required: true
+        description: A JSON list of command names.
+        annotations:
+          tl:json: true
+      service_actor:
+        required: true
+      access:
+        range: AutomationAccess
+        required: true
+        ifabsent: string(user)
+      max_body_bytes:
+        range: integer
+        required: true
+      rate_per_minute:
+        range: integer
+        required: true
+      dry_run:
+        range: boolean
+        required: true
+        ifabsent: "true"
+      enabled:
+        range: boolean
+        required: true
+        ifabsent: "false"
+      current_secret_id:
+        range: Ulid
+      owner:
+        required: true
+      created_by:
+        required: true
+      created_at:
+        range: datetime
+        required: true
+      updated_at:
+        range: datetime
+        required: true
+      stream_version:
+        range: integer
+        required: true
+      last_seq:
+        range: integer
+        required: true
+
+  InboundEndpointVersion:
+    description: >-
+      The definition of one endpoint version, as a JSON snapshot. A delivery records the version it was received
+      under and is mapped by that version, whatever the endpoint says now.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_inbound_endpoint_version
+    unique_keys:
+      inbound_endpoint_version_pair:
+        unique_key_slots:
+          - endpoint_id
+          - version
+    attributes:
+      version_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: The id of the event that made this version.
+      endpoint_id:
+        range: Ulid
+        required: true
+        annotations:
+          tl:indexed: true
+      version:
+        range: integer
+        required: true
+      definition:
+        range: Any
+        required: true
+        description: The `InboundEndpoint` model as JSON (no secret).
+        annotations:
+          tl:json: true
+      seq:
+        range: integer
+        required: true
+
+  Enricher:
+    description: >-
+      The registration of an enricher plugin (brief 18.9): which events it follows (`when`), which properties of
+      its own `enrich.<name>` pset layer it fills and the acceptance policy of each, and the service actor and
+      access it runs as. `code_version` is the plugin's own version. Phase 1 enrichers are deterministic
+      (`model_ref` is null; ADR-0008 decision 8).
+    annotations:
+      tl:current_state: true
+      tl:table: cur_enricher
+    unique_keys:
+      enricher_name:
+        unique_key_slots:
+          - name
+    attributes:
+      enricher_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Immutable id; equals the ledger `stream_id`.
+      name:
+        required: true
+        description: One path segment of the `enrich.` layer; unique across the ledger.
+      scope:
+        range: ScopeId
+        required: true
+        annotations:
+          tl:indexed: true
+      version:
+        range: integer
+        required: true
+        description: Registration version (1, 2, ...). The ledger stream version is `stream_version`.
+      code_version:
+        required: true
+      model_ref:
+      when:
+        range: Any
+        required: true
+        description: A `SubscriptionFilter` as JSON.
+        annotations:
+          tl:json: true
+      properties:
+        range: Any
+        required: true
+        description: "A JSON list of `{name, kind, policy, threshold}`: the properties of the layer and their acceptance policy."
+        annotations:
+          tl:json: true
+      service_actor:
+        required: true
+      access:
+        range: AutomationAccess
+        required: true
+        ifabsent: string(user)
+      owner:
+        required: true
+      enabled:
+        range: boolean
+        required: true
+        ifabsent: "false"
+      enabled_from_seq:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: >-
+          The `seq` of the event that last switched it on. A worker that is behind does not apply it to events
+          from before that moment.
+      integration_app:
+      created_by:
+        required: true
+      created_at:
+        range: datetime
+        required: true
+      updated_at:
+        range: datetime
+        required: true
+      stream_version:
+        range: integer
+        required: true
+      last_seq:
+        range: integer
+        required: true
+
+  EnrichmentValue:
+    description: >-
+      A value an enricher proposed for one property of one record, with provenance (brief 18.9, 19.2). Accepting
+      it writes only the enricher's own layer `enrich.<enricher>.<property>`; promoting it to an authoritative
+      field is a person's own `SetPsetValues`. A `shadow` value is shown to admins and the evaluation report only.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_enrichment_value
+      tl:ix_target: "target_id, property_path"
+      tl:ix_queue: "acceptance_state, seq"
+    attributes:
+      value_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Immutable id; equals the ledger `stream_id`.
+      scope:
+        range: ScopeId
+        required: true
+        annotations:
+          tl:indexed: true
+      target:
+        range: Any
+        required: true
+        description: The `RecordRef` of the record, as JSON.
+        annotations:
+          tl:json: true
+      target_id:
+        required: true
+      property_path:
+        required: true
+        description: "`enrich.<enricher>.<property>`."
+      value:
+        range: Any
+        description: A scalar or a list of scalars, as JSON.
+        annotations:
+          tl:json: true
+      enricher:
+        required: true
+      enricher_version:
+        required: true
+      confidence:
+        range: float
+        required: true
+      inputs:
+        range: Any
+        required: true
+        description: A JSON list of `EnrichmentInput`.
+        annotations:
+          tl:json: true
+      model_ref:
+      produced_at:
+        required: true
+      acceptance_state:
+        range: AcceptanceState
+        required: true
+      decided_by:
+      decided_at:
+        range: datetime
+      reason:
+      seq:
+        range: integer
+        required: true
+        description: "`seq` of `Enrichment.Proposed`."
+      version:
+        range: integer
+        required: true
+        description: Ledger stream version after the last event applied.
+      last_seq:
+        range: integer
+        required: true
