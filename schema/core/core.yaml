@@ -27,4 +27,5 @@ imports:
   - events
   - auth
   - jobs
+  - integration_ops
 default_range: string

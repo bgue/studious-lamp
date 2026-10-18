@@ -11,7 +11,19 @@ dependencies = [
   "httpx>=0.28.1",
   "cryptography>=42",
   "duckdb==1.5.5",
+  # P1-I7 WS-A: inbound mapping (Apache-2.0) and JWT verification (MIT); both approved, see
+  # docs/reports/APPROVALS.md.
+  "jsonata-python==0.7.0",
+  "PyJWT>=2.8",
 ]
+
+# P1-I7 WS-A: code the integration layer finds by entry point (FANOUT D6, D8). An admin chooses among
+# these; nobody supplies code.
+[project.entry-points."throughline.action_jobs"]
+echo = "tl_core.integration.action_jobs:EchoJob"
+
+[project.entry-points."throughline.enrichers"]
+doc_classifier = "tl_core.integration.enrichers.doc_classifier:DocClassifier"
 
 [build-system]
 requires = ["hatchling"]

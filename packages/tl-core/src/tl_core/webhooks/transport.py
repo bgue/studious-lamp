@@ -31,6 +31,8 @@ class TransportResult:
     excerpt: str = ""
     error: str | None = None
     retry_after_s: float | None = None
+    #: The answer was longer than the transport reads; ``excerpt`` is its start.
+    truncated: bool = False
 
     @property
     def ok(self) -> bool:
@@ -43,10 +45,12 @@ class Transport(Protocol):
     ) -> TransportResult: ...
 
 
-def excerpt_of(raw: bytes) -> str:
+def excerpt_of(
+    raw: bytes, *, max_bytes: int = MAX_RESPONSE_BYTES, max_chars: int = EXCERPT_CHARS
+) -> str:
     """A log-safe excerpt of a response body: decoded leniently, control characters removed."""
-    text = raw[:MAX_RESPONSE_BYTES].decode("utf-8", errors="replace")
-    return "".join(ch for ch in text if ch.isprintable() or ch == " ")[:EXCERPT_CHARS]
+    text = raw[:max_bytes].decode("utf-8", errors="replace")
+    return "".join(ch for ch in text if ch.isprintable() or ch == " ")[:max_chars]
 
 
 def parse_retry_after(value: str | None) -> float | None:
@@ -61,7 +65,18 @@ def parse_retry_after(value: str | None) -> float | None:
 
 
 class HttpxTransport:
-    """Send over HTTP(S) with httpx to the pinned address."""
+    """Send over HTTP(S) with httpx to the pinned address.
+
+    ``max_response_bytes`` is how much of the answer is read (an action's synchronous result needs
+    more than a delivery's log excerpt; P1-I7 passes ``ACTION_MAX_RESULT_BYTES``). One byte more
+    than that is read, so a longer answer is known to be longer (``truncated``), never silently cut.
+    """
+
+    def __init__(
+        self, *, max_response_bytes: int = MAX_RESPONSE_BYTES, excerpt_chars: int = EXCERPT_CHARS
+    ) -> None:
+        self._max_bytes = max_response_bytes
+        self._excerpt_chars = excerpt_chars
 
     def send(
         self, target: ResolvedTarget, headers: dict[str, str], body: bytes, *, timeout_s: float
@@ -83,13 +98,16 @@ class HttpxTransport:
                 received = bytearray()
                 for chunk in response.iter_bytes():
                     received.extend(chunk)
-                    if len(received) >= MAX_RESPONSE_BYTES:
+                    if len(received) > self._max_bytes:
                         break
                 return TransportResult(
                     status=response.status_code,
                     latency_ms=int((time.monotonic() - started) * 1000),
-                    excerpt=excerpt_of(bytes(received)),
+                    excerpt=excerpt_of(
+                        bytes(received), max_bytes=self._max_bytes, max_chars=self._excerpt_chars
+                    ),
                     retry_after_s=parse_retry_after(response.headers.get("retry-after")),
+                    truncated=len(received) > self._max_bytes,
                 )
         except httpx.HTTPError as exc:
             return TransportResult(

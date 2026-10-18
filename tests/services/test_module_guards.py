@@ -276,7 +276,7 @@ def test_a_person_cannot_claim_a_system_link_source(db: DbTarget) -> None:
     """A link nobody can retract must not be makeable by a client (P1-I2 security review)."""
     with use_modules([spec()]):
         mine, other = thing(db, "OPEN-1"), plain(db, "P-1")
-        for source in ("rule", "enricher", "import", "mapping"):
+        for source in ("rule", "enricher", "import", "mapping", "thread_dispatch"):
             pairs: list[tuple[Any, Any]] = [
                 (AddLink, handle_add_link),
                 (SuggestLink, handle_suggest_link),
@@ -290,7 +290,7 @@ def test_a_person_cannot_claim_a_system_link_source(db: DbTarget) -> None:
                 ):  # core records too
                     handler(uow, cls(**BASE, from_id=other, to_id=mine, link_source=source))
         # the person's own sources are still theirs, and the module path may use a system one
-        for source in ("manual", "tray", "bulk", "model_selection", "thread_dispatch"):
+        for source in ("manual", "tray", "bulk", "model_selection"):
             _link(db, plain(db, f"X-{source}"), plain(db, f"Y-{source}"), link_source=source)
         _link(db, mine, other, by_module=True, link_source="mapping")
 
