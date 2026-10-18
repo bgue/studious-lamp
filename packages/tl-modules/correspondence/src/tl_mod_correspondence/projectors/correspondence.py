@@ -1,4 +1,3 @@
-# ruff: noqa: F401, F841
 """CorrespondenceProjector: the ``Correspondence.*`` events into the item and clearance tables.
 
 ``Correspondence.Defined`` inserts the item row; the other events move single columns (triage,
@@ -7,9 +6,6 @@ reclassification, thread, issue, answer, supersession, confidentiality); ``Clear
 (ADR-0016). The subject is the envelope title and the workflow state is the envelope ``status``;
 neither is written here. Deterministic: a row depends only on the events of its stream. Register
 it after ``RecordProjector``.
-
-STUB (P1-I5-T03a): the functions with a STEPS comment are for you to write. When they are
-written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -80,48 +76,184 @@ class CorrespondenceProjector:
         )
 
     def apply(self, conn: Connection, event: Event) -> None:
-        # STEPS
-        # 1. `payload = event.payload`, `et = event.event_type`, `base = {"id": event.stream_id,
-        #    "last_seq": event.seq}`. Every statement is `conn.execute(text(sql), params)` with
-        #    named parameters. Table names come from the constants imported above, never from the
-        #    event or the payload.
-        # 2. CORR_DEFINED: INSERT a row into CORRESPONDENCE_TABLE. Required payload keys (use
-        #    `payload[...]`): number, direction, medium, received_via, confidentiality. Optional
-        #    (use `payload.get`): external_ref, message_id, in_reply_to, from_party_id, from_name,
-        #    sent_on, received_on, body, domain, subtype, responds_to_id, response_due. Also write
-        #    id, scope (`event.scope`) and last_seq. `to_parties_json` is
-        #    `json_text(payload.get("to") or [])` and `cc_parties_json` the same for `"cc"`.
-        #    `response_required` is `bool(payload.get("response_required", False))`. Other columns
-        #    keep their defaults.
-        # 3. CORR_UPDATED: `changes = payload.get("changes") or {}` maps a field to [old, new]. For
-        #    each name in `_UPDATABLE` that is a key of `changes`, set the column `_UPDATABLE[name]`
-        #    to the new value `changes[name][1]`; for a name in `_JSON_FIELDS` store `json_text(new
-        #    or [])`. Build the SET clause from the columns of `_UPDATABLE` only (never from the
-        #    keys of `changes`) and always add `last_seq = :last_seq`. If `changes` names none of
-        #    them the statement still runs and sets `last_seq`.
-        # 4. CORR_TRIAGED: UPDATE domain, subtype and triaged_on from the payload (all three are
-        #    required keys), `triaged_by` = `event.actor`, and last_seq.
-        # 5. CORR_RECLASSIFIED: UPDATE domain and subtype from the payload (required) and last_seq.
-        # 6. CORR_THREAD_ASSIGNED: UPDATE thread_id (required key) and last_seq, and set
-        #    `responds_to_id` to the payload's `responds_to_id` when that is not None, else keep the
-        #    value the row has: `responds_to_id = COALESCE(:responds_to_id, responds_to_id)`.
-        # 7. CORR_ISSUED: UPDATE issued_on, `rendition_file_id` (payload key `rendition_file_id`),
-        #    `rendition_sha256`, delivery (all required keys) and last_seq.
-        # 8. CORR_RESPONDED: UPDATE responded_on (required key) and last_seq.
-        # 9. CORR_SUPERSEDED: UPDATE `superseded_by_id` from the payload key `superseded_by_id`, and
-        #    last_seq.
-        # 10. CORR_CLASS_CHANGED: UPDATE confidentiality = the payload's `to_class`, and last_seq.
-        # 11. CORR_CLEARANCE_GRANTED: INSERT into CLEARANCE_TABLE: clearance_id =
-        #    `f"{event.stream_id}:{payload['account']}"`, scope = `event.scope`, record_id =
-        #    `event.stream_id`, account, granted_by = `event.actor`, granted_on, last_seq.
-        # 12. CORR_CLEARANCE_WITHDRAWN: DELETE from CLEARANCE_TABLE where record_id =
-        #    `event.stream_id` and account = `payload["account"]`. (A DELETE on a projection table
-        #    is allowed; an event is never deleted.)
-        # 13. Any other event type: `raise ValueError(f"CorrespondenceProjector cannot apply event
-        #    type: {et}")`.
-        # 14. Every UPDATE branch checks its row count with `self._require(rowcount, event)`. After
-        #    the branches call `touch_record(conn, event)`.
-        raise NotImplementedError
+        payload = event.payload
+        et = event.event_type
+
+        if et == CORR_DEFINED:
+            conn.execute(
+                text(
+                    f"INSERT INTO {CORRESPONDENCE_TABLE} "
+                    "(id, scope, number, direction, medium, received_via, external_ref, "
+                    "message_id, in_reply_to, from_party_id, from_name, to_parties_json, "
+                    "cc_parties_json, sent_on, received_on, body, confidentiality, domain, "
+                    "subtype, responds_to_id, response_required, response_due, last_seq) "
+                    "VALUES (:id, :scope, :number, :direction, :medium, :received_via, "
+                    ":external_ref, :message_id, :in_reply_to, :from_party_id, :from_name, "
+                    ":to_parties_json, :cc_parties_json, :sent_on, :received_on, :body, "
+                    ":confidentiality, :domain, :subtype, :responds_to_id, :response_required, "
+                    ":response_due, :last_seq)"
+                ),
+                {
+                    "id": event.stream_id,
+                    "scope": event.scope,
+                    "number": payload["number"],
+                    "direction": payload["direction"],
+                    "medium": payload["medium"],
+                    "received_via": payload["received_via"],
+                    "external_ref": payload.get("external_ref"),
+                    "message_id": payload.get("message_id"),
+                    "in_reply_to": payload.get("in_reply_to"),
+                    "from_party_id": payload.get("from_party_id"),
+                    "from_name": payload.get("from_name"),
+                    "to_parties_json": json_text(payload.get("to") or []),
+                    "cc_parties_json": json_text(payload.get("cc") or []),
+                    "sent_on": payload.get("sent_on"),
+                    "received_on": payload.get("received_on"),
+                    "body": payload.get("body"),
+                    "confidentiality": payload["confidentiality"],
+                    "domain": payload.get("domain"),
+                    "subtype": payload.get("subtype"),
+                    "responds_to_id": payload.get("responds_to_id"),
+                    "response_required": bool(payload.get("response_required", False)),
+                    "response_due": payload.get("response_due"),
+                    "last_seq": event.seq,
+                },
+            )
+        elif et == CORR_UPDATED:
+            changes = payload.get("changes") or {}
+            assignments: list[str] = []
+            values: dict[str, Any] = {}
+            for name, column in _UPDATABLE.items():
+                if name not in changes:
+                    continue
+                value = changes[name][1]
+                if name in _JSON_FIELDS:
+                    value = json_text(value or [])
+                assignments.append(f"{column} = :{column}")
+                values[column] = value
+            self._update(conn, event, assignments, values)
+        elif et == CORR_TRIAGED:
+            self._update(
+                conn,
+                event,
+                [
+                    "domain = :domain",
+                    "subtype = :subtype",
+                    "triaged_on = :triaged_on",
+                    "triaged_by = :triaged_by",
+                ],
+                {
+                    "domain": payload["domain"],
+                    "subtype": payload["subtype"],
+                    "triaged_on": payload["triaged_on"],
+                    # triaged_by is the actor of the event, not a payload field.
+                    "triaged_by": event.actor,
+                },
+            )
+        elif et == CORR_RECLASSIFIED:
+            self._update(
+                conn,
+                event,
+                ["domain = :domain", "subtype = :subtype"],
+                {"domain": payload["domain"], "subtype": payload["subtype"]},
+            )
+        elif et == CORR_THREAD_ASSIGNED:
+            self._update(
+                conn,
+                event,
+                [
+                    "thread_id = :thread_id",
+                    "responds_to_id = COALESCE(:responds_to_id, responds_to_id)",
+                ],
+                {
+                    "thread_id": payload["thread_id"],
+                    "responds_to_id": payload.get("responds_to_id"),
+                },
+            )
+        elif et == CORR_ISSUED:
+            self._update(
+                conn,
+                event,
+                [
+                    "issued_on = :issued_on",
+                    "rendition_file_id = :rendition_file_id",
+                    "rendition_sha256 = :rendition_sha256",
+                    "delivery = :delivery",
+                ],
+                {
+                    "issued_on": payload["issued_on"],
+                    "rendition_file_id": payload["rendition_file_id"],
+                    "rendition_sha256": payload["rendition_sha256"],
+                    "delivery": payload["delivery"],
+                },
+            )
+        elif et == CORR_RESPONDED:
+            self._update(
+                conn,
+                event,
+                ["responded_on = :responded_on"],
+                {"responded_on": payload["responded_on"]},
+            )
+        elif et == CORR_SUPERSEDED:
+            self._update(
+                conn,
+                event,
+                ["superseded_by_id = :superseded_by_id"],
+                {"superseded_by_id": payload["superseded_by_id"]},
+            )
+        elif et == CORR_CLASS_CHANGED:
+            self._update(
+                conn,
+                event,
+                ["confidentiality = :confidentiality"],
+                {"confidentiality": payload["to_class"]},
+            )
+        elif et == CORR_CLEARANCE_GRANTED:
+            conn.execute(
+                text(
+                    f"INSERT INTO {CLEARANCE_TABLE} "
+                    "(clearance_id, scope, record_id, account, granted_by, granted_on, last_seq) "
+                    "VALUES (:clearance_id, :scope, :record_id, :account, :granted_by, "
+                    ":granted_on, :last_seq)"
+                ),
+                {
+                    "clearance_id": f"{event.stream_id}:{payload['account']}",
+                    "scope": event.scope,
+                    "record_id": event.stream_id,
+                    "account": payload["account"],
+                    "granted_by": event.actor,
+                    "granted_on": payload["granted_on"],
+                    "last_seq": event.seq,
+                },
+            )
+        elif et == CORR_CLEARANCE_WITHDRAWN:
+            # A DELETE on a projection table is allowed; the event itself is never deleted.
+            conn.execute(
+                text(
+                    f"DELETE FROM {CLEARANCE_TABLE} "
+                    "WHERE record_id = :record_id AND account = :account"
+                ),
+                {"record_id": event.stream_id, "account": payload["account"]},
+            )
+        else:
+            raise ValueError(f"CorrespondenceProjector cannot apply event type: {et}")
+
+        touch_record(conn, event)
+
+    def _update(
+        self,
+        conn: Connection,
+        event: Event,
+        assignments: list[str],
+        values: dict[str, Any],
+    ) -> None:
+        # The assignments name columns of this module only; values are bound parameters.
+        sets = ", ".join([*assignments, "last_seq = :last_seq"])
+        result = conn.execute(
+            text(f"UPDATE {CORRESPONDENCE_TABLE} SET {sets} WHERE id = :id"),
+            {"id": event.stream_id, "last_seq": event.seq, **values},
+        )
+        self._require(result.rowcount, event)
 
     @staticmethod
     def _require(rowcount: int, event: Event) -> None:
@@ -129,7 +261,5 @@ class CorrespondenceProjector:
             raise LookupError(f"no {CORRESPONDENCE_TABLE} row for stream {event.stream_id}")
 
     def reset(self, conn: Connection) -> None:
-        # STEPS
-        # 1. Delete every row of CLEARANCE_TABLE, then of CORRESPONDENCE_TABLE (`DELETE FROM
-        #    <table>`).
-        raise NotImplementedError
+        conn.execute(text(f"DELETE FROM {CLEARANCE_TABLE}"))
+        conn.execute(text(f"DELETE FROM {CORRESPONDENCE_TABLE}"))
