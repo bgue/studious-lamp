@@ -12,6 +12,10 @@ import pytest
 from thread_cli_support import P, create, run, thread_env
 from tl_adapters.db import DbTarget
 from tl_cli.main import app
+from tl_cli.thread import message_lines
+from tl_core.integration.contract import RecordRef
+from tl_core.threads.contract import DispatchOutcome, ThreadMessageView
+from tl_core.threads.queries import ThreadPage
 from typer.testing import CliRunner
 from typer.testing import Result as RunResult
 
@@ -143,3 +147,26 @@ def test_post_takes_an_actor(env: dict[str, str]) -> None:
     result = run(env, "thread", "post", "--project", P, key, "found a leak", "--actor", "user:kim")
     assert result.exit_code == 0, result.output
     assert " kim  found a leak" in run(env, "thread", "show", "--project", P, key).stdout
+
+
+def test_a_dispatch_message_shows_its_outcome_on_the_next_line() -> None:
+    def message(summary: str) -> ThreadMessageView:
+        outcome = DispatchOutcome(message_id="M1", verb="status", summary=summary)
+        return ThreadMessageView(
+            message_id="M1",
+            record_id="R1",
+            author="user:rgarcia",
+            body="/status done",
+            posted_at="2026-01-02T03:04:05Z",
+            dispatch=outcome,
+        )
+
+    record = RecordRef(id="R1", key="REC-1", record_type="core.Record")
+    for summary, shown in (("moved to Done", "moved to Done"), ("", "done")):
+        page = ThreadPage(
+            record=record, enabled=True, dispatch_enabled=True, messages=[message(summary)]
+        )
+        assert message_lines(page) == [
+            "M1  2026-01-02 03:04  rgarcia  /status done",
+            f"    -> status: {shown}",
+        ]

@@ -10,7 +10,13 @@ plan is unchanged (ADR-0018). ``threads.agents.can_dispatch = none`` refuses the
 
 Every tool runs inside ``guarded`` (identifier parts checked, authorise hook, errors mapped).
 ``server.py`` calls :func:`register_thread_tools`.
+
+STUB: read_thread_impl and post_thread_message_impl are yours to write (ticket P1-I7-T12a). Remove
+this paragraph, every STEPS comment and the two lint-silencing lines below when you are done.
 """
+
+# ruff: noqa: F401
+# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 
 from __future__ import annotations
 
@@ -77,9 +83,13 @@ def read_thread_impl(
     Resolve the record with ``resolve_record_id``, then ``read_thread`` in a read-only unit of work
     as ``ctx.actor``. ``next_before`` of the page is the ``before_seq`` of the older one.
     """
-    with ctx.factory(True) as uow:
-        record_id = resolve_record_id(uow, record, scope)
-        return read_thread_page(uow, record_id, actor=ctx.actor, limit=limit, before_seq=before_seq)
+    # STEPS
+    # 1. Open a read-only unit of work with `with ctx.factory(True) as uow:`.
+    # 2. record_id = resolve_record_id(uow, record, scope) (it raises RecordNotFoundError
+    #    for an unknown record or a key without a scope).
+    # 3. Return read_thread_page(uow, record_id, actor=ctx.actor, limit=limit,
+    #    before_seq=before_seq).
+    raise NotImplementedError
 
 
 def post_thread_message_impl(
@@ -91,24 +101,19 @@ def post_thread_message_impl(
     ``proposals.source_for(ctx.actor)`` (``mcp:<id>``). The handler's refusals (threads off, record
     not found) propagate to ``guarded``.
     """
-    envelope = _envelope(ctx, record, scope)
-    command = PostThreadMessage(
-        actor=ctx.actor,
-        source=proposals.source_for(ctx.actor),
-        scope=str(envelope["scope"]),
-        record_id=str(envelope["id"]),
-        body=body,
-    )
-    with ctx.factory(False) as uow:
-        result = handle_post_thread_message(uow, command)
-    posted = result.events[0].payload
-    return ThreadPostResult(
-        message_id=str(result.key),
-        record_id=command.record_id,
-        author=ctx.actor,
-        mentions=[str(m) for m in posted["mentions"]],
-        record_refs=[str(r) for r in posted["record_refs"]],
-    )
+    # STEPS
+    # 1. envelope = _envelope(ctx, record, scope) (the record's envelope; it raises for an
+    #    unknown record).
+    # 2. command = PostThreadMessage(actor=ctx.actor,
+    #    source=proposals.source_for(ctx.actor), scope=str(envelope["scope"]),
+    #    record_id=str(envelope["id"]), body=body).
+    # 3. With `ctx.factory(False) as uow:` result = handle_post_thread_message(uow,
+    #    command). The handler's refusals propagate.
+    # 4. posted = result.events[0].payload. Return
+    #    ThreadPostResult(message_id=str(result.key), record_id=command.record_id,
+    #    author=ctx.actor, mentions=[str(m) for m in posted["mentions"]],
+    #    record_refs=[str(r) for r in posted["record_refs"]]).
+    raise NotImplementedError
 
 
 def propose_dispatch_impl(

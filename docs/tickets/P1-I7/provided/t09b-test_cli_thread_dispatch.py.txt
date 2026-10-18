@@ -12,6 +12,9 @@ import pytest
 from sqlalchemy import text
 from thread_cli_support import P, create, run, thread_env
 from tl_adapters.db import DbTarget, open_uow
+from tl_cli.thread_dispatch import preview_lines
+from tl_core.integration.contract import PlannedCommand, RecordRef
+from tl_core.threads.contract import DispatchPreview, ParsedDispatch, SummariseArgs
 from typer.testing import Result as RunResult
 
 
@@ -178,3 +181,25 @@ def test_remind_queues_a_job_and_reminders_posts_it_when_due(env: dict[str, str]
     shown = run(env, "thread", "show", "--project", P, key).stdout
     assert "Reminder from " in shown and ": check the bevels" in shown
     assert run(env, "thread", "reminders").stdout.strip() == "ran 0 reminders"
+
+
+def test_preview_lines_mark_a_command_the_caller_may_not_run() -> None:
+    found = DispatchPreview(
+        record=RecordRef(id="R1", key="REC-1", record_type="core.Record"),
+        parsed=ParsedDispatch(line="/summarise", args=SummariseArgs()),
+        planned=[
+            PlannedCommand(command_type="PostFeed", access="user", permitted=True, summary="a"),
+            PlannedCommand(command_type="SetRule", access="admin", permitted=False, summary="b"),
+        ],
+        side_effecting=True,
+        can_dispatch=False,
+        token="0" * 64,
+        expires_at="2026-01-02T03:04:05Z",
+    )
+    assert preview_lines(found) == [
+        f"token {'0' * 64}",
+        "expires 2026-01-02T03:04:05Z",
+        "1. PostFeed  user  ok  a",
+        "2. SetRule  admin  not permitted  b",
+        "can dispatch: no",
+    ]

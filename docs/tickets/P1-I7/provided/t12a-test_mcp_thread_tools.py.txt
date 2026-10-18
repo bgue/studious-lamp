@@ -110,6 +110,7 @@ def test_post_thread_message_writes_directly_labelled_with_the_agent(env: McpHar
     assert page["messages"][0]["author"] == ACTOR and page["messages"][0]["body"].startswith(
         "Check"
     )
+    assert out["message_id"] == page["messages"][0]["message_id"] != f"thread:{rid}"
 
 
 def test_a_slash_message_from_an_agent_is_only_a_message(env: McpHarness) -> None:
