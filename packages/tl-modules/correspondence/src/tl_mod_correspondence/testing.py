@@ -17,6 +17,7 @@ from typing import Any
 
 from sqlalchemy import text
 from tl_adapters.db import DbTarget, open_uow
+from tl_core import confidentiality as cf
 from tl_core.ledger import NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.records import create_module_record
@@ -131,7 +132,7 @@ class CorrWorld:
             **more,
         }
         cmd = _Forge(**BASE)
-        with open_uow(self.db) as uow:
+        with cf.system_view(), open_uow(self.db) as uow:
             made = create_module_record(
                 uow,
                 cmd,

@@ -387,7 +387,9 @@ def test_a_clock_whose_history_the_engine_refuses_is_skipped_not_fatal(
     with frozen_today(MONDAY):
         bad = world.start_clock(item).stream_id
         good = world.start_clock(other).stream_id
-    world.forge_clock_event(bad, "ResponseClock.Paused", {"day": "2020-01-01", "reason": "forged"})
+    world.forge_clock_event(
+        bad, "ResponseClock.Warned", {"day": "2026-10-20", "level": 5, "days_left": 5}
+    )  # 5 is not a threshold of the clock
     with frozen_today("2026-11-03"), caplog.at_level("WARNING"):
         events = world.sweep().events
     assert [e.stream_id for e in events] == [good]
