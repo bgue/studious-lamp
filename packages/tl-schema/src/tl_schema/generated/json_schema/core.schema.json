@@ -1,5 +1,37 @@
 {
     "$defs": {
+        "AcceptancePolicy": {
+            "description": "What happens to a value an enricher proposes for a property.",
+            "enum": [
+                "auto",
+                "propose",
+                "shadow"
+            ],
+            "title": "AcceptancePolicy",
+            "type": "string"
+        },
+        "AcceptanceState": {
+            "description": "Where a proposed enrichment value is.",
+            "enum": [
+                "shadow",
+                "proposed",
+                "accepted",
+                "auto_accepted",
+                "rejected"
+            ],
+            "title": "AcceptanceState",
+            "type": "string"
+        },
+        "AccessLevel": {
+            "description": "Who may run a command or invoke an action (ADR-0011, ADR-0013).",
+            "enum": [
+                "user",
+                "controller",
+                "admin"
+            ],
+            "title": "AccessLevel",
+            "type": "string"
+        },
         "Account": {
             "additionalProperties": false,
             "description": "One account in its current state. A projection of the `Account.*` events.",
@@ -245,6 +277,667 @@
             ],
             "title": "AccountStatus",
             "type": "string"
+        },
+        "ActionCompletedPayload": {
+            "additionalProperties": false,
+            "description": "The executor finished the action.",
+            "examples": [
+                "{\"attempt\": 1, \"http_status\": 200, \"invocation_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"result\": {\"accepted\": true}}"
+            ],
+            "properties": {
+                "attempt": {
+                    "description": "Attempt number.",
+                    "type": "integer"
+                },
+                "http_status": {
+                    "description": "HTTP status of a webhook action.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "invocation_id": {
+                    "description": "Invocation id.",
+                    "type": "string"
+                },
+                "result": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "The executor's bounded JSON result."
+                }
+            },
+            "required": [
+                "invocation_id",
+                "attempt"
+            ],
+            "title": "ActionCompletedPayload",
+            "type": "object"
+        },
+        "ActionDefinition": {
+            "additionalProperties": false,
+            "description": "An operation people, rules and agents may ask for (brief 18.7, 19.2). One row per definition in its current version; `ReviseAction` bumps `version`, and an invocation names the version it ran. The webhook signing secret lives in `int_secret`; `secret_id` names it.",
+            "properties": {
+                "access": {
+                    "$ref": "#/$defs/AccessLevel"
+                },
+                "applies_to": {
+                    "$ref": "#/$defs/Any",
+                    "description": "`ActionTarget` as JSON: record type globs and an optional query-language condition."
+                },
+                "created_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "definition_id": {
+                    "description": "Immutable id; equals the ledger `stream_id`.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "description": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "executor": {
+                    "$ref": "#/$defs/ExecutorKind"
+                },
+                "executor_config": {
+                    "$ref": "#/$defs/Any",
+                    "description": "`JobExecutorConfig` or `WebhookExecutorConfig` as JSON. Never holds a secret."
+                },
+                "integration_app": {
+                    "description": "The integration app this action belongs to, when there is one.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "label": {
+                    "type": "string"
+                },
+                "last_seq": {
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "A slug, unique across the ledger.",
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "parameters": {
+                    "$ref": "#/$defs/Any",
+                    "description": "A JSON list of `ActionParameter`."
+                },
+                "requires_approval": {
+                    "type": "boolean"
+                },
+                "result_handling": {
+                    "$ref": "#/$defs/Any",
+                    "description": "A JSON list of `store` and `post_to_feed`."
+                },
+                "retired": {
+                    "description": "A retired definition cannot be invoked; its invocations stay readable.",
+                    "type": "boolean"
+                },
+                "scope": {
+                    "description": "`company` actions may be invoked on any project's records; a project action only on its own.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "secret_id": {
+                    "description": "The newest signing secret of a webhook action (the value lives in `int_secret`).",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "side_effect_class": {
+                    "$ref": "#/$defs/SideEffectClass"
+                },
+                "stream_version": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Definition version (1, 2, ...). The ledger stream version is `stream_version`.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "definition_id",
+                "name",
+                "label",
+                "scope",
+                "version",
+                "applies_to",
+                "parameters",
+                "executor",
+                "executor_config",
+                "side_effect_class",
+                "requires_approval",
+                "access",
+                "result_handling",
+                "owner",
+                "enabled",
+                "retired",
+                "created_by",
+                "created_at",
+                "updated_at",
+                "stream_version",
+                "last_seq"
+            ],
+            "title": "ActionDefinition",
+            "type": "object"
+        },
+        "ActionDefinitionDefinedPayload": {
+            "additionalProperties": false,
+            "description": "An action was defined (version 1). A webhook action's signing secret is held outside the ledger.",
+            "examples": [
+                "{\"access\": \"user\", \"applies_to\": {\"condition\": null, \"record_types\": [\"core.Record\"]}, \"definition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"description\": \"Send an inspection request to the NDE contractor\", \"enabled\": true, \"executor\": \"webhook\", \"executor_config\": {\"kind\": \"webhook\", \"timeout_s\": 10.0, \"url\": \"https://nde.example.net/hooks/request\"}, \"integration_app\": \"acme-nde\", \"label\": \"Send to NDE\", \"name\": \"send_to_nde\", \"owner\": \"user:jsmith\", \"parameters\": [{\"choices\": [\"RT\", \"UT\"], \"kind\": \"string\", \"label\": \"Method\", \"max_length\": null, \"name\": \"method\", \"required\": true}], \"requires_approval\": false, \"result_handling\": [\"store\"], \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"side_effect_class\": \"external\", \"version\": 1}"
+            ],
+            "properties": {
+                "access": {
+                    "description": "user, controller or admin.",
+                    "type": "string"
+                },
+                "applies_to": {
+                    "$ref": "#/$defs/Any",
+                    "description": "ActionTarget object: record type globs and an optional condition."
+                },
+                "definition_id": {
+                    "description": "Definition id.",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Description.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "enabled": {
+                    "description": "Whether it can be invoked.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "executor": {
+                    "description": "job or webhook.",
+                    "type": "string"
+                },
+                "executor_config": {
+                    "$ref": "#/$defs/Any",
+                    "description": "Executor configuration; never a secret."
+                },
+                "integration_app": {
+                    "description": "Integration app name.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "label": {
+                    "description": "Label.",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Action name (slug).",
+                    "type": "string"
+                },
+                "owner": {
+                    "description": "Owner actor.",
+                    "type": "string"
+                },
+                "parameters": {
+                    "$ref": "#/$defs/Any",
+                    "description": "List of ActionParameter objects."
+                },
+                "requires_approval": {
+                    "description": "Whether an invocation waits for a second person.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "result_handling": {
+                    "$ref": "#/$defs/Any",
+                    "description": "List of store and post_to_feed."
+                },
+                "secret_id": {
+                    "description": "Id of the first signing secret of a webhook action (not the secret).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "side_effect_class": {
+                    "description": "read, propose, write or external.",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Definition version.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "definition_id",
+                "name",
+                "label",
+                "version",
+                "applies_to",
+                "parameters",
+                "executor",
+                "executor_config",
+                "side_effect_class",
+                "access",
+                "result_handling",
+                "owner"
+            ],
+            "title": "ActionDefinitionDefinedPayload",
+            "type": "object"
+        },
+        "ActionDefinitionEventPayload": {
+            "additionalProperties": false,
+            "description": "Payload of an `ActionDefinition.*` event. The stream is the definition (`core.ActionDefinition`); a secret is held outside the ledger.",
+            "title": "ActionDefinitionEventPayload",
+            "type": "object"
+        },
+        "ActionDefinitionRetiredPayload": {
+            "additionalProperties": false,
+            "description": "An action was retired: it can no longer be invoked; its invocations stay readable.",
+            "examples": [
+                "{\"definition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"reason\": \"replaced by send_to_nde_v2\"}"
+            ],
+            "properties": {
+                "definition_id": {
+                    "description": "Definition id.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "definition_id",
+                "reason"
+            ],
+            "title": "ActionDefinitionRetiredPayload",
+            "type": "object"
+        },
+        "ActionDefinitionRevisedPayload": {
+            "additionalProperties": false,
+            "description": "An action was revised; the event carries the whole new definition and the row is replaced.",
+            "examples": [
+                "{\"definition\": {\"label\": \"Send to NDE contractor\", \"name\": \"send_to_nde\", \"version\": 2}, \"definition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"reason\": \"label\", \"version\": 2}"
+            ],
+            "properties": {
+                "definition": {
+                    "$ref": "#/$defs/Any",
+                    "description": "The new definition (no secret)."
+                },
+                "definition_id": {
+                    "description": "Definition id.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why.",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "The new definition version.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "definition_id",
+                "version",
+                "definition",
+                "reason"
+            ],
+            "title": "ActionDefinitionRevisedPayload",
+            "type": "object"
+        },
+        "ActionDefinitionSecretRotatedPayload": {
+            "additionalProperties": false,
+            "description": "A new signing secret was issued for a webhook action; the previous one keeps verifying until the overlap ends.",
+            "examples": [
+                "{\"definition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"previous_expires_at\": \"2026-10-18T03:14:07.000000Z\", \"previous_secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P4\"}"
+            ],
+            "properties": {
+                "definition_id": {
+                    "description": "Definition id.",
+                    "type": "string"
+                },
+                "previous_expires_at": {
+                    "description": "ISO-8601 time when the previous secret stops.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "previous_secret_id": {
+                    "description": "Id of the secret being replaced.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "secret_id": {
+                    "description": "Id of the new secret (not the secret).",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "definition_id",
+                "secret_id"
+            ],
+            "title": "ActionDefinitionSecretRotatedPayload",
+            "type": "object"
+        },
+        "ActionFailedPayload": {
+            "additionalProperties": false,
+            "description": "The action failed for good (not retried any more).",
+            "examples": [
+                "{\"attempt\": 3, \"http_status\": 503, \"invocation_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"problems\": [{\"code\": \"http_error\", \"message\": \"The receiver answered 503.\"}]}"
+            ],
+            "properties": {
+                "attempt": {
+                    "description": "Attempt number.",
+                    "type": "integer"
+                },
+                "http_status": {
+                    "description": "HTTP status of a webhook action.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "invocation_id": {
+                    "description": "Invocation id.",
+                    "type": "string"
+                },
+                "problems": {
+                    "$ref": "#/$defs/Any",
+                    "description": "List of Problem objects (code and message)."
+                }
+            },
+            "required": [
+                "invocation_id",
+                "attempt",
+                "problems"
+            ],
+            "title": "ActionFailedPayload",
+            "type": "object"
+        },
+        "ActionInvocation": {
+            "additionalProperties": false,
+            "description": "One request to run an action (brief 18.7): Requested, then Running, then Completed or Failed. The targets are `RecordRef`s. `result` is bounded JSON; a larger one fails the invocation, it is never cut.",
+            "properties": {
+                "action": {
+                    "description": "The definition's name.",
+                    "type": "string"
+                },
+                "action_version": {
+                    "type": "integer"
+                },
+                "attempt": {
+                    "type": "integer"
+                },
+                "definition_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "finished_at": {
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "http_status": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "invocation_id": {
+                    "description": "Immutable id; equals the ledger `stream_id`.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "invoked_by": {
+                    "type": "string"
+                },
+                "last_seq": {
+                    "type": "integer"
+                },
+                "parameters": {
+                    "$ref": "#/$defs/Any"
+                },
+                "problems": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "A JSON list of `Problem` of a failed invocation."
+                },
+                "proposal_id": {
+                    "description": "Set when the action requires approval and this invocation came from an accepted proposal.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "requested_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "result": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "The executor's bounded JSON result of a completed invocation."
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "seq": {
+                    "description": "`seq` of `Action.Requested`.",
+                    "type": "integer"
+                },
+                "started_at": {
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "status": {
+                    "$ref": "#/$defs/InvocationStatus"
+                },
+                "targets": {
+                    "$ref": "#/$defs/Any",
+                    "description": "A JSON list of `RecordRef`."
+                },
+                "version": {
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "invocation_id",
+                "scope",
+                "action",
+                "action_version",
+                "definition_id",
+                "status",
+                "targets",
+                "parameters",
+                "invoked_by",
+                "attempt",
+                "requested_at",
+                "seq",
+                "version",
+                "last_seq"
+            ],
+            "title": "ActionInvocation",
+            "type": "object"
+        },
+        "ActionInvocationEventPayload": {
+            "additionalProperties": false,
+            "description": "Payload of an `Action.*` event. The stream is the invocation (`core.ActionInvocation`).",
+            "title": "ActionInvocationEventPayload",
+            "type": "object"
+        },
+        "ActionInvocationTarget": {
+            "additionalProperties": false,
+            "description": "One record an invocation acts on, for \"what was run on this record\" (the record page).",
+            "properties": {
+                "invocation_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "record_id": {
+                    "type": "string"
+                },
+                "record_key": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "record_type": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "record_version": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "target_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "target_id",
+                "invocation_id",
+                "record_id"
+            ],
+            "title": "ActionInvocationTarget",
+            "type": "object"
+        },
+        "ActionRequestedPayload": {
+            "additionalProperties": false,
+            "description": "An action was requested on records. The execution is queued as a job.",
+            "examples": [
+                "{\"action\": \"send_to_nde\", \"action_version\": 1, \"definition_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"invocation_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"invoked_by\": \"user:jsmith\", \"parameters\": {\"method\": \"RT\"}, \"targets\": [{\"id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"key\": \"47-1234-W012\", \"record_type\": \"core.Record\", \"version\": 3}]}"
+            ],
+            "properties": {
+                "action": {
+                    "description": "Action name.",
+                    "type": "string"
+                },
+                "action_version": {
+                    "description": "Definition version run.",
+                    "type": "integer"
+                },
+                "definition_id": {
+                    "description": "Definition id.",
+                    "type": "string"
+                },
+                "invocation_id": {
+                    "description": "Invocation id.",
+                    "type": "string"
+                },
+                "invoked_by": {
+                    "description": "Who asked.",
+                    "type": "string"
+                },
+                "parameters": {
+                    "$ref": "#/$defs/Any",
+                    "description": "Parameters as validated against the definition."
+                },
+                "proposal_id": {
+                    "description": "The accepted proposal this came from, when the action requires approval.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "targets": {
+                    "$ref": "#/$defs/Any",
+                    "description": "List of RecordRef objects."
+                }
+            },
+            "required": [
+                "invocation_id",
+                "action",
+                "action_version",
+                "definition_id",
+                "targets",
+                "parameters",
+                "invoked_by"
+            ],
+            "title": "ActionRequestedPayload",
+            "type": "object"
+        },
+        "ActionRunningPayload": {
+            "additionalProperties": false,
+            "description": "A worker started an attempt.",
+            "examples": [
+                "{\"attempt\": 1, \"invocation_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\"}"
+            ],
+            "properties": {
+                "attempt": {
+                    "description": "Attempt number, from 1.",
+                    "type": "integer"
+                },
+                "invocation_id": {
+                    "description": "Invocation id.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "invocation_id",
+                "attempt"
+            ],
+            "title": "ActionRunningPayload",
+            "type": "object"
         },
         "ActivityPost": {
             "additionalProperties": false,
@@ -613,6 +1306,15 @@
             "title": "AuthTokenSecret",
             "type": "object"
         },
+        "AutomationAccess": {
+            "description": "What a service actor (rule, inbound endpoint, enricher) may be declared to hold. Automation never runs an `admin` command in Phase 1.",
+            "enum": [
+                "user",
+                "controller"
+            ],
+            "title": "AutomationAccess",
+            "type": "string"
+        },
         "BodyQuarantine": {
             "additionalProperties": false,
             "description": "Operational state, not a projection: a record whose stored body failed verification on read (brief 31.4). Reads of the record's body are refused until the body is stored again or `tl types quarantine recheck` verifies it. A rebuild of projections never clears it.",
@@ -826,6 +1528,18 @@
             "title": "DeliveryOrigin",
             "type": "string"
         },
+        "DeliveryState": {
+            "description": "Where an inbound delivery is.",
+            "enum": [
+                "queued",
+                "applied",
+                "failed",
+                "dry_run",
+                "killed"
+            ],
+            "title": "DeliveryState",
+            "type": "string"
+        },
         "DeliveryStatus": {
             "description": "Where one webhook delivery is in its life.",
             "enum": [
@@ -845,6 +1559,540 @@
             ],
             "title": "DisabledReason",
             "type": "string"
+        },
+        "Enricher": {
+            "additionalProperties": false,
+            "description": "The registration of an enricher plugin (brief 18.9): which events it follows (`when`), which properties of its own `enrich.<name>` pset layer it fills and the acceptance policy of each, and the service actor and access it runs as. `code_version` is the plugin's own version. Phase 1 enrichers are deterministic (`model_ref` is null; ADR-0008 decision 8).",
+            "properties": {
+                "access": {
+                    "$ref": "#/$defs/AutomationAccess"
+                },
+                "code_version": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "enabled_from_seq": {
+                    "description": "The `seq` of the event that last switched it on. A worker that is behind does not apply it to events from before that moment.",
+                    "type": "integer"
+                },
+                "enricher_id": {
+                    "description": "Immutable id; equals the ledger `stream_id`.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "integration_app": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "last_seq": {
+                    "type": "integer"
+                },
+                "model_ref": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "name": {
+                    "description": "One path segment of the `enrich.` layer; unique across the ledger.",
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "properties": {
+                    "$ref": "#/$defs/Any",
+                    "description": "A JSON list of `{name, kind, policy, threshold}`: the properties of the layer and their acceptance policy."
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "service_actor": {
+                    "type": "string"
+                },
+                "stream_version": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Registration version (1, 2, ...). The ledger stream version is `stream_version`.",
+                    "type": "integer"
+                },
+                "when": {
+                    "$ref": "#/$defs/Any",
+                    "description": "A `SubscriptionFilter` as JSON."
+                }
+            },
+            "required": [
+                "enricher_id",
+                "name",
+                "scope",
+                "version",
+                "code_version",
+                "when",
+                "properties",
+                "service_actor",
+                "access",
+                "owner",
+                "enabled",
+                "enabled_from_seq",
+                "created_by",
+                "created_at",
+                "updated_at",
+                "stream_version",
+                "last_seq"
+            ],
+            "title": "Enricher",
+            "type": "object"
+        },
+        "EnricherDisabledPayload": {
+            "additionalProperties": false,
+            "description": "An enricher was switched off.",
+            "examples": [
+                "{\"enricher_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P13\", \"reason\": \"wrong labels\"}"
+            ],
+            "properties": {
+                "enricher_id": {
+                    "description": "Enricher id.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "enricher_id"
+            ],
+            "title": "EnricherDisabledPayload",
+            "type": "object"
+        },
+        "EnricherEnabledPayload": {
+            "additionalProperties": false,
+            "description": "An enricher was switched on.",
+            "examples": [
+                "{\"enricher_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P13\", \"reason\": \"after evaluation\"}"
+            ],
+            "properties": {
+                "enricher_id": {
+                    "description": "Enricher id.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "enricher_id"
+            ],
+            "title": "EnricherEnabledPayload",
+            "type": "object"
+        },
+        "EnricherEventPayload": {
+            "additionalProperties": false,
+            "description": "Payload of an `Enricher.*` event. The stream is the enricher (`core.Enricher`).",
+            "title": "EnricherEventPayload",
+            "type": "object"
+        },
+        "EnricherRegisteredPayload": {
+            "additionalProperties": false,
+            "description": "An enricher was registered. It starts disabled.",
+            "examples": [
+                "{\"access\": \"user\", \"code_version\": \"1.0.0\", \"enabled\": false, \"enricher_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P13\", \"integration_app\": null, \"model_ref\": null, \"name\": \"doc_classifier\", \"owner\": \"user:jsmith\", \"properties\": [{\"kind\": \"string\", \"name\": \"doc_type\", \"policy\": \"propose\", \"threshold\": 0.9}], \"service_actor\": \"svc:enricher-doc-classifier\", \"version\": 1, \"when\": {\"event_types\": [\"File.Processed\"]}}"
+            ],
+            "properties": {
+                "access": {
+                    "description": "user or controller.",
+                    "type": "string"
+                },
+                "code_version": {
+                    "description": "The plugin's own version.",
+                    "type": "string"
+                },
+                "enabled": {
+                    "description": "Whether it runs.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "enricher_id": {
+                    "description": "Enricher id.",
+                    "type": "string"
+                },
+                "integration_app": {
+                    "description": "Integration app name.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "model_ref": {
+                    "description": "Null for a deterministic enricher.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "name": {
+                    "description": "Enricher name; one path segment of the enrich. layer.",
+                    "type": "string"
+                },
+                "owner": {
+                    "description": "Owner actor.",
+                    "type": "string"
+                },
+                "properties": {
+                    "$ref": "#/$defs/Any",
+                    "description": "List of {name, kind, policy, threshold}."
+                },
+                "service_actor": {
+                    "description": "svc:enricher-<slug>.",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Registration version.",
+                    "type": "integer"
+                },
+                "when": {
+                    "$ref": "#/$defs/Any",
+                    "description": "SubscriptionFilter object."
+                }
+            },
+            "required": [
+                "enricher_id",
+                "name",
+                "version",
+                "code_version",
+                "when",
+                "properties",
+                "service_actor",
+                "access",
+                "owner"
+            ],
+            "title": "EnricherRegisteredPayload",
+            "type": "object"
+        },
+        "EnricherRevisedPayload": {
+            "additionalProperties": false,
+            "description": "An enricher's registration changed; the event carries the whole new registration.",
+            "examples": [
+                "{\"enricher\": {\"name\": \"doc_classifier\", \"version\": 2}, \"enricher_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P13\", \"reason\": \"auto-accept above 0.95\", \"version\": 2}"
+            ],
+            "properties": {
+                "enricher": {
+                    "$ref": "#/$defs/Any",
+                    "description": "The new registration."
+                },
+                "enricher_id": {
+                    "description": "Enricher id.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why.",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "The new registration version.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "enricher_id",
+                "version",
+                "enricher",
+                "reason"
+            ],
+            "title": "EnricherRevisedPayload",
+            "type": "object"
+        },
+        "EnrichmentAcceptedPayload": {
+            "additionalProperties": false,
+            "description": "A person (or the enricher's own auto policy) accepted a value: it is now written to the enricher's layer of the record.",
+            "examples": [
+                "{\"automatic\": false, \"by\": \"user:mlee\", \"value_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P14\"}"
+            ],
+            "properties": {
+                "automatic": {
+                    "description": "True for the auto policy.",
+                    "type": "boolean"
+                },
+                "by": {
+                    "description": "The accepting person, or the enricher's service actor.",
+                    "type": "string"
+                },
+                "value_id": {
+                    "description": "Value id.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "value_id",
+                "by",
+                "automatic"
+            ],
+            "title": "EnrichmentAcceptedPayload",
+            "type": "object"
+        },
+        "EnrichmentCursor": {
+            "additionalProperties": false,
+            "description": "How far an enrichment dispatcher has read the ledger.",
+            "properties": {
+                "last_seq": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "name",
+                "last_seq"
+            ],
+            "title": "EnrichmentCursor",
+            "type": "object"
+        },
+        "EnrichmentEventPayload": {
+            "additionalProperties": false,
+            "description": "Payload of an `Enrichment.*` event. The stream is the value (`core.EnrichmentValue`).",
+            "title": "EnrichmentEventPayload",
+            "type": "object"
+        },
+        "EnrichmentProposedPayload": {
+            "additionalProperties": false,
+            "description": "An enricher proposed a value for a property of its own layer of a record. A shadow value is for evaluation and admins only.",
+            "examples": [
+                "{\"acceptance_state\": \"proposed\", \"confidence\": 0.9, \"enricher\": \"doc_classifier\", \"enricher_version\": \"1.0.0\", \"inputs\": [{\"file_sha256\": \"2222222222222222222222222222222222222222222222222222222222222222\", \"record\": {\"id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"key\": \"ISD-001\", \"record_type\": \"documents.Document\", \"version\": 4}}], \"model_ref\": null, \"produced_at\": \"2026-10-17T03:14:07.000000Z\", \"property_path\": \"enrich.doc_classifier.doc_type\", \"target\": {\"id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"key\": \"ISD-001\", \"record_type\": \"documents.Document\", \"version\": 4}, \"value\": \"ISO\", \"value_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P14\"}"
+            ],
+            "properties": {
+                "acceptance_state": {
+                    "description": "shadow or proposed.",
+                    "type": "string"
+                },
+                "confidence": {
+                    "description": "0 to 1.",
+                    "type": "number"
+                },
+                "enricher": {
+                    "description": "Enricher name.",
+                    "type": "string"
+                },
+                "enricher_version": {
+                    "description": "The plugin's version.",
+                    "type": "string"
+                },
+                "inputs": {
+                    "$ref": "#/$defs/Any",
+                    "description": "List of {record, file_sha256}: what the value was made from."
+                },
+                "model_ref": {
+                    "description": "Null for a deterministic enricher.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "produced_at": {
+                    "description": "ISO-8601 time.",
+                    "type": "string"
+                },
+                "property_path": {
+                    "description": "enrich.<enricher>.<property>.",
+                    "type": "string"
+                },
+                "target": {
+                    "$ref": "#/$defs/Any",
+                    "description": "RecordRef of the record."
+                },
+                "value": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "A scalar or a list of scalars."
+                },
+                "value_id": {
+                    "description": "Value id.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "value_id",
+                "target",
+                "property_path",
+                "enricher",
+                "enricher_version",
+                "confidence",
+                "inputs",
+                "produced_at",
+                "acceptance_state"
+            ],
+            "title": "EnrichmentProposedPayload",
+            "type": "object"
+        },
+        "EnrichmentRejectedPayload": {
+            "additionalProperties": false,
+            "description": "A value was rejected by a person, or replaced by a newer proposal.",
+            "examples": [
+                "{\"by\": \"user:mlee\", \"reason\": \"wrong type\", \"value_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P14\"}"
+            ],
+            "properties": {
+                "by": {
+                    "description": "The person, or the enricher's service actor for a replacement.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why.",
+                    "type": "string"
+                },
+                "value_id": {
+                    "description": "Value id.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "value_id",
+                "by",
+                "reason"
+            ],
+            "title": "EnrichmentRejectedPayload",
+            "type": "object"
+        },
+        "EnrichmentValue": {
+            "additionalProperties": false,
+            "description": "A value an enricher proposed for one property of one record, with provenance (brief 18.9, 19.2). Accepting it writes only the enricher's own layer `enrich.<enricher>.<property>`; promoting it to an authoritative field is a person's own `SetPsetValues`. A `shadow` value is shown to admins and the evaluation report only.",
+            "properties": {
+                "acceptance_state": {
+                    "$ref": "#/$defs/AcceptanceState"
+                },
+                "confidence": {
+                    "type": "number"
+                },
+                "decided_at": {
+                    "format": "date-time",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "decided_by": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "enricher": {
+                    "type": "string"
+                },
+                "enricher_version": {
+                    "type": "string"
+                },
+                "inputs": {
+                    "$ref": "#/$defs/Any",
+                    "description": "A JSON list of `EnrichmentInput`."
+                },
+                "last_seq": {
+                    "type": "integer"
+                },
+                "model_ref": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "produced_at": {
+                    "type": "string"
+                },
+                "property_path": {
+                    "description": "`enrich.<enricher>.<property>`.",
+                    "type": "string"
+                },
+                "reason": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "seq": {
+                    "description": "`seq` of `Enrichment.Proposed`.",
+                    "type": "integer"
+                },
+                "target": {
+                    "$ref": "#/$defs/Any",
+                    "description": "The `RecordRef` of the record, as JSON."
+                },
+                "target_id": {
+                    "type": "string"
+                },
+                "value": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/Any"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "A scalar or a list of scalars, as JSON."
+                },
+                "value_id": {
+                    "description": "Immutable id; equals the ledger `stream_id`.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Ledger stream version after the last event applied.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "value_id",
+                "scope",
+                "target",
+                "target_id",
+                "property_path",
+                "enricher",
+                "enricher_version",
+                "confidence",
+                "inputs",
+                "produced_at",
+                "acceptance_state",
+                "seq",
+                "version",
+                "last_seq"
+            ],
+            "title": "EnrichmentValue",
+            "type": "object"
         },
         "Event": {
             "additionalProperties": false,
@@ -1096,6 +2344,18 @@
             "description": "Common parent of the event payload classes. Payloads are open: new optional fields are additive.",
             "title": "EventPayload",
             "type": "object"
+        },
+        "ExecutorKind": {
+            "description": "How an action is carried out. Phase 1 builds `job` and `webhook`; a definition naming another is refused.",
+            "enum": [
+                "webhook",
+                "mcp_tool",
+                "connector",
+                "job",
+                "agent"
+            ],
+            "title": "ExecutorKind",
+            "type": "string"
         },
         "ExtensionRecord": {
             "additionalProperties": false,
@@ -1900,6 +3160,913 @@
                 "high"
             ],
             "title": "Importance",
+            "type": "string"
+        },
+        "InboundAppliedPayload": {
+            "additionalProperties": false,
+            "description": "A delivery was mapped and its commands ran (or, for a dry-run endpoint, were planned).",
+            "examples": [
+                "{\"command_count\": 2, \"delivery_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P12\", \"dry_run\": false}"
+            ],
+            "properties": {
+                "command_count": {
+                    "description": "Commands run or planned.",
+                    "type": "integer"
+                },
+                "delivery_id": {
+                    "description": "Delivery id.",
+                    "type": "string"
+                },
+                "dry_run": {
+                    "description": "True when nothing ran.",
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "delivery_id",
+                "command_count",
+                "dry_run"
+            ],
+            "title": "InboundAppliedPayload",
+            "type": "object"
+        },
+        "InboundAuth": {
+            "description": "How an inbound request proves who sent it.",
+            "enum": [
+                "hmac_sha256",
+                "jwt_hs256"
+            ],
+            "title": "InboundAuth",
+            "type": "string"
+        },
+        "InboundCounter": {
+            "additionalProperties": false,
+            "description": "Per-endpoint counters of accepted deliveries and of refusals by fixed code (never a header, a claim or a body).",
+            "properties": {
+                "code": {
+                    "description": "`accepted`, `bad_signature`, `replay`, `too_large`, `rate_limited`, `invalid_payload`, ...",
+                    "type": "string"
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "counter_id": {
+                    "description": "`<endpoint id>:<code>`.",
+                    "type": "string"
+                },
+                "endpoint_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "last_at": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "counter_id",
+                "endpoint_id",
+                "code",
+                "count",
+                "last_at"
+            ],
+            "title": "InboundCounter",
+            "type": "object"
+        },
+        "InboundDelivery": {
+            "additionalProperties": false,
+            "description": "One accepted inbound POST and what became of it. The raw body is an object, never a column.",
+            "properties": {
+                "attempts": {
+                    "type": "integer"
+                },
+                "command_count": {
+                    "description": "How many commands ran (or were planned, for a dry run).",
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "corrected_object_key": {
+                    "description": "The corrected payload an admin supplied on a retry, as a new object.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "delivery_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "endpoint_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "endpoint_version": {
+                    "description": "The endpoint version the delivery is mapped by.",
+                    "type": "integer"
+                },
+                "error_code": {
+                    "description": "A fixed code (`mapping_error`, `key_not_found`, `command_refused`, ...).",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "error_message": {
+                    "description": "A bounded message for a person; never a payload excerpt.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "finished_at": {
+                    "description": "ISO-8601 UTC of the last attempt.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "object_key": {
+                    "description": "`inbound/<endpoint id>/<delivery id>`; the raw body.",
+                    "type": "string"
+                },
+                "payload_sha256": {
+                    "type": "string"
+                },
+                "payload_size": {
+                    "type": "integer"
+                },
+                "received_at": {
+                    "type": "string"
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "state": {
+                    "$ref": "#/$defs/DeliveryState"
+                }
+            },
+            "required": [
+                "delivery_id",
+                "endpoint_id",
+                "endpoint_version",
+                "scope",
+                "state",
+                "object_key",
+                "payload_sha256",
+                "payload_size",
+                "received_at",
+                "attempts"
+            ],
+            "title": "InboundDelivery",
+            "type": "object"
+        },
+        "InboundDeliveryEventPayload": {
+            "additionalProperties": false,
+            "description": "Payload of an `Inbound.*` event. The stream is the delivery (`core.InboundDelivery`); no payload holds the request body, a header or a secret.",
+            "title": "InboundDeliveryEventPayload",
+            "type": "object"
+        },
+        "InboundEndpoint": {
+            "additionalProperties": false,
+            "description": "`POST /in/{app}/{name}` (brief 18.5, 19.3). `mapping` is restricted JSONata; `allowed_commands` is the subset of the automation commands the endpoint may produce; it runs as `service_actor` with `access`. The signing secrets are in `int_secret`; `current_secret_id` names the newest. Every earlier version stays in `cur_inbound_endpoint_version`, because a delivery is mapped by the version it was received under.",
+            "properties": {
+                "access": {
+                    "$ref": "#/$defs/AutomationAccess"
+                },
+                "allowed_commands": {
+                    "$ref": "#/$defs/Any",
+                    "description": "A JSON list of command names."
+                },
+                "app": {
+                    "description": "The integration app's name.",
+                    "type": "string"
+                },
+                "auth": {
+                    "$ref": "#/$defs/InboundAuth"
+                },
+                "created_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "current_secret_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "dry_run": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "endpoint_id": {
+                    "description": "Immutable id; equals the ledger `stream_id`.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "external_schema": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "last_seq": {
+                    "type": "integer"
+                },
+                "mapping": {
+                    "type": "string"
+                },
+                "mapping_language": {
+                    "type": "string"
+                },
+                "max_body_bytes": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "rate_per_minute": {
+                    "type": "integer"
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "service_actor": {
+                    "type": "string"
+                },
+                "stream_version": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Endpoint version (1, 2, ...). The ledger stream version is `stream_version`.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "endpoint_id",
+                "app",
+                "name",
+                "scope",
+                "version",
+                "auth",
+                "mapping",
+                "mapping_language",
+                "allowed_commands",
+                "service_actor",
+                "access",
+                "max_body_bytes",
+                "rate_per_minute",
+                "dry_run",
+                "enabled",
+                "owner",
+                "created_by",
+                "created_at",
+                "updated_at",
+                "stream_version",
+                "last_seq"
+            ],
+            "title": "InboundEndpoint",
+            "type": "object"
+        },
+        "InboundEndpointCreatedPayload": {
+            "additionalProperties": false,
+            "description": "An inbound endpoint was created. It starts disabled and in dry-run mode. Its secret is held outside the ledger.",
+            "examples": [
+                "{\"access\": \"user\", \"allowed_commands\": [\"SetPsetValues\"], \"app\": \"acme-nde\", \"auth\": \"hmac_sha256\", \"dry_run\": true, \"enabled\": false, \"endpoint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"external_schema\": null, \"mapping\": \"results.{\\\"command\\\": \\\"SetPsetValues\\\", \\\"args\\\": {\\\"stream_id\\\": {\\\"$key\\\": weld}, \\\"pset\\\": \\\"nde\\\", \\\"values\\\": {\\\"result\\\": result}}}\", \"mapping_language\": \"jsonata-restricted@1\", \"max_body_bytes\": 262144, \"name\": \"results\", \"owner\": \"user:jsmith\", \"rate_per_minute\": 60, \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P10\", \"service_actor\": \"svc:inbound-acme-nde-results\", \"version\": 1}"
+            ],
+            "properties": {
+                "access": {
+                    "description": "user or controller.",
+                    "type": "string"
+                },
+                "allowed_commands": {
+                    "$ref": "#/$defs/Any",
+                    "description": "List of command names."
+                },
+                "app": {
+                    "description": "Integration app name.",
+                    "type": "string"
+                },
+                "auth": {
+                    "description": "hmac_sha256 or jwt_hs256.",
+                    "type": "string"
+                },
+                "dry_run": {
+                    "description": "Verify, map and plan only.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "enabled": {
+                    "description": "Whether it accepts deliveries.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "endpoint_id": {
+                    "description": "Endpoint id.",
+                    "type": "string"
+                },
+                "external_schema": {
+                    "description": "Which external schema the mapping reads.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "mapping": {
+                    "description": "Restricted JSONata expression.",
+                    "type": "string"
+                },
+                "mapping_language": {
+                    "description": "jsonata-restricted@1.",
+                    "type": "string"
+                },
+                "max_body_bytes": {
+                    "description": "Body cap.",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "Endpoint name (slug).",
+                    "type": "string"
+                },
+                "owner": {
+                    "description": "Owner actor.",
+                    "type": "string"
+                },
+                "rate_per_minute": {
+                    "description": "Rate bound.",
+                    "type": "integer"
+                },
+                "secret_id": {
+                    "description": "Id of the first secret (not the secret).",
+                    "type": "string"
+                },
+                "service_actor": {
+                    "description": "svc:inbound-<slug>.",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Endpoint version.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "endpoint_id",
+                "app",
+                "name",
+                "version",
+                "auth",
+                "mapping",
+                "mapping_language",
+                "allowed_commands",
+                "service_actor",
+                "access",
+                "max_body_bytes",
+                "rate_per_minute",
+                "owner",
+                "secret_id"
+            ],
+            "title": "InboundEndpointCreatedPayload",
+            "type": "object"
+        },
+        "InboundEndpointDisabledPayload": {
+            "additionalProperties": false,
+            "description": "An endpoint stopped accepting deliveries; it answers 404.",
+            "examples": [
+                "{\"endpoint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"reason\": \"key leaked\"}"
+            ],
+            "properties": {
+                "endpoint_id": {
+                    "description": "Endpoint id.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "endpoint_id"
+            ],
+            "title": "InboundEndpointDisabledPayload",
+            "type": "object"
+        },
+        "InboundEndpointEnabledPayload": {
+            "additionalProperties": false,
+            "description": "An endpoint started accepting deliveries.",
+            "examples": [
+                "{\"endpoint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"reason\": \"go live\"}"
+            ],
+            "properties": {
+                "endpoint_id": {
+                    "description": "Endpoint id.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "endpoint_id"
+            ],
+            "title": "InboundEndpointEnabledPayload",
+            "type": "object"
+        },
+        "InboundEndpointEventPayload": {
+            "additionalProperties": false,
+            "description": "Payload of an `InboundEndpoint.*` event. The stream is the endpoint (`core.InboundEndpoint`); a secret is held outside the ledger.",
+            "title": "InboundEndpointEventPayload",
+            "type": "object"
+        },
+        "InboundEndpointRevisedPayload": {
+            "additionalProperties": false,
+            "description": "An endpoint was revised; the event carries the whole new definition (no secret).",
+            "examples": [
+                "{\"endpoint\": {\"dry_run\": false, \"name\": \"results\", \"version\": 2}, \"endpoint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"reason\": \"go live\", \"version\": 2}"
+            ],
+            "properties": {
+                "endpoint": {
+                    "$ref": "#/$defs/Any",
+                    "description": "The new definition."
+                },
+                "endpoint_id": {
+                    "description": "Endpoint id.",
+                    "type": "string"
+                },
+                "reason": {
+                    "description": "Why.",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "The new endpoint version.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "endpoint_id",
+                "version",
+                "endpoint",
+                "reason"
+            ],
+            "title": "InboundEndpointRevisedPayload",
+            "type": "object"
+        },
+        "InboundEndpointSecretRotatedPayload": {
+            "additionalProperties": false,
+            "description": "A new secret was issued; the previous one keeps verifying until the overlap ends (at most 24 hours).",
+            "examples": [
+                "{\"endpoint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"previous_expires_at\": \"2026-10-18T03:14:07.000000Z\", \"previous_secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P10\", \"secret_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P11\"}"
+            ],
+            "properties": {
+                "endpoint_id": {
+                    "description": "Endpoint id.",
+                    "type": "string"
+                },
+                "previous_expires_at": {
+                    "description": "ISO-8601 time when the previous secret stops.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "previous_secret_id": {
+                    "description": "Id of the secret being replaced.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "secret_id": {
+                    "description": "Id of the new secret (not the secret).",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "endpoint_id",
+                "secret_id"
+            ],
+            "title": "InboundEndpointSecretRotatedPayload",
+            "type": "object"
+        },
+        "InboundEndpointVersion": {
+            "additionalProperties": false,
+            "description": "The definition of one endpoint version, as a JSON snapshot. A delivery records the version it was received under and is mapped by that version, whatever the endpoint says now.",
+            "properties": {
+                "definition": {
+                    "$ref": "#/$defs/Any",
+                    "description": "The `InboundEndpoint` model as JSON (no secret)."
+                },
+                "endpoint_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "seq": {
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "integer"
+                },
+                "version_id": {
+                    "description": "The id of the event that made this version.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "version_id",
+                "endpoint_id",
+                "version",
+                "definition",
+                "seq"
+            ],
+            "title": "InboundEndpointVersion",
+            "type": "object"
+        },
+        "InboundFailedPayload": {
+            "additionalProperties": false,
+            "description": "A delivery could not be applied; it is in the error queue until an admin retries it.",
+            "examples": [
+                "{\"code\": \"key_not_found\", \"delivery_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P12\", \"message\": \"No record has the key 47-1234-W099.\"}"
+            ],
+            "properties": {
+                "code": {
+                    "description": "A fixed code.",
+                    "type": "string"
+                },
+                "delivery_id": {
+                    "description": "Delivery id.",
+                    "type": "string"
+                },
+                "message": {
+                    "description": "A bounded message; never a payload excerpt.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "delivery_id",
+                "code",
+                "message"
+            ],
+            "title": "InboundFailedPayload",
+            "type": "object"
+        },
+        "InboundReceivedPayload": {
+            "additionalProperties": false,
+            "description": "A signed POST was accepted and queued for mapping. The payload and the headers are not in the event.",
+            "examples": [
+                "{\"delivery_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P12\", \"endpoint_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P9\", \"endpoint_version\": 2, \"payload_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"payload_size\": 412}"
+            ],
+            "properties": {
+                "delivery_id": {
+                    "description": "Delivery id.",
+                    "type": "string"
+                },
+                "endpoint_id": {
+                    "description": "Endpoint id.",
+                    "type": "string"
+                },
+                "endpoint_version": {
+                    "description": "The endpoint version it will be mapped by.",
+                    "type": "integer"
+                },
+                "payload_sha256": {
+                    "description": "SHA-256 of the raw body.",
+                    "type": "string"
+                },
+                "payload_size": {
+                    "description": "Body size in bytes.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "delivery_id",
+                "endpoint_id",
+                "endpoint_version",
+                "payload_sha256",
+                "payload_size"
+            ],
+            "title": "InboundReceivedPayload",
+            "type": "object"
+        },
+        "InboundReplay": {
+            "additionalProperties": false,
+            "description": "A webhook id or JWT id already seen by an endpoint inside the replay window.",
+            "properties": {
+                "endpoint_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "replay_id": {
+                    "description": "`<endpoint id>:<webhook-id or jti>`; the primary key makes a second use fail.",
+                    "type": "string"
+                },
+                "seen_at": {
+                    "description": "ISO-8601 UTC; rows older than the retention are pruned.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "replay_id",
+                "endpoint_id",
+                "seen_at"
+            ],
+            "title": "InboundReplay",
+            "type": "object"
+        },
+        "InboundRetriedPayload": {
+            "additionalProperties": false,
+            "description": "An admin re-ran a failed delivery, optionally with a corrected payload.",
+            "examples": [
+                "{\"by\": \"user:jsmith\", \"corrected_sha256\": \"1111111111111111111111111111111111111111111111111111111111111111\", \"delivery_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P12\", \"original_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\"}"
+            ],
+            "properties": {
+                "by": {
+                    "description": "The admin.",
+                    "type": "string"
+                },
+                "corrected_sha256": {
+                    "description": "SHA-256 of the corrected body, when one was supplied.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "delivery_id": {
+                    "description": "Delivery id.",
+                    "type": "string"
+                },
+                "original_sha256": {
+                    "description": "SHA-256 of the received body.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "delivery_id",
+                "by",
+                "original_sha256"
+            ],
+            "title": "InboundRetriedPayload",
+            "type": "object"
+        },
+        "IntegrationApp": {
+            "additionalProperties": false,
+            "description": "A named external system or internal integration (brief 19.2). Its `enabled` switch turns its inbound endpoints, rules, actions and enrichers off together. The name is unique in the ledger: it is the first segment of an inbound path (`/in/{app}/{endpoint}`).",
+            "properties": {
+                "app_id": {
+                    "description": "Immutable id; equals the ledger `stream_id`.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "created_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "last_seq": {
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "A slug, unique across the ledger.",
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "scope": {
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Ledger stream version after the last event applied.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "app_id",
+                "scope",
+                "name",
+                "label",
+                "owner",
+                "enabled",
+                "created_by",
+                "created_at",
+                "updated_at",
+                "version",
+                "last_seq"
+            ],
+            "title": "IntegrationApp",
+            "type": "object"
+        },
+        "IntegrationAppDisabledPayload": {
+            "additionalProperties": false,
+            "description": "An app was switched off: its endpoints answer 404 and its rules, actions and enrichers do nothing.",
+            "examples": [
+                "{\"reason\": \"contractor offboarded\"}"
+            ],
+            "properties": {
+                "reason": {
+                    "description": "Why.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "IntegrationAppDisabledPayload",
+            "type": "object"
+        },
+        "IntegrationAppEnabledPayload": {
+            "additionalProperties": false,
+            "description": "An app was switched on: its endpoints, rules, actions and enrichers run again.",
+            "examples": [
+                "{\"reason\": \"contract renewed\"}"
+            ],
+            "properties": {
+                "reason": {
+                    "description": "Why.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "IntegrationAppEnabledPayload",
+            "type": "object"
+        },
+        "IntegrationAppEventPayload": {
+            "additionalProperties": false,
+            "description": "Payload of an `IntegrationApp.*` event. The stream is the app (`core.IntegrationApp`); no payload holds a secret.",
+            "title": "IntegrationAppEventPayload",
+            "type": "object"
+        },
+        "IntegrationAppRegisteredPayload": {
+            "additionalProperties": false,
+            "description": "An integration app was registered. Its name is the first segment of its inbound paths.",
+            "examples": [
+                "{\"app_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"description\": \"Results from the NDE contractor\", \"enabled\": true, \"label\": \"Acme NDE\", \"name\": \"acme-nde\", \"owner\": \"user:jsmith\"}"
+            ],
+            "properties": {
+                "app_id": {
+                    "description": "App id.",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Description.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "enabled": {
+                    "description": "Whether its endpoints, rules, actions and enrichers run.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "label": {
+                    "description": "Label.",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Slug, unique across the ledger.",
+                    "type": "string"
+                },
+                "owner": {
+                    "description": "Owner actor.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "app_id",
+                "name",
+                "label",
+                "owner"
+            ],
+            "title": "IntegrationAppRegisteredPayload",
+            "type": "object"
+        },
+        "IntegrationAppRevisedPayload": {
+            "additionalProperties": false,
+            "description": "An app's label, description or owner changed.",
+            "examples": [
+                "{\"changes\": {\"label\": [\"Acme NDE\", \"Acme NDE results\"]}, \"reason\": \"renamed\"}"
+            ],
+            "properties": {
+                "changes": {
+                    "$ref": "#/$defs/Any",
+                    "description": "Object of field name to [old, new]."
+                },
+                "reason": {
+                    "description": "Why.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "changes"
+            ],
+            "title": "IntegrationAppRevisedPayload",
+            "type": "object"
+        },
+        "IntegrationSecret": {
+            "additionalProperties": false,
+            "description": "A signing secret of an inbound endpoint or a webhook action. Secrets never enter the ledger or the logs.",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "description": "ISO-8601 UTC. A rotated-out secret keeps verifying until this time (at most 24 hours), then retires.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "owner_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "owner_kind": {
+                    "$ref": "#/$defs/SecretOwnerKind"
+                },
+                "secret": {
+                    "description": "`whsec_` plus the base64 of 32 random bytes (the Standard Webhooks format).",
+                    "type": "string"
+                },
+                "secret_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "state": {
+                    "$ref": "#/$defs/SecretState"
+                }
+            },
+            "required": [
+                "secret_id",
+                "owner_kind",
+                "owner_id",
+                "secret",
+                "state",
+                "created_at"
+            ],
+            "title": "IntegrationSecret",
+            "type": "object"
+        },
+        "InvocationStatus": {
+            "description": "Where an action invocation is in its life.",
+            "enum": [
+                "requested",
+                "running",
+                "completed",
+                "failed"
+            ],
+            "title": "InvocationStatus",
             "type": "string"
         },
         "JobQueue": {
@@ -3513,6 +5680,410 @@
             "title": "RecordVoidedPayload",
             "type": "object"
         },
+        "Rule": {
+            "additionalProperties": false,
+            "description": "A when/if/then rule (brief 18.8): `when` is a `SubscriptionFilter`, `condition` a query-language expression on the subject record, `then` a list of `RuleStep`. It acts or proposes as the service actor `svc:rule-<slug>`, declared `access`. Every revision is a new `version`; a rule starts disabled and in `propose` mode.",
+            "properties": {
+                "access": {
+                    "$ref": "#/$defs/AutomationAccess"
+                },
+                "condition": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "created_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "enabled_from_seq": {
+                    "description": "The `seq` of the event that last switched it on. A worker that is behind does not apply it to events from before that moment.",
+                    "type": "integer"
+                },
+                "integration_app": {
+                    "description": "The integration app this rule belongs to, when there is one.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "key": {
+                    "description": "A slug, unique across the ledger; it appears in the `source` of what the rule does.",
+                    "type": "string"
+                },
+                "last_seq": {
+                    "type": "integer"
+                },
+                "mode": {
+                    "$ref": "#/$defs/RuleMode"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "rule_id": {
+                    "description": "Immutable id; equals the ledger `stream_id`.",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "scope": {
+                    "description": "A rule sees the events of its scope; `company` sees every project.",
+                    "pattern": "^(company|project:[A-Za-z0-9_.-]+)$",
+                    "type": "string"
+                },
+                "service_actor": {
+                    "type": "string"
+                },
+                "stream_version": {
+                    "type": "integer"
+                },
+                "then": {
+                    "$ref": "#/$defs/Any",
+                    "description": "A JSON list of `RuleStep`."
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Rule version (1, 2, ...). The ledger stream version is `stream_version`.",
+                    "type": "integer"
+                },
+                "when": {
+                    "$ref": "#/$defs/Any",
+                    "description": "A `SubscriptionFilter` as JSON."
+                }
+            },
+            "required": [
+                "rule_id",
+                "key",
+                "title",
+                "scope",
+                "version",
+                "when",
+                "then",
+                "mode",
+                "service_actor",
+                "access",
+                "owner",
+                "enabled",
+                "enabled_from_seq",
+                "created_by",
+                "created_at",
+                "updated_at",
+                "stream_version",
+                "last_seq"
+            ],
+            "title": "Rule",
+            "type": "object"
+        },
+        "RuleBlockedPayload": {
+            "additionalProperties": false,
+            "description": "A matched event did not run the rule: the step was refused, the causation depth limit or a budget stopped it.",
+            "examples": [
+                "{\"depth\": 3, \"outcome\": \"depth_limit\", \"problems\": [{\"code\": \"depth_limit\", \"message\": \"The causation depth limit of 3 was reached.\"}], \"rule_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"rule_version\": 2, \"trigger_event_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\", \"trigger_seq\": 412}"
+            ],
+            "properties": {
+                "depth": {
+                    "description": "Causation depth of the trigger.",
+                    "type": "integer"
+                },
+                "outcome": {
+                    "description": "refused, depth_limit or budget.",
+                    "type": "string"
+                },
+                "problems": {
+                    "$ref": "#/$defs/Any",
+                    "description": "List of Problem objects."
+                },
+                "rule_id": {
+                    "description": "Rule id.",
+                    "type": "string"
+                },
+                "rule_version": {
+                    "description": "Rule version.",
+                    "type": "integer"
+                },
+                "trigger_event_id": {
+                    "description": "The event that matched.",
+                    "type": "string"
+                },
+                "trigger_seq": {
+                    "description": "Its seq.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "rule_id",
+                "rule_version",
+                "trigger_event_id",
+                "trigger_seq",
+                "depth",
+                "outcome",
+                "problems"
+            ],
+            "title": "RuleBlockedPayload",
+            "type": "object"
+        },
+        "RuleCreatedPayload": {
+            "additionalProperties": false,
+            "description": "A rule was created. It starts disabled and in propose mode.",
+            "examples": [
+                "{\"access\": \"user\", \"condition\": null, \"enabled\": false, \"integration_app\": null, \"key\": \"hse-notify\", \"mode\": \"propose\", \"owner\": \"user:jsmith\", \"rule_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"service_actor\": \"svc:rule-hse-notify\", \"then\": [{\"args\": {\"body\": \"HSE notified of ${subject_key}\"}, \"command\": \"PostToFeed\"}], \"title\": \"Notify HSE on #safety\", \"version\": 1, \"when\": {\"event_types\": [\"Feed.PostCreated\"], \"hashtags\": [\"safety\"]}}"
+            ],
+            "properties": {
+                "access": {
+                    "description": "user or controller.",
+                    "type": "string"
+                },
+                "condition": {
+                    "description": "Query-language condition on the subject record.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "enabled": {
+                    "description": "Whether it runs.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "integration_app": {
+                    "description": "Integration app name.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "key": {
+                    "description": "Rule key (slug).",
+                    "type": "string"
+                },
+                "mode": {
+                    "description": "act or propose.",
+                    "type": "string"
+                },
+                "owner": {
+                    "description": "Owner actor.",
+                    "type": "string"
+                },
+                "rule_id": {
+                    "description": "Rule id.",
+                    "type": "string"
+                },
+                "service_actor": {
+                    "description": "svc:rule-<slug>.",
+                    "type": "string"
+                },
+                "then": {
+                    "$ref": "#/$defs/Any",
+                    "description": "List of RuleStep objects."
+                },
+                "title": {
+                    "description": "Title.",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "Rule version.",
+                    "type": "integer"
+                },
+                "when": {
+                    "$ref": "#/$defs/Any",
+                    "description": "SubscriptionFilter object."
+                }
+            },
+            "required": [
+                "rule_id",
+                "key",
+                "title",
+                "version",
+                "when",
+                "then",
+                "mode",
+                "service_actor",
+                "access",
+                "owner"
+            ],
+            "title": "RuleCreatedPayload",
+            "type": "object"
+        },
+        "RuleCursor": {
+            "additionalProperties": false,
+            "description": "How far the rules worker has read the ledger.",
+            "properties": {
+                "last_seq": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "name",
+                "last_seq"
+            ],
+            "title": "RuleCursor",
+            "type": "object"
+        },
+        "RuleDisabledPayload": {
+            "additionalProperties": false,
+            "description": "A rule was switched off.",
+            "examples": [
+                "{\"reason\": \"noisy\", \"rule_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\"}"
+            ],
+            "properties": {
+                "reason": {
+                    "description": "Why.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "rule_id": {
+                    "description": "Rule id.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "rule_id"
+            ],
+            "title": "RuleDisabledPayload",
+            "type": "object"
+        },
+        "RuleEnabledPayload": {
+            "additionalProperties": false,
+            "description": "A rule was switched on, from this event on.",
+            "examples": [
+                "{\"reason\": \"after dry run\", \"rule_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\"}"
+            ],
+            "properties": {
+                "reason": {
+                    "description": "Why.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "rule_id": {
+                    "description": "Rule id.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "rule_id"
+            ],
+            "title": "RuleEnabledPayload",
+            "type": "object"
+        },
+        "RuleEventPayload": {
+            "additionalProperties": false,
+            "description": "Payload of a `Rule.*` event. The stream is the rule (`core.Rule`).",
+            "title": "RuleEventPayload",
+            "type": "object"
+        },
+        "RuleFiring": {
+            "additionalProperties": false,
+            "description": "One rule's outcome for one event, written in the unit of work that runs its commands: the exactly-once effect of a rule. `killed` rows record events passed over while the kill switch was on.",
+            "properties": {
+                "command_count": {
+                    "type": "integer"
+                },
+                "depth": {
+                    "type": "integer"
+                },
+                "event_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "fired_at": {
+                    "type": "string"
+                },
+                "firing_id": {
+                    "description": "`<rule id>:<rule version>:<event id>`.",
+                    "type": "string"
+                },
+                "outcome": {
+                    "description": "`fired`, `proposed`, `skipped_condition`, `refused`, `depth_limit`, `budget` or `killed`.",
+                    "type": "string"
+                },
+                "rule_id": {
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                    "type": "string"
+                },
+                "rule_version": {
+                    "type": "integer"
+                },
+                "seq": {
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "firing_id",
+                "rule_id",
+                "rule_version",
+                "event_id",
+                "seq",
+                "depth",
+                "outcome",
+                "command_count",
+                "fired_at"
+            ],
+            "title": "RuleFiring",
+            "type": "object"
+        },
+        "RuleMode": {
+            "description": "Whether a rule runs its steps or proposes them.",
+            "enum": [
+                "act",
+                "propose"
+            ],
+            "title": "RuleMode",
+            "type": "string"
+        },
+        "RuleRevisedPayload": {
+            "additionalProperties": false,
+            "description": "A rule was revised; the event carries the whole new rule. Switching to act mode is a revision with a reason.",
+            "examples": [
+                "{\"reason\": \"ready to act\", \"rule\": {\"key\": \"hse-notify\", \"mode\": \"act\", \"version\": 2}, \"rule_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"version\": 2}"
+            ],
+            "properties": {
+                "reason": {
+                    "description": "Why.",
+                    "type": "string"
+                },
+                "rule": {
+                    "$ref": "#/$defs/Any",
+                    "description": "The new rule."
+                },
+                "rule_id": {
+                    "description": "Rule id.",
+                    "type": "string"
+                },
+                "version": {
+                    "description": "The new rule version.",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "rule_id",
+                "version",
+                "rule",
+                "reason"
+            ],
+            "title": "RuleRevisedPayload",
+            "type": "object"
+        },
         "SchemaEffectiveChangedPayload": {
             "additionalProperties": false,
             "description": "The effective schema of a scope changed.",
@@ -3575,6 +6146,15 @@
             ],
             "title": "SchemaPackagePublishedPayload",
             "type": "object"
+        },
+        "SecretOwnerKind": {
+            "description": "Whose signing secret a row is.",
+            "enum": [
+                "inbound",
+                "action"
+            ],
+            "title": "SecretOwnerKind",
+            "type": "string"
         },
         "SecretState": {
             "description": "Whether a signing secret is still used.",
@@ -4090,6 +6670,17 @@
             },
             "title": "SettingValidation",
             "type": "object"
+        },
+        "SideEffectClass": {
+            "description": "What running an action can change (brief 18.7); the confirmation a person sees depends on it.",
+            "enum": [
+                "read",
+                "propose",
+                "write",
+                "external"
+            ],
+            "title": "SideEffectClass",
+            "type": "string"
         },
         "StorageMode": {
             "description": "Where the body of an extension type instance lives (brief 31.2).",

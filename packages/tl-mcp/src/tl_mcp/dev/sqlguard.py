@@ -26,8 +26,9 @@ CREDENTIAL_TABLES = frozenset(
 )
 """Operational tables of authentication (ADR-0009): password hashes, session and agent token
 hashes and the failed-sign-in counters."""
-DENIED_TABLES = frozenset({"wh_secret"}) | CREDENTIAL_TABLES
-"""Tables no dev tool may read: webhook signing secrets live in ``wh_secret.secret``."""
+DENIED_TABLES = frozenset({"wh_secret", "int_secret"}) | CREDENTIAL_TABLES
+"""Tables no dev tool may read: webhook signing secrets live in ``wh_secret.secret``, the inbound
+and action secrets of the integration layer in ``int_secret.secret``."""
 
 POSTGRES_REFUSAL = (
     "query_db reads SQLite dev databases only in Phase 0: a Postgres reader needs a non-superuser "
@@ -60,6 +61,8 @@ def check_sqlite_select(sql: str) -> None:
         raise DevGuardError("only a single SELECT (or WITH ... SELECT) statement is allowed")
     if re.search(r"wh_secret", sql, re.IGNORECASE):
         raise DevGuardError("wh_secret holds signing secrets and cannot be read")
+    if re.search(r"int_secret", sql, re.IGNORECASE):
+        raise DevGuardError("int_secret holds signing secrets and cannot be read")
     for table in sorted(CREDENTIAL_TABLES):
         if re.search(table, sql, re.IGNORECASE):
             raise DevGuardError(f"{table} holds credentials and cannot be read")

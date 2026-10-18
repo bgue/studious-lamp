@@ -47,7 +47,7 @@ from collections.abc import Callable, Iterator  # noqa: E402
 from contextlib import contextmanager  # noqa: E402
 from typing import Any  # noqa: E402
 
-from tl_api.thread_runner import TableRunner as ApiTableRunner  # noqa: E402
+from tl_api.commands import TableCommandRunner  # noqa: E402
 from tl_core.auth.types import AccountKind  # noqa: E402
 from tl_core.integration.contract import Access  # noqa: E402
 from tl_core.numbering.config import (  # noqa: E402
@@ -59,7 +59,9 @@ from tl_core.workflow.definition import WorkflowDefinition  # noqa: E402
 from tl_core.workflow.loader import WorkflowRegistry  # noqa: E402
 from tl_core.workflow.provider import use_workflows  # noqa: E402
 
-TableRunner = ApiTableRunner
+# The real runner: it refuses a command whose actor holds too little, so a test that dispatches
+# makes the accounts of its actors first (``make_person``).
+TableRunner = TableCommandRunner
 
 
 def everyone(level: Access) -> bool:
@@ -112,8 +114,9 @@ def planning_world() -> Iterator[None]:
         yield
 
 
-def make_person(db: DbTarget, username: str, kind: AccountKind = "person") -> None:
-    """An active account, so ``@username`` resolves."""
+def make_person(db: DbTarget, username: str, kind: AccountKind = "person", *roles: str) -> None:
+    """An active account (``roles`` default to ``user``), so ``@username`` resolves and the runner
+    finds what the actor holds."""
     from tl_core.auth import accounts
 
     with open_uow(db) as uow:
@@ -122,7 +125,7 @@ def make_person(db: DbTarget, username: str, kind: AccountKind = "person") -> No
             username=username,
             display_name=username.title(),
             kind=kind,
-            roles=["user"],
+            roles=list(roles) or ["user"],
             password=None,
             by="user:a",
         )

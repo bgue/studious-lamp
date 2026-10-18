@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 from sqlalchemy import text
-from thread_world import P1, TableRunner, make_record, planning_world, put_setting
+from thread_world import P1, TableRunner, make_person, make_record, planning_world, put_setting
 from tl_adapters.db import DbTarget, open_uow
 from tl_core.integration.contract import Access
 from tl_core.proposals.types import PROPOSABLE_TOOLS, ProposalView
@@ -20,6 +20,13 @@ from tl_core.threads.errors import DispatchDisabledError, DispatchRefusedError, 
 RUNNER = TableRunner()
 AGENT = "agent:planner"
 PERSON = "user:mlee"
+
+
+@pytest.fixture(autouse=True)
+def accounts(db: DbTarget) -> None:
+    """The runner finds what an actor holds in its account, so the people who dispatch have one."""
+    make_person(db, "mlee")
+    make_person(db, "planner", "agent")
 
 
 @pytest.fixture(autouse=True)

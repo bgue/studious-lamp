@@ -34,6 +34,14 @@ RUNNER = TableRunner()
 
 
 @pytest.fixture(autouse=True)
+def accounts(db: DbTarget) -> None:
+    """The runner finds what an actor holds in its account, so the people who dispatch have one."""
+    for name in ("rgarcia",):
+        make_person(db, name)
+    make_person(db, "planner", "agent")
+
+
+@pytest.fixture(autouse=True)
 def world() -> Iterator[None]:
     with planning_world():
         yield
@@ -192,7 +200,7 @@ def test_an_expired_preview_is_stale(db: DbTarget) -> None:
 def test_an_agent_never_dispatches_directly(db: DbTarget) -> None:
     rid = make_record(db, "REC-1")
     make_record(db, "REC-A")
-    token = token_for(db, rid, "/link REC-A", actor="agent:planner").token
+    token = token_for(db, rid, "/link REC-A").token
     with pytest.raises(DispatchForbiddenError):
         confirm(db, rid, "/link REC-A", token, actor="agent:planner")
 

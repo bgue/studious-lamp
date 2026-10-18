@@ -19,6 +19,7 @@ from pydantic import BaseModel, ValidationError
 from tl_core.auth import errors as auth
 from tl_core.derivation.registry import ExtractorLoadError
 from tl_core.extypes import errors as ext
+from tl_core.integration import errors as integ
 from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
 from tl_core.services import errors as svc
@@ -104,6 +105,13 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(wh.InvalidSubscriptionError, "invalid_subscription", 422),
         s(wh.AlreadyInStateError, "already_in_state", 409),
         s(wh.SubscriptionNotActiveError, "subscription_not_active", 409),
+        # --- integration layer (P1-I7 WS-A) ----------------------------------------------------
+        s(integ.InvalidIntegrationError, "invalid_integration", 422),
+        s(integ.IntegrationNotFoundError, "integration_not_found", 404),
+        s(integ.DuplicateIntegrationError, "duplicate_integration", 409),
+        s(integ.IntegrationStateError, "integration_state", 409),
+        s(integ.ActionAccessError, "action_access", 403),
+        s(integ.CommandAccessError, "command_access", 403),
         # --- activity feed (P0-I6) -----------------------------------------------------------
         s(svc.PostNotFoundError, "post_not_found", 404),
         s(svc.PostRetractedError, "post_retracted", 409),

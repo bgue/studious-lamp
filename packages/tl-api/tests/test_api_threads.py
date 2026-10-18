@@ -11,6 +11,7 @@ from harness import ALICE, BOB, SCOPE, Harness
 from test_stream import open_stream
 from tl_api.tokens import add_token
 from tl_core import settings
+from tl_core.auth import accounts
 from tl_core.threads.visibility import use_read_filter
 from tl_core.uow import UnitOfWork
 
@@ -23,6 +24,20 @@ def switch_on(h: Harness) -> None:
             settings.set_setting(
                 uow, key=key, layer="company", value=value, actor="user:a", source="t", reason="t"
             )
+
+
+def make_account(h: Harness, name: str, kind: str = "person") -> None:
+    """The command runner reads what an actor holds from its account."""
+    with h.backend(False) as uow:
+        accounts.create_account(
+            uow,
+            username=name,
+            display_name=name,
+            kind=kind,  # type: ignore[arg-type]
+            roles=["user"],
+            password=None,
+            by="user:a",
+        )
 
 
 def post(client: TestClient, record_id: str, body: str) -> Any:
@@ -91,6 +106,7 @@ def test_a_slash_message_is_stored_not_dispatched(harness: Harness) -> None:
 
 def test_preview_then_dispatch_runs_what_was_previewed(harness: Harness) -> None:
     switch_on(harness)
+    make_account(harness, "alice")
     rid = harness.create_record("P123-REC-0001").stream_id
     other = harness.create_record("P123-REC-0002").stream_id
     line = "/link P123-REC-0002 as requires"
@@ -227,3 +243,22 @@ def test_a_filter_hides_the_thread_of_an_unreadable_record_everywhere(harness: H
             assert json.loads(live["data"])["payload"]["record_id"] == open_
     without = harness.client.get("/events").json()["events"]
     assert thread_event_records(without) == {secret, open_}  # no filter plugged: all readable
+
+
+def test_an_agent_token_can_neither_preview_nor_confirm_a_dispatch(harness: Harness) -> None:
+    switch_on(harness)
+    make_account(harness, "triage", "agent")
+    rid = harness.create_record("P123-REC-0001").stream_id
+    harness.create_record("P123-REC-0002")
+    agent = agent_client(harness)
+    line = "/link P123-REC-0002"
+    shown = harness.client.post(f"/records/{rid}/thread/preview", json={"text": line}).json()
+    token = shown["preview"]["token"]
+    for path, body in (
+        ("preview", {"text": line}),
+        ("dispatch", {"text": line, "token": token}),
+    ):
+        refused = agent.post(f"/records/{rid}/thread/{path}", json=body)
+        assert refused.status_code == 403, (path, refused.text)
+    events = harness.client.get("/events").json()["events"]
+    assert not [e for e in events if e["event_type"] in ("Link.Added", "Thread.Dispatched")]

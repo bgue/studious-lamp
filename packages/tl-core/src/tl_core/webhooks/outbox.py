@@ -50,6 +50,23 @@ _LINK_SQL = text("SELECT from_id, to_id, relation FROM cur_links WHERE link_id =
 _FILE_SQL = text("SELECT record_id, slot FROM cur_files WHERE file_id = :id")
 
 
+def _hashtags(payload: dict[str, Any]) -> list[str]:
+    """The hashtags of a payload, without the hash sign, in order, each once.
+
+    ``hashtags`` is a plain list of text. A ``Feed.Posted`` or ``Feed.Edited`` payload carries
+    ``tags`` instead (``tl_core.feed.tags.tags_to_payload``): every tag that is not a mention is a
+    ``#`` tag of the post (record, code, signal or topic). A rule or a webhook that selects on
+    ``hashtags`` must see them (P1-I7 found that only the plain list was read).
+    """
+    found = [str(tag).lstrip("#") for tag in as_list(payload.get("hashtags"))]
+    for item in as_list(payload.get("tags")):
+        tag = as_object(item)
+        text_value = tag.get("text")
+        if tag.get("kind") != "mention" and isinstance(text_value, str):
+            found.append(text_value.lstrip("#"))
+    return list(dict.fromkeys(found))
+
+
 def leaf_paths(prefix: str, value: Any) -> dict[str, Any]:
     """Flatten nested objects to dotted paths: ``{"a": {"b": 1}}`` under ``x`` gives ``{"x.a.b":
     1}``.
@@ -196,7 +213,7 @@ class OutboxProjector:
         from_state = to_state = None
         if event.event_type == "Workflow.Transitioned":
             from_state, to_state = payload.get("from_state"), payload.get("to_state")
-        hashtags = [str(tag).lstrip("#") for tag in as_list(payload.get("hashtags"))]
+        hashtags = _hashtags(payload)
         data: dict[str, Any] = {
             "origin": {
                 "id": subject_id,

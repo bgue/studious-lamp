@@ -2,8 +2,9 @@
 
 The command is ``InvokeAction`` (WS-A, ``tl_core.integration.contract``) with the thread's record
 as the target. The text, when there is one, is the parameter ``text`` unless the line names one.
-Until the integration layer is merged the runner does not know the command and the planner answers
-``dispatch_unavailable``.
+The runner (``tl_api.commands.command_runner``) runs it as the caller: the action's own ``access``
+is checked against what the caller holds, so a dispatch never invokes more than the person could
+by hand. A line that names no such action is the plan's problem (``command_refused``).
 """
 
 from __future__ import annotations

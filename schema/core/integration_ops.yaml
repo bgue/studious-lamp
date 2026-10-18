@@ -1,0 +1,240 @@
+id: https://example.org/throughline/core/integration_ops
+name: tl_core_integration_ops
+title: Throughline integration operational tables (P1-I7, ADR-0017)
+description: >-
+  The operational state of the integration layer (brief 18.5, 18.7 to 18.9; FANOUT D4, D13): signing secrets,
+  replay ids, inbound deliveries and their counters, and the cursors and firing rows of the rules worker and
+  the enrichment dispatcher. Like the `wh_*`, `auth_*` and `job_queue` tables they are not projections: no event
+  produces them, a rebuild never clears them, and the archive, the lake and webhooks never read them. A restore
+  from the archive brings back the records but not these tables, so a restored ledger re-issues its secrets
+  (runbook `docs/runbooks/integration.md`). They use `tl:current_state` and `tl:table` only to get one DDL for
+  both dialects. Timestamps are ISO-8601 UTC strings with microseconds and a `Z` suffix, which sort correctly
+  as text on both databases. `int_secret.secret` is a credential: no event, log line, error text, API answer or
+  dev tool ever carries it.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+  - outbox
+  - integration
+default_range: string
+annotations:
+  tl:module: core
+
+enums:
+  SecretOwnerKind:
+    description: Whose signing secret a row is.
+    permissible_values:
+      inbound:
+        description: The HMAC or JWT secret of an inbound endpoint (`owner_id` is the endpoint id).
+      action:
+        description: The signing secret of a webhook action (`owner_id` is the definition id).
+  DeliveryState:
+    description: Where an inbound delivery is.
+    permissible_values:
+      queued:
+        description: Verified and stored; waiting for the `inbound.map` job.
+      applied:
+        description: Mapped and every command ran.
+      failed:
+        description: Mapping or a command was refused; in the error queue until retried.
+      dry_run:
+        description: Mapped and planned for a dry-run endpoint; nothing ran.
+      killed:
+        description: Passed over while the kill switch was on; never replayed.
+
+classes:
+  IntegrationSecret:
+    description: A signing secret of an inbound endpoint or a webhook action. Secrets never enter the ledger or the logs.
+    annotations:
+      tl:current_state: true
+      tl:table: int_secret
+      tl:ix_owner: "owner_kind, owner_id, state"
+    attributes:
+      secret_id:
+        identifier: true
+        range: Ulid
+        required: true
+      owner_kind:
+        range: SecretOwnerKind
+        required: true
+      owner_id:
+        range: Ulid
+        required: true
+      secret:
+        required: true
+        description: "`whsec_` plus the base64 of 32 random bytes (the Standard Webhooks format)."
+      state:
+        range: SecretState
+        required: true
+        ifabsent: string(active)
+      created_at:
+        required: true
+      expires_at:
+        description: ISO-8601 UTC. A rotated-out secret keeps verifying until this time (at most 24 hours), then retires.
+
+  InboundReplay:
+    description: A webhook id or JWT id already seen by an endpoint inside the replay window.
+    annotations:
+      tl:current_state: true
+      tl:table: int_replay
+      tl:ix_seen: "seen_at"
+    attributes:
+      replay_id:
+        identifier: true
+        required: true
+        description: "`<endpoint id>:<webhook-id or jti>`; the primary key makes a second use fail."
+      endpoint_id:
+        range: Ulid
+        required: true
+      seen_at:
+        required: true
+        description: ISO-8601 UTC; rows older than the retention are pruned.
+
+  InboundDelivery:
+    description: One accepted inbound POST and what became of it. The raw body is an object, never a column.
+    annotations:
+      tl:current_state: true
+      tl:table: int_delivery
+      tl:ix_endpoint_state: "endpoint_id, state"
+      tl:ix_received: "received_at"
+    attributes:
+      delivery_id:
+        identifier: true
+        range: Ulid
+        required: true
+      endpoint_id:
+        range: Ulid
+        required: true
+      endpoint_version:
+        range: integer
+        required: true
+        description: The endpoint version the delivery is mapped by.
+      scope:
+        range: ScopeId
+        required: true
+      state:
+        range: DeliveryState
+        required: true
+        ifabsent: string(queued)
+      object_key:
+        required: true
+        description: "`inbound/<endpoint id>/<delivery id>`; the raw body."
+      payload_sha256:
+        required: true
+      payload_size:
+        range: integer
+        required: true
+      corrected_object_key:
+        description: The corrected payload an admin supplied on a retry, as a new object.
+      received_at:
+        required: true
+      finished_at:
+        description: ISO-8601 UTC of the last attempt.
+      attempts:
+        range: integer
+        required: true
+        ifabsent: int(0)
+      error_code:
+        description: A fixed code (`mapping_error`, `key_not_found`, `command_refused`, ...).
+      error_message:
+        description: A bounded message for a person; never a payload excerpt.
+      command_count:
+        range: integer
+        description: How many commands ran (or were planned, for a dry run).
+
+  InboundCounter:
+    description: Per-endpoint counters of accepted deliveries and of refusals by fixed code (never a header, a claim or a body).
+    annotations:
+      tl:current_state: true
+      tl:table: int_counter
+    attributes:
+      counter_id:
+        identifier: true
+        required: true
+        description: "`<endpoint id>:<code>`."
+      endpoint_id:
+        range: Ulid
+        required: true
+        annotations:
+          tl:indexed: true
+      code:
+        required: true
+        description: "`accepted`, `bad_signature`, `replay`, `too_large`, `rate_limited`, `invalid_payload`, ..."
+      count:
+        range: integer
+        required: true
+        ifabsent: int(0)
+      last_at:
+        required: true
+
+  RuleCursor:
+    description: How far the rules worker has read the ledger.
+    annotations:
+      tl:current_state: true
+      tl:table: rule_cursor
+    attributes:
+      name:
+        identifier: true
+        required: true
+      last_seq:
+        range: integer
+        required: true
+        ifabsent: int(0)
+
+  RuleFiring:
+    description: >-
+      One rule's outcome for one event, written in the unit of work that runs its commands: the exactly-once
+      effect of a rule. `killed` rows record events passed over while the kill switch was on.
+    annotations:
+      tl:current_state: true
+      tl:table: rule_firing
+      tl:ix_event: "event_id"
+      tl:ix_rule_seq: "rule_id, seq desc"
+    attributes:
+      firing_id:
+        identifier: true
+        required: true
+        description: "`<rule id>:<rule version>:<event id>`."
+      rule_id:
+        range: Ulid
+        required: true
+      rule_version:
+        range: integer
+        required: true
+      event_id:
+        range: Ulid
+        required: true
+      seq:
+        range: integer
+        required: true
+      depth:
+        range: integer
+        required: true
+      outcome:
+        required: true
+        description: "`fired`, `proposed`, `skipped_condition`, `refused`, `depth_limit`, `budget` or `killed`."
+      command_count:
+        range: integer
+        required: true
+        ifabsent: int(0)
+      fired_at:
+        required: true
+
+  EnrichmentCursor:
+    description: How far an enrichment dispatcher has read the ledger.
+    annotations:
+      tl:current_state: true
+      tl:table: enrich_cursor
+    attributes:
+      name:
+        identifier: true
+        required: true
+      last_seq:
+        range: integer
+        required: true
+        ifabsent: int(0)

@@ -74,6 +74,10 @@ from tl_core.util import new_ulid, utcnow
 NOT_A_DISPATCH = "not_a_dispatch"
 UNAVAILABLE = "dispatch_unavailable"
 
+#: Fields no planned command may carry: the server's (D2) and the two that grant rights a command
+#: line must never hold (a workflow role, the "I accept the risk" of a dangerous setting).
+NEVER_FORWARDED = SERVER_SET_FIELDS | {"actor_roles", "accept_risk"}
+
 
 class Factory(Protocol):
     """``factory(readonly=...)`` yields an entered unit of work (every entry point has one)."""
@@ -184,6 +188,8 @@ class ThreadPlanner:
         runner: CommandRunner,
         dry_run: bool = True,
     ) -> DispatchPlan | ParseProblem:
+        if actor.startswith("agent:"):
+            dry_run = False  # an agent only proposes: nothing is run as it, even rolled back
         parsed = self.parser.parse(text)
         if parsed is None:
             return ParseProblem(code=NOT_A_DISPATCH, message="the text is a plain message")
@@ -252,7 +258,7 @@ class ThreadPlanner:
                 update={"access": access, "permitted": False, "problem": problem}
             )
 
-        if SERVER_SET_FIELDS & command.keys():
+        if NEVER_FORWARDED & command.keys():
             return refuse(
                 None,
                 Problem(
@@ -351,6 +357,9 @@ class ThreadPlanner:
         holds: Callable[[Access], bool],
         runner: CommandRunner,
     ) -> DispatchPreview | ParseProblem:
+        """The preview a person sees. An agent has none: it proposes (``build_dispatch_proposal``)."""
+        if not actor.startswith("user:"):
+            raise DispatchForbiddenError("only a person previews a dispatch; an agent proposes one")
         made = self.plan(
             uow, record_id=record_id, text=text, actor=actor, holds=holds, runner=runner
         )

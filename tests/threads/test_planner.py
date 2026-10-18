@@ -28,10 +28,18 @@ from tl_core.threads.errors import (
     ThreadsDisabledError,
 )
 from tl_core.threads.messages import PostThreadMessage, handle_post_thread_message
-from tl_core.threads.planner import ThreadPlanner
+from tl_core.threads.planner import DispatchPlan, ThreadPlanner
 from tl_core.threads.targets import TargetRegistry, core_targets
 
 RUNNER = TableRunner()
+
+
+@pytest.fixture(autouse=True)
+def accounts(db: DbTarget) -> None:
+    """The runner finds what an actor holds in its account, so the people who dispatch have one."""
+    for name in ("rgarcia",):
+        make_person(db, name)
+    make_person(db, "planner", "agent")
 
 
 @pytest.fixture(autouse=True)
@@ -44,6 +52,19 @@ def planner(db: DbTarget) -> ThreadPlanner:
     from tl_adapters.db import open_uow as _open
 
     return ThreadPlanner(factory=lambda readonly=False: _open(db, readonly=readonly))
+
+
+def plan_as_agent(db: DbTarget, record_id: str, text_: str) -> Any:
+    """What a proposal is made from: an agent has no preview, only a plan with nothing run."""
+    with open_uow(db, readonly=True) as uow:
+        return planner(db).plan(
+            uow,
+            record_id=record_id,
+            text=text_,
+            actor="agent:planner",
+            holds=everyone,
+            runner=RUNNER,
+        )
 
 
 def preview(
@@ -208,7 +229,7 @@ def test_a_registered_target_makes_a_verb_available(db: DbTarget) -> None:
     assert found.planned[0].command_type == "CreateRecord"
 
 
-def test_dispatch_is_unavailable_until_the_integration_layer_is_merged(db: DbTarget) -> None:
+def test_dispatch_plans_an_invoke_action_on_the_thread_record(db: DbTarget) -> None:
     rid = make_record(db, "REC-1")
     found = ok(preview(db, rid, "/dispatch send_to_nde qty=2 urgent"))
     assert found.planned[0].command_type == "InvokeAction"
@@ -217,10 +238,8 @@ def test_dispatch_is_unavailable_until_the_integration_layer_is_merged(db: DbTar
         "targets": [rid],
         "parameters": {"qty": "2", "text": "urgent"},
     }
-    if RUNNER.model_of("InvokeAction") is None:
-        assert found.planned[0].problem is not None
-        assert found.planned[0].problem.code == "dispatch_unavailable"
-        assert not found.can_dispatch
+    # The action is not defined here, so the dry run refuses it: the plan's problem, not a crash.
+    assert found.planned[0].problem is not None and not found.can_dispatch
 
 
 def test_access_is_the_callers_never_more(db: DbTarget) -> None:
@@ -343,15 +362,13 @@ def test_the_gate_is_the_settings_and_the_roles(db: DbTarget) -> None:
         preview(db, rid, "/hold x")
 
 
-def test_an_agent_previews_only_while_agents_may_propose(db: DbTarget) -> None:
+def test_an_agent_is_planned_for_only_while_agents_may_propose(db: DbTarget) -> None:
     rid = make_record(db, "REC-1")
     put_setting(db, "threads.dispatch.roles", ["admin"])
-    assert isinstance(
-        preview(db, rid, "/hold x", actor="agent:planner", holds=everyone), DispatchPreview
-    )
+    assert isinstance(plan_as_agent(db, rid, "/hold x"), DispatchPlan)
     put_setting(db, "threads.agents.can_dispatch", "none")
     with pytest.raises(DispatchDisabledError):
-        preview(db, rid, "/hold x", actor="agent:planner")
+        plan_as_agent(db, rid, "/hold x")
 
 
 def test_a_record_that_is_not_there_is_the_record_routes_answer(db: DbTarget) -> None:

@@ -30,6 +30,7 @@ from typing import Any
 from sqlalchemy import Connection, text
 
 from tl_core.auth.projector import ACCOUNT_STREAM_TYPE
+from tl_core.integration.streams import INTEGRATION_INTERNAL_EVENT_TYPES
 from tl_core.query.api import QuerySpec, count_query, parse
 from tl_core.query.ast import And, Compare
 from tl_core.services.queries import get_record_by_id
@@ -122,10 +123,13 @@ class SubscriptionRow:
     def receives(self, row: OutboxRow) -> bool:
         """Whether ``row`` falls inside this subscription's window, scope and expiry.
 
-        Account events (ADR-0009) are internal and never delivered, whatever the filter says. Of a
-        thread's events only a posted message and a dispatch are delivered (brief 21.5).
+        Account events (ADR-0009) and the configuration and bookkeeping events of the integration
+        layer (ADR-0017) are internal and never delivered, whatever the filter says. Of a thread's
+        events only a posted message and a dispatch are delivered (brief 21.5).
         """
         if row.stream_type == ACCOUNT_STREAM_TYPE:
+            return False
+        if row.event_type in INTEGRATION_INTERNAL_EVENT_TYPES:
             return False
         if (
             row.stream_type == THREAD_STREAM_TYPE

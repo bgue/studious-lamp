@@ -9,6 +9,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp_harness import ACTOR, SCOPE, McpHarness
 from tl_api.thread_runner import thread_runner
 from tl_core import settings
+from tl_core.auth import accounts
 from tl_core.proposals.types import ProposalView
 from tl_core.services import proposals
 from tl_core.services.commands import UpdateRecord
@@ -18,7 +19,18 @@ ALICE = "user:alice"
 
 
 def switch_on(env: McpHarness) -> None:
+    """Threads on for records, and the accounts the runner reads what an actor holds from."""
     with env.factory(False) as uow:
+        for name, kind in (("triage", "agent"), ("alice", "person")):
+            accounts.create_account(
+                uow,
+                username=name,
+                display_name=name,
+                kind=kind,  # type: ignore[arg-type]
+                roles=["user"],
+                password=None,
+                by="user:a",
+            )
         for key, value in (("threads.enabled", True), ("threads.enabled_types", ["core.Record"])):
             settings.set_setting(
                 uow, key=key, layer="company", value=value, actor="user:a", source="test"

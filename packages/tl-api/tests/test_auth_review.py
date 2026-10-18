@@ -379,6 +379,18 @@ AGENT_MAY_NOT = {
     "admin.command.ReviseTagClass",
     "admin.command.CloseTagClass",
     "admin.command.RecordTag",
+    # the integration layer (P1-I7 WS-A, FANOUT D12): authoring is the admin's, agents have no tool
+    "admin.command.CreateRule",
+    "admin.command.ReviseRule",
+    "admin.command.EnableRule",
+    "admin.command.DisableRule",
+    "admin.command.ReviseAction",
+    "admin.command.RetireAction",
+    "admin.command.RegisterIntegrationApp",
+    "admin.command.ReviseIntegrationApp",
+    "admin.command.SetIntegrationAppEnabled",
+    "admin.command.ReviseInboundEndpoint",
+    "admin.command.SetInboundEndpointEnabled",
     # recovery: flag or retract any link, a module's rule link included (the admin's, ADR-0013)
     "admin.command.AdminFlagLink",
     "admin.command.AdminRetractLink",

@@ -43,7 +43,7 @@ from typing import Any, Protocol
 from pydantic import ValidationError
 from sqlalchemy import Connection, text
 
-from tl_core.integration.contract import CommandRunner
+from tl_core.integration.contract import CommandRunner, InvokeAction
 from tl_core.ledger import ConcurrencyError, NewEvent
 from tl_core.modules import module_proposables
 from tl_core.projection.proposals import PROPOSAL_STREAM_TYPE
@@ -58,7 +58,7 @@ from tl_core.proposals.types import (
     ProposalView,
     SettingProposalInfo,
 )
-from tl_core.services.commands import Command, CommandResult, CreateRecord
+from tl_core.services.commands import Command, CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.errors import (
     BudgetExceededError,
     GuardFailedError,
@@ -71,9 +71,10 @@ from tl_core.services.errors import (
     RiskNotAcceptedError,
     ServiceError,
 )
-from tl_core.services.links import AddLink, handle_add_link
+from tl_core.services.feed import PostToFeed, handle_post
+from tl_core.services.links import AddLink, SuggestLink, handle_add_link, handle_suggest_link
 from tl_core.services.psets import SetPsetValues, handle_set_pset_values
-from tl_core.services.records import handle_create_record
+from tl_core.services.records import handle_create_record, handle_update_record
 from tl_core.services.reserved import refuse_reserved
 from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.services.workflow import TransitionWorkflow, handle_transition_workflow
@@ -113,6 +114,13 @@ DEFAULT_SOURCE = "review"  # the Source of the decision events when the caller n
 ROLE_GUARD_KIND = "roles"
 
 _PROPOSER = re.compile(r"(?:agent|user):[A-Za-z0-9][A-Za-z0-9_.@-]*")
+#: A rule in ``propose`` mode proposes as ``svc:rule-<slug>`` (P1-I7, ADR-0017); nothing else with
+#: the ``svc:`` prefix proposes. Accepting still needs the access of the command (ADR-0014).
+_RULE_PROPOSER = re.compile(r"svc:rule-([a-z0-9][a-z0-9_.-]{0,80})")
+#: The ``tool`` a rule's proposals carry: it is not an MCP tool and no agent can name it.
+RULE_PROPOSAL_TOOL = "rule"
+#: The ``tool`` of a proposal that holds an action needing approval (P1-I7): not an MCP tool either.
+ACTION_PROPOSAL_TOOL = "action"
 _PERSON = re.compile(r"user:[A-Za-z0-9][A-Za-z0-9_.@-]*")
 
 #: command type name -> (model, handler) of the core commands. The keys are the values of
@@ -125,7 +133,26 @@ COMMANDS: dict[str, tuple[type[Command], Handler]] = {
     "ChangeSetting": (ChangeSetting, handle_change_setting),
     # P1-I7 WS-B: ``accept_proposal`` runs it with the accepting person's ``holds`` and a runner.
     "DispatchFromThread": (DispatchFromThread, _dispatch_needs_a_runner),
+    # P1-I7 WS-A: the commands a rule in ``propose`` mode may carry. No agent tool maps to them
+    # (``PROPOSABLE_TOOLS`` is unchanged), so only ``propose_for_rule`` can create such a proposal.
+    "UpdateRecord": (UpdateRecord, handle_update_record),
+    "SuggestLink": (SuggestLink, handle_suggest_link),
+    "PostToFeed": (PostToFeed, handle_post),
+    "InvokeAction": (InvokeAction, lambda uow, cmd: _invoke_action(uow, cmd)),
 }
+#: What a rule may propose: the automation commands whose handler is in this table.
+RULE_PROPOSABLE = frozenset(
+    {
+        "CreateRecord",
+        "UpdateRecord",
+        "SetPsetValues",
+        "AddLink",
+        "SuggestLink",
+        "TransitionWorkflow",
+        "PostToFeed",
+        "InvokeAction",
+    }
+)
 
 #: Who must accept a proposal of each core command: any signed-in person (ADR-0014).
 CORE_ACCESS = dict.fromkeys(COMMANDS, "user")
@@ -172,6 +199,15 @@ class _DryRun(Exception):
     """Raised at the end of ``precheck`` so its unit of work rolls back."""
 
 
+def _invoke_action(uow: UnitOfWork, cmd: InvokeAction) -> CommandResult:
+    """The table's handler for ``InvokeAction``: without ``holds``, so only an action open to any
+    signed-in person. ``accept_proposal`` calls the real handler with the accepting person's
+    access. (Imported here: the actions service imports this module.)"""
+    from tl_core.integration.actions.service import handle_invoke_action
+
+    return handle_invoke_action(uow, cmd)
+
+
 # --- naming ------------------------------------------------------------------------------------
 
 
@@ -180,6 +216,9 @@ def source_for(agent: str) -> str:
 
     Characters outside the ``source`` alphabet (``@``) become ``_``.
     """
+    rule = _RULE_PROPOSER.fullmatch(agent)
+    if rule is not None:
+        return "rule:" + rule.group(1)  # a reserved source: the server sets it (FANOUT D2)
     if _PROPOSER.fullmatch(agent) is None:
         raise InvalidProposalError(f"{agent!r} is not 'agent:<id>' or 'user:<id>'")
     return "mcp:" + re.sub(r"[^A-Za-z0-9_.-]", "_", agent.partition(":")[2])
@@ -408,6 +447,144 @@ def propose(
     return get_proposal(uow.conn(), proposal_id)
 
 
+def propose_for_rule(
+    uow: UnitOfWork,
+    *,
+    proposer: str,
+    command: Command,
+    summary: str,
+    trigger_event_id: str,
+    correlation_id: str,
+    now: datetime | None = None,
+    budget: int | None = None,
+) -> ProposalView:
+    """Record ``Proposal.Created`` for one command of a rule in ``propose`` mode (D3, D7).
+
+    ``proposer`` is ``svc:rule-<slug>``, the rule's service actor; ``trigger_event_id`` is the
+    event that matched (the proposal's cause, kept in its correlation with ``correlation_id``, the
+    triggering event's). The command must be one a rule may propose (``RULE_PROPOSABLE``) and must
+    not name a server-set identifier. The proposer has the same daily budget as an agent: a rule
+    cannot flood the review queue. Accepting is a person's, with the access of the command
+    (``accept_proposal``); the stored command runs as that person with the source ``rule:<slug>``.
+    """
+    if _RULE_PROPOSER.fullmatch(proposer) is None:
+        raise InvalidProposalError(f"{proposer!r} is not 'svc:rule-<slug>'")
+    command_type = type(command).__name__
+    if command_type not in RULE_PROPOSABLE:
+        raise InvalidProposalError(f"a rule cannot propose a {command_type}")
+    refuse_reserved(command)
+    clean = summary.strip()
+    if not clean or len(clean) > MAX_SUMMARY:
+        raise InvalidProposalError(f"summary must be 1 to {MAX_SUMMARY} characters")
+    if isinstance(command, TransitionWorkflow) and command.actor_roles:
+        raise InvalidProposalError(
+            "a rule cannot claim workflow roles; the person who accepts supplies them"
+        )
+    source = source_for(proposer)
+    limit = budget if budget is not None else daily_budget(uow.conn())
+    if proposals_today(uow.conn(), proposer, now=now) >= limit:
+        raise BudgetExceededError(
+            f"{proposer} has used its {limit} proposals for today (UTC); try again tomorrow"
+        )
+    proposal_id = new_ulid()
+    stored = command.model_copy(
+        update={
+            "actor": proposer,
+            "source": source,
+            "correlation_id": correlation_id,
+            "causation_id": trigger_event_id,
+            "idempotency_key": None,
+        }
+    )
+    uow.append(
+        stream_id=proposal_id,
+        stream_type=PROPOSAL_STREAM_TYPE,
+        scope=command.scope,
+        expected_version=0,
+        events=[
+            NewEvent(
+                event_type=PROPOSAL_CREATED,
+                effective_at=now,
+                payload={
+                    "proposal_id": proposal_id,
+                    "tool": RULE_PROPOSAL_TOOL,
+                    "agent": proposer,
+                    "command_type": command_type,
+                    "command": stored.model_dump(mode="json"),
+                    "summary": clean,
+                },
+            )
+        ],
+        actor=proposer,
+        source=source,
+        correlation_id=correlation_id,
+        causation_id=trigger_event_id,
+    )
+    return get_proposal(uow.conn(), proposal_id)
+
+
+def propose_action(
+    uow: UnitOfWork,
+    *,
+    proposer: str,
+    command: InvokeAction,
+    summary: str,
+    now: datetime | None = None,
+    budget: int | None = None,
+) -> ProposalView:
+    """Record an action that needs a second person's approval (brief §18.7 ``requires_approval``).
+
+    ``proposer`` is the person who asked (``user:<id>``) or the rule that did. The stored command
+    keeps the source it came with; accepting it runs ``InvokeAction`` again as the accepting
+    person, who must hold the action's access and must not be the proposer
+    (:func:`accept_proposal`). Same daily budget as an agent.
+    """
+    if _PERSON.fullmatch(proposer) is None and _RULE_PROPOSER.fullmatch(proposer) is None:
+        raise InvalidProposalError(f"{proposer!r} is not 'user:<id>' or 'svc:rule-<slug>'")
+    refuse_reserved(command)
+    clean = summary.strip()
+    if not clean or len(clean) > MAX_SUMMARY:
+        raise InvalidProposalError(f"summary must be 1 to {MAX_SUMMARY} characters")
+    limit = budget if budget is not None else daily_budget(uow.conn())
+    if proposals_today(uow.conn(), proposer, now=now) >= limit:
+        raise BudgetExceededError(
+            f"{proposer} has used its {limit} proposals for today (UTC); try again tomorrow"
+        )
+    proposal_id = new_ulid()
+    stored = command.model_copy(
+        update={
+            "actor": proposer,
+            "correlation_id": proposal_id,
+            "causation_id": None,
+            "idempotency_key": None,
+        }
+    )
+    uow.append(
+        stream_id=proposal_id,
+        stream_type=PROPOSAL_STREAM_TYPE,
+        scope=command.scope,
+        expected_version=0,
+        events=[
+            NewEvent(
+                event_type=PROPOSAL_CREATED,
+                effective_at=now,
+                payload={
+                    "proposal_id": proposal_id,
+                    "tool": ACTION_PROPOSAL_TOOL,
+                    "agent": proposer,
+                    "command_type": "InvokeAction",
+                    "command": stored.model_dump(mode="json"),
+                    "summary": clean,
+                },
+            )
+        ],
+        actor=proposer,
+        source=command.source,
+        correlation_id=proposal_id,
+    )
+    return get_proposal(uow.conn(), proposal_id)
+
+
 def _only_role_guards_failed(exc: GuardFailedError) -> bool:
     failed = [r for r in exc.results if not r.passed]
     return bool(failed) and all(r.kind == ROLE_GUARD_KIND for r in failed)
@@ -569,29 +746,43 @@ def accept_proposal(
     _require_person(by, "accept")
     row = _pending(uow, proposal_id)
     _require_access(row.command_type, holds)
+    if row.tool == ACTION_PROPOSAL_TOOL and row.agent == by:
+        raise ProposalDeciderError("an action that needs approval is approved by another person")
     model, handler = command_table()[row.command_type]
     data = _as_object(row.command_json)
     data.update(
         actor=by,
-        source=source_for(row.agent),
         correlation_id=proposal_id,
         causation_id=row.created_event_id,
     )
+    if row.tool != ACTION_PROPOSAL_TOOL:
+        data["source"] = source_for(row.agent)
     if model is TransitionWorkflow:
         data["actor_roles"] = list(roles)
     if model is ChangeSetting:
         data["accept_risk"] = accept_risk
-    if model is DispatchFromThread:
+    command = model.model_validate(data)
+    if isinstance(command, DispatchFromThread):
         if runner is None:
             raise ProposalAccessError("a dispatch proposal is accepted where commands can run")
         result = handle_dispatch_from_thread(
             uow,
-            DispatchFromThread.model_validate(data),
+            command,
             holds=lambda level: level == "user" or (holds is not None and holds(level)),
             runner=runner,
         )
+    elif isinstance(command, InvokeAction):
+        from tl_core.integration.actions.service import handle_invoke_action
+        from tl_core.integration.errors import ActionAccessError
+
+        try:
+            result = handle_invoke_action(
+                uow, command, holds=holds, proposal_id=proposal_id, invoked_by=row.agent
+            )
+        except ActionAccessError as exc:  # the proposal stays pending; it is not a failure of it
+            raise ProposalAccessError(str(exc)) from exc
     else:
-        result = handler(uow, model.model_validate(data))
+        result = handler(uow, command)
     _decide(
         uow,
         row,

@@ -144,10 +144,11 @@ RESERVED_RELATION = "supersedes"
 PIPELINE_OWNED_TARGETS: dict[str, frozenset[str]] = {
     "derived_from": frozenset({"documents.DerivedDocument"})
 }
-#: Link sources only the system may claim: a rule, an enricher, an import and a mapping write
-#: links no person made, and a link of such a source is kept by the module that wrote it. A client
-#: that could claim one would make a link nobody can retract (P1-I2 security review).
-SYSTEM_LINK_SOURCES = frozenset({"rule", "enricher", "import", "mapping"})
+#: Link sources only the system may claim: a rule, an enricher, an import, a mapping and a thread
+#: dispatch write links no person made, and a link of such a source is kept by the module that wrote
+#: it. A client that could claim one would make a link nobody can retract (P1-I2 security review;
+#: ``thread_dispatch`` joined with P1-I7, ADR-0017).
+SYSTEM_LINK_SOURCES = frozenset({"rule", "enricher", "import", "mapping", "thread_dispatch"})
 _SAME_ENDS_SQL = text(
     "SELECT link_id, status, declined FROM cur_links "
     "WHERE from_id = :from_id AND to_id = :to_id AND relation = :relation"
@@ -189,9 +190,14 @@ def _create(
     extra: dict[str, Any],
     *,
     by_module: bool = False,
+    system_source: LinkSource | None = None,
 ) -> CommandResult:
     """Shared body of ``handle_add_link`` and ``handle_suggest_link``."""
-    if cmd.link_source in SYSTEM_LINK_SOURCES and not by_module:
+    if (
+        cmd.link_source in SYSTEM_LINK_SOURCES
+        and not by_module
+        and cmd.link_source != system_source
+    ):
         raise ReservedLinkSourceError(
             f"link source {cmd.link_source!r} is for links the system writes; "
             "a person's or an agent's link is manual"
@@ -350,25 +356,47 @@ def _require_owner_allows(uow: UnitOfWork, link: Any, event_type: str) -> None:
         )
 
 
-def handle_add_link(uow: UnitOfWork, cmd: AddLink, *, by_module: bool = False) -> CommandResult:
+def handle_add_link(
+    uow: UnitOfWork,
+    cmd: AddLink,
+    *,
+    by_module: bool = False,
+    system_source: LinkSource | None = None,
+) -> CommandResult:
     """Create an active link. Emits ``Link.Added``.
 
     ``by_module`` is for a module or service path: its own command makes the link, so the type's
     generic-command allow-list, the reserved ``supersedes`` relation and the system link sources
-    (``rule``, ``enricher``, ``import``, ``mapping``) do not apply. It is a Python argument, not a
-    field of the command, so no client can set it.
+    (``rule``, ``enricher``, ``import``, ``mapping``, ``thread_dispatch``) do not apply. It is a
+    Python argument, not a field of the command, so no client can set it.
+
+    ``system_source`` is the narrow form for automation (P1-I7, ADR-0017): it lets the command
+    carry that one system link source and nothing else is lifted, so the allow-list, the guards
+    and the reserved relations still apply to the rule, endpoint or dispatch that uses it.
     """
-    return _create(uow, cmd, "Link.Added", {}, by_module=by_module)
+    return _create(uow, cmd, "Link.Added", {}, by_module=by_module, system_source=system_source)
 
 
 def handle_suggest_link(
-    uow: UnitOfWork, cmd: SuggestLink, *, by_module: bool = False
+    uow: UnitOfWork,
+    cmd: SuggestLink,
+    *,
+    by_module: bool = False,
+    system_source: LinkSource | None = None,
 ) -> CommandResult:
     """Create a suggested link that waits for accept or decline. Emits ``Link.Suggested``.
 
     Raises ``SuggestionDeclinedError`` when a person declined the same suggestion before.
+    ``system_source`` is as for :func:`handle_add_link`.
     """
-    return _create(uow, cmd, "Link.Suggested", {"confidence": cmd.confidence}, by_module=by_module)
+    return _create(
+        uow,
+        cmd,
+        "Link.Suggested",
+        {"confidence": cmd.confidence},
+        by_module=by_module,
+        system_source=system_source,
+    )
 
 
 def handle_accept_link(

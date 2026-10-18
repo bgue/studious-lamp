@@ -165,6 +165,18 @@ def test_a_workflow_transition_records_both_states_and_a_status_change(world: Wo
     assert data(row)["changes"] == {"status": ["InReview", "Issued"]}
 
 
+def test_the_tags_of_a_real_post_payload_are_hashtags_except_mentions(world: World) -> None:
+    """``Feed.Posted`` carries ``tags`` (kind, text), not a ``hashtags`` list (found in P1-I7)."""
+    tags = [
+        {"text": "safety", "kind": "signal", "start": 0, "end": 7},
+        {"text": "area:A12", "kind": "code", "start": 8, "end": 17, "namespace": "area"},
+        {"text": "jsmith", "kind": "mention", "start": 18, "end": 25},
+        {"text": "safety", "kind": "signal", "start": 26, "end": 33},
+    ]
+    world.append("Feed.Posted", {"post_id": "p", "body": "x", "tags": tags})
+    assert json.loads(world.query(OUTBOX_SQL)[-1]["hashtags_json"]) == ["safety", "area:A12"]
+
+
 def test_hashtags_are_collected_without_the_hash_sign(world: World) -> None:
     world.append("Feed.Posted", {"post_id": "p", "body": "x", "hashtags": ["#safety", "qa"]})
     assert json.loads(world.query(OUTBOX_SQL)[-1]["hashtags_json"]) == ["safety", "qa"]

@@ -68,6 +68,7 @@ def test_the_platform_file_defines_the_keys_of_decision_d2() -> None:
         "project.mode",
         "ui.tui.keymap",
         "ui.tui.graphics",
+        "integration.kill_switch",  # P1-I7 WS-A
     }
 
 
