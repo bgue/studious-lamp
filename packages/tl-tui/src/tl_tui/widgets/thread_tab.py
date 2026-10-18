@@ -4,14 +4,7 @@ result cards (P1-I7; brief 21.5, sketch 13).
 ``c`` composes (the thread composer, which also takes slash commands), ``o`` loads older messages.
 The tab reads only through `ClientInterface` and shows the lines of `tl_tui.thread_text`; it decides
 nothing about what a command line means.
-
-STUB: reload, _draw, action_older and action_compose are yours to write (ticket P1-I7-T11a).
-Remove this paragraph, every STEPS comment and the two lint-silencing lines below when you are
-done.
 """
-
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 
 from __future__ import annotations
 
@@ -69,54 +62,78 @@ class ThreadTab(Vertical, can_focus=True):
         self.reload()
 
     def reload(self) -> None:
-        # STEPS
-        # 1. When self.record is None return.
-        # 2. Try self.page = self.client.thread_page(self.record["id"], limit=PAGE_SIZE).
-        # 3. except NotImplementedError (a client with no threads): self.page = None;
-        #    self._draw(); return.
-        # 4. except CLIENT_ERRORS as exc: post StatusMessage(describe_error(exc), "error")
-        #    and return (the display is kept).
-        # 5. After the try call self._draw().
-        raise NotImplementedError
+        if self.record is None:
+            return
+        try:
+            self.page = self.client.thread_page(self.record["id"], limit=PAGE_SIZE)
+        except NotImplementedError:
+            # A client with no threads: the tab stays empty.
+            self.page = None
+            self._draw()
+            return
+        except CLIENT_ERRORS as exc:
+            self.post_message(StatusMessage(describe_error(exc), "error"))
+            return
+        self._draw()
 
     def _draw(self) -> None:
-        # STEPS
-        # 1. header, body and hint are the Statics #thread-header, #thread-body and #thread-
-        #    hint (query_one(..., Static)). page = self.page.
-        # 2. page is None: update all three with "" and return.
-        # 3. header.update(header_text(page)). pages = [*reversed(self._older), page]; lines
-        #    = every line of message_lines(p) for p in pages, in order.
-        # 4. No lines: lines = ["No messages yet."] when page.enabled, else ["Threads are
-        #    not switched on for this type."].
-        # 5. body.update(Text("\n".join(lines))). oldest = pages[0]; more = "  o older" when
-        #    oldest.next_before is not None, else "".
-        # 6. hint.update("c compose · / for commands" + more) when page.enabled, else
-        #    hint.update("").
-        raise NotImplementedError
+        header = self.query_one("#thread-header", Static)
+        body = self.query_one("#thread-body", Static)
+        hint = self.query_one("#thread-hint", Static)
+        page = self.page
+        if page is None:
+            header.update("")
+            body.update("")
+            hint.update("")
+            return
+        header.update(header_text(page))
+        pages = [*reversed(self._older), page]
+        lines = [line for p in pages for line in message_lines(p)]
+        if not lines:
+            lines = (
+                ["No messages yet."]
+                if page.enabled
+                else ["Threads are not switched on for this type."]
+            )
+        body.update(Text("\n".join(lines)))
+        oldest = pages[0]
+        more = "  o older" if oldest.next_before is not None else ""
+        hint.update(("c compose · / for commands" + more) if page.enabled else "")
 
     def action_older(self) -> None:
         """Load the page before the oldest one shown and draw it above."""
-        # STEPS
-        # 1. pages = [*reversed(self._older), self.page] when self.page is not None, else
-        #    [].
-        # 2. Return when pages is empty, when pages[0] is None, when pages[0].next_before is
-        #    None or when self.record is None.
-        # 3. Try older = self.client.thread_page(self.record["id"], limit=PAGE_SIZE,
-        #    before_seq=pages[0].next_before); on CLIENT_ERRORS post
-        #    StatusMessage(describe_error(exc), "error") and return.
-        # 4. self._older.append(older); self._draw().
-        raise NotImplementedError
+        pages = [*reversed(self._older), self.page] if self.page is not None else []
+        if not pages or pages[0] is None or pages[0].next_before is None or self.record is None:
+            return
+        try:
+            older = self.client.thread_page(
+                self.record["id"], limit=PAGE_SIZE, before_seq=pages[0].next_before
+            )
+        except CLIENT_ERRORS as exc:
+            self.post_message(StatusMessage(describe_error(exc), "error"))
+            return
+        self._older.append(older)
+        self._draw()
 
     def action_compose(self) -> None:
         """Open the thread composer; a posted or dispatched message reloads the tab."""
-        # STEPS
-        # 1. When self.record is None, self.page is None or not self.page.enabled: post
-        #    StatusMessage("Threads are not switched on for this record", "warning") and
-        #    return.
-        # 2. Import ThreadComposer from tl_tui.widgets.thread_composer inside the function
-        #    (as written). record = self.record.
-        # 3. Define done(message_id: str | None): when message_id is set, self.reload() and
-        #    post RecordChanged(record["id"]).
-        # 4. self.app.push_screen(ThreadComposer(self.client, record, actor=self.actor,
-        #    dispatch=self.page.dispatch_enabled), done).
-        raise NotImplementedError
+        if self.record is None or self.page is None or not self.page.enabled:
+            self.post_message(
+                StatusMessage("Threads are not switched on for this record", "warning")
+            )
+            return
+        from tl_tui.widgets.thread_composer import ThreadComposer
+
+        record = self.record
+
+        def done(message_id: str | None) -> None:
+            if message_id:
+                self.reload()
+                self.post_message(RecordChanged(record["id"]))
+
+        self.app.push_screen(
+            ThreadComposer(
+                self.client, record, actor=self.actor, dispatch=self.page.dispatch_enabled
+            ),
+            done,
+        )
