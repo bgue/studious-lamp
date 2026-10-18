@@ -159,6 +159,7 @@ Learnings that apply (pasted from `docs/memory/LEARNINGS.md` and the build's con
 - Never change `schema/**` or anything under `generated/`. Never edit a file outside *Allowed paths*.
 - Do not run `just test`, `just test-parity` or `just test-tui` (they take an hour); run the scoped commands in *Acceptance*. Other tests of `tests/threads/` exercise the same code (`test_planner.py`, `test_dispatch.py`); they are red until every ticket of the batch is merged and are not part of your acceptance.
 - Tests that open a database use the `db` fixture of `tests/threads/conftest.py`, so they run once per adapter named by `--adapters` (default sqlite). `tests/threads/thread_world.py` holds the helpers; it is in the tree and read only (L-P1-I7B-1).
+- The dispatching person needs an account: the command runner reads what an actor holds from `cur_account`, and `holds_of` (final) reads the same account, with no exception for a dev ledger. The fixture `thread_env` in `thread_cli_support.py` makes the account `user:dev` (L-P1-I7B-8). Do not add a fallback that says "holds everything".
 
 ## Allowed paths
 - `packages/tl-cli/src/tl_cli/thread_dispatch.py (edit)`
