@@ -30,8 +30,6 @@ FAKE_ID = "01J000000000000000000000"
 #: test_mcp_write_tools and the correspondence tests; lake_query has its own lake test).
 NOT_WALKED = {
     "lake_query": "tests/confidentiality/test_paths.py::test_the_lake",
-    # TEMPORARY: `suggest` is a stub until T07b1 merges; remove this line with that merge.
-    "suggest_triage": "stub until P1-I5-T07b1",
 }
 MIN_TOOLS = 20
 

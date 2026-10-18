@@ -38,9 +38,6 @@ MAY_READ = {
 #: Routes this file does not walk, and why. Anything else that is a GET route is walked.
 NOT_WALKED = {
     "/stream": "an open stream: tests/test_confidentiality_walk.py::test_the_stream",
-    # TEMPORARY: `suggest` is a stub until T07b1 merges; remove these two lines with that merge.
-    "/projects/{project}/correspondence-suggestion": "stub until P1-I5-T07b1",
-    "/projects/{project}/correspondence/{number}/suggestion": "stub until P1-I5-T07b1",
 }
 MIN_ROUTES = 70
 FAKE_ID = "01J000000000000000000000"
