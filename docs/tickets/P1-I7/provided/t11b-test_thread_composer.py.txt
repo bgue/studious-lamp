@@ -347,3 +347,21 @@ def test_dispatch_off_refuses_a_slash_line_but_not_a_message() -> None:
         assert len(sent(client)) == 1
 
     run_pilot(app, scenario)
+
+
+def test_a_line_with_spaces_before_the_slash_is_still_a_command() -> None:
+    client, record = setup()
+    line = "/link FV-1002"
+    for typed in (line, f"  {line}"):
+        client.script_preview(typed, link_preview(client, record, line))
+    app = Host(client, record)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        type_(app, f"  {line}")
+        await pilot.press("enter")
+        await pilot.pause()
+        assert "Enter to run, Esc to edit" in screen_text(app)
+        assert not sent(client)
+
+    run_pilot(app, scenario)

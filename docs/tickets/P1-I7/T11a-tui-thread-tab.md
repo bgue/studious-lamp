@@ -161,7 +161,7 @@ Learnings that apply (pasted from `docs/memory/LEARNINGS.md` and the build's con
 just check
 uv run pytest packages/tl-tui/tests/test_thread_text.py packages/tl-tui/tests/test_thread_tab.py -q
 ```
-Expected: `just check` clean; 6 + 6 pass.
+Expected: `just check` clean; 6 + 7 pass.
 
 ## Tests to add
 None beyond the provided file.

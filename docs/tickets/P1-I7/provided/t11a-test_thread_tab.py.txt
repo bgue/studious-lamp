@@ -171,3 +171,22 @@ def test_a_client_error_is_a_status_line_and_keeps_the_display() -> None:
         assert "kept" in screen_text(app)
 
     run_pilot(app, scenario)
+
+
+def test_a_client_with_no_threads_leaves_the_tab_empty() -> None:
+    client, record = setup()
+
+    def unsupported(*_args: Any, **_kwargs: Any) -> Any:
+        raise NotImplementedError
+
+    client.thread_page = unsupported  # type: ignore[method-assign]
+    app = Host(client, record)
+
+    async def scenario(pilot: Pilot[Any]) -> None:
+        await pilot.pause()
+        tab = app.query_one(ThreadTab)
+        assert tab.page is None and not app.seen
+        tab.action_older()  # nothing to page: no crash
+        await pilot.pause()
+
+    run_pilot(app, scenario)
