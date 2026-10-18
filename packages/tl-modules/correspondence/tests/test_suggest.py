@@ -109,3 +109,71 @@ def test_a_domain_without_general_falls_back_to_the_lowest_code(
     only = [d for d in both if d.code == "document_control"]
     got = sg.suggest(only, subject="hello", body=None)
     assert (got.domain, got.subtype, got.score) == ("document_control", "transmittal", 0)
+
+
+def _subtype(base: dm.DomainDefinition, code: str, *words: str) -> dm.DomainSubtype:
+    return base.subtypes[0].model_copy(update={"code": code, "keywords": words})
+
+
+def _custom(
+    base: dm.DomainDefinition,
+    code: str,
+    triage: tuple[str, ...],
+    subtypes: tuple[dm.DomainSubtype, ...],
+) -> dm.DomainDefinition:
+    return base.model_copy(
+        update={
+            "code": code,
+            "triage_keywords": triage,
+            "subtypes": subtypes,
+            "default_subtype": subtypes[0].code,
+        }
+    )
+
+
+def test_a_word_that_two_subtypes_share_counts_once_for_the_domain(
+    both: list[dm.DomainDefinition],
+) -> None:
+    base = both[0]
+    shared = _custom(
+        base, "shared", ("plan", "plan"), (_subtype(base, "a", "shop"), _subtype(base, "b", "shop"))
+    )
+    got = sg.suggest([shared], subject="shop plan", body=None)
+    assert got.score == 2 * 2  # 'plan' once (a repeat in the list is not another word), 'shop' once
+    assert got.reasons == ("shared: 'plan'", "shared/a: 'shop'")
+    assert got.subtype == "a"  # both subtypes score alike: the default
+
+
+def test_a_word_next_to_other_letters_is_not_the_word(both: list[dm.DomainDefinition]) -> None:
+    base = both[0]
+    one = _custom(base, "one", ("rev",), (_subtype(base, "a", "x1"),))
+    for text in ("arev", "reva", "rev2", "2rev", "a-rev9"):
+        assert sg.suggest([one], subject=text, body=None).score == 0, text
+    for text in ("rev", "(rev)", "the rev.", "rev-b", "x rev, y"):
+        assert sg.suggest([one], subject=text, body=None).score == 2, text
+    assert sg.suggest([one], subject="s", body="the arev, rev2 and 2rev").score == 0
+
+
+def test_the_best_domain_is_found_whatever_the_order_and_the_codes_sort(
+    both: list[dm.DomainDefinition],
+) -> None:
+    base = both[0]
+    a = _custom(base, "aaa", ("fish",), (_subtype(base, "t", "x1"),))
+    b = _custom(base, "bbb", ("fish",), (_subtype(base, "t", "x1"),))
+    c = _custom(base, "ccc", ("nothing",), (_subtype(base, "t", "x1"),))
+    for order in ([c, b, a], [b, c, a], [a, b, c]):
+        got = sg.suggest(order, subject="fish", body=None)
+        assert got.domain == "aaa"  # the lowest code of the best, with no general among them
+        assert list(got.scores) == ["aaa", "bbb", "ccc"]  # listed by code, not by order given
+    empty = sg.suggest([c, b, a], subject="nothing at all here", body=None)
+    assert (empty.domain, empty.score) == ("ccc", 2)
+    none = sg.suggest([c, b], subject="zzz", body=None)
+    assert (none.domain, none.score) == ("bbb", 0)  # no general and no match: the lowest code
+
+
+def test_only_the_start_of_a_long_subject_is_read(both: list[dm.DomainDefinition]) -> None:
+    far = "x " * sg.MAX_SUBJECT_CHARS + " transmittal"
+    assert sg.suggest(both, subject=far, body=None).score == 0
+    near = "transmittal " + "x " * sg.MAX_SUBJECT_CHARS
+    assert sg.suggest(both, subject=near, body=None).domain == "document_control"
+    assert sg.suggest(both, subject="TRANSMITTAL".lower(), body=None).score == 4

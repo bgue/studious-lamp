@@ -54,8 +54,9 @@ def suggest(
     """The best domain and subtype for the text, or an empty suggestion when there are no domains.
 
     A domain's score is the sum of the weights of its distinct ``triage_keywords`` and of the
-    distinct keywords of all its subtypes. Its subtype is the one with the highest keyword score;
-    a tie, or no match, gives the domain's ``default_subtype``.
+    distinct keywords of all its subtypes (a word that two subtypes share counts once for the
+    domain, and for each of the two subtypes). Its subtype is the one with the highest keyword
+    score; a tie, or no match, gives the domain's ``default_subtype``.
     """
     if not domains:
         return Suggestion(domain=None, subtype=None, score=0, reasons=("no domain is defined",))
@@ -67,29 +68,30 @@ def suggest(
     for domain in domains:
         total = 0
         why: list[str] = []
-        for word in domain.triage_keywords:
+        for word in dict.fromkeys(w.lower() for w in domain.triage_keywords):
             weight = _found(word, low_subject, low_body)
             if weight != 0:
                 total += weight
                 why.append(f"{domain.code}: '{word}'")
         by_subtype: dict[str, int] = {}
+        counted: set[str] = set()  # a keyword of several subtypes counts once for the domain
         for subtype in domain.subtypes:
             own = 0
             for word in subtype.keywords:
                 weight = _found(word, low_subject, low_body)
                 if weight != 0:
                     own += weight
-                    why.append(f"{domain.code}/{subtype.code}: '{word}'")
+                    if word.lower() not in counted:
+                        counted.add(word.lower())
+                        total += weight
+                        why.append(f"{domain.code}/{subtype.code}: '{word}'")
             by_subtype[subtype.code] = own
-            total += own
         scores[domain.code] = total
         reasons[domain.code] = why
         subtype_scores[domain.code] = by_subtype
     best = max(scores.values())
     leaders = sorted(code for code, score in scores.items() if score == best)
     code = DOMAIN_GENERAL if DOMAIN_GENERAL in leaders else leaders[0]
-    if best == 0 and DOMAIN_GENERAL not in scores:
-        code = sorted(scores)[0]
     chosen = next(d for d in domains if d.code == code)
     own_scores = subtype_scores[code]
     top = max(own_scores.values()) if own_scores else 0
