@@ -23,6 +23,7 @@ from tl_core.util import effective_time
 from tl_api.auth import current_principal, guard
 from tl_api.context import ApiContext, get_ctx
 from tl_api.effective import EFFECTIVE_AT_HEADER, resolve_effective_at
+from tl_api.thread_runner import thread_runner
 
 router = APIRouter(tags=["proposals"])
 
@@ -140,6 +141,7 @@ def accept_proposal(
             accept_risk=accept_risk,
             source=API_SOURCE,
             holds=lambda level: holds_access(principal, actor, level),
+            runner=thread_runner(),  # a dispatch proposal re-plans and runs its commands (ADR-0018)
         )
 
 

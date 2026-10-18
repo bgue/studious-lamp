@@ -262,3 +262,39 @@ def test_an_agent_token_can_neither_preview_nor_confirm_a_dispatch(harness: Harn
         assert refused.status_code == 403, (path, refused.text)
     events = harness.client.get("/events").json()["events"]
     assert not [e for e in events if e["event_type"] in ("Link.Added", "Thread.Dispatched")]
+
+
+def test_a_person_accepts_an_agents_dispatch_proposal_over_http(harness: Harness) -> None:
+    """The accept route passes the runner, so a proposed dispatch can be accepted at all."""
+    from tl_api.thread_runner import thread_runner
+    from tl_core.services import proposals
+    from tl_core.threads.dispatch import build_dispatch_proposal
+
+    switch_on(harness)
+    make_account(harness, "alice")
+    make_account(harness, "triage", "agent")
+    rid = harness.create_record("P123-REC-0001").stream_id
+    other = harness.create_record("P123-REC-0002").stream_id
+    runner = thread_runner()
+    command = build_dispatch_proposal(
+        harness.backend,
+        scope=SCOPE,
+        record_id=rid,
+        text="/link P123-REC-0002",
+        agent=AGENT,
+        runner=runner,
+    )
+    view = proposals.submit(
+        harness.backend,
+        tool="propose_dispatch",
+        agent=AGENT,
+        command=command,
+        summary="link",
+        runner=runner,
+    )
+    done = harness.client.post(f"/proposals/{view.proposal_id}/accept", json={})
+    assert done.status_code == 200 and done.json()["status"] == "accepted", done.text
+    events = harness.client.get("/events").json()["events"]
+    link = next(e for e in events if e["event_type"] == "Link.Added")
+    assert link["actor"] == ALICE and link["payload"]["to_ref"] == other
+    assert link["source"] == f"thread:{rid}"

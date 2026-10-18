@@ -16,6 +16,7 @@ import typer
 from pydantic import ValidationError
 from tl_adapters.db import DbTarget, open_uow
 from tl_adapters.objectstore import make_object_store, object_secret
+from tl_api.thread_runner import thread_runner
 from tl_core.files.service import FileService
 from tl_core.ledger import ConcurrencyError
 from tl_core.proposals.types import ProposalStatus, ProposalView
@@ -221,6 +222,7 @@ def accept(
             accept_risk=accept_risk,
             source="cli",
             holds=holds,
+            runner=thread_runner(),  # a dispatch proposal re-plans and runs its commands
         )
     if view.status == "failed":
         typer.echo(f"failed {view.proposal_id}")
