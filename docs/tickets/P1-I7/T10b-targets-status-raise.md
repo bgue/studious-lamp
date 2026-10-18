@@ -1,6 +1,6 @@
 # P1-I7-T10b — Dispatch targets: /status and /raise record
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: S1 and S2 (in the tree): `tl_core/threads/{contract,resolve,planner,engine}.py`, `targets/__init__.py`, the workflow engine, and the fixture `tests/threads/thread_world.py` (`run_target`, `planning_world` with its one workflow `t.thread`, `make_record`)

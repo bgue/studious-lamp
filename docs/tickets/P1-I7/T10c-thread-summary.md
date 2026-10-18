@@ -1,6 +1,6 @@
 # P1-I7-T10c — The deterministic /summarise text
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: S1 and S2 (in the tree): `tl_core/threads/queries.py` (`ThreadPage`), `contract.py`; no database fixture is needed

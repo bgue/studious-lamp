@@ -489,3 +489,6 @@ A thread call needs the route, the `ApiClient` mixin (`tl_api/client/threads.py`
 
 ### L-P1-I7B-5 (process) Verify in a second worktree while you keep editing
 L-P1-I3-9 says do not edit sources during a long run, which stops a supervisor for an hour. Commit, add a throw-away worktree at that commit (`git worktree add --detach ../p1-i7b-verify HEAD`, then `uv sync --all-packages` there), run the shards in it, and edit the working tree meanwhile. Kill a run by PID from `ps -eo pid,args`, never `pkill -f` (L-P1-I3-8: it killed this shell). Evidence: the contaminated shard runs of 2026-10-18 (sources edited under them).
+
+### L-P1-I7B-6 (process) A provided test that builds its fixture through another ticket's code names that ticket in Depends
+T10d's fourth test dispatched `/link` to get a message that is not a `/remind`; `/link` was T10a's stub, so the implementer ran it in the same batch, saw 3 of 4 pass, and came back BLOCKED by order (L-P1-I0A-11 and L-P1-I3-12 again). Before a batch, read every command and function a provided test calls against the Depends line and the batch: a fixture that needs a stubbed neighbour either names it in Depends (and goes in a later batch) or is rewritten to use only supervisor-built code. Evidence: T10d at 6fc4401; fixed by merging T10a first.

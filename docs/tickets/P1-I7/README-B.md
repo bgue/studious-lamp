@@ -34,10 +34,10 @@ result as a card. Agents read and post, and only propose dispatches. The thread 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| T10a | Targets `/link` and `/dispatch` | haiku | S1, S2 | ready | |
-| T10b | Targets `/status` and `/raise record` | haiku | S1, S2 | ready | |
-| T10c | Deterministic `/summarise` text | haiku | S1, S2 | ready | |
-| T10d | `thread.reminder` job kind | haiku | S1, S2 | ready | |
+| T10a | Targets `/link` and `/dispatch` | haiku | S1, S2 | merged | passed review |
+| T10b | Targets `/status` and `/raise record` | haiku | S1, S2 | merged | passed review |
+| T10c | Deterministic `/summarise` text | haiku | S1, S2 | merged | passed review |
+| T10d | `thread.reminder` job kind | haiku | S1, S2, T10a | merged | blocked by order on the first run (L-P1-I7B-6); passed after T10a merged |
 | T12a | MCP `read_thread` and `post_thread_message` bodies | haiku | S3 | draft | |
 | T09a | CLI `tl thread show / post / edit / retract` | haiku | S1, S3 | draft | |
 | T09b | CLI `tl thread preview / dispatch / reminders` | haiku | S2, S3 | draft | |

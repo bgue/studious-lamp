@@ -1,9 +1,9 @@
 # P1-I7-T10d — The thread.reminder job kind
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
-Depends on: S1 and S2 (in the tree): `tl_core/jobs/runner.py` (`JobKind`, `JobFailure`), `tl_core/threads/{messages,effects,queries,parser}.py`, `dispatch.py` (it queues the job) and the fixture `tests/threads/thread_world.py`
+Depends on: S1 and S2 (in the tree): `tl_core/jobs/runner.py` (`JobKind`, `JobFailure`), `tl_core/threads/{messages,effects,queries,parser}.py`, `dispatch.py` (it queues the job) and the fixture `tests/threads/thread_world.py`; **T10a** (`/link`'s target: the fourth test dispatches `/link` to make a message that is not a `/remind`; merged before this ticket runs)
 Branch: `p1/i7b-t10d-reminder-job`
 
 ## Goal

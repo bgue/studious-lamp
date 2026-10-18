@@ -1,6 +1,6 @@
 # P1-I7-T10a — Dispatch targets: /link and /dispatch
 
-Status: ready
+Status: merged
 Tier: haiku
 Labels: core
 Depends on: S1 and S2 (in the tree): `tl_core/threads/{contract,resolve,planner,engine}.py`, `targets/__init__.py` and the fixture `tests/threads/thread_world.py` (`run_target`, `planning_world`, `make_record`)
