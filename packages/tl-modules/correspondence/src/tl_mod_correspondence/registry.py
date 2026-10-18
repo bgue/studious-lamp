@@ -386,7 +386,8 @@ class ClockRow:
 
 
 _CLOCK_COLUMNS = (
-    "id, key, scope, item_id, item_number, label, kind, start_on, duration_days, day_type, calendar, "
+    "id, key, scope, item_id, item_number, label, kind, start_on, duration_days, day_type, "
+    "calendar, "
     "warn_days_json, due_on, state, paused_on, pause_reason, closed_on, closed_reason, "
     "warned_level, owner, clause_id, restarts, voided, version"
 )
