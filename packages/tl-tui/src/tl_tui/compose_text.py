@@ -3,7 +3,13 @@ sketch 13).
 
 Pure functions of what the client returns; no widget, no client. The composer shows these lines and
 decides nothing about what a command line means.
+
+STUB: verb_candidates and preview_lines are yours to write (ticket P1-I7-T11b). Remove this
+paragraph, every STEPS comment and the two lint-silencing lines below when you are done.
 """
+
+# ruff: noqa: F401
+# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 
 from __future__ import annotations
 
@@ -28,8 +34,11 @@ VERB_HELP: tuple[tuple[str, str], ...] = (
 def verb_candidates(prefix: str) -> list[tuple[str, str]]:
     """The verbs that start with ``prefix`` (case-insensitive; ``summarize`` counts as
     ``summarise``), in the order of :data:`VERB_HELP`."""
-    wanted = prefix.lower().replace("summarize", "summarise")
-    return [(v, h) for v, h in VERB_HELP if v.startswith(wanted)]
+    # STEPS
+    # 1. wanted = prefix.lower() with "summarize" replaced by "summarise".
+    # 2. Return [(verb, help) for verb, help in VERB_HELP if verb.startswith(wanted)], in
+    #    the order of VERB_HELP.
+    raise NotImplementedError
 
 
 def preview_lines(preview: DispatchPreview) -> list[str]:
@@ -40,19 +49,15 @@ def preview_lines(preview: DispatchPreview) -> list[str]:
     messages, the notes, and last the question: ``Enter to run, Esc to edit`` when it can be
     dispatched, else ``Cannot be dispatched: Esc to edit``.
     """
-    lines = [preview.parsed.line]
-    for n, item in enumerate(preview.planned, start=1):
-        if item.problem is not None:
-            state = item.problem.code
-        else:
-            state = "ok" if item.permitted else "not permitted"
-        lines.append(f"{n}. {item.command_type} · {item.access or '-'} · {state} · {item.summary}")
-    for item in preview.planned:
-        if item.problem is not None:
-            lines.append(f"! {item.problem.message}")
-    lines.extend(f"! {problem.message}" for problem in preview.problems)
-    lines.extend(f"· {note}" for note in preview.notes)
-    lines.append(
-        "Enter to run, Esc to edit" if preview.can_dispatch else "Cannot be dispatched: Esc to edit"
-    )
-    return lines
+    # STEPS
+    # 1. lines = [preview.parsed.line].
+    # 2. For each planned command (n counts from 1): state = item.problem.code when
+    #    item.problem is not None, else "ok" when item.permitted, else "not permitted".
+    #    Append f"{n}. {item.command_type} · {item.access or '-'} · {state} ·
+    #    {item.summary}".
+    # 3. For each planned command with a problem append f"! {item.problem.message}". Then
+    #    for each problem of preview.problems append f"! {problem.message}".
+    # 4. For each note of preview.notes append f"· {note}".
+    # 5. Last append "Enter to run, Esc to edit" when preview.can_dispatch, else "Cannot be
+    #    dispatched: Esc to edit". Return lines.
+    raise NotImplementedError

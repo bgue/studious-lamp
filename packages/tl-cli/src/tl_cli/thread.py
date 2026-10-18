@@ -5,7 +5,13 @@ the services. A record is named by its key (with ``--project``) or by its id. A 
 dispatches: ``post`` stores a body that starts with ``/`` as text. The slash-command side
 (`preview`, `dispatch`, `reminders`) is in `tl_cli.thread_dispatch` and is added to this group by
 `tl_cli.main`.
+
+STUB: message_lines, show, post, edit and retract are yours to write (ticket P1-I7-T09a). Remove
+this paragraph, every STEPS comment and the two lint-silencing lines below when you are done.
 """
+
+# ruff: noqa: F401
+# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 
 from __future__ import annotations
 
@@ -36,17 +42,20 @@ app = typer.Typer(
 def message_lines(page: ThreadPage) -> list[str]:
     """``<id>  <YYYY-MM-DD HH:MM>  <author>  <first line>`` per message, the outcome of a
     dispatch on the next line as ``    -> <verb>: <summary>``; retracted: ``[retracted]``."""
-    lines: list[str] = []
-    for message in page.messages:
-        when = message.posted_at.replace("T", " ")[:16]
-        author = message.author.removeprefix("user:")
-        first = next((ln for ln in message.body.splitlines() if ln.strip()), "")
-        text = "[retracted]" if message.retracted else first
-        edited = "  (edited)" if message.edited and not message.retracted else ""
-        lines.append(f"{message.message_id}  {when}  {author}  {text}{edited}")
-        if message.dispatch is not None:
-            lines.append(f"    -> {message.dispatch.verb}: {message.dispatch.summary or 'done'}")
-    return lines
+    # STEPS
+    # 1. lines = []. For each message of page.messages:
+    # 2. when = message.posted_at with "T" replaced by " ", cut to 16 characters. author =
+    #    message.author without a leading "user:".
+    # 3. first = the first line of message.body that is not blank ("" when there is none).
+    #    text = "[retracted]" when message.retracted, else first. edited = "  (edited)" when
+    #    message.edited and not message.retracted, else "".
+    # 4. Append f"{message.message_id}  {when}  {author}  {text}{edited}" (two spaces
+    #    between the columns).
+    # 5. When message.dispatch is not None append f"    -> {verb}: {summary}" with four
+    #    leading spaces; the summary is message.dispatch.summary, or "done" when it is
+    #    empty.
+    # 6. Return lines.
+    raise NotImplementedError
 
 
 @app.command("show")
@@ -58,30 +67,21 @@ def show(
     before: Annotated[int | None, typer.Option("--before", help="`older` of a page.")] = None,
 ) -> None:
     """Show the newest messages of RECORD's thread, oldest first."""
-    db: DbTarget = ctx.obj
-    with service_errors():
-        record_id, _scope = record_of(db, project, record)
-        with open_uow(db, readonly=True) as uow:
-            page = read_thread(
-                uow,
-                record_id,
-                actor=default_actor(db, local=not is_postgres(db)),
-                limit=limit,
-                before_seq=before,
-            )
-    state = "on" if page.enabled else "off"
-    dispatch = "on" if page.dispatch_enabled else "off"
-    typer.echo(
-        f"thread {page.record.key or page.record.id}  threads {state}  dispatch {dispatch}  "
-        f"{page.message_count} message" + ("" if page.message_count == 1 else "s")
-    )
-    if page.participants:
-        people = ", ".join(f"{p.actor} ({'/'.join(p.reasons)})" for p in page.participants)
-        typer.echo(f"participants {people}")
-    for line in message_lines(page):
-        typer.echo(line)
-    if page.next_before is not None:
-        typer.echo(f"older: --before {page.next_before}")
+    # STEPS
+    # 1. db: DbTarget = ctx.obj. Inside `with service_errors():` get record_id, _scope =
+    #    record_of(db, project, record); then, in a read-only unit of work (open_uow(db,
+    #    readonly=True)), page = read_thread(uow, record_id, actor=default_actor(db,
+    #    local=not is_postgres(db)), limit=limit, before_seq=before).
+    # 2. state = "on" if page.enabled else "off"; dispatch = "on" if page.dispatch_enabled
+    #    else "off".
+    # 3. Echo the header: f"thread {page.record.key or page.record.id}  threads {state}
+    #    dispatch {dispatch}  {page.message_count} message", with "s" added unless
+    #    page.message_count == 1 (two spaces between the columns).
+    # 4. When page.participants is not empty echo "participants " followed by the
+    #    participants joined by ", ", each written f"{p.actor} ({'/'.join(p.reasons)})".
+    # 5. Echo each line of message_lines(page).
+    # 6. When page.next_before is not None echo f"older: --before {page.next_before}".
+    raise NotImplementedError
 
 
 @app.command("post")
@@ -93,21 +93,17 @@ def post(
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Post BODY to RECORD's thread."""
-    db: DbTarget = ctx.obj
-    who = acting(db, actor)
-    with service_errors():
-        record_id, scope = record_of(db, project, record)
-        command = PostThreadMessage(
-            actor=who, source=SOURCE, scope=scope, record_id=record_id, body=body
-        )
-        with open_uow(db) as uow:
-            result = handle_post_thread_message(uow, command)
-    typer.echo(f"posted {result.key}")
-    posted = result.events[0].payload
-    if posted["mentions"]:
-        typer.echo("mentions " + ", ".join(f"@{m}" for m in posted["mentions"]))
-    if posted["record_refs"]:
-        typer.echo(f"refs {len(posted['record_refs'])}")
+    # STEPS
+    # 1. db: DbTarget = ctx.obj. who = acting(db, actor).
+    # 2. Inside `with service_errors():` get record_id, scope = record_of(db, project,
+    #    record); build command = PostThreadMessage(actor=who, source=SOURCE, scope=scope,
+    #    record_id=record_id, body=body); with open_uow(db) as uow: result =
+    #    handle_post_thread_message(uow, command).
+    # 3. Echo f"posted {result.key}" (the message id is result.key).
+    # 4. posted = result.events[0].payload. When posted["mentions"] is not empty echo
+    #    "mentions " and the mentions joined by ", ", each written f"@{m}". When
+    #    posted["record_refs"] is not empty echo f"refs {len(posted['record_refs'])}".
+    raise NotImplementedError
 
 
 @app.command("edit")
@@ -120,21 +116,14 @@ def edit(
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Replace the text of your own message."""
-    db: DbTarget = ctx.obj
-    who = acting(db, actor)
-    with service_errors():
-        record_id, scope = record_of(db, project, record)
-        command = EditThreadMessage(
-            actor=who,
-            source=SOURCE,
-            scope=scope,
-            record_id=record_id,
-            message_id=message_id,
-            body=body,
-        )
-        with open_uow(db) as uow:
-            handle_edit_thread_message(uow, command)
-    typer.echo(f"edited {message_id}")
+    # STEPS
+    # 1. db: DbTarget = ctx.obj. who = acting(db, actor).
+    # 2. Inside `with service_errors():` get record_id, scope = record_of(db, project,
+    #    record); build command = EditThreadMessage(actor=who, source=SOURCE, scope=scope,
+    #    record_id=record_id, message_id=message_id, body=body); with open_uow(db) as uow:
+    #    handle_edit_thread_message(uow, command).
+    # 3. After the block echo f"edited {message_id}".
+    raise NotImplementedError
 
 
 @app.command("retract")
@@ -147,18 +136,11 @@ def retract(
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Retract your own message; a tombstone stays."""
-    db: DbTarget = ctx.obj
-    who = acting(db, actor)
-    with service_errors():
-        record_id, scope = record_of(db, project, record)
-        command = RetractThreadMessage(
-            actor=who,
-            source=SOURCE,
-            scope=scope,
-            record_id=record_id,
-            message_id=message_id,
-            reason=reason,
-        )
-        with open_uow(db) as uow:
-            handle_retract_thread_message(uow, command)
-    typer.echo(f"retracted {message_id}")
+    # STEPS
+    # 1. db: DbTarget = ctx.obj. who = acting(db, actor).
+    # 2. Inside `with service_errors():` get record_id, scope = record_of(db, project,
+    #    record); build command = RetractThreadMessage(actor=who, source=SOURCE,
+    #    scope=scope, record_id=record_id, message_id=message_id, reason=reason); with
+    #    open_uow(db) as uow: handle_retract_thread_message(uow, command).
+    # 3. After the block echo f"retracted {message_id}".
+    raise NotImplementedError

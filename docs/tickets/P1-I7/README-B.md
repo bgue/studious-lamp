@@ -38,18 +38,18 @@ result as a card. Agents read and post, and only propose dispatches. The thread 
 | T10b | Targets `/status` and `/raise record` | haiku | S1, S2 | merged | passed review |
 | T10c | Deterministic `/summarise` text | haiku | S1, S2 | merged | passed review |
 | T10d | `thread.reminder` job kind | haiku | S1, S2, T10a | merged | blocked by order on the first run (L-P1-I7B-6); passed after T10a merged |
-| T12a | MCP `read_thread` and `post_thread_message` bodies | haiku | S3 | draft | |
-| T09a | CLI `tl thread show / post / edit / retract` | haiku | S1, S3 | draft | |
-| T09b | CLI `tl thread preview / dispatch / reminders` | haiku | S2, S3 | draft | |
-| T11a | TUI thread tab: messages, participants, result cards | haiku | S3 (`ClientInterface`, `FakeClient`) | draft | |
-| T11b | TUI composer: `/` verbs, `@`, `#` completion; preview and confirm | haiku | T11a | draft | |
+| T12a | MCP `read_thread` and `post_thread_message` bodies | haiku | S3 | ready (batch 2) | |
+| T09a | CLI `tl thread show / post / edit / retract` | haiku | S1, S3 | ready (batch 2) | |
+| T09b | CLI `tl thread preview / dispatch / reminders` | haiku | S2, S3, T10a to T10d | ready (batch 2) | |
+| T11a | TUI thread tab: messages, participants, result cards | haiku | S3, T11b (`action_compose` opens `ThreadComposer`) | ready (batch 3) | |
+| T11b | TUI composer: `/` verbs, `@`, `#` completion; preview and confirm | haiku | S3 | ready (batch 2) | |
 | T12b | Webhook scenario and catalog for `Thread.*` | supervisor | S1 | done in S1 (pins, scenario) | merged in aea611c |
 
 The plan's T09 (stream, events, settings) and T10 (parser) are supervisor pieces S1 and S2 (FANOUT D15); the Haiku
 tickets above are the rest of T09 to T12. T11 is split by screen (L-P1-I3-6).
 
 ## Order of work
-1. S1 to S3 (done), then ticket batch 1 (T10a to T10d), batch 2 (T12a, T09a, T09b), batch 3 (T11a, then T11b).
+1. S1 to S3 (done), then ticket batch 1 (T10a to T10d), batch 2 (T12a, T09a, T09b, T11b), batch 3 (T11a).
 2. Review each PR with a fresh reviewer; merge on a pass and green `just check && just test` for the package.
 3. When WS-A T01 to T03 are on `p1/i7`: merge `p1/i7` into `p1/i7b`, swap `tl_api/thread_runner.py` for
    `command_runner()`, wire `InvokeAction` access (`holds`) for `/dispatch`, add the walking test of reserved

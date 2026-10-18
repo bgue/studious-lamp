@@ -7,7 +7,14 @@ the panel shows what would run, with the caller's own access, and Enter again co
 plan (the preview's token); Esc goes back to editing. A message that does not start with ``/`` is
 posted and never dispatches. The composer parses nothing and decides nothing: the server previews
 and runs.
+
+STUB: verb_token and the bodies of ThreadComposer._refresh_popup, action_accept, action_submit,
+_show_preview, _confirm and action_cancel are yours to write (ticket P1-I7-T11b). Remove this
+paragraph, every STEPS comment and the two lint-silencing lines below when you are done.
 """
+
+# ruff: noqa: F401
+# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 
 from __future__ import annotations
 
@@ -39,15 +46,14 @@ def verb_token(text: str, cursor: int) -> tuple[str, int] | None:
     The text must start with ``/`` (white space before it is allowed) and the cursor must be inside
     the first word: ``"/li"`` at 3 gives ``("li", 1)``; ``"/link A"`` at 7 gives ``None``.
     """
-    stripped = text.lstrip()
-    lead = len(text) - len(stripped)
-    if not stripped.startswith("/") or cursor < lead + 1:
-        return None
-    word = stripped[1:].split(None, 1)[0] if stripped[1:].strip() else ""
-    end = lead + 1 + len(word)
-    if " " in text[lead + 1 : cursor] or cursor > end:
-        return None
-    return text[lead + 1 : cursor], lead + 1
+    # STEPS
+    # 1. stripped = text.lstrip(); lead = len(text) - len(stripped).
+    # 2. Return None when stripped does not start with "/" or cursor < lead + 1.
+    # 3. word = the first word of stripped[1:] (stripped[1:].split(None, 1)[0]), or "" when
+    #    stripped[1:] is blank. end = lead + 1 + len(word).
+    # 4. Return None when there is a space in text[lead + 1 : cursor] or cursor > end.
+    # 5. Return (text[lead + 1 : cursor], lead + 1).
+    raise NotImplementedError
 
 
 class ThreadComposer(ModalScreen[str | None]):
@@ -123,37 +129,20 @@ class ThreadComposer(ModalScreen[str | None]):
         self._refresh_popup()
 
     def _refresh_popup(self) -> None:
-        inp = self.query_one("#tc-input", Input)
-        popup = self.query_one("#tc-popup", OptionList)
-        self.candidates = []
-        self.token = None
-        verb = verb_token(inp.value, inp.cursor_position)
-        if verb is not None:
-            prefix, start = verb
-            self.token = ("/", prefix, start)
-            self.candidates = [("/", v, h) for v, h in verb_candidates(prefix)]
-        else:
-            found = completion_token(inp.value, inp.cursor_position)
-            if found is not None:
-                sigil, prefix, start = found
-                self.token = (sigil, prefix, start)
-                try:
-                    items: list[Completion] = self.client.feed_complete(
-                        self.record["scope"], sigil, prefix, limit=self.limit
-                    )
-                except CLIENT_ERRORS as exc:
-                    self.query_one("#tc-error", Static).update(describe_error(exc))
-                    items = []
-                self.candidates = [(sigil, c.text, c.detail) for c in items]
-        popup.clear_options()
-        popup.add_options(
-            [
-                Option(Text(f"{text}   {detail}"), id=str(n))
-                for n, (_, text, detail) in enumerate(self.candidates)
-            ]
-        )
-        popup.highlighted = 0 if self.candidates else None
-        popup.styles.display = "block" if self.popup_visible else "none"
+        # STEPS
+        # 1. inp = #tc-input, popup = #tc-popup. self.candidates = []; self.token = None.
+        # 2. verb = verb_token(inp.value, inp.cursor_position). When it is not None: prefix,
+        #    start = verb; self.token = ("/", prefix, start); self.candidates = [("/", v, h)
+        #    for v, h in verb_candidates(prefix)].
+        # 3. Otherwise found = completion_token(inp.value, inp.cursor_position). When it is
+        #    not None: sigil, prefix, start = found; self.token = (sigil, prefix, start);
+        #    try items = self.client.feed_complete(self.record["scope"], sigil, prefix,
+        #    limit=self.limit); on CLIENT_ERRORS show describe_error(exc) in #tc-error and
+        #    use items = []. self.candidates = [(sigil, c.text, c.detail) for c in items].
+        # 4. popup.clear_options(); add one Option(Text(f"{text}   {detail}"), id=str(n))
+        #    per candidate (three spaces); popup.highlighted = 0 when there are candidates,
+        #    else None; popup.styles.display = "block" when self.popup_visible, else "none".
+        raise NotImplementedError
 
     def action_choose(self, delta: int) -> None:
         if not self.popup_visible:
@@ -163,20 +152,16 @@ class ThreadComposer(ModalScreen[str | None]):
 
     def action_accept(self) -> None:
         """Tab: put the highlighted candidate into the input."""
-        if not self.popup_visible or self.token is None:
-            return
-        popup = self.query_one("#tc-popup", OptionList)
-        index = popup.highlighted
-        if index is None or index >= len(self.candidates):
-            return
-        sigil, text, _ = self.candidates[index]
-        inp = self.query_one("#tc-input", Input)
-        _, _, start = self.token
-        new_text, cursor = apply_completion(
-            inp.value, inp.cursor_position, start, "" if sigil == "/" else sigil, text
-        )
-        inp.value = new_text
-        inp.cursor_position = cursor
+        # STEPS
+        # 1. Return when not self.popup_visible or self.token is None.
+        # 2. popup = #tc-popup; index = popup.highlighted. Return when index is None or
+        #    index >= len(self.candidates).
+        # 3. sigil, text, _ = self.candidates[index]. inp = #tc-input. start = the third
+        #    item of self.token.
+        # 4. new_text, cursor = apply_completion(inp.value, inp.cursor_position, start, ""
+        #    if sigil == "/" else sigil, text). Set inp.value = new_text and
+        #    inp.cursor_position = cursor.
+        raise NotImplementedError
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         event.stop()
@@ -185,80 +170,47 @@ class ThreadComposer(ModalScreen[str | None]):
     def action_submit(self) -> None:
         """Enter or Ctrl+S. Edit stage: post a message, or preview a ``/`` command. Confirm stage:
         run the previewed command."""
-        error = self.query_one("#tc-error", Static)
-        inp = self.query_one("#tc-input", Input)
-        body = inp.value
-        if self.stage == "confirm":
-            self._confirm(body)
-            return
-        if not body.strip():
-            error.update("Write something first")
-            return
-        if body.lstrip().startswith("/"):
-            self._show_preview(body)
-            return
-        try:
-            result = self.client.thread_post(
-                PostThreadMessage(
-                    actor=self.actor,
-                    source="tui",
-                    scope=self.record["scope"],
-                    record_id=self.record["id"],
-                    body=body,
-                )
-            )
-        except CLIENT_ERRORS as exc:
-            error.update(describe_error(exc))
-            return
-        self.dismiss(result.key)
+        # STEPS
+        # 1. error = #tc-error; inp = #tc-input; body = inp.value (not stripped).
+        # 2. In the confirm stage (self.stage == "confirm") call self._confirm(body) and
+        #    return.
+        # 3. A blank body (not body.strip()): error.update("Write something first"); return.
+        # 4. A body whose lstrip() starts with "/": self._show_preview(body); return.
+        # 5. Otherwise try result =
+        #    self.client.thread_post(PostThreadMessage(actor=self.actor, source="tui",
+        #    scope=self.record["scope"], record_id=self.record["id"], body=body)); on
+        #    CLIENT_ERRORS show describe_error(exc) in error and return (the text stays).
+        # 6. self.dismiss(result.key).
+        raise NotImplementedError
 
     def _show_preview(self, body: str) -> None:
-        error = self.query_one("#tc-error", Static)
-        if not self.dispatch_on:
-            error.update("Dispatch is switched off for this record")
-            return
-        try:
-            answer = self.client.thread_preview(self.record["id"], body)
-        except CLIENT_ERRORS as exc:
-            error.update(describe_error(exc))
-            return
-        if answer.problem is not None:
-            error.update(f"{answer.problem.code}: {answer.problem.message}")
-            return
-        assert answer.preview is not None
-        self._preview = answer.preview
-        panel = self.query_one("#tc-preview", Static)
-        panel.update("\n".join(preview_lines(answer.preview)))
-        panel.styles.display = "block"
-        self.query_one("#tc-popup", OptionList).styles.display = "none"
-        self.stage = "confirm"
+        # STEPS
+        # 1. error = #tc-error. When not self.dispatch_on: error.update("Dispatch is
+        #    switched off for this record"); return.
+        # 2. Try answer = self.client.thread_preview(self.record["id"], body); on
+        #    CLIENT_ERRORS show describe_error(exc) in error and return.
+        # 3. When answer.problem is not None: error.update(f"{answer.problem.code}:
+        #    {answer.problem.message}"); return.
+        # 4. assert answer.preview is not None. self._preview = answer.preview. panel = #tc-
+        #    preview: panel.update("\n".join(preview_lines(answer.preview)));
+        #    panel.styles.display = "block".
+        # 5. Hide the list (#tc-popup styles.display = "none") and set self.stage =
+        #    "confirm".
+        raise NotImplementedError
 
     def _confirm(self, body: str) -> None:
-        error = self.query_one("#tc-error", Static)
-        preview = self._preview
-        if preview is None or not preview.can_dispatch:
-            return
-        try:
-            result = self.client.thread_dispatch(
-                DispatchFromThread(
-                    actor=self.actor,
-                    source="tui",
-                    scope=self.record["scope"],
-                    record_id=self.record["id"],
-                    text=body,
-                    token=preview.token,
-                    expires_at=preview.expires_at,
-                )
-            )
-        except DispatchStaleError:
-            self._back_to_edit()
-            error.update("The plan changed since the preview: preview it again")
-            return
-        except CLIENT_ERRORS as exc:
-            self._back_to_edit()
-            error.update(describe_error(exc))
-            return
-        self.dismiss(result.key)
+        # STEPS
+        # 1. error = #tc-error; preview = self._preview. Return when preview is None or not
+        #    preview.can_dispatch.
+        # 2. Try result = self.client.thread_dispatch(DispatchFromThread(actor=self.actor,
+        #    source="tui", scope=self.record["scope"], record_id=self.record["id"],
+        #    text=body, token=preview.token, expires_at=preview.expires_at)).
+        # 3. except DispatchStaleError: self._back_to_edit(); error.update("The plan changed
+        #    since the preview: preview it again"); return.
+        # 4. except CLIENT_ERRORS as exc: self._back_to_edit();
+        #    error.update(describe_error(exc)); return.
+        # 5. self.dismiss(result.key).
+        raise NotImplementedError
 
     def _back_to_edit(self) -> None:
         self.stage = "edit"
@@ -269,11 +221,9 @@ class ThreadComposer(ModalScreen[str | None]):
 
     def action_cancel(self) -> None:
         """Esc: confirm stage back to edit; an open list closes; otherwise cancel."""
-        if self.stage == "confirm":
-            self._back_to_edit()
-            return
-        if self.popup_visible:
-            self.popup_closed = True
-            self.query_one("#tc-popup", OptionList).styles.display = "none"
-            return
-        self.dismiss(None)
+        # STEPS
+        # 1. In the confirm stage: self._back_to_edit(); return.
+        # 2. When self.popup_visible: self.popup_closed = True; hide #tc-popup
+        #    (styles.display = "none"); return.
+        # 3. Otherwise self.dismiss(None).
+        raise NotImplementedError
