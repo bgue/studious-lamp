@@ -1,11 +1,4 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false, reportUnusedFunction=false
 """The ``job`` action executor: run a registered, pure ``ActionJob`` (brief §18.7; FANOUT D8).
-
-STUB (P1-I7-T02a): ``failed``, ``use_jobs``, ``_factory``, ``has_job`` and the module state are
-final; ``result_problem`` and ``JobExecutor.execute`` raise NotImplementedError. Remove this
-paragraph, every STEPS comment, the two lint-silencing lines above and `NotImplementedError` when
-you implement them.
 
 A ``job`` action names a job (``JobExecutorConfig.job``). The code that job runs is found only
 through the entry-point group ``throughline.action_jobs`` (``ACTION_JOB_ENTRY_POINT``): an admin
@@ -80,39 +73,52 @@ def has_job(name: str) -> bool:
 
 def result_problem(outcome: ActionOutcome) -> Problem | None:
     """Why ``outcome.result`` cannot be stored: not JSON, or over ``ACTION_MAX_RESULT_BYTES``."""
-    # STEPS
-    # 1. No result (None): return None.
-    # 2. Size = len of the UTF-8 bytes of `json.dumps(result, sort_keys=True,
-    #    separators=(",", ":"))`. Catch TypeError, ValueError, OverflowError and RecursionError
-    #    (an object, a cycle, a huge integer): return Problem(code="bad_outcome",
-    #    message="The job's result is not JSON.").
-    # 3. Size over ACTION_MAX_RESULT_BYTES: Problem(code="result_too_large",
-    #    message=f"The job's result is over {ACTION_MAX_RESULT_BYTES} bytes."). A result of
-    #    exactly that size is fine.
-    # 4. Otherwise None.
-    raise NotImplementedError
+    if outcome.result is None:
+        return None
+    try:
+        text = json.dumps(outcome.result, sort_keys=True, separators=(",", ":"))
+        size = len(text.encode("utf-8"))
+    except (TypeError, ValueError, OverflowError, RecursionError):
+        return Problem(code="bad_outcome", message="The job's result is not JSON.")
+    if size > ACTION_MAX_RESULT_BYTES:
+        return Problem(
+            code="result_too_large",
+            message=f"The job's result is over {ACTION_MAX_RESULT_BYTES} bytes.",
+        )
+    return None
+
+
+def _unavailable(exc: Exception) -> ActionOutcome:
+    """The ``job_unavailable`` answer: only the exception's type is named."""
+    return failed("job_unavailable", f"The job could not be loaded ({type(exc).__name__}).")
 
 
 class JobExecutor:
     kind: ExecutorKind = "job"
 
     def execute(self, request: ActionRequest) -> ActionOutcome:
-        # STEPS (every failure is `failed(code, message)`; nothing is raised)
-        # 1. `request.config` is not a JobExecutorConfig: "wrong_executor",
-        #    "This is not a job action."
-        # 2. `factory = _factory(config.job)`. If that raises anything (Exception):
-        #    "job_unavailable", f"The job could not be loaded ({type(exc).__name__})."
-        #    A None factory: "unknown_job", f"No job is registered as {config.job}."
-        # 3. `job = factory()`; if that raises: the same "job_unavailable" answer.
-        # 4. `job` is not an ActionJob (isinstance with the runtime-checkable protocol) or its
-        #    `.name` differs from `config.job`: "job_mismatch",
-        #    f"The code registered as {config.job} is not that job."
-        # 5. `outcome = job.run(request)`; any Exception: "job_error",
-        #    f"The job failed ({type(exc).__name__})." Never put `str(exc)` in a message.
-        # 6. `outcome` is not an ActionOutcome: "bad_outcome", "The job did not return an
-        #    outcome." (pyright calls the isinstance redundant: silence it with the comment
-        #    `# pyright: ignore[reportUnnecessaryIsInstance]`.)
-        # 7. `problem = result_problem(outcome)`; if set, return ActionOutcome(status="failed",
-        #    problems=[problem]).
-        # 8. Return `outcome` unchanged (a failed outcome keeps its `retryable` flag).
-        raise NotImplementedError
+        config = request.config
+        if not isinstance(config, JobExecutorConfig):
+            return failed("wrong_executor", "This is not a job action.")
+        try:
+            factory = _factory(config.job)
+        except Exception as exc:
+            return _unavailable(exc)
+        if factory is None:
+            return failed("unknown_job", f"No job is registered as {config.job}.")
+        try:
+            job = factory()
+        except Exception as exc:
+            return _unavailable(exc)
+        if not isinstance(job, ActionJob) or job.name != config.job:
+            return failed("job_mismatch", f"The code registered as {config.job} is not that job.")
+        try:
+            outcome = job.run(request)
+        except Exception as exc:
+            return failed("job_error", f"The job failed ({type(exc).__name__}).")
+        if not isinstance(outcome, ActionOutcome):  # pyright: ignore[reportUnnecessaryIsInstance]
+            return failed("bad_outcome", "The job did not return an outcome.")
+        problem = result_problem(outcome)
+        if problem is not None:
+            return ActionOutcome(status="failed", problems=[problem])
+        return outcome
