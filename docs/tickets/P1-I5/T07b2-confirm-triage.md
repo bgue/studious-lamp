@@ -3,7 +3,7 @@
 Status: ready
 Tier: haiku
 Labels: module, core, agent
-Depends on: P1-I5-T07a (the test receives items with the receive command), P1-I5-T07b1 (triage calls `suggest`)
+Depends on: P1-I5-T07a (the test receives items with the receive command), P1-I5-T07b1 (triage calls `suggest`), P1-I5-T07f (the test retires a clause with the retire command)
 Branch: `p1/i5-t07b2-confirm-triage`
 
 ## Goal

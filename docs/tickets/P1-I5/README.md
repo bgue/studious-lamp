@@ -59,7 +59,7 @@ Build the correspondence core of M10 as a new module, `correspondence` (package 
 | T06 | Confidentiality classes and filters on every read path | S | T03a | built; walking test open | S5: `tl_core.confidentiality`, filters on every read path, `tests/confidentiality/test_core.py`; the walking tests of routes and tools follow |
 | T07a | `ReceiveCorrespondence`, `UpdateCorrespondence` | H | S6 | ready (wave 1) | `handlers/items.py` |
 | T07b1 | The triage suggestion engine (`suggest.py`, pure) | H | — | ready (wave 1) | |
-| T07b2 | `ConfirmTriage` (agent-proposable), `ReclassifyCorrespondence` | H | T07a, T07b1 | ready (wave 2) | `handlers/triage.py` |
+| T07b2 | `ConfirmTriage` (agent-proposable), `ReclassifyCorrespondence` | H | T07a, T07b1, T07f | ready (wave 2) | `handlers/triage.py` |
 | T07c | `IssueCorrespondence`: template to PDF rendition, stub send, clocks started | H | S6, T04, T07d | ready (wave 1) | `handlers/issue.py` |
 | T07f | Parties, contacts and contract clauses (six commands) | H | S6 | ready (wave 1) | `handlers/parties.py`, `handlers/clauses.py` |
 | S6-own | `DraftCorrespondence`, `RecordResponse`, `CloseCorrespondence`, `VoidDraft`, `VoidCorrespondence`, confidentiality commands | S | — | built | `handlers/responses.py`, `handlers/confidentiality.py` (security: the access of each is in `commands.py`) |
