@@ -211,3 +211,18 @@ def test_a_rules_actor_cannot_invoke_an_action_above_its_declared_access(world: 
     with pytest.raises(ActionAccessError):
         invoke("svc:rule-invoker")
     assert invoke("svc:rule-invoker-c").events
+
+
+# --- an enricher's service actor ---------------------------------------------------------------
+
+
+@pytest.mark.parametrize(("declared", "expected"), [("user", USER), ("controller", CONTROLLER)])
+def test_an_enrichers_actor_holds_what_the_registration_declares(
+    world: World, declared: str, expected: set[str]
+) -> None:
+    import fakes
+    from tl_core.integration.enrichers.registry import use_enrichers
+
+    with use_enrichers({"fake": fakes.FakeEnricher}):
+        world.register_enricher(access=declared)
+    assert allowed(world, "svc:enricher-fake") == expected

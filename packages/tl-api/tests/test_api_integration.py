@@ -32,6 +32,18 @@ EXPECTED_ACCESS = {
     "InvokeAction": "user",
     "ReviseAction": "admin",
     "RetireAction": "admin",
+    "RegisterIntegrationApp": "admin",
+    "ReviseIntegrationApp": "admin",
+    "SetIntegrationAppEnabled": "admin",
+    "ReviseInboundEndpoint": "admin",
+    "SetInboundEndpointEnabled": "admin",
+    "RetryInboundDelivery": "admin",
+    "RegisterEnricher": "admin",
+    "ReviseEnricher": "admin",
+    "SetEnricherEnabled": "admin",
+    "RunEnricher": "user",
+    "AcceptEnrichment": "user",
+    "RejectEnrichment": "user",
 }
 RULE = {
     "key": "hse-notify",

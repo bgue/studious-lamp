@@ -636,3 +636,14 @@ def test_an_executor_that_is_not_installed_fails_the_invocation(world: World) ->
 def test_the_transport_is_the_only_way_out(world: World) -> None:
     """A guard on the test itself: the world's transport is the scripted one."""
     assert isinstance(world.transport, ScriptedTransport)
+
+
+def test_nothing_is_requested_while_the_kill_switch_is_on(world: World) -> None:
+    world.define_action()
+    record = target(world)
+    world.setting("integration.kill_switch", True)
+    with pytest.raises(IntegrationStateError, match="stopped"):
+        world.invoke(targets=[record])
+    assert world.invocations() == []
+    world.setting("integration.kill_switch", False)
+    assert world.invoke(targets=[record]).events

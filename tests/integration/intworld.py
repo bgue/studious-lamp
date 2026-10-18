@@ -6,8 +6,10 @@ through the real handlers, so a test sees what a person, a rule or an endpoint w
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
+from fakes import MemStore
 from sqlalchemy import text
 from tl_adapters.db import create_schema, make_uow_factory
 from tl_adapters.queue import job_queue_for
@@ -20,7 +22,26 @@ from tl_core.integration.actions.service import (
     handle_invoke_action,
 )
 from tl_core.integration.actions.wiring import action_job_kind
+from tl_core.integration.apps import RegisterIntegrationApp, handle_register_app
 from tl_core.integration.contract import InvokeAction
+from tl_core.integration.enrichers.dispatcher import EnrichmentDispatcher
+from tl_core.integration.enrichers.service import (
+    RegisterEnricher,
+    SetEnricherEnabled,
+    handle_register_enricher,
+    handle_set_enricher_enabled,
+)
+from tl_core.integration.inbound.gate import accept_delivery, endpoint_view
+from tl_core.integration.inbound.service import (
+    CreateInboundEndpoint,
+    ReviseInboundEndpoint,
+    SetInboundEndpointEnabled,
+    create_endpoint,
+    handle_revise_endpoint,
+    handle_set_endpoint_enabled,
+)
+from tl_core.integration.inbound.store import body_key, put_body
+from tl_core.integration.inbound.worker import InboundMapJobKind
 from tl_core.integration.rules.engine import RulesWorker
 from tl_core.integration.rules.service import (
     CreateRule,
@@ -37,6 +58,7 @@ from tl_core.services.commands import CommandResult, CreateRecord
 from tl_core.services.feed import PostToFeed, handle_post
 from tl_core.services.records import handle_create_record
 from tl_core.services.settings import ChangeSetting, handle_change_setting
+from tl_core.util import new_ulid, utcnow
 from tl_core.webhooks.egress import EgressPolicy
 from tl_core.webhooks.rows import as_object, load_json
 from tl_core.webhooks.testing import FakeClock, ScriptedTransport
@@ -62,6 +84,7 @@ class World:
         self.clock = FakeClock()
         self.transport = ScriptedTransport()
         self.policy = EgressPolicy((), resolve)
+        self.store = MemStore()
 
     def dispose(self) -> None:
         self.factory.dispose()
@@ -181,6 +204,127 @@ class World:
     def cursor(self) -> int:
         found = self.rows("SELECT last_seq FROM rule_cursor WHERE name = 'rules'")
         return int(found[0]["last_seq"]) if found else 0
+
+    # --- inbound -----------------------------------------------------------------------------
+
+    def endpoint(
+        self, name: str = "orders", *, on: bool = True, live: bool = True, **over: Any
+    ) -> Any:
+        """An enabled, live (not dry-run) endpoint of the app ``erp``; returns what create gave."""
+        with self.factory() as uow:
+            if (
+                uow.conn()
+                .execute(text("SELECT 1 FROM cur_integration_app WHERE name = 'erp'"))
+                .first()
+                is None
+            ):
+                handle_register_app(
+                    uow,
+                    RegisterIntegrationApp(
+                        actor=ADMIN, source="test", scope=SCOPE, name="erp", label="ERP"
+                    ),
+                )
+        values: dict[str, Any] = {
+            "actor": ADMIN,
+            "source": "test",
+            "scope": SCOPE,
+            "app": "erp",
+            "name": name,
+            "mapping": '{"command": "PostToFeed", "args": {"body": $.text}}',
+            "allowed_commands": ["PostToFeed"],
+        }
+        values.update(over)
+        with self.factory() as uow:
+            made = create_endpoint(uow, CreateInboundEndpoint(**values))
+        if live:
+            with self.factory() as uow:
+                handle_revise_endpoint(
+                    uow,
+                    ReviseInboundEndpoint(
+                        actor=ADMIN, source="test", scope=SCOPE, endpoint_id=made.endpoint_id,
+                        changes={"dry_run": False}, reason="go live",
+                    ),
+                )  # fmt: skip
+        if on:
+            with self.factory() as uow:
+                handle_set_endpoint_enabled(
+                    uow,
+                    SetInboundEndpointEnabled(
+                        actor=ADMIN,
+                        source="test",
+                        scope=SCOPE,
+                        endpoint_id=made.endpoint_id,
+                        enabled=True,
+                    ),
+                )
+        return made
+
+    def switch_endpoint(self, endpoint_id: str, on: bool) -> None:
+        with self.factory() as uow:
+            handle_set_endpoint_enabled(
+                uow,
+                SetInboundEndpointEnabled(
+                    actor=ADMIN, source="test", scope=SCOPE, endpoint_id=endpoint_id, enabled=on
+                ),
+            )
+
+    def deliver(self, endpoint_id: str, payload: Any, *, message_id: str | None = None) -> str:
+        """Store a body and accept it as the route does (no signature); returns the delivery id."""
+        body = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
+        delivery_id = new_ulid()
+        key = body_key(endpoint_id, delivery_id)
+        digest = put_body(self.store, key, body)
+        with self.factory() as uow:
+            row = endpoint_view(uow.conn(), endpoint_id)
+            accept_delivery(
+                uow, row, message_id=message_id or new_ulid(), delivery_id=delivery_id,
+                object_key=key, payload_sha256=digest, payload_size=len(body), now=utcnow(),
+            )  # fmt: skip
+        return delivery_id
+
+    def inbound_runner(self, **kw: Any) -> JobRunner:
+        with self.factory(readonly=True) as uow:
+            queue = job_queue_for(uow.conn())
+        kind = InboundMapJobKind(self.runner, self.store, **kw)
+        return JobRunner(self.factory, queue, [kind], worker_id="test", retry_base_s=0.0)
+
+    def deliveries(self) -> list[dict[str, Any]]:
+        return self.rows("SELECT * FROM int_delivery ORDER BY received_at, delivery_id")
+
+    # --- enrichers ---------------------------------------------------------------------------
+
+    def register_enricher(self, **fields: Any) -> str:
+        values: dict[str, Any] = {
+            "actor": ADMIN,
+            "source": "test",
+            "scope": SCOPE,
+            "name": "fake",
+            "when": {"event_types": ["Record.Created"]},
+            "properties": [{"name": "label", "kind": "string"}],
+        }
+        values.update(fields)
+        with self.factory() as uow:
+            return handle_register_enricher(uow, RegisterEnricher(**values)).stream_id
+
+    def dispatcher(self, **kw: Any) -> EnrichmentDispatcher:
+        return EnrichmentDispatcher(self.factory, clock=self.clock, **kw)
+
+    def values(self) -> list[dict[str, Any]]:
+        return self.rows("SELECT * FROM cur_enrichment_value ORDER BY seq")
+
+    def layer(self, record_id: str, enricher: str = "fake") -> dict[str, Any]:
+        row = self.rows("SELECT psets_json FROM cur_core_record WHERE id = :i", i=record_id)[0]
+        psets = as_object(load_json(row["psets_json"]))
+        return as_object(as_object(psets.get("enrich", {})).get(enricher, {}))
+
+    def switch_enricher(self, enricher_id: str, *, on: bool, scope: str = SCOPE) -> None:
+        with self.factory() as uow:
+            handle_set_enricher_enabled(
+                uow,
+                SetEnricherEnabled(
+                    actor=ADMIN, source="test", scope=scope, enricher_id=enricher_id, enabled=on
+                ),
+            )
 
     # --- actions -----------------------------------------------------------------------------
 

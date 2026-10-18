@@ -35,6 +35,23 @@ from tl_core.integration.apps import (
 )
 from tl_core.integration.contract import Access as Access_
 from tl_core.integration.contract import InvokeAction
+from tl_core.integration.enrichers.commands import (
+    AcceptEnrichment,
+    RejectEnrichment,
+    RunEnricher,
+    handle_accept_enrichment,
+    handle_reject_enrichment,
+    handle_run_enricher,
+)
+from tl_core.integration.enrichers.service import (
+    RegisterEnricher,
+    ReviseEnricher,
+    SetEnricherEnabled,
+    handle_register_enricher,
+    handle_revise_enricher,
+    handle_set_enricher_enabled,
+)
+from tl_core.integration.inbound.delivery import RetryInboundDelivery, handle_retry_delivery
 from tl_core.integration.inbound.service import (
     ReviseInboundEndpoint,
     SetInboundEndpointEnabled,
@@ -139,6 +156,14 @@ COMMANDS: tuple[CommandSpec, ...] = (
     CommandSpec(SetIntegrationAppEnabled, handle_set_app_enabled, "admin"),
     CommandSpec(ReviseInboundEndpoint, handle_revise_endpoint, "admin"),
     CommandSpec(SetInboundEndpointEnabled, handle_set_endpoint_enabled, "admin"),
+    CommandSpec(RetryInboundDelivery, handle_retry_delivery, "admin"),
+    CommandSpec(RegisterEnricher, handle_register_enricher, "admin"),
+    CommandSpec(ReviseEnricher, handle_revise_enricher, "admin"),
+    CommandSpec(SetEnricherEnabled, handle_set_enricher_enabled, "admin"),
+    # a person runs an enricher on a record, accepts or rejects a value (the target type decides)
+    CommandSpec(RunEnricher, handle_run_enricher),
+    CommandSpec(AcceptEnrichment, handle_accept_enrichment),
+    CommandSpec(RejectEnrichment, handle_reject_enrichment),
 )
 """Every command the API accepts. Void, mark-pins-stale and the file commands are not here:
 voiding is not in the Phase 0 client contract, pin staleness is a system command, and files have

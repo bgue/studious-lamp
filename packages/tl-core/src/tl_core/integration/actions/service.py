@@ -54,6 +54,7 @@ from tl_core.integration.errors import (
     InvalidIntegrationError,
 )
 from tl_core.integration.executors.job import has_job
+from tl_core.integration.killswitch import kill_switch_on
 from tl_core.integration.secrets import IssuedSecret, issue_secret, rotate_secret
 from tl_core.integration.streams import (
     ACTION_DEFINED,
@@ -607,6 +608,8 @@ def handle_invoke_action(
     ``proposal_id`` and ``invoked_by`` are set only when an accepted proposal re-runs this handler:
     the approval is then given and the request is the original requester's.
     """
+    if kill_switch_on(uow.conn()):  # nothing new is requested while the integrations are stopped
+        raise IntegrationStateError("integrations are stopped (the kill switch is on)")
     row = definition_row(uow.conn(), cmd.action)
     if row is None or bool(row["retired"]) or not bool(row["enabled"]):
         raise IntegrationNotFoundError(f"no action named {cmd.action}")

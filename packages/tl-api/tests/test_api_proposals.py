@@ -221,7 +221,7 @@ def test_an_agent_token_cannot_run_any_record_changing_command(harness: Harness)
         assert response.json()["message"] == MESSAGE
         seen.add(spec.name)
     assert (
-        len(seen) == len(COMMANDS) - len(FEED_COMMANDS) == 64 + 4 + 3 + 5
+        len(seen) == len(COMMANDS) - len(FEED_COMMANDS) == 64 + 4 + 3 + 5 + 6 + 1
     )  # + rules and actions (P1-I7 WS-A)
 
 
