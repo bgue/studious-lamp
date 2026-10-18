@@ -52,7 +52,7 @@ def test_f9_lists_the_settings_with_their_origin_and_closes_with_escape() -> Non
         assert "about:config for P123: changes go to the project" in text
         assert "ai.agents.daily_proposals" in text and "default" in text
         table = app.screen.query_one("#settings-table", DataTable)
-        assert table.row_count == 15
+        assert table.row_count == 16
         assert "key ai.agents.daily_proposals" in text  # the detail of the first row
         await pilot.press("escape")
         await pilot.pause()
@@ -253,7 +253,7 @@ def test_modified_only_lists_what_is_set_at_the_layer() -> None:
         assert table.row_count == 1 and "(modified only)" in screen_text(app)
         await pilot.press("m")
         await pilot.pause()
-        assert table.row_count == 15
+        assert table.row_count == 16
 
     scenario(client, steps)
 
