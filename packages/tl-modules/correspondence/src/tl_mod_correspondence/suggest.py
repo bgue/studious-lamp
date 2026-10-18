@@ -1,4 +1,3 @@
-# ruff: noqa: F401, F841
 """The triage suggestion engine: which domain and subtype a received item probably belongs to.
 
 A pure function of the item's text and the domain definitions: no database, no clock, no model.
@@ -12,9 +11,6 @@ Matching is on whole words or phrases, ignoring case; a keyword in the subject c
 ``general`` when it is among the best, otherwise to the lowest code, so the answer never depends on
 the order of the files. A text with no keyword at all gets the ``general`` domain (or the first
 domain when there is none) with a score of 0 and says so.
-
-STUB (P1-I5-T07b1): the functions with a STEPS comment are for you to write. When they are
-written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -58,32 +54,54 @@ def suggest(
     """The best domain and subtype for the text, or an empty suggestion when there are no domains.
 
     A domain's score is the sum of the weights of its distinct ``triage_keywords`` and of the
-    distinct keywords of all its subtypes. Its subtype is the one with the highest keyword score;
-    a tie, or no match, gives the domain's ``default_subtype``.
+    distinct keywords of all its subtypes (a word that two subtypes share counts once for the
+    domain, and for each of the two subtypes). Its subtype is the one with the highest keyword
+    score; a tie, or no match, gives the domain's ``default_subtype``.
     """
-    # STEPS
-    # 1. `if not domains:` return `Suggestion(domain=None, subtype=None, score=0, reasons=("no
-    #    domain is defined",))`.
-    # 2. `low_subject = subject[:MAX_SUBJECT_CHARS].lower()`; `low_body = (body or
-    #    "")[:MAX_BODY_CHARS].lower()`. Three dicts keyed by domain code: `scores` (int),
-    #    `reasons` (list of str) and `subtype_scores` (a dict subtype code to int).
-    # 3. For each `domain`: `total = 0`, `why = []`. For each `word` in
-    #    `domain.triage_keywords`: `weight = _found(word, low_subject, low_body)`; when it is
-    #    not 0 add it to `total` and append `f"{domain.code}: '{word}'"` to `why`.
-    # 4. For each `subtype` of `domain.subtypes`: `own = 0`; for each `word` in
-    #    `subtype.keywords` add `_found(...)` the same way (and append
-    #    `f"{domain.code}/{subtype.code}: '{word}'"` to `why`); record `by_subtype[subtype.code]
-    #    = own` and add `own` to `total`. Store `total`, `why` and `by_subtype` under the domain
-    #    code.
-    # 5. `best = max(scores.values())`; `leaders = sorted(code for code, score in scores.items()
-    #    if score == best)`; `code = DOMAIN_GENERAL if DOMAIN_GENERAL in leaders else
-    #    leaders[0]`. When `best == 0 and DOMAIN_GENERAL not in scores`: `code =
-    #    sorted(scores)[0]`. (Sorting makes the answer independent of the order of the
-    #    definitions.)
-    # 6. `chosen` is the definition with that code. `own = subtype_scores[code]`; `top =
-    #    max(own.values()) if own else 0`; `winners = [s for s, n in own.items() if n == top]`;
-    #    `subtype = winners[0] if top > 0 and len(winners) == 1 else chosen.default_subtype`.
-    # 7. `why_not = ("no keyword matched; the default domain",) if best == 0 else ()`. Return
-    #    `Suggestion(domain=code, subtype=subtype, score=best, reasons=tuple(reasons[code]) or
-    #    why_not, scores=dict(sorted(scores.items())))`.
-    raise NotImplementedError
+    if not domains:
+        return Suggestion(domain=None, subtype=None, score=0, reasons=("no domain is defined",))
+    low_subject = subject[:MAX_SUBJECT_CHARS].lower()
+    low_body = (body or "")[:MAX_BODY_CHARS].lower()
+    scores: dict[str, int] = {}
+    reasons: dict[str, list[str]] = {}
+    subtype_scores: dict[str, dict[str, int]] = {}
+    for domain in domains:
+        total = 0
+        why: list[str] = []
+        for word in dict.fromkeys(w.lower() for w in domain.triage_keywords):
+            weight = _found(word, low_subject, low_body)
+            if weight != 0:
+                total += weight
+                why.append(f"{domain.code}: '{word}'")
+        by_subtype: dict[str, int] = {}
+        counted: set[str] = set()  # a keyword of several subtypes counts once for the domain
+        for subtype in domain.subtypes:
+            own = 0
+            for word in subtype.keywords:
+                weight = _found(word, low_subject, low_body)
+                if weight != 0:
+                    own += weight
+                    if word.lower() not in counted:
+                        counted.add(word.lower())
+                        total += weight
+                        why.append(f"{domain.code}/{subtype.code}: '{word}'")
+            by_subtype[subtype.code] = own
+        scores[domain.code] = total
+        reasons[domain.code] = why
+        subtype_scores[domain.code] = by_subtype
+    best = max(scores.values())
+    leaders = sorted(code for code, score in scores.items() if score == best)
+    code = DOMAIN_GENERAL if DOMAIN_GENERAL in leaders else leaders[0]
+    chosen = next(d for d in domains if d.code == code)
+    own_scores = subtype_scores[code]
+    top = max(own_scores.values()) if own_scores else 0
+    winners = [s for s, n in own_scores.items() if n == top]
+    subtype = winners[0] if top > 0 and len(winners) == 1 else chosen.default_subtype
+    why_not: tuple[str, ...] = ("no keyword matched; the default domain",) if best == 0 else ()
+    return Suggestion(
+        domain=code,
+        subtype=subtype,
+        score=best,
+        reasons=tuple(reasons[code]) or why_not,
+        scores=dict(sorted(scores.items())),
+    )
