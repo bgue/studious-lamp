@@ -125,6 +125,7 @@ def test_the_references_the_person_confirmed_become_links(world: CorrWorld) -> N
         f=made.stream_id,
     )
     assert [(r["to_id"], r["relation"]) for r in links] == [(earlier.stream_id, "references")]
+    assert links[0]["source"] == "rule"  # made by the triage rule, not typed in by hand
     triaged = [p for n, p in world.events_of(made.stream_id) if n == "Correspondence.Triaged"][0]
     assert triaged["referenced_ids"] == [earlier.stream_id]
 
@@ -262,3 +263,21 @@ def test_reclassify_refuses_no_change_a_blank_reason_an_issued_item_and_unknown_
         world.close(closed)
         with pytest.raises(ItemStateError):
             world.reclassify(closed, "general", "memo")
+
+
+def test_a_retired_clause_cannot_be_cited_by_a_clock(world: CorrWorld, clause_domains: None) -> None:
+    with frozen_today(MONDAY):
+        world.retire_clause(world.forge_clause())
+        made = world.receive("Submittal one")
+        with pytest.raises(InvalidClockError, match="CT-1/20.1"):
+            world.triage(made.stream_id, domain="document_control", subtype="submittal")
+    assert world.item(made.key or "").state == "Received"
+
+
+def test_reclassify_refuses_an_item_that_was_issued_or_answered(world: CorrWorld) -> None:
+    with frozen_today(MONDAY):
+        issued = world.forge_item("P123-COR-0097", state="Issued", direction="out")
+        answered = world.forge_item("P123-COR-0098", state="Responded")
+        for item in (issued, answered):
+            with pytest.raises(ItemStateError):
+                world.reclassify(item, "general", "memo")

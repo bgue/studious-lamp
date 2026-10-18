@@ -191,8 +191,8 @@ class CorrWorld:
     ) -> str:
         """An item written with raw events (no command rules); returns its id.
 
-        ``state`` is Draft, Received or Triaged here (a test that needs another state moves the
-        item with the command that does it).
+        ``state`` is Draft, Received, Triaged, Issued or Responded here (Closed and Void are
+        reached with the commands that do it).
         """
         payload: dict[str, Any] = {
             "number": number,
@@ -215,9 +215,9 @@ class CorrWorld:
                 key=number,
                 extra_events=[NewEvent(event_type=CORR_DEFINED, payload=payload)],
             )
-            if state in ("Received", "Triaged"):
+            if state in ("Received", "Triaged", "Responded"):
                 common.transition(uow, cmd, made.stream_id, "receive")
-            if state == "Triaged":
+            if state in ("Triaged", "Responded"):
                 common.append(
                     uow,
                     cmd,
@@ -238,8 +238,12 @@ class CorrWorld:
                     ],
                 )
                 common.transition(uow, cmd, made.stream_id, "triage")
-            elif state not in ("Draft", "Received"):
-                raise ValueError("forge_item makes a Draft, Received or Triaged item")
+            if state == "Issued":
+                common.transition(uow, cmd, made.stream_id, "issue")
+            if state == "Responded":
+                common.transition(uow, cmd, made.stream_id, "respond")
+            if state not in ("Draft", "Received", "Triaged", "Issued", "Responded"):
+                raise ValueError("forge_item: Draft, Received, Triaged, Issued or Responded only")
         return made.stream_id
 
     def forge_clause(self, contract: str = "CT-1", number: str = "20.1") -> str:
