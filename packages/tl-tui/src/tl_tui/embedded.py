@@ -94,6 +94,7 @@ from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView, get_view, list_views, view_at
 from tl_core.threads.contract import ParseProblem
 from tl_core.threads.dispatch import DispatchFromThread, handle_dispatch_from_thread
+from tl_core.threads.holds import account_holds
 from tl_core.threads.messages import (
     EditThreadMessage,
     PostThreadMessage,
@@ -619,29 +620,8 @@ class EmbeddedClient:
     # --- record threads (P1-I7 WS-B) --------------------------------------------------------------
 
     def _holds(self, uow: UnitOfWork) -> Callable[[Access], bool]:
-        """What the signed-in person holds, read from their account now: ``holds(level)``.
-
-        The actor must be the account's own, character for character, and active; an agent holds
-        nothing here (it proposes). ADR-0014 section 8: access comes from the account, never from
-        a request.
-        """
-        found = account_queries.find_account(uow.conn(), username=self.actor.partition(":")[2])
-        valid = (
-            found is not None
-            and account_queries.actor_of(found) == self.actor
-            and found.status == "active"
-            and found.kind != "agent"
-        )
-        roles = set(found.roles) if found is not None and valid else set()
-
-        def holds(level: Access) -> bool:
-            if level == "admin":
-                return "admin" in roles
-            if level == "controller":
-                return bool({"admin", "document_controller"} & roles)
-            return valid
-
-        return holds
+        """What the signed-in person holds, read from their account now (``account_holds``)."""
+        return account_holds(uow.conn(), self.actor)
 
     def thread_page(
         self, record_id: str, *, limit: int = 50, before_seq: int | None = None

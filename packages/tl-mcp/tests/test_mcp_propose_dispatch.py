@@ -132,6 +132,7 @@ def test_the_setting_none_refuses_the_tool_and_threads_off_refuses_it_too(env: M
             value="none",
             actor="user:a",
             source="test",
+            reason="test",
         )
     with pytest.raises(ToolError, match="agents may not propose"):
         env.call("propose_dispatch", record=rid, text="/link P123-REC-0002")

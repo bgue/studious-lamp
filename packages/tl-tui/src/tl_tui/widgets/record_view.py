@@ -22,6 +22,7 @@ from tl_tui.messages import CloseRecord, RecordChanged, StatusMessage, StepRecor
 from tl_tui.text import EMPTY, conformance_mark, short_hash, timestamp
 from tl_tui.widgets.links_tab import LinksTab
 from tl_tui.widgets.psets_tab import PsetsTab
+from tl_tui.widgets.thread_tab import ThreadTab
 from tl_tui.widgets.trace_tab import TraceTab
 
 TABS: dict[str, str] = {
@@ -30,6 +31,7 @@ TABS: dict[str, str] = {
     "links": "tab-links",
     "history": "tab-history",
     "trace": "tab-trace",
+    "thread": "tab-thread",  # P1-I7 WS-B
 }
 
 
@@ -86,7 +88,7 @@ class RecordView(Vertical, can_focus=True):
     """
 
     KEY_HINTS: ClassVar[str] = (
-        "Esc back  [ ] prev/next  1-5 tabs  e edit  l link  w workflow  t trace  R tray"
+        "Esc back  [ ] prev/next  1-5 tabs  T thread  e edit  l link  w workflow  t trace  R tray"
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -100,6 +102,7 @@ class RecordView(Vertical, can_focus=True):
         Binding("3", "tab('links')", show=False),
         Binding("4", "tab('history')", show=False),
         Binding("5", "tab('trace')", show=False),
+        Binding("T", "tab('thread')", show=False),
     ]
 
     def __init__(
@@ -131,6 +134,8 @@ class RecordView(Vertical, can_focus=True):
                 yield DataTable(id="rv-history", cursor_type="row")
             with TabPane("Trace", id="tab-trace"):
                 yield TraceTab(self.client, self.scope, id="trace-tab")
+            with TabPane("Thread", id="tab-thread"):
+                yield ThreadTab(self.client, self.scope, actor=self._actor(), id="thread-tab")
 
     def _actor(self) -> str:
         return str(getattr(self.app, "actor", "user:dev"))
@@ -158,6 +163,7 @@ class RecordView(Vertical, can_focus=True):
             self.query_one("#psets-tab", PsetsTab).show_record(record)
             self.query_one("#links-tab", LinksTab).show_record(record)
             self.query_one("#trace-tab", TraceTab).show_record(record)
+            self.query_one("#thread-tab", ThreadTab).show_record(record)
 
     def _badges(self, record: dict[str, Any] | None) -> str:
         """``since <time>`` (workflow state) and link counts for the header; empty when unknown.
@@ -255,7 +261,7 @@ class RecordView(Vertical, can_focus=True):
         self.show_tab(name)
 
     def show_tab(self, name: str) -> None:
-        """Make the tab ``details``, ``psets``, ``links``, ``history`` or ``trace`` active."""
+        """Make the tab named in ``TABS`` active (``details``, ``psets``, ... ``thread``)."""
         self.query_one("#rv-tabs", TabbedContent).active = TABS[name]
 
     def _edit_body(self, record: dict[str, Any]) -> bool:
