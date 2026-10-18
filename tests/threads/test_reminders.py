@@ -148,3 +148,22 @@ def test_a_job_whose_message_is_gone_or_not_a_remind_fails_for_good(db: DbTarget
         with open_uow(db, readonly=True) as uow, pytest.raises(JobFailure) as raised:
             kind.prepare(uow, claim)
         assert raised.value.code == "message_missing" and not raised.value.retryable
+
+
+def test_a_plain_message_that_reads_like_a_remind_is_not_a_reminder(db: DbTarget) -> None:
+    from tl_core.threads.messages import PostThreadMessage, handle_post_thread_message
+
+    rid = make_record(db, "REC-1")
+    with open_uow(db) as uow:
+        plain = handle_post_thread_message(
+            uow,
+            PostThreadMessage(
+                actor="user:rgarcia", source="t", scope="project:P123", record_id=rid,
+                body="/remind +1h not a dispatch",
+            ),
+        ).key  # fmt: skip
+    assert plain
+    claim = Claim(plain, "thread.reminder", "project:P123", 1, 3, "w", "2099-01-01T00:00:00Z")
+    with open_uow(db, readonly=True) as uow, pytest.raises(JobFailure) as raised:
+        ThreadReminderKind().prepare(uow, claim)
+    assert raised.value.code == "message_missing" and not raised.value.retryable

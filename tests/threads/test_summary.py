@@ -137,3 +137,11 @@ def test_the_text_is_bounded_and_ends_with_an_ellipsis_when_cut() -> None:
 def test_the_same_page_gives_the_same_text() -> None:
     same = page([message(1, "a"), message(2, "b")])
     assert build_summary(same) == build_summary(same.model_copy(deep=True))
+
+
+def test_a_text_of_exactly_the_limit_is_not_cut() -> None:
+    base = build_summary(page([message(1, "hello", author="user:")]))
+    padding = SUMMARY_MAX_CHARS - len(base)
+    assert padding > 0
+    text = build_summary(page([message(1, "hello", author="user:" + "a" * padding)]))
+    assert len(text) == SUMMARY_MAX_CHARS and text.endswith("hello")
