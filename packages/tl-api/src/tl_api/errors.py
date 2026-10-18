@@ -24,6 +24,7 @@ from tl_core.query import QuerySyntaxError
 from tl_core.services import errors as svc
 from tl_core.webhooks import subscriptions as wh
 from tl_core.workflow.engine import GuardResult
+from tl_mod_correspondence import errors as corr
 from tl_mod_documents import errors as doc
 from tl_mod_documents.imports.apply import ImportRefusedError
 from tl_mod_engineering import errors as eng
@@ -213,6 +214,25 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(doc.ValidationLimitError, "validation_limit", 422),
         s(doc.SchemaUnusableError, "schema_unusable", 422),
         s(ExtractorLoadError, "extractor_unavailable", 503),
+        # --- correspondence module (P1-I5): items, threads, clocks, parties, clauses -----------
+        s(corr.CorrespondenceError, "correspondence_error", 422),
+        s(corr.CorrespondenceScopeError, "correspondence_scope", 422),
+        s(corr.ItemNotFoundError, "correspondence_not_found", 404),
+        s(corr.ItemStateError, "correspondence_state", 409),
+        s(corr.InvalidItemError, "invalid_correspondence", 422),
+        s(corr.ItemBackdatedError, "correspondence_backdated", 422),
+        s(corr.UnknownDomainError, "unknown_domain", 422),
+        s(corr.ThreadNotFoundError, "thread_not_found", 404),
+        s(corr.ClockNotFoundError, "clock_not_found", 404),
+        s(corr.ClockStateError, "clock_state", 409),
+        s(corr.InvalidClockError, "invalid_clock", 422),
+        s(corr.CalendarUnavailableError, "calendar_unavailable", 422),
+        s(corr.PartyNotFoundError, "party_not_found", 404),
+        s(corr.InvalidPartyError, "invalid_party", 422),
+        s(corr.ClauseNotFoundError, "clause_not_found", 404),
+        s(corr.InvalidClauseError, "invalid_clause", 422),
+        s(corr.ClearanceError, "clearance", 422),
+        s(corr.LetterRenderError, "letter_render", 422),
         s(doc.PublishRefusedError, "publish_refused", 422),
         s(doc.CompensationRefusedError, "compensation_refused", 409),
     )
