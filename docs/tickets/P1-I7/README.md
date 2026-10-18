@@ -22,26 +22,30 @@ External systems, rules and enrichers act on the ledger through one guarded seam
 | S1a | Reserved identifiers: `tl_core.services.reserved` (sources, correlation and causation prefixes), `thread_dispatch` a system link source, the narrow `system_source` keyword of `AddLink`/`SuggestLink` (FANOUT D2) | Security: a client posing as automation | fresh-context security review | done (03fc462) |
 | S1b | T01 schema: `integration.yaml` (seven records), `integration_ops.yaml` (seven operational tables), 33 event classes in `events.yaml`, `integration.kill_switch`, projectors, `INTEGRATION_*` event sets, internal events never delivered by webhooks, `int_secret` denied to the dev tools, contract-to-LinkML slot test | Schema (human-gated, SCHEMA_APPROVALS) | orchestrator | done |
 | S1c | The command runner `tl_api.commands.command_runner()` (D14) and `proposals.propose_for_rule` with the `svc:rule-<slug>` proposer (D3) | Permissions | fresh-context security review | done |
-| S2 | T03 rules engine: cursor, match, depth, self-trigger, budgets, firing rows, act and propose, dry run, authoring commands | Engine (`01-tiers.md` §3), loop protection | security review | planned |
-| S3 | T02 core: registry service, `InvokeAction`, lifecycle, job kind `action`, webhook executor with egress and signing, `int_secret` | Outbound call, secrets | security review | planned |
-| S4 | T04 verification: route, rate bound, body cap, HMAC, JWT, replay, secrets, fixed answers, queueing; mapping runtime (profile, envelope); the `inbound.map` worker's allow-list, access, key resolution | Inbound signing and a sandbox (delegated gates) | security review | planned |
-| S5 | T05 enrichment write path and acceptance policy | Writes the `enrich.*` layer | security review | planned |
-| S6 | Kill switch in every engine; the access rows of the new commands in `COMMANDS` | Permissions | security review | planned |
+| S2 | T03 rules engine: cursor, match, depth, self-trigger, budgets, firing rows, act and propose, dry run, authoring commands | Engine (`01-tiers.md` §3), loop protection | security review | done (56a3ea1; fixes 8608be3) |
+| S3 | T02 core: registry service, `InvokeAction`, lifecycle, job kind `action`, webhook executor with egress and signing, `int_secret` | Outbound call, secrets | security review | done (56a3ea1; fixes 8608be3) |
+| S4 | T04 verification: route (`tl_api/inbound.py`), rate bound, body cap, HMAC, JWT, replay, secrets, fixed answers, queueing; mapping runtime (profile, envelope); the `inbound.map` worker's allow-list, access, key resolution; retry and dry run | Inbound signing and a sandbox (delegated gates) | security review | built (9c32d40, 8608be3); review pending |
+| S5 | T05 enrichment: registry, pipeline and policies, the Python-only layer write, the dispatcher, the commands | Writes the `enrich.*` layer | security review | built (9c32d40); review pending |
+| S6 | Kill switch in every engine (rules, actions and `InvokeAction`, inbound route and worker, enrichment); the access rows of the new commands in `COMMANDS` | Permissions | security review | built; review pending |
 
 ## Tickets
 Numbers follow the plan (07-phase1-plan.md); suffixes split a plan ticket by file set. Tickets T01 to T03 of the plan are supervisor pieces (S1 to S3). Ticket files: [T06-doc-classifier.md](T06-doc-classifier.md), [T02a-job-executor.md](T02a-job-executor.md), [T04a-inbound-keys.md](T04a-inbound-keys.md); provided tests in [provided/](provided/).
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
-| T06 | `doc_classifier` enricher, golden set (26 cases), evaluation | H | — | ready | |
-| T02a | `job` action executor and the example job `echo` | H | — | ready | |
-| T04a | Key resolution for inbound mappings (`resolve_keys`) | H | — | ready | |
-| T02b | TUI action menu and `tl action` CLI | H | S3 | planned | |
-| T04b | Dry-run and error-queue API and CLI; endpoint CLI | H | S4 | planned | |
-| T04c | Inbound endpoint registry views | H | S4 | planned | |
-| T05a | Review-queue screen, API and CLI | H | S5 | planned | |
-| T05b | Enrichment dispatcher wiring | H | S5 | planned | |
+| T06 | `doc_classifier` enricher, golden set (26 cases), evaluation | H | — | merged | 58d6b7c; accuracy 1.0 on both properties (a `layout` keyword was added to DRW) |
+| T02a | `job` action executor and the example job `echo` | H | — | merged | 852b28c |
+| T04a | Key resolution for inbound mappings (`resolve_keys`) | H | — | merged | 376e4eb |
+| T03b | `tl rule` CLI | H | — | ready | |
+| T04b | `tl endpoint` CLI | H | — | ready | |
+| T04d | `tl delivery` CLI (error queue, dry run) | H | — | ready | |
+| T05a | `tl enricher` and `tl enrich` CLI (review queue) | H | — | ready | |
+| T02b | `tl action` CLI | H | — | ready | |
+| T04c | Inbound endpoint registry views (TUI) | H | S4 | planned | |
+| T05c | Review-queue screen (TUI) | H | S5 | planned | |
 | T07 | Integration registry screen (apps, endpoints, rules, actions, enrichers, kill switch) | H | S2 to S6 | planned | |
 | T08 | Contract tests for inbound mappings and action results | H | S4 | planned | |
+
+The suffixes split a plan ticket by file set. The plan's T05b (dispatcher wiring) and the API routes of T03b, T04b and T05a are supervisor pieces (`tl integration serve`, `tl_api/routes/integration.py`). The batch-2 tickets are stub-plus-provided-test pairs: the stub is the reference implementation with its bodies replaced, and the provided test passed against the reference (reference commit c9117ea) with mutation checks.
 
 ## Order of work
 1. S1 (done), then the first batch of tickets that need only the contract: T06, T02a, T04a.

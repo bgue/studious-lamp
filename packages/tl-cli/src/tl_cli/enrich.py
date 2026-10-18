@@ -1,3 +1,5 @@
+# ruff: noqa: F401
+# pyright: reportUnusedImport=false, reportUnusedVariable=false
 """The `tl enrich` group: the review queue of enriched values, and a run on one record (P1-I7-T05a).
 
 An enricher proposes values for the layer `enrich.<enricher>` of a record. Each value waits here
@@ -5,6 +7,11 @@ until a person accepts or rejects it (or the enricher's `auto` policy accepted i
 Accepting writes only that layer; making a value an authoritative field is the person's own
 `tl pset set`. Each subcommand parses options, makes one call into `tl_core.integration.enrichers`,
 and prints; the rules live in the services.
+
+
+STUB (P1-I7): the functions below whose body is `raise NotImplementedError` are yours;
+everything else is final. Remove this paragraph and the two lint-silencing lines at the top
+of the file, and `NotImplementedError`, when you implement them.
 """
 
 from __future__ import annotations
@@ -83,20 +90,7 @@ def ls(
     = :state`` (not for ``all``); add ``ORDER BY v.seq LIMIT :n``. In a read-only unit of work
     inside ``service_errors()`` read with ``rows(...)`` and print ``value_line(row)`` for each.
     """
-    if state != "all" and state not in _STATES:
-        fail(f"--state must be one of {', '.join(_STATES)} or all")
-    clauses: list[str] = []
-    params: dict[str, object] = {"n": n}
-    if project is not None or company:
-        clauses.append("v.scope = :scope")
-        params["scope"] = scope_of(project, company)
-    if state != "all":
-        clauses.append("v.acceptance_state = :state")
-        params["state"] = state
-    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
-    with factory(ctx) as opened, opened(readonly=True) as uow, service_errors():
-        for row in rows(uow, f"{_LIST_SQL}{where} ORDER BY v.seq LIMIT :n", **params):
-            typer.echo(value_line(row))
+    raise NotImplementedError
 
 
 @app.command("show")
@@ -117,24 +111,7 @@ def show(
     <sha256>`` (the ``file_sha256`` of the first of ``row["inputs"]``, when that is set),
     ``decided <decided_by> <decided_at>`` and ``reason <reason>``.
     """
-    scope = scope_of(project, company)
-    with factory(ctx) as opened, opened(readonly=True) as uow, service_errors():
-        row = one(uow, f"value {value_id}", _VALUE_SQL, id=value_id, scope=scope)
-    typer.echo(f"value {row['value_id']}")
-    typer.echo(f"state {row['acceptance_state']}")
-    typer.echo(f"record {row['record_key'] or '-'}")
-    typer.echo(f"property {row['property_path']}")
-    typer.echo(f"value {json.dumps(row['value'], ensure_ascii=False)}")
-    typer.echo(f"confidence {row['confidence']}")
-    typer.echo(f"enricher {row['enricher']}@{row['enricher_version']}")
-    typer.echo(f"produced {row['produced_at']}")
-    inputs = row["inputs"] or []
-    if inputs and inputs[0].get("file_sha256"):
-        typer.echo(f"file {inputs[0]['file_sha256']}")
-    if row["decided_by"]:
-        typer.echo(f"decided {row['decided_by']} {row['decided_at']}")
-    if row["reason"]:
-        typer.echo(f"reason {row['reason']}")
+    raise NotImplementedError
 
 
 @app.command("accept")
@@ -151,12 +128,7 @@ def accept(
     ``service_errors()`` call ``handle_accept_enrichment(uow, AcceptEnrichment(actor=actor,
     source=SOURCE, scope=scope, value_id=value_id))``. Print ``accepted <value_id>``.
     """
-    scope = scope_of(project, company)
-    with factory(ctx) as opened, service_errors(), opened() as uow:
-        handle_accept_enrichment(
-            uow, AcceptEnrichment(actor=actor, source=SOURCE, scope=scope, value_id=value_id)
-        )
-    typer.echo(f"accepted {value_id}")
+    raise NotImplementedError
 
 
 @app.command("reject")
@@ -174,15 +146,7 @@ def reject(
     source=SOURCE, scope=scope, value_id=value_id, reason=reason))``. Print ``rejected
     <value_id>``.
     """
-    scope = scope_of(project, company)
-    with factory(ctx) as opened, service_errors(), opened() as uow:
-        handle_reject_enrichment(
-            uow,
-            RejectEnrichment(
-                actor=actor, source=SOURCE, scope=scope, value_id=value_id, reason=reason
-            ),
-        )
-    typer.echo(f"rejected {value_id}")
+    raise NotImplementedError
 
 
 @app.command("run")
@@ -203,15 +167,4 @@ def run(
     ``accepted M``, where N and M count the events of ``made.events`` whose ``event_type`` is
     ``Enrichment.Proposed`` and ``Enrichment.Accepted``.
     """
-    scope = scope_of(project, company)
-    with factory(ctx) as opened, service_errors(), opened() as uow:
-        record_id = record_id_of(uow, key, scope)
-        made = handle_run_enricher(
-            uow,
-            RunEnricher(
-                actor=actor, source=SOURCE, scope=scope, enricher=enricher, record_id=record_id
-            ),
-        )
-    kinds = [e.event_type for e in made.events]
-    typer.echo(f"proposed {kinds.count('Enrichment.Proposed')}")
-    typer.echo(f"accepted {kinds.count('Enrichment.Accepted')}")
+    raise NotImplementedError

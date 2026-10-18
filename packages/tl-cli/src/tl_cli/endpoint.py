@@ -1,3 +1,5 @@
+# ruff: noqa: F401
+# pyright: reportUnusedImport=false, reportUnusedVariable=false
 """The `tl endpoint` group: inbound endpoints, `/in/<app>/<name>` (P1-I7-T04b).
 
 Each subcommand parses options, makes one call into `tl_core.integration.inbound`, and prints. An
@@ -5,6 +7,11 @@ endpoint is the admin's to author. It starts disabled and in dry-run mode: nothi
 an admin switches it on and sets it live. An endpoint is named by its path ``<app>/<name>`` and the
 scope it was made in. The signing secret is printed once, by `create` and `rotate-secret`; it is
 in no event and cannot be shown again.
+
+
+STUB (P1-I7): the functions below whose body is `raise NotImplementedError` are yours;
+everything else is final. Remove this paragraph and the two lint-silencing lines at the top
+of the file, and `NotImplementedError`, when you implement them.
 """
 
 from __future__ import annotations
@@ -74,14 +81,7 @@ def ls(ctx: typer.Context, project: ProjectOption = None, company: CompanyOption
     ``service_errors()`` read ``SELECT * FROM cur_inbound_endpoint [WHERE scope = :scope] ORDER BY
     app, name`` with ``rows(...)`` and print ``endpoint_line(row)`` for each.
     """
-    scope = scope_of(project, company) if project is not None or company else None
-    with factory(ctx) as opened, opened(readonly=True) as uow, service_errors():
-        sql = "SELECT * FROM cur_inbound_endpoint" + (
-            "" if scope is None else " WHERE scope = :scope"
-        )
-        params = {} if scope is None else {"scope": scope}
-        for row in rows(uow, sql + " ORDER BY app, name", **params):
-            typer.echo(endpoint_line(row))
+    raise NotImplementedError
 
 
 @app.command("show")
@@ -97,22 +97,7 @@ def show(
     ``rate_per_minute``, ``actor <service_actor>``, ``owner``, ``allowed <commands joined by ,>``
     (from ``row["allowed_commands"]``), ``mapping <json.dumps(row["mapping"])>``.
     """
-    app_name, name = split_path(path)
-    scope = scope_of(project, company)
-    with factory(ctx) as opened, opened(readonly=True) as uow, service_errors():
-        row = one(uow, f"endpoint {path}", _ENDPOINT_SQL, app=app_name, name=name, scope=scope)
-    typer.echo(f"endpoint {row['app']}/{row['name']}")
-    typer.echo(f"id {row['endpoint_id']}")
-    typer.echo(f"scope {row['scope']}")
-    typer.echo(f"version {row['version']}")
-    typer.echo(f"state {'on' if row['enabled'] else 'off'}")
-    typer.echo(f"mode {'dry-run' if row['dry_run'] else 'live'}")
-    for field in ("auth", "access", "max_body_bytes", "rate_per_minute"):
-        typer.echo(f"{field} {row[field]}")
-    typer.echo(f"actor {row['service_actor']}")
-    typer.echo(f"owner {row['owner']}")
-    typer.echo(f"allowed {','.join(row['allowed_commands'])}")
-    typer.echo(f"mapping {json.dumps(row['mapping'])}")
+    raise NotImplementedError
 
 
 @app.command("create")
@@ -145,29 +130,7 @@ def create(
     stdout, then ``keep the secret: it is not shown again`` to stderr (``issued.secret`` is not
     ``None`` for a new endpoint).
     """
-    admin_gate(ctx)
-    app_name, name = split_path(path)
-    scope = scope_of(project, company)
-    with factory(ctx) as opened, service_errors():
-        if mapping_file == "-":
-            mapping = typer.get_text_stream("stdin").read().strip()
-        else:
-            with open(mapping_file) as handle:
-                mapping = handle.read().strip()
-        with opened() as uow:
-            issued = create_endpoint(
-                uow,
-                CreateInboundEndpoint(
-                    actor=actor, source=SOURCE, scope=scope, app=app_name, name=name,
-                    mapping=mapping, allowed_commands=allow, auth=auth, access=access,  # type: ignore[arg-type]
-                ),
-            )  # fmt: skip
-    assert issued.secret is not None
-    typer.echo(f"endpoint {app_name}/{name}")
-    typer.echo(f"id {issued.endpoint_id}")
-    typer.echo(f"secret_id {issued.secret_id}")
-    typer.echo(f"secret {issued.secret.secret}")
-    typer.echo("keep the secret: it is not shown again", err=True)
+    raise NotImplementedError
 
 
 def _switch(
@@ -230,21 +193,7 @@ def mode(
     changes={"dry_run": new_mode == "dry-run"}, reason=reason))``. Print ``endpoint <path> mode
     <new_mode>``.
     """
-    admin_gate(ctx)
-    if new_mode not in ("live", "dry-run"):
-        fail("the mode is live or dry-run")
-    app_name, name = split_path(path)
-    scope = scope_of(project, company)
-    with factory(ctx) as opened, service_errors(), opened() as uow:
-        row = one(uow, f"endpoint {path}", _ENDPOINT_SQL, app=app_name, name=name, scope=scope)
-        handle_revise_endpoint(
-            uow,
-            ReviseInboundEndpoint(
-                actor=actor, source=SOURCE, scope=scope, endpoint_id=row["endpoint_id"],
-                changes={"dry_run": new_mode == "dry-run"}, reason=reason,
-            ),
-        )  # fmt: skip
-    typer.echo(f"endpoint {path} mode {new_mode}")
+    raise NotImplementedError
 
 
 @app.command("rotate-secret")
@@ -268,20 +217,4 @@ def rotate_secret(
     ``secret <issued.secret.secret>`` to stdout and ``keep the secret: it is not shown again`` to
     stderr.
     """
-    admin_gate(ctx)
-    app_name, name = split_path(path)
-    scope = scope_of(project, company)
-    with factory(ctx) as opened, service_errors(), opened() as uow:
-        row = one(uow, f"endpoint {path}", _ENDPOINT_SQL, app=app_name, name=name, scope=scope)
-        issued = rotate_endpoint_secret(
-            uow,
-            RotateInboundSecret(
-                actor=actor, source=SOURCE, scope=scope, endpoint_id=row["endpoint_id"],
-                overlap_hours=overlap_hours,
-            ),
-        )  # fmt: skip
-    assert issued.secret is not None
-    typer.echo(f"endpoint {path}")
-    typer.echo(f"secret_id {issued.secret_id}")
-    typer.echo(f"secret {issued.secret.secret}")
-    typer.echo("keep the secret: it is not shown again", err=True)
+    raise NotImplementedError

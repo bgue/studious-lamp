@@ -1,3 +1,5 @@
+# ruff: noqa: F401
+# pyright: reportUnusedImport=false, reportUnusedVariable=false
 """The `tl action` group: define, list and run actions, and read their invocations (P1-I7-T02b).
 
 An action is a named, typed thing a person can ask for on records: a webhook to an outside system
@@ -5,6 +7,11 @@ or a registered job. An admin defines it (a webhook's signing secret is printed 
 and `rotate-secret`); any person the action's `access` allows invokes it. An action that needs
 approval becomes a proposal that another person accepts (`tl proposal accept`). Each subcommand
 parses options, makes one call into `tl_core.integration.actions`, and prints.
+
+
+STUB (P1-I7): the functions below whose body is `raise NotImplementedError` are yours;
+everything else is final. Remove this paragraph and the two lint-silencing lines at the top
+of the file, and `NotImplementedError`, when you implement them.
 """
 
 from __future__ import annotations
@@ -70,11 +77,7 @@ def ls(ctx: typer.Context) -> None:
     ``service_errors()`` read ``SELECT * FROM cur_action_definition WHERE retired = :retired ORDER
     BY name`` (``retired=False``) with ``rows(...)`` and print ``action_line(row)`` for each.
     """
-    with factory(ctx) as opened, opened(readonly=True) as uow, service_errors():
-        for row in rows(
-            uow, "SELECT * FROM cur_action_definition WHERE retired = :r ORDER BY name", r=False
-        ):
-            typer.echo(action_line(row))
+    raise NotImplementedError
 
 
 @app.command("show")
@@ -91,24 +94,7 @@ def show(
     sort_keys=True)>``; then for each parameter of ``row["parameters"]`` one line ``parameter
     <name> <kind>`` (``required`` after the kind when it is required).
     """
-    with factory(ctx) as opened, opened(readonly=True) as uow, service_errors():
-        row = one(uow, f"action {name}", _ACTION_SQL, name=name)
-    typer.echo(f"action {row['name']}")
-    typer.echo(f"id {row['definition_id']}")
-    typer.echo(f"scope {row['scope']}")
-    typer.echo(f"version {row['version']}")
-    typer.echo(f"label {row['label']}")
-    typer.echo(f"executor {row['executor']}")
-    typer.echo(f"access {row['access']}")
-    typer.echo(f"side_effect {row['side_effect_class']}")
-    typer.echo(f"approval {'yes' if row['requires_approval'] else 'no'}")
-    typer.echo(f"owner {row['owner']}")
-    state = "retired" if row["retired"] else ("on" if row["enabled"] else "off")
-    typer.echo(f"state {state}")
-    typer.echo(f"applies_to {json.dumps(row['applies_to'], sort_keys=True)}")
-    for parameter in row["parameters"]:
-        required = " required" if parameter.get("required") else ""
-        typer.echo(f"parameter {parameter['name']} {parameter.get('kind', 'string')}{required}")
+    raise NotImplementedError
 
 
 @app.command("define")
@@ -133,19 +119,7 @@ def define(
     ``made.secret`` is not ``None``, ``secret_id <made.secret_id>`` and ``secret
     <made.secret.secret>`` to stdout and ``keep the secret: it is not shown again`` to stderr.
     """
-    admin_gate(ctx)
-    scope = scope_of(project, company)
-    body = read_json_file(file)
-    if not isinstance(body, dict):
-        fail("the file must hold a JSON object")
-    with factory(ctx) as opened, service_errors(), opened() as uow:
-        made = define_action(uow, DefineAction(actor=actor, source=SOURCE, scope=scope, **body))
-    typer.echo(f"action {body['name']}")
-    typer.echo(f"id {made.definition_id}")
-    if made.secret is not None:
-        typer.echo(f"secret_id {made.secret_id}")
-        typer.echo(f"secret {made.secret.secret}")
-        typer.echo("keep the secret: it is not shown again", err=True)
+    raise NotImplementedError
 
 
 @app.command("retire")
@@ -162,17 +136,7 @@ def retire(
     RetireAction(actor=actor, source=SOURCE, scope=row["scope"], definition_id=row["definition_id"],
     reason=reason))``. Print ``action <name> retired``.
     """
-    admin_gate(ctx)
-    with factory(ctx) as opened, service_errors(), opened() as uow:
-        row = one(uow, f"action {name}", _ACTION_SQL, name=name)
-        handle_retire_action(
-            uow,
-            RetireAction(
-                actor=actor, source=SOURCE, scope=row["scope"],
-                definition_id=row["definition_id"], reason=reason,
-            ),
-        )  # fmt: skip
-    typer.echo(f"action {name} retired")
+    raise NotImplementedError
 
 
 @app.command("rotate-secret")
@@ -194,21 +158,7 @@ def rotate_secret(
     ``secret <made.secret.secret>`` (``made.secret`` is not ``None`` here) and, to stderr,
     ``keep the secret: it is not shown again``.
     """
-    admin_gate(ctx)
-    with factory(ctx) as opened, service_errors(), opened() as uow:
-        row = one(uow, f"action {name}", _ACTION_SQL, name=name)
-        made = rotate_action_secret(
-            uow,
-            RotateActionSecret(
-                actor=actor, source=SOURCE, scope=row["scope"],
-                definition_id=row["definition_id"], overlap_hours=overlap_hours,
-            ),
-        )  # fmt: skip
-    assert made.secret is not None
-    typer.echo(f"action {name}")
-    typer.echo(f"secret_id {made.secret_id}")
-    typer.echo(f"secret {made.secret.secret}")
-    typer.echo("keep the secret: it is not shown again", err=True)
+    raise NotImplementedError
 
 
 @app.command("invoke")
@@ -241,34 +191,7 @@ def invoke(
     ``needs approval: another person accepts it with tl proposal accept``; otherwise print
     ``invoked <result.stream_id>``.
     """
-    scope = scope_of(project, company)
-    values = pairs(param or [], "--param")
-    db: DbTarget = ctx.obj
-    principal = session.current_principal(db)
-
-    def holds(level: str) -> bool:
-        if level == "user":
-            return True
-        if principal is None or principal.actor != actor:
-            return False
-        return {"controller": principal.is_controller, "admin": principal.is_admin}.get(
-            level, False
-        )
-
-    with factory(ctx) as opened, service_errors(), opened() as uow:
-        ids = [record_id_of(uow, key, scope) for key in (target or [])]
-        result = handle_invoke_action(
-            uow,
-            InvokeAction(
-                actor=actor, source=SOURCE, scope=scope, action=name, targets=ids, parameters=values
-            ),
-            holds=holds,
-        )
-    if result.events and result.events[0].event_type == "Proposal.Created":
-        typer.echo(f"proposed {result.stream_id}")
-        typer.echo("needs approval: another person accepts it with tl proposal accept")
-    else:
-        typer.echo(f"invoked {result.stream_id}")
+    raise NotImplementedError
 
 
 @app.command("invocations")
@@ -286,23 +209,4 @@ def invocations(
     In a read-only unit of work inside ``service_errors()`` print, for each row, ``line(row[
     "invocation_id"], row["status"], row["action"], row["invoked_by"], row["requested_at"])``.
     """
-    if status is not None and status not in _STATUSES:
-        fail(f"--status must be one of {', '.join(_STATUSES)}")
-    clauses: list[str] = []
-    params: dict[str, object] = {"n": n}
-    if action is not None:
-        clauses.append("action = :action")
-        params["action"] = action
-    if status is not None:
-        clauses.append("status = :status")
-        params["status"] = status
-    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
-    sql = f"SELECT * FROM cur_action_invocation{where} ORDER BY seq DESC LIMIT :n"
-    with factory(ctx) as opened, opened(readonly=True) as uow, service_errors():
-        for row in rows(uow, sql, **params):
-            typer.echo(
-                line(
-                    row["invocation_id"], row["status"], row["action"], row["invoked_by"],
-                    row["requested_at"],
-                )
-            )  # fmt: skip
+    raise NotImplementedError

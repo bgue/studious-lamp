@@ -1,9 +1,16 @@
+# ruff: noqa: F401
+# pyright: reportUnusedImport=false, reportUnusedVariable=false
 """The `tl delivery` group: the inbound error queue and the dry run of a mapping (P1-I7-T04d).
 
 Each subcommand parses options, makes one call into `tl_core.integration.inbound`, and prints.
 A delivery is what a signed POST became: queued, applied, a dry run, failed or killed. The error
 queue is the deliveries in `failed` and `killed`; an admin retries one with the endpoint's
 current mapping, optionally with a corrected payload. The received body is never shown or changed.
+
+
+STUB (P1-I7): the functions below whose body is `raise NotImplementedError` are yours;
+everything else is final. Remove this paragraph and the two lint-silencing lines at the top
+of the file, and `NotImplementedError`, when you implement them.
 """
 
 from __future__ import annotations
@@ -87,25 +94,7 @@ def ls(
     :name``; add ``ORDER BY d.received_at DESC, d.delivery_id DESC LIMIT :n``. In a read-only unit
     of work inside ``service_errors()`` read with ``rows(...)`` and print ``delivery_line(row)``.
     """
-    admin_gate(ctx)
-    if state is not None and state not in _STATES:
-        fail(f"--state must be one of {', '.join(_STATES)}")
-    clauses: list[str] = []
-    params: dict[str, object] = {"n": n}
-    if project is not None or company:
-        clauses.append("d.scope = :scope")
-        params["scope"] = scope_of(project, company)
-    if state is not None:
-        clauses.append("d.state = :state")
-        params["state"] = state
-    if endpoint is not None:
-        params["app"], params["name"] = split_path(endpoint)
-        clauses.append("e.app = :app AND e.name = :name")
-    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
-    sql = f"{_LIST_SQL}{where} ORDER BY d.received_at DESC, d.delivery_id DESC LIMIT :n"
-    with factory(ctx) as opened, opened(readonly=True) as uow, service_errors():
-        for row in rows(uow, sql, **params):
-            typer.echo(delivery_line(row))
+    raise NotImplementedError
 
 
 @app.command("show")
@@ -126,26 +115,7 @@ def show(
     ``error <error_code>: <error_message>`` and ``corrected yes`` (when ``corrected_object_key``
     is set).
     """
-    admin_gate(ctx)
-    scope = scope_of(project, company)
-    with factory(ctx) as opened, opened(readonly=True) as uow, service_errors():
-        row = one(uow, f"delivery {delivery_id}", _DELIVERY_SQL, id=delivery_id, scope=scope)
-    typer.echo(f"delivery {row['delivery_id']}")
-    typer.echo(f"endpoint {row['app']}/{row['name']}")
-    typer.echo(f"version {row['endpoint_version']}")
-    typer.echo(f"state {row['state']}")
-    typer.echo(f"received {row['received_at']}")
-    typer.echo(f"size {row['payload_size']}")
-    typer.echo(f"sha256 {row['payload_sha256']}")
-    typer.echo(f"attempts {row['attempts']}")
-    if row["finished_at"]:
-        typer.echo(f"finished {row['finished_at']}")
-    if row["command_count"] is not None:
-        typer.echo(f"commands {row['command_count']}")
-    if row["error_code"]:
-        typer.echo(f"error {row['error_code']}: {row['error_message']}")
-    if row["corrected_object_key"]:
-        typer.echo("corrected yes")
+    raise NotImplementedError
 
 
 @app.command("retry")
@@ -167,19 +137,7 @@ def retry(
     RetryInboundDelivery(actor=actor, source=SOURCE, scope=scope, delivery_id=delivery_id,
     corrected_payload=corrected))``. Print ``queued <delivery_id>``.
     """
-    admin_gate(ctx)
-    scope = scope_of(project, company)
-    corrected = None if file is None else read_json_file(file)
-    _configure_store()
-    with factory(ctx) as opened, service_errors(), opened() as uow:
-        handle_retry_delivery(
-            uow,
-            RetryInboundDelivery(
-                actor=actor, source=SOURCE, scope=scope, delivery_id=delivery_id,
-                corrected_payload=corrected,
-            ),
-        )  # fmt: skip
-    typer.echo(f"queued {delivery_id}")
+    raise NotImplementedError
 
 
 @app.command("dry-run")
@@ -210,35 +168,4 @@ def dry_run(
     ``permitted``) and, for a refused one, ``  problem <code>: <message>``; for each problem of the
     report ``problem <code>: <message>``.
     """
-    from tl_api.commands import command_runner
-
-    admin_gate(ctx)
-    if (sample is None) == (delivery is None):
-        fail("give --sample or --delivery, not both and not neither")
-    app_name, name = split_path(path)
-    scope = scope_of(project, company)
-    payload = None if sample is None else read_json_file(sample)
-    _configure_store()
-    with factory(ctx) as opened, opened(readonly=True) as uow, service_errors():
-        found = one(
-            uow,
-            f"endpoint {path}",
-            "SELECT endpoint_id FROM cur_inbound_endpoint "
-            "WHERE app = :app AND name = :name AND scope = :scope",
-            app=app_name, name=name, scope=scope,
-        )  # fmt: skip
-        report = dry_run_mapping(
-            uow, command_runner(), endpoint_id=found["endpoint_id"], scope=scope,
-            sample=payload, delivery_id=delivery,
-        )  # fmt: skip
-    typer.echo(f"status {report.status}")
-    typer.echo(f"endpoint {path}")
-    typer.echo(f"version {report.endpoint_version}")
-    for planned in report.commands:
-        typer.echo(
-            line(planned.command_type, "ok" if planned.permitted else "refused", planned.summary)
-        )
-        if planned.problem is not None:
-            typer.echo(f"  problem {planned.problem.code}: {planned.problem.message}")
-    for problem in report.problems:
-        typer.echo(f"problem {problem.code}: {problem.message}")
+    raise NotImplementedError
