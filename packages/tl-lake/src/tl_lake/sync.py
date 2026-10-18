@@ -100,11 +100,9 @@ def _event_rows(conn: Connection, after: int, upto: int, size: int) -> Iterator[
         # The lake is read by every user and by agents: events of a record that is not `internal`
         # (restricted, privileged or of an unknown class) are redacted like account events
         # (ADR-0016, brief 18.10). A reclassification is applied at the next sync only.
-        hidden = confidentiality.hidden_event_streams(
-            conn, [(r["stream_id"], r["stream_type"]) for r in rows], confidentiality.LOWEST
-        )
+        hidden = confidentiality.hidden_row_ids(conn, rows, confidentiality.LOWEST)
         for row in rows:
-            yield {**row, HIDDEN_KEY: True} if row["stream_id"] in hidden else row
+            yield {**row, HIDDEN_KEY: True} if row["event_id"] in hidden else row
 
 
 #: Streams whose events never reach the lake (usernames and roles of accounts, ADR-0009). The lake

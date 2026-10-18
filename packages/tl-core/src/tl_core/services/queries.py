@@ -78,11 +78,13 @@ def get_record_by_id(uow: UnitOfWork, record_id: str) -> dict[str, Any] | None:
 
 
 def record_history(uow: UnitOfWork, record_id: str) -> list[Event]:
-    """Every event of a record's stream in version order; empty when the record is unknown or the
-    viewer may not read it (ADR-0016)."""
+    """Every event of a stream in version order; empty when the stream is unknown or the viewer
+    may not read it (ADR-0016)."""
     if confidentiality.is_hidden(uow.conn(), record_id):
         return []
-    return uow.ledger.read_stream(record_id)
+    # the id may also be a file, a link or a feed item: the events of those about a hidden record
+    # are hidden too (the walking test of the routes found this)
+    return confidentiality.filter_events(uow.conn(), uow.ledger.read_stream(record_id))
 
 
 SORTABLE_COLUMNS = frozenset(
