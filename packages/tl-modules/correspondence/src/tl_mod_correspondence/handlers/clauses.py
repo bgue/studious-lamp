@@ -1,4 +1,3 @@
-# ruff: noqa: F401, F841
 """Contract clauses: the time bars and notice rules a clock can cite (brief 9 M10).
 
 A **clause** is one row of the contract register: the contract, the clause number, how many days
@@ -6,9 +5,6 @@ the clause allows for a notice (a *time bar*), what the notice must contain, to 
 served and how, and the domains that cite it. A clock may name a clause (``clause_id``), and a
 domain file may name one (``clause: <contract>/<number>``). Clauses are registered by a document
 controller and retired, never edited: a change is a new clause number or a retire and a new row.
-
-STUB (P1-I5-T07f): the functions with a STEPS comment are for you to write. When they are
-written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -117,23 +113,51 @@ def handle_define_clause(uow: UnitOfWork, cmd: DefineClause) -> CommandResult:
     Raises ``CorrespondenceScopeError``, ``DuplicateKeyError`` (the clause exists in the scope)
     and ``InvalidClauseError`` (the contract document is not a document of the scope).
     """
-    # STEPS
-    # 1. `require_project(cmd)`; `cmd = correlated(cmd)`.
-    # 2. When `cmd.contract_document_id is not None`: `found =
-    #    documents.get_document(uow.conn(), cmd.contract_document_id)`; when `found is None or
-    #    found.scope != cmd.scope` raise `InvalidClauseError(f"{cmd.contract_document_id!r} is
-    #    not a document of {cmd.scope}")`.
-    # 3. `key = f"{cmd.contract}/{cmd.clause_number}"`; `made = create_module_record(uow, cmd,
-    #    record_type=CLAUSE, title=clean_text(f"{cmd.contract} clause {cmd.clause_number}"),
-    #    key=key)` (a key already used raises `DuplicateKeyError` there).
-    # 4. `done = append(uow, cmd, made.stream_id, CLAUSE, [NewEvent(event_type=CLAUSE_DEFINED,
-    #    payload={...})], expected=made.version)` where the payload holds contract,
-    #    clause_number, time_bar_days, time_bar_day_type, notice_requirements,
-    #    required_recipients, service_method, contract_document_id and domains, each from the
-    #    command field of the same name.
-    # 5. Return `CommandResult(stream_id=made.stream_id, key=made.key, version=done.new_version,
-    #    events=[*made.events, *done.events])`.
-    raise NotImplementedError
+    require_project(cmd)
+    cmd = correlated(cmd)
+    if cmd.contract_document_id is not None:
+        found = documents.get_document(uow.conn(), cmd.contract_document_id)
+        if found is None or found.scope != cmd.scope:
+            raise InvalidClauseError(
+                f"{cmd.contract_document_id!r} is not a document of {cmd.scope}"
+            )
+    key = f"{cmd.contract}/{cmd.clause_number}"
+    made = create_module_record(
+        uow,
+        cmd,
+        record_type=CLAUSE,
+        title=clean_text(f"{cmd.contract} clause {cmd.clause_number}"),
+        key=key,
+    )
+    done = append(
+        uow,
+        cmd,
+        made.stream_id,
+        CLAUSE,
+        [
+            NewEvent(
+                event_type=CLAUSE_DEFINED,
+                payload={
+                    "contract": cmd.contract,
+                    "clause_number": cmd.clause_number,
+                    "time_bar_days": cmd.time_bar_days,
+                    "time_bar_day_type": cmd.time_bar_day_type,
+                    "notice_requirements": cmd.notice_requirements,
+                    "required_recipients": cmd.required_recipients,
+                    "service_method": cmd.service_method,
+                    "contract_document_id": cmd.contract_document_id,
+                    "domains": cmd.domains,
+                },
+            )
+        ],
+        expected=made.version,
+    )
+    return CommandResult(
+        stream_id=made.stream_id,
+        key=made.key,
+        version=done.new_version,
+        events=[*made.events, *done.events],
+    )
 
 
 def handle_retire_clause(uow: UnitOfWork, cmd: RetireClause) -> CommandResult:
@@ -141,14 +165,22 @@ def handle_retire_clause(uow: UnitOfWork, cmd: RetireClause) -> CommandResult:
 
     Raises ``ClauseNotFoundError`` and ``InvalidClauseError`` (already retired).
     """
-    # STEPS
-    # 1. `cmd = correlated(cmd)`; `clause = registry.get_clause(uow.conn(), cmd.clause_id)`.
-    #    When `clause is None or clause.scope != cmd.scope` raise `ClauseNotFoundError(f"no
-    #    clause {cmd.clause_id!r} in scope {cmd.scope!r}")`.
-    # 2. When `not clause.is_active` raise `InvalidClauseError(f"clause
-    #    {clause.contract}/{clause.clause_number} is retired")`.
-    # 3. `done = append(uow, cmd, clause.id, CLAUSE, [NewEvent(event_type=CLAUSE_RETIRED,
-    #    payload={"reason": cmd.reason})])`; return `CommandResult(stream_id=clause.id,
-    #    key=f"{clause.contract}/{clause.clause_number}", version=done.new_version,
-    #    events=list(done.events))`.
-    raise NotImplementedError
+    cmd = correlated(cmd)
+    clause = registry.get_clause(uow.conn(), cmd.clause_id)
+    if clause is None or clause.scope != cmd.scope:
+        raise ClauseNotFoundError(f"no clause {cmd.clause_id!r} in scope {cmd.scope!r}")
+    if not clause.is_active:
+        raise InvalidClauseError(f"clause {clause.contract}/{clause.clause_number} is retired")
+    done = append(
+        uow,
+        cmd,
+        clause.id,
+        CLAUSE,
+        [NewEvent(event_type=CLAUSE_RETIRED, payload={"reason": cmd.reason})],
+    )
+    return CommandResult(
+        stream_id=clause.id,
+        key=f"{clause.contract}/{clause.clause_number}",
+        version=done.new_version,
+        events=list(done.events),
+    )
