@@ -2,13 +2,7 @@
 
 A pure function of a page of the thread: the same page gives the same text, so the preview token of
 a ``/summarise`` stays valid until the thread changes.
-
-STUB: build_summary is yours to write (ticket P1-I7-T10c). Remove this paragraph, every STEPS
-comment and the two lint-silencing lines below when you are done.
 """
-
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false, reportUnusedFunction=false, reportUnusedVariable=false
 
 from __future__ import annotations
 
@@ -31,19 +25,26 @@ def build_summary(page: ThreadPage) -> str:
     each of the last ``SUMMARY_MAX_MESSAGES`` messages that a person wrote (retracted, summary and
     reminder messages are left out). A text over the limit is cut and ends with an ellipsis.
     """
-    # STEPS
-    # 1. people = [p.actor for p in page.participants]. written = the messages m of
-    #    page.messages (zip with page.kinds, strict=True) whose kind is "message" and that
-    #    are not retracted.
-    # 2. lines starts with two lines: "Thread summary (counted by the system, no model)."
-    #    and f"Messages: {page.message_count}. Participants: {names}." where names is the
-    #    people joined by ", ", or "none" when there are none.
-    # 3. dispatched = [m.dispatch for m in page.messages if m.dispatch is not None]. When it
-    #    is not empty add "Dispatched:" and then one line "- <verb>: <summary>" per outcome
-    #    d (d.summary, or "done" when it is empty).
-    # 4. shown = written[-SUMMARY_MAX_MESSAGES:]. When it is not empty add "Last messages:"
-    #    and then one line "- <author>: <first line>" per message, using
-    #    _first_line(m.body).
-    # 5. text = "\n".join(lines). Return it when len(text) <= SUMMARY_MAX_CHARS, else text[:
-    #    SUMMARY_MAX_CHARS - 1] + "…".
-    raise NotImplementedError
+    people = [p.actor for p in page.participants]
+    written = [
+        m
+        for m, kind in zip(page.messages, page.kinds, strict=True)
+        if kind == "message" and not m.retracted
+    ]
+    names = ", ".join(people) if people else "none"
+    lines = [
+        "Thread summary (counted by the system, no model).",
+        f"Messages: {page.message_count}. Participants: {names}.",
+    ]
+    dispatched = [m.dispatch for m in page.messages if m.dispatch is not None]
+    if dispatched:
+        lines.append("Dispatched:")
+        lines.extend(f"- {d.verb}: {d.summary or 'done'}" for d in dispatched)
+    shown = written[-SUMMARY_MAX_MESSAGES:]
+    if shown:
+        lines.append("Last messages:")
+        lines.extend(f"- {m.author}: {_first_line(m.body)}" for m in shown)
+    text = "\n".join(lines)
+    if len(text) <= SUMMARY_MAX_CHARS:
+        return text
+    return text[: SUMMARY_MAX_CHARS - 1] + "…"
