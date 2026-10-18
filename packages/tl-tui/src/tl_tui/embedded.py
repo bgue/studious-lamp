@@ -38,6 +38,7 @@ from tl_core.extypes.service import (
 )
 from tl_core.extypes.types import TypeStatus
 from tl_core.files.types import ObjectStore
+from tl_core.integration import registry as integration_registry
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink, missing_expected_links
 from tl_core.links.provider import get_vocabulary
@@ -1092,3 +1093,33 @@ class EmbeddedClient:
             return account_services.revoke_agent_token(
                 uow, token_id=token_id, by=self.actor, reason=reason
             )
+
+    # --- the integration layer (P1-I7) --------------------------------------------------------
+
+    def list_integration(
+        self, kind: str, *, state: str | None = None, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        with self._uow(True) as uow:
+            if kind == "deliveries":  # the error queue is the admin's, as the API says
+                self._admin_gate(uow)
+            return integration_registry.list_registry(uow.conn(), kind, state=state, limit=limit)
+
+    def integration_command(self, name: str, scope: str, **fields: Any) -> CommandResult:
+        """One of ``SCREEN_COMMANDS`` through the command table, as this client's actor.
+
+        The runner judges the access the table declares for the command against what the actor
+        holds in the ledger (an admin for a switch, a person for an accept), so an actor with no
+        account, or the wrong roles, is refused, exactly as the API refuses it.
+        """
+        from tl_api.client.integration import SCREEN_COMMANDS
+        from tl_api.commands import command_runner
+
+        if name not in SCREEN_COMMANDS:
+            raise ValueError(f"{name} is not a command a screen runs")
+        runner = command_runner()
+        model = runner.model_of(name)
+        if model is None:
+            raise ValueError(f"{name} is not a command of this server")
+        command = model(actor=self.actor, source="tui", scope=scope, **fields)
+        with self._uow(False) as uow:
+            return self.own_writes.note(runner.run(uow, command))

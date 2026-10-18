@@ -19,6 +19,7 @@ from fakes_admin import FakeAdminSupport
 from fakes_derivation import FakeDerivationSupport
 from fakes_documents import FakeDocumentSupport
 from fakes_feed import FakeFeedSupport
+from fakes_integration import FakeIntegrationSupport
 from fakes_links import FakeLinkSupport
 from fakes_query import FakeQuerySupport
 from fakes_settings import FakeSettingsSupport
@@ -218,6 +219,7 @@ class FakeClient(
     FakeTagSupport,
     FakeDocumentSupport,
     FakeDerivationSupport,
+    FakeIntegrationSupport,
 ):
     """Implements `tl_tui.client.ClientInterface` in memory."""
 
@@ -240,6 +242,7 @@ class FakeClient(
         self._init_tags()
         self._init_documents()
         self._init_derivation()
+        self._init_integration()
 
     # --- seeding -----------------------------------------------------------------------------
 

@@ -24,7 +24,6 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
-from sqlalchemy import text
 from tl_core.integration.actions.service import (
     DefineAction,
     RotateActionSecret,
@@ -45,10 +44,10 @@ from tl_core.integration.inbound.service import (
     create_endpoint,
     rotate_endpoint_secret,
 )
+from tl_core.integration.registry import MAX_ROWS, list_registry
 from tl_core.integration.rules.dryrun import DryRun, draft_rule, dry_run_rule
 from tl_core.integration.rules.engine import load_rule
 from tl_core.integration.rules.service import rule_problems
-from tl_core.webhooks.rows import load_json
 
 from tl_api.auth import guard
 from tl_api.commands import command_runner, request_model
@@ -65,7 +64,6 @@ RuleDryRunner = Annotated[str, Depends(guard("admin.integration.rule.dry_run"))]
 MappingDryRunner = Annotated[str, Depends(guard("admin.integration.endpoint.dry_run"))]
 DeliveryReader = Annotated[str, Depends(guard("admin.integration.deliveries.read"))]
 Reader = Annotated[str, Depends(guard("integration.read"))]
-MAX_ROWS = 500
 
 DefineActionBody = request_model(DefineAction, "DefineAction")
 RotateActionSecretBody = request_model(RotateActionSecret, "RotateActionSecret")
@@ -263,31 +261,6 @@ def dry_run_a_mapping(body: DryRunMappingBody, ctx: Ctx, actor: MappingDryRunner
 
 # --- reads ----------------------------------------------------------------------------------------
 
-_TABLES: dict[str, tuple[str, str]] = {
-    # kind: (table, order)
-    "apps": ("cur_integration_app", "name"),
-    "actions": ("cur_action_definition", "name"),
-    "rules": ("cur_rule", "key"),
-    "endpoints": ("cur_inbound_endpoint", "app, name"),
-    "enrichers": ("cur_enricher", "name"),
-    "invocations": ("cur_action_invocation", "seq DESC"),
-    "enrichments": ("cur_enrichment_value", "seq DESC"),
-}
-_HIDDEN = frozenset({"executor_config_json"})
-
-
-def _decode(row: dict[str, Any]) -> dict[str, Any]:
-    """A row with its ``*_json`` columns parsed (and named without the suffix)."""
-    out: dict[str, Any] = {}
-    for name, value in row.items():
-        if name in _HIDDEN:
-            continue
-        if name.endswith("_json") and isinstance(value, (str, bytes)):
-            out[name.removesuffix("_json")] = load_json(value)
-        else:
-            out[name] = value
-    return out
-
 
 class Rows(BaseModel):
     kind: str
@@ -295,7 +268,7 @@ class Rows(BaseModel):
 
 
 @router.get("/integration/{kind}", operation_id="integration_list", response_model=Rows)
-def list_registry(
+def list_registry_rows(
     kind: str,
     ctx: Ctx,
     actor: Reader,
@@ -306,24 +279,11 @@ def list_registry(
     """One kind of integration record: ``apps``, ``actions``, ``rules``, ``endpoints``,
     ``enrichers``, ``invocations`` or ``enrichments`` (``state`` filters the values waiting for
     review). Never a secret, a payload or an executor's configuration."""
-    if kind not in _TABLES:
+    if kind == "deliveries":  # the error queue is the admin's: its own route
         raise IntegrationNotFoundError(f"no integration kind {kind}")
-    table, order = _TABLES[kind]
-    clauses: list[str] = []
-    params: dict[str, Any] = {"limit": limit}
-    if kind == "enrichments":
-        if state is not None:
-            clauses.append("acceptance_state = :state")
-            params["state"] = state
-        if target_id is not None:
-            clauses.append("target_id = :target")
-            params["target"] = target_id
-    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
-    sql = f"SELECT * FROM {table}{where} ORDER BY {order} LIMIT :limit"  # noqa: S608
     with ctx.backend(True) as uow:
-        found = uow.conn().execute(text(sql), params).mappings()
-        rows = [_decode(dict(r)) for r in found]
-    return Rows(kind=kind, rows=rows)
+        found = list_registry(uow.conn(), kind, state=state, target_id=target_id, limit=limit)
+    return Rows(kind=kind, rows=found)
 
 
 @router.get(
@@ -337,24 +297,11 @@ def list_deliveries(
     limit: Annotated[int, Query(ge=1, le=MAX_ROWS)] = 200,
 ) -> Rows:
     """Inbound deliveries, newest first; ``state=failed`` is the error queue. No payload, no key."""
-    clauses: list[str] = []
-    params: dict[str, Any] = {"limit": limit}
-    if state is not None:
-        clauses.append("state = :state")
-        params["state"] = state
-    if endpoint_id is not None:
-        clauses.append("endpoint_id = :endpoint")
-        params["endpoint"] = endpoint_id
-    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
-    sql = (
-        "SELECT delivery_id, endpoint_id, endpoint_version, scope, state, payload_sha256, "
-        "payload_size, received_at, finished_at, attempts, error_code, error_message, "
-        f"command_count FROM int_delivery{where} ORDER BY received_at DESC, delivery_id DESC "  # noqa: S608
-        "LIMIT :limit"
-    )
     with ctx.backend(True) as uow:
-        rows = [dict(r) for r in uow.conn().execute(text(sql), params).mappings()]
-    return Rows(kind="deliveries", rows=rows)
+        found = list_registry(
+            uow.conn(), "deliveries", state=state, endpoint_id=endpoint_id, limit=limit
+        )
+    return Rows(kind="deliveries", rows=found)
 
 
 __all__ = ["router"]

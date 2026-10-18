@@ -631,3 +631,18 @@ class ClientInterface(Protocol):
     def revoke_agent_token(self, token_id: str, *, reason: str | None = None) -> AgentTokenView:
         """Revoke a token at once."""
         ...
+
+    # --- the integration layer (P1-I7) --------------------------------------------------------
+    # The same names and signatures as ``tl_api.client.IntegrationApi``. Rows are dicts of the
+    # projection tables with their JSON columns parsed (``tl_core.integration.registry``); no
+    # secret, payload or executor configuration is in them. ``kind`` is one of apps, actions,
+    # rules, endpoints, enrichers, invocations, enrichments or deliveries (an admin's). A command
+    # is one of ``tl_api.client.integration.SCREEN_COMMANDS``: the service judges the access of the
+    # signed-in person and raises the service errors (``ForbiddenError``, ``IntegrationStateError``,
+    # ``IntegrationNotFoundError`` ...).
+
+    def list_integration(
+        self, kind: str, *, state: str | None = None, limit: int = 200
+    ) -> list[dict[str, Any]]: ...
+
+    def integration_command(self, name: str, scope: str, **fields: Any) -> CommandResult: ...

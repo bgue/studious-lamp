@@ -188,3 +188,98 @@ def test_a_client_cannot_name_the_source_or_the_correlation_of_an_action(
 def test_an_action_that_does_not_exist_is_a_404(people: People) -> None:
     answer = run(people.bob, "InvokeAction", action="nope")
     assert answer.status_code == 404 and answer.json()["error"] == "integration_not_found"
+
+
+# --- the routes that are not commands: secrets shown once, dry runs, reads ----------------------
+
+ACTION = {
+    "scope": SCOPE,
+    "name": "send_to_nde",
+    "label": "Send to NDE",
+    "executor": "webhook",
+    "executor_config": {"url": "https://nde.example.net/hooks/request"},
+    "side_effect_class": "external",
+}
+
+
+def test_the_integration_routes_are_the_admins_and_an_agent_has_none(people: People) -> None:
+    posts = [
+        "/admin/integration/actions",
+        "/admin/integration/endpoints",
+        "/admin/integration/rules/dry-run",
+        "/admin/integration/endpoints/dry-run",
+    ]
+    for path in posts:
+        for client in (people.bob, people.dora):
+            assert client.post(path, json={}).status_code == 403, path
+        assert people.agent.post(path, json={}).status_code == 403, path
+    assert people.bob.get("/admin/integration/deliveries").status_code == 403
+    assert people.agent.get("/integration/rules").status_code == 403
+
+
+def test_the_secret_of_a_new_action_is_in_the_answer_once_and_in_no_read(
+    people: People, harness: Harness
+) -> None:
+    from tl_core.webhooks.egress import SETTING_ALLOWLIST  # noqa: F401
+
+    made = people.boss.post("/admin/integration/actions", json=ACTION)
+    if made.status_code != 200:  # the egress check resolves the host; allow it for the test
+        from tl_core.services.settings import ChangeSetting, handle_change_setting
+
+        with harness.backend() as uow:
+            handle_change_setting(
+                uow,
+                ChangeSetting(
+                    actor="user:boss", source="test", scope="company", key=SETTING_ALLOWLIST,
+                    layer="company", value=["nde.example.net"], reason="test", accept_risk=True,
+                ),
+            )  # fmt: skip
+        made = people.boss.post("/admin/integration/actions", json=ACTION)
+    assert made.status_code == 200, made.text
+    secret = made.json()["secret"]
+    assert secret.startswith("whsec_") and len(made.json()["id"]) == 26
+    for client in (people.boss, people.bob):
+        listed = client.get("/integration/actions")
+        assert listed.status_code == 200 and secret not in listed.text
+        assert "nde.example.net" not in listed.text  # the executor's configuration is not shown
+    rotated = people.boss.post(
+        "/admin/integration/actions/rotate-secret",
+        json={"scope": SCOPE, "definition_id": made.json()["id"]},
+    )
+    assert rotated.status_code == 200 and rotated.json()["secret"] != secret
+
+
+def test_a_person_reads_the_registry_and_the_error_queue_is_the_admins(people: People) -> None:
+    run(people.boss, "CreateRule", **RULE)
+    rows = people.bob.get("/integration/rules").json()
+    assert rows["kind"] == "rules" and rows["rows"][0]["key"] == "hse-notify"
+    assert rows["rows"][0]["then"][0]["command"] == "PostToFeed"
+    assert people.bob.get("/integration/nonsense").status_code == 404
+    assert people.bob.get("/integration/deliveries").status_code == 404
+    assert people.boss.get("/admin/integration/deliveries").json() == {
+        "kind": "deliveries",
+        "rows": [],
+    }
+    assert (
+        people.bob.get("/integration/enrichments", params={"state": "proposed"}).json()["rows"]
+        == []
+    )
+
+
+def test_a_rule_can_be_dry_run_from_a_stored_id_or_a_draft(people: People) -> None:
+    made = run(people.boss, "CreateRule", **RULE).json()
+    stored = people.boss.post(
+        "/admin/integration/rules/dry-run", json={"rule_id": made["stream_id"]}
+    )
+    assert stored.status_code == 200 and stored.json()["rule"] == "hse-notify"
+    draft = {"key": "draft-one", "title": "Draft", "scope": SCOPE, "when": RULE["when"],
+             "then": RULE["then"]}  # fmt: skip
+    drafted = people.boss.post("/admin/integration/rules/dry-run", json={"draft": draft})
+    assert drafted.status_code == 200 and drafted.json()["rule"] == "draft-one"
+    bad = people.boss.post(
+        "/admin/integration/rules/dry-run", json={"draft": {**draft, "when": {}}}
+    )
+    assert bad.status_code == 422
+    assert people.boss.post("/admin/integration/rules/dry-run", json={}).status_code == 422
+    missing = people.boss.post("/admin/integration/rules/dry-run", json={"rule_id": "nope"})
+    assert missing.status_code == 404
