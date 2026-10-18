@@ -37,8 +37,7 @@ RUNNER = TableRunner()
 @pytest.fixture(autouse=True)
 def accounts(db: DbTarget) -> None:
     """The runner finds what an actor holds in its account, so the people who dispatch have one."""
-    for name in ("rgarcia",):
-        make_person(db, name)
+    make_person(db, "rgarcia")
     make_person(db, "planner", "agent")
 
 

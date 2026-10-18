@@ -181,4 +181,4 @@ Standard report (`docs/templates/haiku-report.md`). Put `Deviations` first (or "
 (implementer writes here)
 
 ## Decision
-(supervisor or orchestrator writes here)
+The implementer's block (the fourth case dispatches `/link`, T10a's stub) was an ordering fault of the ticket. T10a merged first, all cases then passed and the review-only pass passed. Depends now names T10a (L-P1-I7B-6). The provided test was extended later with an `accounts` fixture and a fifth case; `provided/t10d-test_reminders.py.txt` matches `tests/threads/test_reminders.py`.
