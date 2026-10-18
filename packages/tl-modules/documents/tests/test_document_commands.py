@@ -319,7 +319,14 @@ def test_confidentiality_changes_only_through_its_own_command(world: World) -> N
     )
     assert world.document("ISO-1234").confidentiality is None
     with pytest.raises(ValidationError):
-        SetDocumentConfidentiality(**BASE, stream_id=doc.id, confidentiality="x", reason=" ")
+        SetDocumentConfidentiality(
+            **BASE, stream_id=doc.id, confidentiality="restricted", reason=" "
+        )
+    for not_a_class in ("x", "privileged", "Confidential", ""):  # ADR-0016: two classes only
+        with pytest.raises(ValidationError):
+            SetDocumentConfidentiality(  # type: ignore[arg-type]
+                **BASE, stream_id=doc.id, confidentiality=not_a_class, reason="r"
+            )
 
 
 def test_a_document_number_with_a_slash_is_accepted_and_its_revision_keys_work(

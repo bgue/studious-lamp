@@ -93,8 +93,8 @@ the P1-I8 legacy loaders. Limits: 1000 rows and 5 MiB per file; a cell with a co
 break, is an invalid row; every field limit of `RegisterDocument` is checked in the preview, so apply refuses nothing the
 preview called new. The code is `tl_mod_documents.imports` (`mapping`, `diff`, `apply`).
 
-## Confidentiality in Phase 1
-In Phase 1 confidentiality is recorded but not enforced: every signed-in person and every agent can read all documents and transmittals of a project, including recipient emails. Setting the class (`SetDocumentConfidentiality`, `tl doc confidentiality`) is an admin act and is kept in the ledger, so the class is ready when access lists arrive.
+## Confidentiality
+Confidentiality is enforced (ADR-0016, which closes the known limit of ADR-0011). A document is `internal` (no class set means internal) or `restricted`; a restricted document is read only by a document controller or an admin; an agent reads internal documents only; a document with any other class is hidden from everyone until a controller sets a real one. A revision, rendition, review, derived document and processing job are as hidden as their document, and a transmittal item that names a hidden revision is left out of its list and count. Setting the class (`SetDocumentConfidentiality`, `tl doc confidentiality`) is a document controller's act and is kept in the ledger.
 
 ## Limits
 Lists and texts in a command are bounded (`tl_mod_documents.limits`: 128 characters in a number, 500 in a title, 2000 in a

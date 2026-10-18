@@ -63,13 +63,13 @@ def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
     assert by_name["trace"].input_schema["properties"]["direction"]["enum"] == ["out", "in", "both"]
 
 
-def test_the_tools_that_show_documents_say_confidentiality_is_not_enforced(
+def test_the_tools_that_show_documents_say_confidentiality_is_enforced(
     env: McpHarness,
 ) -> None:
     by_name = {t.name: t for t in asyncio.run(env.server.list_tools())}
     for name in ("list_documents", "get_document", "get_transmittal"):
         text = " ".join((by_name[name].description or "").split())
-        assert "recorded but not enforced" in text and "recipient emails" in text, name
+        assert "is enforced" in text and "ADR-0016" in text, name
 
 
 def test_the_resources_are_registered(env: McpHarness) -> None:

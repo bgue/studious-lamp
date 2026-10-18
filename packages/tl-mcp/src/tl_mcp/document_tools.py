@@ -124,8 +124,8 @@ def register_document_tools(server: MCPServer, ctx: McpContext) -> None:
         Each row has the document's state and its current revision (code, issue status, class and
         date). A listing has no revisions or links: use `get_document` for those.
 
-        Confidentiality is recorded but not enforced in Phase 1: every signed-in person and every
-        agent can read all documents and transmittals of a project, including recipient emails.
+        Confidentiality is enforced (ADR-0016): an agent reads internal documents only, and
+        a document of any other class does not exist for it.
         """
         with guarded(ctx, "list_documents", resource_name("documents", project)):
             return list_documents_impl(
@@ -146,8 +146,8 @@ def register_document_tools(server: MCPServer, ctx: McpContext) -> None:
         later one, or the document was voided or superseded), `floating`, `no_current` or
         `unknown`.
 
-        Confidentiality is recorded but not enforced in Phase 1: every signed-in person and every
-        agent can read all documents and transmittals of a project, including recipient emails.
+        Confidentiality is enforced (ADR-0016): an agent reads internal documents only, and
+        a document of any other class does not exist for it.
         """
         with guarded(ctx, "get_document", resource_name("document", project, number)):
             return get_document_impl(ctx, project=project, number=number)
@@ -220,8 +220,8 @@ def register_document_tools(server: MCPServer, ctx: McpContext) -> None:
     def get_transmittal(project: Project, number: Number) -> views.TransmittalView:
         """Get one transmittal by number: recipients, dates, the answer and its revisions.
 
-        Confidentiality is recorded but not enforced in Phase 1: every signed-in person and every
-        agent can read all documents and transmittals of a project, including recipient emails.
+        Confidentiality is enforced (ADR-0016): an agent reads internal documents only, and
+        a document of any other class does not exist for it.
         """
         with guarded(ctx, "get_transmittal", resource_name("transmittal", project, number)):
             return get_transmittal_impl(ctx, project=project, number=number)

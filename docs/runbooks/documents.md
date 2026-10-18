@@ -13,7 +13,7 @@ Purpose: run document control day to day: register and issue, handle stale pins,
 - Access needed: a signed-in person registers, drafts, links, re-pins, answers reviews and previews an import. A document controller or admin session (`tl login <name>`; an admin grants the role with `tl admin user roles <name> --add document_controller`, see `accounts-and-access.md`) is needed to issue or supersede a revision, supersede or void a document, set the confidentiality class, register or replace a signed copy, issue a transmittal, record an answer for someone else, override a review outcome and apply an import (ADR-0013, which replaced the admin-only rule of ADR-0011). Agents only read. A refusal says `needs the document_controller or admin role`.
 - Safe to run during business hours: yes. Each command is one unit of work. Two controllers issuing the same revision at once are serialised by the writer lock; the second is refused.
 - Commands take the ledger from `--db` or `TL_DB` (a SQLite file or a `postgresql://` URL) and the project from `--project`.
-- Confidentiality is recorded but not enforced in Phase 1: every signed-in person and every agent can read all documents and transmittals of a project, including recipient emails.
+- Confidentiality is enforced (ADR-0016): a restricted document is read only by a document controller or an admin, an agent reads internal documents only, and a document with a class that is neither is hidden from everyone until a controller sets one (`tl doc confidentiality NUMBER --class internal|restricted --reason ...`).
 
 ## Steps
 ### Set up a project
