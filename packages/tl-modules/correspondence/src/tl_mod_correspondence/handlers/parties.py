@@ -1,4 +1,3 @@
-# ruff: noqa: F401, F841
 """Parties and their contacts: who we write to and who writes to us (brief 9 M10).
 
 A **party** is an organisation on a project (the client, the engineer, a subcontractor, an
@@ -7,9 +6,6 @@ limited to one domain and can be marked an authorised representative. Contacts a
 party, not records: they change by events of the party (``Party.ContactAdded`` and
 ``Party.ContactEnded``), and an ended contact stays in the history. Parties carry no
 confidentiality class. Registering and changing them is a document controller's act.
-
-STUB (P1-I5-T07f): the functions with a STEPS comment are for you to write. When they are
-written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -182,20 +178,39 @@ def handle_register_party(uow: UnitOfWork, cmd: RegisterParty) -> CommandResult:
     Raises ``CorrespondenceScopeError``, ``DuplicateKeyError`` (the code is taken in the scope)
     and ``InvalidPartyError`` (a contact's domain, or an email domain used by another party).
     """
-    # STEPS
-    # 1. `require_project(cmd)`; `cmd = correlated(cmd)`.
-    # 2. For each `other` in `registry.list_parties(uow.conn(), cmd.scope,
-    #    include_inactive=True)`: `clash = set(other.email_domains) & set(cmd.email_domains)`;
-    #    when `clash and other.is_active` raise `InvalidPartyError(f"email domain
-    #    {sorted(clash)[0]} already belongs to party {other.code}")`.
-    # 3. `made = create_module_record(uow, cmd, record_type=PARTY, title=cmd.name,
-    #    key=cmd.code)` (a code already used in the scope raises `DuplicateKeyError` there).
-    # 4. `done = append(uow, cmd, made.stream_id, PARTY, [NewEvent(event_type=PARTY_DEFINED,
-    #    payload={"code": cmd.code, "project_role": cmd.project_role, "email_domains":
-    #    cmd.email_domains, "contacts": [_contact_payload(c) for c in cmd.contacts]})],
-    #    expected=made.version)`; return `CommandResult(stream_id=made.stream_id, key=made.key,
-    #    version=done.new_version, events=[*made.events, *done.events])`.
-    raise NotImplementedError
+    require_project(cmd)
+    cmd = correlated(cmd)
+    for other in registry.list_parties(uow.conn(), cmd.scope, include_inactive=True):
+        clash = set(other.email_domains) & set(cmd.email_domains)
+        if clash and other.is_active:
+            raise InvalidPartyError(
+                f"email domain {sorted(clash)[0]} already belongs to party {other.code}"
+            )
+    made = create_module_record(uow, cmd, record_type=PARTY, title=cmd.name, key=cmd.code)
+    done = append(
+        uow,
+        cmd,
+        made.stream_id,
+        PARTY,
+        [
+            NewEvent(
+                event_type=PARTY_DEFINED,
+                payload={
+                    "code": cmd.code,
+                    "project_role": cmd.project_role,
+                    "email_domains": cmd.email_domains,
+                    "contacts": [_contact_payload(c) for c in cmd.contacts],
+                },
+            )
+        ],
+        expected=made.version,
+    )
+    return CommandResult(
+        stream_id=made.stream_id,
+        key=made.key,
+        version=done.new_version,
+        events=[*made.events, *done.events],
+    )
 
 
 def handle_add_contact(uow: UnitOfWork, cmd: AddContact) -> CommandResult:
@@ -204,41 +219,77 @@ def handle_add_contact(uow: UnitOfWork, cmd: AddContact) -> CommandResult:
     Raises ``PartyNotFoundError``, ``InvalidPartyError`` (the party is retired, or has too many
     contacts).
     """
-    # STEPS
-    # 1. `cmd = correlated(cmd)`; `party = _load_party(uow, cmd, cmd.party_id)`. When `not
-    #    party.is_active` raise `InvalidPartyError(f"party {party.code} is retired")`.
-    # 2. `existing = registry.contacts_of(uow.conn(), party.id, include_ended=True)`. When
-    #    `len(existing) >= MAX_CONTACTS` raise `InvalidPartyError(f"party {party.code} already
-    #    has {MAX_CONTACTS} contacts")`.
-    # 3. `position = max((c.position for c in existing), default=0) + 1` (positions start at 1
-    #    and are never reused, even after a contact ends).
-    # 4. `done = append(uow, cmd, party.id, PARTY, [NewEvent(event_type=PARTY_CONTACT_ADDED,
-    #    payload={"position": position, **_contact_payload(cmd.contact)})])`; return
-    #    `CommandResult(stream_id=party.id, key=party.code, version=done.new_version,
-    #    events=list(done.events))`.
-    raise NotImplementedError
+    cmd = correlated(cmd)
+    party = _load_party(uow, cmd, cmd.party_id)
+    if not party.is_active:
+        raise InvalidPartyError(f"party {party.code} is retired")
+    existing = registry.contacts_of(uow.conn(), party.id, include_ended=True)
+    if len(existing) >= MAX_CONTACTS:
+        raise InvalidPartyError(f"party {party.code} already has {MAX_CONTACTS} contacts")
+    position = max((c.position for c in existing), default=0) + 1
+    done = append(
+        uow,
+        cmd,
+        party.id,
+        PARTY,
+        [
+            NewEvent(
+                event_type=PARTY_CONTACT_ADDED,
+                payload={"position": position, **_contact_payload(cmd.contact)},
+            )
+        ],
+    )
+    return CommandResult(
+        stream_id=party.id,
+        key=party.code,
+        version=done.new_version,
+        events=list(done.events),
+    )
 
 
 def handle_end_contact(uow: UnitOfWork, cmd: EndContact) -> CommandResult:
     """Append ``Party.ContactEnded``. ``InvalidPartyError`` when there is no such active contact."""
-    # STEPS
-    # 1. `cmd = correlated(cmd)`; `party = _load_party(uow, cmd, cmd.party_id)`; `active =
-    #    {c.position for c in registry.contacts_of(uow.conn(), party.id)}`. When `cmd.position
-    #    not in active` raise `InvalidPartyError(f"party {party.code} has no active contact
-    #    {cmd.position}")`.
-    # 2. `done = append(uow, cmd, party.id, PARTY, [NewEvent(event_type=PARTY_CONTACT_ENDED,
-    #    payload={"position": cmd.position, "reason": cmd.reason})])`; return
-    #    `CommandResult(stream_id=party.id, key=party.code, version=done.new_version,
-    #    events=list(done.events))`.
-    raise NotImplementedError
+    cmd = correlated(cmd)
+    party = _load_party(uow, cmd, cmd.party_id)
+    active = {c.position for c in registry.contacts_of(uow.conn(), party.id)}
+    if cmd.position not in active:
+        raise InvalidPartyError(f"party {party.code} has no active contact {cmd.position}")
+    done = append(
+        uow,
+        cmd,
+        party.id,
+        PARTY,
+        [
+            NewEvent(
+                event_type=PARTY_CONTACT_ENDED,
+                payload={"position": cmd.position, "reason": cmd.reason},
+            )
+        ],
+    )
+    return CommandResult(
+        stream_id=party.id,
+        key=party.code,
+        version=done.new_version,
+        events=list(done.events),
+    )
 
 
 def handle_retire_party(uow: UnitOfWork, cmd: RetireParty) -> CommandResult:
     """Append ``Party.Retired``. ``InvalidPartyError`` when it is already retired."""
-    # STEPS
-    # 1. `cmd = correlated(cmd)`; `party = _load_party(uow, cmd, cmd.party_id)`. When `not
-    #    party.is_active` raise `InvalidPartyError(f"party {party.code} is already retired")`.
-    # 2. `done = append(uow, cmd, party.id, PARTY, [NewEvent(event_type=PARTY_RETIRED,
-    #    payload={"reason": cmd.reason})])`; return `CommandResult(stream_id=party.id,
-    #    key=party.code, version=done.new_version, events=list(done.events))`.
-    raise NotImplementedError
+    cmd = correlated(cmd)
+    party = _load_party(uow, cmd, cmd.party_id)
+    if not party.is_active:
+        raise InvalidPartyError(f"party {party.code} is already retired")
+    done = append(
+        uow,
+        cmd,
+        party.id,
+        PARTY,
+        [NewEvent(event_type=PARTY_RETIRED, payload={"reason": cmd.reason})],
+    )
+    return CommandResult(
+        stream_id=party.id,
+        key=party.code,
+        version=done.new_version,
+        events=list(done.events),
+    )
