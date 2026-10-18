@@ -19,6 +19,7 @@ from tl_core.schema_provider import DirectorySchemaProvider, use_provider
 sys.path.insert(0, str(Path(__file__).parent))
 
 from corrworld import FIXTURES, install  # noqa: E402
+from tl_mod_correspondence.testing import CorrWorld  # noqa: E402
 
 
 @pytest.fixture
@@ -43,3 +44,9 @@ def db(new_db: Callable[[], DbTarget]) -> DbTarget:
     target = new_db()
     create_schema(target)
     return target
+
+
+@pytest.fixture
+def world(db: DbTarget, fixture_schemas: None) -> CorrWorld:
+    """A ledger with the module's helpers (``tl_mod_correspondence.testing``)."""
+    return CorrWorld(db)
