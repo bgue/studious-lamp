@@ -38,11 +38,11 @@ result as a card. Agents read and post, and only propose dispatches. The thread 
 | T10b | Targets `/status` and `/raise record` | haiku | S1, S2 | merged | passed review |
 | T10c | Deterministic `/summarise` text | haiku | S1, S2 | merged | passed review |
 | T10d | `thread.reminder` job kind | haiku | S1, S2, T10a | merged | blocked by order on the first run (L-P1-I7B-6); passed after T10a merged |
-| T12a | MCP `read_thread` and `post_thread_message` bodies | haiku | S3 | ready (batch 2) | |
-| T09a | CLI `tl thread show / post / edit / retract` | haiku | S1, S3 | ready (batch 2) | |
-| T09b | CLI `tl thread preview / dispatch / reminders` | haiku | S2, S3, T10a to T10d | ready (batch 2) | |
-| T11a | TUI thread tab: messages, participants, result cards | haiku | S3, T11b (`action_compose` opens `ThreadComposer`) | ready (batch 3) | |
-| T11b | TUI composer: `/` verbs, `@`, `#` completion; preview and confirm | haiku | S3 | ready (batch 2) | |
+| T12a | MCP `read_thread` and `post_thread_message` bodies | haiku | S3 | merged | passed (8 tests) |
+| T09a | CLI `tl thread show / post / edit / retract` | haiku | S1, S3 | merged | passed (11 tests) |
+| T09b | CLI `tl thread preview / dispatch / reminders` | haiku | S2, S3, T10a to T10d | merged | blocked by order on the first run (L-P1-I7B-9); passed after T09a merged (10 tests) |
+| T11a | TUI thread tab: messages, participants, result cards | haiku | S3, T11b (`action_compose` opens `ThreadComposer`) | ready (batch 3, after T11b) | |
+| T11b | TUI composer: `/` verbs, `@`, `#` completion; preview and confirm | haiku | S3 | merged | passed (3 + 13 tests) |
 | T12b | Webhook scenario and catalog for `Thread.*` | supervisor | S1 | done in S1 (pins, scenario) | merged in aea611c |
 
 The plan's T09 (stream, events, settings) and T10 (parser) are supervisor pieces S1 and S2 (FANOUT D15); the Haiku
