@@ -18,7 +18,7 @@ from tl_core.files.service import CompleteUpload, FileService, RegisterUpload
 from tl_core.uow import UnitOfWork
 from tl_mod_documents.derivation import store
 
-from tl_mod_correspondence.errors import LetterRenderError
+from tl_mod_correspondence.errors import InvalidItemError, LetterRenderError
 from tl_mod_correspondence.names import SLOT_RENDITION
 
 PDF_TYPE = "application/pdf"
@@ -42,6 +42,53 @@ def file_service() -> FileService:
     return found
 
 
+def store_file(
+    uow: UnitOfWork,
+    *,
+    actor: str,
+    source: str,
+    scope: str,
+    record_id: str,
+    slot: str,
+    filename: str,
+    content_type: str,
+    data: bytes,
+    correlation_id: str,
+    by_module: bool,
+) -> StoredFile:
+    """Store ``data`` in a slot of the item and return its file id.
+
+    ``by_module=True`` is the module writing a slot only it may fill (``rendition``, ``message``).
+    ``by_module=False`` goes the way a person's upload goes, so the item's upload guard
+    (``guards.item_upload``: the slot and the item's state) and the scan apply.
+    """
+    files = file_service()
+    digest = hashlib.sha256(data).hexdigest()
+    base = {"actor": actor, "source": source, "scope": scope, "correlation_id": correlation_id}
+    ticket = files.register_upload(
+        uow,
+        RegisterUpload(
+            **base,
+            record_id=record_id,
+            slot=slot,
+            filename=filename,
+            content_type=content_type,
+            size=len(data),
+            sha256=digest,
+        ),
+        by_module=by_module,
+    )
+    done = files.complete_upload(
+        uow,
+        CompleteUpload(**base, upload_id=ticket.upload_id),
+        io.BytesIO(data),
+        by_module=by_module,
+    )
+    if done.status == "rejected":  # the scan said no: the whole command is undone
+        raise InvalidItemError(f"the file {filename!r} was rejected by the scan")
+    return StoredFile(file_id=done.file_id, sha256=digest, size=len(data))
+
+
 def write_rendition(
     uow: UnitOfWork,
     *,
@@ -54,26 +101,16 @@ def write_rendition(
     correlation_id: str,
 ) -> StoredFile:
     """Store ``data`` (a PDF) in the slot ``rendition`` of the item and return its file id."""
-    files = file_service()
-    digest = hashlib.sha256(data).hexdigest()
-    base = {"actor": actor, "source": source, "scope": scope, "correlation_id": correlation_id}
-    ticket = files.register_upload(
+    return store_file(
         uow,
-        RegisterUpload(
-            **base,
-            record_id=record_id,
-            slot=SLOT_RENDITION,
-            filename=filename,
-            content_type=PDF_TYPE,
-            size=len(data),
-            sha256=digest,
-        ),
+        actor=actor,
+        source=source,
+        scope=scope,
+        record_id=record_id,
+        slot=SLOT_RENDITION,
+        filename=filename,
+        content_type=PDF_TYPE,
+        data=data,
+        correlation_id=correlation_id,
         by_module=True,
     )
-    done = files.complete_upload(
-        uow,
-        CompleteUpload(**base, upload_id=ticket.upload_id),
-        io.BytesIO(data),
-        by_module=True,
-    )
-    return StoredFile(file_id=done.file_id, sha256=digest, size=len(data))
