@@ -246,7 +246,7 @@ def clock_view(conn: Connection, row: registry.ClockRow, today: date | None = No
         state = effective_state(row.state, date.fromisoformat(row.due_on), day)
     return ClockView(
         id=row.id,
-        key=row.item_number,
+        key=row.key,
         item_id=row.item_id,
         item_number=row.item_number,
         label=row.label,
