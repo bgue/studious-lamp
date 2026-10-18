@@ -73,6 +73,15 @@ of work, with the server-set source `thread:<record id>` and correlation id `dis
 12. **Known limit.** Dispatched workflow transitions cannot satisfy a `roles` guard until the workflow layer
     derives roles from the principal (P1-SEC1): the dispatch never passes caller-chosen roles. The preview shows
     the failed guard.
+13. **The runner is WS-A's `command_runner()` (merged).** A dispatch runs each command through it, so each
+    command runs only if its own actor holds the access the table declares, read from the actor's account in the
+    same unit of work. A person needs an account (a dev ledger: `tl admin user add dev`); the CLI and the
+    embedded TUI read `holds` from the same account, with no dev-file exception, so a preview never says "ok" for
+    a command the runner then refuses. `/dispatch` plans an `InvokeAction`; the action's own `access` decides.
+14. **An agent never previews, confirms or runs anything.** `ThreadPlanner.preview` and `DispatchFromThread` refuse
+    every actor that is not `user:`. An agent's plan (the token of a proposal) is made with no dry run, so nothing
+    runs as the agent even rolled back. A planned command never carries `actor_roles` or `accept_risk` (nor the
+    server-set fields): the planner refuses it as `reserved_field`.
 
 ## Consequences
 - Contracts changed: none of the frozen two. New: `PostThreadMessage`, `EditThreadMessage`,

@@ -9,6 +9,7 @@ import pytest
 from tl_adapters.db import DbTarget, open_uow
 from tl_cli.main import app
 from tl_core import settings
+from tl_core.auth import accounts
 from typer.testing import CliRunner
 from typer.testing import Result as RunResult
 
@@ -24,6 +25,16 @@ def thread_env(
     values = {"TL_DB": str(new_db())}
     assert runner.invoke(app, ["init"], env=values).exit_code == 0
     with open_uow(values["TL_DB"]) as uow:
+        # The command runner reads what an actor holds from its account: ``user:dev`` has one.
+        accounts.create_account(
+            uow,
+            username="dev",
+            display_name="Dev",
+            kind="person",
+            roles=["user"],
+            password=None,
+            by="user:a",
+        )
         for key, value in (("threads.enabled", True), ("threads.enabled_types", ["core.Record"])):
             settings.set_setting(
                 uow, key=key, layer="company", value=value, actor="user:a", source="t", reason="t"
