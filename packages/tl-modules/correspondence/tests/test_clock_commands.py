@@ -224,7 +224,7 @@ def test_a_date_before_the_last_event_is_refused_by_the_engine(world: CorrWorld,
         with pytest.raises(ClockStateError):
             world.pause(cid, on="2026-10-20", reason="waiting")  # before the start
         with pytest.raises(ItemBackdatedError):
-            world.pause(cid, on="2026-10-26", reason=" ")  # backdated without a reason
+            world.pause(cid, on="2026-10-28")  # after today
 
 
 def test_a_resume_dated_before_today_needs_a_reason(world: CorrWorld, item: str) -> None:
