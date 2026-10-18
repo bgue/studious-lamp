@@ -136,3 +136,9 @@ SLOT_ORIGINAL: Final = "original"
 SLOT_ATTACHMENT: Final = "attachment"
 SLOT_RENDITION: Final = "rendition"
 SLOT_MESSAGE: Final = "message"
+
+#: Shown on every command field that sets a class (the OpenAPI text, the CLI help).
+LIMITS_NOTE_CLASSES: Final = (
+    "internal: any signed-in person and agent. restricted: a document controller or admin, no "
+    "agent. privileged: only the accounts named on the item. Enforced (ADR-0016)."
+)

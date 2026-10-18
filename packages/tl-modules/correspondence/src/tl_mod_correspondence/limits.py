@@ -21,6 +21,7 @@ MAX_WARNINGS = 10  # warning thresholds on one clock
 MAX_CLOCK_EVENTS = 500  # events one clock may have; the engine refuses more
 MAX_EMAIL = 254  # an email address
 MAX_DOMAINS = 20  # email domains of one party
+MAX_CLEARANCES = 50  # accounts named on one privileged item
 CLASSES_NOTE = (
     "Confidentiality is enforced (ADR-0016): a person sees an item only if their clearance "
     "covers its class; an unknown class is hidden from everyone."

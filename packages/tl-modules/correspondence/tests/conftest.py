@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from corrworld import FIXTURES, install  # noqa: E402
 from tl_mod_correspondence.testing import CorrWorld  # noqa: E402
+from tl_mod_documents.derivation import store  # noqa: E402
 
 
 @pytest.fixture
@@ -47,6 +48,12 @@ def db(new_db: Callable[[], DbTarget]) -> DbTarget:
 
 
 @pytest.fixture
-def world(db: DbTarget, fixture_schemas: None) -> CorrWorld:
-    """A ledger with the module's helpers (``tl_mod_correspondence.testing``)."""
-    return CorrWorld(db)
+def world(db: DbTarget, tmp_path: Path, fixture_schemas: None) -> Iterator[CorrWorld]:
+    """A ledger, an object store and a file service, with the helpers of ``CorrWorld``.
+
+    The file service is also the one the module writes renditions with (the documents module's
+    derivation store holds the process-wide setting).
+    """
+    made = CorrWorld(db, tmp_path / "objects")
+    with store.use_files(made.files):
+        yield made
