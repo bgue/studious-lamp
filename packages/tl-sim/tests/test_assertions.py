@@ -524,3 +524,63 @@ def test_a_queued_snapshot_that_does_not_exist_is_reported() -> None:
     world.record_rows = [r for r in world.record_rows if r["key"] != "MAIN#2"]
     assert ("record.created", "exists") in failures(check_as(world, truth, OPERATORS))
     assert ("actor_mismatch", "snapshot.queued by") in failures(check_as(world, truth, OPERATORS))
+
+
+def test_the_report_counts_what_the_operators_wrote_and_was_left_alone() -> None:
+    world, truth = update_world()
+    report = check_as(world, truth, OPERATORS)
+    # define_schedule: two records (the schedule, its first snapshot) and their six events
+    assert report.excused == 8
+    assert check_as(world, truth, frozenset()).excused == 0
+
+
+def operator_world() -> tuple[FakeWorld, list[GroundTruth]]:
+    world, truth = update_world()
+    return world, truth
+
+
+def test_an_operator_is_excused_only_for_the_setup_of_a_schedule() -> None:
+    world, truth = operator_world()
+    stray = Recorder(make_context(world, "user:operator"), "user:operator")
+    stray.create("A record the operator made that is not a schedule's")
+    report = check_as(world, truth, OPERATORS)
+    assert {"unexpected_record", "event_actor"} <= {f.check for f in report.failures}
+    world.post_rows.append({"id": "p", "actor": "user:operator", "body": "hi", "retracted": False})
+    world.emit("Feed.Posted", "user:operator", "cli", datetime(2026, 10, 10, tzinfo=UTC), "p")
+    assert ("event_actor", "actor") in failures(check_as(world, truth, OPERATORS))
+
+
+def test_only_the_worker_may_flag_or_restore_a_link_without_being_judged() -> None:
+    world, truth = operator_world()
+    when = datetime(2026, 10, 10, tzinfo=UTC)
+    world.emit("Link.Flagged", "svc:schedule", "svc:schedule", when, "link-x")
+    assert check_as(world, truth, OPERATORS).ok
+    world.emit("Link.Flagged", "user:operator", "cli", when, "link-y")
+    assert ("event_actor", "actor") in failures(check_as(world, truth, OPERATORS))
+    world.emit("Link.Repinned", "user:operator", "svc:schedule", when, "link-z")
+    named = [f for f in check_as(world, truth, OPERATORS).failures if f.check == "event_actor"]
+    assert len(named) == 2
+
+
+def test_a_workflow_event_of_an_operator_is_excused_only_on_a_schedule_record() -> None:
+    world, truth = operator_world()
+    when = datetime(2026, 10, 10, tzinfo=UTC)
+    snapshot = next(r for r in world.records() if r["key"] == "MAIN#1")
+    world.emit("Workflow.Transitioned", "svc:schedule", "svc:schedule", when, snapshot["id"])
+    assert check_as(world, truth, OPERATORS).ok
+    line = next(r for r in world.records() if r["key"].startswith("SIMR1-REC"))
+    world.emit("Workflow.Transitioned", "svc:schedule", "svc:schedule", when, line["id"])
+    assert ("event_actor", "actor") in failures(check_as(world, truth, OPERATORS))
+
+
+def test_a_file_must_be_on_a_record_the_log_names_or_an_operator_made() -> None:
+    world, truth = operator_world()
+    assert check_as(world, truth, OPERATORS).ok
+    uploads = [e for e in world.event_rows if e["event_type"] == "File.Uploaded"]
+    scanned = [e for e in world.event_rows if e["event_type"] == "File.Processed"]
+    for event in (uploads[0], scanned[0]):
+        was = event["stream_id"]
+        event["stream_id"] = "id-nobody-intended"
+        assert ("event_stream", "stream") in failures(check_as(world, truth, OPERATORS))
+        event["stream_id"] = was
+    assert check_as(world, truth, OPERATORS).ok

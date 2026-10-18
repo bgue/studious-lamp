@@ -20,6 +20,7 @@ from tl_mod_schedule.names import (
     ACTIVITY_TABLE,
     BUILT_STATES,
     CALENDAR_TABLE,
+    PROCESSING,
     PUBLISHED,
     RELATIONSHIP_TABLE,
     SCHEDULE_TABLE,
@@ -286,13 +287,26 @@ def find_snapshot(conn: Connection, schedule_id: str, number: int) -> SnapshotRo
     return None if found is None else _snapshot(found)
 
 
-def list_snapshots(conn: Connection, schedule_id: str) -> list[SnapshotRow]:
-    """The snapshots of a schedule, newest number first."""
-    found = conn.execute(
-        text(_SNAPSHOT_SQL + " WHERE t.schedule_id = :schedule ORDER BY t.number DESC"),
-        {"schedule": schedule_id},
+def list_snapshots(
+    conn: Connection, schedule_id: str, *, limit: int | None = None, offset: int = 0
+) -> list[SnapshotRow]:
+    """The snapshots of a schedule, newest number first (a page of them with ``limit``)."""
+    sql = _SNAPSHOT_SQL + " WHERE t.schedule_id = :schedule ORDER BY t.number DESC"
+    params: dict[str, Any] = {"schedule": schedule_id}
+    if limit is not None:
+        sql += " LIMIT :limit OFFSET :offset"
+        params |= {"limit": limit, "offset": offset}
+    return [_snapshot(r) for r in conn.execute(text(sql), params)]
+
+
+def count_snapshots(conn: Connection, schedule_id: str) -> int:
+    """How many snapshots the schedule has, whatever their state."""
+    return int(
+        conn.execute(
+            text(f"SELECT COUNT(*) FROM {SNAPSHOT_TABLE} WHERE schedule_id = :schedule"),
+            {"schedule": schedule_id},
+        ).scalar_one()
     )
-    return [_snapshot(r) for r in found]
 
 
 def next_number(conn: Connection, schedule_id: str) -> int:
@@ -301,6 +315,20 @@ def next_number(conn: Connection, schedule_id: str) -> int:
         {"schedule": schedule_id},
     ).scalar_one()
     return (int(found) if found is not None else 0) + 1
+
+
+def open_count(conn: Connection, schedule_id: str) -> int:
+    """The snapshots of the schedule that wait for a build (Uploaded, or Processing)."""
+    return int(
+        conn.execute(
+            text(
+                f"SELECT COUNT(*) FROM {SNAPSHOT_TABLE} t JOIN cur_core_record r ON r.id = t.id "
+                "WHERE t.schedule_id = :schedule "
+                "AND COALESCE(r.status, :uploaded) IN (:uploaded, :processing)"
+            ),
+            {"schedule": schedule_id, "uploaded": UPLOADED, "processing": PROCESSING},
+        ).scalar_one()
+    )
 
 
 def history(conn: Connection, schedule_id: str) -> list[SnapshotRow]:

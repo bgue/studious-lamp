@@ -29,16 +29,35 @@ def test_a_file_near_the_byte_and_cell_limits_is_read_inside_the_envelope() -> N
     assert result.raw_gz is not None and result.typed_sha256 is not None
 
 
-def test_more_cells_than_the_limit_is_a_refusal_not_a_slow_read() -> None:
-    columns = 200
-    rows = limits.MAX_CELLS // columns + 1000  # 101 000 rows of 200 fields: about 40 MB
-    data = big_text(10, wide_rows=rows, wide_columns=columns, short_cells=True)
+def wide_rows_over_the_memory_limit(cell: str) -> int:
+    """Rows of 200 cells of ``cell`` that cost a little more than the limit allows."""
+    from tl_xer.reader import row_memory
+
+    values = [cell] * 200
+    line = "\t".join(["%R", *values])
+    return limits.MAX_ROW_MEMORY // row_memory(line, values, 200) + 1000
+
+
+def test_more_memory_than_the_limit_is_a_refusal_not_a_slow_read() -> None:
+    rows = wide_rows_over_the_memory_limit("12")  # about 35 000 rows of 200 two-character cells
+    data = big_text(10, wide_rows=rows, wide_columns=200, cell="12")
     assert len(data) < limits.MAX_BYTES
     started = time.monotonic()
     result = read_xer_file(data)
     assert result.status == "refused"
     assert [p["code"] for p in result.report["problems"]] == ["too_many_cells"]
     assert time.monotonic() - started < 30
+
+
+def test_cells_of_wide_characters_are_refused_by_the_reader_not_killed_by_the_envelope() -> None:
+    """The review's file: 0x80 (the euro sign) in every cell cost 76 bytes a cell and reached the
+    envelope's 1 GiB before the cell count refused it. Now the estimate refuses it first."""
+    rows = wide_rows_over_the_memory_limit("\u20ac")
+    data = big_text(10, wide_rows=rows, wide_columns=200, cell="\u20ac")
+    assert len(data) < limits.MAX_BYTES
+    result = read_xer_file(data)  # raises XerLimitError if the envelope ends the child
+    assert result.status == "refused"
+    assert [p["code"] for p in result.report["problems"]] == ["too_many_cells"]
 
 
 def test_many_narrow_tables_are_a_refusal_by_their_rows_not_a_slow_read() -> None:

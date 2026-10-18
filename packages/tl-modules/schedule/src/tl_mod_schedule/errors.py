@@ -60,6 +60,10 @@ class TablesMismatchError(ScheduleError):
     """The typed rows read again from the source file are not the ones the ledger recorded."""
 
 
+class TooManyOpenSnapshotsError(ScheduleError):
+    """The schedule already has the most snapshots waiting for a build that one may have."""
+
+
 class TooManyLinksError(ScheduleError):
     """The activity already has the most links one activity may have."""
 

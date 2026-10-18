@@ -3,8 +3,10 @@
 A publication or a compensation of derived data is told apart in the ledger by its correlation id
 and its event source. A client that could set either could make its own events look like part of a
 publication (and have them read back as one). So a correlation id that starts with ``derive:``,
-a causation id that starts with it, and a source that starts with ``import:derived-`` or
-``compensation:`` are the module's alone: a client command that carries one is refused. The module
+a causation id that starts with it, and a source that starts with ``import:derived-``,
+``compensation:`` or ``svc:`` are the module's alone: a client command that carries one is refused.
+(``svc:`` is the source of the services of the suite, the schedule worker and the scanner among
+them; a module that tells its own events from a person's by that source relies on this.) The module
 builds them itself, after the client's command has been checked, so its own calls are untouched.
 Compensation does not trust them in any case: it reverses the ids a publication recorded.
 """
@@ -15,7 +17,7 @@ from tl_core.services.commands import Command
 from tl_core.services.errors import ReservedIdentifierError
 
 DERIVE_CORRELATION_PREFIX = "derive:"
-RESERVED_SOURCE_PREFIXES = ("import:derived-", "compensation:")
+RESERVED_SOURCE_PREFIXES = ("import:derived-", "compensation:", "svc:")
 
 
 def refuse_reserved_fields(

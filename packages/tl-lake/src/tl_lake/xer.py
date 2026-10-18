@@ -14,15 +14,25 @@ What goes where
   differs.
 * ``schedule_activity`` (silver): the typed activities of every built snapshot, with the schedule
   code, the snapshot number and data date, and floats in days of the activity's own calendar.
-* ``xer_<table>`` (bronze): every table of the XER file verbatim, a row per row of the file, in
-  the columns of the file as text, with ``_snapshot_id`` and ``_row_no``. They come from the raw
-  bundle of the snapshot (a file), read through the ``raw_reader`` the caller passes; without one
-  the bronze load waits (the snapshot is recorded as not yet loaded and the next sync with a reader
-  does it).
+* ``xer_<table>`` (bronze): the tables of the XER file that P6 defines (``P6_TABLES``), a row per
+  row of the file, in the columns of the file as text, with ``_snapshot_id`` and ``_row_no``. They
+  come from the raw bundle of the snapshot (a file), read through the ``raw_reader`` the caller
+  passes; without one the bronze load waits (the snapshot is recorded as not yet loaded and the
+  next sync with a reader does it).
+* ``xer_other`` (bronze): every other table of the file, and a P6 table that would give its lake
+  table more than ``MAX_BRONZE_COLUMNS`` columns, in long format (``_snapshot_id``, ``_table``,
+  ``_row_no``, ``_column``, ``value``; empty cells are not stored). A file is untrusted: it cannot
+  make the lake grow a table per name it invents, or a column per name.
 * ``mart_float_trend`` (mart, :mod:`tl_lake.xer_marts`): rebuilt whenever a snapshot was loaded,
   dropped or changed state.
 * ``_tl_xer`` (control): the snapshots the lake holds and whether their bronze tables are in;
-  ``_tl_xer_state`` holds the signature of the last ``schedule_snapshot`` written.
+  ``_tl_xer_state`` holds the signature of the last ``schedule_snapshot`` written;
+  ``_tl_xer_failed`` holds the snapshots whose bronze load failed on their own content (with a
+  fixed reason): the pass skips them and goes on, so one bad file cannot stop the lake for good.
+
+The silver rows and the control rows are one lake transaction; each snapshot's bronze load is
+another, so a snapshot that cannot be loaded costs the pass only that snapshot. A failure of the
+raw reader (the object store) is not a fault of the file and aborts the pass to be retried.
 
 A snapshot whose typed rows are not in the ledger (a restore before ``tl xer reconcile``) is left
 for a later sync.
@@ -36,12 +46,12 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Final
 
+import duckdb
 from sqlalchemy import Connection, bindparam, text
 from tl_xer.bundle import BundleError, read_bundle, verify_bundle
 
 from tl_lake.config import LakeConfig
 from tl_lake.duck import LOCK_TIMEOUT_S, Duck, ident, lake_tables, open_lake, table_ref
-from tl_lake.errors import LakeSyncError
 from tl_lake.ingest import CHUNK_ROWS, insert_rows
 from tl_lake.schema import Column, generated_columns
 from tl_lake.xer_marts import build_marts
@@ -50,7 +60,31 @@ SNAPSHOT_TABLE: Final = "schedule_snapshot"
 ACTIVITY_TABLE: Final = "schedule_activity"
 LOADED_TABLE: Final = "_tl_xer"
 STATE_TABLE: Final = "_tl_xer_state"
+FAILED_TABLE: Final = "_tl_xer_failed"
 BRONZE_PREFIX: Final = "xer_"
+OTHER_TABLE: Final = "xer_other"
+#: Most columns a bronze table may have; a table that would have more goes to ``xer_other``.
+MAX_BRONZE_COLUMNS: Final = 300
+#: The tables P6 writes into an XER file (the typed ones of ``tl_xer.typed`` and the standard set).
+P6_TABLES: Final = frozenset(
+    {
+        "ACCOUNT", "ACTVCODE", "ACTVTYPE", "CALENDAR", "CURRTYPE", "FINDATES", "MEMOTYPE",
+        "NONWORK", "OBS", "PCATTYPE", "PCATVAL", "PHASE", "PROJCOST", "PROJECT", "PROJPCAT",
+        "PROJWBS", "RCATTYPE", "RCATVAL", "ROLERATE", "ROLES", "RSRC", "RSRCCURVDATA",
+        "RSRCRATE", "SCHEDOPTIONS", "TASK", "TASKACTV", "TASKFIN", "TASKMEMO", "TASKNOTE",
+        "TASKPRED", "TASKPROC", "TASKRSRC", "UDFTYPE", "UDFVALUE", "WBSMEMO", "WBSSTEP",
+    }
+)  # fmt: skip
+#: A bundle or a table the lake cannot take is the file's fault; the errors below are too.
+_CONTENT_ERRORS: Final = (
+    BundleError,
+    ValueError,
+    duckdb.CatalogException,
+    duckdb.BinderException,
+    duckdb.ConversionException,
+    duckdb.ConstraintException,
+)
+_FAILED_REASON: Final = "the raw bundle could not be loaded into the lake"
 
 #: The states of a snapshot whose typed rows exist (``tl_mod_schedule.names.BUILT_STATES``).
 BUILT_STATES: Final = ("Valid", "Published", "Superseded")
@@ -88,6 +122,17 @@ _LOADED_COLUMNS: Final = (
     Column("bronze", "BOOLEAN", True),
 )
 _STATE_COLUMNS: Final = (Column("signature", "VARCHAR", True),)
+_FAILED_COLUMNS: Final = (
+    Column("snapshot_id", "VARCHAR", True),
+    Column("reason", "VARCHAR", True),
+)
+_OTHER_COLUMNS: Final = (
+    Column("_snapshot_id", "VARCHAR", True),
+    Column("_table", "VARCHAR", True),
+    Column("_row_no", "BIGINT", True),
+    Column("_column", "VARCHAR", True),
+    Column("value", "VARCHAR", True),
+)
 _DATE_COLUMNS: Final = frozenset(
     {
         "early_start",
@@ -134,6 +179,7 @@ class XerSyncResult:
     bronze_rows: int
     waiting: int  # built snapshots whose typed rows are not in the ledger yet
     bronze_waiting: int = 0  # loaded snapshots whose bronze tables are not in (no raw reader)
+    failed: int = 0  # snapshots whose bronze load failed on their own content (``_tl_xer_failed``)
 
     @property
     def up_to_date(self) -> bool:
@@ -325,7 +371,8 @@ def _drop_snapshots(con: Duck, tables: Mapping[str, Any], ids: Sequence[str]) ->
             con.execute(
                 f"DELETE FROM {table_ref(name)} WHERE {ident(column)} IN ({marks})", list(ids)
             )
-    con.execute(f"DELETE FROM {table_ref(LOADED_TABLE)} WHERE snapshot_id IN ({marks})", list(ids))
+    for control in (LOADED_TABLE, FAILED_TABLE):
+        con.execute(f"DELETE FROM {table_ref(control)} WHERE snapshot_id IN ({marks})", list(ids))
 
 
 def _current_snapshot(con: Duck) -> int:
@@ -343,6 +390,10 @@ def _bronze_name(table: str) -> str:
     return BRONZE_PREFIX + table.lower()
 
 
+class SnapshotLoadError(Exception):
+    """The bronze load of one snapshot failed on the file's own content."""
+
+
 def _load_bronze(
     con: Duck,
     config: LakeConfig,
@@ -350,11 +401,13 @@ def _load_bronze(
     raw_reader: RawReader,
     chunk: int,
 ) -> int:
-    """Add the tables of the snapshot's raw bundle; returns the rows added."""
+    """Add the tables of the snapshot's raw bundle; returns the rows added.
+
+    Raises ``SnapshotLoadError`` when the bundle or its content cannot be loaded (the caller rolls
+    the snapshot's transaction back and records it); an error of ``raw_reader`` propagates.
+    """
     if snapshot.raw_file_id is None or snapshot.raw_sha256 is None:
-        raise LakeSyncError(
-            f"snapshot {snapshot.schedule_code}#{snapshot.number} has no raw bundle"
-        )
+        raise SnapshotLoadError("the snapshot has no raw bundle")
     blob = raw_reader(snapshot.scope, snapshot.raw_file_id, snapshot.raw_sha256)
     try:
         verify_bundle(blob, snapshot.raw_sha256)
@@ -362,21 +415,60 @@ def _load_bronze(
         total = 0
         for table in tables:
             fields = [name.lower() for name in table.columns]
-            columns = [Column("_snapshot_id", "VARCHAR", True), Column("_row_no", "BIGINT", True)]
-            columns += [Column(name, "VARCHAR") for name in fields]
-            _ensure_table(con, lake_tables(con), _bronze_name(table.name), columns)
-            rows = (
-                {"_snapshot_id": snapshot.id, "_row_no": n, **dict(zip(fields, row, strict=True))}
-                for n, row in enumerate(table.rows, start=1)
-            )
-            total += insert_rows(
-                con, _bronze_name(table.name), columns, rows, config.tmp_dir, chunk=chunk
-            )
+            existing = lake_tables(con)
+            name = _bronze_name(table.name)
+            if table.name.upper() in P6_TABLES and _fits(existing.get(name), fields):
+                columns = [Column("_snapshot_id", "VARCHAR", True)]
+                columns += [Column("_row_no", "BIGINT", True)]
+                columns += [Column(field, "VARCHAR") for field in fields]
+                _ensure_table(con, existing, name, columns)
+                rows = (
+                    {
+                        "_snapshot_id": snapshot.id,
+                        "_row_no": n,
+                        **dict(zip(fields, row, strict=True)),
+                    }
+                    for n, row in enumerate(table.rows, start=1)
+                )
+                total += insert_rows(con, name, columns, rows, config.tmp_dir, chunk=chunk)
+            else:
+                _ensure_table(con, existing, OTHER_TABLE, _OTHER_COLUMNS)
+                total += insert_rows(
+                    con,
+                    OTHER_TABLE,
+                    _OTHER_COLUMNS,
+                    _long_rows(snapshot.id, table.name, table.columns, table.rows),
+                    config.tmp_dir,
+                    chunk=chunk,
+                )
         return total
-    except (BundleError, ValueError) as exc:
-        raise LakeSyncError(
-            f"the raw bundle of {snapshot.schedule_code}#{snapshot.number}: {exc}"
-        ) from exc
+    except _CONTENT_ERRORS as exc:
+        raise SnapshotLoadError(type(exc).__name__) from exc
+
+
+def _fits(have: Sequence[tuple[str, str]] | None, fields: Sequence[str]) -> bool:
+    """Whether the table keeps at most ``MAX_BRONZE_COLUMNS`` columns with ``fields`` added."""
+    known = {column for column, _ in have or ()}
+    return len(known | {"_snapshot_id", "_row_no", *fields}) <= MAX_BRONZE_COLUMNS
+
+
+def _long_rows(
+    snapshot_id: str,
+    table: str,
+    columns: Sequence[str],
+    rows: Iterator[tuple[str, ...]],
+) -> Iterator[dict[str, Any]]:
+    """One lake row per non-empty cell: the table, row number, column name and value."""
+    for n, row in enumerate(rows, start=1):
+        for column, value in zip(columns, row, strict=True):
+            if value != "":
+                yield {
+                    "_snapshot_id": snapshot_id,
+                    "_table": table,
+                    "_row_no": n,
+                    "_column": column.lower(),
+                    "value": value,
+                }
 
 
 def sync_xer(
@@ -415,10 +507,60 @@ def _sync(
         # nothing to load and nothing loaded before: a lake of a ledger with no schedules stays as
         # it is, with none of the schedule tables
         return XerSyncResult(None, 0, 0, 0, 0, 0, waiting)
+    silver = _sync_silver(con, config, ledger, ready, columns, chunk)
+    bronze = bronze_rows = failed_now = 0
+    held, failed = silver.held, silver.failed
+    if raw_reader is not None:
+        for snapshot in ready:
+            if held[snapshot.id] or snapshot.id in failed:
+                continue
+            outcome = _sync_bronze(con, config, snapshot, raw_reader, chunk)
+            if outcome is None:
+                failed_now += 1
+                failed.add(snapshot.id)
+            else:
+                bronze += 1
+                bronze_rows += outcome
+                held[snapshot.id] = True
+    changed = silver.changed or bronze or failed_now
+    return XerSyncResult(
+        _current_snapshot(con) if changed else None,
+        silver.loaded,
+        silver.dropped,
+        bronze,
+        silver.activity_rows,
+        bronze_rows,
+        waiting,
+        sum(1 for s in ready if not held[s.id] and s.id not in failed),
+        sum(1 for s in ready if s.id in failed),
+    )
+
+
+@dataclass
+class _Silver:
+    held: dict[str, bool]  # snapshot id -> its bronze tables are in
+    failed: set[str]  # snapshot ids whose bronze load failed on their content
+    loaded: int
+    dropped: int
+    activity_rows: int
+    changed: bool
+
+
+def _sync_silver(
+    con: Duck,
+    config: LakeConfig,
+    ledger: Connection,
+    ready: Sequence[LedgerSnapshot],
+    columns: Sequence[Column],
+    chunk: int,
+) -> _Silver:
+    """The silver rows, the control rows and the marts: one lake transaction."""
+    tables = lake_tables(con)
     con.execute("BEGIN")
     try:
         _ensure_table(con, tables, LOADED_TABLE, _LOADED_COLUMNS)
         _ensure_table(con, tables, STATE_TABLE, _STATE_COLUMNS)
+        _ensure_table(con, tables, FAILED_TABLE, _FAILED_COLUMNS)
         _ensure_table(con, tables, SNAPSHOT_TABLE, _SNAPSHOT_COLUMNS)
         _ensure_table(con, tables, ACTIVITY_TABLE, columns)
         tables = lake_tables(con)
@@ -428,9 +570,15 @@ def _sync(
                 f"SELECT snapshot_id, bronze FROM {table_ref(LOADED_TABLE)}"
             ).fetchall()
         }
+        failed = {
+            str(r[0])
+            for r in con.execute(f"SELECT snapshot_id FROM {table_ref(FAILED_TABLE)}").fetchall()
+        }
         wanted = {s.id: s for s in ready}
         gone = sorted(set(held) - set(wanted))
         _drop_snapshots(con, tables, gone)
+        for snapshot_id in gone:
+            del held[snapshot_id]
 
         activity_rows = 0
         loaded = 0
@@ -451,20 +599,6 @@ def _sync(
             held[snapshot.id] = False
             loaded += 1
 
-        bronze = 0
-        bronze_rows = 0
-        if raw_reader is not None:
-            for snapshot in ready:
-                if held[snapshot.id]:
-                    continue
-                bronze_rows += _load_bronze(con, config, snapshot, raw_reader, chunk)
-                con.execute(
-                    f"UPDATE {table_ref(LOADED_TABLE)} SET bronze = TRUE WHERE snapshot_id = ?",
-                    [snapshot.id],
-                )
-                held[snapshot.id] = True
-                bronze += 1
-
         rows = [s.row() for s in ready]
         signature = _signature(rows)
         known = con.execute(f"SELECT signature FROM {table_ref(STATE_TABLE)}").fetchall()
@@ -474,24 +608,57 @@ def _sync(
             insert_rows(con, SNAPSHOT_TABLE, _SNAPSHOT_COLUMNS, rows, config.tmp_dir, chunk=chunk)
             con.execute(f"DELETE FROM {table_ref(STATE_TABLE)}")
             con.execute(f"INSERT INTO {table_ref(STATE_TABLE)} VALUES (?)", [signature])
-        if changed_meta or bronze:  # (a snapshot loaded or dropped changes the rows of the first)
-            build_marts(con)
+            build_marts(con)  # (a snapshot loaded or dropped changes the rows of the first)
+        if changed_meta or loaded or gone:
             con.execute("COMMIT")
-            return XerSyncResult(
-                _current_snapshot(con),
-                loaded,
-                len(gone),
-                bronze,
-                activity_rows,
-                bronze_rows,
-                waiting,
-                sum(1 for s in ready if not held[s.id]),
-            )
-        con.execute("ROLLBACK")
-        return XerSyncResult(None, 0, 0, 0, 0, 0, waiting, sum(1 for s in ready if not held[s.id]))
-    except BaseException:
-        try:
+        else:
             con.execute("ROLLBACK")
-        except Exception:  # noqa: BLE001 - the original error is the one worth reporting
-            pass
+        return _Silver(held, failed, loaded, len(gone), activity_rows, changed_meta or bool(gone))
+    except BaseException:
+        _rollback(con)
         raise
+
+
+def _sync_bronze(
+    con: Duck,
+    config: LakeConfig,
+    snapshot: LedgerSnapshot,
+    raw_reader: RawReader,
+    chunk: int,
+) -> int | None:
+    """Load one snapshot's bronze tables in a transaction of its own; the rows added.
+
+    ``None`` when the snapshot's content could not be loaded: the work is rolled back and the
+    snapshot is recorded in ``_tl_xer_failed`` so that later passes leave it alone.
+    """
+    con.execute("BEGIN")
+    try:
+        rows = _load_bronze(con, config, snapshot, raw_reader, chunk)
+        con.execute(
+            f"UPDATE {table_ref(LOADED_TABLE)} SET bronze = TRUE WHERE snapshot_id = ?",
+            [snapshot.id],
+        )
+        con.execute("COMMIT")
+        return rows
+    except SnapshotLoadError:
+        _rollback(con)
+    except BaseException:
+        _rollback(con)
+        raise
+    con.execute("BEGIN")
+    try:
+        con.execute(
+            f"INSERT INTO {table_ref(FAILED_TABLE)} VALUES (?, ?)", [snapshot.id, _FAILED_REASON]
+        )
+        con.execute("COMMIT")
+    except BaseException:
+        _rollback(con)
+        raise
+    return None
+
+
+def _rollback(con: Duck) -> None:
+    try:
+        con.execute("ROLLBACK")
+    except Exception:  # noqa: BLE001 - the original error is the one worth reporting
+        pass

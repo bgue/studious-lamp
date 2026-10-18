@@ -104,11 +104,12 @@ uv run tl lake rebuild --yes
 Expected: the old catalog and Parquet files are deleted and everything is loaded again, with the account rows redacted. A lake that never saw an `Account.*` event needs nothing.
 
 ## Schedule snapshots in the lake (P1-I4)
-`tl lake sync` and `tl lake rebuild --yes` run a second pass after the event pass (`tl_lake.xer`). It loads every built P6 schedule snapshot (Valid, Published, Superseded) once: silver `schedule_snapshot` and `schedule_activity`, bronze `xer_<table>` (every table of the XER file, as text, from the snapshot's raw bundle), and the mart `mart_float_trend`.
+`tl lake sync` and `tl lake rebuild --yes` run a second pass after the event pass (`tl_lake.xer`). It loads every built P6 schedule snapshot (Valid, Published, Superseded) once: silver `schedule_snapshot` and `schedule_activity`, bronze `xer_<table>` (the tables P6 defines, as text, from the snapshot's raw bundle; every other table of the file goes to the long table `xer_other`), and the mart `mart_float_trend`.
 
 - The line `schedule snapshots: loaded N (A activities), dropped D, bronze tables for B (R rows) in snapshot S` appears only when something was loaded. A ledger with no schedule adds none of these tables.
 - `schedule snapshots waiting for their typed rows (tl xer reconcile): N`: the ledger knows the snapshot but `sched_*` has no rows for it (a restore). Run `tl xer reconcile`, then sync again.
 - `schedule snapshots without bronze tables (no object store is configured): N`: the silver tables are in; set `TL_OBJECT_ROOT` (or the store of the ledger) and sync again to load the bronze tables.
+- `schedule snapshots whose raw tables could not be loaded (see _tl_xer_failed in the lake): N`: the lake refused the content of those snapshots' raw tables (the silver rows are in). They are recorded in `_tl_xer_failed` (snapshot id and a fixed reason) and later syncs skip them, so the sync is not stuck. `uv run tl lake query "SELECT * FROM _tl_xer_failed"` lists them; the usual cause is a file from before the reader refused names that differ only by case, and a new upload of the file fixes it. A failure of the object store is not recorded; the sync stops with the error and the next one tries again.
 - A snapshot that is voided after it was loaded is taken out of every schedule table by the next sync.
 - Example query: `uv run tl lake query "SELECT activity_id, previous_float_days, total_float_days, float_change_days FROM mart_float_trend WHERE eroded AND snapshot_number = 2 ORDER BY float_change_days"`.
 

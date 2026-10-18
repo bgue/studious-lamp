@@ -38,7 +38,9 @@ A crash before COMMIT changes nothing. The lake and the ledger are compared by t
 | `_tl_sync` | control | | `snapshot_id, first_seq, last_seq, synced_at`: one row per sync |
 | `schedule_snapshot` | silver | `cur_schedule_schedule_snapshot` | One row per built snapshot (Valid, Published, Superseded): schedule code, number, state, `is_current`, data date, counts. Replaced as a whole when it differs |
 | `schedule_activity` | silver | `sched_activity` | The typed activities of every built snapshot, with schedule code, snapshot number, data date and floats in days (`total_float_days`, `free_float_days`) of the activity's own calendar. Added once per snapshot |
-| `xer_<table>` | bronze | raw bundle of the snapshot | Every table of the XER file, every field as text, plus `_snapshot_id` and `_row_no` |
+| `xer_<table>` | bronze | raw bundle of the snapshot | The tables P6 defines (`P6_TABLES`), every field as text, plus `_snapshot_id` and `_row_no`; at most 300 columns |
+| `xer_other` | bronze | raw bundle of the snapshot | Every other table of the file, in long format (`_snapshot_id`, `_table`, `_row_no`, `_column`, `value`; empty cells are not stored) |
+| `_tl_xer_failed` | control | `sync_xer` | Snapshots whose bronze load failed on their own content, with a fixed reason; later passes skip them |
 | `mart_float_trend` | mart | the two silver tables | Per activity and published snapshot: float, the float before, the change in days and `eroded` |
 | `_tl_xer`, `_tl_xer_state` | control | | Which snapshots the lake holds (and whether their bronze tables are in), and the signature of the last `schedule_snapshot` written |
 

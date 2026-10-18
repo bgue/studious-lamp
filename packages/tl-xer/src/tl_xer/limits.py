@@ -18,15 +18,22 @@ MAX_BYTES: Final = 50 * 1024 * 1024
 MAX_TABLES: Final = 300
 #: Fields of one table (``%F``). P6's widest table (TASK) has about 120.
 MAX_COLUMNS: Final = 200
-#: Rows of one table, rows over all tables, and the weight of all rows. A row weighs its columns,
-#: and at least ``MIN_ROW_WEIGHT``: a row costs a tuple and a few objects whatever its width, so
-#: millions of one-column rows must not pass as a few cells. The totals are what a schedule of tens
-#: of thousands of activities with their relationships, codes, user fields and resources needs,
-#: with room; the worst legal file is measured against the envelope in ADR-0015 section 2.
+#: Rows of one table, rows over all tables, and the memory the rows of the file take. A cell is a
+#: Python string (49 bytes and its characters when ASCII, 72 and twice the characters otherwise)
+#: and a slot in its row (8 bytes); an empty cell is the one shared empty string, so only the slot;
+#: a row adds a tuple and a list. The rows are weighed in these *estimated bytes* as the file
+#: streams by, because counting cells let a file of 16 million two-character cells reach 938 MB
+#: and one of non-ASCII cells reach the envelope's 1 GiB before the reader could refuse it
+#: (security re-review of P1-I4, finding 6). The totals are what a schedule of tens of thousands
+#: of activities with their relationships, codes, user fields and resources needs, with room; the
+#: worst legal file is measured against the envelope in ADR-0015 section 2.
 MAX_ROWS_PER_TABLE: Final = 400_000
 MAX_ROWS_TOTAL: Final = 1_200_000
-MIN_ROW_WEIGHT: Final = 16
-MAX_CELLS: Final = 20_000_000
+ROW_BYTES: Final = 120
+SLOT_BYTES: Final = 8
+STR_BYTES: Final = 49
+WIDE_STR_BYTES: Final = 72
+MAX_ROW_MEMORY: Final = 420_000_000
 #: Characters of one field. P6 notebook memos are the longest text in a schedule.
 MAX_FIELD_CHARS: Final = 32_000
 #: The ``ERMHDR`` line.

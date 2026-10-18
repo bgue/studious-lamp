@@ -15,6 +15,8 @@ What makes it safe to point at a stranger's file:
   valid UTF-8 means UTF-8; plain ASCII is ASCII; anything else is Windows-1252 (the encoding P6
   writes by default), and a byte that Windows-1252 leaves undefined is a refusal. The decision is
   one pass over the bytes in chunks, so no second copy of the file is held.
+* **Names are unique ignoring case.** `A` and `a` in one table, or `ZZ` and `zz` as two tables,
+  are refused: the lake and SQL fold case, so they would be one column or one table there.
 * **No control characters.** NUL crashes Postgres (L-P1-I2-17); the other C0 and C1 controls,
   line and paragraph separators and text-direction marks have no place in a schedule and spoof a
   screen. They refuse the file; they are not stripped.
@@ -69,6 +71,21 @@ class RawXer:
         return None
 
 
+def row_memory(line: str, values: list[str], columns: int) -> int:
+    """What a ``%R`` line is estimated to take once read, in bytes.
+
+    A slot for every column, a string object for every cell that is not empty (empty cells are the
+    one shared empty string), the characters of the line, and the tuple and list of the row. A
+    line with a non-ASCII character is counted at the wide size throughout. It over-counts a little
+    (the tabs and the marker are counted as characters) and never under-counts.
+    """
+    ascii_only = line.isascii()
+    filled = len(values) - values.count("")
+    each = limits.STR_BYTES if ascii_only else limits.WIDE_STR_BYTES
+    chars = len(line) if ascii_only else 2 * len(line)
+    return limits.ROW_BYTES + limits.SLOT_BYTES * columns + each * filled + chars
+
+
 def detect_encoding(data: bytes) -> tuple[str, int]:
     """``(encoding, bytes to skip)``: see the module docstring. Raises ``XerRefusal``."""
     if data[:2] in _UTF16_BOMS:
@@ -120,7 +137,7 @@ def read_xer(data: bytes) -> RawXer:
     columns: tuple[str, ...] | None = None
     rows: list[tuple[str, ...]] = []
     cells = 0
-    weight = 0  # what the rows cost, counting a narrow row as MIN_ROW_WEIGHT cells
+    memory = 0  # what the rows of the file are estimated to take, in bytes (see `row_memory`)
     total_rows = 0
     ended = False
 
@@ -162,8 +179,8 @@ def read_xer(data: bytes) -> RawXer:
             if total_rows > limits.MAX_ROWS_TOTAL:
                 raise XerRefusal("too_many_rows")
             cells += len(columns)
-            weight += max(len(columns), limits.MIN_ROW_WEIGHT)
-            if weight > limits.MAX_CELLS:
+            memory += row_memory(line, values, len(columns))
+            if memory > limits.MAX_ROW_MEMORY:
                 raise XerRefusal("too_many_cells")
             if values and len(max(values, key=len)) > limits.MAX_FIELD_CHARS:
                 raise XerRefusal("field_too_long", table=name, row=len(rows) + 1)
@@ -177,11 +194,11 @@ def read_xer(data: bytes) -> RawXer:
             table_name = fields[1]
             if len(table_name) > limits.MAX_NAME_CHARS or _NAME.fullmatch(table_name) is None:
                 raise XerRefusal("bad_table_name")
-            if table_name in seen:
+            if table_name.lower() in seen:  # `ZZ` and `zz` are one table to the lake and to SQL
                 raise XerRefusal("duplicate_table", table=table_name)
             if len(seen) >= limits.MAX_TABLES:
                 raise XerRefusal("too_many_tables")
-            seen.add(table_name)
+            seen.add(table_name.lower())
             name = table_name
         elif marker == "%F":
             if name is None or columns is not None:
@@ -192,7 +209,7 @@ def read_xer(data: bytes) -> RawXer:
             for column in names:
                 if len(column) > limits.MAX_NAME_CHARS or _NAME.fullmatch(column) is None:
                     raise XerRefusal("bad_field_name", table=name)
-            if len(set(names)) != len(names):
+            if len({column.lower() for column in names}) != len(names):  # `A` and `a` collide
                 raise XerRefusal("duplicate_field", table=name)
             columns = tuple(names)
         elif marker == "%E":

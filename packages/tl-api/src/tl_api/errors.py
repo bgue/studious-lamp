@@ -239,6 +239,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(sched.ScheduleNotConfiguredError, "schedule_unavailable", 503),
         s(sched.TablesMismatchError, "tables_mismatch", 409),
         s(sched.TooManyLinksError, "too_many_links", 409),
+        s(sched.TooManyOpenSnapshotsError, "too_many_open_snapshots", 409),
         s(sched.TooManyReferencesError, "too_many_references", 409),
         s(sched.FutureDataDateError, "future_data_date", 409),
         s(sched.TypedRowsMissingError, "typed_rows_missing", 409),

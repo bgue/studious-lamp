@@ -19,6 +19,9 @@ MAX_VIEW_LIMIT = 5000
 #: Links that may point at one activity reference (active, stale or suggested). Anyone signed in
 #: can link, so the work of flagging them when the activity leaves is bounded by this.
 MAX_LINKS_PER_ACTIVITY = 100
+#: Snapshots of one schedule that wait for a build (Uploaded or Processing). Anyone signed in can
+#: open one, so the queue of unbuilt snapshots is bounded; building or voiding one frees a place.
+MAX_OPEN_SNAPSHOTS = 20
 #: Activity references of one schedule: at most the activities a snapshot can hold.
 MAX_REFS_PER_SCHEDULE = 60_000
 #: Operations (a reference changed, a link flagged or restored) one run of the flagging job does;

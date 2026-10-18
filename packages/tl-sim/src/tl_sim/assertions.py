@@ -30,8 +30,13 @@ who decided nothing about the proposals that were made, is ``actor_silent``.
 
 Operators. A scenario may name the people and services that set the run up by hand or work beside
 it (``Scenario.operators``: the controller who defines and publishes a schedule, the worker that
-builds it). Their events and the records they made are setup, not simulation: no source, time or
-actor rule is applied to them and the scope may hold their records. Nobody else is excused.
+builds it). What they wrote is setup, not simulation, but only setup of a schedule is excused: the
+events of the schedule module (``OPERATOR_EVENTS``), ``Record.Created`` of a ``schedule.*`` record,
+``Workflow.Transitioned`` and ``File.*`` on the stream of a ``schedule.*`` record, and
+``Link.Flagged`` / ``Link.Repinned`` written by ``svc:schedule``. Any other event of an operator,
+and any record of another type, is judged like a simulated actor's. The report counts what was
+excused (``excused``). A file event of anyone else must be on a record the log names (or
+one an operator made): a file cannot be attached to a record nobody intended.
 
 Four more checks catch what the scenario did not intend: the scope holds no record the log does
 not name, every event in the scope was written by the simulator (``source`` ``sim:<run>``, or an
@@ -58,6 +63,29 @@ DECISION_EVENTS = frozenset({"Proposal.Accepted", "Proposal.Rejected", "Proposal
 FILE_EVENTS = frozenset({"File.Uploaded", "File.Processed"})
 SCANNER = "svc:scanner"
 QUEUED_EVENT = "ScheduleSnapshot.Queued"
+SCHEDULE_TYPES = "schedule."  # the record types of the schedule module
+SERVICE = "svc:schedule"
+#: The events of the schedule module, which an operator (a controller, the worker) writes.
+OPERATOR_EVENTS = frozenset(
+    {
+        "Schedule.Defined",
+        "Schedule.SnapshotPublished",
+        "Schedule.OrphansChecked",
+        "ScheduleSnapshot.Defined",
+        "ScheduleSnapshot.Queued",
+        "ScheduleSnapshot.BuildStarted",
+        "ScheduleSnapshot.BuildFailed",
+        "ScheduleSnapshot.Built",
+        "ScheduleSnapshot.Rejected",
+        "ScheduleSnapshot.MadeCurrent",
+        "ActivityRef.Defined",
+        "ActivityRef.PresenceChanged",
+    }
+)
+#: Written by an operator on the stream of a ``schedule.*`` record.
+OPERATOR_STREAM_EVENTS = frozenset({"Record.Created", "Workflow.Transitioned", *FILE_EVENTS})
+#: The flags the module's worker writes on links to activities.
+OPERATOR_LINK_EVENTS = frozenset({"Link.Flagged", "Link.Repinned"})
 SIM_ACTORS = ("user:sim-", "agent:sim-")
 #: What an ``agent:*`` actor may write: proposals, posts, and the link suggestions a post makes.
 AGENT_EVENTS = frozenset({"Proposal.Created", "Feed.Posted", "Link.Suggested"})
@@ -94,6 +122,7 @@ class AssertionReport:
     checked: int = 0
     failures: list[Failure] = field(default_factory=list[Failure])
     counts: dict[str, int] = field(default_factory=dict[str, int])  # intents seen in the log
+    excused: int = 0  # records and events left alone because an operator wrote them
 
     @property
     def ok(self) -> bool:
@@ -115,6 +144,11 @@ def _dig(root: dict[str, Any], path: str) -> Any:
             return None
         node = node[segment]  # pyright: ignore[reportUnknownVariableType]
     return node  # pyright: ignore[reportUnknownVariableType]
+
+
+def created_refs(truth: list[GroundTruth]) -> set[str]:
+    """The keys of the records the log says were made."""
+    return {item.ref for item in truth if item.intent == gt.RECORD_CREATED}
 
 
 def latest(truth: list[GroundTruth], intent: str) -> list[tuple[str, str, Any]]:
@@ -181,6 +215,20 @@ def run_assertions(
             sorted(found) or None,
         )
 
+    type_of = {str(r["id"]): str(r["type"]) for r in by_key.values()}
+    intended = {str(by_key[ref]["id"]) for ref in created_refs(truth) if ref in by_key} | {
+        stream for stream, actor in creator.items() if actor in expected.operators
+    }
+
+    def operator_event(event: dict[str, Any]) -> bool:
+        """An event of the schedule setup that an operator may write (see the module docstring)."""
+        kind, stream = str(event["event_type"]), str(event["stream_id"])
+        if kind in OPERATOR_EVENTS:
+            return True
+        if kind in OPERATOR_STREAM_EVENTS:
+            return type_of.get(stream, "").startswith(SCHEDULE_TYPES)
+        return kind in OPERATOR_LINK_EVENTS and event["actor"] == SERVICE
+
     # --- records ---------------------------------------------------------------------------
     created = {item.ref for item in truth if item.intent == gt.RECORD_CREATED}
     for item in truth:
@@ -195,8 +243,11 @@ def run_assertions(
             check(_same(value, actual), item.intent, item.ref, name, value, actual)
         written_by(item, str(record["id"]), "Record.Created")
     for key in sorted(set(by_key) - created):
-        if creator.get(str(by_key[key]["id"])) in expected.operators:
-            continue  # made by hand before or beside the run
+        if creator.get(str(by_key[key]["id"])) in expected.operators and str(
+            by_key[key]["type"]
+        ).startswith(SCHEDULE_TYPES):
+            report.excused += 1  # a schedule made by hand before or beside the run
+            continue
         fail("unexpected_record", key, "key", None, by_key[key].get("title"))
         report.checked += 1
 
@@ -332,10 +383,16 @@ def run_assertions(
     for event in events:
         source = str(event["source"])
         ref = f"seq {event.get('seq')} {event['event_type']}"
-        if str(event["actor"]) in expected.operators:
-            report.checked += 1  # setup by hand or a worker beside the run: not simulated
+        if str(event["actor"]) in expected.operators and operator_event(event):
+            report.checked += 1  # setup of a schedule by hand or by its worker: not simulated
+            report.excused += 1
             continue
         scanner = event["event_type"] == "File.Processed" and event["actor"] == SCANNER
+        if event["event_type"] in FILE_EVENTS:
+            report.checked += 1
+            stream = str(event["stream_id"])
+            if stream not in intended:
+                fail("event_stream", ref, "stream", "a record the log names", stream)
         if source == f"sim:{run_id}":
             report.checked += 1
             when = date.fromisoformat(str(event["effective_at"])[:10])

@@ -35,9 +35,20 @@ class ScheduleApi(ApiClientBase):
         data = self._get_json(f"/projects/{quote(project)}/schedules")
         return self._models(views.ScheduleView, data)
 
-    def get_schedule(self, project: str, code: str) -> views.ScheduleDetailView:
-        """One schedule with its snapshots (``GET /projects/{project}/schedules/{code}``)."""
-        data = self._get_json(f"/projects/{quote(project)}/schedules/{quote(code)}")
+    def get_schedule(
+        self,
+        project: str,
+        code: str,
+        *,
+        limit: int = views.DEFAULT_SNAPSHOT_PAGE,
+        offset: int = 0,
+    ) -> views.ScheduleDetailView:
+        """One schedule with a page of its snapshots, newest first
+        (``GET /projects/{project}/schedules/{code}``; ``snapshot_count`` is the total)."""
+        data = self._get_json(
+            f"/projects/{quote(project)}/schedules/{quote(code)}",
+            {"limit": limit, "offset": offset},
+        )
         return self._model(views.ScheduleDetailView, data)
 
     def get_schedule_snapshot(self, project: str, code: str, number: int) -> views.SnapshotView:

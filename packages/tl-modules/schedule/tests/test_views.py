@@ -13,6 +13,7 @@ from tl_mod_schedule.errors import (
     SnapshotStateError,
 )
 from tl_mod_schedule.testing import BASE, ScheduleWorld
+from tl_xer.synth import make_xer
 
 SCOPE = BASE["scope"]
 
@@ -254,3 +255,136 @@ def test_as_of_written_as_text() -> None:
     assert views.as_of_of("2026-10-08") == "2026-10-08"
     assert views.as_of_of("٣") == "٣"  # not an ASCII digit: left for the resolver
     assert views.as_of_of("9" * 10) == "9" * 10
+
+
+# --- the snapshots of a schedule are paged, and read in a fixed number of queries ----------------
+
+
+def more_snapshots(world: ScheduleWorld, count: int) -> list[str]:
+    """``count`` more built snapshots after the published pair, a week apart."""
+    from tl_xer.synth import next_week, series
+
+    ids: list[str] = []
+    scenario = series(3, 2)[1]
+    for week in range(1, count + 1):
+        scenario = next_week(scenario, 3, week)
+        ids.append(world.upload(make_xer(scenario), name=f"more-{week}.xer"))
+    return ids
+
+
+def test_the_snapshots_come_in_pages_newest_first_and_the_count_is_the_total(
+    world: ScheduleWorld,
+) -> None:
+    published_pair(world)
+    more_snapshots(world, 3)
+    whole = read(world, views.schedule_detail, "MAIN")
+    assert [s.number for s in whole.snapshots] == [5, 4, 3, 2, 1] and whole.snapshot_count == 5
+    page = read(world, views.schedule_detail, "MAIN", limit=2, offset=1)
+    assert [s.number for s in page.snapshots] == [4, 3]
+    assert page.snapshot_count == 5  # the total, not the page
+    assert [s.previous_number for s in page.snapshots] == [2, 2]  # the published one before each
+    last = read(world, views.schedule_detail, "MAIN", limit=2, offset=4)
+    assert [s.number for s in last.snapshots] == [1]
+    assert read(world, views.schedule_detail, "MAIN", limit=2, offset=9).snapshots == []
+    [listed] = read(world, views.schedule_views)
+    assert listed.snapshot_count == 5
+
+
+def test_the_page_is_cut_to_the_maximum_and_at_least_one(world: ScheduleWorld) -> None:
+    published_pair(world)
+    assert len(read(world, views.schedule_detail, "MAIN", limit=0).snapshots) == 1
+    big = read(world, views.schedule_detail, "MAIN", limit=10**6)
+    assert len(big.snapshots) == 2
+    assert views.MAX_SNAPSHOT_PAGE == 200 and views.DEFAULT_SNAPSHOT_PAGE == 50
+
+
+def test_the_baseline_of_each_snapshot_is_what_previous_of_finds(world: ScheduleWorld) -> None:
+    from tl_mod_schedule import registry
+
+    published_pair(world)
+    more_snapshots(world, 3)
+    world.publish(world.snapshots()[0].id)  # snapshot 5 is published too: the baseline moves
+    detail = read(world, views.schedule_detail, "MAIN")
+    with open_uow(world.db, readonly=True) as uow:
+        expected = {}
+        for row in registry.list_snapshots(uow.conn(), world.schedule().id):
+            earlier = registry.previous_of(uow.conn(), row)
+            expected[row.number] = None if earlier is None else earlier.number
+    assert {s.number: s.previous_number for s in detail.snapshots} == expected
+    assert expected[5] == 2 and expected[4] == 2 and expected[2] == 1
+
+
+def test_reading_a_schedule_takes_the_same_queries_however_many_snapshots_it_has(
+    world: ScheduleWorld,
+) -> None:
+    from sqlalchemy import event
+
+    published_pair(world)
+
+    def queries() -> int:
+        seen: list[str] = []
+        with open_uow(world.db, readonly=True) as uow:
+            conn = uow.conn()
+            event.listen(conn, "before_cursor_execute", lambda *args: seen.append(args[2]))
+            views.schedule_detail(conn, SCOPE, "MAIN")
+        return len(seen)
+
+    few = queries()
+    more_snapshots(world, 4)
+    assert queries() == few  # one query for each snapshot would have added four
+
+
+def test_the_baseline_follows_the_data_date_not_the_number(world: ScheduleWorld) -> None:
+    """Numbers 1, 2, 3 have the data dates 10-12, 10-05, 10-19: 3's baseline is 1, not 2."""
+    from tl_mod_schedule import registry
+    from tl_xer.synth import series
+
+    files = [make_xer(scenario) for scenario in series(3, 3)]  # 10-05, 10-12, 10-19
+    world.define()
+    one = world.upload(files[1], name="b.xer")
+    two = world.upload(files[0], name="a.xer")
+    three = world.upload(files[2], name="c.xer")
+    for snapshot_id in (two, one, three):  # published in the order of their data dates
+        world.publish(snapshot_id)
+    detail = read(world, views.schedule_detail, "MAIN")
+    assert {s.number: s.previous_number for s in detail.snapshots} == {1: 2, 2: None, 3: 1}
+    with open_uow(world.db, readonly=True) as uow:
+        for row in registry.list_snapshots(uow.conn(), world.schedule().id):
+            earlier = registry.previous_of(uow.conn(), row)
+            shown = next(s for s in detail.snapshots if s.number == row.number)
+            assert shown.previous_number == (None if earlier is None else earlier.number)
+
+
+def test_a_schedule_with_many_snapshots_shows_a_page_and_counts_them_all(
+    world: ScheduleWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tl_mod_schedule import limits
+
+    monkeypatch.setattr(limits, "MAX_OPEN_SNAPSHOTS", 100)
+    world.define()
+    for _ in range(views.DEFAULT_SNAPSHOT_PAGE + 5):
+        world.open_snapshot()
+    detail = read(world, views.schedule_detail, "MAIN")
+    assert len(detail.snapshots) == views.DEFAULT_SNAPSHOT_PAGE
+    assert detail.snapshot_count == views.DEFAULT_SNAPSHOT_PAGE + 5
+    assert detail.snapshots[0].number == views.DEFAULT_SNAPSHOT_PAGE + 5
+    [listed] = read(world, views.schedule_views)
+    assert listed.snapshot_count == views.DEFAULT_SNAPSHOT_PAGE + 5
+
+
+def test_a_snapshot_being_processed_waits_for_its_build_too(world: ScheduleWorld) -> None:
+    from sqlalchemy import text
+    from tl_mod_schedule import registry
+
+    world.define()
+    schedule_id = world.schedule().id
+    waiting, building, built = (world.open_snapshot().stream_id for _ in range(3))
+    with open_uow(world.db) as uow:  # a worker has claimed the second; the third is built
+        for snapshot_id, status in ((building, "Processing"), (built, "Valid")):
+            uow.conn().execute(
+                text("UPDATE cur_core_record SET status = :s WHERE id = :i"),
+                {"s": status, "i": snapshot_id},
+            )
+    with open_uow(world.db, readonly=True) as uow:
+        assert registry.open_count(uow.conn(), schedule_id) == 2
+    assert waiting

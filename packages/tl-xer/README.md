@@ -33,7 +33,7 @@ uv run pytest packages/tl-xer/tests/test_largest.py -q   # the worst legal files
 | `memory_limit_mb` | 1024 | Address space of the child |
 | `Options.project` | none | The P6 project to read when a file holds several |
 
-The bounds (50 MiB, 300 tables, 200 columns, 400 000 rows per table, 1 200 000 rows, 20 million weighted cells, 32 000 characters per field, 60 000 activities, 200 000 relationships, dates 1990 to 2100) are in `limits.py` and ADR-0015 §2. Over a bound the file is refused, never cut.
+The bounds (50 MiB, 300 tables, 200 columns, 400 000 rows per table, 1 200 000 rows, 420 million estimated bytes for the rows (`row_memory`), 32 000 characters per field, 60 000 activities, 200 000 relationships, dates 1990 to 2100) are in `limits.py` and ADR-0015 §2. Over a bound the file is refused, never cut.
 
 ## Rules specific to this package
 See `AGENTS.md` in this directory.

@@ -114,6 +114,16 @@ def test_a_string_that_is_not_a_date_names_nothing(world: ScheduleWorld) -> None
         assert snapshot_number(world, as_of) is None, as_of
 
 
+def test_a_string_shaped_like_a_date_that_is_not_one_names_nothing_and_does_not_raise(
+    world: ScheduleWorld,
+) -> None:
+    published_pair(world)
+    shaped = ["2026-02-30", "2026-13-01", "0000-01-01", "2026-00-10", "2026-10-12T25:99"]
+    shaped += ["2026-10-12T24:00", "2026-10-12T08:60", "2026-02-30T08:00", "0000-10-12T08:00"]
+    for as_of in shaped:
+        assert snapshot_number(world, as_of) is None, as_of
+
+
 def test_true_is_not_snapshot_one(world: ScheduleWorld) -> None:
     published_pair(world)
     assert snapshot_number(world, True) is None

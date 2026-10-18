@@ -66,10 +66,10 @@ Between any two snapshots (default: the built snapshot with the latest earlier d
 | TUI | `F12`: schedules, snapshots, look-ahead, orphans; `c` the comparison, `a` the activities with relationships and float trend, `p` publish | `tl_tui.widgets.schedule_screen`, `compare_screen`, `activity_screen` |
 | API | `GET /projects/{project}/schedules`, `.../{code}`, `.../activities`, `.../comparison`, `.../look-ahead`, `.../orphans`, `.../activity-details/{id}`, `.../activity-trends/{id}`, `.../activity-resolutions/{id}`, `GET /projects/{project}/records/{id}/activity-links` | `tl_api.routes.schedule` |
 | MCP | thirteen read tools (schedules, activities, comparison, look-ahead, resolution, float trend, orphans, a record's activity links, cost codes and snapshots) and the proposal `propose_publish_schedule_snapshot` | `tl_mcp.schedule_read_tools`, `schedule_tools` |
-| Lake | silver `schedule_snapshot`, `schedule_activity`; bronze `xer_<table>`; mart `mart_float_trend` | `tl_lake.xer` (second pass of `tl lake sync`) |
+| Lake | silver `schedule_snapshot`, `schedule_activity`; bronze `xer_<table>` (tables P6 defines) and `xer_other` (long format, the rest); mart `mart_float_trend` | `tl_lake.xer` (second pass of `tl lake sync`) |
 | Report | records of a type with no activity (`unscheduled_records`) | `tl_mod_schedule.reports` |
 
 Every surface calls the module's views (`tl_mod_schedule.views`); none decides what moved or eroded.
 
 ## Limits worth knowing
-See ADR-0015 §2 for the bounds of the XER reader (file, tables, rows, cells, text, typed rows, dates) and §4 for the measured times. A snapshot at the limits settles in about 13 s on SQLite and 25 s on Postgres; the worker's claim is 600 s.
+Snapshots waiting for a build: at most 20 per schedule; the detail view pages the snapshots (50, at most 200). See ADR-0015 §2 for the bounds of the XER reader (file, tables, rows, memory of the rows, text, typed rows, dates, names unique ignoring case) and §4 for the measured times. A snapshot at the limits settles in about 13 s on SQLite and 25 s on Postgres; the worker's claim is 600 s.

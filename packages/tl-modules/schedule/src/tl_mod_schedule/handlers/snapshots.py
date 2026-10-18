@@ -23,7 +23,7 @@ from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
 from tl_xer import limits as xer_limits
 
-from tl_mod_schedule import registry
+from tl_mod_schedule import limits, registry
 from tl_mod_schedule.common import append, correlated, require_project, transition
 from tl_mod_schedule.errors import (
     DuplicateSnapshotError,
@@ -31,6 +31,7 @@ from tl_mod_schedule.errors import (
     SnapshotNotFoundError,
     SnapshotStateError,
     SourceFileError,
+    TooManyOpenSnapshotsError,
 )
 from tl_mod_schedule.limits import MAX_P6_PROJECT, MAX_REASON
 from tl_mod_schedule.names import (
@@ -102,6 +103,11 @@ def handle_open_schedule_snapshot(uow: UnitOfWork, cmd: OpenScheduleSnapshot) ->
     schedule = registry.get_schedule(conn, cmd.schedule_id)
     if schedule is None or schedule.scope != cmd.scope:
         raise ScheduleNotFoundError(f"no schedule {cmd.schedule_id!r} in scope {cmd.scope!r}")
+    if registry.open_count(conn, schedule.id) >= limits.MAX_OPEN_SNAPSHOTS:
+        raise TooManyOpenSnapshotsError(
+            f"schedule {schedule.code} already has {limits.MAX_OPEN_SNAPSHOTS} snapshots waiting "
+            "for a build; wait for the worker or void one"
+        )
     number = registry.next_number(conn, schedule.id)
     return create_module_record(
         uow,

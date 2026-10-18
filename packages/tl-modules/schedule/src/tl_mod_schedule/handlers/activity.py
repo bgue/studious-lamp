@@ -146,6 +146,7 @@ def handle_link_activity(uow: UnitOfWork, cmd: LinkActivity) -> CommandResult:
             pin=None if cmd.pin is None else str(cmd.pin),
             note=cmd.note,
         ),
+        via_module_command=True,  # a generic link to a reference is refused (it skips the caps)
     )
     events.extend(linked.events)
     return CommandResult(

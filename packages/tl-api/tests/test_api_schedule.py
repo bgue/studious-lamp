@@ -122,6 +122,12 @@ def test_the_schedule_and_its_snapshots(cast: Cast, world: ScheduleWorld) -> Non
         (2, "Published", 1),
         (1, "Superseded", None),
     ]
+    paged = cast.clients["bob"].get(f"{P}/schedules/MAIN", params={"limit": 1, "offset": 1}).json()
+    assert [s["number"] for s in paged["snapshots"]] == [1] and paged["snapshot_count"] == 2
+    for bad in ({"limit": 0}, {"limit": 201}, {"offset": -1}):
+        assert cast.clients["bob"].get(f"{P}/schedules/MAIN", params=bad).status_code == 422, bad
+    via_client = cast.api("bob").get_schedule("P123", "MAIN", limit=1)
+    assert [s.number for s in via_client.snapshots] == [2] and via_client.snapshot_count == 2
     one = cast.clients["bob"].get(f"{P}/schedules/MAIN/snapshots/1").json()
     assert one["key"] == "MAIN#1" and one["data_date"] == "2026-10-05T08:00"
     assert cast.clients["bob"].get(f"{P}/schedules/MAIN/snapshots/0").status_code == 422
@@ -182,6 +188,9 @@ def test_a_link_resolves_to_the_current_snapshot_and_as_of_the_earlier_one(
     assert then["activity"]["total_float_hr"] == 72.0 and now["activity"]["total_float_hr"] == 32.0
     assert bob.get(base, params={"as_of": "1"}).json()["snapshot_number"] == 1
     assert bob.get(base, params={"as_of": "2026-01-01"}).json()["state"] == "no_snapshot"
+    for shaped in ("2026-02-30", "2026-10-12T25:99", "0000-01-01"):  # not dates: names nothing
+        answer = bob.get(base, params={"as_of": shaped})
+        assert answer.status_code == 200 and answer.json()["state"] == "no_snapshot", shaped
     gone = bob.get(f"{P}/schedules/MAIN/activity-resolutions/A1990").json()
     assert (gone["state"], gone["snapshot_number"]) == ("orphaned", 2)
     links = bob.get(f"{P}/records/{world.__dict__['record_b']}/activity-links").json()

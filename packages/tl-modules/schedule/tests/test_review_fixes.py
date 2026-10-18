@@ -11,13 +11,18 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy import text
 from tl_adapters.db import open_uow
+from tl_core.services.errors import UnsupportedRecordTypeError
 from tl_core.services.links import (
+    AddLink,
     FlagLink,
     RepinLink,
     RetractLink,
+    SuggestLink,
+    handle_add_link,
     handle_flag_link,
     handle_repin_link,
     handle_retract_link,
+    handle_suggest_link,
 )
 from tl_core.util import effective_time
 from tl_mod_schedule import compare, limits, registry, resolver, typed_store, views
@@ -27,6 +32,7 @@ from tl_mod_schedule.errors import (
     ScheduleNotFoundError,
     SnapshotNotFoundError,
     TooManyLinksError,
+    TooManyOpenSnapshotsError,
     TooManyReferencesError,
     TypedRowsMissingError,
 )
@@ -243,6 +249,51 @@ def test_an_activity_takes_a_bounded_number_of_links(
         handle_retract_link(uow, RetractLink(**BASE, link_id=one.stream_id, reason="x"))
     world.link(world.record("R-4"), "A1230")
     world.link(world.record("R-5"), "A1240")  # another activity has its own count
+
+
+def test_snapshots_waiting_for_a_build_are_bounded_and_building_or_voiding_frees_a_place(
+    world: ScheduleWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(limits, "MAX_OPEN_SNAPSHOTS", 2)
+    world.define()
+    first = world.open_snapshot().stream_id
+    second = world.open_snapshot().stream_id
+    with pytest.raises(TooManyOpenSnapshotsError, match="already has 2 snapshots waiting"):
+        world.open_snapshot()
+    world.void(first)  # a voided snapshot is not waiting
+    third = world.open_snapshot().stream_id
+    with pytest.raises(TooManyOpenSnapshotsError):
+        world.open_snapshot()
+    world.attach_xer(second, first_xer())
+    world.start(second)
+    world.work()  # built: Valid, no longer waiting
+    assert world.snapshot(second).state == "Valid"
+    world.open_snapshot()
+    with pytest.raises(TooManyOpenSnapshotsError):  # third and the new one wait
+        world.open_snapshot()
+    assert world.snapshot(third).state == "Uploaded"
+
+
+def test_a_generic_link_to_an_activity_reference_cannot_skip_the_cap(
+    world: ScheduleWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only `LinkActivity` links to a reference: a generic `AddLink` would not count the links."""
+    monkeypatch.setattr(limits, "MAX_LINKS_PER_ACTIVITY", 1)
+    world.define()
+    world.publish(world.upload(first_xer()))
+    world.link(world.record("R-1"), "A1230")
+    ref = world.ref("MAIN", "A1230")
+    assert ref is not None
+    other = world.record("R-2")
+    with open_uow(world.db) as uow, pytest.raises(UnsupportedRecordTypeError, match="own command"):
+        handle_add_link(uow, AddLink(**BASE, from_id=other, to_id=ref.id, relation="references"))
+    with open_uow(world.db) as uow, pytest.raises(UnsupportedRecordTypeError, match="own command"):
+        handle_suggest_link(
+            uow, SuggestLink(**BASE, from_id=other, to_id=ref.id, relation="references")
+        )
+    with pytest.raises(TooManyLinksError):
+        world.link(other, "A1230")  # the command still counts
+    assert world.scalar("SELECT COUNT(*) FROM cur_links WHERE to_id = :r", r=ref.id) == 1
 
 
 def test_a_schedule_takes_a_bounded_number_of_references(
@@ -587,3 +638,17 @@ def test_a_snapshot_that_lost_only_some_rows_is_refused_too(world: ScheduleWorld
         )
     with open_uow(world.db, readonly=True) as uow, pytest.raises(TypedRowsMissingError):
         views.activity_page(uow.conn(), SCOPE, "MAIN")
+
+
+def test_no_dialect_specific_sql_lives_in_the_module() -> None:
+    """AGENTS rule 5: SQLite- or Postgres-specific SQL is under tl_adapters (`bulk_insert`)."""
+    from pathlib import Path
+
+    source = Path(limits.__file__).parent
+    found = {
+        f"{path.name}: {word}"
+        for path in sorted(source.rglob("*.py"))
+        for word in ("dialect.name", "json_array_elements", "FOR UPDATE SKIP LOCKED")
+        if word in path.read_text()
+    }
+    assert found == set()

@@ -29590,7 +29590,7 @@
     },
     "/projects/{project}/schedules/{code}": {
       "get": {
-        "description": "One schedule with its snapshots, newest first. 404 `schedule_not_found`.",
+        "description": "One schedule with a page of its snapshots, newest first (`snapshot_count` is the total).\n\n404 `schedule_not_found`.",
         "operationId": "get_schedule",
         "parameters": [
           {
@@ -29609,6 +29609,30 @@
             "schema": {
               "title": "Code",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 1000000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
             }
           }
         ],

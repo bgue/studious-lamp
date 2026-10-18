@@ -39,10 +39,22 @@ def list_schedules(ctx: Ctx, actor: Reader, project: str) -> list[views.Schedule
 
 
 @router.get("/projects/{project}/schedules/{code}", operation_id="get_schedule")
-def get_schedule(ctx: Ctx, actor: Reader, project: str, code: str) -> views.ScheduleDetailView:
-    """One schedule with its snapshots, newest first. 404 `schedule_not_found`."""
+def get_schedule(
+    ctx: Ctx,
+    actor: Reader,
+    project: str,
+    code: str,
+    limit: Annotated[int, Query(ge=1, le=views.MAX_SNAPSHOT_PAGE)] = views.DEFAULT_SNAPSHOT_PAGE,
+    offset: Annotated[int, Query(ge=0, le=10**9)] = 0,
+) -> views.ScheduleDetailView:
+    """One schedule with a page of its snapshots, newest first (`snapshot_count` is the total).
+
+    404 `schedule_not_found`.
+    """
     with ctx.backend(True) as uow:
-        return views.schedule_detail(uow.conn(), f"project:{project}", code)
+        return views.schedule_detail(
+            uow.conn(), f"project:{project}", code, limit=limit, offset=offset
+        )
 
 
 @router.get(

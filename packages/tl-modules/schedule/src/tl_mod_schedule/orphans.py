@@ -11,8 +11,9 @@ the walk in runs of at most ``FLAG_BATCH`` operations:
    ``ORPHAN_REASON``);
 3. **restore**: the stale links to a present reference that *this module* flagged become active
    (``Link.Repinned``). The module recognises its own flag by the **source** of the latest
-   ``Link.Flagged`` event of the link (``svc:schedule``, which a client cannot set), never by the
-   words of the reason: a person's flag, with the same words or others, stays flagged.
+   ``Link.Flagged`` event of the link and its actor (both ``svc:schedule``; the API refuses a client
+   source that starts with ``svc:``), never by the words of the reason: a person's flag, with the
+   same words or others, stays flagged.
 
 Each run is a function of the database, not of the last run: it takes the next outstanding
 operations, so a run that is repeated, interrupted or overlapped by another does no harm, and a
@@ -52,10 +53,13 @@ from tl_mod_schedule.names import (
 )
 
 #: A stale link is the module's when the latest ``Link.Flagged`` event of its stream has this
-#: source (``:service``).
+#: source and this actor (``:service`` for both). The API refuses a client source that starts with
+#: ``svc:``, and the actor is the second witness: a flag only the module's worker could write.
 MODULE_FLAG_SQL = (
-    "(SELECT e.source FROM events e WHERE e.stream_id = l.link_id "
-    "AND e.event_type = 'Link.Flagged' ORDER BY e.seq DESC LIMIT 1) = :service"
+    "EXISTS (SELECT 1 FROM events e WHERE e.stream_id = l.link_id "
+    "AND e.event_type = 'Link.Flagged' AND e.source = :service AND e.actor = :service "
+    "AND e.seq = (SELECT MAX(f.seq) FROM events f WHERE f.stream_id = l.link_id "
+    "AND f.event_type = 'Link.Flagged'))"
 )
 _CHANGES_SQL = text(
     "SELECT a.id, a.present, a.last_seen_snapshot_id, a.last_seen_number "

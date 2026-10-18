@@ -145,6 +145,11 @@ def _print_xer(result: XerSyncResult) -> None:
             f"schedule snapshots without bronze tables (no object store is configured): "
             f"{result.bronze_waiting}"
         )
+    if result.failed:
+        typer.echo(
+            f"schedule snapshots whose raw tables could not be loaded (see `_tl_xer_failed` in "
+            f"the lake): {result.failed}"
+        )
 
 
 def _sync_all(ctx: typer.Context, *, rebuild: bool = False) -> None:

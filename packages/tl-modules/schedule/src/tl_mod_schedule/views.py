@@ -47,6 +47,8 @@ from tl_mod_schedule.resolver import (
 
 #: The most activities one page holds, and the most rows a comparison view keeps per list.
 MAX_PAGE = 1000
+DEFAULT_SNAPSHOT_PAGE = 50
+MAX_SNAPSHOT_PAGE = 200
 DEFAULT_COMPARE_LIMIT = 200
 MAX_COMPARE_LIMIT = 5000
 MAX_TREND_POINTS = 500
@@ -221,26 +223,59 @@ def as_of_of(text: str | None) -> AsOf:
 
 def schedule_views(conn: Connection, scope: str) -> list[ScheduleView]:
     return [
-        ScheduleView.of(s, len(registry.list_snapshots(conn, s.id)))
+        ScheduleView.of(s, registry.count_snapshots(conn, s.id))
         for s in registry.list_schedules(conn, scope)
     ]
 
 
-def snapshot_views(conn: Connection, schedule: ScheduleRow) -> list[SnapshotView]:
+def snapshot_views(
+    conn: Connection,
+    schedule: ScheduleRow,
+    *,
+    limit: int = DEFAULT_SNAPSHOT_PAGE,
+    offset: int = 0,
+) -> list[SnapshotView]:
+    """A page of the schedule's snapshots, newest number first, each with its baseline's number.
+
+    The baseline of a snapshot is the published snapshot with the latest earlier data date
+    (``registry.previous_of``). The published snapshots are read once for the whole page, not once
+    for each snapshot.
+    """
+    page = registry.list_snapshots(
+        conn, schedule.id, limit=max(1, min(limit, MAX_SNAPSHOT_PAGE)), offset=max(0, offset)
+    )
+    published = registry.history(conn, schedule.id)
     return [
-        SnapshotView.of(
-            s, current_id=schedule.current_snapshot_id, previous=registry.previous_of(conn, s)
-        )
-        for s in registry.list_snapshots(conn, schedule.id)
+        SnapshotView.of(s, current_id=schedule.current_snapshot_id, previous=_before(published, s))
+        for s in page
     ]
 
 
-def schedule_detail(conn: Connection, scope: str, code: str) -> ScheduleDetailView:
+def _before(published: list[SnapshotRow], snapshot: SnapshotRow) -> SnapshotRow | None:
+    """What ``registry.previous_of`` finds, from the published snapshots already read.
+
+    The comparison is strict, so a snapshot is never its own baseline.
+    """
+    if snapshot.data_date is None:
+        return None
+    key = (snapshot.data_date, snapshot.number)
+    earlier = [p for p in published if p.data_date is not None and (p.data_date, p.number) < key]
+    return max(earlier, key=lambda p: (p.data_date or "", p.number), default=None)
+
+
+def schedule_detail(
+    conn: Connection,
+    scope: str,
+    code: str,
+    *,
+    limit: int = DEFAULT_SNAPSHOT_PAGE,
+    offset: int = 0,
+) -> ScheduleDetailView:
+    """A schedule with a page of its snapshots (``snapshot_count`` is how many there are in all)."""
     schedule = find_schedule(conn, scope, code)
-    snapshots = snapshot_views(conn, schedule)
     return ScheduleDetailView(
-        **ScheduleView.of(schedule, len(snapshots)).model_dump(),
-        snapshots=snapshots,
+        **ScheduleView.of(schedule, registry.count_snapshots(conn, schedule.id)).model_dump(),
+        snapshots=snapshot_views(conn, schedule, limit=limit, offset=offset),
         links_being_checked=orphans_module.outstanding(conn, schedule.id),
     )
 

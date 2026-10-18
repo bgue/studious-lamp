@@ -127,6 +127,7 @@ def sim_assert(env: SimEnv, run_id: str | None = None) -> dict[str, Any]:
         "run_id": sim.state.run_id,
         "ok": report.ok,
         "checked": report.checked,
+        "excused": report.excused,
         "counts": report.counts,
         "failures": [asdict(f) for f in report.failures],
     }

@@ -88,12 +88,18 @@ def codes(problems: list[dict[str, object]]) -> list[object]:
 
 
 def big_text(
-    activities: int, *, wide_rows: int = 0, wide_columns: int = 200, short_cells: bool = False
+    activities: int,
+    *,
+    wide_rows: int = 0,
+    wide_columns: int = 200,
+    short_cells: bool = False,
+    cell: str | None = None,
 ) -> bytes:
     """A valid file of ``activities`` activities (two relationships each) and an extra wide table.
 
     ``wide_rows`` rows of ``wide_columns`` columns go into a table the snapshot is not typed from
-    (bronze only), to reach the cell limit cheaply.
+    (bronze only), to reach the memory limit cheaply; ``cell`` fills every cell of them with that
+    text (``short_cells`` is the cell ``1``).
     """
     out = ["ERMHDR\t20.12\t2026-10-05\tProject\tu\tU\tDB\tPM\tUSD"]
 
@@ -173,7 +179,11 @@ def big_text(
             "WIDE",
             [f"c{i}" for i in range(wide_columns)],
             (
-                ["1"] * wide_columns if short_cells else [f"v{r}x{c}" for c in range(wide_columns)]
+                [cell] * wide_columns
+                if cell is not None
+                else ["1"] * wide_columns
+                if short_cells
+                else [f"v{r}x{c}" for c in range(wide_columns)]
                 for r in range(wide_rows)
             ),
         )

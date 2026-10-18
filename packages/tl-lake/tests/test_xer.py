@@ -9,17 +9,24 @@ import pytest
 from builder import LedgerBuilder
 from sqlalchemy import text
 from tl_adapters.db import open_uow
-from tl_lake import LakeConfig, LakeQueryService, LakeSyncError, read_snapshot, sync_lake
+from tl_lake import LakeConfig, LakeQueryService, read_snapshot, sync_lake
 from tl_lake.duck import lake_tables, open_lake
+from tl_lake.schema import Column
 from tl_lake.xer import (
     ACTIVITY_TABLE,
+    FAILED_TABLE,
     LOADED_TABLE,
+    MAX_BRONZE_COLUMNS,
+    P6_TABLES,
     SNAPSHOT_TABLE,
     LedgerSnapshot,
+    SnapshotLoadError,
     XerSyncResult,
     sync_xer,
 )
+from tl_lake.xer import _ensure_table as ensure_table  # pyright: ignore[reportPrivateUsage]
 from tl_lake.xer import _load_bronze as load_bronze  # pyright: ignore[reportPrivateUsage]
+from tl_lake.xer import _sync_bronze as sync_bronze  # pyright: ignore[reportPrivateUsage]
 from tl_mod_schedule.reconcile import reconcile_tables
 from tl_mod_schedule.store import SnapshotFiles
 from tl_mod_schedule.testing import ScheduleWorld
@@ -62,6 +69,13 @@ class Lakes:
 @pytest.fixture
 def lakes(ledger: LedgerBuilder, lake: LakeConfig, tmp_path: Path) -> Lakes:
     return Lakes(ledger, lake, tmp_path)
+
+
+def snapshot(snapshot_id: str, sha: str) -> LedgerSnapshot:
+    return LedgerSnapshot(
+        snapshot_id, "project:P123", "MAIN", 1, "Valid", False, None, None, None,
+        (None,) * 6, None, None, None, None, None, None, None, "file", sha,
+    )  # fmt: skip
 
 
 def published_pair(lakes: Lakes) -> tuple[str, str]:
@@ -239,30 +253,24 @@ def test_field_names_are_lowercased_and_a_table_grows_the_columns_a_file_adds(
     lakes: Lakes, lake: LakeConfig
 ) -> None:
     def bundle(columns: tuple[str, ...], row: tuple[str, ...]) -> tuple[bytes, str]:
-        table = RawTable("Thing", columns, (row,))
+        table = RawTable("TASK", columns, (row,))
         return write_bundle(RawXer(("19.12",), (table,), "utf-8", 1, 1))
 
-    def snapshot(snapshot_id: str, sha: str) -> LedgerSnapshot:
-        return LedgerSnapshot(
-            snapshot_id, "project:P123", "MAIN", 1, "Valid", False, None, None, None,
-            (None,) * 6, None, None, None, None, None, None, None, "file", sha,
-        )  # fmt: skip
-
-    first, first_sha = bundle(("Thing_ID", "Name"), ("1", "one"))
-    second, second_sha = bundle(("THING_ID", "Name", "Extra"), ("2", "two", "x"))
+    first, first_sha = bundle(("Task_ID", "Name"), ("1", "one"))
+    second, second_sha = bundle(("TASK_ID", "Name", "Extra"), ("2", "two", "x"))
     with open_lake(lake, write=True) as con:
         load_bronze(con, lake, snapshot("S1", first_sha), lambda *_: first, 100)
         load_bronze(con, lake, snapshot("S2", second_sha), lambda *_: second, 100)
-    types = dict(lakes.tables()["xer_thing"])
-    assert list(types) == ["_snapshot_id", "_row_no", "thing_id", "name", "extra"]
-    assert lakes.rows("SELECT _snapshot_id, thing_id, name, extra FROM lake.main.xer_thing") == [
+    types = dict(lakes.tables()["xer_task"])
+    assert list(types) == ["_snapshot_id", "_row_no", "task_id", "name", "extra"]
+    assert lakes.rows("SELECT _snapshot_id, task_id, name, extra FROM lake.main.xer_task") == [
         ("S1", "1", "one", None),
         ("S2", "2", "two", "x"),
     ]
 
 
-def test_a_bad_bundle_fails_the_sync_and_leaves_the_lake_as_it_was(lakes: Lakes) -> None:
-    published_pair(lakes)
+def test_a_bad_bundle_is_recorded_and_skipped_and_the_pass_goes_on(lakes: Lakes) -> None:
+    one, two = published_pair(lakes)
     lakes.sync(bronze=False)
     before = dump(lakes)
 
@@ -271,28 +279,156 @@ def test_a_bad_bundle_fails_the_sync_and_leaves_the_lake_as_it_was(lakes: Lakes)
 
     engine = lakes.ledger.engine()
     try:
-        with read_snapshot(engine) as conn, pytest.raises(LakeSyncError, match="raw bundle"):
-            sync_xer(lakes.lake, conn, broken)
+        with read_snapshot(engine) as conn:
+            result = sync_xer(lakes.lake, conn, broken)
+        with read_snapshot(engine) as conn:
+            again = sync_xer(lakes.lake, conn, broken)
     finally:
         engine.dispose()
-    assert dump(lakes) == before
+    assert (result.bronze, result.failed, result.bronze_waiting) == (0, 2, 0)
+    assert result.snapshot_id is not None  # the failures were recorded
+    assert again.up_to_date and again.failed == 2  # and are not tried again
+    assert sorted(
+        r[0] for r in lakes.rows(f"SELECT snapshot_id FROM lake.main.{FAILED_TABLE}")
+    ) == (sorted([one, two]))
+    assert not any(name.startswith("xer_") for name in lakes.tables())
+    after = dump(lakes)
+    assert {k: v for k, v in after.items() if k != FAILED_TABLE} == before
+    assert lakes.rows(f"SELECT bronze FROM lake.main.{LOADED_TABLE}") == [(False,), (False,)]
 
 
-def test_a_bundle_that_is_not_the_one_recorded_is_refused(lakes: Lakes) -> None:
+def test_one_bad_snapshot_costs_only_that_snapshot(lakes: Lakes) -> None:
     one, two = published_pair(lakes)
-    other = lakes.world.snapshot(two)
+    first = lakes.world.snapshot(one)
 
-    def swapped(scope: str, file_id: str, sha256: str) -> bytes:
-        return lakes.raw(scope, other.raw_file_id or "", sha256)  # snapshot 2's bundle for both
+    def reader(scope: str, file_id: str, sha256: str) -> bytes:
+        if file_id == first.raw_file_id:
+            return b"not a gzip stream"
+        return lakes.raw(scope, file_id, sha256)
 
     engine = lakes.ledger.engine()
     try:
         with read_snapshot(engine) as conn:
             sync_lake(lakes.lake, conn)
-        with read_snapshot(engine) as conn, pytest.raises(LakeSyncError, match="raw bundle"):
-            sync_xer(lakes.lake, conn, swapped)
+        with read_snapshot(engine) as conn:
+            result = sync_xer(lakes.lake, conn, reader)
     finally:
         engine.dispose()
+    assert (result.loaded, result.bronze, result.failed) == (2, 1, 1)
+    assert lakes.rows(f"SELECT snapshot_id FROM lake.main.{FAILED_TABLE}") == [(one,)]
+    assert lakes.rows("SELECT DISTINCT _snapshot_id FROM lake.main.xer_task") == [(two,)]
+    assert (
+        lakes.rows(f"SELECT count(*) FROM lake.main.{ACTIVITY_TABLE}")[0][0] == 42
+    )  # silver whole
+
+
+def test_a_snapshot_that_stops_being_built_leaves_the_failed_list(lakes: Lakes) -> None:
+    one, two = published_pair(lakes)
+    third = lakes.world.upload(
+        make_xer(slipped(week_pair()[1], days=3, codes=("A1230",))), "MAIN", name="t.xer"
+    )
+    lakes.sync(bronze=False)
+
+    def broken(scope: str, file_id: str, sha256: str) -> bytes:
+        return b"not a gzip stream"
+
+    engine = lakes.ledger.engine()
+    try:
+        with read_snapshot(engine) as conn:
+            assert sync_xer(lakes.lake, conn, broken).failed == 3
+    finally:
+        engine.dispose()
+    lakes.world.void(third)
+    lakes.sync(bronze=False)
+    assert sorted(
+        r[0] for r in lakes.rows(f"SELECT snapshot_id FROM lake.main.{FAILED_TABLE}")
+    ) == (sorted([one, two]))
+
+
+def test_a_bundle_the_reader_would_now_refuse_cannot_stop_the_lake(
+    lakes: Lakes, lake: LakeConfig
+) -> None:
+    """Columns `A` and `a` fold to one name: the catalog refuses it, the snapshot is skipped."""
+    table = RawTable("TASK", ("A", "a"), (("1", "2"),))
+    blob, sha = write_bundle(RawXer(("19.12",), (table,), "utf-8", 2, 1))
+    with open_lake(lake, write=True) as con:
+        tables = lake_tables(con)
+        for name, columns in (
+            (
+                LOADED_TABLE,
+                [Column("snapshot_id", "VARCHAR", True), Column("bronze", "BOOLEAN", True)],
+            ),
+            (
+                FAILED_TABLE,
+                [Column("snapshot_id", "VARCHAR", True), Column("reason", "VARCHAR", True)],
+            ),
+        ):
+            ensure_table(con, tables, name, columns)
+        con.execute(f"INSERT INTO lake.main.{LOADED_TABLE} VALUES ('S1', FALSE)")
+        with pytest.raises(SnapshotLoadError):
+            load_bronze(con, lake, snapshot("S1", sha), lambda *_: blob, 100)
+        assert sync_bronze(con, lake, snapshot("S1", sha), lambda *_: blob, 100) is None
+        assert con.execute(f"SELECT snapshot_id FROM lake.main.{FAILED_TABLE}").fetchall() == [
+            ("S1",)
+        ]
+        assert con.execute(f"SELECT bronze FROM lake.main.{LOADED_TABLE}").fetchall() == [(False,)]
+    assert "xer_task" not in lakes.tables()  # the half-made table was rolled back
+
+
+def test_only_the_tables_p6_defines_get_a_lake_table_of_their_own(
+    lakes: Lakes, lake: LakeConfig
+) -> None:
+    junk = [RawTable(f"Junk{n}", ("a", "b"), (("x", ""),)) for n in range(250)]
+    task = RawTable("TASK", ("task_id", "task_code"), (("1", "A1"),))
+    blob, sha = write_bundle(RawXer(("19.12",), (task, *junk), "utf-8", 504, 1))
+    with open_lake(lake, write=True) as con:
+        load_bronze(con, lake, snapshot("S1", sha), lambda *_: blob, 100)
+    names = sorted(n for n in lakes.tables() if n.startswith("xer_"))
+    assert names == ["xer_other", "xer_task"]
+    assert lakes.rows("SELECT thing FROM (SELECT count(*) AS thing FROM lake.main.xer_other)") == [
+        (250,)
+    ]
+    [row] = lakes.rows(
+        "SELECT _snapshot_id, _table, _row_no, _column, value FROM lake.main.xer_other "
+        "WHERE _table = 'Junk7'"
+    )
+    assert row == ("S1", "Junk7", 1, "a", "x")  # the empty cell of the row is not stored
+
+
+def test_a_table_p6_defines_that_would_grow_too_wide_goes_to_the_long_table(
+    lakes: Lakes, lake: LakeConfig
+) -> None:
+    wide_names = tuple(f"c{n}" for n in range(MAX_BRONZE_COLUMNS))
+    ok = RawTable("TASK", ("task_id",), (("1",),))
+    wide = RawTable("TASK", wide_names, (tuple("v" for _ in wide_names),))
+    first, first_sha = write_bundle(RawXer(("19.12",), (ok,), "utf-8", 1, 1))
+    second, second_sha = write_bundle(RawXer(("19.12",), (wide,), "utf-8", MAX_BRONZE_COLUMNS, 1))
+    with open_lake(lake, write=True) as con:
+        load_bronze(con, lake, snapshot("S1", first_sha), lambda *_: first, 100)
+        load_bronze(con, lake, snapshot("S2", second_sha), lambda *_: second, 100)
+    assert [c for c, _ in lakes.tables()["xer_task"]] == ["_snapshot_id", "_row_no", "task_id"]
+    assert lakes.rows("SELECT count(*) FROM lake.main.xer_other")[0][0] == MAX_BRONZE_COLUMNS
+    assert lakes.rows("SELECT DISTINCT _snapshot_id, _table FROM lake.main.xer_other") == [
+        ("S2", "TASK")
+    ]
+
+
+def test_the_allow_list_holds_every_table_the_synthetic_files_and_the_typed_analysis_use() -> None:
+    from tl_xer.reader import read_xer
+    from tl_xer.synth import week_pair
+
+    used = {t.name for scenario in week_pair() for t in read_xer(make_xer(scenario)).tables}
+    assert used <= P6_TABLES, sorted(used - P6_TABLES)
+    assert {
+        "PROJECT",
+        "PROJWBS",
+        "CALENDAR",
+        "TASK",
+        "TASKPRED",
+        "ACTVTYPE",
+        "ACTVCODE",
+    } <= P6_TABLES
+    assert "OTHER" not in P6_TABLES  # `xer_other` is the long table, not a P6 table's
 
 
 # --- the mart ------------------------------------------------------------------------------------

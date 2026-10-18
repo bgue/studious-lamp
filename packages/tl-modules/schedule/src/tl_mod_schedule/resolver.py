@@ -86,7 +86,8 @@ def resolve_snapshot(
     ``None`` names the schedule's current snapshot. An integer names a snapshot by number if it
     is Published or Superseded. A string names the latest published snapshot whose data date is on
     or before it: ``YYYY-MM-DD`` means the end of that day, ``YYYY-MM-DDTHH:MM`` that minute. Any
-    other string names nothing; dates are compared as dates. Raises ``ScheduleNotFoundError`` for an
+    other string, and one that is shaped like a date but is not one, names nothing; dates are
+    compared as dates. Raises ``ScheduleNotFoundError`` for an
     unknown schedule or one of another ``scope``.
     """
     schedule = _schedule(conn, schedule_id, scope)
@@ -105,7 +106,10 @@ def resolve_snapshot(
         limit = as_of
     else:
         return None
-    until = stamp(limit)
+    try:
+        until = stamp(limit)
+    except ValueError:  # shaped like a date but not one: 2026-02-30, T25:99, year 0000
+        return None
     found = [s for s in published if s.data_date is not None and stamp(s.data_date) <= until]
     return found[-1] if found else None
 

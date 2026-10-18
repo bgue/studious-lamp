@@ -163,6 +163,34 @@ def test_a_link_a_person_flagged_is_not_restored_when_the_activity_returns(
     assert world.link_row(flagged.stream_id)["status"] == "stale"  # the module did not touch it
 
 
+def test_a_person_cannot_pass_as_the_module_by_the_source_of_the_flag(
+    world: ScheduleWorld,
+) -> None:
+    """A flag with the module's source but a person's actor is a person's: it is not restored."""
+    from tl_adapters.db import open_uow
+    from tl_core.services.links import FlagLink, handle_flag_link
+    from tl_mod_schedule.names import SERVICE
+    from tl_mod_schedule.testing import BASE
+
+    world.define()
+    one, two = world.two_weeks()
+    world.publish(one)
+    flagged = world.link(world.record(), "A1230")
+    with open_uow(world.db) as uow:
+        handle_flag_link(
+            uow,
+            FlagLink(
+                **{**BASE, "source": SERVICE},
+                link_id=flagged.stream_id,
+                status="stale",
+                reason="checked by hand",
+            ),
+        )
+    world.publish(two)
+    world.publish(world.upload(third_file(), name="third.xer"))
+    assert world.link_row(flagged.stream_id)["status"] == "stale"
+
+
 def test_publishing_with_no_references_flags_nothing(world: ScheduleWorld) -> None:
     world.define()
     one, two = world.two_weeks()

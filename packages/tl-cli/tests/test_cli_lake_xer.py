@@ -31,7 +31,7 @@ def test_a_sync_loads_the_snapshots_and_a_second_one_says_nothing_new(
     assert out[0].startswith("synced seq 1..") and out[1].startswith("silver rows: ")
     assert out[2] == (
         "schedule snapshots: loaded 2 (42 activities), dropped 0, bronze tables for 2 "
-        "(185 rows) in snapshot 2"
+        "(185 rows) in snapshot 4"
     )
     again = lake(cast, tmp_path, "sync").splitlines()
     assert len(again) == 1 and again[0].startswith("lake is up to date as of seq ")
@@ -69,3 +69,15 @@ def test_a_rebuild_loads_the_schedule_tables_again(cast: Cast, tmp_path: Path) -
     lake(cast, tmp_path, "sync")
     out = lake(cast, tmp_path, "rebuild", "--yes").splitlines()
     assert out[2].startswith("schedule snapshots: loaded 2 (42 activities)")
+
+
+def test_a_snapshot_the_lake_could_not_take_is_named_in_the_sync_output(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from tl_cli.lake import _print_xer  # pyright: ignore[reportPrivateUsage]
+    from tl_lake import XerSyncResult
+
+    _print_xer(XerSyncResult(None, 0, 0, 0, 0, 0, 0, 0, 2))
+    assert "could not be loaded" in capsys.readouterr().out
+    _print_xer(XerSyncResult(None, 0, 0, 0, 0, 0, 0, 0, 0))
+    assert capsys.readouterr().out == ""

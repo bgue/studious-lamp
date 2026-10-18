@@ -6,7 +6,7 @@ import time
 
 import pytest
 from tl_xer import limits
-from tl_xer.reader import detect_encoding, read_xer
+from tl_xer.reader import detect_encoding, read_xer, row_memory
 from tl_xer.refusals import MESSAGES, XerRefusal
 from xersupport import encode, first_text, replace_once
 
@@ -156,6 +156,9 @@ def test_a_short_row_is_padded_and_a_long_row_is_refused() -> None:
         (HEADER.encode() + b"\r\n%T\tT\r\n%F\ta b\tc\r\n%E\r\n", "bad_field_name"),
         (HEADER.encode() + b"\r\n%T\tT\r\n%F\ta\ta\r\n%E\r\n", "duplicate_field"),
         (tiny("T|a|1").replace(b"%E", b"%T\tT\r\n%F\ta\r\n%E"), "duplicate_table"),
+        (HEADER.encode() + b"\r\n%T\tT\r\n%F\tA\ta\r\n%E\r\n", "duplicate_field"),
+        (tiny("T|a|1").replace(b"%E", b"%T\tt\r\n%F\ta\r\n%E"), "duplicate_table"),
+        (tiny("ZZ|a|1").replace(b"%E", b"%T\tzz\r\n%F\ta\r\n%E"), "duplicate_table"),
     ],
 )
 def test_malformed_files_are_refused_with_a_code_and_a_fixed_message(
@@ -203,16 +206,54 @@ def test_too_many_columns_is_decided_before_the_line_is_split() -> None:
     assert time.monotonic() - started < 2
 
 
-def test_too_many_rows_and_cells(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_too_many_rows(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(limits, "MAX_ROWS_PER_TABLE", 3)
     assert len(read_xer(tiny("T|a|1;2;3")).tables[0].rows) == 3
     error = refusal_of(tiny("T|a|1;2;3;4"))
     assert (error.code, error.table) == ("too_many_rows", "T")
-    monkeypatch.setattr(limits, "MAX_ROWS_PER_TABLE", 100)
-    monkeypatch.setattr(limits, "MIN_ROW_WEIGHT", 1)
-    monkeypatch.setattr(limits, "MAX_CELLS", 6)
-    assert read_xer(tiny("T|a b|1,2;3,4;5,6")).cells == 6
+
+
+def test_the_memory_of_a_row_is_counted_by_its_slots_its_filled_cells_and_its_characters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name, value in (
+        ("ROW_BYTES", 100),
+        ("SLOT_BYTES", 8),
+        ("STR_BYTES", 50),
+        ("WIDE_STR_BYTES", 70),
+    ):
+        monkeypatch.setattr(limits, name, value)
+    line = "%R\tab\tcd"
+    assert row_memory(line, ["ab", "cd"], 2) == 100 + 2 * 8 + 2 * 50 + len(line)
+    assert row_memory(line, ["ab", "cd"], 5) == 100 + 5 * 8 + 2 * 50 + len(line)  # padded columns
+    empty = "%R\t\t"
+    assert row_memory(empty, ["", ""], 2) == 100 + 2 * 8 + len(empty)  # one shared empty string
+    assert row_memory("%R\tab\t", ["ab", ""], 2) == 100 + 16 + 50 + len("%R\tab\t")
+    wide = "%R\t\u20ac\tcd"  # a euro sign: the strings are wide and so are the characters
+    assert row_memory(wide, ["\u20ac", "cd"], 2) == 100 + 2 * 8 + 2 * 70 + 2 * len(wide)
+
+
+def test_the_rows_are_refused_when_their_estimated_memory_passes_the_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    one = row_memory("%R\t1\t2", ["1", "2"], 2)
+    monkeypatch.setattr(limits, "MAX_ROW_MEMORY", 3 * one)
+    assert read_xer(tiny("T|a b|1,2;3,4;5,6")).cells == 6  # exactly at the limit
     assert refusal_of(tiny("T|a b|1,2;3,4;5,6;7,8")).code == "too_many_cells"
+    narrow = row_memory("%R\t1", ["1"], 1)  # a narrow row costs its tuple and list too
+    assert narrow > one // 2
+    monkeypatch.setattr(limits, "MAX_ROW_MEMORY", 4 * narrow)
+    assert len(read_xer(tiny("T|a|1;2;3;4")).tables[0].rows) == 4
+    assert refusal_of(tiny("T|a|1;2;3;4;5")).code == "too_many_cells"
+
+
+def test_empty_cells_cost_less_than_filled_ones(monkeypatch: pytest.MonkeyPatch) -> None:
+    sparse = row_memory("%R\t\t\t\t1", ["", "", "", "1"], 4)
+    full = row_memory("%R\t1\t2\t3\t4", ["1", "2", "3", "4"], 4)
+    assert sparse < full - 3 * limits.STR_BYTES + 6  # three strings less, a few characters more
+    monkeypatch.setattr(limits, "MAX_ROW_MEMORY", 2 * sparse)
+    assert len(read_xer(tiny("T|a b c d|,,,1;,,,2")).tables[0].rows) == 2
+    assert refusal_of(tiny("T|a b c d|1,2,3,4;1,2,3,4")).code == "too_many_cells"
 
 
 def test_the_rows_of_all_tables_together_are_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -225,17 +266,6 @@ def test_the_rows_of_all_tables_together_are_bounded(monkeypatch: pytest.MonkeyP
     over = "\r\n".join([two_tables, "%R\t3", "%E", ""])
     error = refusal_of(over.encode())
     assert (error.code, error.table) == ("too_many_rows", None)
-
-
-def test_a_narrow_row_weighs_as_many_cells_as_the_minimum(monkeypatch: pytest.MonkeyPatch) -> None:
-    """One column or sixteen, a row costs about the same: it counts as ``MIN_ROW_WEIGHT`` cells."""
-    monkeypatch.setattr(limits, "MIN_ROW_WEIGHT", 4)
-    monkeypatch.setattr(limits, "MAX_CELLS", 12)
-    assert read_xer(tiny("T|a|1;2;3")).cells == 3  # 3 rows x 4 = 12: at the limit
-    assert refusal_of(tiny("T|a|1;2;3;4")).code == "too_many_cells"  # 16 > 12 though 4 cells
-    wide = tiny("T|a b c d e|1,2,3,4,5;1,2,3,4,5")  # 5 columns weigh 5 each: 10
-    assert len(read_xer(wide).tables[0].rows) == 2
-    assert refusal_of(tiny("T|a b c d e|1,2,3,4,5;1,2,3,4,5;1,2,3,4,5")).code == "too_many_cells"
 
 
 def test_a_field_over_the_length_limit_is_refused_not_cut(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -275,8 +305,11 @@ def test_a_table_may_be_empty() -> None:
     assert read_xer(tiny("T|a b|")).tables[0].rows == ()
 
 
-def test_duplicate_detection_uses_the_exact_name() -> None:
-    assert len(read_xer(tiny("T|a|", "t|a|")).tables) == 2
+def test_names_are_unique_ignoring_case_but_different_names_are_fine() -> None:
+    assert len(read_xer(tiny("T|a|", "U|a|")).tables) == 2
+    assert read_xer(tiny("T|a b|")).tables[0].columns == ("a", "b")
+    for data in (tiny("T|a|", "t|a|"), tiny("T|a A|")):
+        assert refusal_of(data).code in ("duplicate_table", "duplicate_field")
 
 
 def test_replace_helper_is_exact() -> None:

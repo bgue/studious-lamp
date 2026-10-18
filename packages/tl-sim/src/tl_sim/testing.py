@@ -482,10 +482,8 @@ class FakeClient:
         _, snapshot = self._snapshot(snapshot_id)
         snapshot.update(file=data, filename=filename)
         # The file routes stamp the source `api` and real time; the scanner then processes it.
-        self._write("File.Uploaded", f"file-{snapshot_id}", source="api", real_time=True)
-        self._write(
-            "File.Processed", f"file-{snapshot_id}", source="api", real_time=True, actor=SCANNER
-        )
+        self._write("File.Uploaded", snapshot_id, source="api", real_time=True)
+        self._write("File.Processed", snapshot_id, source="api", real_time=True, actor=SCANNER)
         return {"id": snapshot_id, "size": len(data)}
 
     def start_snapshot(self, snapshot_id: str) -> dict[str, Any]:
