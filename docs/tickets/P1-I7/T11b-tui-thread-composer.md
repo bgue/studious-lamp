@@ -242,7 +242,7 @@ Learnings that apply (pasted from `docs/memory/LEARNINGS.md` and the build's con
 just check
 uv run pytest packages/tl-tui/tests/test_compose_text.py packages/tl-tui/tests/test_thread_composer.py -q
 ```
-Expected: `just check` clean; 5 + 13 pass.
+Expected: `just check` clean; 3 + 13 pass.
 
 ## Tests to add
 None beyond the provided file.
