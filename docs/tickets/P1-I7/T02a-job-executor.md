@@ -72,7 +72,7 @@ Learnings that apply (pasted from `docs/memory/LEARNINGS.md` and the build's con
 - ruff limits lines to 100 columns, docstrings and comments included (L-P0-I1-6). Run `uv run ruff format` before committing. pyright is `strict` for `packages/tl-core` (L-P1-I3-3: the stub's two lint-silencing header lines come out when you implement it).
 - The provided test lives under `docs/tickets/P1-I7/provided/` as `.py.txt`; copy it into the tree byte for byte (the target name is in *Steps*). Do not edit the copy: it is already `ruff format` and pyright clean (L-P1-I3-12).
 - Commit your report at `docs/reports/P1-I7/P1-I7-T02a.md` (it is inside your Allowed paths). Say "commit your report" in your final message (L-P0-I2-B7). `docs/templates/haiku-report.md` is the template (L-P1-I3B-6).
-- A failing test that is not in your Allowed paths is not yours to fix: report it under *Blocked*. **Known red on this branch:** `packages/tl-schema/tests/test_catalog.py::test_every_event_type_the_code_names_is_in_the_catalog` fails until workstream B adds its `Thread.*` catalog classes; it is not yours and not in any command below.
+- A failing test that is not in your Allowed paths is not yours to fix: report it under *Blocked*. **Known red on this branch:** `packages/tl-schema/tests/test_catalog.py::test_every_event_type_the_code_names_is_in_the_catalog` fails until workstream B adds its `Thread.*` catalog classes; it is not yours and not in any command below. Two more tests are red on the stub base for the same reason and are T02a's to turn green: `tests/integration/test_int_actions.py::test_a_job_action_runs_the_example_job` and `::test_a_job_that_is_gone_at_run_time_fails_the_invocation` (they need the real job executor and the `echo` job).
 - No new dependencies. Remove the `STUB` paragraph from the module docstring, every `STEPS` comment, the `# ruff: noqa: F401` line and the `# pyright: reportUnusedImport=false, ...` line when you implement the stub.
 - Never name a module `types.py`, `enum.py` or `json.py` inside a package (L-P0-I5-B1).
 - Never change `schema/**`, `pyproject.toml`, anything under `generated/`, or `tl_core/integration/contract.py` (frozen).
@@ -96,8 +96,9 @@ Learnings that apply (pasted from `docs/memory/LEARNINGS.md` and the build's con
 just check
 uv run pytest packages/tl-core/tests/test_job_executor.py -q
 uv run pytest tests/contract -q
+uv run pytest tests/integration/test_int_actions.py -q
 ```
-Expected: `just check` clean; the 19 test functions of the provided file pass; the contract tests pass.
+Expected: `just check` clean; the 19 test functions of the provided file pass; the contract tests pass; all of `tests/integration/test_int_actions.py` passes (the two job tests included).
 
 ## Tests to add
 None beyond the provided file.
