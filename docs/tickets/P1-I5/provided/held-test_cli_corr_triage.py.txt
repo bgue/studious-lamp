@@ -1,0 +1,19 @@
+"""Held until T07b2 merges: the triage commands of `tl corr` (P1-I5). Append to test_cli_corr.py."""
+
+
+def test_receive_by_upload_then_triage_to_general_with_the_suggestion(
+    cast: Cast, tmp_path: Path
+) -> None:
+    number = receive(cast.ursula, tmp_path)
+    shown = run(cast.ursula, "show", number, *PROJECT).stdout
+    assert "Received" in shown and "subject Drawings" in shown
+    assert "file original letter.txt" in shown
+    assert number in run(cast.ursula, "ls", *PROJECT).stdout
+    assert run(cast.ursula, "suggest", number, *PROJECT).stdout.startswith("suggested ")
+    triaged = run(cast.ursula, "triage", number, *PROJECT, "--domain", "general", "--subtype", "letter").stdout
+    assert triaged.startswith(f"triaged {number} as general/")
+    assert "Triaged" in run(cast.ursula, "show", number, *PROJECT).stdout
+    missing = run(cast.ursula, "show", "P123-COR-9999", *PROJECT, ok=False)
+    assert missing.stderr.startswith("error: no item")
+
+

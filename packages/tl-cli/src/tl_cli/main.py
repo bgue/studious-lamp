@@ -42,6 +42,10 @@ from tl_cli import (
     archive,
     backup,
     config,
+    corr,
+    corr_clock,
+    corr_registry,
+    corr_report,
     derive,
     dev,
     doc,
@@ -123,6 +127,14 @@ app.add_typer(doc.app, name="doc")
 app.add_typer(derive.app, name="derive")
 app.add_typer(transmittal.app, name="transmittal")
 app.add_typer(review.app, name="review")
+app.add_typer(corr.app, name="corr")
+corr.app.add_typer(corr_clock.app, name="clock")
+corr.app.add_typer(corr_registry.thread_app, name="thread")
+corr.app.add_typer(corr_registry.party_app, name="party")
+corr.app.add_typer(corr_registry.clause_app, name="clause")
+corr.app.add_typer(corr_registry.class_app, name="class")
+corr.app.add_typer(corr_registry.mail_app, name="mail")
+corr.app.add_typer(corr_report.app, name="report")
 doc.app.add_typer(doc_rev.app, name="rev")
 doc.app.add_typer(doc_rendition.app, name="rendition")
 doc.app.add_typer(doc_report.app, name="report")
