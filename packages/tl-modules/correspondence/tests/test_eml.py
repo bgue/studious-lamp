@@ -413,3 +413,32 @@ def test_a_subject_longer_than_the_record_allows_is_refused_not_cut() -> None:
     long_subject = simple(Subject="s" * 600)
     assert "the subject is longer than 500" in refused(long_subject.as_bytes())
     assert parse_eml(simple(Subject="s" * 500).as_bytes()).subject == "s" * 500
+
+
+# --- the review of P1-I5: a cheap refusal before the parser, and References -----------------------
+
+
+def test_a_message_of_hundreds_of_thousands_of_tiny_parts_is_refused_before_it_is_parsed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parts = b"--B\nContent-Type: text/plain\n\nx\n" * 200_000
+    raw = b"From: a@b.example\nContent-Type: multipart/mixed; boundary=B\n\n" + parts + b"--B--\n"
+
+    def never(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("the parser was called")
+
+    monkeypatch.setattr(eml.BytesParser, "parsebytes", never)
+    assert "too many parts" in refused(raw, EmlLimits(max_bytes=10**8))
+
+
+def test_ordinary_lines_that_begin_with_two_dashes_are_not_parts() -> None:
+    body = "Regards,\n-- \nPat\n" + "\n".join(f"--- a/file{n}" for n in range(30))
+    msg = simple()
+    msg.set_content(body)
+    assert parse_eml(msg.as_bytes()).body is not None
+
+
+def test_a_long_references_header_keeps_its_first_ids_and_is_not_refused() -> None:
+    ids = " ".join(f"<m{n}@mail.example>" for n in range(80))
+    got = parse_eml(simple(References=ids).as_bytes(), EmlLimits(max_header_chars=10_000))
+    assert len(got.references) == 50 and got.references[0] == "m0@mail.example"

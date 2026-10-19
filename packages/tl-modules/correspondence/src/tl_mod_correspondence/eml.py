@@ -21,6 +21,12 @@ promises, and the tests of ``test_eml.py`` check against a corpus of hostile mes
   remote content is fetched or followed, and no attachment is opened or run: attachments are
   bytes with a name and a declared type that the file service stores and scans like any upload.
 * A nested message (``message/rfc822``) is one attachment; the parser does not descend into it.
+* **Two exceptions to "refuse, never cut", on purpose.** The ``References`` header is read up to
+  ``MAX_HEADER_CHARS`` characters and its first ``max_references`` ids are kept: it is a hint for
+  threading and is not stored, so nothing the sender wrote is lost from the record, and a long
+  mailing-list thread is not refused for it. A second ``text/plain`` part that is not an
+  attachment is not the body: the first one is, and the original with every part is kept whole in
+  the ``message`` slot.
 * **Names are names, not paths:** a file name is cut to its last component, and ``.`` ``..`` and
   empty names become ``attachment-<n>``.
 
@@ -43,6 +49,11 @@ from typing import Any, Final
 from tl_mod_correspondence.limits import MAX_BODY, MAX_EMAIL, MAX_RECIPIENTS, MAX_TEXT
 from tl_mod_correspondence.textcheck import clean_body, clean_text
 from tl_mod_correspondence.threading import normalise_message_id, parse_references
+
+#: Lines that begin with ``--`` per allowed part before the message is refused unparsed: a
+#: boundary opens each part and closes each multipart, and ordinary text (a signature, a diff)
+#: uses a few more.
+BOUNDARY_LINES_PER_PART: Final = 10
 
 
 class EmlRefused(ValueError):  # noqa: N818 - a refusal, named for what the caller does with it
@@ -277,6 +288,10 @@ def parse_eml(data: bytes, limits: EmlLimits | None = None) -> ParsedMessage:
         raise _refuse(TOO_BIG)
     if not data.strip():
         raise _refuse("the message is empty")
+    # A cheap look before the parser: a message of a few hundred thousand tiny parts takes the
+    # standard parser many seconds to build the tree that the part limit then refuses.
+    if data.count(b"\n--") > bounds.max_parts * BOUNDARY_LINES_PER_PART:
+        raise _refuse("the message has too many parts")
     try:
         root = BytesParser(policy=policy.default).parsebytes(data)
     except RecursionError as exc:

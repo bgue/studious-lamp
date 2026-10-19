@@ -222,3 +222,34 @@ def test_attachments_go_through_the_upload_guard_and_only_the_original_is_the_mo
     with frozen_today(MONDAY):
         ingest(world, msg)
     assert sorted(seen) == [("attachment", False), ("message", True)]
+
+
+def test_a_header_that_names_a_hidden_message_does_not_join_its_thread(world: CorrWorld) -> None:
+    from tl_core import confidentiality as cf
+
+    ctl = cf.Viewer(actor="user:ctl", level=1, account="user:ctl")
+    with frozen_today(MONDAY):
+        secret = ingest(world, message(Message_ID="<secret@x.example>", Subject="Commercial terms"))
+        with cf.use_viewer(ctl):
+            world.set_class(secret.stream_id, "restricted")
+        by_reply = ingest(
+            world,
+            message(Message_ID="<a@x.example>", In_Reply_To="<secret@x.example>", Subject="Hello"),
+        )
+        by_refs = ingest(
+            world,
+            message(
+                Message_ID="<b@x.example>",
+                References="<first@x.example> <secret@x.example>",
+                Subject="Hello again",
+            ),
+        )
+        by_number = ingest(
+            world, message(Message_ID="<c@x.example>", Subject=f"Re: {secret.key} please")
+        )
+    with cf.use_viewer(ctl):
+        hidden_thread = world.item(secret.key or "").thread_id
+        for made in (by_reply, by_refs, by_number):
+            item = world.item(made.key or "")
+            assert item.thread_id is not None and item.thread_id != hidden_thread, made.key
+            assert item.responds_to_id != secret.stream_id
