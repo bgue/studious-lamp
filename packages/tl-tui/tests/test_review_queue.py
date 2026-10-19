@@ -73,9 +73,10 @@ def test_ctrl_r_lists_the_values_waiting_and_closes_with_escape() -> None:
 
 def test_s_switches_between_the_waiting_values_and_all_of_them() -> None:
     async def steps(pilot: Pilot[Any], app: TlApp, screen: ReviewQueueScreen) -> None:
-        await pilot.press("s")
+        await pilot.press("down", "s")  # the second value stays highlighted across the switch
         await pilot.pause()
         assert table(screen).row_count == 3 and "All values (3)" in screen_text(app)
+        assert table(screen).cursor_row == 1
         await pilot.press("s")
         await pilot.pause()
         assert table(screen).row_count == 2
