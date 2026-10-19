@@ -159,3 +159,41 @@ def test_a_larger_cap_does_not_cut_the_excerpt(server: int) -> None:
     assert len(result.excerpt) == 100_000 and not result.truncated
     default = HttpxTransport().send(target(server, "/big"), {}, b"{}", timeout_s=5)
     assert len(default.excerpt) == 512 and default.truncated
+
+
+def test_a_server_that_drips_its_headers_cannot_hold_the_exchange_past_its_budget() -> None:
+    """The header phase is outside the body loop: a header line every 0.4 s never trips httpx's
+    per-read timeout, so only a watchdog over the whole exchange stops it (second review)."""
+    import socket
+
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    stop = threading.Event()
+
+    def serve() -> None:
+        conn, _ = listener.accept()
+        with conn:
+            conn.settimeout(2.0)
+            try:
+                conn.recv(65536)
+                conn.sendall(b"HTTP/1.1 200 OK\r\n")
+                for n in range(60):
+                    if stop.is_set():
+                        return
+                    conn.sendall(f"X-Drip-{n}: y\r\n".encode())
+                    time.sleep(0.4)
+            except OSError:
+                return
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    started = time.monotonic()
+    result = HttpxTransport().send(target(port), {}, b"{}", timeout_s=1.0)
+    elapsed = time.monotonic() - started
+    stop.set()
+    listener.close()
+    assert elapsed < 3.0, elapsed
+    assert result.status is None and result.error is not None
+    assert result.error.startswith("DeadlineExceeded")

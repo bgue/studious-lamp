@@ -10,6 +10,7 @@ whole exchange ``timeout_s`` in total (not per read).
 
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass
 from typing import Protocol
@@ -97,11 +98,24 @@ class HttpxTransport:
         request_headers = {**headers, "Host": target.host_header, "User-Agent": USER_AGENT}
         extensions = {"sni_hostname": target.host} if target.scheme == "https" else {}
         started = time.monotonic()
+        expired = threading.Event()
+        client = httpx.Client(
+            timeout=timeout_s, follow_redirects=False, trust_env=False, cookies=None
+        )
+
+        def give_up() -> None:
+            # httpx's timeout is per read, and covers neither a server that drips its headers nor
+            # one that answers a byte at a time. ``timeout_s`` is the budget of the whole exchange:
+            # when it is spent, closing the client drops the connection and the blocked read fails.
+            expired.set()
+            client.close()
+
+        watchdog = threading.Timer(timeout_s, give_up)
+        watchdog.daemon = True
+        watchdog.start()
         try:
             with (
-                httpx.Client(
-                    timeout=timeout_s, follow_redirects=False, trust_env=False, cookies=None
-                ) as client,
+                client,
                 client.stream(
                     "POST", url, content=body, headers=request_headers, extensions=extensions
                 ) as response,
@@ -112,9 +126,9 @@ class HttpxTransport:
                     if len(received) > self._max_bytes:
                         break
                     if time.monotonic() - started > timeout_s:
-                        # httpx's timeout is per read: a server that trickles one byte at a time
-                        # never trips it. ``timeout_s`` is also the budget of the whole exchange.
                         raise _DeadlineError("the response took longer than the time allowed")
+                if expired.is_set():
+                    raise _DeadlineError("the response took longer than the time allowed")
                 return TransportResult(
                     status=response.status_code,
                     latency_ms=int((time.monotonic() - started) * 1000),
@@ -130,9 +144,19 @@ class HttpxTransport:
                 latency_ms=int((time.monotonic() - started) * 1000),
                 error=f"DeadlineExceeded: {exc}"[:200],
             )
-        except httpx.HTTPError as exc:
+        except Exception as exc:
+            if expired.is_set():  # the watchdog closed the client under a blocked read
+                return TransportResult(
+                    status=None,
+                    latency_ms=int((time.monotonic() - started) * 1000),
+                    error="DeadlineExceeded: the response took longer than the time allowed",
+                )
+            if not isinstance(exc, httpx.HTTPError):
+                raise
             return TransportResult(
                 status=None,
                 latency_ms=int((time.monotonic() - started) * 1000),
                 error=f"{type(exc).__name__}: {exc}"[:200],
             )
+        finally:
+            watchdog.cancel()
