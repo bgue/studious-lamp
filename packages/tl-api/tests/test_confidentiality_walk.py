@@ -338,3 +338,53 @@ def test_the_numbers_were_allocated_by_the_numbering_counter_not_typed(
         "P123-COR-0003",
         "P123-COR-0004",
     ]
+
+
+def _answer(client: Any, command: str, body: dict[str, Any], headers: dict[str, str]) -> Any:
+    return client.post(f"/commands/{command}", json={"scope": SCOPE, **body}, headers=headers)
+
+
+def test_every_command_on_a_hidden_link_post_or_record_answers_as_for_nothing(
+    harness: Harness, seeded: Seed
+) -> None:
+    """The commands that take an id (the link lifecycle, the feed, the generic record commands)
+    answer a plain user the same for a hidden id as for one that names nothing: same status, same
+    error, same text but for the id they sent (review of P1-I5)."""
+    client = harness.client_for(None)
+    headers = {"Authorization": f"Bearer {seeded.tokens['bob']}"}
+    cases: list[tuple[str, str, dict[str, Any], str]] = []
+    link = seeded.extra_ids["link"]
+    for name, extra in (
+        ("AcceptLink", {}),
+        ("DeclineLink", {"reason": "x"}),
+        ("RepinLink", {"pin": "A"}),
+        ("VerifyLink", {}),
+        ("FlagLink", {"status": "stale", "reason": "x"}),
+        ("RetractLink", {"reason": "x"}),
+    ):
+        cases.append((name, "link_id", extra, link))
+    for kind in ("restricted", "privileged"):
+        post = seeded.extra_ids[f"{kind}_post"]
+        for name, extra in (
+            ("ReactToPost", {"reaction": "ack"}),
+            ("EditPost", {"body": "rewritten"}),
+            ("RetractPost", {"reason": "x"}),
+        ):
+            cases.append((name, "post_id", extra, post))
+    for kind in ("restricted", "privileged", "bogus"):
+        record = seeded.ids[kind]
+        for name, extra in (
+            ("UpdateRecord", {"expected_version": 1, "changes": {"title": "x"}}),
+            ("VoidRecord", {"expected_version": 1, "reason": "x"}),
+            ("TransitionWorkflow", {"expected_version": 1, "transition": "x"}),
+        ):
+            cases.append((name, "stream_id", extra, record))
+    assert len(cases) >= 20
+    for name, field, extra, hidden_id in cases:
+        results = [
+            _answer(client, name, {field: target, **extra}, headers)
+            for target in (hidden_id, FAKE_ID)
+        ]
+        assert results[0].status_code == results[1].status_code, (name, results[0].text[:200])
+        assert results[0].status_code == 404, (name, results[0].status_code, results[0].text[:200])
+        assert results[0].text.replace(hidden_id, FAKE_ID) == results[1].text, name

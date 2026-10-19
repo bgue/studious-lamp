@@ -288,8 +288,12 @@ def hidden_event_streams(
 #: Streams that are not records but whose events *name* records in their payload: the numbering
 #: counters (`Numbering.Allocated` holds the key and the id of the record it numbered) and the
 #: proposals (the command an agent proposed). An event of such a stream is hidden when any record
-#: it names is. (Found by the walking test of the routes.)
-SCANNED_STREAM_TYPES: Final = frozenset({"numbering.Counter", "core.Proposal"})
+#: it names is. (Found by the walking test of the routes.) A transmittal is a record, and is read
+#: when its own document is; but its ``Defined`` event lists the documents and revisions it was
+#: made of, so a reader who may not read one of them must not be given that event.
+SCANNED_STREAM_TYPES: Final = frozenset(
+    {"numbering.Counter", "core.Proposal", "documents.Transmittal"}
+)
 _ULID = re.compile(r"(?<![0-9A-Za-z])[0-9A-HJKMNP-TV-Z]{26}(?![0-9A-Za-z])")
 
 

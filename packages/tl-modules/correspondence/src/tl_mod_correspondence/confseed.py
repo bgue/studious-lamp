@@ -22,6 +22,11 @@ from tl_core.services import proposals
 from tl_core.services.commands import Command
 from tl_core.services.feed import PostToFeed, handle_post
 from tl_core.services.links import AddLink, handle_add_link
+from tl_mod_documents.handlers.transmittals import (
+    CreateTransmittal,
+    handle_create_transmittal,
+)
+from tl_mod_documents.handlers.transmittals import Recipient as Recipient_T
 from tl_mod_documents.testing import DocumentsWorld
 
 from tl_mod_correspondence import registry
@@ -179,4 +184,25 @@ def seed_hidden_world(
             title = f"{TOKENS['document']} drawing" if kind == "document" else "OPENTOKEN drawing"
             made = docs.register(number, title=title, confidentiality=klass)
             ids[kind], numbers[kind] = made.stream_id, number
+            docs.create_revision(number)
+            docs.attach(number, "A")
+            docs.issue(number, "A", "IFR")
+        # one transmittal that lists a revision of each: the restricted one is left out for a
+        # reader who may not read it, the transmittal itself is not hidden
+        revisions = [docs.revision(n, "A").id for n in ("ISO-9001", "ISO-9002")]
+        with open_uow(db) as uow:
+            sent = handle_create_transmittal(
+                uow,
+                CreateTransmittal(
+                    actor="user:ctl",
+                    source="test",
+                    scope=scope,
+                    subject="OPENTOKEN transmittal",
+                    purpose="for_information",
+                    recipients=[Recipient_T(name="Site", organisation=None, email=None)],
+                    revision_ids=revisions,
+                ),
+            )
+        extra["transmittal"] = sent.stream_id
+        numbers["transmittal"] = sent.key or ""
     return Hidden(ids, numbers, extra)

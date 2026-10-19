@@ -90,7 +90,11 @@ def test_no_read_tool_shows_what_the_actor_may_not_read(
     assert set(NOT_WALKED) <= set(reading)
     cands = values(hidden)
     bad_tokens = [t for k, t in TOKENS.items() if k != "open"]
-    bad_ids = [v for k, v in {**hidden.ids, **hidden.extra_ids}.items() if not k.startswith("open")]
+    bad_ids = [
+        v
+        for k, v in {**hidden.ids, **hidden.extra_ids}.items()
+        if not k.startswith(("open", "transmittal"))
+    ]
     bad_ids += [hidden.ids["document"]]
     calls = 0
     for name, tool in sorted(reading.items()):
@@ -126,3 +130,60 @@ def test_no_read_tool_shows_what_the_actor_may_not_read(
     assert hidden.numbers["open"] in seen and TOKENS["restricted"] not in seen
     assert hidden.numbers["restricted"] not in seen and hidden.numbers["privileged"] not in seen
     assert hidden.numbers["bogus"] not in seen
+
+
+def resource_text(server: Any, uri: str) -> str:
+    try:
+        result = asyncio.run(server.read_resource(uri))
+    except Exception as exc:  # a refusal is an answer, and it must not depend on the record
+        return f"ERROR {type(exc).__name__}: {exc}"
+    return "".join(str(getattr(part, "content", part)) for part in result)
+
+
+@pytest.mark.parametrize("actor", ["agent:triage", "user:bob"])
+def test_no_resource_shows_what_the_actor_may_not_read(
+    world: tuple[McpHarness, Hidden, FileService], actor: str, tmp_path: Path
+) -> None:
+    env, hidden, _ = world
+    server = build_server(env.factory, actor=actor, lake_dir=tmp_path / "lake")
+    templates = asyncio.run(server.list_resource_templates())
+    fixed = asyncio.run(server.list_resources())
+    assert {"tl://record/{scope}/{key}"} <= {str(t.uri_template) for t in templates}
+    assert len(templates) + len(fixed) >= 4  # the walk found the resources (L-P1-I3-11)
+    bad_tokens = [t for k, t in TOKENS.items() if k != "open"]
+    bad_ids = [
+        v
+        for k, v in {**hidden.ids, **hidden.extra_ids}.items()
+        if not k.startswith(("open", "transmittal"))
+    ]
+    keys = [*hidden.numbers.values(), *hidden.ids.values(), FAKE_ID]
+    bad_ids = [i for i in bad_ids if i not in (hidden.ids["open"], hidden.ids["open_document"])]
+    uris = [str(r.uri) for r in fixed]
+    for template in templates:
+        text = str(template.uri_template)
+        if "{key}" in text:
+            uris += [text.replace("{scope}", "project:P123").replace("{key}", k) for k in keys]
+        elif "{record_type}" in text:
+            uris += [
+                text.replace("{scope}", "project:P123").replace("{record_type}", "x") for _ in (0,)
+            ]
+        elif "{type_ref}" in text:
+            uris.append(text.replace("{type_ref}", "x"))
+    calls = 0
+    for uri in uris:
+        reply = resource_text(server, uri)
+        calls += 1
+        for marker in [
+            *bad_tokens,
+            *bad_ids,
+            *[hidden.numbers[k] for k in ("restricted", "privileged", "bogus", "document")],
+        ]:
+            if marker not in reply:
+                continue
+            assert marker in uri, (actor, uri, marker)
+            fake = FAKE_ID
+            other = resource_text(server, uri.replace(marker, fake))
+            assert reply.replace(marker, fake) == other, (actor, uri, marker)
+    assert calls >= 8
+    seen = resource_text(server, f"tl://record/project:P123/{hidden.numbers['open']}")
+    assert hidden.numbers["open"] in seen or "open" in seen.lower()
