@@ -91,6 +91,13 @@ def read_thread(
     """
     record = readable_record(uow, record_id, actor=actor, scope=scope)
     conn = uow.conn()
+    enabled = threads_enabled(conn, record.scope, record.record_type)
+    if not enabled:  # switched off: nothing is shown, and nothing is said about what is stored
+        return ThreadPage(
+            record=record.ref(),
+            enabled=False,
+            dispatch_enabled=dispatch_enabled(conn, record.scope),
+        )
     size = max(1, min(int(limit), READ_THREAD_MAX_PAGE))
     params: dict[str, Any] = {"record_id": record_id, "limit": size + 1}
     if before_seq is not None:
@@ -101,7 +108,7 @@ def read_thread(
     total = conn.execute(_THREAD_SQL, {"record_id": record_id}).first()
     return ThreadPage(
         record=record.ref(),
-        enabled=threads_enabled(conn, record.scope, record.record_type),
+        enabled=True,
         dispatch_enabled=dispatch_enabled(conn, record.scope),
         message_count=0 if total is None else int(total.message_count),
         participants=[

@@ -307,10 +307,10 @@ def test_a_token_runs_once_and_a_replay_is_stale(db: DbTarget) -> None:
     rid = make_record(db, "REC-1")
     for line in ("/raise record Clash at grid C4", "/summarise", "/remind +1h call back"):
         found = token_for(db, rid, line)
-        confirm(db, rid, line, found.token, expires_at="2099-01-01T00:00:00+00:00")
+        confirm(db, rid, line, found.token, expires_at=found.expires_at)
         records, written = count_rows(db, "SELECT COUNT(*) FROM cur_core_record"), len(events(db))
         with pytest.raises(DispatchStaleError):
-            confirm(db, rid, line, found.token, expires_at="2099-01-01T00:00:00+00:00")
+            confirm(db, rid, line, found.token, expires_at=found.expires_at)
         assert count_rows(db, "SELECT COUNT(*) FROM cur_core_record") == records
         assert len(events(db)) == written
     kinds = [e.event_type for e in events(db)]
@@ -320,3 +320,14 @@ def test_a_token_runs_once_and_a_replay_is_stale(db: DbTarget) -> None:
 def count_rows(db: DbTarget, sql: str) -> int:
     with open_uow(db, readonly=True) as uow:
         return int(uow.conn().execute(text(sql)).scalar_one())
+
+
+def test_an_expiry_that_is_not_a_time_or_not_one_a_preview_gave_is_stale(db: DbTarget) -> None:
+    rid = make_record(db, "REC-1")
+    make_record(db, "REC-A")
+    found = token_for(db, rid, "/link REC-A")
+    for bad in ("tomorrow", "2099-01-01T00:00:00+00:00", "2020-01-01T00:00:00+00:00"):
+        with pytest.raises(DispatchStaleError):
+            confirm(db, rid, "/link REC-A", found.token, expires_at=bad)
+    naive = found.expires_at.split("+")[0]  # no zone: it is UTC
+    assert confirm(db, rid, "/link REC-A", found.token, expires_at=naive).key

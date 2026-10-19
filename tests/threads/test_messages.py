@@ -217,3 +217,45 @@ def test_a_rebuild_gives_the_same_rows(db: DbTarget) -> None:
     rebuild_projections(db)
     after = {t: sorted(map(tuple, sql(db, f"SELECT * FROM {t}"))) for t in tables}
     assert before == after and before["cur_thread_message"]
+
+
+def test_a_switched_off_thread_shows_nothing_and_takes_no_post_edit_or_retract(
+    db: DbTarget,
+) -> None:
+    rid = make_record(db, "REC-1")
+    made = post(db, rid, "hello")
+    assert len(page(db, rid).messages) == 1
+    put_setting(db, "threads.enabled", False)
+    shown = page(db, rid)
+    assert not shown.enabled and shown.messages == [] and shown.participants == []
+    assert shown.message_count == 0 and shown.next_before is None
+    with pytest.raises(ThreadsDisabledError):
+        post(db, rid, "again")
+    for handler, cmd in (
+        (
+            handle_edit_thread_message,
+            EditThreadMessage(
+                actor="user:rgarcia",
+                source="t",
+                scope=P1,
+                record_id=rid,
+                message_id=made.key,
+                body="changed",
+            ),
+        ),
+        (
+            handle_retract_thread_message,
+            RetractThreadMessage(
+                actor="user:rgarcia",
+                source="t",
+                scope=P1,
+                record_id=rid,
+                message_id=made.key,
+                reason="typo",
+            ),
+        ),
+    ):
+        with open_uow(db) as uow, pytest.raises(ThreadsDisabledError):
+            handler(uow, cmd)  # type: ignore[operator]
+    put_setting(db, "threads.enabled", True)
+    assert [m.body for m in page(db, rid).messages] == ["hello"]  # the ledger kept it

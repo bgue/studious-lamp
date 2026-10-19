@@ -135,3 +135,11 @@ def test_the_parser_is_total_on_grammar_characters(text: str) -> None:
 def test_the_problem_cases_are_all_problems() -> None:
     for text, code in PROBLEM_CASES:
         assert problem(text).code == code
+
+
+def test_an_unknown_verb_is_echoed_as_ascii_and_the_verb_fold_is_ascii_only() -> None:
+    lone = problem("/\ud800x do it")
+    assert lone.code == "unknown_verb" and lone.message.encode("utf-8")
+    assert problem("/linK x").code == "unknown_verb"  # Kelvin sign: not a "k"
+    assert problem("/ınk x").code == "unknown_verb"  # dotless i
+    assert parsed("/LINK #A").args.verb == "link"

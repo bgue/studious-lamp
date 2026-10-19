@@ -17,11 +17,12 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from tl_core.auth.types import Principal
 from tl_core.services.commands import CommandResult
 from tl_core.threads.contract import MAX_MESSAGE_CHARS, READ_THREAD_MAX_PAGE, ParseProblem
-from tl_core.threads.dispatch import DispatchFromThread, handle_dispatch_from_thread
+from tl_core.threads.dispatch import DispatchFromThread, handle_dispatch_from_thread, parse_expiry
+from tl_core.threads.errors import DispatchStaleError
 from tl_core.threads.planner import PreviewResult, ThreadPlanner
 from tl_core.threads.queries import ThreadPage, read_thread
 from tl_core.threads.visibility import readable_record
@@ -56,6 +57,17 @@ class DispatchBody(BaseModel):
     text: str = Field(min_length=1, max_length=MAX_MESSAGE_CHARS)
     token: str = Field(pattern=r"^[0-9a-f]{64}$")
     expires_at: str | None = Field(default=None, max_length=64)
+
+    @field_validator("expires_at")
+    @classmethod
+    def _a_time(cls, value: str | None) -> str | None:
+        """A time (ISO 8601; a naive one is UTC), else 422. The service bounds how far ahead."""
+        if value is None:
+            return None
+        try:
+            return parse_expiry(value).isoformat()
+        except DispatchStaleError as exc:
+            raise ValueError("expires_at must be the time a preview returned") from exc
 
 
 @router.get("/records/{record_id}/thread", operation_id="get_thread")

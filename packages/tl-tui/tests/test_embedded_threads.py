@@ -128,3 +128,28 @@ def test_a_person_with_no_account_holds_nothing(
         stranger.close()
     assert shown.preview is not None and not shown.preview.can_dispatch
     assert not shown.preview.planned[0].permitted
+
+
+def test_a_thread_write_is_made_as_the_signed_in_person(
+    world: tuple[EmbeddedClient, DbTarget, list[str]],
+) -> None:
+    from tl_core.threads.messages import EditThreadMessage, RetractThreadMessage
+
+    client, _, (rid, _) = world
+    posted = client.thread_post(
+        PostThreadMessage(actor="user:jo", source="tui", scope=SCOPE, record_id=rid, body="mine")
+    )
+    base = {"source": "tui", "scope": SCOPE, "record_id": rid}
+    with pytest.raises(ForbiddenError):
+        client.thread_post(PostThreadMessage(actor="user:mallory", body="as someone", **base))
+    with pytest.raises(ForbiddenError):
+        client.thread_edit(
+            EditThreadMessage(actor="user:mallory", message_id=str(posted.key), body="x", **base)
+        )
+    with pytest.raises(ForbiddenError):
+        client.thread_retract(
+            RetractThreadMessage(
+                actor="user:mallory", message_id=str(posted.key), reason="x", **base
+            )
+        )
+    assert [m.body for m in client.thread_page(rid).messages] == ["mine"]

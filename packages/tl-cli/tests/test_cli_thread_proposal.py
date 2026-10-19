@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import text
 from thread_cli_support import P, create, run, thread_env
-from tl_adapters.db import DbTarget, make_uow_factory, open_uow
+from tl_adapters.db import DbTarget, is_postgres, make_uow_factory, open_uow
 from tl_api.thread_runner import thread_runner
 from tl_core.auth import accounts
 from tl_core.services import proposals
@@ -74,6 +74,8 @@ def test_a_person_with_no_account_cannot_accept_even_an_effect_only_dispatch(
     new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     env = thread_env(new_db, monkeypatch, tmp_path)
+    if is_postgres(env["TL_DB"]):  # conftest makes an admin account for every `--actor` it sees
+        pytest.skip("the Postgres test wrapper signs any named actor in; core and API cover it")
     key = create(env, "Gate valve")
     assert run(env, "thread", "post", "--project", P, key, "something to summarise").exit_code == 0
     proposal_id = agent_proposal(env, key, "/summarise")

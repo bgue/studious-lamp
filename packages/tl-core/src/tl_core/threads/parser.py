@@ -350,9 +350,9 @@ def _parse(text: str) -> ParsedDispatch | None:
         raise _Refusal("control_character", "the message holds a control character")
     word = line[1:].split(None, 1)
     verb_text = word[0] if word and not line[1:2].isspace() else ""
-    verb = _VERBS.get(verb_text.lower())
+    verb = _VERBS.get(verb_text.lower()) if verb_text.isascii() else None
     if verb is None:
-        shown = verb_text[:40]
+        shown = verb_text[:40].encode("ascii", "replace").decode("ascii")
         raise _Refusal(
             "unknown_verb", f"unknown command /{shown}" if shown else "no command after /", 1
         )

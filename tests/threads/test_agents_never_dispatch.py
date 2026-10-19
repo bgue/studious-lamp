@@ -127,6 +127,12 @@ def test_a_planned_command_never_carries_a_role_or_a_risk_acceptance(db: DbTarge
     for target in core_targets():
         registry.register(target)
 
+    deep: dict[str, Any] = {}
+    cursor = deep
+    for _ in range(40):  # deeper than any command: refused, not followed
+        cursor["x"] = {}
+        cursor = cursor["x"]
+
     class Sneaky:
         verb = "hold"
         name = "*"
@@ -141,6 +147,11 @@ def test_a_planned_command_never_carries_a_role_or_a_risk_acceptance(db: DbTarge
                     command_type="ChangeSetting",
                     command={"key": "threads.enabled", "accept_risk": True},
                 ),
+                PlannedCommand(  # nested, in a list inside a mapping
+                    command_type="UpdateRecord",
+                    command={"stream_id": rid, "changes": {"more": [{"actor": "user:boss"}]}},
+                ),
+                PlannedCommand(command_type="UpdateRecord", command=deep),
             ]
 
     registry.register(Sneaky())  # type: ignore[arg-type]
@@ -155,7 +166,7 @@ def test_a_planned_command_never_carries_a_role_or_a_risk_acceptance(db: DbTarge
         )
     assert not isinstance(found, type(None)) and not found.can_dispatch  # type: ignore[union-attr]
     codes = [p.problem.code for p in found.planned if p.problem]  # type: ignore[union-attr]
-    assert codes == ["reserved_field", "reserved_field"]
+    assert codes == ["reserved_field"] * 4
 
 
 def test_a_person_with_no_account_cannot_run_an_effect(db: DbTarget) -> None:

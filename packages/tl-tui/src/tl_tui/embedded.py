@@ -623,6 +623,11 @@ class EmbeddedClient:
         """What the signed-in person holds, read from their account now (``account_holds``)."""
         return account_holds(uow.conn(), self.actor)
 
+    def _signed_in_only(self, actor: str) -> None:
+        """A thread write is made as the signed-in person, nobody else."""
+        if actor != self.actor:
+            raise ForbiddenError("a thread message is written as the signed-in person")
+
     def thread_page(
         self, record_id: str, *, limit: int = 50, before_seq: int | None = None
     ) -> ThreadPage:
@@ -630,14 +635,17 @@ class EmbeddedClient:
             return read_thread(uow, record_id, actor=self.actor, limit=limit, before_seq=before_seq)
 
     def thread_post(self, cmd: PostThreadMessage) -> CommandResult:
+        self._signed_in_only(cmd.actor)
         with self._uow(False) as uow:
             return self.own_writes.note(handle_post_thread_message(uow, cmd))
 
     def thread_edit(self, cmd: EditThreadMessage) -> CommandResult:
+        self._signed_in_only(cmd.actor)
         with self._uow(False) as uow:
             return self.own_writes.note(handle_edit_thread_message(uow, cmd))
 
     def thread_retract(self, cmd: RetractThreadMessage) -> CommandResult:
+        self._signed_in_only(cmd.actor)
         with self._uow(False) as uow:
             return self.own_writes.note(handle_retract_thread_message(uow, cmd))
 

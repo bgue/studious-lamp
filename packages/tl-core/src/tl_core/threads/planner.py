@@ -31,7 +31,7 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Protocol
+from typing import Protocol, cast
 
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import text
@@ -80,6 +80,22 @@ UNAVAILABLE = "dispatch_unavailable"
 #: Fields no planned command may carry: the server's (D2) and the two that grant rights a command
 #: line must never hold (a workflow role, the "I accept the risk" of a dangerous setting).
 NEVER_FORWARDED = SERVER_SET_FIELDS | {"actor_roles", "accept_risk"}
+MAX_FIELD_DEPTH = 32
+
+
+def names_forbidden_field(value: object, depth: int = 0) -> bool:
+    """Whether a planned command names a forbidden field at any depth (bounded, like WS-A's)."""
+    if depth > MAX_FIELD_DEPTH:
+        return True  # deeper than any command: refused rather than followed
+    if isinstance(value, dict):
+        mapping = cast("dict[object, object]", value)
+        return any(
+            key in NEVER_FORWARDED or names_forbidden_field(item, depth + 1)
+            for key, item in mapping.items()
+        )
+    if isinstance(value, list | tuple):
+        return any(names_forbidden_field(item, depth + 1) for item in cast("list[object]", value))
+    return False
 
 
 class Factory(Protocol):
@@ -286,7 +302,7 @@ class ThreadPlanner:
                 update={"access": access, "permitted": False, "problem": problem}
             )
 
-        if NEVER_FORWARDED & command.keys():
+        if names_forbidden_field(command):
             return refuse(
                 None,
                 Problem(

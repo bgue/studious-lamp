@@ -233,7 +233,11 @@ def handle_post_thread_message(uow: UnitOfWork, cmd: PostThreadMessage) -> Comma
 
 
 def _own_live_message(uow: UnitOfWork, cmd: EditThreadMessage | RetractThreadMessage) -> MessageRow:
-    readable_record(uow, cmd.record_id, actor=cmd.actor, scope=cmd.scope)
+    record = readable_record(uow, cmd.record_id, actor=cmd.actor, scope=cmd.scope)
+    if not threads_enabled(uow.conn(), record.scope, record.record_type):
+        raise ThreadsDisabledError(
+            f"threads are not switched on for {record.record_type} records in {record.scope}"
+        )
     message = load_message(uow, cmd.record_id, cmd.message_id, cmd.scope)
     if message.author != cmd.actor:
         raise NotMessageAuthorError(f"only the author ({message.author}) can change this message")

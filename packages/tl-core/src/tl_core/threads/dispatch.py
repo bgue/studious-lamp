@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import hmac
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from pydantic import field_validator
@@ -30,6 +30,7 @@ from tl_core.integration.contract import Access, CommandRunner
 from tl_core.ledger import NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.threads.contract import (
+    PREVIEW_TTL_S,
     THREAD_DISPATCHED,
     THREAD_STREAM_TYPE,
     DispatchOutcome,
@@ -72,6 +73,15 @@ class DispatchFromThread(Command):
         return value
 
 
+def parse_expiry(value: str) -> datetime:
+    """``value`` as an aware time (a naive one is UTC); ``DispatchStaleError`` if not a time."""
+    try:
+        found = datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise DispatchStaleError("the expiry is not a time; preview the command again") from exc
+    return found if found.tzinfo is not None else found.replace(tzinfo=UTC)
+
+
 def _summary(plan: DispatchPlan) -> str:
     verb = plan.parsed.verb
     if verb == "notify":
@@ -101,8 +111,14 @@ def handle_dispatch_from_thread(
     if not cmd.actor.startswith("user:"):
         raise DispatchForbiddenError("only a person dispatches; an agent proposes a dispatch")
     clock = now or utcnow()
-    if cmd.expires_at is not None and datetime.fromisoformat(cmd.expires_at) < clock:
-        raise DispatchStaleError("the preview has expired; preview the command again")
+    if cmd.expires_at is not None:
+        expiry = parse_expiry(cmd.expires_at)
+        # An expiry is a courtesy check (the token is what binds the plan), but it is bounded: a
+        # preview never lives longer than its TTL, so a later time is not one a preview gave.
+        if expiry < clock:
+            raise DispatchStaleError("the preview has expired; preview the command again")
+        if expiry > clock + timedelta(seconds=PREVIEW_TTL_S + 60):
+            raise DispatchStaleError("the expiry is not one a preview gave; preview again")
     made = (planner or ThreadPlanner()).plan(
         uow,
         record_id=cmd.record_id,

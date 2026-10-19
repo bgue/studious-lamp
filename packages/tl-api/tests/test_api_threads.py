@@ -331,3 +331,24 @@ def test_a_token_with_no_account_cannot_accept_even_an_effect_only_dispatch(
     assert "Thread.Dispatched" not in kinds
     done = harness.client.post(f"/proposals/{view.proposal_id}/accept", json={})
     assert done.status_code == 200 and done.json()["status"] == "accepted", done.text
+
+
+def test_a_bad_expiry_is_a_422_and_a_far_one_is_stale(harness: Harness) -> None:
+    switch_on(harness)
+    make_account(harness, "alice")
+    rid = harness.create_record("P123-REC-0001").stream_id
+    harness.create_record("P123-REC-0002")
+    line = "/link P123-REC-0002"
+    shown = harness.client.post(f"/records/{rid}/thread/preview", json={"text": line}).json()
+    token = shown["preview"]["token"]
+    path = f"/records/{rid}/thread/dispatch"
+    for bad in ("tomorrow", "\ud800", "2026-13-45"):
+        body = json.dumps({"text": line, "token": token, "expires_at": bad})  # ASCII escapes
+        refused = harness.client.post(
+            path, content=body, headers={"content-type": "application/json"}
+        )
+        assert refused.status_code == 422, (bad, refused.text)
+    far = harness.client.post(
+        path, json={"text": line, "token": token, "expires_at": "2099-01-01T00:00:00+00:00"}
+    )
+    assert far.status_code == 409 and far.json()["error"] == "dispatch_stale", far.text
