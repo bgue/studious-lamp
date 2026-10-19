@@ -13,12 +13,25 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from fnmatch import translate
 from functools import lru_cache
+from typing import cast
 
 from tl_core.auth.projector import ACCOUNT_STREAM_TYPE
 from tl_core.ledger import Event
 
 #: Streams no default filter lets through.
 INTERNAL_STREAM_TYPES: frozenset[str] = frozenset({ACCOUNT_STREAM_TYPE})
+
+#: A proposal of an enricher on trial (policy ``shadow``): the value is the admin's to read.
+SHADOW_PROPOSAL_TYPE = "Enrichment.Proposed"
+
+
+def is_shadow_proposal(event_type: str, payload: object) -> bool:
+    """Whether an event is the proposal of a shadow value (it carries the value itself)."""
+    if event_type != SHADOW_PROPOSAL_TYPE or not isinstance(payload, dict):
+        return False
+    state: object = cast("dict[str, object]", payload).get("acceptance_state")
+    return state == "shadow"
+
 
 #: Payload keys through which a link event refers to the records at its two ends.
 LINK_END_KEYS = ("from_ref", "to_ref")
@@ -56,6 +69,9 @@ class SubscriptionFilter:
     #: thinking about it (the embedded TUI, ``tl events``, the registry) never shows them. A caller
     #: that holds an admin principal passes ``hide_stream_types=()``.
     hide_stream_types: frozenset[str] = INTERNAL_STREAM_TYPES
+    #: Fail closed too: the proposal of a shadow value carries the value, so only a caller that
+    #: holds an admin principal passes ``show_shadow=True``.
+    show_shadow: bool = False
 
     def __post_init__(self) -> None:
         if self.event_types is not None and not self.event_types:
@@ -70,6 +86,7 @@ class SubscriptionFilter:
         event_types: Iterable[str] | None = None,
         record_ids: Iterable[str] | None = None,
         hide_stream_types: Iterable[str] | None = None,
+        show_shadow: bool = False,
     ) -> SubscriptionFilter:
         """Build a filter from any iterables (a list of types, a set of ids)."""
         return SubscriptionFilter(
@@ -77,11 +94,14 @@ class SubscriptionFilter:
             None if event_types is None else tuple(event_types),
             None if record_ids is None else frozenset(record_ids),
             INTERNAL_STREAM_TYPES if hide_stream_types is None else frozenset(hide_stream_types),
+            show_shadow,
         )
 
     def matches(self, event: Event) -> bool:
         """Whether ``event`` passes every part of the filter that is set."""
         if event.stream_type in self.hide_stream_types:
+            return False
+        if not self.show_shadow and is_shadow_proposal(event.event_type, event.payload):
             return False
         if self.scope is not None and event.scope != self.scope:
             return False

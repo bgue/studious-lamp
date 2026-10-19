@@ -55,12 +55,15 @@ def build_filter(
     record_ids: list[str] | None,
     principal: Principal,
 ) -> SubscriptionFilter:
-    """The caller's filter. Account events (usernames, roles) are for admins only (ADR-0009)."""
+    """The caller's filter. Account events (usernames, roles; ADR-0009) and the proposals of shadow
+    enrichment values (ADR-0017) are for admins only."""
+    admin = principal.is_admin and principal.kind != "agent"
     return SubscriptionFilter.of(
         scope=scope or None,
         event_types=types or None,
         record_ids=record_ids or None,
-        hide_stream_types=() if principal.is_admin and principal.kind != "agent" else None,
+        hide_stream_types=() if admin else None,
+        show_shadow=admin,  # the value of an enricher on trial is the admin's
     )
 
 
