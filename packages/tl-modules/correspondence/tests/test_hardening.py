@@ -255,7 +255,7 @@ def test_the_sweep_expires_the_clock_of_an_item_the_runner_may_not_read(world: C
         clock = world.start_clock(item).stream_id  # due 2 Nov
     with cf.use_viewer(ANN), frozen_today("2026-11-10"):  # a runner with the lowest clearance
         done = world.sweep()
-    assert [e.event_type for e in done.events] == ["ResponseClock.Expired"]
+    assert done.events == []  # (what it recorded is not the runner's to read)
     with cf.system_view():
         assert world.clock(clock).state == "expired"
 
@@ -289,8 +289,8 @@ def test_the_sweep_pages_through_more_clocks_than_a_page_and_reports_the_ones_it
     monkeypatch.setattr(handlers_clocks, "figures_of", figures_of)
     monkeypatch.setattr(catalog, "calendar_for", calendar_for)
     with open_uow(world.db) as uow, frozen_today("2026-11-10"):
-        events, skipped = handlers_clocks.sweep_clocks(uow, handlers_clocks.SweepClocks(**BASE))
-    assert len(events) == 4 and skipped == [broken]
+        outcome = handlers_clocks.sweep_clocks(uow, handlers_clocks.SweepClocks(**BASE))
+    assert len(outcome.events) == 4 and outcome.skipped == [broken]
 
 
 # --- a contractual time bar is moved or ended by a controller ------------------------------------
@@ -384,3 +384,26 @@ def test_a_command_text_with_a_direction_or_control_character_is_refused(
     cls.model_validate({**PROJECT_BASE, **good})  # the same command with a clean text is valid
     with pytest.raises(ValidationError):
         cls.model_validate({**PROJECT_BASE, **fields})
+
+
+def test_the_answer_of_a_sweep_holds_only_what_its_runner_may_read(world: CorrWorld) -> None:
+    from tl_mod_correspondence.handlers import clocks as handlers_clocks
+
+    _people(world)
+    secret = _privileged(world)
+    boss = cf.Viewer(actor="user:boss", level=0, account="user:boss")
+    with frozen_today(MONDAY):
+        open_item = world.forge_item("P123-COR-0050")
+        mine = world.start_clock(open_item).stream_id
+        with cf.use_viewer(boss):
+            theirs = world.start_clock(secret).stream_id
+    admin = cf.Viewer(actor="user:other", level=1, account="user:other")  # not named on it
+    with cf.use_viewer(admin), frozen_today("2026-11-10"):
+        done = world.sweep()
+        assert [e.stream_id for e in done.events] == [mine]  # the privileged clock is not shown
+        assert theirs not in repr(done)
+    with cf.system_view():
+        assert world.clock(theirs).state == "expired"  # but it did expire
+    with frozen_today("2026-11-10"), open_uow(world.db) as uow:  # and the runner is told the count
+        again = handlers_clocks.sweep_clocks(uow, handlers_clocks.SweepClocks(**BASE))
+    assert again.events == [] and again.hidden_events == 0  # nothing left to do the second time

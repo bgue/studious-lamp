@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date
 from typing import Any, Literal
 
@@ -498,7 +499,22 @@ def close_clocks_of_item(
 SWEEP_PAGE = 500
 
 
-def sweep_clocks(uow: UnitOfWork, cmd: SweepClocks) -> tuple[list[Event], list[str]]:
+@dataclass(frozen=True)
+class SweepOutcome:
+    """What a sweep says to the person who ran it: only what that person may read.
+
+    The sweep acts on every clock (it reads as the system), but its answer is filtered for the
+    caller (ADR-0016): the events and the skipped clocks of items they may not read are counted,
+    never shown.
+    """
+
+    events: list[Event]
+    skipped: list[str]  # ids of clocks it could not judge, that the caller may read
+    hidden_events: int = 0
+    hidden_skipped: int = 0
+
+
+def sweep_clocks(uow: UnitOfWork, cmd: SweepClocks) -> SweepOutcome:
     """The sweep: the events it recorded, and the ids of the clocks it could not judge.
 
     It reads every clock of the scope as the system, in pages: whoever runs it, a clock of an item
@@ -563,19 +579,27 @@ def sweep_clocks(uow: UnitOfWork, cmd: SweepClocks) -> tuple[list[Event], list[s
             if len(page) < SWEEP_PAGE:
                 break
             offset += SWEEP_PAGE
-    return events, skipped
+    # the answer is for the caller's eyes (outside the system view)
+    shown = confidentiality.filter_events(uow.conn(), events)
+    hidden_ids = confidentiality.hidden_among(uow.conn(), skipped) if skipped else set()
+    return SweepOutcome(
+        events=shown,
+        skipped=[c for c in skipped if c not in hidden_ids],
+        hidden_events=len(events) - len(shown),
+        hidden_skipped=len(hidden_ids),
+    )
 
 
 def handle_sweep_clocks(uow: UnitOfWork, cmd: SweepClocks) -> CommandResult:
     """Record ``Expired`` and ``Warned`` events for the running clocks of the scope.
 
     The result's ``stream_id`` is the scope (many streams change); ``events`` lists what was
-    recorded. Clocks it could not judge are logged (``sweep_clocks`` returns them; the CLI prints
-    them).
+    recorded **and the caller may read**; the rest is counted by ``sweep_clocks``. Clocks it could
+    not judge are logged (``sweep_clocks`` returns them; the CLI prints them).
     """
     cmd = correlated(cmd)
-    events, _ = sweep_clocks(uow, cmd)
-    return CommandResult(stream_id=cmd.scope, key=None, version=0, events=events)
+    outcome = sweep_clocks(uow, cmd)
+    return CommandResult(stream_id=cmd.scope, key=None, version=0, events=outcome.events)
 
 
 __all__ = [
@@ -586,6 +610,7 @@ __all__ = [
     "ResumeClock",
     "StartClock",
     "SweepClocks",
+    "SweepOutcome",
     "close_clocks_of_item",
     "figures_of",
     "handle_cancel_clock",

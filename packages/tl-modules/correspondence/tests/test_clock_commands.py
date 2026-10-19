@@ -372,7 +372,7 @@ def test_the_sweep_reaches_a_clock_the_runner_may_not_read(world: CorrWorld) -> 
     with frozen_today(MONDAY), cf.use_viewer(controller):
         cid = world.start_clock(secret).stream_id
     with frozen_today("2026-11-03"), cf.use_viewer(plain):
-        assert [e.event_type for e in world.sweep().events] == ["ResponseClock.Expired"]
+        assert world.sweep().events == []  # it acted, and says nothing about what they cannot read
     with cf.use_viewer(controller):
         assert world.clock(cid).state == "expired"
 

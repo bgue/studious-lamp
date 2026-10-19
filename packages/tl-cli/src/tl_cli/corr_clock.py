@@ -221,18 +221,26 @@ def sweep(
     scope = f"project:{project}"
     require_controller(db)
     with _service_errors(), open_uow(db) as uow:
-        recorded, skipped = sweep_clocks(
-            uow, SweepClocks(actor=actor, source="cli", scope=scope, on=on)
-        )
-    if not recorded:
+        outcome = sweep_clocks(uow, SweepClocks(actor=actor, source="cli", scope=scope, on=on))
+    if not outcome.events and not outcome.hidden_events:
         typer.echo("nothing to record")
-    for event in recorded:
+    for event in outcome.events:
         detail = event.payload.get("level", event.payload.get("days_overdue", ""))
         typer.echo(
             f"{event.event_type.removeprefix('ResponseClock.').lower()} {event.stream_id} {detail}"
         )
-    if skipped:  # a clock the sweep could not judge is said aloud, not left to be found late
+    if outcome.hidden_events:  # recorded, but about items this person may not read: counted only
+        typer.echo(f"and {outcome.hidden_events} more on items you may not read")
+    if outcome.skipped or outcome.hidden_skipped:
+        # a clock the sweep could not judge is said aloud, not left to be found late
+        named = ", ".join(outcome.skipped)
+        count = len(outcome.skipped) + outcome.hidden_skipped
+        extra = (
+            f" ({outcome.hidden_skipped} on items you may not read)"
+            if outcome.hidden_skipped
+            else ""
+        )
         typer.echo(
-            f"skipped {len(skipped)} clock(s) it could not judge: {', '.join(skipped)}", err=True
+            f"skipped {count} clock(s) it could not judge{extra}: {named}".rstrip(": "), err=True
         )
         raise typer.Exit(code=2)
