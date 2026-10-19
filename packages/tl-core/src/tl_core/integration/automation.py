@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from pydantic import ValidationError
+from sqlalchemy import text
 
 from tl_core.integration.actor_access import require_access
 from tl_core.integration.contract import (
@@ -106,6 +107,16 @@ def first_error(exc: ValidationError) -> str:
     return f"{where}: {first['msg']}"[:MAX_PROBLEM_CHARS]
 
 
+VERSION_FIELD = "expected_version"
+
+
+def _wants_current_version(model: type[Command]) -> bool:
+    """A command that must name the version of the record it changes (``SetPsetValues``,
+    ``UpdateRecord``, a workflow transition): a payload or a rule step cannot know it."""
+    field = model.model_fields.get(VERSION_FIELD)
+    return field is not None and field.is_required() and "stream_id" in model.model_fields
+
+
 def plan_command(
     runner: CommandRunner,
     name: str,
@@ -153,7 +164,16 @@ def plan_command(
     unknown = sorted(set(args) - set(model.model_fields))
     if unknown:
         return refuse("unknown_field", f"{name} has no field {', '.join(unknown)[:80]}.", needed)
+    if VERSION_FIELD in args:
+        return refuse(
+            "expected_version",
+            "Automation writes to a record as it is when the command runs; it names no version.",
+            needed,
+        )
     values = dict(args)
+    versioned = _wants_current_version(model)
+    if versioned:
+        values[VERSION_FIELD] = 0  # a placeholder; run_automation_command sets the real one
     if issubclass(model, AddLink):
         if values.get("link_source", link_source) != link_source:
             return refuse("link_source", f"Links made here have the source {link_source}.", needed)
@@ -175,7 +195,9 @@ def plan_command(
         command,
         PlannedCommand(
             command_type=name,
-            command=command.model_dump(mode="json", exclude={"actor"}),
+            command=command.model_dump(
+                mode="json", exclude={"actor", VERSION_FIELD} if versioned else {"actor"}
+            ),
             access=needed,
             permitted=True,
             summary=f"{name} in {fields.scope}",
@@ -209,4 +231,14 @@ def run_automation_command(
         if isinstance(command, SuggestLink):
             return handle_suggest_link(uow, command, system_source=link_source)
         return handle_add_link(uow, command, system_source=link_source)
+    if _wants_current_version(type(command)):
+        # A rule or a mapping changes the record as it is when its command runs: the version is
+        # read here, inside the unit of work, so commands earlier in the same batch count. Nothing
+        # is lost to a race: the unit of work is one transaction and the append still checks it.
+        stream_id = str(getattr(command, "stream_id"))  # noqa: B009
+        found = uow.conn().execute(
+            text("SELECT COALESCE(MAX(stream_version), 0) FROM events WHERE stream_id = :s"),
+            {"s": stream_id},
+        )
+        command = command.model_copy(update={VERSION_FIELD: int(found.scalar_one())})
     return runner.run(uow, command)

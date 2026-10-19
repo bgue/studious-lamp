@@ -238,8 +238,7 @@ def test_a_step_that_fails_undoes_the_whole_firing_and_says_so(world: World) -> 
             {"command": "PostToFeed", "args": {"body": "first"}},
             {
                 "command": "UpdateRecord",
-                "args": {"stream_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PB", "expected_version": 1,
-                         "changes": {"title": "x"}},
+                "args": {"stream_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PB", "changes": {"title": "x"}},
             },
         ],
     )  # fmt: skip
