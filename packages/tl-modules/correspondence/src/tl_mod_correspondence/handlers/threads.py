@@ -33,6 +33,7 @@ from tl_mod_correspondence.handlers.common import (
     open_item,
     today,
 )
+from tl_mod_correspondence.handlers.confidentiality import inherit_from_matches
 from tl_mod_correspondence.handlers.models import non_blank
 from tl_mod_correspondence.limits import MAX_NUMBER, MAX_REASON
 from tl_mod_correspondence.names import (
@@ -235,10 +236,17 @@ def assign_thread(
         events += _join(uow, cmd, thread_id, earlier, None, match.matched_by, first=True)
     else:
         thread_id = matched_thread
-    return [
-        *events,
-        *_join(uow, cmd, thread_id, item, match.responds_to_id, match.matched_by),
-    ]
+    events += _join(uow, cmd, thread_id, item, match.responds_to_id, match.matched_by)
+    return [*events, *_inherit(uow, cmd, item, thread_id, match.responds_to_id)]
+
+
+def _inherit(
+    uow: UnitOfWork, cmd: Command, item: registry.ItemRow, thread_id: str, answers: str | None
+) -> list[Event]:
+    """The item takes the class of what it answers and of the thread's first item."""
+    thread = registry.get_thread(uow.conn(), thread_id)
+    opened_by = thread.governing_item_id if thread is not None else None
+    return inherit_from_matches(uow, cmd, item, [answers, opened_by])
 
 
 def with_thread(uow: UnitOfWork, cmd: Command, made: CommandResult) -> CommandResult:
@@ -292,6 +300,8 @@ def handle_assign_thread(uow: UnitOfWork, cmd: AssignThread) -> CommandResult:
         "manual",
         first=cmd.thread_id is None,
     )
+    if cmd.thread_id is not None:
+        events += _inherit(uow, cmd, item, thread_id, cmd.responds_to_id)
     current = registry.get_item(uow.conn(), item.id)
     return CommandResult(
         stream_id=item.id,

@@ -253,3 +253,59 @@ def test_a_header_that_names_a_hidden_message_does_not_join_its_thread(world: Co
             item = world.item(made.key or "")
             assert item.thread_id is not None and item.thread_id != hidden_thread, made.key
             assert item.responds_to_id != secret.stream_id
+
+
+def test_a_reply_takes_the_class_of_what_it_answers_and_the_names_on_it(world: CorrWorld) -> None:
+    """A reply may quote the letter, so it is no lower than the letter or the thread (review)."""
+    from tl_core import confidentiality as cf
+    from tl_core.auth import accounts
+    from tl_core.auth.password import prepare_password
+
+    with open_uow(world.db) as uow:
+        for name in ("u", "boss", "ctl"):
+            accounts.create_account(
+                uow, username=name, display_name=name, kind="person", roles=["user"],
+                password=prepare_password("correct horse battery"), by="svc:test",
+            )  # fmt: skip
+    ctl = cf.Viewer(actor="user:ctl", level=1, account="user:ctl")
+    boss = cf.Viewer(actor="user:boss", level=0, account="user:boss")
+    with frozen_today(MONDAY):
+        restricted = ingest(world, message(Message_ID="<r@x.example>", Subject="Commercial terms"))
+        privileged = ingest(world, message(Message_ID="<p@x.example>", Subject="Counsel advice"))
+        with cf.use_viewer(ctl):
+            world.set_class(restricted.stream_id, "restricted")
+            world.set_class(privileged.stream_id, "privileged", grant=["user:boss"])
+        replies = {}
+        with cf.use_viewer(ctl):
+            replies["header"] = ingest(
+                world,
+                message(Message_ID="<a@x.example>", In_Reply_To="<r@x.example>", Subject="Hi"),
+            )
+            replies["number"] = ingest(
+                world, message(Message_ID="<b@x.example>", Subject=f"Re: {restricted.key} point")
+            )
+            replies["subject"] = ingest(
+                world, message(Message_ID="<c@x.example>", Subject="RE: Commercial terms")
+            )
+        with cf.use_viewer(boss):
+            replies["private"] = ingest(
+                world, message(Message_ID="<d@x.example>", In_Reply_To="<p@x.example>", Subject="x")
+            )
+    with cf.use_viewer(ctl):
+        for kind in ("header", "number", "subject"):
+            assert world.item(replies[kind].key or "").confidentiality == "restricted", kind
+    plain = cf.Viewer(actor="user:ann", level=0, account="user:ann")
+    with cf.use_viewer(plain):
+        for kind in ("header", "number", "subject", "private"):
+            with open_uow(world.db, readonly=True) as uow:  # it does not exist for a plain reader
+                from tl_mod_correspondence import registry as reg
+
+                assert reg.get_item(uow.conn(), replies[kind].stream_id) is None, kind
+    with cf.use_viewer(boss):
+        private = world.item(replies["private"].key or "")
+        assert private.confidentiality == "privileged"
+        with open_uow(world.db, readonly=True) as uow:
+            from tl_mod_correspondence import registry
+
+            named = {c.account for c in registry.clearances_of(uow.conn(), private.id)}
+        assert {"user:boss", "user:u"} <= named
