@@ -49,6 +49,16 @@ A handler that takes `holds` (`InvokeAction`) gets it from the same resolved acc
 ### 7c. Mapping runtime
 The server never parses an expression. `check` and `evaluate` hand it to the child of the ADR-0014 envelope, which parses it, walks its tree against the profile (`inbound/profile.py`: at most 2000 characters, 500 nodes, depth 60, an allow-list of node types and function names) and runs it. An authoring check is cached by the hash of the expression.
 
+### 7d. Found after the second review and by the demo
+- **A record version is read when the command runs.** `SetPsetValues`, `UpdateRecord` and a workflow transition need `expected_version`; a payload or a rule step cannot know it. `plan_command` refuses a step that names one (`expected_version`) and shows none in the preview; `run_automation_command` reads the stream version in the unit of work (so a second command on the same record in one delivery sees the first). The append still checks it.
+- **The enrichment and source layers are written by one path.** `CreateRecord` and `UpdateRecord` refuse a pset under `enrich` or `src` (an update may send the record's own values back unchanged), as `SetPsetValues` always did. The enricher pipeline writes only through `layer.py`, and only while its service actor still holds access (`held_access`: its switch, its app and its owner are on); the dispatcher asks again per event, as the rules worker does.
+- **Shadow values are the admin's.** The registry reads, the API and `tl enrich` leave out `acceptance_state = shadow` unless the caller is an admin.
+- **Dry-run is an emergency stop.** The inbound worker reads the endpoint's mode when it applies a delivery: an endpoint put back to dry-run applies nothing, whatever mode the delivery was accepted under.
+- **A message holds nothing of a payload.** A failed key lookup names the key's length. A replayed message is refused before its body is stored.
+- **A deadline covers the whole exchange.** The webhook transport has a watchdog that closes the client when `timeout_s` is spent, header phase included.
+- **Gates fail closed.** `admin_gate` allows a missing session only on a ledger file in a dev, test or ci setup. Server-set fields (`SERVER_SET_FIELDS`) in a rule file or a screen command are refused.
+- Accepted trade-offs, documented in the runbook: the pre-authentication rate counters, the proxy-header lock-out and the missing read deadline of the body.
+
 ### 8. Kill switch
 `integration.kill_switch` (platform and company, lockable). When on: inbound answers the fixed 404; the rules worker and the enrichment dispatcher record the events they pass over as `killed` and do not replay them; action jobs fail with `killed` and are not retried. Every engine reads it per batch or per delivery, never once at start.
 
