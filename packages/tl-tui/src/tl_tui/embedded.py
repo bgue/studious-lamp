@@ -39,6 +39,7 @@ from tl_core.extypes.service import (
 from tl_core.extypes.types import TypeStatus
 from tl_core.files.types import ObjectStore
 from tl_core.integration import registry as integration_registry
+from tl_core.integration.actor_access import held_access
 from tl_core.integration.contract import SERVER_SET_FIELDS
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink, missing_expected_links
@@ -1104,7 +1105,13 @@ class EmbeddedClient:
         with self._uow(True) as uow:
             if kind == "deliveries":  # the error queue is the admin's, as the API says
                 self._admin_gate(uow)
-            return integration_registry.list_registry(uow.conn(), kind, state=state, limit=limit)
+            return integration_registry.list_registry(
+                uow.conn(),
+                kind,
+                state=state,
+                limit=limit,
+                include_shadow=held_access(uow.conn(), self.actor) == "admin",
+            )
 
     def integration_command(self, name: str, scope: str, **fields: Any) -> CommandResult:
         """One of ``SCREEN_COMMANDS`` through the command table, as this client's actor.

@@ -55,9 +55,12 @@ def list_registry(
     target_id: str | None = None,
     endpoint_id: str | None = None,
     limit: int = 200,
+    include_shadow: bool = False,
 ) -> list[dict[str, Any]]:
     """The rows of one ``kind`` (``KINDS``). ``state`` filters enrichments (``acceptance_state``)
-    and deliveries (``state``); ``target_id`` enrichments by record; ``endpoint_id`` deliveries."""
+    and deliveries (``state``); ``target_id`` enrichments by record; ``endpoint_id`` deliveries.
+    Shadow values (an enricher on trial, never shown to a person) come back only with
+    ``include_shadow``, which the caller sets for an admin."""
     if kind not in KINDS:
         raise IntegrationNotFoundError(f"no integration kind {kind}")
     limit = max(1, min(limit, MAX_ROWS))
@@ -84,6 +87,8 @@ def list_registry(
             if target_id is not None:
                 clauses.append("target_id = :target")
                 params["target"] = target_id
+            if not include_shadow:
+                clauses.append("acceptance_state <> 'shadow'")
         where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
         sql = f"SELECT * FROM {table}{where} ORDER BY {order} LIMIT :limit"  # noqa: S608
     return [decode(dict(r)) for r in conn.execute(text(sql), params).mappings()]

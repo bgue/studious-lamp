@@ -30,6 +30,7 @@ from tl_cli.integration_support import (
     ProjectOption,
     factory,
     fail,
+    is_admin_caller,
     line,
     one,
     record_id_of,
@@ -86,6 +87,8 @@ def ls(
     if state != "all":
         clauses.append("v.acceptance_state = :state")
         params["state"] = state
+    if not is_admin_caller(ctx):  # shadow values are the admin's: how an enricher is doing
+        clauses.append("v.acceptance_state <> 'shadow'")
     where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
     sql = f"{_LIST_SQL}{where} ORDER BY v.seq LIMIT :n"
     with factory(ctx) as opened, service_errors(), opened(readonly=True) as uow:
@@ -104,6 +107,8 @@ def show(
     scope = scope_of(project, company)
     with factory(ctx) as opened, service_errors(), opened(readonly=True) as uow:
         row = one(uow, f"value {value_id}", _VALUE_SQL, id=value_id, scope=scope)
+        if row["acceptance_state"] == "shadow" and not is_admin_caller(ctx):
+            fail(f"no value {value_id}")
         key = row["record_key"] if row["record_key"] is not None else "-"
         shown = [
             f"value {value_id}",

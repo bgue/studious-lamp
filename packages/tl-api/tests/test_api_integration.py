@@ -283,3 +283,30 @@ def test_a_rule_can_be_dry_run_from_a_stored_id_or_a_draft(people: People) -> No
     assert people.boss.post("/admin/integration/rules/dry-run", json={}).status_code == 422
     missing = people.boss.post("/admin/integration/rules/dry-run", json={"rule_id": "nope"})
     assert missing.status_code == 404
+
+
+def test_shadow_enrichment_values_are_the_admins_to_read(people: People, harness: Harness) -> None:
+    """An enricher on trial is invisible to a person, listed or filtered (second review)."""
+    from sqlalchemy import text
+
+    with harness.backend() as uow:
+        for n, state in enumerate(("shadow", "proposed"), 1):
+            uow.conn().execute(
+                text(
+                    "INSERT INTO cur_enrichment_value (value_id, scope, target_json, target_id, "
+                    "property_path, value_json, enricher, enricher_version, confidence, "
+                    "inputs_json, produced_at, acceptance_state, seq, version, last_seq) VALUES "
+                    "(:v, :s, '{}', 'r1', 'enrich.e.p', '\"x\"', 'e', '1', 0.5, '[]', "
+                    "'2026-10-19T00:00:00Z', :a, :n, 1, :n)"
+                ),
+                {"v": f"V{n}", "s": SCOPE, "a": state, "n": n},
+            )
+
+    def states(client: TestClient, **params: str) -> list[str]:
+        found = client.get("/integration/enrichments", params=params).json()["rows"]
+        return [r["acceptance_state"] for r in found]
+
+    assert sorted(states(people.boss)) == ["proposed", "shadow"]
+    assert states(people.boss, state="shadow") == ["shadow"]
+    assert states(people.bob) == ["proposed"]
+    assert states(people.bob, state="shadow") == []

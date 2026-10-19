@@ -120,6 +120,15 @@ def pairs(values: Sequence[str], what: str) -> dict[str, str]:
     return found
 
 
+def is_admin_caller(ctx: typer.Context) -> bool:
+    """Whether the caller is an admin by the rule of :func:`admin_gate` (no session counts only on
+    a dev, test or ci ledger file, whose owner can read everything in it anyway)."""
+    principal = current_principal(ctx.obj)
+    if principal is None:
+        return dev_tokens_allowed() and not is_postgres(ctx.obj)
+    return principal.is_admin
+
+
 def admin_gate(ctx: typer.Context) -> None:
     """Refuse anyone who is not a signed-in admin (`error: ...`, exit 1).
 

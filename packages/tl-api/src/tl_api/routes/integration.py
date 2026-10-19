@@ -30,6 +30,7 @@ from tl_core.integration.actions.service import (
     define_action,
     rotate_action_secret,
 )
+from tl_core.integration.actor_access import held_access
 from tl_core.integration.automation import first_error
 from tl_core.integration.contract import (
     RULE_DRY_RUN_MAX_EVENTS,
@@ -282,7 +283,14 @@ def list_registry_rows(
     if kind == "deliveries":  # the error queue is the admin's: its own route
         raise IntegrationNotFoundError(f"no integration kind {kind}")
     with ctx.backend(True) as uow:
-        found = list_registry(uow.conn(), kind, state=state, target_id=target_id, limit=limit)
+        found = list_registry(
+            uow.conn(),
+            kind,
+            state=state,
+            target_id=target_id,
+            limit=limit,
+            include_shadow=held_access(uow.conn(), actor) == "admin",
+        )
     return Rows(kind=kind, rows=found)
 
 
