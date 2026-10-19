@@ -3,13 +3,13 @@
 Modes (first argument), each ending in a PASS line for its clause:
 
 * ``make-eml PATH``: writes the message clause 5 reads in (a reply with a PDF attached).
-* ``clocks``: clause 3. The clocks screen (F12, then 3) on the ledger shows the reply's clock with
+* ``clocks``: clause 3. The clocks screen (F5, then 3) on the ledger shows the reply's clock with
   the days left on the project calendar.
 * ``hidden``: clause 6. A restricted item does not exist for a user, for the API as that user, or
   for an agent; the answer for it is the answer for a number that was never used.
 * ``working DATE``: clause 8 (the script prints its PASS line). A five working-day clock is due
   on a weekday at least five days on.
-* ``reads``: clause 7. The same register through the API, the TUI (F12) and an agent's MCP tools,
+* ``reads``: clause 7. The same register through the API, the TUI (F5) and an agent's MCP tools,
   and an agent's triage is a proposal, not a decision.
 
 Reads TL_DB (a SQLite path or postgresql:// URL), TL_DEMO_URL (the API) and, per mode,
@@ -60,7 +60,7 @@ def make_eml(path: str) -> None:
 
 
 async def clocks_screen(db: str) -> tuple[str, str]:
-    """Open the correspondence screen (F12) as demo, show the clocks (3): the table, the detail."""
+    """Open the correspondence screen (F5) as demo, show the clocks (3): the table, the detail."""
     from textual.widgets import DataTable, Static
     from tl_tui.app import TlApp
     from tl_tui.embedded import EmbeddedClient
@@ -70,7 +70,7 @@ async def clocks_screen(db: str) -> tuple[str, str]:
     try:
         app = TlApp(client, scope=SCOPE, actor="user:demo")
         async with app.run_test(size=(180, 48)) as pilot:
-            await pilot.press("f12")
+            await pilot.press("f5")
             await pilot.pause()
             screen = app.screen
             assert isinstance(screen, CorrespondenceScreen)
@@ -169,7 +169,7 @@ async def register_screen(db: str) -> list[str]:
     try:
         app = TlApp(client, scope=SCOPE, actor="user:demo")
         async with app.run_test(size=(180, 48)) as pilot:
-            await pilot.press("f12")
+            await pilot.press("f5")
             await pilot.pause()
             assert isinstance(app.screen, CorrespondenceScreen)
             return [line.number for line in app.screen.lines]

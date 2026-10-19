@@ -136,6 +136,7 @@ def candidates(seed_data: Seed) -> dict[str, list[str]]:
         "key": ["x"],
         "kind": ["x"],
         "type_ref": ["x"],
+        "activity_id": ["x", *all_ids[:2]],
     }
 
 

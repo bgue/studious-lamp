@@ -6,7 +6,7 @@
 #   1  a letter is received by upload; triage proposes the General domain; a person confirms it;
 #   2  a reply is drafted and issued (a controller's act; a user is refused): a PDF is stored, the
 #      send is a stub, and a 14-calendar-day clock starts on the project calendar;
-#   3  the clocks screen (TUI F12) shows that clock with its days left;
+#   3  the clocks screen (TUI F5) shows that clock with its days left;
 #   4  a document-control transmittal of I2 appears in the master register next to the letters;
 #   5  an email (an .eml with a PDF attached) is read in: party matched by its domain, threaded to
 #      the letter by its subject, the original and the attachment kept;
