@@ -591,7 +591,10 @@ def _sync_silver(
         }
         wanted = {s.id: s for s in ready}
         gone = sorted(set(held) - set(wanted))
-        pass
+        if reload:
+            _drop_snapshots(con, tables, sorted(held))
+            held.clear()
+            failed.clear()
         _drop_snapshots(con, tables, gone)
         for snapshot_id in gone:
             held.pop(snapshot_id, None)
