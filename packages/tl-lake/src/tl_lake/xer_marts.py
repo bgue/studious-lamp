@@ -23,9 +23,10 @@ def build_marts(con: Duck) -> None:
 def build_float_trend(con: Duck) -> None:
     """Replace ``mart_float_trend``.
 
-    Columns: ``schedule_code``, ``activity_id``, ``name``, ``snapshot_number``, ``data_date``,
-    ``state``, ``total_float_days``, ``previous_float_days``, ``float_change_days``, ``eroded``,
-    ``critical``, ``status``, ``percent_complete``, ``early_start``, ``early_finish``. The previous
+    Columns: ``scope`` (the project: two may both have a schedule ``MAIN``), ``schedule_code``,
+    ``activity_id``, ``name``, ``snapshot_number``, ``data_date``, ``state``,
+    ``total_float_days``, ``previous_float_days``, ``float_change_days``, ``eroded``, ``critical``,
+    ``status``, ``percent_complete``, ``early_start``, ``early_finish``. The previous
     float is that of the activity in the published snapshot before this one (``NULL`` for the
     first, or when the activity was not in it), and ``eroded`` is true when the change is below
     zero.
@@ -35,6 +36,7 @@ def build_float_trend(con: Duck) -> None:
         f"""
         CREATE TABLE {table_ref(FLOAT_TREND_TABLE)} AS
         SELECT
+            a.scope,
             a.schedule_code,
             a.activity_id,
             a.name,
@@ -53,7 +55,9 @@ def build_float_trend(con: Duck) -> None:
         FROM {table_ref("schedule_activity")} a
         JOIN {table_ref("schedule_snapshot")} s ON s.snapshot_id = a.snapshot_id
         WHERE s.state IN ('Published', 'Superseded')
-        WINDOW w AS (PARTITION BY a.schedule_code, a.activity_id ORDER BY a.snapshot_number)
-        ORDER BY a.schedule_code, a.activity_id, a.snapshot_number
+        WINDOW w AS (
+            PARTITION BY a.scope, a.schedule_code, a.activity_id ORDER BY a.snapshot_number
+        )
+        ORDER BY a.scope, a.schedule_code, a.activity_id, a.snapshot_number
         """
     )

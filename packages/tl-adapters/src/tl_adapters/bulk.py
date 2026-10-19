@@ -11,20 +11,28 @@ snapshot). So the shape differs by database, and this is the one place that know
 * **SQLite**: one compiled ``INSERT`` executed with a list of parameter sets (``executemany`` is a
   loop inside the C driver).
 
-``kinds`` has one letter per column (``s``/``S`` text, ``f``/``F`` float, ``b`` boolean, ``i``
-integer); an upper-case letter is the same type as the lower-case one (a column that may be NULL
-in the caller's terms). Values are the Python values, ``None`` for NULL.
+Table and column names must be letters, digits and underscores (and are quoted on Postgres); a
+float that is NaN or infinite is a ``ValueError`` on both databases. ``kinds`` has one letter per
+column (``s``/``S`` text, ``f``/``F`` float, ``b`` boolean, ``i`` integer); an upper-case letter is
+the same type as the lower-case one (a column that may be NULL in the caller's terms). Values are
+the Python values, ``None`` for NULL.
 """
 
 from __future__ import annotations
 
 import json
+import math
+import re
 from collections.abc import Sequence
 from typing import Any
 
 from sqlalchemy import Connection, column, insert, text
 from sqlalchemy import table as sql_table
 from sqlalchemy.sql.expression import ColumnClause
+
+#: A table or column name: letters, digits and underscores. The names are the caller's constants,
+#: but they are spliced into the Postgres statement, so they are checked and quoted all the same.
+_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 #: Rows sent to the driver in one call on SQLite, and in one statement on Postgres.
 SQLITE_CHUNK_ROWS = 5000
@@ -41,6 +49,17 @@ _CASTS = {
 }
 
 
+def _require_finite(kinds: str, rows: Sequence[Sequence[Any]]) -> None:
+    """A number that is not finite is refused on both databases (SQLite would store NULL for NaN,
+    Postgres cannot read it out of JSON): the same rows give the same result."""
+    floats = [i for i, kind in enumerate(kinds) if kind in "fF"]
+    for row in rows:
+        for i in floats:
+            value = row[i]
+            if value is not None and not math.isfinite(value):
+                raise ValueError("a number that is not finite")
+
+
 def bulk_insert(
     conn: Connection,
     name: str,
@@ -51,13 +70,19 @@ def bulk_insert(
     """Insert ``rows`` into ``name`` (``columns``, one ``kinds`` letter each), in chunks."""
     if len(columns) != len(kinds):
         raise ValueError("one kind letter per column")
+    if any(kind not in _CASTS for kind in kinds):
+        raise ValueError("an unknown kind letter")
+    if any(_NAME.fullmatch(word) is None for word in (name, *columns)):
+        raise ValueError("a table or column name is not letters, digits and underscores")
     if not rows:
         return
+    _require_finite(kinds, rows)
     if conn.dialect.name == "postgresql":
+        quote = conn.dialect.identifier_preparer.quote
         select = ", ".join(_CASTS[kind].format(f"r.value->>{i}") for i, kind in enumerate(kinds))
         statement = text(
-            f"INSERT INTO {name} ({', '.join(columns)}) SELECT {select} "
-            "FROM json_array_elements(CAST(:data AS json)) AS r(value)"
+            f"INSERT INTO {quote(name)} ({', '.join(quote(c) for c in columns)}) "
+            f"SELECT {select} FROM json_array_elements(CAST(:data AS json)) AS r(value)"
         )
         for start in range(0, len(rows), POSTGRES_CHUNK_ROWS):
             part = rows[start : start + POSTGRES_CHUNK_ROWS]

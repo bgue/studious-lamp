@@ -388,3 +388,15 @@ def test_a_snapshot_being_processed_waits_for_its_build_too(world: ScheduleWorld
     with open_uow(world.db, readonly=True) as uow:
         assert registry.open_count(uow.conn(), schedule_id) == 2
     assert waiting
+
+
+def test_an_offset_below_zero_or_beyond_the_end_is_clamped_not_an_error(
+    world: ScheduleWorld,
+) -> None:
+    published_pair(world)
+    assert [s.number for s in read(world, views.schedule_detail, "MAIN", offset=-7).snapshots] == [
+        2,
+        1,
+    ]
+    for huge in (10**9, 10**12, 2**70):
+        assert read(world, views.schedule_detail, "MAIN", offset=huge).snapshots == []

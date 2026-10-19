@@ -52,6 +52,7 @@ from tl_xer.bundle import BundleError, read_bundle, verify_bundle
 
 from tl_lake.config import LakeConfig
 from tl_lake.duck import LOCK_TIMEOUT_S, Duck, ident, lake_tables, open_lake, table_ref
+from tl_lake.errors import LakeSyncError
 from tl_lake.ingest import CHUNK_ROWS, insert_rows
 from tl_lake.schema import Column, generated_columns
 from tl_lake.xer_marts import build_marts
@@ -96,6 +97,7 @@ RawReader = Callable[[str, str, str], bytes]
 
 _SNAPSHOT_COLUMNS: Final = (
     Column("snapshot_id", "VARCHAR", True),
+    Column("scope", "VARCHAR", True),
     Column("schedule_code", "VARCHAR", True),
     Column("number", "BIGINT", True),
     Column("state", "VARCHAR", True),
@@ -154,6 +156,7 @@ def activity_columns() -> list[Column]:
     """The columns of ``schedule_activity``: the context of the snapshot, then the typed row."""
     context = [
         Column("snapshot_id", "VARCHAR", True),
+        Column("scope", "VARCHAR", True),
         Column("schedule_code", "VARCHAR", True),
         Column("snapshot_number", "BIGINT", True),
         Column("data_date", "TIMESTAMP"),
@@ -228,6 +231,7 @@ class LedgerSnapshot:
         activities, relationships, wbs, calendars, codes, udfs = self.counts
         return {
             "snapshot_id": self.id,
+            "scope": self.scope,
             "schedule_code": self.schedule_code,
             "number": self.number,
             "state": self.state,
@@ -318,6 +322,7 @@ def _activity_rows(
                 yield {
                     **typed,
                     "snapshot_id": snapshot.id,
+                    "scope": snapshot.scope,
                     "schedule_code": snapshot.schedule_code,
                     "snapshot_number": snapshot.number,
                     "data_date": snapshot.data_date,
@@ -403,14 +408,22 @@ def _load_bronze(
 ) -> int:
     """Add the tables of the snapshot's raw bundle; returns the rows added.
 
-    Raises ``SnapshotLoadError`` when the bundle or its content cannot be loaded (the caller rolls
-    the snapshot's transaction back and records it); an error of ``raw_reader`` propagates.
+    Raises ``SnapshotLoadError`` when the content of a bundle that matches its recorded hash cannot
+    be loaded (the caller rolls the snapshot's transaction back and records it). An error of
+    ``raw_reader``, and a bundle that is not the one recorded (``LakeSyncError``), stop the pass.
     """
     if snapshot.raw_file_id is None or snapshot.raw_sha256 is None:
         raise SnapshotLoadError("the snapshot has no raw bundle")
     blob = raw_reader(snapshot.scope, snapshot.raw_file_id, snapshot.raw_sha256)
     try:
         verify_bundle(blob, snapshot.raw_sha256)
+    except BundleError as exc:
+        # The stored object is not the one the ledger recorded (damage, or the wrong file): not
+        # a fact about the schedule, so the pass stops and the next one tries again.
+        raise LakeSyncError(
+            f"the raw bundle of {snapshot.schedule_code}#{snapshot.number} is not the one recorded"
+        ) from exc
+    try:
         _, tables = read_bundle(blob)
         total = 0
         for table in tables:
@@ -556,6 +569,8 @@ def _sync_silver(
 ) -> _Silver:
     """The silver rows, the control rows and the marts: one lake transaction."""
     tables = lake_tables(con)
+    # A lake made before the tables carried the project (`scope`) loads every snapshot again.
+    reload = ACTIVITY_TABLE in tables and "scope" not in {c for c, _ in tables[ACTIVITY_TABLE]}
     con.execute("BEGIN")
     try:
         _ensure_table(con, tables, LOADED_TABLE, _LOADED_COLUMNS)
@@ -576,9 +591,10 @@ def _sync_silver(
         }
         wanted = {s.id: s for s in ready}
         gone = sorted(set(held) - set(wanted))
+        pass
         _drop_snapshots(con, tables, gone)
         for snapshot_id in gone:
-            del held[snapshot_id]
+            held.pop(snapshot_id, None)
 
         activity_rows = 0
         loaded = 0
@@ -602,7 +618,7 @@ def _sync_silver(
         rows = [s.row() for s in ready]
         signature = _signature(rows)
         known = con.execute(f"SELECT signature FROM {table_ref(STATE_TABLE)}").fetchall()
-        changed_meta = [r[0] for r in known] != [signature]
+        changed_meta = reload or [r[0] for r in known] != [signature]
         if changed_meta:
             con.execute(f"DELETE FROM {table_ref(SNAPSHOT_TABLE)}")
             insert_rows(con, SNAPSHOT_TABLE, _SNAPSHOT_COLUMNS, rows, config.tmp_dir, chunk=chunk)

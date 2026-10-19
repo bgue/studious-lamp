@@ -9,7 +9,7 @@ import pytest
 from builder import LedgerBuilder
 from sqlalchemy import text
 from tl_adapters.db import open_uow
-from tl_lake import LakeConfig, LakeQueryService, read_snapshot, sync_lake
+from tl_lake import LakeConfig, LakeQueryService, LakeSyncError, read_snapshot, sync_lake
 from tl_lake.duck import lake_tables, open_lake
 from tl_lake.schema import Column
 from tl_lake.xer import (
@@ -269,8 +269,74 @@ def test_field_names_are_lowercased_and_a_table_grows_the_columns_a_file_adds(
     ]
 
 
-def test_a_bad_bundle_is_recorded_and_skipped_and_the_pass_goes_on(lakes: Lakes) -> None:
+def failed_ids(lakes: Lakes) -> list[str]:
+    rows = lakes.rows(f"SELECT snapshot_id FROM lake.main.{FAILED_TABLE}")
+    return sorted(str(r[0]) for r in rows)
+
+
+def damaged_content(monkeypatch: pytest.MonkeyPatch, only: str | None = None) -> None:
+    """The hash of the bundle matches but its content cannot be read (for ``only``, or all)."""
+    from tl_xer.bundle import BundleError, read_bundle
+
+    real = read_bundle
+    first_blob: dict[str, bytes] = {}
+
+    def read(blob: bytes) -> Any:
+        if only is None or (only == "first" and blob == first_blob.setdefault("blob", blob)):
+            raise BundleError("damaged")
+        return real(blob)
+
+    monkeypatch.setattr("tl_lake.xer.read_bundle", read)
+
+
+def test_content_the_lake_cannot_read_is_recorded_and_skipped_and_the_pass_goes_on(
+    lakes: Lakes, monkeypatch: pytest.MonkeyPatch
+) -> None:
     one, two = published_pair(lakes)
+    lakes.sync(bronze=False)
+    before = dump(lakes)
+    damaged_content(monkeypatch)
+    result = lakes.sync()
+    again = lakes.sync()
+    assert (result.bronze, result.failed, result.bronze_waiting) == (0, 2, 0)
+    assert result.snapshot_id is not None  # the failures were recorded
+    assert again.up_to_date and again.failed == 2  # and are not tried again
+    assert failed_ids(lakes) == sorted([one, two])
+    assert not any(name.startswith("xer_") for name in lakes.tables())
+    after = dump(lakes)
+    assert {k: v for k, v in after.items() if k != FAILED_TABLE} == before
+    assert lakes.rows(f"SELECT bronze FROM lake.main.{LOADED_TABLE}") == [(False,), (False,)]
+
+
+def test_one_snapshot_with_unreadable_content_costs_only_that_snapshot(
+    lakes: Lakes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    one, two = published_pair(lakes)
+    damaged_content(monkeypatch, only="first")
+    result = lakes.sync()
+    assert (result.loaded, result.bronze, result.failed) == (2, 1, 1)
+    assert failed_ids(lakes) == [one]
+    assert lakes.rows("SELECT DISTINCT _snapshot_id FROM lake.main.xer_task") == [(two,)]
+    assert lakes.rows(f"SELECT count(*) FROM lake.main.{ACTIVITY_TABLE}")[0][0] == 42  # whole
+
+
+def test_a_snapshot_that_stops_being_built_leaves_the_failed_list(
+    lakes: Lakes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    one, two = published_pair(lakes)
+    later = make_xer(slipped(week_pair()[1], days=3, codes=("A1230",)))
+    third = lakes.world.upload(later, "MAIN", name="t.xer")
+    damaged_content(monkeypatch)
+    assert lakes.sync().failed == 3
+    lakes.world.void(third)
+    lakes.sync(bronze=False)
+    assert failed_ids(lakes) == sorted([one, two])
+
+
+def test_a_bundle_that_is_not_gzip_stops_the_pass_and_leaves_the_lake_as_it_was(
+    lakes: Lakes,
+) -> None:
+    published_pair(lakes)
     lakes.sync(bronze=False)
     before = dump(lakes)
 
@@ -279,70 +345,30 @@ def test_a_bad_bundle_is_recorded_and_skipped_and_the_pass_goes_on(lakes: Lakes)
 
     engine = lakes.ledger.engine()
     try:
-        with read_snapshot(engine) as conn:
-            result = sync_xer(lakes.lake, conn, broken)
-        with read_snapshot(engine) as conn:
-            again = sync_xer(lakes.lake, conn, broken)
+        with read_snapshot(engine) as conn, pytest.raises(LakeSyncError, match="not the one"):
+            sync_xer(lakes.lake, conn, broken)
     finally:
         engine.dispose()
-    assert (result.bronze, result.failed, result.bronze_waiting) == (0, 2, 0)
-    assert result.snapshot_id is not None  # the failures were recorded
-    assert again.up_to_date and again.failed == 2  # and are not tried again
-    assert sorted(
-        r[0] for r in lakes.rows(f"SELECT snapshot_id FROM lake.main.{FAILED_TABLE}")
-    ) == (sorted([one, two]))
-    assert not any(name.startswith("xer_") for name in lakes.tables())
-    after = dump(lakes)
-    assert {k: v for k, v in after.items() if k != FAILED_TABLE} == before
-    assert lakes.rows(f"SELECT bronze FROM lake.main.{LOADED_TABLE}") == [(False,), (False,)]
+    assert dump(lakes) == before
+    assert failed_ids(lakes) == []  # a hash that does not match is not the file's fault
 
 
-def test_one_bad_snapshot_costs_only_that_snapshot(lakes: Lakes) -> None:
+def test_a_bundle_that_is_not_the_one_recorded_is_refused(lakes: Lakes) -> None:
     one, two = published_pair(lakes)
-    first = lakes.world.snapshot(one)
+    other = lakes.world.snapshot(two)
 
-    def reader(scope: str, file_id: str, sha256: str) -> bytes:
-        if file_id == first.raw_file_id:
-            return b"not a gzip stream"
-        return lakes.raw(scope, file_id, sha256)
+    def swapped(scope: str, file_id: str, sha256: str) -> bytes:
+        return lakes.raw(scope, other.raw_file_id or "", sha256)  # snapshot 2's bundle for both
 
     engine = lakes.ledger.engine()
     try:
         with read_snapshot(engine) as conn:
             sync_lake(lakes.lake, conn)
-        with read_snapshot(engine) as conn:
-            result = sync_xer(lakes.lake, conn, reader)
+        with read_snapshot(engine) as conn, pytest.raises(LakeSyncError, match="not the one"):
+            sync_xer(lakes.lake, conn, swapped)
     finally:
         engine.dispose()
-    assert (result.loaded, result.bronze, result.failed) == (2, 1, 1)
-    assert lakes.rows(f"SELECT snapshot_id FROM lake.main.{FAILED_TABLE}") == [(one,)]
-    assert lakes.rows("SELECT DISTINCT _snapshot_id FROM lake.main.xer_task") == [(two,)]
-    assert (
-        lakes.rows(f"SELECT count(*) FROM lake.main.{ACTIVITY_TABLE}")[0][0] == 42
-    )  # silver whole
-
-
-def test_a_snapshot_that_stops_being_built_leaves_the_failed_list(lakes: Lakes) -> None:
-    one, two = published_pair(lakes)
-    third = lakes.world.upload(
-        make_xer(slipped(week_pair()[1], days=3, codes=("A1230",))), "MAIN", name="t.xer"
-    )
-    lakes.sync(bronze=False)
-
-    def broken(scope: str, file_id: str, sha256: str) -> bytes:
-        return b"not a gzip stream"
-
-    engine = lakes.ledger.engine()
-    try:
-        with read_snapshot(engine) as conn:
-            assert sync_xer(lakes.lake, conn, broken).failed == 3
-    finally:
-        engine.dispose()
-    lakes.world.void(third)
-    lakes.sync(bronze=False)
-    assert sorted(
-        r[0] for r in lakes.rows(f"SELECT snapshot_id FROM lake.main.{FAILED_TABLE}")
-    ) == (sorted([one, two]))
+    assert failed_ids(lakes) == []
 
 
 def test_a_bundle_the_reader_would_now_refuse_cannot_stop_the_lake(
@@ -550,3 +576,72 @@ def test_the_guarded_query_service_reads_the_new_tables(lakes: Lakes) -> None:
     )
     assert len(answer.rows) == 2 and not answer.truncated
     assert all(row[1] < 0 for row in answer.rows)
+
+
+# --- two projects with a schedule of the same code (round 3, finding F2) --------------------------
+
+
+def scopes(lakes: Lakes, table: str) -> list[tuple[Any, ...]]:
+    return lakes.rows(f"SELECT DISTINCT scope FROM lake.main.{table}")
+
+
+def second_project(monkeypatch: pytest.MonkeyPatch, lakes: Lakes) -> None:
+    """Define MAIN in another project and build its first snapshot only."""
+    from tl_mod_schedule import testing as schedule_testing
+
+    monkeypatch.setattr(schedule_testing, "PROJECT", "project:P456")
+    monkeypatch.setitem(schedule_testing.BASE, "scope", "project:P456")
+    lakes.world.define()
+    lakes.world.publish(lakes.world.upload(make_xer(week_pair()[0]), "MAIN"))
+
+
+def test_the_tables_and_the_mart_keep_the_projects_apart(
+    lakes: Lakes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    published_pair(lakes)  # P123: MAIN#1 and MAIN#2
+    second_project(monkeypatch, lakes)  # P456: MAIN#1, the same number and the same file
+    lakes.sync()
+    snapshots = lakes.rows(
+        f"SELECT scope, schedule_code, number FROM lake.main.{SNAPSHOT_TABLE} "
+        "ORDER BY scope, number"
+    )
+    assert snapshots == [
+        ("project:P123", "MAIN", 1),
+        ("project:P123", "MAIN", 2),
+        ("project:P456", "MAIN", 1),
+    ]
+    per_scope = lakes.rows(
+        f"SELECT scope, count(*) FROM lake.main.{ACTIVITY_TABLE} GROUP BY scope ORDER BY scope"
+    )
+    assert per_scope == [("project:P123", 42), ("project:P456", 21)]
+    trend = lakes.rows(
+        "SELECT scope, snapshot_number, previous_float_days FROM lake.main.mart_float_trend "
+        "WHERE activity_id = 'A1230' ORDER BY scope, snapshot_number"
+    )
+    # P456 has one snapshot: nothing before it, though P123's snapshot 1 has the same number
+    assert trend == [
+        ("project:P123", 1, None),
+        ("project:P123", 2, 9.0),
+        ("project:P456", 1, None),
+    ]
+
+
+def test_a_lake_made_before_the_tables_carried_the_project_loads_again(lakes: Lakes) -> None:
+    published_pair(lakes)
+    lakes.sync()
+    with open_lake(lakes.lake, write=True) as con:  # the shape of an earlier lake
+        for table in (SNAPSHOT_TABLE, ACTIVITY_TABLE):
+            con.execute(f"ALTER TABLE lake.main.{table} DROP COLUMN scope")
+    result = lakes.sync()
+    assert (result.loaded, result.bronze) == (2, 2)
+    assert lakes.rows(f"SELECT DISTINCT scope FROM lake.main.{ACTIVITY_TABLE}") == [
+        ("project:P123",)
+    ]
+    assert lakes.rows(f"SELECT DISTINCT scope FROM lake.main.{SNAPSHOT_TABLE}") == [
+        ("project:P123",)
+    ]
+    assert lakes.rows("SELECT count(*) FROM lake.main.xer_task")[0][0] == 42  # once, not twice
+    assert lakes.rows("SELECT DISTINCT scope FROM lake.main.mart_float_trend") == [
+        ("project:P123",)
+    ]
+    assert lakes.sync().up_to_date

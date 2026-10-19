@@ -105,6 +105,17 @@ def test_list_schedules_and_get_schedule_give_the_state_of_the_series(env: Env) 
     assert env.h.structured("list_schedules", project="OTHER")["result"] == []
 
 
+def test_the_snapshots_of_a_schedule_come_in_pages(env: Env) -> None:
+    first = env.structured("get_schedule", schedule="MAIN", limit=1)
+    assert [s["number"] for s in first["snapshots"]] == [2] and first["snapshot_count"] == 2
+    second = env.structured("get_schedule", schedule="MAIN", limit=1, offset=1)
+    assert [s["number"] for s in second["snapshots"]] == [1] and second["snapshot_count"] == 2
+    assert env.structured("get_schedule", schedule="MAIN", offset=5)["snapshots"] == []
+    for bad in ({"limit": 0}, {"limit": 201}, {"offset": -1}):
+        with pytest.raises(ToolError, match="greater than|less than"):
+            env.h.call("get_schedule", project="P123", schedule="MAIN", **bad)
+
+
 def test_activities_come_in_pages_with_filters(env: Env) -> None:
     page = env.structured("list_schedule_activities", schedule="MAIN", limit=2, offset=1)
     assert (page["snapshot_number"], page["total"], page["offset"]) == (2, 21, 1)

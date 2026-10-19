@@ -274,6 +274,29 @@ def test_snapshots_waiting_for_a_build_are_bounded_and_building_or_voiding_frees
     assert world.snapshot(third).state == "Uploaded"
 
 
+def test_the_open_snapshot_cap_holds_when_people_open_snapshots_at_the_same_time(
+    world: ScheduleWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Writers queue on the ledger lock (SQLite's write lock, Postgres's advisory lock), so the
+    count and the insert of two openers cannot interleave: six at once make exactly three."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    monkeypatch.setattr(limits, "MAX_OPEN_SNAPSHOTS", 3)
+    world.define()
+
+    def open_one(_: int) -> str:
+        try:
+            world.open_snapshot()
+        except TooManyOpenSnapshotsError:
+            return "refused"
+        return "opened"
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        outcomes = sorted(pool.map(open_one, range(6)))
+    assert outcomes == ["opened"] * 3 + ["refused"] * 3
+    assert len(world.snapshots()) == 3
+
+
 def test_a_generic_link_to_an_activity_reference_cannot_skip_the_cap(
     world: ScheduleWorld, monkeypatch: pytest.MonkeyPatch
 ) -> None:

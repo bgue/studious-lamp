@@ -241,8 +241,12 @@ class FakeScheduleSupport:
             for d in sorted(found, key=lambda d: d.code)
         ]
 
-    def get_schedule(self, project: str, code: str) -> views.ScheduleDetailView:
-        return self._detail(project, code)
+    def get_schedule(
+        self, project: str, code: str, *, limit: int = 50, offset: int = 0
+    ) -> views.ScheduleDetailView:
+        detail = self._detail(project, code)
+        page = detail.snapshots[max(0, offset) : max(0, offset) + max(1, limit)]
+        return detail.model_copy(update={"snapshots": page})
 
     def get_schedule_snapshot(self, project: str, code: str, number: int) -> views.SnapshotView:
         return self._snapshot(project, code, number)

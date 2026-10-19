@@ -119,6 +119,17 @@ def schedule_detail_lines(detail: ScheduleDetailView) -> list[str]:
     return lines
 
 
+def snapshot_page_line(first: int, shown: int, total: int) -> str | None:
+    """Where the page of snapshots is in all of them, or ``None`` when one page holds them all."""
+    if shown >= total and first == 0:
+        return None
+    last = first + shown
+    return (
+        f"snapshots {first + 1 if shown else 0} to {last} of {total}  "
+        f"({'n next page  ' if last < total else ''}{'b previous page' if first else ''})"
+    ).replace("  )", ")")
+
+
 def snapshot_detail_lines(view: SnapshotView) -> list[str]:
     """The facts of a snapshot: counts, the file, who asked, and why it failed if it did."""
     lines = [

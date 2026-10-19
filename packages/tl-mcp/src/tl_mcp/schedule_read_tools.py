@@ -50,10 +50,19 @@ def list_schedules_impl(ctx: McpContext, *, project: str) -> list[views.Schedule
         return views.schedule_views(uow.conn(), f"project:{project}")
 
 
-def get_schedule_impl(ctx: McpContext, *, project: str, schedule: str) -> views.ScheduleDetailView:
-    """One schedule with its snapshots, newest first."""
+def get_schedule_impl(
+    ctx: McpContext,
+    *,
+    project: str,
+    schedule: str,
+    limit: int = views.DEFAULT_SNAPSHOT_PAGE,
+    offset: int = 0,
+) -> views.ScheduleDetailView:
+    """One schedule with a page of its snapshots, newest first."""
     with ctx.factory(True) as uow:
-        return views.schedule_detail(uow.conn(), f"project:{project}", schedule)
+        return views.schedule_detail(
+            uow.conn(), f"project:{project}", schedule, limit=limit, offset=offset
+        )
 
 
 def list_activities_impl(
@@ -183,8 +192,20 @@ def register_schedule_read_tools(server: MCPServer, ctx: McpContext) -> None:
             return list_schedules_impl(ctx, project=project)
 
     @server.tool(annotations=READ_ONLY)
-    def get_schedule(project: Project, schedule: Schedule) -> views.ScheduleDetailView:
-        """Get one schedule with its snapshots, newest first.
+    def get_schedule(
+        project: Project,
+        schedule: Schedule,
+        limit: Annotated[
+            int,
+            Field(
+                ge=1, le=views.MAX_SNAPSHOT_PAGE, description="Snapshots to return (newest first)."
+            ),
+        ] = views.DEFAULT_SNAPSHOT_PAGE,
+        offset: Annotated[int, Field(ge=0, le=10**9, description="Snapshots to skip.")] = 0,
+    ) -> views.ScheduleDetailView:
+        """Get one schedule with a page of its snapshots, newest first.
+
+        `snapshot_count` is how many snapshots there are in all; page with `limit` and `offset`.
 
         A snapshot is one uploaded XER file: its state (`Valid`, `Published`, `Superseded`,
         `Invalid`, ...), data date, counts and the problems found. `links_being_checked` is true
@@ -192,7 +213,9 @@ def register_schedule_read_tools(server: MCPServer, ctx: McpContext) -> None:
         still read as current until the worker has flagged them.
         """
         with guarded(ctx, "get_schedule", resource_name("schedule", project, schedule)):
-            return get_schedule_impl(ctx, project=project, schedule=schedule)
+            return get_schedule_impl(
+                ctx, project=project, schedule=schedule, limit=limit, offset=offset
+            )
 
     @server.tool(annotations=READ_ONLY)
     def list_schedule_activities(

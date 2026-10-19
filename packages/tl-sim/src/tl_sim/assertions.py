@@ -392,8 +392,7 @@ def run_assertions(
         source = str(event["source"])
         ref = f"seq {event.get('seq')} {event['event_type']}"
         if str(event["actor"]) in expected.operators and operator_event(event):
-            report.checked += 1  # setup of a schedule by hand or by its worker: not simulated
-            report.excused += 1
+            report.excused += 1  # setup of a schedule by hand or by its worker: not a check
             continue
         scanner = event["event_type"] == "File.Processed" and event["actor"] == SCANNER
         if event["event_type"] in FILE_EVENTS:

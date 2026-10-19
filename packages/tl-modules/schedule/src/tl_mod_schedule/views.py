@@ -49,6 +49,7 @@ from tl_mod_schedule.resolver import (
 MAX_PAGE = 1000
 DEFAULT_SNAPSHOT_PAGE = 50
 MAX_SNAPSHOT_PAGE = 200
+MAX_OFFSET = 10**9
 DEFAULT_COMPARE_LIMIT = 200
 MAX_COMPARE_LIMIT = 5000
 MAX_TREND_POINTS = 500
@@ -242,7 +243,10 @@ def snapshot_views(
     for each snapshot.
     """
     page = registry.list_snapshots(
-        conn, schedule.id, limit=max(1, min(limit, MAX_SNAPSHOT_PAGE)), offset=max(0, offset)
+        conn,
+        schedule.id,
+        limit=max(1, min(limit, MAX_SNAPSHOT_PAGE)),
+        offset=max(0, min(offset, MAX_OFFSET)),
     )
     published = registry.history(conn, schedule.id)
     return [

@@ -74,11 +74,41 @@ def test_a_kind_for_every_column_is_required(target: DbTarget) -> None:
         bulk.bulk_insert(uow.conn(), "bulk_t", COLUMNS, "sS", ROWS)
 
 
-def test_a_value_that_is_not_a_number_is_refused_not_stored(target: DbTarget) -> None:
-    bad = [("r1", "x", "y", float("nan"), None, None, None)]
-    with open_uow(target) as uow:
-        try:
-            bulk.bulk_insert(uow.conn(), "bulk_t", COLUMNS, KINDS, bad)
-        except ValueError:
-            pass  # Postgres: the JSON text cannot hold NaN
-    assert all(v is None or v == v for row in stored(target) for v in row)
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+def test_a_number_that_is_not_finite_is_refused_on_both_databases_and_nothing_is_stored(
+    target: DbTarget, bad: float
+) -> None:
+    rows = [("r0", "x", "y", 1.0, None, None, None), ("r1", "x", "y", bad, None, None, None)]
+    with open_uow(target) as uow, pytest.raises(ValueError, match="not finite"):
+        bulk.bulk_insert(uow.conn(), "bulk_t", COLUMNS, KINDS, rows)
+    assert stored(target) == []
+
+
+@pytest.mark.parametrize(
+    "name", ["bulk t", "bulk_t; DROP TABLE bulk_t", 'bulk_t"', "1bulk", "", "a.b", "bulk-t"]
+)
+def test_a_table_name_that_is_not_plain_is_refused_before_any_sql(
+    target: DbTarget, name: str
+) -> None:
+    with open_uow(target) as uow, pytest.raises(ValueError, match="letters, digits"):
+        bulk.bulk_insert(uow.conn(), name, COLUMNS, KINDS, ROWS)
+    assert stored(target) == []
+
+
+@pytest.mark.parametrize("column", ["a b", "a;b", 'a"', "9a", "", "a,b"])
+def test_a_column_name_that_is_not_plain_is_refused(target: DbTarget, column: str) -> None:
+    with open_uow(target) as uow, pytest.raises(ValueError, match="letters, digits"):
+        bulk.bulk_insert(uow.conn(), "bulk_t", (column, *COLUMNS[1:]), KINDS, ROWS)
+    assert stored(target) == []
+
+
+def test_an_unknown_kind_letter_is_refused(target: DbTarget) -> None:
+    with open_uow(target) as uow, pytest.raises(ValueError, match="kind letter"):
+        bulk.bulk_insert(uow.conn(), "bulk_t", COLUMNS, "sSsfFbx", ROWS)
+
+
+def test_names_are_quoted_so_a_reserved_word_is_a_column() -> None:
+    from sqlalchemy.dialects import postgresql
+
+    quote = postgresql.dialect().identifier_preparer.quote
+    assert quote("order") == '"order"' and quote("plain_name") == "plain_name"

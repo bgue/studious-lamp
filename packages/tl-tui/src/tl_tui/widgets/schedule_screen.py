@@ -34,22 +34,26 @@ from tl_tui.schedule_text import (
     schedules_summary,
     snapshot_cells,
     snapshot_detail_lines,
+    snapshot_page_line,
 )
 from tl_tui.widgets.activity_screen import ActivityScreen
 from tl_tui.widgets.compare_screen import CompareScreen
 
 PANELS = ("snapshot", "look_ahead", "orphans")
+SNAPSHOT_PAGE = 50  # snapshots read at a time (the service allows 200)
 
 
 class ScheduleScreen(ModalScreen[None]):
     """The schedules of ``project`` (the id, not the scope)."""
 
     KEY_HINTS: ClassVar[str] = (
-        "Tab table  c compare  a activities  l look-ahead  o orphans  p publish  / filter  "
-        "F5 reload  Esc close"
+        "Tab table  c compare  a activities  l look-ahead  o orphans  p publish  "
+        "n/b snapshot pages  / filter  F5 reload  Esc close"
     )
 
     BINDINGS: ClassVar[list[BindingType]] = [
+        Binding("n", "next_snapshots", "Next snapshots", show=False),
+        Binding("b", "previous_snapshots", "Previous snapshots", show=False),
         Binding("c", "compare", "Compare", show=False),
         Binding("a", "activities", "Activities", show=False),
         Binding("l", "look_ahead", "Look-ahead", show=False),
@@ -79,6 +83,7 @@ class ScheduleScreen(ModalScreen[None]):
         self.actor = actor
         self.text = ""
         self.panel = "snapshot"  # one of PANELS
+        self.page_start = 0  # the first snapshot of the page shown, newest first
         self.views: list[ScheduleView] = []  # as listed, before the filter
         self.shown: list[ScheduleView] = []
         self.detail: ScheduleDetailView | None = None  # the highlighted schedule, in full
@@ -164,8 +169,12 @@ class ScheduleScreen(ModalScreen[None]):
             self.detail = None
             self.query_one("#sc-detail", Static).update("No schedule matches.")
             return
+        if self.detail is None or view.code != self.detail.code:
+            self.page_start = 0  # another schedule starts at its newest snapshots
         try:
-            self.detail = self.client.get_schedule(self.project, view.code)
+            self.detail = self.client.get_schedule(
+                self.project, view.code, limit=SNAPSHOT_PAGE, offset=self.page_start
+            )
         except CLIENT_ERRORS as exc:
             self.detail = None
             message = describe_error(exc)
@@ -188,6 +197,9 @@ class ScheduleScreen(ModalScreen[None]):
             return
         snap = self.current_snapshot()
         lines = schedule_detail_lines(detail)
+        page = snapshot_page_line(self.page_start, len(detail.snapshots), detail.snapshot_count)
+        if page is not None:
+            lines.append(page)
         try:
             if self.panel == "look_ahead" and snap is not None:
                 answer = self.client.get_look_ahead(self.project, detail.code, snapshot=snap.number)
@@ -227,6 +239,26 @@ class ScheduleScreen(ModalScreen[None]):
         self.query_one("#sc-schedules", DataTable).focus()
 
     # --- actions -------------------------------------------------------------------------
+
+    def action_next_snapshots(self) -> None:
+        """Show the next page of older snapshots."""
+        if isinstance(self.focused, Input) or self.detail is None:
+            return  # the key is text
+        if self.page_start + len(self.detail.snapshots) >= self.detail.snapshot_count:
+            self._say("These are the oldest snapshots.")
+            return
+        self.page_start += SNAPSHOT_PAGE
+        self._load_schedule()
+
+    def action_previous_snapshots(self) -> None:
+        """Show the previous page, towards the newest snapshots."""
+        if isinstance(self.focused, Input) or self.detail is None:
+            return  # the key is text
+        if self.page_start == 0:
+            self._say("These are the newest snapshots.")
+            return
+        self.page_start = max(0, self.page_start - SNAPSHOT_PAGE)
+        self._load_schedule()
 
     def action_compare(self) -> None:
         """Open the comparison of the highlighted snapshot with the one before it."""

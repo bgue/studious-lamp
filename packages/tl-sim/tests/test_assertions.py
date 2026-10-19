@@ -586,3 +586,14 @@ def test_a_file_must_be_on_a_record_the_log_names_or_an_operator_made() -> None:
     assert check_as(world, truth, OPERATORS).ok
     scanned["stream_id"] = "file-nobody-uploaded"  # processed a file no upload explains
     assert ("event_stream", "record") in failures(check_as(world, truth, OPERATORS))
+
+
+def test_what_the_operators_wrote_is_not_counted_as_a_check() -> None:
+    world, truth = update_world()
+    with_them = check_as(world, truth, OPERATORS)
+    assert with_them.ok and with_them.excused == 8
+    world.event_rows = [e for e in world.event_rows if e["actor"] not in OPERATORS]
+    world.record_rows = [r for r in world.record_rows if r["key"] not in ("MAIN", "MAIN#1")]
+    without_them = check_as(world, truth, OPERATORS)
+    assert without_them.ok and without_them.excused == 0
+    assert without_them.checked == with_them.checked  # a run does not look more checked for them

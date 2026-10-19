@@ -42,6 +42,7 @@ from tl_core.services.errors import (
     PostRetractedError,
     RecordVoidedError,
     SuggestionDeclinedError,
+    UnsupportedRecordTypeError,
 )
 from tl_core.services.links import SuggestLink, handle_suggest_link
 from tl_core.uow import UnitOfWork
@@ -50,8 +51,15 @@ from tl_core.util import new_ulid
 POST_STREAM_TYPE = "core.ActivityPost"
 MAX_BODY_LENGTH = 10_000
 
-# Refusals of SuggestLink that are not errors for a post: the link is simply not suggested.
-_NOT_SUGGESTED = (DuplicateLinkError, SuggestionDeclinedError, RecordVoidedError)
+# Refusals of SuggestLink that are not errors for a post: the link is simply not suggested. (A
+# record a module links to only through its own command, such as a schedule activity reference,
+# is tagged in the post and not linked.)
+_NOT_SUGGESTED = (
+    DuplicateLinkError,
+    SuggestionDeclinedError,
+    RecordVoidedError,
+    UnsupportedRecordTypeError,
+)
 
 _POST_SQL = text(
     "SELECT item_id, scope, actor, summary, retracted, version, base_importance, reactions_json "

@@ -36,6 +36,9 @@ Purpose: upload and publish P6 schedules, run the worker that builds snapshots a
    Expected: `published MAIN#1`. If the schedule has links to activities a flagging job is queued (step: the flagging job).
 6. Void a snapshot that is not published (controller): `uv run tl xer void 2 --project P123 --schedule MAIN --reason "wrong project"`.
 
+## Too many snapshots waiting
+`error: schedule MAIN already has 20 snapshots waiting for a build` (`too_many_open_snapshots`, 409): a schedule holds at most 20 snapshots in `Uploaded` or `Processing`. Anyone signed in may open one, so one person can fill the places; that is accepted. Run `tl xer worker --once` to build what waits (a built snapshot frees its place), or void the ones nobody wants with `tl xer void <number> --project <project> --schedule <code> --reason "..."` (a controller's act). The count is taken inside the write transaction, which Postgres and SQLite serialise, so concurrent openers cannot go over the cap.
+
 ## The flagging job
 Publishing queues `schedule.flag_orphans` (job id `flag:<schedule id>:<ulid>`); the same worker runs it. Each run does at most 500 operations (a reference changed, a link flagged or restored) and queues the next run if work is left. **Until it has finished, a link to a removed activity still reads as current**; the schedule's detail view says `links_being_checked`. Run `uv run tl xer worker --once` after a publish to close the window. A flag written by the job has the actor and source `svc:schedule`; the job restores only those.
 
