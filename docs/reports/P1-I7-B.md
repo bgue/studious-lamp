@@ -59,7 +59,16 @@ There is no scheduler in the server for the `thread.reminder` job. Something mus
 ## Gates
 Run on the final tree of `p1/i7b` under `/home/user/locks/suite.lock`.
 
-@@GATES@@
+| Gate | Result |
+|---|---|
+| `just check` (ruff, format, pyright strict, generated files up to date, openapi, licences) | pass at the final commit (7e636ac plus this report) |
+| Scoped parity, SQLite and Postgres: `tests/threads`, the API thread, walk and proposal tests, the MCP thread tools, propose-dispatch and walk tests, the three CLI thread files, the embedded TUI thread tests | 301 passed, 1 skipped at 31c50a4 (the skip is the CLI account-less-accept test on Postgres, where the test wrapper signs any named actor in; core and API cover it); 287 passed, 1 skipped at 5b2072e on a clean checkout under the suite lock; after N1 the thread, proposal and MCP files pass on both adapters (56 passed in the last targeted run) |
+| Full suites on a clean checkout of 5b2072e, under the lock | tl-core, tl-adapters, tl-lake, tl-schema: 1963 passed. tl-api: 813 passed, 2 failed (stale pinned settings counts in `test_client_settings`, fixed in 4a71fb4). `tests/`: 2260 passed, 3 failed: one was the webhook parity test expecting the undelivered thread edit and retract events (fixed in 6efa658); two are WS-A's `test_int_actions` job-executor cases, red until WS-A's ticket T02a (the `job` executor stub) lands |
+| tl-cli, tl-sim, tl-mcp at 5b2072e | 1311 passed, 3 failed, 268 errors. The errors are the `/tmp` disk filling up during the run (ENOSPC, 18 GB of old pytest directories, cleaned); the 3 failures were pinned lists in MCP tests (settings count, the tool set, the proposing tools), fixed in 7e636ac and re-run: 34 passed |
+| Full re-run of tests/, tl-api, tl-cli/tl-sim/tl-mcp, tl-modules, tl-tui and the demo at 7e636ac | queued under the lock behind other supervisors' runs; results are appended to this section by a follow-up commit if they arrive before the merge, otherwise the integrated `p1/i7` gate covers them (orchestrator ruling) |
+| `just demo P1-I7B` | SQLite: all eight clauses pass (run in the build container during development); the run on both backends is part of the queued locked run |
+| `just test-tui` (tl-tui) | the thread tab, composer, text and embedded tests pass (3 + 13 + 6 + 7 + 5), and the settings screen, remote, embedded and fake settings tests and snapshots pass with 17 keys; the whole `packages/tl-tui` suite is in the queued run |
+
 
 ## Showcase
 `just demo P1-I7B` is the thread part of the increment demo (FANOUT D20 item 4; the whole `just demo P1-I7` is WS-A's). It runs once on SQLite and once on Postgres with the real CLI and two signed-in people, and ends each clause with a PASS line:
