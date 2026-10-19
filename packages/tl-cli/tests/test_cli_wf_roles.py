@@ -197,6 +197,20 @@ def test_a_claim_is_honoured_only_where_actor_is_the_local_dev_path(cast: Cast) 
             key = approved(cast, f"After {label}")
 
 
+def test_show_takes_a_role_claim_only_on_the_local_dev_path(cast: Cast) -> None:
+    key = approved(cast)
+    for who, label in ((cast["ursula"], "a user's session"), (cast.nobody, "no session")):
+        shown = show(who, key, "--role", "document_controller")
+        if is_postgres(cast.target):
+            assert shown.exit_code == 1, label
+            continue
+        assert shown.exit_code == 0, (label, shown.output)  # a ledger file in a dev setup
+        assert "option issue -> Issued allowed" in shown.stdout, label
+        assert "guard roles ok role document_controller held" in shown.stdout, label
+    plain = show(cast["ursula"], key).stdout  # without the claim the session decides
+    assert "option issue -> Issued blocked" in plain
+
+
 def test_a_claim_over_a_session_that_lacks_the_role_is_refused(cast: Cast) -> None:
     """Outside a dev setup (here TL_ENV=prod on the file, always so on Postgres)."""
     key = approved(cast)
@@ -266,6 +280,25 @@ def test_a_controller_accepting_a_proposal_passes_with_her_own_roles(cast: Cast)
     key = approved(cast)
     done = tl(cast["dora"], "proposal", "accept", propose_issue(cast, key))
     assert done.exit_code == 0, done.output
+    assert done.stdout.startswith("accepted ")
+    assert state(cast, key) == "Issued"
+
+
+def test_proposal_accept_takes_a_role_claim_only_on_the_local_dev_path(cast: Cast) -> None:
+    key = approved(cast)
+    done = tl(
+        cast["ursula"],
+        "proposal",
+        "accept",
+        propose_issue(cast, key),
+        "--role",
+        "document_controller",
+    )
+    if is_postgres(cast.target):
+        assert done.exit_code == 1 and CLAIM_REFUSED in done.stderr
+        assert state(cast, key) == "Approved"
+        return
+    assert done.exit_code == 0, done.output  # a ledger file in a dev setup, as for --actor
     assert done.stdout.startswith("accepted ")
     assert state(cast, key) == "Issued"
 
