@@ -1,6 +1,6 @@
 # ADR-0017 — Integration layer: actions, rules, inbound endpoints, enrichment
 
-Status: proposed
+Status: accepted (by the orchestrator after two security passes and a re-check, 2026-10-19)
 Date: 2026-10-17
 Deciders: orchestrator (fanout plan `docs/tickets/P1-I7/FANOUT.md`, decisions D1 to D20); WS-A supervisor drafted this record
 Brief sections: §18.5 (inbound), §18.7 (actions), §18.8 (rules), §18.9 (enrichment), §18.13 (governance, kill switch), §19.2, §19.3, ADR-0008 decisions 6 and 8, ADR-0010 second addendum, ADR-0011, ADR-0013, ADR-0014

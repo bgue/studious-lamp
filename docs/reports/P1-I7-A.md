@@ -1,6 +1,6 @@
 # Report — P1-I7 workstream A (the integration layer)
 
-Branch `p1/i7a` (base `p1/i7`). Plan: [docs/tickets/P1-I7/README.md](../tickets/P1-I7/README.md). Fanout: [docs/tickets/P1-I7/FANOUT.md](../tickets/P1-I7/FANOUT.md) (D1 to D20). Decision record: [ADR-0017](../adr/0017-integration-layer.md) (stays `proposed`). Runbook: [docs/runbooks/integration.md](../runbooks/integration.md). Workstream B (record threads) has its own report.
+Branch `p1/i7a` (base `p1/i7`). Plan: [docs/tickets/P1-I7/README.md](../tickets/P1-I7/README.md). Fanout: [docs/tickets/P1-I7/FANOUT.md](../tickets/P1-I7/FANOUT.md) (D1 to D20). Decision record: [ADR-0017](../adr/0017-integration-layer.md) (accepted by the orchestrator after two security passes and a re-check). Runbook: [docs/runbooks/integration.md](../runbooks/integration.md). Workstream B (record threads) has its own report.
 
 ## Outcome
 Objective met: yes, for the parts that do not need workstream B. External systems, rules and enrichers act on the ledger through one guarded seam.
