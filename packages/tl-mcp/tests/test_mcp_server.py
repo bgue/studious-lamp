@@ -40,8 +40,21 @@ DERIVATION_READ_TOOLS = {
     "validate_against_schema",
 }
 DERIVATION_PROPOSE_TOOLS = {"start_extraction", "propose_import"}
-READING = READ_TOOLS | TYPE_TOOLS | ENGINEERING_TOOLS | DOCUMENT_TOOLS | DERIVATION_READ_TOOLS
-TOOLS = READING | PROPOSE_TOOLS | DERIVATION_PROPOSE_TOOLS | {"post_feed"}
+THREAD_READ = {"read_thread"}  # P1-I7 WS-B
+READING = (
+    READ_TOOLS
+    | TYPE_TOOLS
+    | ENGINEERING_TOOLS
+    | DOCUMENT_TOOLS
+    | DERIVATION_READ_TOOLS
+    | THREAD_READ
+)
+TOOLS = (
+    READING
+    | PROPOSE_TOOLS
+    | DERIVATION_PROPOSE_TOOLS
+    | {"post_feed", "post_thread_message", "propose_dispatch"}
+)
 
 
 def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(
