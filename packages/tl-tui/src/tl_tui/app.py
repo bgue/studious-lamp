@@ -95,6 +95,7 @@ class TlApp(App[None]):
         Binding("f9", "settings", "Settings", show=False),
         Binding("f10", "admin", "Accounts", show=False),
         Binding("f11", "derived", "Derived documents", show=False),
+        Binding("f12", "correspondence", "Correspondence", show=False),
         Binding("alt+left", "back", "Back", show=False),
         Binding("alt+right", "forward", "Forward", show=False),
     ]
@@ -569,6 +570,22 @@ class TlApp(App[None]):
                 is_admin=self.is_admin,
                 is_controller=self.is_controller,
             )
+        )
+
+    def action_correspondence(self) -> None:
+        """Correspondence of this project: register, triage inbox and response clocks."""
+        if self._modal_open():
+            return
+        from tl_core.settings.layers import project_of_scope
+
+        from tl_tui.widgets.correspondence_screen import CorrespondenceScreen
+
+        project = project_of_scope(self.scope)
+        if project is None:
+            self.notify("Correspondence needs a project.", severity="warning")
+            return
+        self.push_screen(
+            CorrespondenceScreen(self.client, project, self.actor, is_controller=self.is_controller)
         )
 
     def action_tags(self) -> None:

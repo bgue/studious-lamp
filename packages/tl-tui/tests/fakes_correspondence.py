@@ -207,3 +207,61 @@ class FakeCorrespondenceSupport:
 CONTROLLER_COMMANDS = frozenset(
     spec.model.__name__ for spec in CORRESPONDENCE_COMMANDS if spec.access != "user"
 )
+
+
+def seed_correspondence(client: FakeCorrespondenceSupport, project: str = "P123") -> None:
+    """Two received items (one with a suggestion), an issued reply with its clock, and a
+    transmittal line from the document-control register source."""
+    recipients = [views.RecipientView(name="Acme", email="site@acme.test", party_id=None)]
+
+    def item(
+        number: str, subject: str, state: str, direction: str, **more: object
+    ) -> views.ItemView:
+        fields: dict[str, object] = {
+            "id": f"ID-{number}", "number": number, "subject": subject, "state": state,
+            "direction": direction, "medium": "letter", "received_via": "upload",
+            "external_ref": None, "from_name": "Acme Ltd", "from_party_id": None,
+            "to": recipients, "cc": [], "sent_on": None, "received_on": "2026-10-19",
+            "issued_on": None, "body": None, "confidentiality": "internal", "domain": None,
+            "subtype": None, "thread_id": None, "thread_number": None, "responds_to_id": None,
+            "responds_to_number": None, "superseded_by_id": None, "response_required": False,
+            "response_due": None, "responded_on": None, "triaged_on": None, "triaged_by": None,
+            "delivery": "none", "rendition_file_id": None, "version": 1,
+        }  # fmt: skip
+        return views.ItemView(**{**fields, **more})  # type: ignore[arg-type]
+
+    client.add_correspondence(project, item("P123-COR-0001", "Revised programme", "Received", "in"))
+    client.add_correspondence(
+        project, item("P123-COR-0002", "Transmittal 12 for review", "Received", "in")
+    )
+    clock = views.ClockView(
+        id="CLK-1", key="P123-COR-0003-C01", item_id="ID-P123-COR-0003",
+        item_number="P123-COR-0003", label="Reply expected", kind="response_from_them",
+        start_on="2026-10-19", duration_days=14, day_type="calendar", calendar="P123-default@1",
+        warn_days=[7, 3, 1], due_on="2026-11-02", state="running", effective_state="running",
+        days_left=14, warned_level=None, paused_on=None, closed_on=None, closed_reason=None,
+        owner=None, clause_id=None, restarts=0,
+    )  # fmt: skip
+    client.add_correspondence(
+        project,
+        item(
+            "P123-COR-0003", "Re: Revised programme", "Issued", "out", domain="general",
+            subtype="letter", issued_on="2026-10-19", received_on=None, delivery="stub",
+            clocks=[clock], thread_number="P123-THR-0001",
+        ),
+    )  # fmt: skip
+    client.add_clock(project, clock)
+    client.add_register_line(
+        project,
+        views.RegisterLineView(
+            kind="transmittal", id="TRN-1", number="P123-TRN-0001", subject="Isometrics",
+            domain="document_control", subtype="transmittal", direction="out", state="Issued",
+            on="2026-10-19", counterparty="Site", response_due=None, confidentiality="internal",
+        ),
+    )  # fmt: skip
+    client.set_suggestion(
+        views.SuggestionView(
+            domain="general", subtype="letter", score=0,
+            reasons=["no keyword matched; the default domain"], scores={"general": 0},
+        )
+    )  # fmt: skip
