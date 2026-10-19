@@ -33,7 +33,7 @@ from tl_mod_correspondence.handlers.common import (
     open_item,
     today,
 )
-from tl_mod_correspondence.handlers.confidentiality import inherit_from_matches
+from tl_mod_correspondence.handlers.confidentiality import guard_move, inherit_from_matches
 from tl_mod_correspondence.handlers.models import non_blank
 from tl_mod_correspondence.limits import MAX_NUMBER, MAX_REASON
 from tl_mod_correspondence.names import (
@@ -240,13 +240,17 @@ def assign_thread(
     return [*events, *_inherit(uow, cmd, item, thread_id, match.responds_to_id)]
 
 
+def _sources(uow: UnitOfWork, thread_id: str, answers: str | None) -> list[str | None]:
+    """The item answered and the first item of the thread: what a reply takes its class from."""
+    thread = registry.get_thread(uow.conn(), thread_id)
+    return [answers, thread.governing_item_id if thread is not None else None]
+
+
 def _inherit(
     uow: UnitOfWork, cmd: Command, item: registry.ItemRow, thread_id: str, answers: str | None
 ) -> list[Event]:
-    """The item takes the class of what it answers and of the thread's first item."""
-    thread = registry.get_thread(uow.conn(), thread_id)
-    opened_by = thread.governing_item_id if thread is not None else None
-    return inherit_from_matches(uow, cmd, item, [answers, opened_by])
+    """A NEW item takes the class of what it answers and of the thread's first item."""
+    return inherit_from_matches(uow, cmd, item, _sources(uow, thread_id, answers))
 
 
 def with_thread(uow: UnitOfWork, cmd: Command, made: CommandResult) -> CommandResult:
@@ -269,7 +273,9 @@ def handle_assign_thread(uow: UnitOfWork, cmd: AssignThread) -> CommandResult:
 
     Raises ``RecordNotFoundError`` (item or answered item unknown, foreign or hidden),
     ``ThreadNotFoundError`` (no readable thread of that id in the scope), ``ItemStateError`` (the
-    item is void) and ``NoChangesError`` (it is in that thread already).
+    item is void) and ``NoChangesError`` (it is in that thread already). ``ForbiddenError`` when
+    the thread, or the item answered, has a higher class than the item and the actor is not a
+    document controller or admin; a controller's move raises the class with a recorded class event.
     """
     cmd = correlated(cmd)
     item = load_item(uow, cmd, cmd.stream_id)
@@ -291,6 +297,9 @@ def handle_assign_thread(uow: UnitOfWork, cmd: AssignThread) -> CommandResult:
         if item.thread_id == thread.id and cmd.responds_to_id in (None, item.responds_to_id):
             raise NoChangesError(f"item {item.number} is already in thread {thread.number}")
         thread_id = thread.id
+        # An existing item never takes a higher class silently (ADR-0016 section 5): a plain user is
+        # refused before anything is appended; a controller's move is recorded as a class change.
+        guard_move(uow, item, _sources(uow, thread_id, cmd.responds_to_id))
     events += _join(
         uow,
         cmd,
@@ -301,7 +310,13 @@ def handle_assign_thread(uow: UnitOfWork, cmd: AssignThread) -> CommandResult:
         first=cmd.thread_id is None,
     )
     if cmd.thread_id is not None:
-        events += _inherit(uow, cmd, item, thread_id, cmd.responds_to_id)
+        events += inherit_from_matches(
+            uow,
+            cmd,
+            item,
+            _sources(uow, thread_id, cmd.responds_to_id),
+            reason="moved into a thread, or made to answer an item, of that class",
+        )
     current = registry.get_item(uow.conn(), item.id)
     return CommandResult(
         stream_id=item.id,

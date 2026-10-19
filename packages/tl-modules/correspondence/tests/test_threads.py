@@ -270,3 +270,103 @@ def test_threading_an_item_that_is_in_a_thread_already_adds_nothing(world: CorrW
     assert again.events == made.events
     assert [n for n, _ in world.events_of(made.stream_id)] == before
     assert thread_of(world, made.key or "").item_count == thread.item_count == 1
+
+
+# --- moving an existing item never raises its class silently (ADR-0016 section 5) -------------
+
+
+def _privileged_world(world: CorrWorld) -> tuple[str, str, str, str]:
+    """A privileged item (thread and all) read by amy and ctl, and an internal item of bob's with
+    a thread of its own. Returns (privileged id, its thread id, internal id, internal thread id)."""
+    from tl_core.auth import accounts
+    from tl_core.auth.password import prepare_password
+
+    with open_uow(world.db) as uow:
+        for name in ("u", "amy", "ctl"):
+            accounts.create_account(
+                uow, username=name, display_name=name, kind="person", roles=["user"],
+                password=prepare_password("correct horse battery"), by="svc:test",
+            )  # fmt: skip
+    with frozen_today(MONDAY):
+        secret = world.receive("Counsel advice", received_on=MONDAY)
+        plain = world.receive("Site memo", received_on=MONDAY)
+    with cf.use_viewer(CONTROLLER):
+        world.set_class(secret.stream_id, "privileged", grant=["user:amy", "user:ctl"])
+        secret_thread = world.item(secret.key or "").thread_id
+    plain_thread = world.item(plain.key or "").thread_id
+    assert secret_thread and plain_thread
+    return secret.stream_id, secret_thread, plain.stream_id, plain_thread
+
+
+def _unchanged(world: CorrWorld, item_id: str, events: list[tuple[str, dict[str, Any]]]) -> None:
+    with cf.use_viewer(CONTROLLER):
+        with open_uow(world.db, readonly=True) as uow:
+            row = registry.get_item(uow.conn(), item_id)
+        assert row is not None and row.confidentiality == "internal"
+    assert world.events_of(item_id) == events
+
+
+def test_a_plain_user_cannot_file_an_item_in_a_higher_class_thread(world: CorrWorld) -> None:
+    from tl_core.auth.errors import ForbiddenError
+
+    _, secret_thread, plain_id, _ = _privileged_world(world)
+    before = world.events_of(plain_id)
+    amy = cf.Viewer(actor="user:amy", level=0, account="user:amy")
+    with cf.use_viewer(amy), pytest.raises(ForbiddenError, match="document_controller"):
+        world.run(
+            th.AssignThread, th.handle_assign_thread, stream_id=plain_id, thread_id=secret_thread
+        )
+    _unchanged(world, plain_id, before)
+
+
+def test_a_plain_user_cannot_make_an_item_answer_a_higher_class_item(world: CorrWorld) -> None:
+    from tl_core.auth.errors import ForbiddenError
+
+    secret_id, _, plain_id, plain_thread = _privileged_world(world)
+    before = world.events_of(plain_id)
+    amy = cf.Viewer(actor="user:amy", level=0, account="user:amy")
+    with cf.use_viewer(amy), pytest.raises(ForbiddenError):
+        world.run(
+            th.AssignThread,
+            th.handle_assign_thread,
+            stream_id=plain_id,
+            thread_id=plain_thread,
+            responds_to_id=secret_id,
+        )
+    _unchanged(world, plain_id, before)
+
+
+def test_a_plain_user_may_still_move_an_item_to_a_thread_of_its_own_class(
+    world: CorrWorld,
+) -> None:
+    with frozen_today(MONDAY):
+        one = world.receive("Programme", received_on=MONDAY)
+        two = world.receive("Site memo", received_on=MONDAY)
+    thread = world.item(one.key or "").thread_id
+    assert thread
+    world.run(th.AssignThread, th.handle_assign_thread, stream_id=two.stream_id, thread_id=thread)
+    assert world.item(two.key or "").thread_id == thread
+
+
+def test_a_controllers_move_into_a_higher_class_thread_raises_the_class_on_record(
+    world: CorrWorld,
+) -> None:
+    _, secret_thread, plain_id, _ = _privileged_world(world)
+    with cf.use_viewer(CONTROLLER):
+        world.run(
+            th.AssignThread, th.handle_assign_thread, stream_id=plain_id, thread_id=secret_thread
+        )
+        events = world.events_of(plain_id)
+        changed = [p for n, p in events if n == "Correspondence.ConfidentialityChanged"]
+        with open_uow(world.db, readonly=True) as uow:
+            row = registry.get_item(uow.conn(), plain_id)
+            assert row is not None and row.confidentiality == "privileged"
+            named = {c.account for c in registry.clearances_of(uow.conn(), plain_id)}
+    assert [(p["from_class"], p["to_class"]) for p in changed] == [("internal", "privileged")]
+    assert {"user:amy", "user:ctl", "user:u"} <= named
+    amy = cf.Viewer(actor="user:amy", level=0, account="user:amy")
+    with cf.use_viewer(amy), open_uow(world.db, readonly=True) as uow:
+        assert registry.get_item(uow.conn(), plain_id) is not None
+    nobody = cf.Viewer(actor="user:bob", level=0, account="user:bob")
+    with cf.use_viewer(nobody), open_uow(world.db, readonly=True) as uow:
+        assert registry.get_item(uow.conn(), plain_id) is None

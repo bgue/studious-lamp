@@ -28,6 +28,8 @@ from collections.abc import Sequence
 from typing import Literal
 
 from pydantic import ConfigDict, Field, field_validator
+from tl_core import confidentiality
+from tl_core.auth.errors import ForbiddenError
 from tl_core.auth.queries import find_account
 from tl_core.ledger import AppendResult, Event, NewEvent
 from tl_core.services.commands import Command, CommandResult
@@ -259,8 +261,40 @@ def handle_withdraw_clearance(uow: UnitOfWork, cmd: WithdrawClearance) -> Comman
 _RANK = {"internal": 0, "restricted": 1, "privileged": 2}
 
 
+def _sources_and_target(
+    uow: UnitOfWork, item: registry.ItemRow, source_ids: Sequence[str | None]
+) -> tuple[list[registry.ItemRow], str]:
+    """The readable items ``item`` is matched with, and the highest class of them and ``item``."""
+    sources = [
+        found
+        for found in (
+            registry.get_item(uow.conn(), i) for i in dict.fromkeys(i for i in source_ids if i)
+        )
+        if found is not None and found.id != item.id
+    ]
+    return sources, max([item.confidentiality, *(s.confidentiality for s in sources)], key=_rank)
+
+
+def guard_move(uow: UnitOfWork, item: registry.ItemRow, source_ids: Sequence[str | None]) -> None:
+    """Refuse to move an EXISTING ``item`` into a thread, or have it answer an item, of a higher
+    class unless the actor is a document controller or admin (ADR-0016 section 5: a class change is
+    a controller act, and a plain user must not be able to take an item out of its readers' sight
+    by filing it in a privileged thread). Nothing is appended. ``ForbiddenError``."""
+    _, target = _sources_and_target(uow, item, source_ids)
+    if _rank(target) > _rank(item.confidentiality) and confidentiality.current_viewer().level < 1:
+        raise ForbiddenError(
+            f"item {item.number} is {item.confidentiality}; filing it where the class is "
+            f"{target} would raise its class, which needs the document_controller or admin role"
+        )
+
+
 def inherit_from_matches(
-    uow: UnitOfWork, cmd: Command, item: registry.ItemRow, source_ids: Sequence[str | None]
+    uow: UnitOfWork,
+    cmd: Command,
+    item: registry.ItemRow,
+    source_ids: Sequence[str | None],
+    *,
+    reason: str = "it answers or joins an item of that class",
 ) -> list[Event]:
     """Raise ``item`` to the class of the items it was matched with (a reply is never lower).
 
@@ -271,14 +305,7 @@ def inherit_from_matches(
     the person who ran the command, who could not read the item otherwise. Returns the events
     appended (``[]`` when nothing is raised).
     """
-    sources = [
-        found
-        for found in (
-            registry.get_item(uow.conn(), i) for i in dict.fromkeys(i for i in source_ids if i)
-        )
-        if found is not None and found.id != item.id
-    ]
-    target = max([item.confidentiality, *(s.confidentiality for s in sources)], key=_rank)
+    sources, target = _sources_and_target(uow, item, source_ids)
     if _rank(target) <= _rank(item.confidentiality):
         return []
     events: list[NewEvent] = [
@@ -287,7 +314,7 @@ def inherit_from_matches(
             payload={
                 "from_class": item.confidentiality,
                 "to_class": target,
-                "reason": "it answers or joins an item of that class",
+                "reason": reason,
             },
         )
     ]
@@ -326,6 +353,7 @@ __all__ = [
     "handle_grant_clearance",
     "handle_set_confidentiality",
     "handle_withdraw_clearance",
+    "guard_move",
     "inherit_from_matches",
     "inherited_class",
     "require_person",
