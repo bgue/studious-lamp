@@ -217,7 +217,7 @@ def test_a_tool_call_works_with_the_token_and_fails_cleanly_after_revocation(wor
         world.factory,
         actor="agent:triage",
         authorize_hook=token_authorizer(world.factory, world.token),
-        lake_dir=world.harness.db.parent / "lake",
+        lake_dir=Path(world.harness.db).parent / "lake",
     )
     harness = McpHarness(world.harness.db, world.factory, server)
     assert harness.call("search_records", scope="project:P123")

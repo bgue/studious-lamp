@@ -5,6 +5,8 @@ Each test names the rule it pins. They run against the merged code of T07a, T07c
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from tl_adapters.db import open_uow
 from tl_core import confidentiality as cf
@@ -225,10 +227,10 @@ def test_a_post_that_tags_a_hidden_item_cannot_be_reacted_to_edited_or_retracted
         secret = world.receive("Commercial terms")
     with cf.use_viewer(CTL):
         world.set_class(secret.stream_id, "restricted")
-    base = {"actor": "user:ctl", "source": "test", "scope": PROJECT}
+    base: dict[str, Any] = {"actor": "user:ctl", "source": "test", "scope": PROJECT}
     with cf.use_viewer(CTL), open_uow(world.db) as uow:
         post = handle_post(uow, PostToFeed(**base, body=f"see #{secret.key} for terms")).stream_id
-    plain = {"actor": "user:ann", "source": "test", "scope": PROJECT}
+    plain: dict[str, Any] = {"actor": "user:ann", "source": "test", "scope": PROJECT}
     attempts = [
         (handle_react_to_post, ReactToPost(**plain, post_id=post, reaction="ack")),
         (handle_edit_post, EditPost(**plain, post_id=post, body="rewritten")),

@@ -427,7 +427,7 @@ def test_a_message_of_hundreds_of_thousands_of_tiny_parts_is_refused_before_it_i
     def never(*args: Any, **kwargs: Any) -> None:
         raise AssertionError("the parser was called")
 
-    monkeypatch.setattr(eml.BytesParser, "parsebytes", never)
+    monkeypatch.setattr("tl_mod_correspondence.eml.BytesParser.parsebytes", never)
     assert "too many parts" in refused(raw, EmlLimits(max_bytes=10**8))
 
 

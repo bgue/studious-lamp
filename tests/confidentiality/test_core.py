@@ -573,7 +573,7 @@ def test_a_command_on_a_link_with_a_hidden_end_answers_as_for_a_link_that_was_ne
             )
             .scalar_one()
         )
-    base = {"actor": "user:ann", "source": "test", "scope": SCOPE}
+    base: dict[str, Any] = {"actor": "user:ann", "source": "test", "scope": SCOPE}
     attempts = [
         (handle_verify_link, VerifyLink(**base, link_id=link_id)),
         (handle_flag_link, FlagLink(**base, link_id=link_id, status="stale", reason="x")),
