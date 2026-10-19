@@ -22,6 +22,7 @@ from typing import Any
 from pydantic import field_validator
 from sqlalchemy import text
 
+from tl_core import confidentiality
 from tl_core.feed.config import signal_tags
 from tl_core.feed.tags import (
     parse_tags,
@@ -115,11 +116,19 @@ class PostRow:
     reactions: dict[str, list[str]]  # reaction -> sorted actors
 
 
+def _post_visible(uow: UnitOfWork, post_id: str) -> bool:
+    """False when the post tags a record the viewer must not read: it is about that record, and
+    its text may hold the record's title (ADR-0016). A hidden post answers as an absent one."""
+    clause, params = confidentiality.not_hidden_item("CAST(:_post_id AS TEXT)")
+    found = uow.conn().execute(text(f"SELECT 1 WHERE {clause}"), {"_post_id": post_id, **params})
+    return found.first() is not None
+
+
 def load_post(uow: UnitOfWork, scope: str, post_id: str) -> PostRow:
     """The post, read in the caller's transaction. Raises ``PostNotFoundError`` if no post has this
     id in ``scope`` (a post of another project reads as absent)."""
     row = uow.conn().execute(_POST_SQL, {"post_id": post_id}).first()
-    if row is None or row.scope != scope:
+    if row is None or row.scope != scope or not _post_visible(uow, post_id):
         raise PostNotFoundError(f"no post {post_id!r} in scope {scope!r}")
     reactions: dict[str, list[str]] = json.loads(row.reactions_json)
     return PostRow(

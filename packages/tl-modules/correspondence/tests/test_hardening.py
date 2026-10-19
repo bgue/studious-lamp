@@ -207,3 +207,36 @@ def test_the_lock_out_path_is_for_a_controller_and_checks_the_scope_and_the_clas
     with cf.use_viewer(cf.Viewer(actor="user:other", level=1, account="user:other")):
         with pytest.raises(RecordNotFoundError):
             world.set_class(item, "internal")
+
+
+def test_a_post_that_tags_a_hidden_item_cannot_be_reacted_to_edited_or_retracted_by_a_stranger(
+    world: CorrWorld,
+) -> None:
+    from tl_core.services.errors import PostNotFoundError
+    from tl_core.services.feed import EditPost, PostToFeed, handle_edit_post, handle_post
+    from tl_core.services.feed_actions import (
+        ReactToPost,
+        RetractPost,
+        handle_react_to_post,
+        handle_retract_post,
+    )
+
+    with frozen_today(MONDAY):
+        secret = world.receive("Commercial terms")
+    with cf.use_viewer(CTL):
+        world.set_class(secret.stream_id, "restricted")
+    base = {"actor": "user:ctl", "source": "test", "scope": PROJECT}
+    with cf.use_viewer(CTL), open_uow(world.db) as uow:
+        post = handle_post(uow, PostToFeed(**base, body=f"see #{secret.key} for terms")).stream_id
+    plain = {"actor": "user:ann", "source": "test", "scope": PROJECT}
+    attempts = [
+        (handle_react_to_post, ReactToPost(**plain, post_id=post, reaction="ack")),
+        (handle_edit_post, EditPost(**plain, post_id=post, body="rewritten")),
+        (handle_retract_post, RetractPost(**plain, post_id=post, reason="x")),
+    ]
+    for handler, command in attempts:
+        with cf.use_viewer(ANN), open_uow(world.db) as uow:
+            with pytest.raises(PostNotFoundError):  # not "forbidden: written by user:ctl"
+                handler(uow, command)  # type: ignore[operator]
+    with cf.use_viewer(CTL), open_uow(world.db) as uow:  # one who may read the item can react
+        assert handle_react_to_post(uow, ReactToPost(**base, post_id=post, reaction="ack")).events
