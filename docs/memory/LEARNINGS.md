@@ -501,3 +501,12 @@ T14d came back blocked for two reasons that were both in the ticket: the provide
 - **L-P1-I7A-9** · 2026-10-18 · tags: tests, tooling
   A reference-first ticket is mutation-checked by changing one line of the reference at a time and running only that test file: six mutants of the CLI references were killed on the first run except one (a `mode` command that always wrote `act`, because the test only ever set `act`). A command that takes a value needs a test that sets two different values. Scripts: `scratchpad/<ws>/mut2.py` pattern (edit, run, restore in `finally`).
   Evidence: `packages/tl-cli/tests/` provided tests of T03b to T02b. Status: active
+- **L-P1-I7A-10** · 2026-10-19 · tags: tui, tooling
+  A Textual widget owns its `_id` attribute (and others with a leading underscore): a screen method named `_id` is silently called by the framework on mount with the wrong arguments and fails with "NoneType is not callable". Name helpers for the screen's own job (`_row_id`) and run the pilot test at once; the traceback names the line in your own code, not in Textual.
+  Evidence: `packages/tl-tui/src/tl_tui/widgets/integration_screen.py` (`_row_id`). Status: active
+- **L-P1-I7A-11** · 2026-10-19 · tags: process, tests
+  A test that needs two tickets' work (the app opens both screens) cannot stay in the tree while either is a stub: the tree must stay green for the implementers' `just check`. Hold it as `provided/supervisor-*.py.txt`, say so in the ticket README, and add it back at the merge of the last ticket. A golden-data ticket works the same way: the runner is provided, the data file is a one-case-per-category seed, and a coverage test says what is missing.
+  Evidence: `docs/tickets/P1-I7/provided/supervisor-test_app_integration.py.txt`, `T08-golden-contracts.md`. Status: active
+- **L-P1-I7A-12** · 2026-10-19 · tags: process, tooling
+  Run `just check` on the exact commit a ticket branches from, after the last route, event or setting change: `docs/reference/openapi.json` goes stale the moment a route is added and every implementer then fails `just check` on a base they did not touch (T02b was blocked this way). Regenerate with `uv run python -m tl_api.openapi`, commit, and only then write the DISPATCH.
+  Evidence: T02b eac15a2 blocked by the base, fixed by ea83ca9. Status: active
