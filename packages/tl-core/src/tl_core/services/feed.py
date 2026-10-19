@@ -30,7 +30,7 @@ from tl_core.feed.tags import (
     tags_to_payload,
 )
 from tl_core.feed.types import FEED_EDITED, FEED_POSTED, Importance, ParsedTag
-from tl_core.ledger import Event, NewEvent
+from tl_core.ledger import ConcurrencyError, Event, NewEvent
 from tl_core.numbering.config import numbering_for
 from tl_core.numbering.detect import KeyMatch, resolve_chips
 from tl_core.services.commands import Command, CommandResult
@@ -219,7 +219,28 @@ def handle_post(uow: UnitOfWork, cmd: PostToFeed) -> CommandResult:
     tags = parse_post(uow, cmd.scope, cmd.body)
     record_ids = record_ids_of(tags)
 
-    result = uow.append(
+    try:
+        result = _append_post(uow, cmd, post_id, correlation_id, tags, record_ids)
+    except ConcurrencyError:
+        if cmd.post_id is None:
+            raise
+        # The caller chose the id: say it is taken, not what holds it (a hidden record's stream
+        # would otherwise tell its version)
+        raise ConcurrencyError(f"post id {post_id!r} is already used") from None
+    events = list(result.events)
+    events += _suggest_references(uow, cmd, post_id, record_ids, result.events[0], correlation_id)
+    return CommandResult(stream_id=post_id, key=None, version=result.new_version, events=events)
+
+
+def _append_post(
+    uow: UnitOfWork,
+    cmd: PostToFeed,
+    post_id: str,
+    correlation_id: str,
+    tags: Any,
+    record_ids: Any,
+) -> Any:
+    return uow.append(
         stream_id=post_id,
         stream_type=POST_STREAM_TYPE,
         scope=cmd.scope,
@@ -242,9 +263,6 @@ def handle_post(uow: UnitOfWork, cmd: PostToFeed) -> CommandResult:
         correlation_id=correlation_id,
         causation_id=cmd.causation_id,
     )
-    events = list(result.events)
-    events += _suggest_references(uow, cmd, post_id, record_ids, result.events[0], correlation_id)
-    return CommandResult(stream_id=post_id, key=None, version=result.new_version, events=events)
 
 
 def handle_edit_post(uow: UnitOfWork, cmd: EditPost) -> CommandResult:

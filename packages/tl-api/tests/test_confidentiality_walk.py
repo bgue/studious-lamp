@@ -396,3 +396,35 @@ def test_every_command_on_a_hidden_link_post_or_record_answers_as_for_nothing(
         assert results[0].status_code == results[1].status_code, (name, results[0].text[:200])
         assert results[0].status_code == 404, (name, results[0].status_code, results[0].text[:200])
         assert results[0].text.replace(hidden_id, FAKE_ID) == results[1].text, name
+
+
+def test_repin_a_link_from_a_hidden_post_and_a_taken_post_id_say_nothing_about_the_record(
+    harness: Harness, seeded: Seed
+) -> None:
+    """RepinDocumentLink, AddLink from a hidden post and a post id that is taken (review)."""
+    client = harness.client_for(None)
+    headers = {"Authorization": f"Bearer {seeded.tokens['bob']}"}
+    link, post = seeded.extra_ids["link"], seeded.extra_ids["restricted_post"]
+    repin = [
+        _answer(client, "RepinDocumentLink", {"link_id": target, "pin": "A"}, headers)
+        for target in (link, FAKE_ID)
+    ]
+    assert [r.status_code for r in repin] == [404, 404], repin[0].text
+    assert repin[0].text.replace(link, FAKE_ID) == repin[1].text
+    adds = [
+        _answer(
+            client,
+            "AddLink",
+            {"from_id": target, "to_id": seeded.ids["open"], "relation": "references"},
+            headers,
+        )
+        for target in (post, FAKE_ID)
+    ]
+    assert [r.status_code for r in adds] == [404, 404], adds[0].text
+    assert adds[0].text.replace(post, FAKE_ID) == adds[1].text
+    taken = _answer(
+        client, "PostToFeed", {"post_id": seeded.ids["restricted"], "body": "hi"}, headers
+    )
+    assert (
+        taken.status_code == 409 and "found" not in taken.text
+    )  # says taken, not what or at what version
