@@ -95,6 +95,7 @@ class TlApp(App[None]):
         Binding("f9", "settings", "Settings", show=False),
         Binding("f10", "admin", "Accounts", show=False),
         Binding("f11", "derived", "Derived documents", show=False),
+        Binding("f12", "schedules", "Schedules", show=False),
         Binding("alt+left", "back", "Back", show=False),
         Binding("alt+right", "forward", "Forward", show=False),
     ]
@@ -570,6 +571,20 @@ class TlApp(App[None]):
                 is_controller=self.is_controller,
             )
         )
+
+    def action_schedules(self) -> None:
+        """The schedules of this project: snapshots, comparison, activities, look-ahead."""
+        if self._modal_open():
+            return
+        from tl_core.settings.layers import project_of_scope
+
+        from tl_tui.widgets.schedule_screen import ScheduleScreen
+
+        project = project_of_scope(self.scope)
+        if project is None:
+            self.notify("The schedules need a project.", severity="warning")
+            return
+        self.push_screen(ScheduleScreen(self.client, project, self.actor))
 
     def action_tags(self) -> None:
         """The tag register of this project: class, state, conformance, what each tag lacks."""

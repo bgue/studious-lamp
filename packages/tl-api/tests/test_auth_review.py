@@ -399,6 +399,12 @@ AGENT_MAY_NOT = {
     "admin.command.CompensatePublication",
     "control.command.PublishDerivedDocuments",
     "control.command.VoidDerivedDocument",
+    # the cost and schedule modules (P1-I4, ADR-0015): defining, publishing and voiding a schedule
+    # are the controller's, importing cost figures the admin's; an agent proposes
+    "admin.command.ImportCostSnapshot",
+    "control.command.DefineSchedule",
+    "control.command.PublishScheduleSnapshot",
+    "control.command.VoidScheduleSnapshot",
 }
 FEED_COMMANDS = {"PostToFeed", "EditPost", "RetractPost", "ReactToPost"}
 

@@ -21,6 +21,8 @@ Weekday = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 INJECT_EVENTS = ("material_late", "design_revision", "post")
 MAX_INJECT_COUNT = 20  # revisions one design_revision injection may force
 MAX_INJECT_KEYS = 16
+MAX_OPERATORS = 8
+OPERATOR_PATTERN = r"^(user|svc):[A-Za-z0-9._-]{1,64}$"
 MAX_INJECT_TEXT = 2000  # characters in any string argument, a post body included
 ROLE_NAMES = (
     "document_controller",
@@ -28,6 +30,7 @@ ROLE_NAMES = (
     "crew",
     "tag_clerk",
     "document_registrar",
+    "schedule_updater",
 )  # the project team, people (user:sim-*)
 ACTOR_NAMES = (*ROLE_NAMES, "assistant", "approver")  # the order they act in each day
 
@@ -123,6 +126,19 @@ class DocumentRegistrarParams(Strict):
     link_rate: float = Field(default=0.5, ge=0, le=1)  # chance per day of linking a tag
 
 
+class ScheduleUpdaterParams(Strict):
+    """A planner who sends the weekly P6 export of the project's schedule and links records to its
+    activities. The schedule is defined and its first snapshot published by a controller before the
+    run (a simulated person holds the `user` role only and cannot), and a worker builds what is
+    sent: ``Scenario.operators`` names them. Without the schedule the actor does nothing.
+    """
+
+    schedule: str = Field(default="MAIN", min_length=1, max_length=40)  # the schedule's code
+    update_day: Weekday | None = "mon"  # the weekday the export is sent; null is never
+    links_per_day: Count = CountRange(min=0, max=2)  # records linked to an activity a day
+    series_seed: int = Field(default=1, ge=0)  # which weekly series of files (tl_xer.synth.series)
+
+
 class AssistantParams(Strict):
     """The one simulated agent: proposes cross-references over MCP, changes no record itself."""
 
@@ -143,6 +159,7 @@ class ActorsConfig(Strict):
     crew: CrewParams | None = CrewParams()
     tag_clerk: TagClerkParams | None = None  # off unless named: needs the standards loaded
     document_registrar: DocumentRegistrarParams | None = None  # off unless named: needs them too
+    schedule_updater: ScheduleUpdaterParams | None = None  # off unless named: needs a schedule
     assistant: AssistantParams | None = None  # off unless the scenario names it: needs MCP
     approver: ApproverParams | None = None
 
@@ -211,6 +228,21 @@ class Scenario(Strict):
     template: str = Field(default="small-piping", pattern=r"^[a-z0-9][a-z0-9._-]*$")
     actors: ActorsConfig = ActorsConfig()
     inject: list[InjectSpec] = []
+    #: People and services that set the run up by hand or work beside it (the controller who
+    #: defines and publishes a schedule, the worker that builds it): ``user:<name>`` or
+    #: ``svc:<name>``. What they write is not held against the run by `sim_assert`.
+    operators: list[Annotated[str, Field(pattern=OPERATOR_PATTERN)]] = Field(
+        default=[], max_length=MAX_OPERATORS
+    )
+
+    @field_validator("operators")
+    @classmethod
+    def _not_simulated(cls, value: list[str]) -> list[str]:
+        """A simulated actor is never an operator: naming one would excuse what it writes."""
+        for name in value:
+            if name.startswith("user:sim-"):
+                raise ValueError(f"{name} is a simulated actor; operators are the people beside it")
+        return value
 
     @field_validator("working_days")
     @classmethod

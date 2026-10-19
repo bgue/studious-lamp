@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 import httpx2
 import pytest
-from suite import SCOPE, START, Suite
+from suite import SCOPE, START, Suite, build_suite, close_suite
 from tl_core.services.commands import CreateRecord
 from tl_core.services.errors import GuardFailedError, UnknownTransitionError
-from tl_sim.client import ProposeUnavailableError, install_stamp
+from tl_mod_schedule import testing as schedule_testing
+from tl_mod_schedule.testing import ScheduleWorld
+from tl_sim.client import ProposeUnavailableError, ScheduleDesk, install_stamp
 from tl_sim.clock import SimClock
+from tl_xer.synth import make_xer, series
 
 CREW = "user:sim-crew"
 
@@ -134,3 +138,65 @@ def test_install_stamp_adds_the_header_to_every_request() -> None:
     clock.tick()
     http.get("/b")
     assert seen == ["2026-11-02T07:00:00+00:00", "2026-11-02T07:01:00+00:00"]
+
+
+# --- the schedule desk (P1-I4) --------------------------------------------------------------------
+
+
+def test_the_schedule_desk_sends_an_update_and_links_a_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
+    monkeypatch.setattr(schedule_testing, "PROJECT", SCOPE)
+    monkeypatch.setitem(schedule_testing.BASE, "scope", SCOPE)
+    suite = build_suite(tmp_path, objects=True)
+    try:
+        controller = ScheduleWorld(suite.db, tmp_path / "objects")
+        controller.define(owner="Planning")
+        controller.publish(controller.upload(make_xer(series(1, 1)[0])))
+        client = suite.client("user:sim-schedule_updater")
+        [listed] = client.schedules()
+        assert (listed["code"], listed["current_snapshot_number"], listed["snapshot_count"]) == (
+            "MAIN",
+            1,
+            1,
+        )
+        assert [(s["number"], s["state"]) for s in client.snapshots_of("MAIN")] == [
+            (1, "Published")
+        ]
+        activities = client.current_activities("MAIN", limit=3)
+        assert len(activities) == 3 and {"activity_id", "name"} <= set(activities[0])
+        opened = client.open_snapshot(listed["id"])
+        assert opened["key"] == "MAIN#2"
+        attached = client.attach_snapshot_file(
+            opened["id"], "update.xer", make_xer(series(1, 2)[1])
+        )
+        assert attached["size"] > 0
+        client.start_snapshot(opened["id"])
+        second = client.snapshots_of("MAIN")[0]
+        assert (second["key"], second["source_name"], second["requested_by"]) == (
+            "MAIN#2",
+            "update.xer",
+            "user:sim-schedule_updater",
+        )
+        record = suite.client("user:sim-planner").create_record(
+            record_type="core.Record", title="Activity 001 x"
+        )
+        first = client.link_activity(record["id"], listed["id"], activities[0]["activity_id"])
+        assert first["ref_created"] is True
+        again = suite.client("user:sim-planner").create_record(
+            record_type="core.Record", title="Activity 002 x"
+        )
+        assert (
+            client.link_activity(again["id"], listed["id"], activities[0]["activity_id"])[
+                "ref_created"
+            ]
+            is False
+        )
+    finally:
+        close_suite(suite)
+
+
+def test_the_schedule_desk_cannot_define_or_publish() -> None:
+    forbidden = {"define_schedule", "publish_schedule_snapshot", "void_schedule_snapshot"}
+    assert forbidden.isdisjoint(set(dir(ScheduleDesk)))

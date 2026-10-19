@@ -46,6 +46,24 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.ActivityRef.Defined.v1",
+      "event_type": "ActivityRef.Defined",
+      "payload_class": "ActivityRefDefinedPayload",
+      "sample": "samples/ActivityRef.Defined.v1.json",
+      "schema": "schemas/ActivityRef.Defined.v1.json",
+      "title": "The first link to an activity made its reference.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ActivityRef.PresenceChanged.v1",
+      "event_type": "ActivityRef.PresenceChanged",
+      "payload_class": "ActivityRefPresencePayload",
+      "sample": "samples/ActivityRef.PresenceChanged.v1.json",
+      "schema": "schemas/ActivityRef.PresenceChanged.v1.json",
+      "title": "A publication found the activity gone from the schedule (present false) or back (present true).",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.AgentToken.Issued.v1",
       "event_type": "AgentToken.Issued",
       "payload_class": "AgentTokenIssuedPayload",
@@ -79,6 +97,42 @@
       "sample": "samples/CodeValue.Defined.v1.json",
       "schema": "schemas/CodeValue.Defined.v1.json",
       "title": "A value was added to a code list.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CostCode.Defined.v1",
+      "event_type": "CostCode.Defined",
+      "payload_class": "CostCodeDefinedPayload",
+      "sample": "samples/CostCode.Defined.v1.json",
+      "schema": "schemas/CostCode.Defined.v1.json",
+      "title": "A cost code was registered (by the first snapshot that names it).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CostCode.MeasuresRecorded.v1",
+      "event_type": "CostCode.MeasuresRecorded",
+      "payload_class": "CostCodeMeasuresRecordedPayload",
+      "sample": "samples/CostCode.MeasuresRecorded.v1.json",
+      "schema": "schemas/CostCode.MeasuresRecorded.v1.json",
+      "title": "A snapshot stated the figures of a cost code.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CostCode.Revised.v1",
+      "event_type": "CostCode.Revised",
+      "payload_class": "CostCodeRevisedPayload",
+      "sample": "samples/CostCode.Revised.v1.json",
+      "schema": "schemas/CostCode.Revised.v1.json",
+      "title": "A snapshot changed the description, parent or unit of measure of an existing cost code.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.CostSnapshot.Defined.v1",
+      "event_type": "CostSnapshot.Defined",
+      "payload_class": "CostSnapshotDefinedPayload",
+      "sample": "samples/CostSnapshot.Defined.v1.json",
+      "schema": "schemas/CostSnapshot.Defined.v1.json",
+      "title": "A period of figures was imported.",
       "version": 1
     },
     {
@@ -529,6 +583,96 @@
       "sample": "samples/Revision.Superseded.v1.json",
       "schema": "schemas/Revision.Superseded.v1.json",
       "title": "An issued revision stopped being current because a later one replaced it.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Schedule.Defined.v1",
+      "event_type": "Schedule.Defined",
+      "payload_class": "ScheduleDefinedPayload",
+      "sample": "samples/Schedule.Defined.v1.json",
+      "schema": "schemas/Schedule.Defined.v1.json",
+      "title": "A schedule was registered.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Schedule.OrphansChecked.v1",
+      "event_type": "Schedule.OrphansChecked",
+      "payload_class": "ScheduleOrphansCheckedPayload",
+      "sample": "samples/Schedule.OrphansChecked.v1.json",
+      "schema": "schemas/Schedule.OrphansChecked.v1.json",
+      "title": "One run of the job that makes the links to a schedule's activities agree with its current snapshot (ADR-0015 section 5): activity references whose presence changed, links flagged stale (their activity is gone) and links restored (it came back).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Schedule.SnapshotPublished.v1",
+      "event_type": "Schedule.SnapshotPublished",
+      "payload_class": "ScheduleSnapshotPublishedPayload",
+      "sample": "samples/Schedule.SnapshotPublished.v1.json",
+      "schema": "schemas/Schedule.SnapshotPublished.v1.json",
+      "title": "A snapshot became the schedule's current one.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScheduleSnapshot.BuildFailed.v1",
+      "event_type": "ScheduleSnapshot.BuildFailed",
+      "payload_class": "ScheduleSnapshotBuildFailedPayload",
+      "sample": "samples/ScheduleSnapshot.BuildFailed.v1.json",
+      "schema": "schemas/ScheduleSnapshot.BuildFailed.v1.json",
+      "title": "A build attempt failed (a limit breach, a crash, a lease that ran out).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScheduleSnapshot.BuildStarted.v1",
+      "event_type": "ScheduleSnapshot.BuildStarted",
+      "payload_class": "ScheduleSnapshotBuildStartedPayload",
+      "sample": "samples/ScheduleSnapshot.BuildStarted.v1.json",
+      "schema": "schemas/ScheduleSnapshot.BuildStarted.v1.json",
+      "title": "A worker claimed the build.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScheduleSnapshot.Built.v1",
+      "event_type": "ScheduleSnapshot.Built",
+      "payload_class": "ScheduleSnapshotBuiltPayload",
+      "sample": "samples/ScheduleSnapshot.Built.v1.json",
+      "schema": "schemas/ScheduleSnapshot.Built.v1.json",
+      "title": "The file was read and passed the XER document schema; the typed rows were written.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScheduleSnapshot.Defined.v1",
+      "event_type": "ScheduleSnapshot.Defined",
+      "payload_class": "ScheduleSnapshotDefinedPayload",
+      "sample": "samples/ScheduleSnapshot.Defined.v1.json",
+      "schema": "schemas/ScheduleSnapshot.Defined.v1.json",
+      "title": "A snapshot was opened for a schedule; the XER file is attached next.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScheduleSnapshot.MadeCurrent.v1",
+      "event_type": "ScheduleSnapshot.MadeCurrent",
+      "payload_class": "ScheduleSnapshotMadeCurrentPayload",
+      "sample": "samples/ScheduleSnapshot.MadeCurrent.v1.json",
+      "schema": "schemas/ScheduleSnapshot.MadeCurrent.v1.json",
+      "title": "A snapshot was made the schedule's current one.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScheduleSnapshot.Queued.v1",
+      "event_type": "ScheduleSnapshot.Queued",
+      "payload_class": "ScheduleSnapshotQueuedPayload",
+      "sample": "samples/ScheduleSnapshot.Queued.v1.json",
+      "schema": "schemas/ScheduleSnapshot.Queued.v1.json",
+      "title": "The build of a snapshot was queued: the XER file is fixed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.ScheduleSnapshot.Rejected.v1",
+      "event_type": "ScheduleSnapshot.Rejected",
+      "payload_class": "ScheduleSnapshotRejectedPayload",
+      "sample": "samples/ScheduleSnapshot.Rejected.v1.json",
+      "schema": "schemas/ScheduleSnapshot.Rejected.v1.json",
+      "title": "The file was read and is not a valid schedule snapshot (or could not be read): the snapshot is Invalid and no rows were written.",
       "version": 1
     },
     {

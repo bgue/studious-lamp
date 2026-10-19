@@ -16,7 +16,9 @@ from typing import Annotated, NoReturn
 import typer
 from sqlalchemy import Connection
 from sqlalchemy.exc import SQLAlchemyError
-from tl_adapters.db import DbTarget, display_target, is_postgres, make_engine
+from tl_adapters.db import DbTarget, display_target, is_postgres, make_engine, open_uow
+from tl_adapters.objectstore import make_object_store, object_secret
+from tl_core.files.service import FileService
 from tl_core.services.errors import ServiceError
 from tl_core.settings.resolver import value_of
 from tl_core.settings.values import duration_seconds
@@ -25,12 +27,16 @@ from tl_lake import (
     LakeConfig,
     LakeError,
     LakeQueryService,
+    RawReader,
     SyncResult,
+    XerSyncResult,
     describe_lake,
     lake_status,
     read_snapshot,
     sync_lake,
+    sync_xer,
 )
+from tl_mod_schedule.store import SnapshotFiles
 
 app = typer.Typer(help="Sync the ledger into the lake and query it.", no_args_is_help=True)
 
@@ -105,6 +111,57 @@ def _print_sync(result: SyncResult) -> None:
     typer.echo(f"silver rows: {counts}")
 
 
+def _raw_reader(db: DbTarget) -> RawReader | None:
+    """Reads the raw bundles of schedule snapshots from the configured object store, or ``None``
+    when there is none (the bronze tables of the XER files then wait)."""
+    try:
+        store = SnapshotFiles(FileService(make_object_store(), secret=object_secret()))
+    except ValueError:
+        return None
+
+    def read(scope: str, file_id: str, sha256: str) -> bytes:
+        with open_uow(db, readonly=True) as uow:
+            return store.read_raw(uow, scope, file_id)
+
+    return read
+
+
+def _print_xer(result: XerSyncResult) -> None:
+    """The schedule tables line, only when there is something to say (a ledger with no schedule
+    snapshots prints nothing)."""
+    if result.loaded or result.dropped or result.bronze:
+        typer.echo(
+            f"schedule snapshots: loaded {result.loaded} ({result.activity_rows} activities), "
+            f"dropped {result.dropped}, bronze tables for {result.bronze} "
+            f"({result.bronze_rows} rows) in snapshot {result.snapshot_id}"
+        )
+    if result.waiting:
+        typer.echo(
+            "schedule snapshots waiting for their typed rows (`tl xer reconcile`): "
+            f"{result.waiting}"
+        )
+    if result.bronze_waiting:
+        typer.echo(
+            f"schedule snapshots without bronze tables (no object store is configured): "
+            f"{result.bronze_waiting}"
+        )
+    if result.failed:
+        typer.echo(
+            f"schedule snapshots whose raw tables could not be loaded (see `_tl_xer_failed` in "
+            f"the lake): {result.failed}"
+        )
+
+
+def _sync_all(ctx: typer.Context, *, rebuild: bool = False) -> None:
+    """One sync of the ledger's events and records, then of the schedule snapshots."""
+    db: DbTarget = ctx.obj
+    with _ledger_snapshot(ctx) as conn:
+        result = sync_lake(_config(ctx), conn, rebuild=rebuild)
+    _print_sync(result)
+    with _ledger_snapshot(ctx) as conn:
+        _print_xer(sync_xer(_config(ctx), conn, _raw_reader(db)))
+
+
 def watch_loop(
     run_once: Callable[[], None],
     interval: Callable[[], float],
@@ -165,15 +222,12 @@ def sync(
     if max_runs is not None and not watch:
         _fail("--max-runs only applies with --watch")
     if not watch:
-        with _lake_errors(), _ledger_snapshot(ctx) as conn:
-            result = sync_lake(_config(ctx), conn)
-        _print_sync(result)
+        with _lake_errors():
+            _sync_all(ctx)
         return
 
     def once() -> None:
-        with _ledger_snapshot(ctx) as conn:
-            result = sync_lake(_config(ctx), conn)
-        _print_sync(result)
+        _sync_all(ctx)
 
     try:
         watch_loop(once, lambda: _interval_seconds(ctx), lambda s: _sleep(s), max_runs)
@@ -189,9 +243,8 @@ def rebuild(
     """Delete the lake's catalog and data files and load everything again from the ledger."""
     if not yes:
         _fail("rebuild deletes the lake's catalog and data files; pass --yes to continue")
-    with _lake_errors(), _ledger_snapshot(ctx) as conn:
-        result = sync_lake(_config(ctx), conn, rebuild=True)
-    _print_sync(result)
+    with _lake_errors():
+        _sync_all(ctx, rebuild=True)
 
 
 @app.command("status")

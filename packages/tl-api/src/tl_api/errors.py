@@ -24,9 +24,11 @@ from tl_core.query import QuerySyntaxError
 from tl_core.services import errors as svc
 from tl_core.webhooks import subscriptions as wh
 from tl_core.workflow.engine import GuardResult
+from tl_mod_cost import errors as cost
 from tl_mod_documents import errors as doc
 from tl_mod_documents.imports.apply import ImportRefusedError
 from tl_mod_engineering import errors as eng
+from tl_mod_schedule import errors as sched
 
 #: What a client is told when an installed extractor cannot be loaded (detail: the server log).
 EXTRACTOR_UNAVAILABLE = (
@@ -215,6 +217,32 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(ExtractorLoadError, "extractor_unavailable", 503),
         s(doc.PublishRefusedError, "publish_refused", 422),
         s(doc.CompensationRefusedError, "compensation_refused", 409),
+        # --- cost module (P1-I4): cost codes and period snapshots -------------------------------
+        s(cost.CostError, "cost_error", 422),
+        s(cost.CostScopeError, "cost_scope", 422),
+        s(cost.InvalidCostSnapshotError, "invalid_cost_snapshot", 422),
+        s(cost.CostCodeNotFoundError, "cost_code_not_found", 404),
+        s(cost.CostImportRefusedError, "cost_import_refused", 422),
+        s(cost.CostFileError, "cost_file", 422),
+        # --- schedule module (P1-I4): schedules, XER snapshots, activity links ---------------
+        s(sched.ScheduleError, "schedule_error", 422),
+        s(sched.ScheduleScopeError, "schedule_scope", 422),
+        s(sched.InvalidScheduleError, "invalid_schedule", 422),
+        s(sched.ScheduleNotFoundError, "schedule_not_found", 404),
+        s(sched.SnapshotNotFoundError, "snapshot_not_found", 404),
+        s(sched.SnapshotStateError, "snapshot_state", 409),
+        s(sched.SourceFileError, "source_file", 422),
+        s(sched.DuplicateSnapshotError, "duplicate_snapshot", 409),
+        s(sched.StaleSnapshotError, "stale_snapshot", 409),
+        s(sched.ActivityNotFoundError, "activity_not_found", 404),
+        s(sched.NoCurrentSnapshotError, "no_current_snapshot", 409),
+        s(sched.ScheduleNotConfiguredError, "schedule_unavailable", 503),
+        s(sched.TablesMismatchError, "tables_mismatch", 409),
+        s(sched.TooManyLinksError, "too_many_links", 409),
+        s(sched.TooManyOpenSnapshotsError, "too_many_open_snapshots", 409),
+        s(sched.TooManyReferencesError, "too_many_references", 409),
+        s(sched.FutureDataDateError, "future_data_date", 409),
+        s(sched.TypedRowsMissingError, "typed_rows_missing", 409),
     )
 
 
@@ -319,6 +347,10 @@ def body_for(exc: BaseException) -> tuple[int, ErrorBody] | None:
         ),
     ):
         body.issues = list(exc.problems)
+    elif isinstance(exc, cost.CostImportRefusedError):
+        body.issues = list(exc.issues)
+    elif isinstance(exc, cost.CostFileError):
+        body.issues = [{"code": exc.code, "row": exc.row}]
     elif isinstance(exc, auth.AccountLockedError):
         body.locked_until = exc.locked_until
     return spec.status, body
@@ -364,6 +396,16 @@ def exception_for(status: int, body: dict[str, Any]) -> Exception:
             doc.CompensationRefusedError,
         ):
             return spec.exc(message, [str(i) for i in body.get("issues") or []])
+        if spec.exc is cost.CostImportRefusedError:
+            return cost.CostImportRefusedError(message, [str(i) for i in body.get("issues") or []])
+        if spec.exc is cost.CostFileError:
+            first = next((i for i in body.get("issues") or [] if isinstance(i, dict)), {})
+            row = first.get("row")
+            return cost.CostFileError(
+                str(first.get("code") or "cost_file"),
+                message,
+                row if isinstance(row, int) else None,
+            )
         if spec.exc is auth.AccountLockedError:
             until = body.get("locked_until")
             return auth.AccountLockedError(message, None if until is None else str(until))

@@ -89,6 +89,13 @@ KEYMAP: tuple[KeyEntry, ...] = (
         "TlApp",
         "f11",
     ),
+    KeyEntry(
+        "App",
+        "F12",
+        "Schedules: snapshots, comparison, activities, look-ahead, orphaned links",
+        "TlApp",
+        "f12",
+    ),
     KeyEntry("App", "Ctrl+Q", "Quit"),
     KeyEntry(
         "Grid",

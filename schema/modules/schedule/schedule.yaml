@@ -1,0 +1,73 @@
+id: https://example.org/throughline/modules/schedule/schedule
+name: tl_mod_schedule_schedule
+title: Schedules (brief 9, M11)
+description: >-
+  A `Schedule` is the series of XER snapshots of one P6 project. It points at the current snapshot.
+  Spec: docs/modules/schedule/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: schedule
+
+enums:
+  ScheduleType:
+    description: What the schedule is used for (brief 9, M11).
+    permissible_values:
+      baseline:
+        description: The approved plan the others are compared with.
+      current:
+        description: The updated schedule, a new snapshot each data date.
+      look_ahead:
+        description: A short-interval schedule cut from the current one.
+      what_if:
+        description: A scenario that is not the plan.
+
+classes:
+  Schedule:
+    description: >-
+      One schedule of a project. Record type `schedule.Schedule`; its key is its code (`MAIN`) and its title
+      its name. `p6_project` names the P6 project (`proj_short_name`) to read when an XER file holds more than one.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "schedule.Schedule"
+      tl:ix_scope_code: "scope, code"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      code:
+        required: true
+        description: The schedule's code; the record key.
+      schedule_type:
+        range: ScheduleType
+        required: true
+        description: baseline, current, look_ahead or what_if.
+      owner:
+        description: Who owns the schedule (a planner or a party), free text.
+      p6_project:
+        description: The P6 project short name to read from an XER file; null reads the only project of the file.
+      current_snapshot_id:
+        range: Ulid
+        description: The published snapshot; null before the first publication.
+      current_snapshot_number:
+        range: integer
+        description: Its number in the schedule.
+      current_data_date:
+        description: Its data date, ISO local date-time.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

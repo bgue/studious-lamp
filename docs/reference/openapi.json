@@ -183,6 +183,400 @@
         "title": "AccountView",
         "type": "object"
       },
+      "ActivityDetail": {
+        "description": "One activity with the relationships that name it.",
+        "properties": {
+          "activity": {
+            "$ref": "#/components/schemas/ActivityRow"
+          },
+          "predecessors": {
+            "items": {
+              "$ref": "#/components/schemas/RelationshipRow"
+            },
+            "title": "Predecessors",
+            "type": "array"
+          },
+          "snapshot_key": {
+            "title": "Snapshot Key",
+            "type": "string"
+          },
+          "snapshot_number": {
+            "title": "Snapshot Number",
+            "type": "integer"
+          },
+          "successors": {
+            "items": {
+              "$ref": "#/components/schemas/RelationshipRow"
+            },
+            "title": "Successors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "snapshot_key",
+          "snapshot_number",
+          "activity",
+          "predecessors",
+          "successors"
+        ],
+        "title": "ActivityDetail",
+        "type": "object"
+      },
+      "ActivityLink": {
+        "description": "One activity link of a record and what it resolves to now.",
+        "properties": {
+          "link_id": {
+            "title": "Link Id",
+            "type": "string"
+          },
+          "pin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pin"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "ref_key": {
+            "title": "Ref Key",
+            "type": "string"
+          },
+          "resolution": {
+            "$ref": "#/components/schemas/Resolution"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "link_id",
+          "status",
+          "pin",
+          "reason",
+          "ref_key",
+          "resolution"
+        ],
+        "title": "ActivityLink",
+        "type": "object"
+      },
+      "ActivityPage": {
+        "description": "A page of a snapshot's activities and how many matched in all.",
+        "properties": {
+          "data_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Date"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "snapshot_key": {
+            "title": "Snapshot Key",
+            "type": "string"
+          },
+          "snapshot_number": {
+            "title": "Snapshot Number",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "snapshot_key",
+          "snapshot_number",
+          "data_date",
+          "total",
+          "offset",
+          "rows"
+        ],
+        "title": "ActivityPage",
+        "type": "object"
+      },
+      "ActivityRow": {
+        "description": "One activity of a snapshot (``sched_activity``). Durations and floats are hours.",
+        "properties": {
+          "activity_id": {
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "actual_finish": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Finish"
+          },
+          "actual_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Start"
+          },
+          "calendar_id": {
+            "title": "Calendar Id",
+            "type": "string"
+          },
+          "constraint_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Constraint Date"
+          },
+          "constraint_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Constraint Type"
+          },
+          "critical": {
+            "title": "Critical",
+            "type": "boolean"
+          },
+          "early_finish": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Early Finish"
+          },
+          "early_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Early Start"
+          },
+          "free_float_hr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Float Hr"
+          },
+          "late_finish": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Late Finish"
+          },
+          "late_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Late Start"
+          },
+          "longest_path": {
+            "title": "Longest Path",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "original_duration_hr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Duration Hr"
+          },
+          "percent_complete": {
+            "title": "Percent Complete",
+            "type": "number"
+          },
+          "percent_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent Type"
+          },
+          "remaining_duration_hr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining Duration Hr"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "target_finish": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Finish"
+          },
+          "target_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Start"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          },
+          "task_type": {
+            "title": "Task Type",
+            "type": "string"
+          },
+          "total_float_hr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Float Hr"
+          },
+          "wbs_id": {
+            "title": "Wbs Id",
+            "type": "string"
+          },
+          "wbs_path": {
+            "title": "Wbs Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "activity_id",
+          "task_id",
+          "name",
+          "wbs_id",
+          "wbs_path",
+          "task_type",
+          "status",
+          "calendar_id",
+          "original_duration_hr",
+          "remaining_duration_hr",
+          "early_start",
+          "early_finish",
+          "late_start",
+          "late_finish",
+          "actual_start",
+          "actual_finish",
+          "target_start",
+          "target_finish",
+          "total_float_hr",
+          "free_float_hr",
+          "percent_complete",
+          "percent_type",
+          "constraint_type",
+          "constraint_date",
+          "critical",
+          "longest_path",
+          "seq"
+        ],
+        "title": "ActivityRow",
+        "type": "object"
+      },
       "AddCodeValueBody": {
         "additionalProperties": false,
         "properties": {
@@ -884,6 +1278,76 @@
           "body"
         ],
         "title": "BodyView",
+        "type": "object"
+      },
+      "Brief": {
+        "description": "An activity added or removed.",
+        "properties": {
+          "activity_id": {
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "critical": {
+            "title": "Critical",
+            "type": "boolean"
+          },
+          "early_finish": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Early Finish"
+          },
+          "early_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Early Start"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total_float_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Float Days"
+          },
+          "wbs_path": {
+            "title": "Wbs Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "activity_id",
+          "name",
+          "wbs_path",
+          "status",
+          "early_start",
+          "early_finish",
+          "total_float_days",
+          "critical"
+        ],
+        "title": "Brief",
         "type": "object"
       },
       "CancelJobBody": {
@@ -1629,6 +2093,139 @@
         "title": "CommandResult",
         "type": "object"
       },
+      "Comparison": {
+        "properties": {
+          "added": {
+            "items": {
+              "$ref": "#/components/schemas/Brief"
+            },
+            "title": "Added",
+            "type": "array"
+          },
+          "critical_changes": {
+            "items": {
+              "$ref": "#/components/schemas/CriticalChange"
+            },
+            "title": "Critical Changes",
+            "type": "array"
+          },
+          "cut": {
+            "default": false,
+            "title": "Cut",
+            "type": "boolean"
+          },
+          "data_date_shift_days": {
+            "title": "Data Date Shift Days",
+            "type": "integer"
+          },
+          "date_shifts": {
+            "items": {
+              "$ref": "#/components/schemas/DateShift"
+            },
+            "title": "Date Shifts",
+            "type": "array"
+          },
+          "duration_changes": {
+            "items": {
+              "$ref": "#/components/schemas/DurationChange"
+            },
+            "title": "Duration Changes",
+            "type": "array"
+          },
+          "finish_shift_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finish Shift Days"
+          },
+          "float_changes": {
+            "items": {
+              "$ref": "#/components/schemas/FloatChange"
+            },
+            "title": "Float Changes",
+            "type": "array"
+          },
+          "latest_finish_new": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Finish New"
+          },
+          "latest_finish_old": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Finish Old"
+          },
+          "logic_changes": {
+            "items": {
+              "$ref": "#/components/schemas/LogicChange"
+            },
+            "title": "Logic Changes",
+            "type": "array"
+          },
+          "new": {
+            "$ref": "#/components/schemas/Header"
+          },
+          "old": {
+            "$ref": "#/components/schemas/Header"
+          },
+          "progress_changes": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressChange"
+            },
+            "title": "Progress Changes",
+            "type": "array"
+          },
+          "removed": {
+            "items": {
+              "$ref": "#/components/schemas/Brief"
+            },
+            "title": "Removed",
+            "type": "array"
+          },
+          "totals": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Totals",
+            "type": "object"
+          }
+        },
+        "required": [
+          "old",
+          "new",
+          "data_date_shift_days",
+          "latest_finish_old",
+          "latest_finish_new",
+          "finish_shift_days",
+          "added",
+          "removed",
+          "date_shifts",
+          "float_changes",
+          "logic_changes",
+          "progress_changes",
+          "duration_changes",
+          "critical_changes"
+        ],
+        "title": "Comparison",
+        "type": "object"
+      },
       "CompensatePublicationBody": {
         "additionalProperties": false,
         "properties": {
@@ -2052,6 +2649,365 @@
           "created_at"
         ],
         "title": "ContentView",
+        "type": "object"
+      },
+      "CostCodeDetailView": {
+        "description": "A code with its children's codes and the figures of every snapshot, oldest first.",
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "children": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "figures": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Figures",
+            "type": "object"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/SnapshotValueView"
+            },
+            "title": "History",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "level": {
+            "title": "Level",
+            "type": "integer"
+          },
+          "parent_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Code"
+          },
+          "period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "uom": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uom"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "title",
+          "parent_code",
+          "level",
+          "uom",
+          "is_active",
+          "period",
+          "as_of",
+          "figures",
+          "children",
+          "history"
+        ],
+        "title": "CostCodeDetailView",
+        "type": "object"
+      },
+      "CostCodeView": {
+        "description": "A cost code with the latest figures a snapshot stated for it.",
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "figures": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Figures",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "level": {
+            "title": "Level",
+            "type": "integer"
+          },
+          "parent_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Code"
+          },
+          "period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "uom": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uom"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "title",
+          "parent_code",
+          "level",
+          "uom",
+          "is_active",
+          "period",
+          "as_of",
+          "figures"
+        ],
+        "title": "CostCodeView",
+        "type": "object"
+      },
+      "CostRow": {
+        "additionalProperties": false,
+        "description": "One code of a snapshot: what the cost system says about it for the period.\n\n``description``, ``parent_code`` and ``uom`` are null when the file does not state them\n(a new code then has the code as its title, no parent and no unit; an existing code keeps what\nit has). ``figures`` holds only the measures the file states, keyed by the fifteen names of\n``MEASURE_COLUMNS``; a figure the file does not state is absent, never zero.",
+        "properties": {
+          "code": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "figures": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Figures",
+            "type": "object"
+          },
+          "parent_code": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Code"
+          },
+          "uom": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uom"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "CostRow",
+        "type": "object"
+      },
+      "CostSnapshotView": {
+        "properties": {
+          "as_of": {
+            "title": "As Of",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "new_code_count": {
+            "title": "New Code Count",
+            "type": "integer"
+          },
+          "period": {
+            "title": "Period",
+            "type": "string"
+          },
+          "revised_code_count": {
+            "title": "Revised Code Count",
+            "type": "integer"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "row_count": {
+            "title": "Row Count",
+            "type": "integer"
+          },
+          "source_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Name"
+          },
+          "source_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Sha256"
+          }
+        },
+        "required": [
+          "id",
+          "period",
+          "revision",
+          "key",
+          "as_of",
+          "currency",
+          "source_name",
+          "source_sha256",
+          "row_count",
+          "new_code_count",
+          "revised_code_count",
+          "created_at"
+        ],
+        "title": "CostSnapshotView",
         "type": "object"
       },
       "CountOut": {
@@ -2676,6 +3632,108 @@
         "title": "CreateTransmittalBody",
         "type": "object"
       },
+      "CriticalChange": {
+        "properties": {
+          "activity_id": {
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "new_float_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Float Days"
+          },
+          "old_float_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Float Days"
+          }
+        },
+        "required": [
+          "activity_id",
+          "name",
+          "direction",
+          "old_float_days",
+          "new_float_days"
+        ],
+        "title": "CriticalChange",
+        "type": "object"
+      },
+      "DateShift": {
+        "properties": {
+          "activity_id": {
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "finish_shift_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finish Shift Days"
+          },
+          "largest_days": {
+            "title": "Largest Days",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "shifts": {
+            "items": {
+              "$ref": "#/components/schemas/FieldShift"
+            },
+            "title": "Shifts",
+            "type": "array"
+          },
+          "start_shift_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Shift Days"
+          }
+        },
+        "required": [
+          "activity_id",
+          "name",
+          "shifts",
+          "largest_days",
+          "start_shift_days",
+          "finish_shift_days"
+        ],
+        "title": "DateShift",
+        "type": "object"
+      },
       "DeclineLinkBody": {
         "additionalProperties": false,
         "properties": {
@@ -2767,6 +3825,103 @@
           "relation"
         ],
         "title": "DefaultRelationOut",
+        "type": "object"
+      },
+      "DefineScheduleBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "code": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "p6_project": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P6 Project"
+          },
+          "schedule_type": {
+            "default": "current",
+            "title": "Schedule Type",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "code",
+          "name"
+        ],
+        "title": "DefineScheduleBody",
         "type": "object"
       },
       "DefineTagClassBody": {
@@ -3706,6 +4861,48 @@
         "title": "DocumentView",
         "type": "object"
       },
+      "DurationChange": {
+        "properties": {
+          "activity_id": {
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "new_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Days"
+          },
+          "old_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Days"
+          }
+        },
+        "required": [
+          "activity_id",
+          "name",
+          "old_days",
+          "new_days"
+        ],
+        "title": "DurationChange",
+        "type": "object"
+      },
       "EditPostBody": {
         "additionalProperties": false,
         "properties": {
@@ -4606,6 +5803,55 @@
         "title": "FieldMeta",
         "type": "object"
       },
+      "FieldShift": {
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "new": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New"
+          },
+          "old": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old"
+          },
+          "shift_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shift Days"
+          }
+        },
+        "required": [
+          "field",
+          "old",
+          "new",
+          "shift_days"
+        ],
+        "title": "FieldShift",
+        "type": "object"
+      },
       "FileInfo": {
         "description": "One attachment, as ``cur_files`` holds it.",
         "properties": {
@@ -4884,6 +6130,65 @@
         "title": "FlagLinkBody",
         "type": "object"
       },
+      "FloatChange": {
+        "properties": {
+          "activity_id": {
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "delta_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Days"
+          },
+          "eroded": {
+            "title": "Eroded",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "new_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Days"
+          },
+          "old_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Days"
+          }
+        },
+        "required": [
+          "activity_id",
+          "name",
+          "old_days",
+          "new_days",
+          "delta_days",
+          "eroded"
+        ],
+        "title": "FloatChange",
+        "type": "object"
+      },
       "FormMetadata": {
         "properties": {
           "core_fields": {
@@ -4947,6 +6252,29 @@
         "title": "GuardResult",
         "type": "object"
       },
+      "Header": {
+        "properties": {
+          "data_date": {
+            "title": "Data Date",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "number",
+          "data_date"
+        ],
+        "title": "Header",
+        "type": "object"
+      },
       "Health": {
         "properties": {
           "status": {
@@ -5002,6 +6330,120 @@
           "document"
         ],
         "title": "ImportBody",
+        "type": "object"
+      },
+      "ImportCostSnapshotBody": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "maxLength": 10,
+            "minLength": 10,
+            "title": "As Of",
+            "type": "string"
+          },
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "maxLength": 3,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "period": {
+            "maxLength": 7,
+            "minLength": 7,
+            "title": "Period",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CostRow"
+            },
+            "maxItems": 20000,
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          },
+          "source_name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Name"
+          },
+          "source_sha256": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Sha256"
+          }
+        },
+        "required": [
+          "scope",
+          "period",
+          "as_of",
+          "rows"
+        ],
+        "title": "ImportCostSnapshotBody",
         "type": "object"
       },
       "ImportResult": {
@@ -5600,6 +7042,100 @@
         "title": "KeyChip",
         "type": "object"
       },
+      "LinkActivityBody": {
+        "additionalProperties": false,
+        "properties": {
+          "activity_id": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "from_id": {
+            "title": "From Id",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "pin": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pin"
+          },
+          "schedule_id": {
+            "title": "Schedule Id",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "from_id",
+          "schedule_id",
+          "activity_id"
+        ],
+        "title": "LinkActivityBody",
+        "type": "object"
+      },
       "LinkCounts": {
         "properties": {
           "active_in": {
@@ -5999,6 +7535,210 @@
         "title": "LockBody",
         "type": "object"
       },
+      "LogicChange": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "new_lag_hr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Lag Hr"
+          },
+          "new_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Type"
+          },
+          "old_lag_hr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Lag Hr"
+          },
+          "old_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Type"
+          },
+          "pred_activity_id": {
+            "title": "Pred Activity Id",
+            "type": "string"
+          },
+          "succ_activity_id": {
+            "title": "Succ Activity Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "pred_activity_id",
+          "succ_activity_id",
+          "old_type",
+          "new_type",
+          "old_lag_hr",
+          "new_lag_hr"
+        ],
+        "title": "LogicChange",
+        "type": "object"
+      },
+      "LookAhead": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "data_date": {
+            "title": "Data Date",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/LookAheadRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "snapshot_key": {
+            "title": "Snapshot Key",
+            "type": "string"
+          },
+          "snapshot_number": {
+            "title": "Snapshot Number",
+            "type": "integer"
+          },
+          "weeks": {
+            "title": "Weeks",
+            "type": "integer"
+          },
+          "window_end": {
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_start": {
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "snapshot_key",
+          "snapshot_number",
+          "data_date",
+          "window_start",
+          "window_end",
+          "weeks",
+          "rows",
+          "counts"
+        ],
+        "title": "LookAhead",
+        "type": "object"
+      },
+      "LookAheadRow": {
+        "properties": {
+          "activity_id": {
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "critical": {
+            "title": "Critical",
+            "type": "boolean"
+          },
+          "early_finish": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Early Finish"
+          },
+          "early_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Early Start"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "percent_complete": {
+            "title": "Percent Complete",
+            "type": "number"
+          },
+          "phase": {
+            "title": "Phase",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total_float_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Float Days"
+          },
+          "wbs_path": {
+            "title": "Wbs Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "activity_id",
+          "name",
+          "wbs_path",
+          "status",
+          "phase",
+          "early_start",
+          "early_finish",
+          "total_float_days",
+          "critical",
+          "percent_complete"
+        ],
+        "title": "LookAheadRow",
+        "type": "object"
+      },
       "MergeTagsBody": {
         "additionalProperties": false,
         "properties": {
@@ -6252,6 +7992,117 @@
           "reviewers"
         ],
         "title": "OpenReviewCycleBody",
+        "type": "object"
+      },
+      "OpenScheduleSnapshotBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "p6_project": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P6 Project"
+          },
+          "schedule_id": {
+            "title": "Schedule Id",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "schedule_id"
+        ],
+        "title": "OpenScheduleSnapshotBody",
+        "type": "object"
+      },
+      "OrphanedLink": {
+        "properties": {
+          "activity_id": {
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "from_id": {
+            "title": "From Id",
+            "type": "string"
+          },
+          "last_seen_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen Number"
+          },
+          "link_id": {
+            "title": "Link Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "link_id",
+          "from_id",
+          "activity_id",
+          "last_seen_number",
+          "reason"
+        ],
+        "title": "OrphanedLink",
         "type": "object"
       },
       "OverdueLine": {
@@ -6643,6 +8494,73 @@
           "via"
         ],
         "title": "Principal",
+        "type": "object"
+      },
+      "ProgressChange": {
+        "properties": {
+          "activity_id": {
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "delta_percent": {
+            "title": "Delta Percent",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "new_percent": {
+            "title": "New Percent",
+            "type": "number"
+          },
+          "new_remaining_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Remaining Days"
+          },
+          "new_status": {
+            "title": "New Status",
+            "type": "string"
+          },
+          "old_percent": {
+            "title": "Old Percent",
+            "type": "number"
+          },
+          "old_remaining_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Remaining Days"
+          },
+          "old_status": {
+            "title": "Old Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "activity_id",
+          "name",
+          "old_percent",
+          "new_percent",
+          "delta_percent",
+          "old_status",
+          "new_status",
+          "old_remaining_days",
+          "new_remaining_days"
+        ],
+        "title": "ProgressChange",
         "type": "object"
       },
       "ProposalView": {
@@ -7095,6 +9013,64 @@
           "truncated"
         ],
         "title": "PublishPlan",
+        "type": "object"
+      },
+      "PublishScheduleSnapshotBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "snapshot_id"
+        ],
+        "title": "PublishScheduleSnapshotBody",
         "type": "object"
       },
       "PutBodyIn": {
@@ -8894,6 +10870,44 @@
         "title": "RelationOut",
         "type": "object"
       },
+      "RelationshipRow": {
+        "properties": {
+          "lag_hr": {
+            "title": "Lag Hr",
+            "type": "number"
+          },
+          "pred_activity_id": {
+            "title": "Pred Activity Id",
+            "type": "string"
+          },
+          "relationship_type": {
+            "title": "Relationship Type",
+            "type": "string"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "succ_activity_id": {
+            "title": "Succ Activity Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "pred_activity_id",
+          "succ_activity_id",
+          "relationship_type",
+          "lag_hr",
+          "seq"
+        ],
+        "title": "RelationshipRow",
+        "type": "object"
+      },
       "RenameTagBody": {
         "additionalProperties": false,
         "properties": {
@@ -9336,6 +11350,83 @@
           "new_password"
         ],
         "title": "ResetPasswordBody",
+        "type": "object"
+      },
+      "Resolution": {
+        "properties": {
+          "activity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivityRow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "activity_id": {
+            "title": "Activity Id",
+            "type": "string"
+          },
+          "data_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Date"
+          },
+          "schedule_code": {
+            "title": "Schedule Code",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
+          "snapshot_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Number"
+          },
+          "state": {
+            "enum": [
+              "current",
+              "as_of",
+              "orphaned",
+              "unknown_activity",
+              "no_snapshot"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "schedule_code",
+          "activity_id",
+          "snapshot_id",
+          "snapshot_number",
+          "data_date",
+          "activity"
+        ],
+        "title": "Resolution",
         "type": "object"
       },
       "RetireDocumentSchemaBody": {
@@ -10055,6 +12146,182 @@
           "notes"
         ],
         "title": "RowsPage",
+        "type": "object"
+      },
+      "ScheduleDetailView": {
+        "description": "A schedule with its snapshots, newest number first.\n\n``links_being_checked`` is true while the job that flags the links to activities the current\nsnapshot lacks (and restores the ones that came back) has work left: until it is done a link to\na removed activity may still read as current (ADR-0015 section 5).",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "current_data_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Data Date"
+          },
+          "current_snapshot_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Snapshot Number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "links_being_checked": {
+            "default": false,
+            "title": "Links Being Checked",
+            "type": "boolean"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "p6_project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P6 Project"
+          },
+          "schedule_type": {
+            "title": "Schedule Type",
+            "type": "string"
+          },
+          "snapshot_count": {
+            "title": "Snapshot Count",
+            "type": "integer"
+          },
+          "snapshots": {
+            "items": {
+              "$ref": "#/components/schemas/SnapshotView"
+            },
+            "title": "Snapshots",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "title",
+          "schedule_type",
+          "owner",
+          "p6_project",
+          "current_snapshot_number",
+          "current_data_date",
+          "snapshot_count",
+          "snapshots"
+        ],
+        "title": "ScheduleDetailView",
+        "type": "object"
+      },
+      "ScheduleView": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "current_data_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Data Date"
+          },
+          "current_snapshot_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Snapshot Number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "p6_project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P6 Project"
+          },
+          "schedule_type": {
+            "title": "Schedule Type",
+            "type": "string"
+          },
+          "snapshot_count": {
+            "title": "Snapshot Count",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "title",
+          "schedule_type",
+          "owner",
+          "p6_project",
+          "current_snapshot_number",
+          "current_data_date",
+          "snapshot_count"
+        ],
+        "title": "ScheduleView",
         "type": "object"
       },
       "ScheduledChange": {
@@ -10993,6 +13260,335 @@
         "title": "SignInOut",
         "type": "object"
       },
+      "SnapshotValueView": {
+        "description": "What one snapshot said about one code.",
+        "properties": {
+          "as_of": {
+            "title": "As Of",
+            "type": "string"
+          },
+          "figures": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Figures",
+            "type": "object"
+          },
+          "period": {
+            "title": "Period",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "period",
+          "revision",
+          "as_of",
+          "figures"
+        ],
+        "title": "SnapshotValueView",
+        "type": "object"
+      },
+      "SnapshotView": {
+        "properties": {
+          "activity_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity Count"
+          },
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "built_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Built At"
+          },
+          "calendar_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calendar Count"
+          },
+          "code_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Count"
+          },
+          "data_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Date"
+          },
+          "error_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Count"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_current": {
+            "title": "Is Current",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "p6_project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P6 Project"
+          },
+          "p6_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P6 Version"
+          },
+          "previous_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Number"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "raw_file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw File Id"
+          },
+          "relationship_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relationship Count"
+          },
+          "report_file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report File Id"
+          },
+          "requested_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By"
+          },
+          "source_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Name"
+          },
+          "source_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Sha256"
+          },
+          "source_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Size"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "udf_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Udf Count"
+          },
+          "warning_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning Count"
+          },
+          "wbs_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wbs Count"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "number",
+          "state",
+          "is_current",
+          "data_date",
+          "previous_number",
+          "p6_version",
+          "p6_project",
+          "activity_count",
+          "relationship_count",
+          "wbs_count",
+          "calendar_count",
+          "code_count",
+          "udf_count",
+          "error_count",
+          "warning_count",
+          "source_name",
+          "source_size",
+          "source_sha256",
+          "requested_by",
+          "attempts",
+          "last_error",
+          "built_at",
+          "published_at",
+          "report_file_id",
+          "raw_file_id"
+        ],
+        "title": "SnapshotView",
+        "type": "object"
+      },
       "StalePinLine": {
         "description": "A link pinned to a revision that a later revision has replaced (or flagged stale).\n\nA later revision replaces a pin when it was issued in the pinned revision's status class or a\nlater one (ADR-0012); ``newer_codes`` are the revisions that did.",
         "properties": {
@@ -11363,6 +13959,64 @@
           "scope"
         ],
         "title": "StartExtractionBody",
+        "type": "object"
+      },
+      "StartScheduleSnapshotBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "snapshot_id"
+        ],
+        "title": "StartScheduleSnapshotBody",
         "type": "object"
       },
       "SuggestLinkBody": {
@@ -12471,6 +15125,83 @@
           "version"
         ],
         "title": "TransmittalView",
+        "type": "object"
+      },
+      "TrendPoint": {
+        "description": "One activity in one published snapshot (the float trend of brief 9 M11).",
+        "properties": {
+          "critical": {
+            "title": "Critical",
+            "type": "boolean"
+          },
+          "data_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Date"
+          },
+          "early_finish": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Early Finish"
+          },
+          "early_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Early Start"
+          },
+          "percent_complete": {
+            "title": "Percent Complete",
+            "type": "number"
+          },
+          "snapshot_number": {
+            "title": "Snapshot Number",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "total_float_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Float Days"
+          }
+        },
+        "required": [
+          "snapshot_number",
+          "data_date",
+          "state",
+          "total_float_days",
+          "early_start",
+          "early_finish",
+          "percent_complete",
+          "critical"
+        ],
+        "title": "TrendPoint",
         "type": "object"
       },
       "TypeDetail": {
@@ -13619,6 +16350,71 @@
           "reason"
         ],
         "title": "VoidRevisionBody",
+        "type": "object"
+      },
+      "VoidScheduleSnapshotBody": {
+        "additionalProperties": false,
+        "properties": {
+          "causation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causation Id"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "source": {
+            "default": "api",
+            "pattern": "^[a-z][a-z0-9_]*(:[A-Za-z0-9_.-]+)?$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "snapshot_id",
+          "reason"
+        ],
+        "title": "VoidScheduleSnapshotBody",
         "type": "object"
       },
       "VoidTransmittalBody": {
@@ -17179,6 +19975,113 @@
         ]
       }
     },
+    "/commands/DefineSchedule": {
+      "post": {
+        "description": "Register a schedule of the project.",
+        "operationId": "command_DefineSchedule",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefineScheduleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "DefineSchedule",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/DefineTagClass": {
       "post": {
         "description": "Create a tag class. ``scope`` must be ``company``.",
@@ -17607,6 +20510,113 @@
         ]
       }
     },
+    "/commands/ImportCostSnapshot": {
+      "post": {
+        "description": "Import one period of cost figures into a project.",
+        "operationId": "command_ImportCostSnapshot",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportCostSnapshotBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "ImportCostSnapshot",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/IssueRevision": {
       "post": {
         "description": "Issue a draft revision with an issue status (IFR, IFC, AFC, ASB). Controller only.",
@@ -17816,6 +20826,113 @@
           }
         ],
         "summary": "IssueTransmittal",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/LinkActivity": {
+      "post": {
+        "description": "Link ``from_id`` to activity ``activity_id`` of a schedule.",
+        "operationId": "command_LinkActivity",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkActivityBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "LinkActivity",
         "tags": [
           "commands"
         ]
@@ -18249,6 +21366,113 @@
         ]
       }
     },
+    "/commands/OpenScheduleSnapshot": {
+      "post": {
+        "description": "Open the next snapshot of a schedule; the XER file is attached to it next.",
+        "operationId": "command_OpenScheduleSnapshot",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenScheduleSnapshotBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "OpenScheduleSnapshot",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/OverrideReviewOutcome": {
       "post": {
         "description": "Controller: close a cycle with a stated outcome, even a milder one than the answers given.\n\n``reason`` is required; the event keeps the worst recorded answer (``worst_answer``) so the\nrecord shows what was overruled.",
@@ -18672,6 +21896,113 @@
           }
         ],
         "summary": "PublishDerivedTags",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/PublishScheduleSnapshot": {
+      "post": {
+        "description": "Make a Valid snapshot the current snapshot of its schedule.",
+        "operationId": "command_PublishScheduleSnapshot",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishScheduleSnapshotBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "PublishScheduleSnapshot",
         "tags": [
           "commands"
         ]
@@ -21138,6 +24469,113 @@
         ]
       }
     },
+    "/commands/StartScheduleSnapshot": {
+      "post": {
+        "description": "Fix the snapshot's XER file and queue its build.",
+        "operationId": "command_StartScheduleSnapshot",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartScheduleSnapshotBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "StartScheduleSnapshot",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
     "/commands/SuggestLink": {
       "post": {
         "description": "Run the SuggestLink command.",
@@ -22310,6 +25748,113 @@
           }
         ],
         "summary": "VoidRevision",
+        "tags": [
+          "commands"
+        ]
+      }
+    },
+    "/commands/VoidScheduleSnapshot": {
+      "post": {
+        "description": "Void a snapshot that is not the schedule's current or an earlier one.",
+        "operationId": "command_VoidScheduleSnapshot",
+        "parameters": [
+          {
+            "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+            "in": "header",
+            "name": "X-TL-Effective-At",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulated time (ISO-8601 with offset) stamped as the events' effective_at. Accepted only for simulation scopes `project:sim-<run>`; any other scope is a 400 `effective_time_forbidden`.",
+              "title": "X-Tl-Effective-At"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidScheduleSnapshotBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "VoidScheduleSnapshot",
         "tags": [
           "commands"
         ]
@@ -23707,6 +27252,337 @@
         "summary": "Search Linkable",
         "tags": [
           "links"
+        ]
+      }
+    },
+    "/projects/{project}/cost-codes": {
+      "get": {
+        "description": "A project's cost codes by code with the latest figures stated for each.",
+        "operationId": "list_cost_codes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Direct children of.",
+            "in": "query",
+            "name": "parent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Direct children of.",
+              "title": "Parent"
+            }
+          },
+          {
+            "description": "In the code or the title.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "In the code or the title.",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "maximum": 20000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CostCodeView"
+                  },
+                  "title": "Response List Cost Codes",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Cost Codes",
+        "tags": [
+          "cost"
+        ]
+      }
+    },
+    "/projects/{project}/cost-codes/{code}": {
+      "get": {
+        "description": "One cost code, its children and the figures of every snapshot. 404 `cost_code_not_found`.",
+        "operationId": "get_cost_code",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostCodeDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Cost Code",
+        "tags": [
+          "cost"
+        ]
+      }
+    },
+    "/projects/{project}/cost-snapshots": {
+      "get": {
+        "description": "A project's cost snapshots, newest period and revision first.",
+        "operationId": "list_cost_snapshots",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CostSnapshotView"
+                  },
+                  "title": "Response List Cost Snapshots",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Cost Snapshots",
+        "tags": [
+          "cost"
         ]
       }
     },
@@ -25516,6 +29392,1361 @@
         "summary": "Get Processing Job",
         "tags": [
           "derivation"
+        ]
+      }
+    },
+    "/projects/{project}/records/{record_id}/activity-links": {
+      "get": {
+        "description": "The activity links of a record of the project and what each resolves to now (at most 200).",
+        "operationId": "list_activity_links",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "record_id",
+            "required": true,
+            "schema": {
+              "title": "Record Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityLink"
+                  },
+                  "title": "Response List Activity Links",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Activity Links",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
+    "/projects/{project}/schedules": {
+      "get": {
+        "description": "A project's schedules by code, without snapshots.",
+        "operationId": "list_schedules",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ScheduleView"
+                  },
+                  "title": "Response List Schedules",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Schedules",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
+    "/projects/{project}/schedules/{code}": {
+      "get": {
+        "description": "One schedule with a page of its snapshots, newest first (`snapshot_count` is the total).\n\n404 `schedule_not_found`.",
+        "operationId": "get_schedule",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 1000000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Schedule",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
+    "/projects/{project}/schedules/{code}/activities": {
+      "get": {
+        "description": "A page of a built snapshot's activities in file order. 409 `snapshot_state` if unbuilt.",
+        "operationId": "list_activities",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A snapshot number; the current one if omitted.",
+            "in": "query",
+            "name": "snapshot",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A snapshot number; the current one if omitted.",
+              "title": "Snapshot"
+            }
+          },
+          {
+            "in": "query",
+            "name": "critical",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Critical"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "description": "In the id or the name.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "In the id or the name.",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Activities",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
+    "/projects/{project}/schedules/{code}/activity-details/{activity_id}": {
+      "get": {
+        "description": "One activity with its predecessors and successors. 404 `activity_not_found`.",
+        "operationId": "get_schedule_activity",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "activity_id",
+            "required": true,
+            "schema": {
+              "title": "Activity Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A snapshot number; the current one if omitted.",
+            "in": "query",
+            "name": "snapshot",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A snapshot number; the current one if omitted.",
+              "title": "Snapshot"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Schedule Activity",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
+    "/projects/{project}/schedules/{code}/activity-resolutions/{activity_id}": {
+      "get": {
+        "description": "What the activity is now, or as of a snapshot or a date (`state` says which it is).",
+        "operationId": "resolve_activity",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "activity_id",
+            "required": true,
+            "schema": {
+              "title": "Activity Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A snapshot number, a date (YYYY-MM-DD), a minute, or `current`.",
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A snapshot number, a date (YYYY-MM-DD), a minute, or `current`.",
+              "title": "As Of"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resolution"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resolve Activity",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
+    "/projects/{project}/schedules/{code}/activity-trends/{activity_id}": {
+      "get": {
+        "description": "The activity's float and dates in every published snapshot, oldest first.",
+        "operationId": "get_activity_trend",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "activity_id",
+            "required": true,
+            "schema": {
+              "title": "Activity Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TrendPoint"
+                  },
+                  "title": "Response Get Activity Trend",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Activity Trend",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
+    "/projects/{project}/schedules/{code}/comparison": {
+      "get": {
+        "description": "What changed between two built snapshots, each list cut to `limit` rows with the totals.",
+        "operationId": "compare_snapshots",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A snapshot number; the current one if omitted.",
+            "in": "query",
+            "name": "new",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A snapshot number; the current one if omitted.",
+              "title": "New"
+            }
+          },
+          {
+            "description": "Default: the one before.",
+            "in": "query",
+            "name": "old",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Default: the one before.",
+              "title": "Old"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 5000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comparison"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Compare Snapshots",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
+    "/projects/{project}/schedules/{code}/look-ahead": {
+      "get": {
+        "description": "What is under way and what starts in the next `weeks` weeks of the data date.",
+        "operationId": "get_look_ahead",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A snapshot number; the current one if omitted.",
+            "in": "query",
+            "name": "snapshot",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1000000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A snapshot number; the current one if omitted.",
+              "title": "Snapshot"
+            }
+          },
+          {
+            "in": "query",
+            "name": "weeks",
+            "required": false,
+            "schema": {
+              "default": 4,
+              "maximum": 26,
+              "minimum": 1,
+              "title": "Weeks",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookAhead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Look Ahead",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
+    "/projects/{project}/schedules/{code}/orphans": {
+      "get": {
+        "description": "Links the last publication flagged because their activity left the schedule.",
+        "operationId": "list_orphaned_links",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrphanedLink"
+                  },
+                  "title": "Response List Orphaned Links",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Orphaned Links",
+        "tags": [
+          "schedule"
+        ]
+      }
+    },
+    "/projects/{project}/schedules/{code}/snapshots/{number}": {
+      "get": {
+        "description": "One snapshot by number. 404 `snapshot_not_found`.",
+        "operationId": "get_schedule_snapshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "maximum": 1000000000,
+              "minimum": 1,
+              "title": "Number",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Missing or unknown bearer token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Refused by the authorizer, the agent propose-only rule or a quarantine rule."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Version conflict, state conflict or failed workflow guard."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "The request is well formed but cannot be applied."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Schedule Snapshot",
+        "tags": [
+          "schedule"
         ]
       }
     },

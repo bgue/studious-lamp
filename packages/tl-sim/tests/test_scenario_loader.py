@@ -185,3 +185,16 @@ def test_template_errors_name_the_template(own_seed_dir: Path) -> None:
     (own_seed_dir / "templates" / "empty.yaml").write_text("template: empty\nareas: []\n")
     with pytest.raises(ScenarioError, match="empty.yaml.*areas"):
         load_template("empty")
+
+
+def test_the_schedule_weeks_scenario_names_its_operators_and_the_updater(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("TL_SEED_DIR", raising=False)
+    scenario = load_scenario("schedule-weeks")
+    assert scenario.actors.enabled() == ["planner", "schedule_updater"]
+    assert scenario.operators == ["user:dev", "svc:schedule"]  # the dev session and the worker
+    updater = scenario.actors.schedule_updater
+    assert updater is not None
+    assert (updater.schedule, updater.update_day, updater.series_seed) == ("MAIN", "mon", 7)
+    assert scenario.duration_days == 15 and scenario.start.weekday() == 0  # three Mondays

@@ -80,6 +80,30 @@ MODULE_STREAMS = (
             "ProcessingJob.Succeeded",
         ),
     ),
+    (
+        "cost.CostCode",
+        "CostCode.Defined",
+        ("CostCode.Revised", "CostCode.MeasuresRecorded"),
+    ),
+    ("cost.CostSnapshot", "CostSnapshot.Defined", ()),
+    (
+        "schedule.Schedule",
+        "Schedule.Defined",
+        ("Schedule.SnapshotPublished", "Schedule.OrphansChecked"),
+    ),
+    (
+        "schedule.ScheduleSnapshot",
+        "ScheduleSnapshot.Defined",
+        (
+            "ScheduleSnapshot.Queued",
+            "ScheduleSnapshot.BuildStarted",
+            "ScheduleSnapshot.BuildFailed",
+            "ScheduleSnapshot.Built",
+            "ScheduleSnapshot.Rejected",
+            "ScheduleSnapshot.MadeCurrent",
+        ),
+    ),
+    ("schedule.ActivityRef", "ActivityRef.Defined", ("ActivityRef.PresenceChanged",)),
 )
 
 

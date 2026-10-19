@@ -1,0 +1,28 @@
+# Three working weeks of a planner who sends the weekly P6 export and links work to its activities.
+#
+# The schedule is a controller's to define and publish and a worker's to build (a simulated person
+# holds the `user` role only), so a run of this scenario needs them beside it:
+#   tl sim create schedule-weeks --run-id wk1
+#   tl xer define MAIN --project sim-wk1 --name "Main schedule"        # as a controller or admin
+#   (upload tl_xer.synth's first file, `tl xer worker --once`, `tl xer publish 1 --project sim-wk1`)
+#   tl sim advance --run wk1 --days 15
+# `operators` names the people and services that did that by hand (the dev session is `user:dev`,
+# the worker `svc:schedule`), so `tl sim assert` holds the rest of the run to the rules.
+scenario: schedule-weeks
+seed: 21
+start: 2026-11-02
+duration_days: 15
+template: small-piping
+operators: [user:dev, svc:schedule]
+actors:
+  document_controller: null
+  crew: null
+  planner:
+    approvals_per_day: 0
+    activities_per_day: {min: 1, max: 3}
+    lookahead_day: null
+  schedule_updater:
+    schedule: MAIN
+    update_day: mon
+    links_per_day: {min: 0, max: 2}
+    series_seed: 7

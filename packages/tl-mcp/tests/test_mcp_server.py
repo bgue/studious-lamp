@@ -40,8 +40,31 @@ DERIVATION_READ_TOOLS = {
     "validate_against_schema",
 }
 DERIVATION_PROPOSE_TOOLS = {"start_extraction", "propose_import"}
-READING = READ_TOOLS | TYPE_TOOLS | ENGINEERING_TOOLS | DOCUMENT_TOOLS | DERIVATION_READ_TOOLS
-TOOLS = READING | PROPOSE_TOOLS | DERIVATION_PROPOSE_TOOLS | {"post_feed"}
+SCHEDULE_PROPOSE_TOOLS = {"propose_publish_schedule_snapshot"}
+SCHEDULE_READ_TOOLS = {
+    "list_schedules",
+    "get_schedule",
+    "list_schedule_activities",
+    "get_schedule_activity",
+    "compare_schedule_snapshots",
+    "get_look_ahead",
+    "resolve_schedule_activity",
+    "get_activity_float_trend",
+    "list_orphaned_links",
+    "get_record_activity_links",
+    "list_cost_codes",
+    "get_cost_code",
+    "list_cost_snapshots",
+}
+READING = (
+    READ_TOOLS
+    | TYPE_TOOLS
+    | ENGINEERING_TOOLS
+    | DOCUMENT_TOOLS
+    | DERIVATION_READ_TOOLS
+    | SCHEDULE_READ_TOOLS
+)
+TOOLS = READING | PROPOSE_TOOLS | DERIVATION_PROPOSE_TOOLS | SCHEDULE_PROPOSE_TOOLS | {"post_feed"}
 
 
 def test_the_phase_0_surface_is_read_tools_proposing_tools_and_post_feed(

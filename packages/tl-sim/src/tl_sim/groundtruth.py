@@ -26,6 +26,7 @@ POST_CREATED = "post.created"
 PROPOSAL_CREATED = "proposal.created"
 PROPOSAL_ACCEPTED = "proposal.accepted"
 PROPOSAL_REJECTED = "proposal.rejected"
+SNAPSHOT_QUEUED = "snapshot.queued"
 INTENTS = (
     RECORD_CREATED,
     PSET_SET,
@@ -35,6 +36,7 @@ INTENTS = (
     PROPOSAL_CREATED,
     PROPOSAL_ACCEPTED,
     PROPOSAL_REJECTED,
+    SNAPSHOT_QUEUED,
 )
 
 
