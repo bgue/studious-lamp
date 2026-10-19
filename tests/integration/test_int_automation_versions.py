@@ -7,6 +7,7 @@ a rule step that names one is refused.
 
 from __future__ import annotations
 
+import pytest
 from intworld import World
 from tl_api.commands import command_runner
 from tl_core.integration.automation import ServerFields, plan_command
@@ -129,3 +130,42 @@ def test_a_propose_mode_transition_is_accepted(world: World) -> None:
         {"command": "TransitionWorkflow", "args": {"stream_id": record, "transition": "submit"}},
     )
     assert world.rows("SELECT status FROM cur_core_record")[0]["status"] != before
+
+
+def test_automation_cannot_replace_the_psets_object_of_a_record() -> None:
+    """UpdateRecord replaces all psets (last writer wins); automation uses SetPsetValues."""
+    built = plan_command(
+        command_runner(),
+        "UpdateRecord",
+        {"stream_id": "r1", "changes": {"psets": {"valve_data": {"tag_no": "x"}}}},
+        FIELDS,
+        declared="user",
+        allowed=AUTOMATION_COMMANDS,
+        link_source="mapping",
+    )
+    assert built.command is None and built.planned.problem is not None
+    assert built.planned.problem.code == "psets_not_automated"
+    ok = plan_command(
+        command_runner(),
+        "UpdateRecord",
+        {"stream_id": "r1", "changes": {"title": "New"}},
+        FIELDS,
+        declared="user",
+        allowed=AUTOMATION_COMMANDS,
+        link_source="mapping",
+    )
+    assert ok.command is not None
+
+
+def test_a_validation_error_names_the_model_field_and_nothing_below_it() -> None:
+    from pydantic import BaseModel, ValidationError
+    from tl_core.integration.automation import first_error
+
+    class Model(BaseModel):
+        values: dict[str, int]
+
+    with pytest.raises(ValidationError) as caught:
+        Model.model_validate({"values": {"PAYLOAD-KEY": "not a number"}})
+    assert first_error(caught.value).startswith("values.PAYLOAD-KEY: ")  # an admin's input
+    shown = first_error(caught.value, Model.model_fields)
+    assert shown.startswith("values.…: ") and "PAYLOAD-KEY" not in shown

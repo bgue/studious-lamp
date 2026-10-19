@@ -476,3 +476,15 @@ def test_the_counter_counts_by_fixed_code(world: World) -> None:
     assert [(r["code"], r["count"]) for r in rows] == [("bad_signature", 3)]
     assert world.rows("SELECT 1 FROM int_counter WHERE endpoint_id = :e", e=made.endpoint_id)
     assert text  # the module-level import is used by the queries above
+
+
+def test_an_argument_name_that_came_from_the_payload_is_not_in_the_failure(world: World) -> None:
+    """The message lands in an event and in the error queue (re-check, finding 5)."""
+    mapping = '{"command": "PostToFeed", "args": {$.k: "x", "body": "y"}}'
+    made = world.endpoint(mapping=mapping)
+    world.deliver(made.endpoint_id, {"k": "SECRET-ARG-NAME"})
+    run(world)
+    code, message = failed(world)
+    assert code == "unknown_field" and "1 argument" in message
+    assert "SECRET-ARG-NAME" not in message
+    assert "SECRET-ARG-NAME" not in str(world.events("Inbound.Failed"))

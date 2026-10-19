@@ -97,13 +97,24 @@ def names_server_field(value: Any, depth: int = 0) -> str | None:
     return None
 
 
-def first_error(exc: ValidationError) -> str:
-    """The first validation error as ``field: message`` (never the input value)."""
+def first_error(exc: ValidationError, fields: Collection[str] | None = None) -> str:
+    """The first validation error as ``field: message`` (never the input value).
+
+    The field is named only as far as the command model defines it (``fields``): a deeper part of
+    the location can be a key that came from a payload, and the message lands in an event. With
+    no ``fields`` the whole location is named (for input an admin typed).
+    """
     errors = exc.errors(include_input=False, include_url=False, include_context=False)
     if not errors:
         return "the command is not valid"
     first = errors[0]
-    where = ".".join(str(part) for part in first["loc"]) or "command"
+    parts = [str(part) for part in first["loc"]]
+    if fields is None:
+        where = ".".join(parts) or "command"
+    else:
+        where = parts[0] if parts and parts[0] in fields else "command"
+        if len(parts) > 1 and where != "command":
+            where += ".…"
     return f"{where}: {first['msg']}"[:MAX_PROBLEM_CHARS]
 
 
@@ -172,11 +183,26 @@ def plan_command(
         )
     unknown = sorted(set(args) - set(model.model_fields))
     if unknown:
-        return refuse("unknown_field", f"{name} has no field {', '.join(unknown)[:80]}.", needed)
+        # The names may come from a payload (a mapping can build keys from it) and this message
+        # lands in an event: say how many, not which.
+        return refuse(
+            "unknown_field",
+            f"{name} was given {len(unknown)} argument(s) that are not fields of the command.",
+            needed,
+        )
     if VERSION_FIELD in args:
         return refuse(
             "expected_version",
             "Automation writes to a record as it is when the command runs; it names no version.",
+            needed,
+        )
+    changes = args.get("changes")
+    if name == "UpdateRecord" and isinstance(changes, dict) and "psets" in changes:
+        # UpdateRecord replaces the whole psets object: last writer wins and would undo a person's
+        # edit made since. Automation sets psets key by key, with SetPsetValues.
+        return refuse(
+            "psets_not_automated",
+            "UpdateRecord changes the title and description; use SetPsetValues for psets.",
             needed,
         )
     values = dict(args)
@@ -199,7 +225,7 @@ def plan_command(
             }
         )
     except ValidationError as exc:
-        return refuse("invalid_command", first_error(exc), needed)
+        return refuse("invalid_command", first_error(exc, model.model_fields), needed)
     return Planned(
         command,
         PlannedCommand(

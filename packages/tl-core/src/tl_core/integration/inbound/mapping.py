@@ -174,7 +174,9 @@ class JsonataRestricted:
             try:
                 commands.append(MappedCommand.model_validate(item))
             except ValidationError as exc:
-                return _invalid(f"Command {position}: {first_error(exc)}")
+                return _invalid(
+                    f"Command {position}: {first_error(exc, MappedCommand.model_fields)}"
+                )
         return MappingOutcome(status="ok", commands=commands)
 
 
