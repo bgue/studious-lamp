@@ -34,6 +34,7 @@ Build the correspondence core of M10 as a new module, `correspondence` (package 
 | D8 | Email-in parses untrusted input: stdlib `email` with `policy.default`, every count and size bounded, refuse rather than truncate, decoding in the D9 envelope of P1-I3, no HTML rendering, no remote fetch, no URL followed, attachments through the file service with the module's upload guard. Header text that becomes record text goes through `tl_core.text.clean_text` (P1-I4; a compatible copy is written here if the trunk does not have it yet). |
 | D9 | "Send" is a stub: `Correspondence.Issued` carries `delivery = "stub"`, the PDF is rendered by `letter.py` (no library, deterministic), and nothing leaves the machine; there is no SMTP. |
 | D10 | No new dependency. Licences named: none added (the PDF writer, the EML parser and the calendars use the standard library and PyYAML, already locked, MIT). |
+| D11 | (after the security review) Restarting or cancelling a `time_bar` or clause-citing clock is a controller's act, decided from the viewer's level, not from a role; `ReclassifyCorrespondence` stays `user` until the item is issued. The refinements are in ADR-0016. |
 
 ## Supervisor-built pieces (in order)
 | # | Piece | Why supervisor-tier | Reviewer | Status |

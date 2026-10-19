@@ -59,6 +59,15 @@ Events stay immutable and complete in the ledger and in the archive; the archive
 - Tickets re-issued: none; P1-I2's `CONFIDENTIALITY_NOTE` text and the three places that say "recorded but not enforced" are replaced.
 - Gates affected: this ADR is the delegated confidentiality gate (ADR-0008 decision 6); every commit that adds or changes a filter is listed under `SECURITY_REVIEW`.
 
+## Refinements after the security review of P1-I5
+- **Webhooks judge the stream, not only the subject.** A link with a hidden end, a file of a hidden record and a post that tags a hidden record are streams of their own. A delivery for one is dropped when the owner (or the thin audience) may not read an end, and is `thin` when the plain reader may not.
+- **Files.** The hash of a file counts for dedupe only when the file belongs to a record the reader may read; the text of an incomplete upload is the same whether or not the store holds the bytes.
+- **Lock-out (section 2) is implemented by id.** `GrantClearance` and `WithdrawClearance` work for a controller-level actor on a privileged item they cannot read: the handler checks existence in the scope and the class, shows nothing of the item, and `tl corr clearance ls` lists item ids with their accounts. Setting the class still reads the item through the viewer.
+- **Links, generic edits, posts.** The link lifecycle commands, `RepinDocumentLink` and the admin pair answer "no such link" for a link with a hidden end; a generic edit of a hidden record says "no such record" before it says anything about its type; a post that tags a hidden record reads as absent to react, edit or retract.
+- **The sweep** reads every clock as the system, in pages, and reports the clocks it could not judge. A scheduled run belongs to the integration runner (P1-I7); until then a controller runs `tl corr clock sweep` daily.
+- **D6 refinement: time bars.** Restarting or cancelling a clock of kind `time_bar`, or one that cites a clause, is a document controller's act (`ForbiddenError` otherwise). The handler reads the level of the viewer the entry point set from the authenticated principal; it reads no role. Pause, resume and meet stay open to any signed-in person, and so does `ReclassifyCorrespondence` until the item is issued (D6 as written).
+- **MCP sets the viewer** on every tool and resource call (`guarded`), to the lowest clearance, instead of relying on the default.
+
 ## Known limits (Phase 1)
 - The model has no project-level or domain-level roles: "commercial roles plus the PM" and "named legal roles" are approximated by `restricted` (document controllers and admins) and by naming accounts on an item. Entra groups (§27) can map to the same two levels later.
 - A document controller sees every `restricted` item of every project (the role is company-wide, ADR-0013).

@@ -363,19 +363,16 @@ def test_the_sweep_judges_as_of_a_day_never_later_than_today(world: CorrWorld, i
         ]
 
 
-def test_the_sweep_skips_a_clock_the_viewer_may_not_read_but_the_system_reaches_it(
-    world: CorrWorld,
-) -> None:
+def test_the_sweep_reaches_a_clock_the_runner_may_not_read(world: CorrWorld) -> None:
+    """Whoever runs the sweep, a deadline passes (ADR-0016: the sweep only appends the clock's
+    own events and reads as the system)."""
     secret = world.forge_item("P123-COR-0002", confidentiality="restricted")
     controller = cf.Viewer(actor="user:ctl", level=1, account="user:ctl")
     plain = cf.Viewer(actor="user:ann", level=0, account="user:ann")
     with frozen_today(MONDAY), cf.use_viewer(controller):
         cid = world.start_clock(secret).stream_id
-    with frozen_today("2026-11-03"):
-        with cf.use_viewer(plain):
-            assert world.sweep().events == []
-        with cf.system_view():
-            assert [e.event_type for e in world.sweep().events] == ["ResponseClock.Expired"]
+    with frozen_today("2026-11-03"), cf.use_viewer(plain):
+        assert [e.event_type for e in world.sweep().events] == ["ResponseClock.Expired"]
     with cf.use_viewer(controller):
         assert world.clock(cid).state == "expired"
 

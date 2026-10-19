@@ -21,6 +21,7 @@ from typing import Any, Literal
 
 from pydantic import ConfigDict, Field, field_validator
 from tl_core import confidentiality
+from tl_core.auth.errors import ForbiddenError
 from tl_core.ledger import Event, NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import RecordNotFoundError
@@ -374,10 +375,30 @@ def handle_resume_clock(uow: UnitOfWork, cmd: ResumeClock) -> CommandResult:
     return _result(clock, done)
 
 
+def require_controller_for_bar(clock: registry.ClockRow) -> None:
+    """A contractual time bar (kind ``time_bar``, or a clock that cites a clause) is not a
+    courtesy deadline: moving or ending it is a document controller's act (D6, refined in P1-I5).
+
+    Who is a controller is read from the viewer the entry point set from the authenticated
+    principal (level 1: an admin or a document controller), not from a role the handler reads.
+    """
+    if (clock.kind == "time_bar" or clock.clause_id is not None) and (
+        confidentiality.current_viewer().level < 1
+    ):
+        raise ForbiddenError(
+            f"clock {clock.key} is a contractual time bar: restarting or cancelling it needs "
+            "the document_controller or admin role"
+        )
+
+
 def handle_restart_clock(uow: UnitOfWork, cmd: RestartClock) -> CommandResult:
-    """Append ``ResponseClock.Restarted``: a new day zero, the same length, no warnings yet."""
+    """Append ``ResponseClock.Restarted``: a new day zero, the same length, no warnings yet.
+
+    A time-bar clock (or one that cites a clause) is restarted by a document controller only.
+    """
     cmd = correlated(cmd)
     clock = load_clock(uow, cmd, cmd.clock_id)
+    require_controller_for_bar(clock)
     facts, fig = figures_of(uow, clock)
     start, _ = _day(cmd.on, cmd.reason, "the new start day")
     calendar = catalog.calendar_for(clock.calendar, clock.scope)
@@ -422,9 +443,11 @@ def handle_meet_clock(uow: UnitOfWork, cmd: MeetClock) -> CommandResult:
 
 
 def handle_cancel_clock(uow: UnitOfWork, cmd: CancelClock) -> CommandResult:
-    """Append ``ResponseClock.Cancelled``."""
+    """Append ``ResponseClock.Cancelled``. A time-bar clock (or one that cites a clause) is
+    cancelled by a document controller only."""
     cmd = correlated(cmd)
     clock = load_clock(uow, cmd, cmd.clock_id)
+    require_controller_for_bar(clock)
     day, _ = _day(cmd.on, cmd.reason, "the day")
     return _close(uow, cmd, clock, CLOCK_CANCELLED, {"day": day, "reason": cmd.reason})
 
@@ -560,5 +583,6 @@ __all__ = [
     "handle_sweep_clocks",
     "sweep_clocks",
     "load_clock",
+    "require_controller_for_bar",
     "start_clock",
 ]

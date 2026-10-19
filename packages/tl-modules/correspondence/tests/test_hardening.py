@@ -289,3 +289,29 @@ def test_the_sweep_pages_through_more_clocks_than_a_page_and_reports_the_ones_it
     with open_uow(world.db) as uow, frozen_today("2026-11-10"):
         events, skipped = handlers_clocks.sweep_clocks(uow, handlers_clocks.SweepClocks(**BASE))
     assert len(events) == 4 and skipped == [broken]
+
+
+# --- a contractual time bar is moved or ended by a controller ------------------------------------
+
+
+def test_restarting_or_cancelling_a_time_bar_is_a_controllers_act(world: CorrWorld) -> None:
+    from tl_core.auth.errors import ForbiddenError
+
+    with frozen_today(MONDAY):
+        item = world.forge_item()
+        bar = world.start_clock(item, kind="time_bar", label="Notice of claim").stream_id
+        courtesy = world.start_clock(item, label="Reply expected").stream_id
+        # a plain person may restart and cancel an ordinary clock
+        world.restart(courtesy, reason="they asked for a week")
+        world.cancel(courtesy, reason="no longer needed")
+        for act in (world.restart, world.cancel):
+            with cf.use_viewer(ANN), pytest.raises(ForbiddenError, match="time bar"):
+                act(bar, reason="please")
+        # pausing it is still anyone's; a controller may restart and cancel it
+        world.pause(bar)
+        world.resume(bar)
+        with cf.use_viewer(CTL):
+            world.restart(bar, reason="the notice was served again")
+            world.cancel(bar, reason="withdrawn by the contractor")
+    with cf.system_view():
+        assert world.clock(bar).state == "cancelled"
