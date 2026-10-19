@@ -13,6 +13,7 @@ from sqlalchemy import text
 from tl_adapters.db import rebuild_projections
 from tl_core.auth.projector import ACCOUNT_EVENT_TYPES
 from tl_core.integration.streams import INTEGRATION_INTERNAL_EVENT_TYPES
+from tl_core.threads.contract import THREAD_EVENT_TYPES, THREAD_WEBHOOK_EVENT_TYPES
 from tl_core.webhooks import queries
 from tl_core.webhooks.rows import OutboxRow, load_json
 from tl_core.webhooks.signing import SigningSecret, verify
@@ -247,9 +248,13 @@ def test_every_catalog_event_type_is_delivered_and_valid(pworld: World) -> None:
             errors = list(checker.iter_errors(body))
             assert not errors, (event_type, errors[0].message)
             seen.add(event_type)
-    # account events are in the catalog but internal: never delivered (ADR-0009)
+    # account events are in the catalog but internal: never delivered (ADR-0009); nor are the
+    # edits and retractions of a thread (brief 21.5)
     assert seen == (
-        set(catalog.event_types()) - ACCOUNT_EVENT_TYPES - INTEGRATION_INTERNAL_EVENT_TYPES
+        set(catalog.event_types())
+        - ACCOUNT_EVENT_TYPES
+        - INTEGRATION_INTERNAL_EVENT_TYPES
+        - (set(THREAD_EVENT_TYPES) - set(THREAD_WEBHOOK_EVENT_TYPES))
     )
 
 
