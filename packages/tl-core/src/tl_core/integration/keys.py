@@ -102,7 +102,9 @@ def resolve_keys(args: dict[str, Any], lookup: KeyLookup) -> tuple[dict[str, Any
             raise _Refused(
                 Problem(
                     code="key_not_found",
-                    message=f"No single record has the key {shown(key)}.",
+                    # Nothing of the payload goes into a message (it lands in an event and the
+                    # error queue): the length says which key without saying what it is.
+                    message=f"No single record has the key (a text of {len(key)} characters).",
                 )
             )
         seen[pair] = found[0].id

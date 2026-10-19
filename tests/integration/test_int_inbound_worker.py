@@ -163,6 +163,19 @@ def test_a_key_that_names_no_record_fails_the_delivery(world: World) -> None:
     assert world.events("Inbound.Failed")[0]["stream_id"] == only(world)["delivery_id"]
 
 
+def test_the_failure_of_a_key_holds_nothing_of_the_payload(world: World) -> None:
+    """The message lands in an event and in the error queue: a length and a hash, not the key
+    (second security review, finding 9)."""
+    mapping = '{"command": "AddLink", "args": {"from_id": {"$key": $.a}, "to_id": {"$key": $.a}}}'
+    made = world.endpoint(mapping=mapping, allowed_commands=["AddLink"])
+    world.deliver(made.endpoint_id, {"a": "SECRET-PART-NUMBER-77"})
+    run(world)
+    code, message = failed(world)
+    assert code == "key_not_found" and "characters" in message
+    assert "SECRET-PART" not in message
+    assert "SECRET-PART" not in str(world.events("Inbound.Failed"))
+
+
 def test_a_key_of_another_scope_is_not_found(world: World) -> None:
     world.record("47-1", scope="project:OTHER")
     world.record("47-2")
