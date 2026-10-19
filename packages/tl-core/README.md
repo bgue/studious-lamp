@@ -64,6 +64,14 @@ The dialect-neutral platform core: ledger types and hashing, the projector engin
 | `tl_core.settings.checks.check_egress_entry`, `tl_core.settings.effects.mark_applied` | functions | The allow-list entry rules (nothing too wide, no metadata or link-local, no 6to4, Teredo or NAT64 range); the record that a `restart`, `rebuild` or `reindex` effect was carried out (`setting_effect_applied`, never cleared by a rebuild) |
 | `tl_core.services.settings.ChangeSetting` | command | A setting change as a command, so an agent can propose it (`PROPOSABLE_TOOLS["propose_setting_change"]`); a proposal never carries `accept_risk` |
 
+## Integration layer (`tl_core.integration`, P1-I7 workstream A)
+
+| Item | Kind | Notes |
+|---|---|---|
+| `tl_core.integration` (`contract`, `actor_access`, `automation`, `keys`, `registry`, `killswitch`) | package | Actions, rules, inbound endpoints and enrichers (ADR-0017; runbook `docs/runbooks/integration.md`). `contract.py` is frozen (an ADR or an escalation changes it). `actor_access.held_access` says what an actor holds (a person from its roles, a service actor from the row that owns it while its switch, app and owner are on); the command runner enforces it. `automation.plan_command` builds a command from a rule step or a mapping and refuses anything a client could not do; the record version is read when the command runs |
+| `tl_core.integration.rules`, `.actions`, `.executors`, `.inbound`, `.enrichers` | packages | The rules worker (cursor, depth, budgets, dry run), the action registry with the `job` and `webhook` executors, the inbound gate, the mapping runtime (a child process under the ADR-0014 envelope) and the worker, and the enrichment pipeline, dispatcher and the first enricher `doc_classifier` |
+| `int_secret`, `int_replay`, `int_delivery`, `int_counter`, `rule_cursor`, `rule_firing`, `enrich_cursor` | operational tables | Created by the generated DDL, never cleared by a rebuild, never in an event: secrets, replay window, deliveries, counters, cursors and firings |
+
 ## Webhooks (`tl_core.webhooks`, P0-I5 workstream B)
 Outbox, signed delivery and the event catalog. Plan and decisions: `docs/tickets/P0-I5/README-B.md`.
 
