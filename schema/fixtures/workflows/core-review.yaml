@@ -1,6 +1,8 @@
 # Sample company workflow for the generic Phase 0 record type (brief 8). Read by tl_core.workflow.
 # Guards: `approve` needs the expected links declared for the Approved state (links/core-record.yaml)
-# and a record that conforms to the effective schema in that state; `issue` needs the `manager` role.
+# and a record that conforms to the effective schema in that state; `issue` needs the
+# `document_controller` role (an admin holds it too). Role names in a `roles` guard are account roles:
+# the server derives what a person holds from the signed-in account (ADR-0013, addendum P1-SEC1).
 id: core.review
 version: 1
 record_type: core.Record
@@ -30,7 +32,7 @@ transitions:
     to: Issued
     guards:
       - kind: roles
-        any_of: [manager]
+        any_of: [document_controller]
   - name: reject
     label: Send back to draft
     from: [Review, Approved]

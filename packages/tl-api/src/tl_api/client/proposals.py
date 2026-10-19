@@ -8,8 +8,6 @@ proposal with ``status == "failed"`` and the refusal in ``reason``.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-
 from tl_core.proposals.types import ProposalStatus, ProposalView
 
 from tl_api.client.base import ApiClientBase, quote
@@ -52,13 +50,14 @@ class ProposalsApi(ApiClientBase):
         data = self._get_json(f"/proposals/{quote(proposal_id)}", {"scope": scope})
         return self._model(ProposalView, data)
 
-    def accept_proposal(self, proposal_id: str, *, roles: Sequence[str] = ()) -> ProposalView:
+    def accept_proposal(self, proposal_id: str) -> ProposalView:
         """Run the proposal's command as the token's actor (``POST /proposals/{id}/accept``).
 
-        The body is ``{"roles": list(roles)}``. The answer is a ``ProposalView`` with status
+        The body is empty: the accepting person's workflow roles come from the account the token
+        names (ADR-0013, addendum P1-SEC1). The answer is a ``ProposalView`` with status
         ``accepted``, or ``failed`` when the command was refused.
         """
-        data = self._post_json(f"/proposals/{quote(proposal_id)}/accept", {"roles": list(roles)})
+        data = self._post_json(f"/proposals/{quote(proposal_id)}/accept", {})
         return self._model(ProposalView, data)
 
     def reject_proposal(self, proposal_id: str, reason: str) -> ProposalView:

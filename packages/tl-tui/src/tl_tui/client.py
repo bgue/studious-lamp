@@ -235,12 +235,20 @@ class ClientInterface(Protocol):
 
     # --- workflow (P0-I3; brief 8) ------------------------------------------------------------
 
-    def workflow_status(self, record_id: str, *, roles: Sequence[str] = ()) -> WorkflowStatus:
-        """State, state-entered time and every transition with its guard results."""
+    def workflow_status(self, record_id: str) -> WorkflowStatus:
+        """State, state-entered time and every transition with its guard results.
+
+        Role guards are judged for the signed-in account: the roles are derived from it, never
+        chosen by the caller (ADR-0013, addendum P1-SEC1).
+        """
         ...
 
     def transition(self, cmd: TransitionWorkflow) -> CommandResult:
-        """Run a transition; raises ``GuardFailedError`` (with ``results``) when blocked."""
+        """Run a transition; raises ``GuardFailedError`` (with ``results``) when blocked.
+
+        The command carries no roles: the server (or the embedded client) derives them from the
+        signed-in account.
+        """
         ...
 
     # --- feed (P0-I6; brief 21) ---------------------------------------------------------------

@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -38,6 +38,7 @@ from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import ServiceError
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
+from tl_core.workflow.roles import workflow_roles
 
 try:
     import fcntl
@@ -291,6 +292,41 @@ def check_actor(db: DbTarget, actor: str, *, local: bool = True) -> str:
     if principal is None:
         fail(f"not signed in: {SIGN_IN_HINT} (--actor alone is accepted only in a dev setup)")
     fail(f"--actor {actor} is not the signed-in user ({principal.actor})")
+
+
+def workflow_roles_of(
+    db: DbTarget, claimed: Sequence[str], *, actor: str | None = None, local: bool = True
+) -> tuple[str, ...]:
+    """The workflow roles this command runs with: the session's, never a free claim (ADR-0013).
+
+    The roles are derived from the signed-in account (:func:`tl_core.workflow.roles.workflow_roles`)
+    when the session is ``actor``'s (``None`` means the session's own). ``claimed`` is the
+    ``--role`` option:
+
+    - empty: the session's roles, or none where there is no session (or it is another actor's);
+    - given, on a ledger file where ``TL_ENV`` is dev, test or ci (``local=True``): taken as
+      given, like any ``--actor`` there (the file's owner can write the file anyway, ADR-0009
+      sec. 7);
+    - given anywhere else (a database server, ``local=False``, or a non-dev environment): every
+      role named must be one the session holds, else `error: ...` and exit 1. A claim never adds a
+      role.
+    """
+    principal = current_principal(db)
+    mine = principal is not None and (actor is None or principal.actor == actor)
+    held = workflow_roles(principal) if principal is not None and mine else ()
+    if not claimed:
+        return held
+    if local and dev_tokens_allowed():
+        return tuple(dict.fromkeys([*held, *claimed]))
+    if principal is None:
+        fail(f"not signed in: {SIGN_IN_HINT} (--role alone is accepted only in a dev setup)")
+    missing = [role for role in claimed if role not in held]
+    if missing:
+        fail(
+            f"--role {', '.join(missing)}: the signed-in account does not hold it; workflow roles "
+            "come from the account (--role alone is accepted only in a dev setup)"
+        )
+    return held
 
 
 def require_session(db: DbTarget) -> Principal:

@@ -54,6 +54,7 @@ def _rows() -> tuple[ErrorSpec, ...]:
         s(svc.ReservedKeyError, "reserved_key", 422),
         s(svc.ReservedLinkSourceError, "reserved_link_source", 422),
         s(svc.ReservedIdentifierError, "reserved_identifier", 422),
+        s(svc.RoleClaimError, "role_claim_refused", 422),
         s(svc.UnsupportedRecordTypeError, "unsupported_record_type", 422),
         s(svc.RecordNotFoundError, "record_not_found", 404),
         s(svc.RecordVoidedError, "record_voided", 409),

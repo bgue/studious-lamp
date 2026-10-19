@@ -10,17 +10,6 @@
             "description": "\"I accept the risk\": needed to accept a change to a `dangerous` setting.",
             "title": "Accept Risk",
             "type": "boolean"
-          },
-          "roles": {
-            "description": "Workflow roles the accepting person holds (a stub until auth, brief 8).",
-            "items": {
-              "maxLength": 64,
-              "minLength": 1,
-              "type": "string"
-            },
-            "maxItems": 20,
-            "title": "Roles",
-            "type": "array"
           }
         },
         "title": "AcceptBody",
@@ -14866,14 +14855,6 @@
       "TransitionWorkflowBody": {
         "additionalProperties": false,
         "properties": {
-          "actor_roles": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Actor Roles",
-            "type": "array"
-          },
           "causation_id": {
             "anyOf": [
               {
@@ -33228,7 +33209,7 @@
     },
     "/records/{record_id}/workflow": {
       "get": {
-        "description": "State, state-entered time and every transition with its guard results.",
+        "description": "State, state-entered time and every transition with its guard results.\n\nThe role guards are judged for the caller: their roles come from the signed-in account, never\nfrom the request (ADR-0013, addendum P1-SEC1).",
         "operationId": "get_workflow_status",
         "parameters": [
           {
@@ -33238,27 +33219,6 @@
             "schema": {
               "title": "Record Id",
               "type": "string"
-            }
-          },
-          {
-            "description": "Roles for the role guards.",
-            "in": "query",
-            "name": "role",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Roles for the role guards.",
-              "title": "Role"
             }
           }
         ],

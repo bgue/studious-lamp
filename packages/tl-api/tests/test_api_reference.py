@@ -52,7 +52,7 @@ def test_workflow_status_lists_transitions_with_guard_results(harness: Harness) 
     assert status["options"][0]["allowed"] is True and status["options"][0]["to_state"] == "Review"
 
 
-def test_roles_decide_a_role_guard(harness: Harness) -> None:
+def test_a_dev_token_holds_no_workflow_role_whatever_the_query_says(harness: Harness) -> None:
     record = harness.create_record("W-2")
     sid = record.stream_id
     # Draft -> Review -> Approved needs the expected link; reach Approved by satisfying it.
@@ -77,8 +77,10 @@ def test_roles_decide_a_role_guard(harness: Harness) -> None:
     options = lambda **p: harness.client.get(f"/records/{sid}/workflow", params=p).json()["options"]  # noqa: E731
     issue = next(o for o in options() if o["transition"] == "issue")
     assert issue["allowed"] is False
-    issue = next(o for o in options(role="manager") if o["transition"] == "issue")
-    assert issue["allowed"] is True
+    # P1-SEC1: a query parameter is not a source of roles; the token's account decides
+    for role in ("document_controller", "admin", "manager"):
+        issue = next(o for o in options(role=role) if o["transition"] == "issue")
+        assert issue["allowed"] is False, role
 
 
 def test_workflow_status_of_an_unknown_record_is_404(harness: Harness) -> None:

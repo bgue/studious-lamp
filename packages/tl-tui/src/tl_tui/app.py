@@ -109,7 +109,6 @@ class TlApp(App[None]):
         record_type: str | None = "core.Record",
         actor: str = "user:dev",
         mode: str = "embedded",
-        roles: tuple[str, ...] = (),
         is_admin: bool = False,
         is_controller: bool = False,
         feed: ChangeFeed | None = None,
@@ -121,8 +120,6 @@ class TlApp(App[None]):
         self.record_type = record_type
         self.actor = actor
         self.mode = mode
-        # Roles the user claims for workflow guards: a stub until auth exists (brief 8).
-        self.roles = roles
         self.is_admin = is_admin  # the person signed in holds the admin role (F10 accounts screen)
         # an admin or a document controller: the document screens offer the controlling acts
         self.is_controller = is_controller or is_admin
@@ -495,9 +492,7 @@ class TlApp(App[None]):
             if ran:
                 self._changed(str(record["id"]))
 
-        self.push_screen(
-            WorkflowMenu(self.client, self.scope, record, roles=self.roles, actor=self.actor), done
-        )
+        self.push_screen(WorkflowMenu(self.client, self.scope, record, actor=self.actor), done)
 
     def action_trace(self) -> None:
         if self._modal_open():

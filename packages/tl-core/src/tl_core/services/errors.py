@@ -33,6 +33,9 @@ class ReservedLinkSourceError(ServiceError): ...  # a link source only the syste
 class ReservedIdentifierError(ServiceError): ...  # a correlation id or source the system alone sets
 
 
+class RoleClaimError(ServiceError): ...  # a client named workflow roles; the server derives them
+
+
 class UnsupportedRecordTypeError(ServiceError): ...  # record_type other than "core.Record"
 
 

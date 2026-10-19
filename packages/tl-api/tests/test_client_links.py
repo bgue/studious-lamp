@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from typing import Any
 
 import pytest
@@ -195,7 +196,9 @@ def test_a_blocked_transition_raises_guard_failed_with_its_results(harness: Harn
         )
 
 
-def test_roles_reach_the_role_guards(harness: Harness) -> None:
+def test_a_client_has_no_roles_to_send_and_a_dev_token_passes_no_role_guard(
+    harness: Harness,
+) -> None:
     sid = harness.create_record("W-3").stream_id
     other = harness.create_record("W-4").stream_id
     api = harness.api()
@@ -206,12 +209,13 @@ def test_roles_reach_the_role_guards(harness: Harness) -> None:
             TransitionWorkflow(**common(stream_id=sid, expected_version=version, transition=name))
         ).version
 
-    def issue_allowed(**kw: Any) -> bool:
-        options = api.workflow_status(sid, **kw).options
+    def issue_allowed() -> bool:
+        options = api.workflow_status(sid).options
         return next(o for o in options if o.transition == "issue").allowed
 
     assert issue_allowed() is False
-    assert issue_allowed(roles=["manager"]) is True
+    assert "roles" not in inspect.signature(api.workflow_status).parameters
+    assert "roles" not in inspect.signature(api.accept_proposal).parameters
 
 
 def test_a_client_built_for_another_actor_is_attributed_to_that_actor(harness: Harness) -> None:

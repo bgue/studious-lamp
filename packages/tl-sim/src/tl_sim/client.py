@@ -15,7 +15,6 @@ pattern, so a ``#SIMR3FA91C-REC-0007`` in a post resolves to its record.
 from __future__ import annotations
 
 import tempfile
-from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
@@ -95,7 +94,7 @@ class ApiLike(Protocol):
         agent: str | None = None,
         limit: int = 200,
     ) -> list[ProposalView]: ...
-    def accept_proposal(self, proposal_id: str, *, roles: Sequence[str] = ()) -> ProposalView: ...
+    def accept_proposal(self, proposal_id: str) -> ProposalView: ...
     def reject_proposal(self, proposal_id: str, reason: str) -> ProposalView: ...
 
 
@@ -178,7 +177,13 @@ def connect(base_url: str, token: str, clock: SimClock, *, timeout: float = 30.0
 
 
 class HttpSimClient:
-    """A ``SimClient`` for one actor of one run."""
+    """A ``SimClient`` for one actor of one run.
+
+    It sends no workflow roles and cannot be given any: the suite derives them from the account
+    behind the actor's token (ADR-0013, addendum P1-SEC1). A simulated person's token is a dev token
+    and carries the `user` role only, so a role-guarded transition is refused for it; a person who
+    must pass one signs in as an account that holds the role.
+    """
 
     def __init__(
         self,
@@ -189,7 +194,6 @@ class HttpSimClient:
         clock: SimClock,
         keys: Keys,
         identity: str,
-        roles: Sequence[str] = (),
         mcp: McpCaller | None = None,
     ) -> None:
         self._api = api
@@ -198,7 +202,6 @@ class HttpSimClient:
         self._clock = clock
         self._keys = keys
         self._identity = identity
-        self._roles = list(roles)
         self._mcp = mcp
 
     def _common(self) -> dict[str, Any]:
@@ -252,7 +255,6 @@ class HttpSimClient:
             stream_id=record_id,
             expected_version=self._version(record_id),
             transition=transition,
-            actor_roles=self._roles,
         )
         result = self._api.transition(cmd)
         to_state = next(
@@ -323,7 +325,7 @@ class HttpSimClient:
 
     def accept_proposal(self, proposal_id: str) -> dict[str, Any]:
         self._clock.tick()
-        return self._api.accept_proposal(proposal_id, roles=self._roles).model_dump(mode="json")
+        return self._api.accept_proposal(proposal_id).model_dump(mode="json")
 
     def reject_proposal(self, proposal_id: str, reason: str) -> dict[str, Any]:
         self._clock.tick()

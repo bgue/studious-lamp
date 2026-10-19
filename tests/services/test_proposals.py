@@ -366,14 +366,15 @@ def test_a_proposal_cannot_carry_roles_and_the_accepting_person_supplies_them(
     world: World,
 ) -> None:
     rid = world.create("P123-REC-0001")
-    claimed = TransitionWorkflow(
-        actor=AGENT, source="x", scope=P1, stream_id=rid, expected_version=1,
-        transition="finish", actor_roles=["manager"],
+    # P1-SEC1: a command has no roles field, so a claim made by building one is dropped, not stored
+    claimed = TransitionWorkflow.model_validate(
+        dict(actor=AGENT, source="x", scope=P1, stream_id=rid, expected_version=1,
+             transition="finish", actor_roles=["manager"])
     )  # fmt: skip
-    with pytest.raises(InvalidProposalError, match="roles"):
-        world.submit(claimed, "transition_workflow")
-    plain = claimed.model_copy(update={"actor_roles": []})
+    assert "actor_roles" not in claimed.model_dump()
+    plain = claimed
     proposal = world.submit(plain, "transition_workflow")  # a role guard alone does not stop it
+    assert "actor_roles" not in proposal.command
     without = proposals.accept_or_fail(world.factory, proposal_id=proposal.proposal_id, by=ALICE)
     assert without.status == "failed" and (without.reason or "").startswith("GuardFailedError")
     again = world.submit(plain, "transition_workflow")
