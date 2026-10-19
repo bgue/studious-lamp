@@ -13,6 +13,7 @@ from typing import Annotated
 
 import typer
 from tl_adapters.db import DbTarget, open_uow
+from tl_core.uow import UnitOfWork
 from tl_mod_correspondence import registry, views
 from tl_mod_correspondence.handlers.clauses import (
     DefineClause,
@@ -51,6 +52,9 @@ thread_app = typer.Typer(help="Threads: the items of one exchange.", no_args_is_
 party_app = typer.Typer(help="Parties and their contacts (controller).", no_args_is_help=True)
 clause_app = typer.Typer(
     help="Contract clauses and their time bars (controller).", no_args_is_help=True
+)
+clearance_app = typer.Typer(
+    help="Who is named on privileged items, by item id (controller).", no_args_is_help=True
 )
 class_app = typer.Typer(
     help="The confidentiality class of an item (controller).", no_args_is_help=True
@@ -345,6 +349,16 @@ def clause_retire(
     typer.echo(f"retired clause {contract}/{number}")
 
 
+def control_item_id(uow: UnitOfWork, scope: str, project: str, number: str) -> str:
+    """The id of the item for a controller who names or unnames readers: whatever its class, since
+    the item may be privileged and the controller not named on it (ADR-0016 section 2). Only the
+    id comes back; the handler checks the item exists and is privileged."""
+    found = registry.find_item_id_for_control(uow.conn(), scope, number)
+    if found is None:
+        _fail(f"no item {number!r} in project {project!r}")
+    return found
+
+
 # --- confidentiality -------------------------------------------------------------------------
 
 
@@ -406,10 +420,10 @@ def class_grant(
     scope = f"project:{project}"
     require_controller(db)
     with _service_errors(), open_uow(db) as uow:
-        row = item_row(uow, scope, project, number)
+        item_id = control_item_id(uow, scope, project, number)
         handle_grant_clearance(
             uow,
-            GrantClearance(actor=actor, source="cli", scope=scope, stream_id=row.id,
+            GrantClearance(actor=actor, source="cli", scope=scope, stream_id=item_id,
                            account=account, reason=reason),
         )  # fmt: skip
     typer.echo(f"{account} may read {number}")
@@ -429,13 +443,25 @@ def class_withdraw(
     scope = f"project:{project}"
     require_controller(db)
     with _service_errors(), open_uow(db) as uow:
-        row = item_row(uow, scope, project, number)
+        item_id = control_item_id(uow, scope, project, number)
         handle_withdraw_clearance(
             uow,
-            WithdrawClearance(actor=actor, source="cli", scope=scope, stream_id=row.id,
+            WithdrawClearance(actor=actor, source="cli", scope=scope, stream_id=item_id,
                               account=account, reason=reason),
         )  # fmt: skip
     typer.echo(f"{account} may no longer read {number}")
+
+
+@clearance_app.command("ls")
+def clearance_ls(ctx: typer.Context, project: _Project) -> None:
+    """Who is named on which privileged item, by item id (controller). Nothing of an item is shown
+    but its id, so a controller who is not named can still find the item to name someone."""
+    db: DbTarget = ctx.obj
+    require_controller(db)
+    with _service_errors(), open_uow(db, readonly=True) as uow:
+        found = registry.list_clearances_for_control(uow.conn(), f"project:{project}")
+    for item_id, c in found:
+        typer.echo(f"{item_id} {c.account} since {c.granted_on} by {c.granted_by}")
 
 
 # --- email in --------------------------------------------------------------------------------

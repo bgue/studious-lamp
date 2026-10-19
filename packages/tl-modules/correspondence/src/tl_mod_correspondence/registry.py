@@ -30,6 +30,7 @@ from tl_mod_correspondence.names import (
     CLEARANCE_TABLE,
     CLOCK_VIEW,
     CONTACT_TABLE,
+    CORRESPONDENCE_TABLE,
     CORRESPONDENCE_VIEW,
     PARTY_VIEW,
     ST_DRAFT,
@@ -180,6 +181,23 @@ def find_by_message_id(conn: Connection, scope: str, message_id: str) -> ItemRow
     return None if row is None or _hidden(conn, row.id) else _item(row)
 
 
+def list_clearances_for_control(conn: Connection, scope: str) -> list[tuple[str, ClearanceRow]]:
+    """``(item id, clearance)`` of every privileged item of the scope, whoever may read it: the
+    ids and the accounts and nothing of the item (``tl corr class clearances``)."""
+    rows = conn.execute(
+        text(
+            "SELECT c.record_id, c.account, c.granted_by, c.granted_on "
+            f"FROM {CLEARANCE_TABLE} c JOIN {CORRESPONDENCE_TABLE} i ON i.id = c.record_id "
+            "WHERE i.scope = :scope ORDER BY c.record_id, c.account"
+        ),
+        {"scope": scope},
+    ).all()
+    return [
+        (r.record_id, ClearanceRow(r.record_id, r.account, r.granted_by, r.granted_on))
+        for r in rows
+    ]
+
+
 def list_items(
     conn: Connection,
     scope: str,
@@ -258,9 +276,32 @@ class ClearanceRow:
     granted_on: str
 
 
-def clearances_of(conn: Connection, item_id: str) -> list[ClearanceRow]:
-    """The accounts named on an item, by account. ``[]`` for an item the viewer may not read."""
-    if _hidden(conn, item_id):
+def get_item_for_control(conn: Connection, item_id: str) -> ItemRow | None:
+    """The item with this id **whatever its class**: for the controller's lock-out path only
+    (ADR-0016 section 2). The caller checks the scope and that the viewer is a controller; the
+    content is not shown to anyone by this call."""
+    row = conn.execute(
+        text(f"SELECT {_ITEM_COLUMNS} FROM {CORRESPONDENCE_VIEW} WHERE id = :id"), {"id": item_id}
+    ).first()
+    return None if row is None else _item(row)
+
+
+def find_item_id_for_control(conn: Connection, scope: str, number: str) -> str | None:
+    """The id of the item of this number in the scope whatever its class (the lock-out path, with
+    ``get_item_for_control``: it answers an id, never a field of the item)."""
+    row = conn.execute(
+        text(f"SELECT id FROM {CORRESPONDENCE_VIEW} WHERE scope = :scope AND number = :number"),
+        {"scope": scope, "number": number},
+    ).first()
+    return None if row is None else str(row.id)
+
+
+def clearances_of(
+    conn: Connection, item_id: str, *, for_control: bool = False
+) -> list[ClearanceRow]:
+    """The accounts named on an item, by account. ``[]`` for an item the viewer may not read,
+    unless ``for_control`` (the controller's lock-out path: the accounts, never the item)."""
+    if not for_control and _hidden(conn, item_id):
         return []
     rows = conn.execute(
         text(

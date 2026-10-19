@@ -14,6 +14,7 @@ from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import text
+from tl_core import confidentiality
 from tl_core.ledger import AppendResult, NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import RecordNotFoundError
@@ -174,6 +175,22 @@ def load_item(uow: UnitOfWork, cmd: Command, item_id: str) -> registry.ItemRow:
     ``RecordNotFoundError`` (ADR-0016): the message must not tell them apart.
     """
     found = registry.get_item(uow.conn(), item_id)
+    if found is None or found.scope != cmd.scope:
+        raise RecordNotFoundError(f"no record {item_id!r}")
+    return found
+
+
+def load_item_for_control(uow: UnitOfWork, cmd: Command, item_id: str) -> registry.ItemRow:
+    """The item for a command that must work on an item its actor cannot read (ADR-0016 section
+    2: naming who may read a privileged item, so that the last reader leaving does not lock the
+    item). Only a controller-level viewer takes this path; for anyone else it is ``load_item``.
+
+    The item must exist in the command's scope; nothing of it is shown to the actor. A missing
+    item and one of another scope raise the same ``RecordNotFoundError`` as ``load_item``.
+    """
+    if confidentiality.current_viewer().level < 1:
+        return load_item(uow, cmd, item_id)
+    found = registry.get_item_for_control(uow.conn(), item_id)
     if found is None or found.scope != cmd.scope:
         raise RecordNotFoundError(f"no record {item_id!r}")
     return found

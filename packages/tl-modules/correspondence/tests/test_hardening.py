@@ -7,15 +7,19 @@ from __future__ import annotations
 
 import pytest
 from tl_adapters.db import open_uow
+from tl_core import confidentiality as cf
 from tl_core.ledger.types import ConcurrencyError
+from tl_core.services.errors import RecordNotFoundError
 from tl_mod_correspondence import catalog, registry
 from tl_mod_correspondence import domains as dm
 from tl_mod_correspondence.errors import (
     ClauseNotFoundError,
+    ClearanceError,
     InvalidClauseError,
     InvalidItemError,
     LetterRenderError,
 )
+from tl_mod_correspondence.handlers.confidentiality import GrantClearance, handle_grant_clearance
 from tl_mod_correspondence.handlers.models import Recipient
 from tl_mod_correspondence.testing import BASE, PROJECT, CorrWorld, frozen_today
 from tl_mod_documents.handlers.documents import RegisterDocument, handle_register_document
@@ -135,3 +139,71 @@ def test_a_contract_document_of_another_project_is_refused(world: CorrWorld) -> 
     with pytest.raises(InvalidClauseError, match="not a document"):
         world.clause("CT-1", "30", contract_document_id=document.stream_id)
     assert PROJECT == "project:P123"
+
+
+# --- ADR-0016 section 2: the lock-out clause ----------------------------------------------------
+
+CTL = cf.Viewer(actor="user:ctl", level=1, account="user:ctl")
+ANN = cf.Viewer(actor="user:ann", level=0, account="user:ann")
+
+
+def _privileged(world: CorrWorld) -> str:
+    """An item only user:boss (a person who is about to leave) is named on."""
+    with frozen_today(MONDAY):
+        made = world.receive("Counsel's advice")
+    with cf.use_viewer(CTL):
+        world.set_class(made.stream_id, "privileged", grant=["user:boss"])
+    return made.stream_id
+
+
+def _people(world: CorrWorld) -> None:
+    from tl_core.auth import accounts
+    from tl_core.auth.password import prepare_password
+
+    with open_uow(world.db) as uow:
+        for name in ("u", "boss", "ann", "ctl", "newcomer"):
+            accounts.create_account(
+                uow, username=name, display_name=name, kind="person", roles=["user"],
+                password=prepare_password("correct horse battery"), by="svc:test",
+            )  # fmt: skip
+
+
+def test_a_controller_not_named_on_a_privileged_item_can_still_name_a_reader(
+    world: CorrWorld,
+) -> None:
+    _people(world)
+    item = _privileged(world)
+    with cf.use_viewer(cf.Viewer(actor="user:other", level=1, account="user:other")):
+        # the item does not exist for this controller...
+        with open_uow(world.db, readonly=True) as uow:
+            assert registry.get_item(uow.conn(), item) is None
+        # ...but the clearance commands work by id
+        world.grant(item, "user:newcomer")
+        world.withdraw(item, "user:boss")
+    with cf.use_viewer(cf.Viewer(actor="user:newcomer", level=0, account="user:newcomer")):
+        with open_uow(world.db, readonly=True) as uow:
+            found = registry.get_item(uow.conn(), item)
+        assert found is not None and found.subject == "Counsel's advice"
+
+
+def test_the_lock_out_path_is_for_a_controller_and_checks_the_scope_and_the_class(
+    world: CorrWorld,
+) -> None:
+    _people(world)
+    item = _privileged(world)
+    with cf.use_viewer(ANN):  # a plain viewer gets what it got before: no such item
+        with pytest.raises(RecordNotFoundError):
+            world.grant(item, "user:newcomer")
+    with cf.use_viewer(CTL):
+        with pytest.raises(RecordNotFoundError):
+            world.grant("01J000000000000000000000", "user:newcomer")  # unknown
+        with pytest.raises(RecordNotFoundError):
+            world.run(GrantClearance, handle_grant_clearance, stream_id=item,
+                      account="user:newcomer", reason="x", scope="project:P999")  # fmt: skip
+        plain = world.receive("An ordinary letter").stream_id
+        with pytest.raises(ClearanceError, match="not privileged"):
+            world.grant(plain, "user:newcomer")
+    # an unnamed controller cannot change the class: that needs to read the item
+    with cf.use_viewer(cf.Viewer(actor="user:other", level=1, account="user:other")):
+        with pytest.raises(RecordNotFoundError):
+            world.set_class(item, "internal")

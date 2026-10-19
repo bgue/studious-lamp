@@ -3,9 +3,9 @@
 A class is ``internal`` (any signed-in person and agent), ``restricted`` (a document controller or
 admin; no agent) or ``privileged`` (only the accounts named on the item; nobody else, an admin
 included). These commands are a document controller's: **setting a class is the controlled act**,
-and a person cannot raise the class of their own item to hide it from review. The commands read the
-item through the viewer, so a controller who is not named on a privileged item cannot even see it,
-let alone change who may.
+and a person cannot raise the class of their own item to hide it from review. Setting the class
+reads the item through the viewer, so a controller who is not named on a privileged item cannot
+see it or change its class; naming and unnaming readers work by id (see below).
 
 Rules that keep a privileged item readable and honest:
 
@@ -14,6 +14,12 @@ Rules that keep a privileged item readable and honest:
 * a clearance is granted only to an active person account (an agent never reads a privileged
   item), and the last clearance of a privileged item cannot be withdrawn;
 * leaving the privileged class withdraws every clearance, so a later return to it starts empty.
+
+**Lock-out (ADR-0016 section 2).** Naming and unnaming readers (``GrantClearance``,
+``WithdrawClearance``) work **by id** for a controller-level actor who is not named on the item:
+the handler checks that the item exists in the scope and that it is privileged, and shows nothing
+of it. Setting the class reads the item through the viewer: a controller who cannot read it
+cannot change its class, only name someone who can.
 """
 
 from __future__ import annotations
@@ -29,7 +35,13 @@ from tl_core.uow import UnitOfWork
 
 from tl_mod_correspondence import registry
 from tl_mod_correspondence.errors import ClearanceError
-from tl_mod_correspondence.handlers.common import append, correlated, load_item, today
+from tl_mod_correspondence.handlers.common import (
+    append,
+    correlated,
+    load_item,
+    load_item_for_control,
+    today,
+)
 from tl_mod_correspondence.limits import MAX_CLEARANCES, MAX_NUMBER, MAX_REASON
 from tl_mod_correspondence.names import (
     CORR_CLASS_CHANGED,
@@ -177,11 +189,11 @@ def handle_grant_clearance(uow: UnitOfWork, cmd: GrantClearance) -> CommandResul
     """Append ``Correspondence.ClearanceGranted``. ``ClearanceError`` unless the item is
     privileged, the account an active person, and not already named."""
     cmd = correlated(cmd)
-    item = load_item(uow, cmd, cmd.stream_id)
+    item = load_item_for_control(uow, cmd, cmd.stream_id)
     if item.confidentiality != "privileged":
         raise ClearanceError(f"item {item.number} is {item.confidentiality}, not privileged")
     require_person(uow, cmd.account)
-    named = registry.clearances_of(uow.conn(), item.id)
+    named = registry.clearances_of(uow.conn(), item.id, for_control=True)
     if any(row.account == cmd.account for row in named):
         raise ClearanceError(f"{cmd.account} is already named on item {item.number}")
     if len(named) >= MAX_CLEARANCES:
@@ -196,10 +208,10 @@ def handle_withdraw_clearance(uow: UnitOfWork, cmd: WithdrawClearance) -> Comman
     """Append ``Correspondence.ClearanceWithdrawn``. ``ClearanceError`` unless the item is
     privileged and the account is named; the last account cannot be withdrawn."""
     cmd = correlated(cmd)
-    item = load_item(uow, cmd, cmd.stream_id)
+    item = load_item_for_control(uow, cmd, cmd.stream_id)
     if item.confidentiality != "privileged":
         raise ClearanceError(f"item {item.number} is {item.confidentiality}, not privileged")
-    named = registry.clearances_of(uow.conn(), item.id)
+    named = registry.clearances_of(uow.conn(), item.id, for_control=True)
     if all(row.account != cmd.account for row in named):
         raise ClearanceError(f"{cmd.account} is not named on item {item.number}")
     if len(named) == 1:

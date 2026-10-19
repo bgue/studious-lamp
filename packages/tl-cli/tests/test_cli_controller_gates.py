@@ -165,7 +165,7 @@ def test_there_are_eleven_controller_sites(tmp_path: Path) -> None:
     }
     assert found.pop("derive_publish.py") == 1
     # the correspondence group has sites of its own (test_cli_corr.py names and tries each)
-    assert sum(n for name, n in found.items() if name.startswith("corr")) == 14
+    assert sum(n for name, n in found.items() if name.startswith("corr")) == 15
     assert sum(n for name, n in found.items() if not name.startswith("corr")) == 11
     assert tuple(sites(tmp_path)) == SITE_NAMES
 

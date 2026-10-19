@@ -223,6 +223,7 @@ SITES = {
         "--reason",
         "x",
     ),
+    "clearance ls": ("clearance", "ls"),
     "report register": ("report", "register", "--include-class", "restricted"),
 }
 
@@ -236,3 +237,20 @@ def test_a_user_is_refused_at_every_controller_site_and_nothing_is_written(
     assert refused.stderr.startswith("error: forbidden"), refused.stderr
     assert GATE in refused.stderr
     assert cast.events() == before
+
+
+def test_a_controller_lists_who_is_named_and_names_another_reader(
+    cast: Cast, tmp_path: Path
+) -> None:
+    number = receive(cast.ursula, tmp_path)
+    run(cast.dora, "class", "set", number, *PROJECT, "--to", "privileged", "--grant", "user:ursula",
+        "--reason", "counsel")  # fmt: skip
+    listed = run(cast.dora, "clearance", "ls", *PROJECT).stdout
+    assert "user:ursula" in listed and "user:dora" in listed
+    assert number not in listed  # ids and accounts, nothing of the item
+    run(cast.dora, "class", "withdraw", number, *PROJECT, "--account", "user:ursula",
+        "--reason", "moved")  # fmt: skip
+    assert "user:ursula" not in run(cast.dora, "clearance", "ls", *PROJECT).stdout
+    assert run(cast.ursula, "clearance", "ls", *PROJECT, ok=False).stderr.startswith(
+        "error: forbidden"
+    )
