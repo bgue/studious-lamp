@@ -101,6 +101,7 @@ SETTING_ENABLED_TYPES = "threads.enabled_types"
 SETTING_DISPATCH_ENABLED = "threads.dispatch.enabled"
 SETTING_DISPATCH_ROLES = "threads.dispatch.roles"
 SETTING_AGENTS_CAN_DISPATCH = "threads.agents.can_dispatch"
+SETTING_REMINDERS_MAX_PENDING = "threads.reminders.max_pending"
 
 #: MCP tools (§21.5). ``propose_dispatch`` is a proposal; the other two are a read and a message.
 MCP_READ_THREAD = "read_thread"

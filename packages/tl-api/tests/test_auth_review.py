@@ -336,6 +336,7 @@ def route_actions(app: Any) -> set[str]:
 #: Every non-command action a route may use, decided once. A route with an action in neither set
 #: fails the test below: whoever adds it has to say whether an agent may call it.
 AGENT_MAY = {
+    "thread.read",  # P1-I7 WS-B
     "auth.me",
     "auth.sign_out",
     "document.read",
@@ -356,6 +357,7 @@ AGENT_MAY = {
     "type.read",
 }
 AGENT_MAY_NOT = {
+    "thread.preview",  # P1-I7 WS-B: an agent proposes a dispatch with the MCP tool
     "auth.password",
     "file.upload",
     "record.write",
@@ -424,7 +426,16 @@ AGENT_MAY_NOT = {
     "control.command.PublishDerivedDocuments",
     "control.command.VoidDerivedDocument",
 }
-FEED_COMMANDS = {"PostToFeed", "EditPost", "RetractPost", "ReactToPost"}
+FEED_COMMANDS = {
+    "PostToFeed",
+    "EditPost",
+    "RetractPost",
+    "ReactToPost",
+    # P1-I7 WS-B: a thread message changes no record (brief 21.5); dispatch is not here
+    "PostThreadMessage",
+    "EditThreadMessage",
+    "RetractThreadMessage",
+}
 
 
 def test_every_route_action_is_decided_for_agents(harness: Harness) -> None:

@@ -159,7 +159,7 @@ def test_history_line() -> None:
 def test_ls_lists_every_key_sorted_with_its_origin(env: dict[str, str]) -> None:
     lines = ok(env, "ls").splitlines()
     keys = [line.split("  ")[0] for line in lines]
-    assert keys == sorted(keys) and "feed.reactions.enabled" in keys and len(keys) == 10
+    assert keys == sorted(keys) and "feed.reactions.enabled" in keys and len(keys) == 17
     assert "feed.reactions.enabled  true  bool  default  -" in lines
     assert "lake.sync.interval  5m  duration  default  -" in lines
 

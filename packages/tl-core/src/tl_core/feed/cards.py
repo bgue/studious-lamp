@@ -46,6 +46,7 @@ TRANSPARENT_PREFIXES: tuple[str, ...] = (
     "Setting.",
     "Account.",
     "AgentToken.",
+    "Thread.",  # P1-I7 WS-B: messages are not in the activity stream (brief 21.5)
 )
 
 # Event types whose stream is the subject record (the card is about that record).

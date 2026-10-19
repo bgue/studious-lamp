@@ -38,6 +38,10 @@ from tl_core.services.psets import SetPsetValues
 from tl_core.services.workflow import TransitionWorkflow, WorkflowStatus
 from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView
+from tl_core.threads.dispatch import DispatchFromThread
+from tl_core.threads.messages import EditThreadMessage, PostThreadMessage, RetractThreadMessage
+from tl_core.threads.planner import PreviewResult
+from tl_core.threads.queries import ThreadPage
 from tl_mod_documents import reports as document_reports
 from tl_mod_documents import views as document_views
 from tl_mod_documents.derivation import views as derivation_views
@@ -272,6 +276,34 @@ class ClientInterface(Protocol):
         self, scope: str, sigil: Literal["#", "@"], prefix: str, *, limit: int = 8
     ) -> list[Completion]:
         """Composer candidates after ``#`` (keys, signal tags, codes, topics) or ``@`` (people)."""
+        ...
+
+    # --- record threads (P1-I7 WS-B; brief 21.5) ----------------------------------------------
+    #
+    # Same names and signatures as ``tl_api.client.ApiClient``. A message never dispatches; a slash
+    # command is previewed with ``thread_preview`` and confirmed with ``thread_dispatch``.
+
+    def thread_page(
+        self, record_id: str, *, limit: int = 50, before_seq: int | None = None
+    ) -> ThreadPage:
+        """The newest messages of the record's thread (oldest first), its participants and whether
+        threads and dispatch are on for it. ``before_seq`` is ``ThreadPage.next_before``."""
+        ...
+
+    def thread_post(self, cmd: PostThreadMessage) -> CommandResult:
+        """Post a message. The result's ``key`` is the message id."""
+        ...
+
+    def thread_edit(self, cmd: EditThreadMessage) -> CommandResult: ...
+
+    def thread_retract(self, cmd: RetractThreadMessage) -> CommandResult: ...
+
+    def thread_preview(self, record_id: str, text: str) -> PreviewResult:
+        """Plan a slash command as the signed-in person: a preview, or the parse problem."""
+        ...
+
+    def thread_dispatch(self, cmd: DispatchFromThread) -> CommandResult:
+        """Run a previewed command (``cmd.token`` from the preview) in one transaction."""
         ...
 
     # --- engineering tags (P1-I1; brief 9 M2) ------------------------------------------------

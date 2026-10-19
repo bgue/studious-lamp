@@ -79,6 +79,8 @@ from tl_cli import (
     tag,
     tag_import,
     tag_report,
+    thread,
+    thread_dispatch,
     transmittal,
     tui,
     webhook,
@@ -121,6 +123,10 @@ app.add_typer(wf.app, name="wf")
 app.add_typer(file.app, name="file")
 app.add_typer(link.app, name="link")
 app.add_typer(feed.app, name="feed")
+app.add_typer(thread.app, name="thread")  # P1-I7 WS-B
+thread.app.command("preview")(thread_dispatch.preview)
+thread.app.command("dispatch")(thread_dispatch.dispatch)
+thread.app.command("reminders")(thread_dispatch.reminders)
 app.add_typer(proposal.app, name="proposal")
 app.add_typer(standards.app, name="standards")
 standards.app.add_typer(standards_class.app, name="class")

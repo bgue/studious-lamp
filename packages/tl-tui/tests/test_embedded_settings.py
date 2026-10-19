@@ -46,7 +46,7 @@ def test_it_satisfies_the_client_interface_for_settings(client: EmbeddedClient) 
 def test_list_and_get_return_views_sorted_by_key(client: EmbeddedClient) -> None:
     rows = client.list_settings()
     keys = [row.effective.key for row in rows]
-    assert keys == sorted(keys) and len(keys) == 10
+    assert keys == sorted(keys) and len(keys) == 17
     assert all(isinstance(row, SettingView) for row in rows)
     one = client.get_setting(KEY)
     assert one.definition.type == "bool" and one.effective.value is True

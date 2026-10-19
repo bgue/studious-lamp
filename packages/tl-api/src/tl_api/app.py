@@ -61,6 +61,7 @@ from tl_api.routes import (
     proposals,
     records,
     reference,
+    threads,
 )
 from tl_api.routes import feed as feed_routes
 from tl_api.routes import settings as settings_routes
@@ -280,6 +281,7 @@ def create_app(
         documents,
         derivation,
         integration,
+        threads,  # P1-I7 WS-B
     ):
         app.include_router(module.router)
     app.include_router(commands.router)

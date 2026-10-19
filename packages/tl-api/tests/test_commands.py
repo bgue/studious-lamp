@@ -29,8 +29,8 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     assert {f"/commands/{spec.name}" for spec in COMMANDS} <= set(paths)
     # the core commands, the engineering module's (14) and the documents module's (34)
     assert (
-        len(COMMANDS) == 20 + 14 + 24 + 10 + 4 + 3 + 5 + 6 + 1
-    )  # + derivation (P1-I3), + rules, actions (P1-I7 WS-A)
+        len(COMMANDS) == 20 + 14 + 24 + 10 + 4 + 3 + 5 + 6 + 1 + 3
+    )  # + derivation (P1-I3), rules and actions (P1-I7 WS-A), threads (WS-B)
 
 
 def test_create_record_returns_the_command_result(harness: Harness) -> None:

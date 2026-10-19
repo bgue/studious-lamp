@@ -35,7 +35,7 @@ def test_the_list_has_every_platform_key_with_its_definition_and_state(harness: 
     assert got.status_code == 200
     rows = got.json()
     keys = [r["effective"]["key"] for r in rows]
-    assert keys == sorted(keys) and len(keys) == 11
+    assert keys == sorted(keys) and len(keys) == 17
     first = next(r for r in rows if r["effective"]["key"] == KEY)
     assert first["definition"]["type"] == "bool" and first["definition"]["default"] is True
     assert first["effective"] == {

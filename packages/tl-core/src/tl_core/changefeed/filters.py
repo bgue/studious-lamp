@@ -9,7 +9,7 @@ mistake (it would match nothing) and raises ``ValueError``.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from fnmatch import translate
 from functools import lru_cache
@@ -72,6 +72,9 @@ class SubscriptionFilter:
     #: Fail closed too: the proposal of a shadow value carries the value, so only a caller that
     #: holds an admin principal passes ``show_shadow=True``.
     show_shadow: bool = False
+    #: An extra test the API adds for the caller (record visibility of thread events, P1-I7). It
+    #: runs last and **fails closed**: an exception counts as "not visible".
+    visible: Callable[[Event], bool] | None = None
 
     def __post_init__(self) -> None:
         if self.event_types is not None and not self.event_types:
@@ -87,6 +90,7 @@ class SubscriptionFilter:
         record_ids: Iterable[str] | None = None,
         hide_stream_types: Iterable[str] | None = None,
         show_shadow: bool = False,
+        visible: Callable[[Event], bool] | None = None,
     ) -> SubscriptionFilter:
         """Build a filter from any iterables (a list of types, a set of ids)."""
         return SubscriptionFilter(
@@ -95,10 +99,21 @@ class SubscriptionFilter:
             None if record_ids is None else frozenset(record_ids),
             INTERNAL_STREAM_TYPES if hide_stream_types is None else frozenset(hide_stream_types),
             show_shadow,
+            visible,
         )
 
     def matches(self, event: Event) -> bool:
         """Whether ``event`` passes every part of the filter that is set."""
+        if not self._matches(event):
+            return False
+        if self.visible is None:
+            return True
+        try:
+            return bool(self.visible(event))
+        except Exception:  # noqa: BLE001 - fail closed: what cannot be checked is not shown
+            return False
+
+    def _matches(self, event: Event) -> bool:
         if event.stream_type in self.hide_stream_types:
             return False
         if not self.show_shadow and is_shadow_proposal(event.event_type, event.payload):

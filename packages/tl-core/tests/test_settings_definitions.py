@@ -69,6 +69,12 @@ def test_the_platform_file_defines_the_keys_of_decision_d2() -> None:
         "ui.tui.keymap",
         "ui.tui.graphics",
         "integration.kill_switch",  # P1-I7 WS-A
+        "threads.enabled",  # P1-I7 WS-B
+        "threads.enabled_types",
+        "threads.dispatch.enabled",
+        "threads.dispatch.roles",
+        "threads.agents.can_dispatch",
+        "threads.reminders.max_pending",
     }
 
 

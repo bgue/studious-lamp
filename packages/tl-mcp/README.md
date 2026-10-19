@@ -73,6 +73,10 @@ Runbook: `docs/runbooks/api-and-mcp-dev.md`.
 | `TL_LAKE_DIR` / `--lake-dir` | `./dev/data/lake` | The lake `lake_query` reads; it is opened per call and may not exist yet (the tool then says to run `tl lake sync`) |
 | `TL_AGENT_TOKEN` | required | An agent token from `tl admin token issue <agent> --label <what for>`. It names the actor for the life of the server and is checked again on every call: a revoked or expired token, or a disabled agent, stops at the next call. A person's session token is refused. Never pass it as an argument. `--actor` was removed |
 
+### Record threads (P1-I7 WS-B)
+Tools `read_thread`, `post_thread_message` (direct, never dispatches) and `propose_dispatch` (files a proposal that a
+person previews and accepts; `threads.agents.can_dispatch`). Visibility is the record's.
+
 ## Rules specific to this package
 See `AGENTS.md` in this directory.
 

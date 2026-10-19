@@ -21,6 +21,7 @@ from tl_api.client.links import LinksApi
 from tl_api.client.proposals import ProposalsApi
 from tl_api.client.records import RecordsApi
 from tl_api.client.settings import SettingsApi
+from tl_api.client.threads import ThreadsApi
 from tl_api.client.types_api import TypesApi
 
 
@@ -39,6 +40,7 @@ class ApiClient(
     AuthApi,
     AdminApi,
     IntegrationApi,
+    ThreadsApi,
 ):
     """One connection, every group of methods."""
 

@@ -39,6 +39,9 @@ PROPOSABLE_TOOLS: dict[str, str] = {
     "transition_workflow": "TransitionWorkflow",
     # P0-I8 decision D3: settings follow the proposal rules; accepting runs ChangeSetting.
     "propose_setting_change": "ChangeSetting",
+    # P1-I7 WS-B: a slash command from a thread. Accepting re-plans it as the accepting person
+    # (ADR-0018), so it runs only what that person may run and only if the plan is unchanged.
+    "propose_dispatch": "DispatchFromThread",
 }
 
 

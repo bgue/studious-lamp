@@ -4,12 +4,15 @@ finding 1): the change feed filter (so `/events`, `/stream`, `tl events`) and th
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 from tl_core.changefeed.filters import ANY, SubscriptionFilter
 from tl_core.feed.cards import disposition
 from tl_core.ledger import Event
 
+# the thread test of the filter touches the context only for a thread event
+CTX: Any = None
 NOW = datetime(2026, 10, 19, tzinfo=UTC)
 
 
@@ -49,9 +52,9 @@ def test_the_event_api_filter_follows_the_callers_role() -> None:
             }
         )  # fmt: skip
 
-    admin = build_filter(None, None, None, principal(["admin"]))
-    user = build_filter(None, None, None, principal(["user"]))
-    agent = build_filter(None, None, None, principal(["admin"], kind="agent"))
+    admin = build_filter(CTX, None, None, None, principal(["admin"]))
+    user = build_filter(CTX, None, None, None, principal(["user"]))
+    agent = build_filter(CTX, None, None, None, principal(["admin"], kind="agent"))
     assert admin.matches(event("shadow"))
     assert not user.matches(event("shadow")) and not agent.matches(event("shadow"))
 

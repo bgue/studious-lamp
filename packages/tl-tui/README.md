@@ -75,6 +75,11 @@ uv run pytest packages/tl-tui/tests/test_grid.py -q
 | `TL_REMOTE` | (unset) | API URL; when set the TUI runs remote (`--remote` overrides) |
 | `TL_TOKEN` | (unset) | Dev token for remote mode (ADR-0005); prefer it to `--token`, which shows in `ps` |
 
+### Record threads (P1-I7 WS-B)
+The record view's Thread tab (`T`; `widgets/thread_tab.py`, text in `thread_text.py`) and the thread composer (`c`;
+`widgets/thread_composer.py`, text in `compose_text.py`): `/` offers the verbs, a command line is previewed and then
+confirmed with the preview's token. The client calls are `thread_page`, `thread_post`, `thread_preview`, `thread_dispatch`.
+
 ## Rules specific to this package
 See `AGENTS.md` in this directory.
 

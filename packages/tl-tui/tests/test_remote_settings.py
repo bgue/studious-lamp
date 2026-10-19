@@ -33,7 +33,7 @@ TAGS = "feed.signal_tags"
 def test_the_seven_calls_round_trip_with_the_embedded_error_classes(harness: Harness) -> None:
     with restartable(harness) as server:
         client = RemoteClient.connect(server.base_url, server.token, timeout=LIVE_TIMEOUT_S)
-        assert len(client.list_settings()) == 10
+        assert len(client.list_settings()) == 17
         done = client.set_setting(KEY, layer="project:P123", value=False)
         assert done.effective.value is False and done.effective.modified_here
         assert client.get_setting(KEY).effective.value is True
@@ -73,7 +73,7 @@ def test_the_screen_edits_and_undoes_through_the_server(harness: Harness) -> Non
             await pilot.pause()
             screen = app.screen
             assert isinstance(screen, SettingsScreen)
-            assert screen.query_one("#settings-table", DataTable).row_count == 10
+            assert screen.query_one("#settings-table", DataTable).row_count == 17
             await pilot.press("slash")
             screen.query_one("#settings-filter", Input).value = KEY
             await pilot.pause()

@@ -8,6 +8,7 @@ from typing import Any
 
 from tl_core.services.commands import VoidRecord
 from tl_core.services.records import handle_void_record
+from tl_core.threads.contract import THREAD_EVENT_TYPES
 from tl_core.webhooks.subscriptions import (
     DisableWebhookSubscription,
     EnableWebhookSubscription,
@@ -211,6 +212,13 @@ def run_scenario(world: World) -> dict[str, list[dict[str, Any]]]:
         stream_type="schema-package",
     )
     append_module_events(world)
+    for kind in THREAD_EVENT_TYPES:  # edits and retractions are written but never delivered
+        world.append(
+            kind,
+            payload_of(kind, record_id=a),
+            stream_id=f"thread:{a}",
+            stream_type="core.Thread",
+        )
     append_integration_events(world)  # P1-I7 WS-A
     sid = modes["delta"].subscription_id
     with world.factory() as uow:
