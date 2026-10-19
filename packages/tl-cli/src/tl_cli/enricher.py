@@ -31,6 +31,7 @@ from tl_cli.integration_support import (
     line,
     one,
     read_json_file,
+    refuse_server_fields,
     rows,
     scope_of,
     service_errors,
@@ -113,6 +114,7 @@ def register(
     body = read_json_file(file)
     if not isinstance(body, dict):
         fail("the file must hold a JSON object")
+    refuse_server_fields(body, also=("name", "access"))
     with factory(ctx) as opened, service_errors(), opened() as uow:
         made = handle_register_enricher(
             uow,

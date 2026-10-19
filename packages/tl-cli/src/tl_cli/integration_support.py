@@ -19,6 +19,7 @@ from pydantic import ValidationError
 from sqlalchemy import text
 from tl_adapters.db import DbTarget, is_postgres, make_uow_factory
 from tl_core.auth.env import dev_tokens_allowed
+from tl_core.integration.contract import SERVER_SET_FIELDS
 from tl_core.integration.errors import IntegrationNotFoundError
 from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import ServiceError
@@ -118,6 +119,14 @@ def pairs(values: Sequence[str], what: str) -> dict[str, str]:
             fail(f"{what} must be name=value, not {item!r}")
         found[name] = value
     return found
+
+
+def refuse_server_fields(body: dict[str, Any], also: Sequence[str] = ()) -> None:
+    """`error: ...` and exit 1 when a command file names a field the command line or the server
+    sets (``SERVER_SET_FIELDS``, plus ``also``): it would clash with the call, not be ignored."""
+    named = sorted((SERVER_SET_FIELDS | set(also)) & body.keys())
+    if named:
+        fail(f"the file must not hold {', '.join(named)}: the command sets them")
 
 
 def is_admin_caller(ctx: typer.Context) -> bool:

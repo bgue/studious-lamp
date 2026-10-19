@@ -40,6 +40,7 @@ from tl_cli.integration_support import (
     pairs,
     read_json_file,
     record_id_of,
+    refuse_server_fields,
     rows,
     scope_of,
     service_errors,
@@ -119,6 +120,7 @@ def define(
     body = read_json_file(file)
     if not isinstance(body, dict):
         fail("the file must hold a JSON object")
+    refuse_server_fields(body)
     with factory(ctx) as opened, service_errors(), opened() as uow:
         made = define_action(uow, DefineAction(actor=actor, source=SOURCE, scope=scope, **body))
     typer.echo(f"action {body['name']}")

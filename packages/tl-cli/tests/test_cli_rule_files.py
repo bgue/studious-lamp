@@ -90,3 +90,33 @@ def test_shadow_enrichment_values_are_the_admins_to_read(
     assert run(env, "enrich", "ls", "--state", "shadow").stdout == ""
     shown = run(env, "enrich", "show", "V1", "--project", P)
     assert shown.exit_code == 1 and "no value V1" in shown.stderr
+
+
+@pytest.mark.parametrize("field", ["actor", "source", "scope", "correlation_id"])
+def test_action_define_and_enricher_register_refuse_server_set_fields_cleanly(
+    new_db: Callable[[], DbTarget], tmp_path: Path, field: str
+) -> None:
+    env = new_env(new_db, tmp_path)
+    action = {
+        "name": "send_to_nde", "label": "Send", "executor": "job",
+        "executor_config": {"kind": "job", "job": "echo"}, "side_effect_class": "read",
+        field: "user:admin",
+    }  # fmt: skip
+    made = run(
+        env, "action", "define", "--project", P, "--file", write_json(tmp_path, "a.json", action)
+    )
+    refused(made, f"the file must not hold {field}")
+    assert "Traceback" not in made.output
+    enricher = {"when": {"event_types": ["Document.Defined"]}, "properties": [], field: "x"}
+    registered = run(
+        env, "enricher", "register", "doc_classifier", "--project", P,
+        "--file", write_json(tmp_path, "e.json", enricher),
+    )  # fmt: skip
+    refused(registered, f"the file must not hold {field}")
+    clash = {"when": {"event_types": ["Document.Defined"]}, "properties": [], "name": "other"}
+    named = run(
+        env, "enricher", "register", "doc_classifier", "--project", P,
+        "--file", write_json(tmp_path, "e2.json", clash),
+    )  # fmt: skip
+    refused(named, "the file must not hold name")
+    assert sql(env, "SELECT 1 FROM cur_action_definition") == []
