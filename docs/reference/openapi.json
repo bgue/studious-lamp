@@ -28474,7 +28474,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "List Registry",
+        "summary": "List Registry Rows",
         "tags": [
           "integration"
         ]

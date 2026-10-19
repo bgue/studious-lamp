@@ -31,6 +31,13 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
     AppCommand("tags", "Tag register: the project's tags and what they lack", "F8", "tags"),
     AppCommand("settings", "about:config: settings and their history", "F9", "settings"),
     AppCommand("admin", "Accounts and agent tokens (admins)", "F10", "admin"),
+    AppCommand("review", "Review queue: accept or reject proposed values", "Ctrl+R", "review"),
+    AppCommand(
+        "integration",
+        "Integration registry: endpoints, rules, actions (admins)",
+        "Ctrl+E",
+        "integration",
+    ),
     AppCommand("back", "Back to the previous record", "Alt+Left", "back"),
     AppCommand("forward", "Forward to the next record", "Alt+Right", "forward"),
     AppCommand("toggle-nav", "Show or hide the navigation panel", "F2", "toggle_nav"),

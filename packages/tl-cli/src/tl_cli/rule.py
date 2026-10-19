@@ -1,16 +1,9 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false, reportUnusedVariable=false
 """The `tl rule` group: author and switch rules, and ask what a rule would have done (P1-I7-T03b).
 
 Each subcommand parses options, makes one call into `tl_core.integration.rules`, and prints.
 Rules are the admin's to author (FANOUT D12); the services hold the rules (a rule starts disabled
 and in `propose` mode, a service actor is made from its key). A rule is named by its key and the
 scope it was made in.
-
-
-STUB (P1-I7): the functions below whose body is `raise NotImplementedError` are yours;
-everything else is final. Remove this paragraph and the two lint-silencing lines at the top
-of the file, and `NotImplementedError`, when you implement them.
 """
 
 from __future__ import annotations
@@ -63,14 +56,18 @@ def rule_line(row: dict[str, object]) -> str:
 
 @app.command("ls")
 def ls(ctx: typer.Context, project: ProjectOption = None, company: CompanyOption = False) -> None:
-    """List the rules of a scope (every scope when neither option is given), one line each.
-
-    STEPS: ``scope = scope_of(project, company)`` when either option is given, else no scope
-    filter. Open ``factory(ctx)`` and a read-only unit of work (``opened(readonly=True)``); inside
-    ``service_errors()`` read ``SELECT * FROM cur_rule [WHERE scope = :scope] ORDER BY key`` with
-    ``rows(...)`` and print ``rule_line(row)`` for each. Print nothing for no rules.
-    """
-    raise NotImplementedError
+    """List the rules of a scope (every scope when neither option is given), one line each."""
+    scope = scope_of(project, company) if (project is not None or company) else None
+    with factory(ctx) as opened, service_errors(), opened(readonly=True) as uow:
+        if scope is None:
+            found = rows(uow, "SELECT * FROM cur_rule ORDER BY key")
+        else:
+            found = rows(
+                uow, "SELECT * FROM cur_rule WHERE scope = :scope ORDER BY key", scope=scope
+            )
+        printed = [rule_line(row) for row in found]
+    for text_line in printed:
+        typer.echo(text_line)
 
 
 @app.command("show")
@@ -80,17 +77,28 @@ def show(
     project: ProjectOption = None,
     company: CompanyOption = False,
 ) -> None:
-    """Print one rule.
-
-    STEPS: ``scope = scope_of(project, company)``; ``row = one(uow, f"rule {key}", _RULE_SQL,
-    key=key, scope=scope)`` in a read-only unit of work inside ``service_errors()``. Print, in this
-    order: ``rule <key>``, ``id <rule_id>``, ``scope <scope>``, ``version <version>``,
-    ``state on|off``, ``mode <mode>``, ``access <access>``, ``owner <owner>``, ``title <title>``,
-    ``when <json>`` (``json.dumps(row["when"], sort_keys=True)``), ``condition <text>`` only when
-    there is one, then for each step number n from 1 ``step n <command> <json args>``
-    (``json.dumps(args, sort_keys=True)``) from ``row["then"]`` (a list of ``{"command", "args"}``).
-    """
-    raise NotImplementedError
+    """Print one rule."""
+    scope = scope_of(project, company)
+    with factory(ctx) as opened, service_errors(), opened(readonly=True) as uow:
+        row = one(uow, f"rule {key}", _RULE_SQL, key=key, scope=scope)
+    out = [
+        f"rule {row['key']}",
+        f"id {row['rule_id']}",
+        f"scope {row['scope']}",
+        f"version {row['version']}",
+        f"state {'on' if row['enabled'] else 'off'}",
+        f"mode {row['mode']}",
+        f"access {row['access']}",
+        f"owner {row['owner']}",
+        f"title {row['title']}",
+        f"when {json.dumps(row['when'], sort_keys=True)}",
+    ]
+    if row["condition"] is not None:
+        out.append(f"condition {row['condition']}")
+    for number, step in enumerate(row["then"], start=1):
+        out.append(f"step {number} {step['command']} {json.dumps(step['args'], sort_keys=True)}")
+    for text_line in out:
+        typer.echo(text_line)
 
 
 @app.command("create")
@@ -105,15 +113,19 @@ def create(
 
     The file holds ``key``, ``title``, ``when``, ``then`` and optionally ``condition``,
     ``access`` and ``integration_app``.
-
-    STEPS: ``admin_gate(ctx)`` first (the given code has it); ``scope = scope_of(project,
-    company)``; ``body = read_json_file(file)``; it must be a
-    JSON object (else ``fail("the file must hold a JSON object")``). Inside ``service_errors()``
-    open a unit of work and call ``handle_create_rule(uow, CreateRule(actor=actor, source=SOURCE,
-    scope=scope, **body))``; print ``rule <key>`` and ``id <stream_id>`` (the result's ``key`` and
-    ``stream_id``).
     """
-    raise NotImplementedError
+    admin_gate(ctx)
+    scope = scope_of(project, company)
+    body = read_json_file(file)
+    if not isinstance(body, dict):
+        fail("the file must hold a JSON object")
+    server_set = sorted({"actor", "source", "scope"} & body.keys())
+    if server_set:  # the CLI sets these; a file naming one would clash with the call below
+        fail(f"the file must not hold {', '.join(server_set)}: the command sets them")
+    with factory(ctx) as opened, service_errors(), opened() as uow:
+        made = handle_create_rule(uow, CreateRule(actor=actor, source=SOURCE, scope=scope, **body))
+    typer.echo(f"rule {made.key}")
+    typer.echo(f"id {made.stream_id}")
 
 
 def _switch(
@@ -164,15 +176,25 @@ def mode(
     company: CompanyOption = False,
     actor: ActorOption = DEFAULT_ACTOR,
 ) -> None:
-    """Change a rule's mode (a revision with a reason).
-
-    STEPS: ``new_mode`` not in ("act", "propose"): ``fail("the mode is act or propose")``.
-    ``scope = scope_of(project, company)``. Inside ``service_errors()`` open a unit of work, read
-    the row with ``one(...)`` as ``show`` does, and call ``handle_revise_rule(uow,
-    ReviseRule(actor=actor, source=SOURCE, scope=scope, rule_id=row["rule_id"],
-    changes={"mode": new_mode}, reason=reason))``. Print ``rule <key> mode <new_mode>``.
-    """
-    raise NotImplementedError
+    """Change a rule's mode (a revision with a reason)."""
+    admin_gate(ctx)
+    if new_mode not in ("act", "propose"):
+        fail("the mode is act or propose")
+    scope = scope_of(project, company)
+    with factory(ctx) as opened, service_errors(), opened() as uow:
+        row = one(uow, f"rule {key}", _RULE_SQL, key=key, scope=scope)
+        handle_revise_rule(
+            uow,
+            ReviseRule(
+                actor=actor,
+                source=SOURCE,
+                scope=scope,
+                rule_id=row["rule_id"],
+                changes={"mode": new_mode},
+                reason=reason,
+            ),
+        )
+    typer.echo(f"rule {key} mode {new_mode}")
 
 
 @app.command("dry-run")
@@ -184,16 +206,22 @@ def dry_run(
     from_seq: Annotated[int, typer.Option("--from-seq", min=0, help="First seq to read.")] = 0,
     to_seq: Annotated[int | None, typer.Option("--to-seq", min=0, help="Last seq.")] = None,
 ) -> None:
-    """What the rule would have done over past events. Nothing is written and nothing runs.
+    """What the rule would have done over past events. Nothing is written and nothing runs."""
+    from tl_api.commands import command_runner
 
-    STEPS: ``scope = scope_of(project, company)``. Inside ``service_errors()`` open
-    ``factory(ctx)``; read the rule id with ``one(...)`` in a read-only unit of work; then
-    ``stored = load_rule(uow.conn(), rule_id)`` (there; not ``None``) and ``report =
-    dry_run_rule(opened, runner, stored, from_seq=from_seq, to_seq=to_seq)`` where ``runner`` is
-    ``tl_api.commands.command_runner()`` (import it inside the function). Print
-    ``events <report.events_read>``, ``firings <len(report.firings)>``, ``truncated yes|no``;
-    then for each firing ``<seq>  <outcome>  <commands>`` (``line(...)``; ``commands`` is the
-    command types of ``firing.planned`` joined by ``,``, or ``-`` when there are none), and for
-    each problem of the firing one line ``  problem <code>: <message>``.
-    """
-    raise NotImplementedError
+    scope = scope_of(project, company)
+    with factory(ctx) as opened, service_errors():
+        with opened(readonly=True) as uow:
+            row = one(uow, f"rule {key}", _RULE_SQL, key=key, scope=scope)
+            stored = load_rule(uow.conn(), row["rule_id"])
+        if stored is None:
+            fail(f"no rule {key}")
+        report = dry_run_rule(opened, command_runner(), stored, from_seq=from_seq, to_seq=to_seq)
+    typer.echo(f"events {report.events_read}")
+    typer.echo(f"firings {len(report.firings)}")
+    typer.echo(f"truncated {'yes' if report.truncated else 'no'}")
+    for firing in report.firings:
+        commands = ",".join(planned.command_type for planned in firing.planned) or "-"
+        typer.echo(line(firing.seq, firing.outcome, commands))
+        for problem in firing.problems:
+            typer.echo(f"  problem {problem.code}: {problem.message}")
