@@ -28,7 +28,7 @@ from tl_mod_correspondence.handlers.clocks import (
     handle_restart_clock,
     handle_resume_clock,
     handle_start_clock,
-    handle_sweep_clocks,
+    sweep_clocks,
 )
 
 from tl_cli.corr import item_row
@@ -221,11 +221,18 @@ def sweep(
     scope = f"project:{project}"
     require_controller(db)
     with _service_errors(), open_uow(db) as uow:
-        done = handle_sweep_clocks(uow, SweepClocks(actor=actor, source="cli", scope=scope, on=on))
-    if not done.events:
+        recorded, skipped = sweep_clocks(
+            uow, SweepClocks(actor=actor, source="cli", scope=scope, on=on)
+        )
+    if not recorded:
         typer.echo("nothing to record")
-    for event in done.events:
+    for event in recorded:
         detail = event.payload.get("level", event.payload.get("days_overdue", ""))
         typer.echo(
             f"{event.event_type.removeprefix('ResponseClock.').lower()} {event.stream_id} {detail}"
         )
+    if skipped:  # a clock the sweep could not judge is said aloud, not left to be found late
+        typer.echo(
+            f"skipped {len(skipped)} clock(s) it could not judge: {', '.join(skipped)}", err=True
+        )
+        raise typer.Exit(code=2)

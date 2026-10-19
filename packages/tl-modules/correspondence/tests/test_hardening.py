@@ -240,3 +240,52 @@ def test_a_post_that_tags_a_hidden_item_cannot_be_reacted_to_edited_or_retracted
                 handler(uow, command)  # type: ignore[operator]
     with cf.use_viewer(CTL), open_uow(world.db) as uow:  # one who may read the item can react
         assert handle_react_to_post(uow, ReactToPost(**base, post_id=post, reaction="ack")).events
+
+
+# --- the sweep reads every clock, as the system, and says what it could not judge ---------------
+
+
+def test_the_sweep_expires_the_clock_of_an_item_the_runner_may_not_read(world: CorrWorld) -> None:
+    _people(world)
+    item = _privileged(world)
+    boss = cf.Viewer(actor="user:boss", level=0, account="user:boss")
+    with cf.use_viewer(boss), frozen_today(MONDAY):
+        clock = world.start_clock(item).stream_id  # due 2 Nov
+    with cf.use_viewer(ANN), frozen_today("2026-11-10"):  # a runner with the lowest clearance
+        done = world.sweep()
+    assert [e.event_type for e in done.events] == ["ResponseClock.Expired"]
+    with cf.system_view():
+        assert world.clock(clock).state == "expired"
+
+
+def test_the_sweep_pages_through_more_clocks_than_a_page_and_reports_the_ones_it_skipped(
+    world: CorrWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tl_mod_correspondence import catalog
+    from tl_mod_correspondence.errors import CalendarUnavailableError
+    from tl_mod_correspondence.handlers import clocks as handlers_clocks
+
+    monkeypatch.setattr(handlers_clocks, "SWEEP_PAGE", 2)
+    with frozen_today(MONDAY):
+        item = world.forge_item()
+        ids = [world.start_clock(item, label=f"Clock {n}").stream_id for n in range(5)]
+    real = catalog.calendar_for
+    broken = ids[3]
+
+    def calendar_for(ref: str, scope: str):  # type: ignore[no-untyped-def]
+        if scope == PROJECT and world.clock(broken).calendar == ref and calling_for[0] == broken:
+            raise CalendarUnavailableError("gone")
+        return real(ref, scope)
+
+    calling_for = [""]
+    original_figures = handlers_clocks.figures_of
+
+    def figures_of(uow, clock):  # type: ignore[no-untyped-def]
+        calling_for[0] = clock.id
+        return original_figures(uow, clock)
+
+    monkeypatch.setattr(handlers_clocks, "figures_of", figures_of)
+    monkeypatch.setattr(catalog, "calendar_for", calendar_for)
+    with open_uow(world.db) as uow, frozen_today("2026-11-10"):
+        events, skipped = handlers_clocks.sweep_clocks(uow, handlers_clocks.SweepClocks(**BASE))
+    assert len(events) == 4 and skipped == [broken]

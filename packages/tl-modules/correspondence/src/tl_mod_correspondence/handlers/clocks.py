@@ -20,6 +20,7 @@ from datetime import date
 from typing import Any, Literal
 
 from pydantic import ConfigDict, Field, field_validator
+from tl_core import confidentiality
 from tl_core.ledger import Event, NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.services.errors import RecordNotFoundError
@@ -457,15 +458,19 @@ def close_clocks_of_item(
     return events
 
 
-def handle_sweep_clocks(uow: UnitOfWork, cmd: SweepClocks) -> CommandResult:
-    """Record ``Expired`` and ``Warned`` events for the running clocks of the scope.
+SWEEP_PAGE = 500
 
-    The result's ``stream_id`` is the scope (many streams change); ``events`` lists what was
-    recorded. A clock whose calendar cannot be read, or whose history the engine refuses, is
-    skipped and logged: one bad clock must not stop the others.
+
+def sweep_clocks(uow: UnitOfWork, cmd: SweepClocks) -> tuple[list[Event], list[str]]:
+    """The sweep: the events it recorded, and the ids of the clocks it could not judge.
+
+    It reads every clock of the scope as the system, in pages: whoever runs it, a clock of an item
+    that person may not read still warns and expires (ADR-0016; the sweep only appends the
+    clock's own events). A clock whose calendar cannot be read, or whose history the engine
+    refuses, is skipped, logged and returned in the second list: one bad clock must not stop the
+    others, and nobody should find out only when a deadline passes.
     """
     require_project(cmd)
-    cmd = correlated(cmd)
     now = today_date()
     judged = now
     if cmd.on is not None:
@@ -476,35 +481,63 @@ def handle_sweep_clocks(uow: UnitOfWork, cmd: SweepClocks) -> CommandResult:
         if judged > now:
             raise InvalidClockError(f"on {cmd.on} is in the future; today is {today()}")
     events: list[Event] = []
-    for clock in registry.list_clocks(uow.conn(), cmd.scope, limit=5000):
-        if clock.state != "running":
-            continue
-        try:
-            facts, fig = figures_of(uow, clock)
-            calendar = catalog.calendar_for(clock.calendar, clock.scope)
-            left = days_left(calendar, fig, judged)
-            if left < 0:
-                fact = Fact(CLOCK_EXPIRED, {"day": judged.isoformat(), "days_overdue": -left})
-            else:
-                level = warning_to_raise(fig, left)
-                if level is None:
+    skipped: list[str] = []
+    with confidentiality.system_view():
+        offset = 0
+        while True:
+            page = registry.list_clocks(uow.conn(), cmd.scope, limit=SWEEP_PAGE, offset=offset)
+            for clock in page:
+                if clock.state != "running":
                     continue
-                fact = Fact(
-                    CLOCK_WARNED,
-                    {"day": judged.isoformat(), "level": level, "days_left": left},
+                try:
+                    facts, fig = figures_of(uow, clock)
+                    calendar = catalog.calendar_for(clock.calendar, clock.scope)
+                    left = days_left(calendar, fig, judged)
+                    if left < 0:
+                        fact = Fact(
+                            CLOCK_EXPIRED, {"day": judged.isoformat(), "days_overdue": -left}
+                        )
+                    else:
+                        level = warning_to_raise(fig, left)
+                        if level is None:
+                            continue
+                        fact = Fact(
+                            CLOCK_WARNED,
+                            {"day": judged.isoformat(), "level": level, "days_left": left},
+                        )
+                    _check_with(facts, fact, clock)
+                except (
+                    ClockStateError,
+                    CalendarUnavailableError,
+                    CalendarError,
+                    ValueError,
+                ) as exc:
+                    log.warning("clock %s skipped by the sweep: %s", clock.id, exc)
+                    skipped.append(clock.id)
+                    continue
+                done = append(
+                    uow,
+                    cmd,
+                    clock.id,
+                    CLOCK,
+                    [NewEvent(event_type=fact.event_type, payload=dict(fact.payload))],
                 )
-            _check_with(facts, fact, clock)
-        except (ClockStateError, CalendarUnavailableError, CalendarError, ValueError) as exc:
-            log.warning("clock %s skipped by the sweep: %s", clock.id, exc)
-            continue
-        done = append(
-            uow,
-            cmd,
-            clock.id,
-            CLOCK,
-            [NewEvent(event_type=fact.event_type, payload=dict(fact.payload))],
-        )
-        events.extend(done.events)
+                events.extend(done.events)
+            if len(page) < SWEEP_PAGE:
+                break
+            offset += SWEEP_PAGE
+    return events, skipped
+
+
+def handle_sweep_clocks(uow: UnitOfWork, cmd: SweepClocks) -> CommandResult:
+    """Record ``Expired`` and ``Warned`` events for the running clocks of the scope.
+
+    The result's ``stream_id`` is the scope (many streams change); ``events`` lists what was
+    recorded. Clocks it could not judge are logged (``sweep_clocks`` returns them; the CLI prints
+    them).
+    """
+    cmd = correlated(cmd)
+    events, _ = sweep_clocks(uow, cmd)
     return CommandResult(stream_id=cmd.scope, key=None, version=0, events=events)
 
 
@@ -525,6 +558,7 @@ __all__ = [
     "handle_resume_clock",
     "handle_start_clock",
     "handle_sweep_clocks",
+    "sweep_clocks",
     "load_clock",
     "start_clock",
 ]
