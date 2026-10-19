@@ -265,7 +265,9 @@ def test_reclassify_refuses_no_change_a_blank_reason_an_issued_item_and_unknown_
             world.reclassify(closed, "general", "memo")
 
 
-def test_a_retired_clause_cannot_be_cited_by_a_clock(world: CorrWorld, clause_domains: None) -> None:
+def test_a_retired_clause_cannot_be_cited_by_a_clock(
+    world: CorrWorld, clause_domains: None
+) -> None:
     with frozen_today(MONDAY):
         world.retire_clause(world.forge_clause())
         made = world.receive("Submittal one")

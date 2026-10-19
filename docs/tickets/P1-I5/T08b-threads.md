@@ -470,7 +470,7 @@ just check
 uv run pytest packages/tl-modules/correspondence/tests/test_threads.py -q
 TL_PG_URL=postgresql://postgres:postgres@localhost:5432/tl_test TL_REQUIRE_POSTGRES=1 uv run pytest packages/tl-modules/correspondence/tests/test_threads.py -q --adapters sqlite,postgres
 ```
-Expected: `just check` clean; 14 passed on SQLite; 28 passed with both adapters (every case runs once per adapter).
+Expected: `just check` clean; 15 passed on SQLite; 30 passed with both adapters (every case runs once per adapter).
 
 ## Tests to add
 - `packages/tl-modules/correspondence/tests/test_threads.py` is provided; it is the whole test of this ticket. Add no other test file.
