@@ -1,22 +1,15 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false, reportUnusedVariable=false
 """The `tl enricher` group: register enrichers and switch them on and off (P1-I7-T05a).
 
 An enricher is code shipped with the server; an admin registers it by name, says which events it
 follows and which properties of its own layer `enrich.<name>` it fills, and with which acceptance
 policy per property (`auto` above a threshold, `propose`, or `shadow`). It starts switched off.
 Each subcommand parses options, makes one call into `tl_core.integration.enrichers`, and prints.
-
-
-STUB (P1-I7): the functions below whose body is `raise NotImplementedError` are yours;
-everything else is final. Remove this paragraph and the two lint-silencing lines at the top
-of the file, and `NotImplementedError`, when you implement them.
 """
 
 from __future__ import annotations
 
 import json
-from typing import Annotated
+from typing import Annotated, Literal, cast
 
 import typer
 from tl_core.integration.enrichers.service import (
@@ -56,13 +49,17 @@ def enricher_line(row: dict[str, object]) -> str:
 
 @app.command("ls")
 def ls(ctx: typer.Context, project: ProjectOption = None, company: CompanyOption = False) -> None:
-    """List the enrichers of a scope (every scope when neither option is given), one line each.
-
-    STEPS: ``scope = scope_of(project, company)`` when either option is given, else no filter.
-    In a read-only unit of work inside ``service_errors()`` read ``SELECT * FROM cur_enricher
-    [WHERE scope = :scope] ORDER BY name`` with ``rows(...)`` and print ``enricher_line(row)``.
-    """
-    raise NotImplementedError
+    """List the enrichers of a scope (every scope when neither option is given), one line each."""
+    scope = scope_of(project, company) if project is not None or company else None
+    sql = "SELECT * FROM cur_enricher"
+    params: dict[str, object] = {}
+    if scope is not None:
+        sql += " WHERE scope = :scope"
+        params["scope"] = scope
+    sql += " ORDER BY name"
+    with factory(ctx) as opened, service_errors(), opened(readonly=True) as uow:
+        for row in rows(uow, sql, **params):
+            typer.echo(enricher_line(row))
 
 
 @app.command("show")
@@ -72,16 +69,28 @@ def show(
     project: ProjectOption = None,
     company: CompanyOption = False,
 ) -> None:
-    """Print one registration.
-
-    STEPS: ``scope = scope_of(project, company)``; ``row = one(uow, f"enricher {name}",
-    _ENRICHER_SQL, name=name, scope=scope)`` in a read-only unit of work inside
-    ``service_errors()``. Print, in this order: ``enricher <name>``, ``id <enricher_id>``,
-    ``scope``, ``version``, ``code_version``, ``state on|off``, ``access``, ``owner``, ``actor
-    <service_actor>``, ``when <json.dumps(row["when"], sort_keys=True)>``; then for each property
-    of ``row["properties"]`` one line ``property <name> <kind> <policy> <threshold>``.
-    """
-    raise NotImplementedError
+    """Print one registration."""
+    scope = scope_of(project, company)
+    with factory(ctx) as opened, service_errors(), opened(readonly=True) as uow:
+        row = one(uow, f"enricher {name}", _ENRICHER_SQL, name=name, scope=scope)
+        shown = [
+            f"enricher {name}",
+            f"id {row['enricher_id']}",
+            f"scope {row['scope']}",
+            f"version {row['version']}",
+            f"code_version {row['code_version']}",
+            f"state {'on' if row['enabled'] else 'off'}",
+            f"access {row['access']}",
+            f"owner {row['owner']}",
+            f"actor {row['service_actor']}",
+            f"when {json.dumps(row['when'], sort_keys=True)}",
+        ]
+        shown += [
+            f"property {p['name']} {p['kind']} {p['policy']} {p['threshold']}"
+            for p in row["properties"]
+        ]
+        for text_line in shown:
+            typer.echo(text_line)
 
 
 @app.command("register")
@@ -98,14 +107,27 @@ def register(
 
     The file holds ``when`` (the events it follows, a filter object) and ``properties`` (a list of
     ``{"name", "kind", "policy", "threshold"}``).
-
-    STEPS: ``admin_gate(ctx)``; ``scope = scope_of(project, company)``; ``body =
-    read_json_file(file)``, which must be a JSON object (else ``fail("the file must hold a JSON
-    object")``). In a write unit of work inside ``service_errors()`` call
-    ``handle_register_enricher(uow, RegisterEnricher(actor=actor, source=SOURCE, scope=scope,
-    name=name, access=access, **body))``. Print ``enricher <name>`` and ``id <stream_id>``.
     """
-    raise NotImplementedError
+    admin_gate(ctx)
+    scope = scope_of(project, company)
+    body = read_json_file(file)
+    if not isinstance(body, dict):
+        fail("the file must hold a JSON object")
+    with factory(ctx) as opened, service_errors(), opened() as uow:
+        made = handle_register_enricher(
+            uow,
+            RegisterEnricher(
+                actor=actor,
+                source=SOURCE,
+                scope=scope,
+                name=name,
+                # the service validates the value (pydantic Literal); this only narrows the type
+                access=cast(Literal["user", "controller"], access),
+                **body,
+            ),
+        )
+    typer.echo(f"enricher {name}")
+    typer.echo(f"id {made.stream_id}")
 
 
 def _switch(
