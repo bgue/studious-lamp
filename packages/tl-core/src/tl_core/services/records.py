@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import text
 
@@ -283,6 +283,10 @@ def create_module_record(
     )
 
 
+def _canonical(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, default=str)
+
+
 def _refuse_read_only_psets(new: Any, old: Any = None) -> None:
     """Refuse a write that sets or changes a pset under ``enrich`` or ``src``.
 
@@ -295,10 +299,18 @@ def _refuse_read_only_psets(new: Any, old: Any = None) -> None:
 
     if not isinstance(new, dict):
         return
-    previous: dict[str, Any] = old if isinstance(old, dict) else {}  # pyright: ignore[reportUnknownVariableType]
-    names = {str(n) for n in new} | {str(n) for n in previous}  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
-    for name in sorted(names):
-        if name.split(".")[0] in READ_ONLY_ROOTS and new.get(name) != previous.get(name):  # pyright: ignore[reportUnknownMemberType]
+    sent = cast("dict[str, Any]", new)
+    held = cast("dict[str, Any]", old) if isinstance(old, dict) else {}
+    missing = object()
+    for name in sorted({*sent, *held}):
+        if name.split(".")[0] not in READ_ONLY_ROOTS:
+            continue
+        # Canonical JSON, not ``==``: 1, 1.0 and True are equal in Python and different values.
+        before = held.get(name, missing)
+        after = sent.get(name, missing)
+        if (before is missing) != (after is missing) or (
+            before is not missing and _canonical(before) != _canonical(after)
+        ):
             raise LayerError(f"{name} is in an enrichment or source layer and is not writable")
 
 

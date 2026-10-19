@@ -93,3 +93,57 @@ def test_an_inbound_mapping_cannot_forge_an_enrichment(world: World) -> None:
     [row] = world.deliveries()
     assert row["state"] == "failed"
     assert world.rows("SELECT 1 FROM cur_core_record WHERE key = 'F-2'") == []
+
+
+def test_an_update_may_not_turn_a_layer_value_into_an_equal_looking_one(world: World) -> None:
+    """1, 1.0 and True are equal in Python and different values (re-check, finding 2)."""
+    import intfakes as fakes
+    from tl_core.integration.enrichers.registry import use_enrichers
+    from tl_core.services.queries import get_record_by_id  # noqa: F401
+
+    fakes.reset()
+    fakes.FakeEnricher.plan = [("score", 1, 0.95)]
+    with use_enrichers({"fake": fakes.FakeEnricher}):
+        enricher_id = world.register_enricher(
+            properties=[{"name": "score", "kind": "number", "policy": "auto", "threshold": 0.5}]
+        )
+        world.switch_enricher(enricher_id, on=True)
+        record_id = world.record("X-1")
+        world.dispatcher().run_until_idle()
+    layer = world.layer(record_id)
+    assert layer == {"score": 1}
+    [row] = world.rows("SELECT psets_json, version FROM cur_core_record WHERE id = :i", i=record_id)
+    import json
+
+    held = json.loads(row["psets_json"])
+    sent = json.loads(json.dumps(held))
+    sent["enrich"]["fake"]["score"] = 1.0
+    sent["nde"] = {"a": 1}  # the update also changes something it may change
+    with pytest.raises(LayerError):
+        with world.factory() as uow:
+            handle_update_record(
+                uow,
+                UpdateRecord(
+                    actor=PERSON, source="test", scope=SCOPE, stream_id=record_id,
+                    expected_version=row["version"], changes={"psets": sent},
+                ),
+            )  # fmt: skip
+    sent["enrich"]["fake"]["score"] = True
+    with pytest.raises(LayerError), world.factory() as uow:
+        handle_update_record(
+            uow,
+            UpdateRecord(
+                actor=PERSON, source="test", scope=SCOPE, stream_id=record_id,
+                expected_version=row["version"], changes={"psets": sent},
+            ),
+        )  # fmt: skip
+    sent["enrich"]["fake"]["score"] = 1  # sent back unchanged: not a write to the layer
+    sent["enrich"]["fake"]["score"] = 1  # sent back unchanged: not a write to the layer
+    with world.factory() as uow:
+        handle_update_record(
+            uow,
+            UpdateRecord(
+                actor=PERSON, source="test", scope=SCOPE, stream_id=record_id,
+                expected_version=row["version"], changes={"psets": sent},
+            ),
+        )  # fmt: skip
