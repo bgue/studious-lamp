@@ -114,3 +114,12 @@ def test_the_dates_of_a_clock_come_from_its_events_not_from_the_projected_row(
     with frozen_today("2026-10-27"):
         after = read(world, views.clock_view_by_id, PROJECT, clock)
     assert (after.due_on, after.warned_level) == ("2026-11-02", 7)
+
+
+def test_a_thread_lists_its_items_oldest_first_on_both_adapters(world: CorrWorld) -> None:
+    with frozen_today(MONDAY):
+        first = world.receive("Programme", received_on="2026-10-12")
+        second = world.receive("RE: Programme", received_on="2026-10-14")
+        reply = world.draft("Re: Programme", responds_to_id=first.stream_id)  # no date of its own
+    found = read(world, views.thread_view, PROJECT, "P123-THR-0001")
+    assert [i.number for i in found.items] == [first.key, second.key, reply.key]

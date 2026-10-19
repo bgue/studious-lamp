@@ -262,7 +262,7 @@ def items_of_thread(conn: Connection, thread_id: str) -> list[ItemRow]:
     sql = (
         f"SELECT {_ITEM_COLUMNS} FROM {CORRESPONDENCE_VIEW} WHERE thread_id = :tid AND "
         + confidentiality.not_hidden("id")[0]
-        + " ORDER BY COALESCE(received_on, sent_on, issued_on, created_at), number"
+        + " ORDER BY COALESCE(received_on, sent_on, issued_on, CAST(created_at AS TEXT)), number"
     )
     params = {"tid": thread_id, **confidentiality.not_hidden("id")[1]}
     return [_item(r) for r in conn.execute(text(sql), params).all()]
