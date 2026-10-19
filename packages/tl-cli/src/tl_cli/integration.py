@@ -19,6 +19,12 @@ from tl_api.commands import command_runner
 from tl_core.integration.actions.jobs import ActionJobKind
 from tl_core.integration.actions.service import default_policy
 from tl_core.integration.actions.wiring import action_executors
+from tl_core.integration.apps import (
+    RegisterIntegrationApp,
+    SetIntegrationAppEnabled,
+    handle_register_app,
+    handle_set_app_enabled,
+)
 from tl_core.integration.contract import ACTION_MAX_RESULT_BYTES
 from tl_core.integration.enrichers.dispatcher import EnrichmentDispatcher
 from tl_core.integration.inbound.store import configure as configure_inbound_store
@@ -29,11 +35,31 @@ from tl_core.jobs.runner import JobRunner
 from tl_core.webhooks.base import UowFactory
 from tl_core.webhooks.transport import HttpxTransport
 
-from tl_cli.integration_support import factory, rows, service_errors
+from tl_cli.integration_support import (
+    DEFAULT_ACTOR,
+    SOURCE,
+    ActorOption,
+    CompanyOption,
+    ProjectOption,
+    admin_gate,
+    factory,
+    line,
+    one,
+    rows,
+    scope_of,
+    service_errors,
+)
 
 app = typer.Typer(help="Run the integration workers; see their state.", no_args_is_help=True)
 
+apps = typer.Typer(
+    help="Integration apps: the owner of endpoints, rules, actions, enrichers.",
+    no_args_is_help=True,
+)
+app.add_typer(apps, name="app")
+
 IDLE_S = 2.0
+_APP_SQL = "SELECT * FROM cur_integration_app WHERE name = :name AND scope = :scope"
 
 
 def one_pass(opened: UowFactory) -> tuple[int, int, int, int]:
@@ -128,3 +154,89 @@ def status(ctx: typer.Context) -> None:
             uow, "SELECT state, COUNT(*) AS n FROM int_delivery GROUP BY state ORDER BY state"
         ):
             typer.echo(f"deliveries {row['state']} {row['n']}")
+
+
+# --- apps -------------------------------------------------------------------------------------
+
+
+@apps.command("add")
+def app_add(
+    ctx: typer.Context,
+    name: Annotated[str, typer.Argument(help="The app's slug (a-z, 0-9, - and _).")],
+    label: Annotated[str, typer.Option("--label", help="What people call it.")],
+    description: Annotated[str, typer.Option("--description", help="What it is for.")] = "",
+    project: ProjectOption = None,
+    company: CompanyOption = False,
+    actor: ActorOption = DEFAULT_ACTOR,
+) -> None:
+    """Register an app. Prints ``app <name>`` and ``id <app id>``. It starts switched on."""
+    admin_gate(ctx)
+    scope = scope_of(project, company)
+    with factory(ctx) as opened, service_errors(), opened() as uow:
+        made = handle_register_app(
+            uow,
+            RegisterIntegrationApp(
+                actor=actor, source=SOURCE, scope=scope, name=name, label=label,
+                description=description,
+            ),
+        )  # fmt: skip
+    typer.echo(f"app {name}")
+    typer.echo(f"id {made.stream_id}")
+
+
+@apps.command("ls")
+def app_ls(
+    ctx: typer.Context, project: ProjectOption = None, company: CompanyOption = False
+) -> None:
+    """List the apps of a scope (every scope when neither option is given): name, on|off, owner,
+    label."""
+    if project is None and not company:
+        sql, params = "SELECT * FROM cur_integration_app ORDER BY name", {}
+    else:
+        sql = "SELECT * FROM cur_integration_app WHERE scope = :scope ORDER BY name"
+        params = {"scope": scope_of(project, company)}
+    with factory(ctx) as opened, service_errors(), opened(readonly=True) as uow:
+        found = rows(uow, sql, **params)
+    for row in found:
+        state = "on" if row["enabled"] else "off"
+        typer.echo(line(row["name"], state, row["owner"], row["label"]))
+
+
+def _app_switch(
+    ctx: typer.Context, name: str, project: str | None, company: bool, actor: str, *, on: bool
+) -> None:
+    admin_gate(ctx)
+    scope = scope_of(project, company)
+    with factory(ctx) as opened, service_errors(), opened() as uow:
+        row = one(uow, f"app {name}", _APP_SQL, name=name, scope=scope)
+        handle_set_app_enabled(
+            uow,
+            SetIntegrationAppEnabled(
+                actor=actor, source=SOURCE, scope=scope, app_id=row["app_id"], enabled=on
+            ),
+        )
+    typer.echo(f"app {name} {'on' if on else 'off'}")
+
+
+@apps.command("enable")
+def app_enable(
+    ctx: typer.Context,
+    name: Annotated[str, typer.Argument(help="The app's name.")],
+    project: ProjectOption = None,
+    company: CompanyOption = False,
+    actor: ActorOption = DEFAULT_ACTOR,
+) -> None:
+    """Switch an app on: its endpoints, rules, actions and enrichers may run again."""
+    _app_switch(ctx, name, project, company, actor, on=True)
+
+
+@apps.command("disable")
+def app_disable(
+    ctx: typer.Context,
+    name: Annotated[str, typer.Argument(help="The app's name.")],
+    project: ProjectOption = None,
+    company: CompanyOption = False,
+    actor: ActorOption = DEFAULT_ACTOR,
+) -> None:
+    """Switch an app off: its endpoints, rules, actions and enrichers stop at once."""
+    _app_switch(ctx, name, project, company, actor, on=False)
