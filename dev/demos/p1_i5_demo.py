@@ -7,6 +7,8 @@ Modes (first argument), each ending in a PASS line for its clause:
   the days left on the project calendar.
 * ``hidden``: clause 6. A restricted item does not exist for a user, for the API as that user, or
   for an agent; the answer for it is the answer for a number that was never used.
+* ``working DATE``: clause 8 (the script prints its PASS line). A five working-day clock is due
+  on a weekday at least five days on.
 * ``reads``: clause 7. The same register through the API, the TUI (F12) and an agent's MCP tools,
   and an agent's triage is a proposal, not a decision.
 
@@ -217,6 +219,16 @@ def reads() -> None:
     )
 
 
+def working() -> None:
+    from datetime import date, timedelta
+
+    due = date.fromisoformat(sys.argv[2])
+    today = date.today()
+    assert due.weekday() < 5, f"{due} is a weekend"
+    assert due >= today + timedelta(days=5), (due, today)
+    say(f"five working days from {today} is {due} ({due:%A})")
+
+
 def main() -> None:
     mode = sys.argv[1] if len(sys.argv) > 1 else ""
     if mode == "make-eml":
@@ -225,6 +237,8 @@ def main() -> None:
         clocks()
     elif mode == "hidden":
         hidden()
+    elif mode == "working":
+        working()
     elif mode == "reads":
         reads()
     else:

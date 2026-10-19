@@ -12,7 +12,9 @@
 #      the letter by its subject, the original and the attachment kept;
 #   6  a restricted item does not exist for a user or an agent, and the register export leaves it out;
 #   7  the API, the TUI and an agent's MCP tools read the same register; an agent's triage is a
-#      proposal that leaves the item as it was.
+#      proposal that leaves the item as it was;
+#   8  a working-day clock skips the weekend, and rebuilding every projection from the ledger gives
+#      the same clocks.
 #
 # Backends: `TL_DEMO_BACKENDS` is a space-separated list, default "sqlite postgres". Postgres is a
 # throw-away database on TL_PG_URL (default postgresql://postgres:postgres@localhost:5432/tl_test,
@@ -199,6 +201,20 @@ run_backend() {
   out="$(as amy tl corr receive --project P123 --subject "Site access arrangements" --from "Acme Construction")"; echo "$out"
   export TL_DEMO_RECEIVED="$(echo "$out" | awk '/^received/ {print $2}')"
   driver reads
+
+  step "[$backend] clause 8: a working-day clock skips the weekend; the clocks come back from the ledger"
+  out="$(as amy tl corr clock start "$letter" --project P123 --label "Comments due" --days 5 --type working --warn 1)"; echo "$out"
+  expect "started $letter-C" "$out"
+  key="$(echo "$out" | awk '/^started/ {print $2}')"
+  before="$(as amy tl corr clock ls --project P123 --all)"; echo "$before"
+  expect "$key running" "$before"
+  working_due="$(echo "$before" | awk -v k="$key" '$1 == k {print $4}')"
+  driver working "$working_due"
+  out="$(tl projections rebuild)"; echo "$out"
+  expect "replayed" "$out"
+  after="$(as amy tl corr clock ls --project P123 --all)"
+  [ "$before" = "$after" ] || { echo "$after"; fail "the clocks changed when the projections were rebuilt"; }
+  echo "PASS 8: $key (5 working days) is due $working_due, not on a weekend; the clocks are the same after a full rebuild"
 
   stop_server
   drop_pg

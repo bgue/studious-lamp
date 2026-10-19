@@ -11,14 +11,14 @@ Build the correspondence core of M10 as a new module, `correspondence` (package 
 
 ## Demo
 `just demo P1-I5` (SQLite and Postgres; `dev/demos/P1-I5.sh`, driver `dev/demos/p1_i5_demo.py`), one PASS line per clause:
-1. receive a letter by upload (`tl corr receive`): item `P123-COR-0001`, state Received, the file in slot `original`;
-2. triage proposes domain General (the suggestion engine reads the domain files; an agent's `propose_triage` is only a proposal) and a person confirms it (`tl corr triage`);
-3. issue a reply (`tl corr issue`, a document controller's act): a PDF rendition from the General template is stored, the send is a stub, and a 14-calendar-day clock starts on the project calendar `P123-default@1`;
-4. the clocks screen (TUI `F12`, `tl corr clock ls`) shows it with 14 days left and its warning thresholds;
-5. a working-day clock skips weekends and the project holidays; pause and resume move the due date; the same ledger rebuilt gives the same clocks (recompute from the ledger);
-6. the I2 transmittal appears in the master register (`tl corr ls`, TUI `F12` register tab) as a Document-control item;
-7. confidentiality: a `restricted` item is invisible to a plain user and visible to a controller; a `privileged` item only to the accounts named on it; an item with an unknown class is hidden from everyone; the same holds over the API, MCP, the feed and the event stream;
-8. email-in: a `.eml` file with an attachment is ingested (`tl corr mail ingest`) into an item with the attachment in a slot; a hostile message is refused.
+1. receive a letter by upload (`tl corr receive`): item `P123-COR-0001`, state Received, the file in slot `original`; the suggestion engine proposes General and a person confirms it (`tl corr triage --accept`);
+2. issue a reply (`tl corr issue`, a document controller's act; a user is refused): a PDF rendition from the General template is stored, the send is a stub, and a 14-calendar-day clock starts on the project calendar `P123-default@1`;
+3. the clocks screen (TUI `F12`, key `3`) shows it with 14 days left;
+4. the I2 transmittal appears in the master register (`tl corr ls`) as a Document-control line next to the letters;
+5. email-in: a `.eml` file with a PDF attached is ingested (`tl corr mail ingest`): party matched by domain, threaded to the letter by subject, original and attachment kept; the same message again is refused;
+6. confidentiality: a `restricted` item does not exist for a user (same answer as an unused number), the register export leaves it out unless a controller names the class;
+7. the API, the TUI and an agent's MCP tools read the same register; an agent's `propose_triage` is a pending proposal and leaves the item as it was;
+8. a working-day clock skips the weekend; a full projection rebuild gives the same clocks.
 
 ## Design decisions (supervisor, within the plan)
 | # | Decision |
