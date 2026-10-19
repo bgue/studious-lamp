@@ -110,7 +110,8 @@ class HttpxTransport:
             expired.set()
             client.close()
 
-        watchdog = threading.Timer(timeout_s, give_up)
+        # a quarter second after httpx's own per-read timeout, so a plain timeout keeps its own name
+        watchdog = threading.Timer(timeout_s + 0.25, give_up)
         watchdog.daemon = True
         watchdog.start()
         try:
@@ -145,7 +146,9 @@ class HttpxTransport:
                 error=f"DeadlineExceeded: {exc}"[:200],
             )
         except Exception as exc:
-            if expired.is_set():  # the watchdog closed the client under a blocked read
+            # the watchdog closed the client under a blocked read (a plain read timeout keeps its
+            # own, more exact, name even when both fire together)
+            if expired.is_set() and not isinstance(exc, httpx.TimeoutException):
                 return TransportResult(
                     status=None,
                     latency_ms=int((time.monotonic() - started) * 1000),
