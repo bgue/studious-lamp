@@ -119,6 +119,9 @@ def create(
     body = read_json_file(file)
     if not isinstance(body, dict):
         fail("the file must hold a JSON object")
+    server_set = sorted({"actor", "source", "scope"} & body.keys())
+    if server_set:  # the CLI sets these; a file naming one would clash with the call below
+        fail(f"the file must not hold {', '.join(server_set)}: the command sets them")
     with factory(ctx) as opened, service_errors(), opened() as uow:
         made = handle_create_rule(uow, CreateRule(actor=actor, source=SOURCE, scope=scope, **body))
     typer.echo(f"rule {made.key}")
