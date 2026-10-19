@@ -364,3 +364,52 @@ def test_a_message_that_breaks_the_envelope_is_refused_with_no_detail() -> None:
         str(caught.value)
         == "the message could not be read safely (it took too long or too much memory)"
     )
+
+
+# --- bounds the first corpus left open (found by the mutation run) ------------------------------
+
+
+def test_the_headers_of_all_parts_together_are_bounded() -> None:
+    headers = b"".join(f"X-H{i}: v\n".encode() for i in range(40))
+    part = b"--B\n" + headers + b"Content-Type: text/plain\n\nx\n"
+    raw = (
+        b"From: a@b.example\nContent-Type: multipart/mixed; boundary=B\n\n" + part * 3 + b"--B--\n"
+    )
+    limits = EmlLimits(max_headers=60, max_headers_total=100)
+    assert "too many headers" in refused(raw, limits)
+    assert parse_eml(raw, EmlLimits(max_headers=60, max_headers_total=1000)).body == "x"
+
+
+def test_an_encoded_attachment_is_refused_by_its_text_size_before_it_is_decoded() -> None:
+    # base64 ignores white space, so this decodes to three bytes: only the size of the text
+    # (read before decoding) can refuse it
+    raw = (
+        b"From: a@b.example\nMIME-Version: 1.0\nContent-Type: multipart/mixed; boundary=B\n\n"
+        b"--B\nContent-Type: application/octet-stream\nContent-Transfer-Encoding: base64\n"
+        b'Content-Disposition: attachment; filename="z"\n\n' + b"AAAA" + b" " * 20000 + b"\n--B--\n"
+    )
+    assert "larger than the limit" in refused(raw, EmlLimits(max_attachment_bytes=1000))
+    assert (
+        parse_eml(raw, EmlLimits(max_attachment_bytes=1_000_000)).attachments[0].data == b"\0\0\0"
+    )
+
+
+def test_an_attachment_that_is_not_encoded_is_bounded_by_its_size_too() -> None:
+    msg = simple()
+    msg.add_attachment("x" * 1500, filename="notes.txt")  # 7bit: the text is the content
+    assert "larger than the limit" in refused(msg.as_bytes(), EmlLimits(max_attachment_bytes=1000))
+    assert len(parse_eml(msg.as_bytes()).attachments[0].data) >= 1500
+
+
+def test_the_first_plain_part_is_the_body() -> None:
+    raw = (
+        b"From: a@b.example\nMIME-Version: 1.0\nContent-Type: multipart/mixed; boundary=B\n\n"
+        b"--B\nContent-Type: text/plain\n\nfirst\n--B\nContent-Type: text/plain\n\nsecond\n--B--\n"
+    )
+    assert parse_eml(raw).body == "first"
+
+
+def test_a_subject_longer_than_the_record_allows_is_refused_not_cut() -> None:
+    long_subject = simple(Subject="s" * 600)
+    assert "the subject is longer than 500" in refused(long_subject.as_bytes())
+    assert parse_eml(simple(Subject="s" * 500).as_bytes()).subject == "s" * 500
