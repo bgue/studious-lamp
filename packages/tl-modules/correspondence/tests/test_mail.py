@@ -178,3 +178,47 @@ def test_an_email_needs_a_project_and_a_hidden_thread_is_not_joined(world: CorrW
     with cf.use_viewer(cf.Viewer(actor="user:ctl", level=1, account="user:ctl")):
         a, b = world.item(first.key or ""), world.item(again.key or "")
         assert a.thread_id != b.thread_id  # the person could not see the restricted thread
+
+
+def test_the_recipients_and_the_copy_list_are_matched_to_parties_too(world: CorrWorld) -> None:
+    party = world.forge_party("MER", "Meridian Energy")  # owns meridian.example
+    msg = message(To="Ann <ann@meridian.example>", Cc="Bob <bob@meridian.example>, x@acme.example")
+    with frozen_today(MONDAY):
+        made = ingest(world, msg)
+    item = world.item(made.key or "")
+    assert [(a["email"], a["party_id"]) for a in item.to] == [("ann@meridian.example", party)]
+    assert [(a["email"], a["party_id"]) for a in item.cc] == [
+        ("bob@meridian.example", party),
+        ("x@acme.example", None),
+    ]
+
+
+def test_a_sender_without_a_display_name_is_named_by_the_address(world: CorrWorld) -> None:
+    with frozen_today(MONDAY):
+        made = ingest(world, message(From="bare@meridian.example"))
+    assert world.item(made.key or "").from_name == "bare@meridian.example"
+
+
+def test_the_original_keeps_the_name_it_arrived_with(world: CorrWorld) -> None:
+    with frozen_today(MONDAY):
+        made = ingest(world, message(), original_name="programme-reply.eml")
+    assert ("message", "programme-reply.eml", "available") in files_of(world, made.stream_id)
+
+
+def test_attachments_go_through_the_upload_guard_and_only_the_original_is_the_modules(
+    world: CorrWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert world.files is not None
+    seen: list[tuple[str, bool]] = []
+    real = FileService.register_upload
+
+    def spy(self, uow, cmd, *, by_module=False):  # type: ignore[no-untyped-def]
+        seen.append((cmd.slot, by_module))
+        return real(self, uow, cmd, by_module=by_module)
+
+    monkeypatch.setattr(FileService, "register_upload", spy)
+    msg = message()
+    msg.add_attachment(b"%PDF-1.7 a", maintype="application", subtype="pdf", filename="a.pdf")
+    with frozen_today(MONDAY):
+        ingest(world, msg)
+    assert sorted(seen) == [("attachment", False), ("message", True)]
