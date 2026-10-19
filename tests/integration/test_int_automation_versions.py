@@ -75,3 +75,57 @@ def test_two_pset_writes_to_one_record_in_one_delivery_both_apply(world: World) 
     assert (delivery["state"], delivery["command_count"]) == ("applied", 2), delivery
     [row] = world.rows("SELECT psets_json FROM cur_core_record WHERE key = 'V-1'")
     assert "FV-1001" in row["psets_json"] and "Acme" in row["psets_json"]
+
+
+# --- a proposal a rule made is accepted on the record as it is then (re-check finding 3) --------
+
+
+def propose_and_accept(world: World, step: dict[str, object]) -> str:
+    from intworld import PERSON
+    from tl_core.services import proposals
+
+    rule_id = world.create_rule(then=[step])
+    world.switch_rule(rule_id, on=True)
+    world.post("go #safety")
+    world.worker().run_until_idle()
+    with world.factory(readonly=True) as uow:
+        [pending] = proposals.list_proposals(uow.conn(), "project:P123", status="pending")
+    # the record changes between the rule's proposal and the person's decision
+    world.retitle_record(str(step["args"]["stream_id"]), "Retitled meanwhile")  # type: ignore[index]
+    done = proposals.accept_or_fail(world.factory, proposal_id=pending.proposal_id, by=PERSON)
+    assert done.status == "accepted", done
+    return pending.command_type
+
+
+def test_a_propose_mode_set_pset_values_is_accepted(world: World) -> None:
+    record = world.record("V-1")
+    assert propose_and_accept(
+        world,
+        {
+            "command": "SetPsetValues",
+            "args": {
+                "stream_id": record, "pset": "valve_data", "layer": "standard",
+                "values": {"tag_no": "FV-1001"},
+            },
+        },
+    ) == "SetPsetValues"  # fmt: skip
+    assert "FV-1001" in world.rows("SELECT psets_json FROM cur_core_record")[0]["psets_json"]
+
+
+def test_a_propose_mode_update_record_is_accepted(world: World) -> None:
+    record = world.record("V-1")
+    propose_and_accept(
+        world,
+        {"command": "UpdateRecord", "args": {"stream_id": record, "changes": {"title": "New"}}},
+    )
+    assert world.rows("SELECT title FROM cur_core_record")[0]["title"] == "New"
+
+
+def test_a_propose_mode_transition_is_accepted(world: World) -> None:
+    record = world.record("V-1")
+    before = world.rows("SELECT status FROM cur_core_record")[0]["status"]
+    propose_and_accept(
+        world,
+        {"command": "TransitionWorkflow", "args": {"stream_id": record, "transition": "submit"}},
+    )
+    assert world.rows("SELECT status FROM cur_core_record")[0]["status"] != before

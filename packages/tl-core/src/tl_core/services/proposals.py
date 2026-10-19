@@ -729,6 +729,13 @@ def accept_proposal(
     )
     if row.tool != ACTION_PROPOSAL_TOOL:
         data["source"] = source_for(row.agent)
+    if row.tool == RULE_PROPOSAL_TOOL:
+        # A rule never names a record version (it could not know one): the command changes the
+        # record as it is when a person accepts it, as it would have when the rule ran.
+        from tl_core.integration.automation import stream_version_now, wants_current_version
+
+        if wants_current_version(model):
+            data["expected_version"] = stream_version_now(uow.conn(), str(data["stream_id"]))
     if model is TransitionWorkflow:
         data["actor_roles"] = list(roles)
     if model is ChangeSetting:

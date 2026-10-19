@@ -110,11 +110,20 @@ def first_error(exc: ValidationError) -> str:
 VERSION_FIELD = "expected_version"
 
 
-def _wants_current_version(model: type[Command]) -> bool:
+def wants_current_version(model: type[Command]) -> bool:
     """A command that must name the version of the record it changes (``SetPsetValues``,
     ``UpdateRecord``, a workflow transition): a payload or a rule step cannot know it."""
     field = model.model_fields.get(VERSION_FIELD)
     return field is not None and field.is_required() and "stream_id" in model.model_fields
+
+
+def stream_version_now(conn: Any, stream_id: str) -> int:
+    """The version of a stream as this transaction sees it (0 for a stream with no event)."""
+    found = conn.execute(
+        text("SELECT COALESCE(MAX(stream_version), 0) FROM events WHERE stream_id = :s"),
+        {"s": stream_id},
+    )
+    return int(found.scalar_one())
 
 
 def plan_command(
@@ -171,7 +180,7 @@ def plan_command(
             needed,
         )
     values = dict(args)
-    versioned = _wants_current_version(model)
+    versioned = wants_current_version(model)
     if versioned:
         values[VERSION_FIELD] = 0  # a placeholder; run_automation_command sets the real one
     if issubclass(model, AddLink):
@@ -231,14 +240,12 @@ def run_automation_command(
         if isinstance(command, SuggestLink):
             return handle_suggest_link(uow, command, system_source=link_source)
         return handle_add_link(uow, command, system_source=link_source)
-    if _wants_current_version(type(command)):
+    if wants_current_version(type(command)):
         # A rule or a mapping changes the record as it is when its command runs: the version is
         # read here, inside the unit of work, so commands earlier in the same batch count. Nothing
         # is lost to a race: the unit of work is one transaction and the append still checks it.
         stream_id = str(getattr(command, "stream_id"))  # noqa: B009
-        found = uow.conn().execute(
-            text("SELECT COALESCE(MAX(stream_version), 0) FROM events WHERE stream_id = :s"),
-            {"s": stream_id},
+        command = command.model_copy(
+            update={VERSION_FIELD: stream_version_now(uow.conn(), stream_id)}
         )
-        command = command.model_copy(update={VERSION_FIELD: int(found.scalar_one())})
     return runner.run(uow, command)

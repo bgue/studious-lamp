@@ -59,9 +59,9 @@ from tl_core.integration.rules.service import (
     handle_revise_rule,
 )
 from tl_core.jobs.runner import JobRunner, RunResult
-from tl_core.services.commands import CommandResult, CreateRecord
+from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.feed import PostToFeed, handle_post
-from tl_core.services.records import handle_create_record
+from tl_core.services.records import handle_create_record, handle_update_record
 from tl_core.services.settings import ChangeSetting, handle_change_setting
 from tl_core.util import new_ulid, utcnow
 from tl_core.webhooks.egress import EgressPolicy
@@ -110,6 +110,18 @@ class World:
                 ),
             )  # fmt: skip
         return made.stream_id
+
+    def retitle_record(self, record_id: str, title: str) -> None:
+        """Change a record's title as a person (it moves the record's version on)."""
+        with self.factory() as uow:
+            version = uow.ledger.stream_version(record_id)
+            handle_update_record(
+                uow,
+                UpdateRecord(
+                    actor=PERSON, source="test", scope=SCOPE, stream_id=record_id,
+                    expected_version=version, changes={"title": title},
+                ),
+            )  # fmt: skip
 
     def setting(self, key: str, value: Any, *, layer: str = "company") -> None:
         with self.factory() as uow:
