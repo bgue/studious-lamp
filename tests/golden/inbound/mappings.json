@@ -295,6 +295,1225 @@
    "problem_codes": [
     "syntax"
    ]
+  },
+  {
+   "name": "single-nested-args",
+   "category": "single",
+   "expression": "{\"command\": \"SetPsetValues\", \"args\": {\"stream_id\": {\"$key\": \"W-1\"}, \"pset\": \"nde\", \"values\": {\"contractor\": contractor, \"count\": n}}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "SetPsetValues",
+     "args": {
+      "stream_id": {
+       "$key": "W-1"
+      },
+      "pset": "nde",
+      "values": {
+       "contractor": "acme-nde",
+       "count": 3
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "single-no-args",
+   "category": "single",
+   "expression": "{\"command\": \"PostToFeed\"}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "PostToFeed",
+     "args": {}
+    }
+   ]
+  },
+  {
+   "name": "single-comparison-value",
+   "category": "single",
+   "expression": "{\"command\": \"SetPsetValues\", \"args\": {\"stream_id\": {\"$key\": \"W-2\"}, \"pset\": \"nde\", \"values\": {\"accepted\": results[0].result = \"accept\", \"score\": results[0].score}}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "SetPsetValues",
+     "args": {
+      "stream_id": {
+       "$key": "W-2"
+      },
+      "pset": "nde",
+      "values": {
+       "accepted": true,
+       "score": 9
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "many-items-to-feed",
+   "category": "many",
+   "expression": "items.{\"command\": \"PostToFeed\", \"args\": {\"body\": name}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "PostToFeed",
+     "args": {
+      "body": "a"
+     }
+    },
+    {
+     "command": "PostToFeed",
+     "args": {
+      "body": "b"
+     }
+    }
+   ]
+  },
+  {
+   "name": "many-scores-times-ten",
+   "category": "many",
+   "expression": "results.{\"command\": \"SetPsetValues\", \"args\": {\"stream_id\": {\"$key\": weld}, \"pset\": \"nde\", \"values\": {\"score\": score * 10}}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "SetPsetValues",
+     "args": {
+      "stream_id": {
+       "$key": "W1"
+      },
+      "pset": "nde",
+      "values": {
+       "score": 90
+      }
+     }
+    },
+    {
+     "command": "SetPsetValues",
+     "args": {
+      "stream_id": {
+       "$key": "W2"
+      },
+      "pset": "nde",
+      "values": {
+       "score": 20
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "many-one-match-of-a-filter",
+   "category": "many",
+   "expression": "items[status = \"closed\"].{\"command\": \"PostToFeed\", \"args\": {\"body\": name}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "PostToFeed",
+     "args": {
+      "body": "b"
+     }
+    }
+   ]
+  },
+  {
+   "name": "conditional-false-branch-empty",
+   "category": "conditional",
+   "expression": "$count(items) > 5 ? {\"command\": \"PostToFeed\", \"args\": {\"body\": \"many\"}} : []",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": []
+  },
+  {
+   "name": "filter-matches-nothing",
+   "category": "conditional",
+   "expression": "items[status = \"archived\"].{\"command\": \"PostToFeed\", \"args\": {\"body\": name}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": []
+  },
+  {
+   "name": "conditional-exists-else",
+   "category": "conditional",
+   "expression": "$exists(contractor) ? {\"command\": \"PostToFeed\", \"args\": {\"body\": contractor}} : {\"command\": \"PostToFeed\", \"args\": {\"body\": \"none\"}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "PostToFeed",
+     "args": {
+      "body": "acme-nde"
+     }
+    }
+   ]
+  },
+  {
+   "name": "results-none-pending",
+   "category": "conditional",
+   "expression": "results[result = \"pending\"].{\"command\": \"SetPsetValues\", \"args\": {\"stream_id\": {\"$key\": weld}, \"pset\": \"nde\", \"values\": {\"result\": result}}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": []
+  },
+  {
+   "name": "functions-lowercase-trim",
+   "category": "functions",
+   "expression": "{\"command\": \"PostToFeed\", \"args\": {\"body\": $lowercase($trim(\"  ACME-NDE  \"))}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "PostToFeed",
+     "args": {
+      "body": "acme-nde"
+     }
+    }
+   ]
+  },
+  {
+   "name": "functions-join-names",
+   "category": "functions",
+   "expression": "{\"command\": \"PostToFeed\", \"args\": {\"body\": $join(items.name, \", \")}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "PostToFeed",
+     "args": {
+      "body": "a, b"
+     }
+    }
+   ]
+  },
+  {
+   "name": "functions-split-count",
+   "category": "functions",
+   "expression": "{\"command\": \"PostToFeed\", \"args\": {\"body\": $string($count($split(contractor, \"-\")))}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "PostToFeed",
+     "args": {
+      "body": "2"
+     }
+    }
+   ]
+  },
+  {
+   "name": "functions-substring-before",
+   "category": "functions",
+   "expression": "{\"command\": \"PostToFeed\", \"args\": {\"body\": $substringBefore(contractor, \"-\")}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "PostToFeed",
+     "args": {
+      "body": "acme"
+     }
+    }
+   ]
+  },
+  {
+   "name": "functions-substring",
+   "category": "functions",
+   "expression": "{\"command\": \"PostToFeed\", \"args\": {\"body\": $substring(contractor, 5, 3)}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "PostToFeed",
+     "args": {
+      "body": "nde"
+     }
+    }
+   ]
+  },
+  {
+   "name": "functions-sum-and-round",
+   "category": "functions",
+   "expression": "{\"command\": \"SetPsetValues\", \"args\": {\"stream_id\": {\"$key\": \"W-3\"}, \"pset\": \"nde\", \"values\": {\"total\": $sum(results.score), \"rounded\": $round(2.5 + 1.2)}}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "SetPsetValues",
+     "args": {
+      "stream_id": {
+       "$key": "W-3"
+      },
+      "pset": "nde",
+      "values": {
+       "total": 11,
+       "rounded": 4
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "functions-max-and-min",
+   "category": "functions",
+   "expression": "{\"command\": \"SetPsetValues\", \"args\": {\"stream_id\": {\"$key\": \"W-4\"}, \"pset\": \"nde\", \"values\": {\"best\": $max(results.score), \"worst\": $min(results.score)}}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "SetPsetValues",
+     "args": {
+      "stream_id": {
+       "$key": "W-4"
+      },
+      "pset": "nde",
+      "values": {
+       "best": 9,
+       "worst": 2
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "functions-keys-count",
+   "category": "functions",
+   "expression": "{\"command\": \"PostToFeed\", \"args\": {\"body\": $string($count($keys(results[0])))}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "PostToFeed",
+     "args": {
+      "body": "3"
+     }
+    }
+   ]
+  },
+  {
+   "name": "functions-number-and-boolean",
+   "category": "functions",
+   "expression": "{\"command\": \"SetPsetValues\", \"args\": {\"stream_id\": {\"$key\": \"W-5\"}, \"pset\": \"nde\", \"values\": {\"n\": $number(\"12\"), \"flag\": $boolean(\"x\"), \"absent\": $not($exists(nothing_here))}}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "SetPsetValues",
+     "args": {
+      "stream_id": {
+       "$key": "W-5"
+      },
+      "pset": "nde",
+      "values": {
+       "n": 12,
+       "flag": true,
+       "absent": true
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "missing-fields-left-out",
+   "category": "missing",
+   "expression": "{\"command\": \"PostToFeed\", \"args\": {\"body\": nothing_here, \"note\": missing_too, \"contractor\": contractor}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "PostToFeed",
+     "args": {
+      "contractor": "acme-nde"
+     }
+    }
+   ]
+  },
+  {
+   "name": "missing-in-each-element",
+   "category": "missing",
+   "expression": "items.{\"command\": \"PostToFeed\", \"args\": {\"body\": weld}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "PostToFeed",
+     "args": {}
+    },
+    {
+     "command": "PostToFeed",
+     "args": {}
+    }
+   ]
+  },
+  {
+   "name": "missing-default-when-absent",
+   "category": "missing",
+   "expression": "{\"command\": \"PostToFeed\", \"args\": {\"body\": $exists(nothing_here) ? nothing_here : \"none\"}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "ok",
+   "commands": [
+    {
+     "command": "PostToFeed",
+     "args": {
+      "body": "none"
+     }
+    }
+   ]
+  },
+  {
+   "name": "invalid-a-number",
+   "category": "invalid_output",
+   "expression": "5",
+   "payload": {},
+   "status": "invalid_output",
+   "problem_codes": [
+    "invalid_output"
+   ]
+  },
+  {
+   "name": "invalid-not-a-command",
+   "category": "invalid_output",
+   "expression": "{\"name\": \"a\", \"body\": \"b\"}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "invalid_output",
+   "problem_codes": [
+    "invalid_output"
+   ]
+  },
+  {
+   "name": "invalid-unlisted-command",
+   "category": "invalid_output",
+   "expression": "{\"command\": \"VoidRecord\", \"args\": {}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "invalid_output",
+   "problem_codes": [
+    "invalid_output"
+   ]
+  },
+  {
+   "name": "invalid-server-field",
+   "category": "invalid_output",
+   "expression": "{\"command\": \"PostToFeed\", \"args\": {\"body\": contractor, \"actor\": \"user:admin\"}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "invalid_output",
+   "problem_codes": [
+    "invalid_output"
+   ]
+  },
+  {
+   "name": "invalid-server-field-deep",
+   "category": "invalid_output",
+   "expression": "{\"command\": \"PostToFeed\", \"args\": {\"meta\": {\"source\": \"rule:x\"}}}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "invalid_output",
+   "problem_codes": [
+    "invalid_output"
+   ]
+  },
+  {
+   "name": "invalid-unknown-key",
+   "category": "invalid_output",
+   "expression": "{\"command\": \"PostToFeed\", \"args\": {}, \"extra\": 1}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "invalid_output",
+   "problem_codes": [
+    "invalid_output"
+   ]
+  },
+  {
+   "name": "invalid-one-element-is-text",
+   "category": "invalid_output",
+   "expression": "[{\"command\": \"PostToFeed\", \"args\": {\"body\": \"a\"}}, \"b\"]",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "invalid_output",
+   "problem_codes": [
+    "invalid_output"
+   ]
+  },
+  {
+   "name": "limit-runaway-expression",
+   "category": "limit",
+   "expression": "$count([1..10000].([1..10000]))",
+   "payload": {},
+   "status": "limit",
+   "problem_codes": [
+    "limit"
+   ]
+  },
+  {
+   "name": "error-unclosed-filter",
+   "category": "error",
+   "expression": "items[status = ",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "error",
+   "problem_codes": [
+    "syntax"
+   ]
+  },
+  {
+   "name": "error-unclosed-object",
+   "category": "error",
+   "expression": "{\"command\": \"PostToFeed\", \"args\": {\"body\": contractor}",
+   "payload": {
+    "contractor": "acme-nde",
+    "items": [
+     {
+      "name": "a",
+      "status": "open"
+     },
+     {
+      "name": "b",
+      "status": "closed"
+     }
+    ],
+    "n": 3,
+    "results": [
+     {
+      "weld": "W1",
+      "result": "accept",
+      "score": 9
+     },
+     {
+      "weld": "W2",
+      "result": "reject",
+      "score": 2
+     }
+    ]
+   },
+   "status": "error",
+   "problem_codes": [
+    "syntax"
+   ]
   }
  ],
  "checks": [
@@ -309,6 +1528,74 @@
    "accepted": false,
    "problem_codes": [
     "function_not_allowed"
+   ]
+  },
+  {
+   "name": "accepts-a-plain-command",
+   "expression": "{\"command\": \"PostToFeed\", \"args\": {\"body\": $string(note)}}",
+   "accepted": true
+  },
+  {
+   "name": "accepts-a-conditional",
+   "expression": "$count(items) > 0 ? {\"command\": \"PostToFeed\", \"args\": {\"body\": $join(items, \", \")}} : []",
+   "accepted": true
+  },
+  {
+   "name": "accepts-a-mapped-results",
+   "expression": "results.{\"command\": \"SetPsetValues\", \"args\": {\"pset\": \"nde\", \"values\": {\"result\": result}}}",
+   "accepted": true
+  },
+  {
+   "name": "accepts-substring-before",
+   "expression": "{\"command\": \"PostToFeed\", \"args\": {\"body\": $substringBefore(contractor, \"-\")}}",
+   "accepted": true
+  },
+  {
+   "name": "refuses-now",
+   "expression": "$now()",
+   "accepted": false,
+   "problem_codes": [
+    "function_not_allowed"
+   ]
+  },
+  {
+   "name": "refuses-pad",
+   "expression": "$pad(contractor, 12, \"-\")",
+   "accepted": false,
+   "problem_codes": [
+    "function_not_allowed"
+   ]
+  },
+  {
+   "name": "refuses-random",
+   "expression": "$random()",
+   "accepted": false,
+   "problem_codes": [
+    "function_not_allowed"
+   ]
+  },
+  {
+   "name": "refuses-lambda",
+   "expression": "function($x) { $x }",
+   "accepted": false,
+   "problem_codes": [
+    "not_allowed"
+   ]
+  },
+  {
+   "name": "refuses-partial-application",
+   "expression": "$substring(?, 0, 1)",
+   "accepted": false,
+   "problem_codes": [
+    "not_allowed"
+   ]
+  },
+  {
+   "name": "refuses-regex-literal",
+   "expression": "$split(contractor, /-/)",
+   "accepted": false,
+   "problem_codes": [
+    "not_allowed"
    ]
   }
  ]
