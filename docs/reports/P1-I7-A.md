@@ -51,7 +51,13 @@ GATE_ROWS
   8. LOW, `tl rule dry-run` ungated, and the inbound worker now reads the endpoint's mode when it applies (dry-run is an emergency stop): 2bbbc8e, ab663db.
   9. LOW/INFO, `Inbound.Failed` named a payload-derived key (now its length): ce5b4c4; the accepted trade-offs are in the runbook; the old `-`-joined actor names are a non-issue before release.
   Fix commits: 744a95e, 3ffa040, a88475f, 2bbbc8e, ec33033, 811248d, ab663db, ce5b4c4.
-- A focused re-check of findings 1 to 5 is the orchestrator's before DONE.
+- **Re-check of 3e71e5d**: changes requested, five items, fixed:
+  1. MEDIUM, shadow values leaked through the event log (`Enrichment.Proposed` carries the value): hidden by the change-feed filter (`/events`, `/stream`, `tl events`; `show_shadow` for an admin only), never sent by a webhook (live or replay), no feed card: fix commit "shadow enrichment proposals stay out of /events...".
+  2. LOW, the unchanged-layer exemption used Python equality (`1 == 1.0 == True`): canonical JSON.
+  3. MEDIUM, a propose-mode rule with a versioned command always failed on accept: a rule's proposal reads the record version when a person accepts it (tests for `SetPsetValues`, `UpdateRecord`, `TransitionWorkflow`, each with the record changed in between).
+  4. Decision on the version rule: automation is last-writer-wins (acceptable for `SetPsetValues` and transitions); automation `UpdateRecord` may change only title and description (`psets_not_automated`); ADR-0017 section 7d says so.
+  5. LOW, payload-derived text in failure messages: an unknown argument is counted, a validation error names the model field and nothing below it.
+  6. INFO, a delivery stopped by the dry-run re-read ends in state `dry_run` and is not retryable: in the runbook.
 
 ## Deviations from plan
 - The plan's T05b (dispatcher wiring) and the API routes are supervisor pieces (`tl integration serve`, `routes/integration.py`).
