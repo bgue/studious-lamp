@@ -18,9 +18,11 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from sqlalchemy import text
 
 from tl_core.jobs.queue import JobQueue
 from tl_core.ledger import Event
+from tl_core.threads.config import reminders_max_pending
 from tl_core.threads.contract import (
     MAX_MENTIONS,
     REMIND_MAX_DAYS,
@@ -75,6 +77,31 @@ class StepResult:
     version: int
     created_record: bool = False
     events: list[Event] = field(default_factory=list[Event])
+
+
+_PENDING_BY_SQL = text(
+    "SELECT "
+    "COALESCE(SUM(CASE WHEN m.record_id = :record_id THEN 1 ELSE 0 END), 0) AS in_thread, "
+    "COALESCE(SUM(CASE WHEN m.author = :author THEN 1 ELSE 0 END), 0) AS by_author "
+    "FROM job_queue j JOIN cur_thread_message m ON m.message_id = j.job_id "
+    "WHERE j.kind = :kind AND j.state IN ('queued', 'running')"
+)
+
+
+def _check_reminder_caps(uow: UnitOfWork, record: ThreadRecord, actor: str) -> None:
+    """Refuse a reminder when the thread, or the person, already has the allowed number waiting."""
+    cap = reminders_max_pending(uow.conn(), record.scope)
+    row = (
+        uow.conn()
+        .execute(
+            _PENDING_BY_SQL, {"kind": REMINDER_JOB_KIND, "record_id": record.id, "author": actor}
+        )
+        .one()
+    )
+    if int(row.in_thread) >= cap:
+        raise ValueError(f"this thread already has {cap} reminders waiting")
+    if int(row.by_author) >= cap:
+        raise ValueError(f"you already have {cap} reminders waiting")
 
 
 def resolve_when(when: str, now: datetime) -> datetime | None:
@@ -135,6 +162,7 @@ def run_effect(
         moment = resolve_when(reminder.when, now)
         if moment is None or moment <= now:
             raise ValueError("the reminder time is not in the future")
+        _check_reminder_caps(uow, record, actor)
         JobQueue().enqueue(
             uow.conn(),
             job_id=message_id,

@@ -141,7 +141,8 @@ settings:
     description: Whether record threads are switched on.
     docs: >-
       A thread needs this switch and a record type listed in `threads.enabled_types`. Messages already
-      posted stay in the ledger and are shown when threads are switched off again, but nobody can post.
+      posted stay in the ledger; while threads are off nobody sees them and nobody can post, and they are shown
+      again when threads are switched on.
     scopes: [platform, company, project]
     lockable: true
     since: "0.1.0"
@@ -195,6 +196,21 @@ settings:
     validation:
       choices: [propose, none]
     risk: advanced
+    since: "0.1.0"
+
+  - key: threads.reminders.max_pending
+    type: int
+    default: 20
+    description: How many reminders one thread, and one person, may have waiting at a time.
+    docs: >-
+      A `/remind` is refused while this many reminders set from the same thread, or by the same person, are
+      still waiting to fall due. There is no scheduler for the `thread.reminder` job in the server: run
+      `tl thread reminders` (or the P1-I7 job runner) so that due reminders are posted.
+    scopes: [platform, company, project]
+    lockable: true
+    validation:
+      minimum: 1
+      maximum: 1000
     since: "0.1.0"
 
   # P1-I7 WS-A: the integration layer (FANOUT D11, ADR-0017)

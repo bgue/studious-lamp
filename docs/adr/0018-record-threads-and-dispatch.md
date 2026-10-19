@@ -82,6 +82,19 @@ of work, with the server-set source `thread:<record id>` and correlation id `dis
     every actor that is not `user:`. An agent's plan (the token of a proposal) is made with no dry run, so nothing
     runs as the agent even rolled back. A planned command never carries `actor_roles` or `accept_risk` (nor the
     server-set fields): the planner refuses it as `reserved_field`.
+15. **A token runs once.** The token also hashes the number of dispatches the thread has run, so the dispatch's own
+    message spends it: a replay with the same token is `dispatch_stale`. (A dispatch does not change the record's
+    version, so without this a side-effecting plan could run again with the same token.) A message that is not a
+    dispatch does not change the token, so chatting between a preview and its confirmation does not spoil it. The
+    expiry a client sends is a time (ISO 8601; a naive one is UTC) no later than the preview's lifetime.
+16. **Effects and acceptance need an account.** `/summarise` and `/remind` are not table commands, so the engine
+    asks `require_access` for the actor before running one. `accept_proposal` passes the caller's `holds` through
+    unchanged and refuses to run a dispatch without one; a person with no account leaves the proposal pending.
+    The `dispatched_from` link is made with `system_source="thread_dispatch"`, not `by_module`: the narrow form
+    lifts only the reserved link source and leaves a module's `AddLink` allow-list in force.
+17. **A switched-off thread is closed.** It reads as empty, and posting, editing, retracting, dispatching and the
+    delivery of a waiting reminder are refused or dropped. Reminders are capped (`threads.reminders.max_pending`,
+    per thread and per person) and the server has no scheduler for the job kind (see the runbook).
 
 ## Consequences
 - Contracts changed: none of the frozen two. New: `PostThreadMessage`, `EditThreadMessage`,

@@ -7,7 +7,7 @@ Purpose: switch record threads on, let people dispatch from them, and find out w
 
 ## Before you start
 - Access needed: admin (settings); any person with an account can read and post.
-- Safe to run during business hours: yes. Switching threads off keeps the messages.
+- Safe to run during business hours: yes. Switching threads off keeps the messages in the ledger; they are hidden while it is off and shown again when it is switched on.
 
 ## Steps
 1. Switch threads on for a record type (company layer shown; project layer works the same).
@@ -31,10 +31,12 @@ Purpose: switch record threads on, let people dispatch from them, and find out w
 - `uv run tl thread show` lists the message with its outcome line. `Thread.Dispatched` is in `uv run tl events`.
 - A refusal code in the preview: `not_permitted` (the person lacks the access), `command_refused` (the dry run failed; the message says why), `dispatch_unavailable` (the verb has no target for this record yet: `/assign`, `/due`, `/hold`, `/release`, `/raise rfi`), `reserved_field` (a command names a field only the server sets).
 - A confirm answering `dispatch_stale` means the record or the plan changed after the preview: preview again.
-- Reminders: `/remind` queues a `thread.reminder` job; `uv run tl thread reminders` runs the due ones and posts them.
+- Reminders: `/remind` queues a `thread.reminder` job. **The server has no scheduler for it**: something must run the job kind, either `uv run tl thread reminders` (run it from cron or by hand) or the P1-I7 job runner. Without that, a reminder is queued and never posted. At most `threads.reminders.max_pending` (default 20) reminders may wait per thread and per person; a reminder whose thread was switched off or whose record was voided in the meantime is dropped, not posted.
+- A preview token runs once: the dispatch's own message changes the thread's dispatch count, so confirming the same token again is `dispatch_stale`. Preview again.
+- A person without an account holds nothing: previews show their commands as not permitted, and effects (`/summarise`, `/remind`) are refused for them as well.
 
 ## Roll back
-- Switch `threads.enabled` off. Nothing is deleted; posting and dispatching stop, reading stays.
+- Switch `threads.enabled` off. Nothing is deleted; posting, editing, retracting and dispatching stop, and the thread reads as empty until it is switched on again.
 - A wrong dispatch is undone by the ordinary commands of what it did; the thread keeps the message and its `dispatched_from` links as the record of why.
 
 ## Related

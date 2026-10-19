@@ -74,6 +74,7 @@ def test_the_platform_file_defines_the_keys_of_decision_d2() -> None:
         "threads.dispatch.enabled",
         "threads.dispatch.roles",
         "threads.agents.can_dispatch",
+        "threads.reminders.max_pending",
     }
 
 

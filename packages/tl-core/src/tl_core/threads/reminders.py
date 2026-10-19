@@ -21,6 +21,7 @@ from sqlalchemy import text
 
 from tl_core.jobs.runner import JobFailure
 from tl_core.jobs.types import Claim
+from tl_core.threads.config import threads_enabled
 from tl_core.threads.contract import ParsedDispatch, RemindArgs
 from tl_core.threads.effects import REMINDER_JOB_KIND
 from tl_core.threads.messages import post_message
@@ -96,6 +97,11 @@ class ThreadReminderKind:
         if row is None:
             raise JobFailure("message_missing", "the /remind message is gone", retryable=False)
         record = readable_record(uow, str(row.record_id), actor=THREAD_SERVICE_ACTOR)
+        if record.voided or not threads_enabled(uow.conn(), record.scope, record.record_type):
+            # The record is void, or threads are off now: nothing is posted, and it is not retried.
+            raise JobFailure(
+                "thread_closed", "the thread is off or its record is void", retryable=False
+            )
         post_message(
             uow,
             record=record,

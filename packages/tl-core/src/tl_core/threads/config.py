@@ -20,6 +20,7 @@ from tl_core.threads.contract import (
     SETTING_DISPATCH_ROLES,
     SETTING_ENABLED,
     SETTING_ENABLED_TYPES,
+    SETTING_REMINDERS_MAX_PENDING,
 )
 
 
@@ -46,6 +47,11 @@ def agents_can_dispatch(conn: Connection, scope: str) -> bool:
     """Whether an agent may propose a dispatch (``propose``); ``none`` refuses the tool."""
     value = value_of(conn, SETTING_AGENTS_CAN_DISPATCH, project=project_of_scope(scope))
     return str(value) == "propose"
+
+
+def reminders_max_pending(conn: Connection, scope: str) -> int:
+    """How many reminders a thread, and a person, may have waiting at once."""
+    return int(value_of(conn, SETTING_REMINDERS_MAX_PENDING, project=project_of_scope(scope)))
 
 
 def role_may_dispatch(roles: tuple[str, ...], holds: Callable[[Access], bool]) -> bool:

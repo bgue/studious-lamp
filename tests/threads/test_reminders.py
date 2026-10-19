@@ -13,6 +13,7 @@ from thread_world import (
     make_person,
     make_record,
     planning_world,
+    put_setting,
 )
 from tl_adapters.db import DbTarget, open_uow
 from tl_adapters.queue import job_queue_for
@@ -166,3 +167,42 @@ def test_a_plain_message_that_reads_like_a_remind_is_not_a_reminder(db: DbTarget
     with open_uow(db, readonly=True) as uow, pytest.raises(JobFailure) as raised:
         ThreadReminderKind().prepare(uow, claim)
     assert raised.value.code == "message_missing" and not raised.value.retryable
+
+
+def test_pending_reminders_are_capped_per_thread_and_per_person(db: DbTarget) -> None:
+    put_setting(db, "threads.reminders.max_pending", 2)
+    first = make_record(db, "REC-1")
+    second = make_record(db, "REC-2")
+    dispatch(db, first, "/remind +1h one")
+    dispatch(db, first, "/remind +1h two")
+    for rid in (first, second):  # the thread is full; and the person is full everywhere
+        planner = ThreadPlanner(factory=lambda readonly=False: open_uow(db, readonly=readonly))
+        with open_uow(db, readonly=True) as uow:
+            found = planner.preview(
+                uow,
+                record_id=rid,
+                text="/remind +1h three",
+                actor="user:rgarcia",
+                holds=everyone,
+                runner=RUNNER,
+            )
+        assert not found.can_dispatch  # type: ignore[union-attr]
+        problem = found.planned[0].problem  # type: ignore[union-attr]
+        assert problem is not None and "reminders waiting" in problem.message
+    runner_for(db, later=timedelta(hours=2)).run_until_idle()  # they fall due; room again
+    assert dispatch(db, first, "/remind +1h four")
+
+
+def test_a_reminder_for_a_thread_switched_off_or_a_void_record_is_dropped(db: DbTarget) -> None:
+    rid = make_record(db, "REC-1")
+    dispatch(db, rid, "/remind +1h call back")
+    put_setting(db, "threads.enabled", False)
+    done = runner_for(db, later=timedelta(hours=2)).run_until_idle()
+    assert [r.outcome for r in done] == ["final"]  # failed for good, not retried
+    with open_uow(db, readonly=True) as uow:
+        assert (
+            uow.conn()
+            .execute(text("SELECT COUNT(*) FROM cur_thread_message WHERE kind = 'reminder'"))
+            .scalar_one()
+            == 0
+        )

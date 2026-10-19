@@ -1,7 +1,9 @@
 """``/remind <when> [@who] [text]``: queue a ``thread.reminder`` job (FANOUT D10).
 
 The planned item is the ``ThreadReminder`` effect. ``when`` stays as typed so the preview token is
-stable; it is resolved when the dispatch runs. With no mention the reminder is for the caller.
+stable; it is resolved when the dispatch runs. With no mention the reminder is for the person who
+set it: the plan names nobody, so the token is the same whoever previews or accepts it, and the
+job reads the setter from the message it belongs to.
 """
 
 from __future__ import annotations
@@ -31,7 +33,7 @@ class RemindTarget:
         resolved = resolve_mentions(uow, args.who)
         if resolved.problems:
             return first_problem(resolved.problems)
-        who = resolved.found or [context.actor]
+        who = resolved.found
         command: dict[str, object] = {"when": args.when, "who": who}
         if args.text:
             command["text"] = args.text
@@ -39,6 +41,6 @@ class RemindTarget:
             PlannedCommand(
                 command_type=EFFECT_REMINDER,
                 command=command,
-                summary=f"Remind {', '.join(who)} at {args.when}",
+                summary=f"Remind {', '.join(who) if who else 'you'} at {args.when}",
             )
         ]

@@ -304,7 +304,10 @@ def test_remind_keeps_the_time_as_typed_and_refuses_the_past(db: DbTarget) -> No
     past = ok(preview(db, rid, "/remind 2020-01-01"))
     assert past.problems[0].code == "bad_time"
     alone = ok(preview(db, rid, "/remind +1d"))
-    assert alone.planned[0].command["who"] == ["user:rgarcia"]
+    assert alone.planned[0].command["who"] == []  # the setter is read from the message (L5)
+    make_person(db, "other")
+    by_other = ok(preview(db, rid, "/remind +1d", actor="user:other"))
+    assert by_other.token == alone.token  # the same plan whoever previews or accepts it
 
 
 def test_summarise_is_a_deterministic_text_and_needs_messages(db: DbTarget) -> None:
