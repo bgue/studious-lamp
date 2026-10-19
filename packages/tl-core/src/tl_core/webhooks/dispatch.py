@@ -359,11 +359,19 @@ class Dispatcher:
             conn, row.subject_id, confidentiality.RESTRICTED_ONLY
         ):
             return False
-        requested = (
-            "thin"
-            if confidentiality.is_hidden(conn, row.subject_id, confidentiality.LOWEST)
-            else sub.payload_mode
+        # A link with a hidden end, a file of a hidden record and a post that tags one are
+        # streams of their own: judged by the stream, for the owner and for the thin audience.
+        for who in (owner, confidentiality.RESTRICTED_ONLY):
+            if row.stream_id in confidentiality.hidden_event_streams(
+                conn, [(row.stream_id, row.stream_type)], who
+            ):
+                return False
+        thin = confidentiality.is_hidden(
+            conn, row.subject_id, confidentiality.LOWEST
+        ) or row.stream_id in confidentiality.hidden_event_streams(
+            conn, [(row.stream_id, row.stream_type)], confidentiality.LOWEST
         )
+        requested = "thin" if thin else sub.payload_mode
         with confidentiality.use_viewer(owner):
             body = self.render_body(uow, row, requested)
         result = conn.execute(

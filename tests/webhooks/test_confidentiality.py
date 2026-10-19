@@ -163,3 +163,74 @@ def test_an_agent_owner_is_the_lowest_clearance(world: World, ledger: dict[str, 
     world.dispatcher().run_until_idle()
     text = " ".join(about(b) for b in bodies(world, sid))
     assert "LATERRESTRICTED" not in text
+
+
+def test_a_link_to_a_hidden_record_and_a_post_that_tags_one_are_not_delivered(
+    world: World, ledger: dict[str, str]
+) -> None:
+    from tl_core.services.feed import PostToFeed, handle_post
+    from tl_core.services.links import AddLink, handle_add_link
+
+    def link(to: str, note: str) -> None:
+        with open_uow(world.path) as uow:
+            handle_add_link(
+                uow,
+                AddLink(
+                    actor="user:seed",
+                    source="test",
+                    scope=SCOPE,
+                    from_id=ledger["internal"],
+                    to_id=to,
+                    relation="references",
+                    note=note,
+                ),
+                by_module=True,
+            )
+
+    with cf.system_view():
+        link(ledger["restricted"], "RESTRICTEDNOTE")
+        link(ledger["privileged"], "PRIVNOTE")
+        with open_uow(world.path) as uow:
+            handle_post(
+                uow,
+                PostToFeed(
+                    actor="user:seed",
+                    source="test",
+                    scope=SCOPE,
+                    body=f"see #{ledger['privileged_number']} PRIVPOST",
+                ),
+            )
+        with open_uow(world.path) as uow:
+            handle_post(
+                uow,
+                PostToFeed(
+                    actor="user:seed",
+                    source="test",
+                    scope=SCOPE,
+                    body=f"see #{ledger['restricted_number']} RESTRICTEDPOST",
+                ),
+            )
+        with frozen_today("2026-10-19"), open_uow(world.path) as uow:
+            other = create_item(
+                uow,
+                _Cmd(actor="user:seed", source="test", scope=SCOPE),
+                subject="OTHERINTERNAL",
+                direction="in",
+                medium="letter",
+                received_via="manual",
+                confidentiality="internal",
+                received_on="2026-10-19",
+                received=True,
+            )
+        link(other.stream_id, "PLAINNOTE")  # a link between two readable records is delivered
+    world.dispatcher().run_until_idle()
+    for owner in ("alice", "ctl"):
+        text = " ".join(about(b) for b in bodies(world, ledger[owner]))
+        assert "PRIVNOTE" not in text and "PRIVPOST" not in text, owner
+        assert ledger["privileged"] not in text.replace(ledger["privileged_number"], ""), owner
+    assert "RESTRICTEDNOTE" not in " ".join(about(b) for b in bodies(world, ledger["alice"]))
+    assert "RESTRICTEDPOST" not in " ".join(about(b) for b in bodies(world, ledger["alice"]))
+    ctl = " ".join(about(b) for b in bodies(world, ledger["ctl"]))
+    assert "RESTRICTEDNOTE" not in ctl and "RESTRICTEDPOST" not in ctl  # thin, not these events
+    for owner in ("alice", "ctl"):
+        assert "PLAINNOTE" in " ".join(about(b) for b in bodies(world, ledger[owner])), owner
