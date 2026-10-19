@@ -47,6 +47,8 @@ tl delivery retry <delivery id> [--file corrected.json]
 ```
 `show` never prints the payload. A corrected payload is stored beside the original; the original is kept. Fix a mapping with a revision of the endpoint, then retry.
 
+Putting an endpoint back to dry-run is also the emergency stop for deliveries that are already queued: they are applied as dry-run and end in state `dry_run`. A `dry_run` delivery is final; `tl delivery retry` re-runs only failed ones, so after the cause is fixed ask the sender to send the payloads again.
+
 ### 5. Set up a rule
 ```
 tl rule create --file rule.json --project P
@@ -85,6 +87,7 @@ A webhook action calls only hosts on `webhooks.egress.allowlist` (a dangerous se
 ## Known limits (accepted, 2026-10-19)
 - The per-source and per-endpoint rate counters run before the signature is checked, so an attacker who knows an endpoint path can use up its request budget (the answer is 429 for everyone until the minute turns). Rotate nothing for this; lower the endpoint's `rate_per_minute` or disable it.
 - The source of a request is the connection's address. Behind a proxy every caller looks alike: one noisy caller can lock out the rest. Put per-sender limits on the proxy.
+- A request that reaches the transport deadline may be reported as a timeout when it was about to finish (the watchdog closes the connection at the boundary); the action is retried like any network error.
 - The body is read with the size cap but without a read deadline of its own beyond the server's; a slow sender holds one connection. Put a body timeout on the proxy.
 - Account names of the form `svc:inbound-<app>-<name>` (joined with `-`) were replaced by `svc:inbound-<app>.<name>` before any release; there is nothing to migrate.
 
