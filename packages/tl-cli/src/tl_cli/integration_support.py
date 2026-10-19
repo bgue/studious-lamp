@@ -17,7 +17,8 @@ from typing import Annotated, Any, NoReturn
 import typer
 from pydantic import ValidationError
 from sqlalchemy import text
-from tl_adapters.db import DbTarget, make_uow_factory
+from tl_adapters.db import DbTarget, is_postgres, make_uow_factory
+from tl_core.auth.env import dev_tokens_allowed
 from tl_core.integration.errors import IntegrationNotFoundError
 from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import ServiceError
@@ -25,7 +26,7 @@ from tl_core.uow import UnitOfWork
 from tl_core.webhooks.base import UowFactory
 from tl_core.webhooks.rows import load_json
 
-from tl_cli.session import DEV_ACTOR, current_principal
+from tl_cli.session import DEV_ACTOR, current_principal, require_admin
 
 SOURCE = "cli"
 ActorOption = Annotated[
@@ -120,14 +121,20 @@ def pairs(values: Sequence[str], what: str) -> dict[str, str]:
 
 
 def admin_gate(ctx: typer.Context) -> None:
-    """Refuse a signed-in person who is not an admin (`error: forbidden: ...`, exit 1).
+    """Refuse anyone who is not a signed-in admin (`error: ...`, exit 1).
 
-    A command that authors or switches integration records is the admin's (FANOUT D12). On a dev,
-    test or ci ledger file with no session the actor hook has already allowed the caller, who owns
-    the file; with a session, the session's roles decide.
+    A command that authors or switches integration records is the admin's (FANOUT D12). With no
+    session it is allowed only on a ledger file in a dev, test or ci setup, whose owner can write
+    the file anyway (ADR-0009 section 7); a database server, or any other setup, needs a session,
+    and the session's roles decide.
     """
-    principal = current_principal(ctx.obj)
-    if principal is not None and not principal.is_admin:
+    db = ctx.obj
+    principal = current_principal(db)
+    if principal is None:
+        if dev_tokens_allowed() and not is_postgres(db):
+            return
+        require_admin(db)  # exits 1: `error: not signed in ...`
+    elif not principal.is_admin:
         fail("forbidden: this command needs the admin role")
 
 

@@ -12,6 +12,7 @@ import json
 from typing import Annotated
 
 import typer
+from tl_core.integration.contract import SERVER_SET_FIELDS
 from tl_core.integration.rules.dryrun import dry_run_rule
 from tl_core.integration.rules.engine import load_rule
 from tl_core.integration.rules.service import (
@@ -119,7 +120,7 @@ def create(
     body = read_json_file(file)
     if not isinstance(body, dict):
         fail("the file must hold a JSON object")
-    server_set = sorted({"actor", "source", "scope"} & body.keys())
+    server_set = sorted(SERVER_SET_FIELDS & body.keys())
     if server_set:  # the CLI sets these; a file naming one would clash with the call below
         fail(f"the file must not hold {', '.join(server_set)}: the command sets them")
     with factory(ctx) as opened, service_errors(), opened() as uow:
@@ -209,6 +210,7 @@ def dry_run(
     """What the rule would have done over past events. Nothing is written and nothing runs."""
     from tl_api.commands import command_runner
 
+    admin_gate(ctx)
     scope = scope_of(project, company)
     with factory(ctx) as opened, service_errors():
         with opened(readonly=True) as uow:

@@ -39,6 +39,7 @@ from tl_core.extypes.service import (
 from tl_core.extypes.types import TypeStatus
 from tl_core.files.types import ObjectStore
 from tl_core.integration import registry as integration_registry
+from tl_core.integration.contract import SERVER_SET_FIELDS
 from tl_core.ledger import Event
 from tl_core.links.expected import MissingLink, missing_expected_links
 from tl_core.links.provider import get_vocabulary
@@ -56,6 +57,7 @@ from tl_core.services import (
 )
 from tl_core.services.commands import CommandResult, CreateRecord, UpdateRecord
 from tl_core.services.edit import EditRecord, handle_edit_record
+from tl_core.services.errors import ReservedIdentifierError
 from tl_core.services.feed import EditPost, PostToFeed, handle_edit_post, handle_post
 from tl_core.services.feed_actions import (
     ReactToPost,
@@ -1116,6 +1118,9 @@ class EmbeddedClient:
 
         if name not in SCREEN_COMMANDS:
             raise ValueError(f"{name} is not a command a screen runs")
+        named = sorted(SERVER_SET_FIELDS & fields.keys())
+        if named:  # the server sets these; a caller naming one is refused, as the API refuses it
+            raise ReservedIdentifierError(f"{', '.join(named)} may not be set: the server sets it")
         runner = command_runner()
         model = runner.model_of(name)
         if model is None:
