@@ -42,15 +42,15 @@ GATE_ROWS
 - **Pass 1** (of 1972934): changes requested, 9 findings (one HIGH among them): per-actor access in the runner, a non-injective inbound actor name (unique index on `service_actor`), mid-batch switches, JWT claims, the transport deadline, `by_module` and others. All fixed with tests that fail without the fix (8608be3 and its parents); the second pass verified them.
 - **Pass 2** (d806770..049717e): changes requested, 9 findings. Fixed on `p1/i7a`:
   1. HIGH, a client could write the enrichment layer through `CreateRecord.psets` or `UpdateRecord`: 744a95e (services/records.py; tests through the services, a rule, a mapping and the API).
-  2. MEDIUM, a stale enricher snapshot and no live access check: the dispatcher re-reads each enricher per event and `run_enricher` needs `held_access` (the size was small, so built here).
+  2. MEDIUM, a stale enricher snapshot and no live access check: the dispatcher re-reads each enricher per event and `run_enricher` needs `held_access`: 3ffa040 (small, so built here).
   3. MEDIUM, shadow values readable by anyone: a88475f.
-  4. MEDIUM, `admin_gate` failed open with no session: fails closed outside a dev, test or ci file (the 2bbbc8e commit).
-  5. MEDIUM, the transport deadline missed the header phase: a watchdog closes the client (test with a header-dripping server).
-  6. LOW, replays left objects: refused before the body is stored.
-  7. LOW, `tl rule create` and the embedded client passed server-set fields through: refused.
-  8. LOW, `tl rule dry-run` ungated, and the inbound worker now reads the endpoint's mode when it applies (dry-run is an emergency stop).
-  9. LOW/INFO, `Inbound.Failed` named a payload-derived key (now its length); the accepted trade-offs are in the runbook; the old `-`-joined actor names are a non-issue before release.
-  Fix commits: see `git log --oneline 049717e..` on `p1/i7a`.
+  4. MEDIUM, `admin_gate` failed open with no session: fails closed outside a dev, test or ci file: 2bbbc8e.
+  5. MEDIUM, the transport deadline missed the header phase: a watchdog closes the client: ec33033 (test with a header-dripping server).
+  6. LOW, replays left objects: refused before the body is stored: 811248d.
+  7. LOW, `tl rule create` and the embedded client passed server-set fields through: refused: 2bbbc8e.
+  8. LOW, `tl rule dry-run` ungated, and the inbound worker now reads the endpoint's mode when it applies (dry-run is an emergency stop): 2bbbc8e, ab663db.
+  9. LOW/INFO, `Inbound.Failed` named a payload-derived key (now its length): ce5b4c4; the accepted trade-offs are in the runbook; the old `-`-joined actor names are a non-issue before release.
+  Fix commits: 744a95e, 3ffa040, a88475f, 2bbbc8e, ec33033, 811248d, ab663db, ce5b4c4.
 - A focused re-check of findings 1 to 5 is the orchestrator's before DONE.
 
 ## Deviations from plan
