@@ -456,3 +456,44 @@ def test_the_typed_json_shares_the_rows_and_is_the_same_text() -> None:
     assert value["tables"]["activities"]["rows"] is outcome.snapshot.tables["activities"]
     assert canonical(value) == outcome.typed_json
     assert json.loads(outcome.typed_json or b"")["tables"]["activities"]["rows"][0][0] == "A1000"
+
+
+def test_the_typed_json_made_in_batches_is_the_canonical_text_whatever_the_batch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The pieces joined are byte for byte what one `canonical` call gives, for every batch size,
+    with wide characters, quotes, backslashes and an empty table in the rows."""
+    from tl_xer import process as process_module
+    from tl_xer.process import canonical, typed_json_parts
+    from tl_xer.typed import as_json_value
+
+    outcome = process(encode(first_text()), Options())
+    snapshot = outcome.snapshot
+    assert snapshot is not None
+    activities = snapshot.tables["activities"]
+    changed = [
+        (*row[:6], 'q"\\ – \U0001f600 end', *row[7:]) if n % 3 == 0 else row
+        for n, row in enumerate(activities)
+    ]
+    snapshot.tables["activities"] = changed
+    snapshot.tables["udfs"] = []
+    expected = canonical(as_json_value(snapshot))
+    assert b"\\u" not in expected and "\U0001f600".encode() in expected
+    for batch in (1, 2, 5, 7, 5000):
+        monkeypatch.setattr(process_module, "ROW_BATCH", batch)
+        parts = typed_json_parts(snapshot)
+        assert b"".join(parts) == expected, batch
+        assert json.loads(b"".join(parts))["tables"]["udfs"]["rows"] == []
+    assert all(len(part) < 100_000 for part in typed_json_parts(snapshot))  # never one big text
+
+
+def test_the_text_budget_counts_what_the_json_will_hold() -> None:
+    from tl_xer.typed import json_size
+
+    assert json_size("abc") == 3
+    assert json_size('a"b') == 4  # the quote is written with a backslash
+    assert json_size("a\\b") == 4
+    assert json_size("–") == 3  # an en dash is three bytes of UTF-8
+    assert json_size("\U0001f600") == 4
+    assert json_size('–"') == 5
+    assert json_size("") == 0

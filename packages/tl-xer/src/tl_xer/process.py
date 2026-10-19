@@ -19,7 +19,7 @@ from tl_xer.bundle import write_bundle
 from tl_xer.problems import Problems
 from tl_xer.reader import RawXer, read_xer
 from tl_xer.refusals import XerRefusal
-from tl_xer.typed import TOO_LARGE_MESSAGE, Options, Snapshot, analyse, as_json_value
+from tl_xer.typed import TABLE_COLUMNS, TOO_LARGE_MESSAGE, Options, Snapshot, analyse
 
 Status = Literal["valid", "invalid", "refused"]
 REPORT_VERSION = 1
@@ -35,15 +35,55 @@ def canonical(value: Any) -> bytes:
     ).encode()
 
 
+def _digest(parts: tuple[bytes, ...]) -> str:
+    digest = hashlib.sha256()
+    for part in parts:
+        digest.update(part)
+    return digest.hexdigest()
+
+
+_dumps = json.JSONEncoder(
+    ensure_ascii=False, allow_nan=False, separators=(",", ":"), sort_keys=True
+).encode
+ROW_BATCH = 5000  # rows turned into text at a time
+
+
+def typed_json_parts(snapshot: Snapshot) -> tuple[bytes, ...]:
+    """The canonical JSON of the typed snapshot as bytes, made a batch of rows at a time.
+
+    The bytes are those of ``canonical(as_json_value(snapshot))``. Building that as one text first
+    held the whole of it in the width of its widest character (four bytes each when a single emoji
+    stood in it) next to the bytes made from it; a batch of rows is turned into text and into bytes
+    and the text is let go (the review of P1-I4, round 3).
+    """
+    parts: list[bytes] = [b'{"project":' + _dumps(snapshot.project).encode() + b',"tables":{']
+    for index, name in enumerate(sorted(snapshot.tables)):
+        rows = snapshot.tables[name]
+        columns = _dumps(list(TABLE_COLUMNS[name]))
+        head = f'{"," if index else ""}{_dumps(name)}:{{"columns":{columns},"rows":['
+        parts.append(head.encode())
+        for start in range(0, len(rows), ROW_BATCH):
+            batch = _dumps(rows[start : start + ROW_BATCH])[1:-1]  # the rows without the brackets
+            parts.append((("," if start else "") + batch).encode())
+        parts.append(b"]}")
+    parts.append(b"}}")
+    return tuple(parts)
+
+
 @dataclass(frozen=True)
 class Outcome:
     status: Status
     report: dict[str, Any]
     snapshot: Snapshot | None = None
-    typed_json: bytes | None = None  # canonical JSON of the snapshot
+    typed_parts: tuple[bytes, ...] | None = None  # canonical JSON of the snapshot, in pieces
     typed_sha256: str | None = None
     raw_gz: bytes | None = None
     raw_sha256: str | None = None
+
+    @property
+    def typed_json(self) -> bytes | None:
+        """The canonical JSON of the snapshot as one value (the child sends the pieces)."""
+        return None if self.typed_parts is None else b"".join(self.typed_parts)
 
 
 def _report(
@@ -117,8 +157,9 @@ def process(data: bytes, options: Options, *, keep_snapshot: bool = True) -> Out
         snapshot = None
     if snapshot is None or problems.errors:
         return Outcome("invalid", _report("invalid", problems, raw, None, options))
-    typed_json = canonical(as_json_value(snapshot))
-    if len(typed_json) > limits.MAX_TYPED_JSON:  # the text budget makes this unreachable: a belt
+    typed_parts = typed_json_parts(snapshot)
+    typed_size = sum(map(len, typed_parts))
+    if typed_size > limits.MAX_TYPED_JSON:  # the text budget makes this unreachable: a belt
         problems.error("typed_too_large", TOO_LARGE_MESSAGE)
         return Outcome("invalid", _report("invalid", problems, raw, None, options))
     report = _report("valid", problems, raw, snapshot, options)
@@ -129,8 +170,8 @@ def process(data: bytes, options: Options, *, keep_snapshot: bool = True) -> Out
         "valid",
         report,
         snapshot=kept,
-        typed_json=typed_json,
-        typed_sha256=hashlib.sha256(typed_json).hexdigest(),
+        typed_parts=typed_parts,
+        typed_sha256=_digest(typed_parts),
         raw_gz=raw_gz,
         raw_sha256=raw_sha256,
     )

@@ -189,8 +189,21 @@ class Options:
     project: str | None = None
 
 
+def json_size(text: str) -> int:
+    """The bytes ``text`` takes in the typed JSON: UTF-8, and a backslash before a quote or a
+    backslash (the reader refuses control characters, so nothing else is escaped)."""
+    size = len(text) if text.isascii() else len(text.encode())
+    if '"' in text or "\\" in text:
+        size += text.count('"') + text.count("\\")
+    return size
+
+
 class _Budget:
     """The text the typed rows may hold, in bytes (``limits.TYPED_TEXT_FACTOR`` times the source).
+
+    The bytes are those of the JSON the rows become (wide characters at their UTF-8 size, quotes
+    and backslashes escaped), so what is charged is what the child will hold, not what the file
+    held (the review of P1-I4, round 3).
 
     A code or user field is copied into every row that links it, so the rows can hold far more
     text than the file does. ``take`` charges the text of a row and says whether it still fits.
@@ -204,7 +217,7 @@ class _Budget:
     def take(self, *texts: str | None) -> bool:
         for text in texts:
             if text:
-                self.left -= len(text) if text.isascii() else len(text.encode())
+                self.left -= json_size(text)
         return self.left >= 0
 
 

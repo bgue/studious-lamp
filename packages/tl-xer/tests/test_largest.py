@@ -12,7 +12,7 @@ import time
 import pytest
 from tl_xer import limits
 from tl_xer.run import read_xer_file
-from xersupport import big_text, drop_table, encode, first_text
+from xersupport import big_text, drop_table, encode, first_text, max_counts_text
 
 pytestmark = pytest.mark.slow
 
@@ -102,3 +102,37 @@ def test_a_missing_required_table_costs_almost_nothing() -> None:
     started = time.monotonic()
     assert read_xer_file(encode(drop_table(first_text(), "TASK"))).status == "invalid"
     assert time.monotonic() - started < 5
+
+
+# --- the typed JSON is made in pieces: a wide character does not widen the whole (round 3) -------
+
+#: The envelope allows 1 GiB; the file at the typed maximum must fit in three quarters of it.
+MARGIN_MB = 768
+
+
+def test_a_file_at_the_typed_maximum_is_read_in_three_quarters_of_the_envelope() -> None:
+    data = max_counts_text()
+    assert 45 * 1024 * 1024 < len(data) <= limits.MAX_BYTES
+    result = read_xer_file(data, memory_limit_mb=MARGIN_MB)
+    assert result.status == "valid", result.report["problems"][:2]
+    assert result.report["counts"]["codes"] == 300_000
+
+
+def test_the_same_file_with_a_character_outside_latin_1_in_it_fits_the_same_margin() -> None:
+    """An emoji in a code name used to make the whole typed text four bytes a character (and the
+    envelope kill the child at 1 GiB); the text is now made in pieces of bytes."""
+    data = max_counts_text(name_char="\U0001f600", code_name_len=1)
+    result = read_xer_file(data, memory_limit_mb=MARGIN_MB)
+    assert result.status == "valid", result.report["problems"][:2]
+    assert result.snapshot is not None
+    names = {row[3] for row in result.snapshot.tables["codes"]}
+    assert "\U0001f600" in names
+
+
+def test_quote_heavy_names_are_refused_by_the_budget_before_they_are_written() -> None:
+    """A quote costs two bytes in the JSON; the budget counts them, so the file is refused as too
+    large (a report) and not killed."""
+    data = max_counts_text(name_char='"', code_name_len=120)
+    result = read_xer_file(data, memory_limit_mb=MARGIN_MB)
+    assert result.status == "invalid"
+    assert "typed_too_large" in {p["code"] for p in result.report["problems"]}

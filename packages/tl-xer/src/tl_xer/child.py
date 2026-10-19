@@ -47,9 +47,15 @@ def entry(header: Mapping[str, Any], data: bytes) -> tuple[bytes, bytes]:
             canonical(_meta(refused(XerRefusal("parser_error"), Options())))
         ) + frame(b"")
     outcome = process(data, options, keep_snapshot=False)
-    typed = outcome.typed_json or b""
+    meta = canonical(_meta(outcome))
+    parts = outcome.typed_parts or ()
     raw = outcome.raw_gz or b""
-    return TAG_OK, frame(canonical(_meta(outcome))) + frame(typed) + raw
+    del outcome
+    # one join: the pieces of the typed JSON are copied once, into the answer, and then let go
+    answer = b"".join(
+        [len(meta).to_bytes(8, "big"), meta, sum(map(len, parts)).to_bytes(8, "big"), *parts, raw]
+    )
+    return TAG_OK, answer
 
 
 def _meta(outcome: Outcome) -> dict[str, Any]:
