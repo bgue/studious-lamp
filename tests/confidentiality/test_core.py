@@ -629,6 +629,30 @@ def test_a_command_that_names_a_hidden_record_answers_as_if_it_did_not_exist(
         assert handle_add_link(uow, command, by_module=True).events
 
 
+def test_a_generic_edit_of_a_hidden_record_does_not_tell_its_type(
+    db: DbTarget, vault: Vault
+) -> None:
+    from tl_core.services.commands import UpdateRecord
+    from tl_core.services.records import handle_update_record
+
+    def attempt(record_id: str, viewer: cf.Viewer) -> str:
+        command = UpdateRecord(
+            actor="user:ann", source="test", scope=SCOPE, stream_id=record_id,
+            expected_version=1, changes={"title": "x"},
+        )  # fmt: skip
+        with cf.use_viewer(viewer), open_uow(db) as uow:
+            with pytest.raises(Exception) as seen:
+                handle_update_record(uow, command)
+        return f"{type(seen.value).__name__}: {seen.value}".replace(record_id, "ID")
+
+    hidden = attempt(vault.ids["restricted"], USER)
+    never = attempt("01J000000000000000000000", USER)
+    assert hidden.split(":")[0] == never.split(":")[0] == "RecordNotFoundError"
+    assert "vault" not in hidden  # nothing about the module or the type
+    # a reader gets the module's own answer
+    assert attempt(vault.ids["restricted"], CONTROLLER).startswith("UnsupportedRecordTypeError")
+
+
 def test_events_of_a_hidden_stream_are_filtered(db: DbTarget, vault: Vault) -> None:
     link(db, vault, "open", "restricted")
     with open_uow(db, readonly=True) as uow:

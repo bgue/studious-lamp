@@ -334,12 +334,13 @@ def require_generic(
     The guard (``ModuleSpec.generic_guards``) sees the record as it is now: the same command may be
     allowed in one state and refused in another. A core or extension type passes.
     """
-    require_generic_command(record_type, command)
     from tl_core import confidentiality  # avoid an import cycle
     from tl_core.services.errors import RecordNotFoundError
 
-    if confidentiality.is_hidden(conn, record_id):  # a hidden record does not exist (ADR-0016)
+    # A hidden record does not exist (ADR-0016): say so before saying anything about its type
+    if confidentiality.is_hidden(conn, record_id):
         raise RecordNotFoundError(f"no record {record_id!r}")
+    require_generic_command(record_type, command)
     for spec in load_modules():
         guard = spec.generic_guards.get((record_type, command))
         if guard is not None:
