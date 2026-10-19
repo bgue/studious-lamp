@@ -38,6 +38,7 @@ from tl_core.services.commands import (
 from tl_core.services.errors import (
     AlreadyVoidedError,
     DuplicateKeyError,
+    LayerError,
     NoChangesError,
     NoNumberingPatternError,
     RecordNotFoundError,
@@ -104,6 +105,7 @@ def create_record_internal(
     An object-backed type is refused (``BodyRequiredError``) unless ``allow_object_backed``: a
     record of such a type without a body would be a state the registry never wants to see.
     """
+    _refuse_read_only_psets(cmd.psets)
     extension = None
     if cmd.record_type != RECORD_TYPE:
         extension = prepare_create(
@@ -281,6 +283,25 @@ def create_module_record(
     )
 
 
+def _refuse_read_only_psets(new: Any, old: Any = None) -> None:
+    """Refuse a write that sets or changes a pset under ``enrich`` or ``src``.
+
+    Those roots belong to the enrichment and source layers: only their own Python path writes
+    them (``SetPsetValues`` refuses them for the same reason). ``new`` is the psets a command
+    carries; ``old`` the ones the record holds, so an update that sends the record's own enrich
+    values back unchanged is not a write to them.
+    """
+    from tl_core.services.psets import READ_ONLY_ROOTS
+
+    if not isinstance(new, dict):
+        return
+    previous: dict[str, Any] = old if isinstance(old, dict) else {}  # pyright: ignore[reportUnknownVariableType]
+    names = {str(n) for n in new} | {str(n) for n in previous}  # pyright: ignore[reportUnknownVariableType, reportUnknownArgumentType]
+    for name in sorted(names):
+        if name.split(".")[0] in READ_ONLY_ROOTS and new.get(name) != previous.get(name):  # pyright: ignore[reportUnknownMemberType]
+            raise LayerError(f"{name} is in an enrichment or source layer and is not writable")
+
+
 def handle_update_record(uow: UnitOfWork, cmd: UpdateRecord) -> CommandResult:
     stored = _load_record(uow, cmd.scope, cmd.stream_id)
     require_generic(uow.conn(), stored.type, "UpdateRecord", cmd.stream_id)
@@ -288,6 +309,7 @@ def handle_update_record(uow: UnitOfWork, cmd: UpdateRecord) -> CommandResult:
         raise RecordVoidedError(f"record {cmd.stream_id!r} is voided and cannot be updated")
     if "psets" in cmd.changes:
         refuse_index_write(uow, stored.type)
+        _refuse_read_only_psets(cmd.changes["psets"], stored.psets)
     unsupported = sorted(set(cmd.changes) - _UPDATABLE_FIELDS)
     if unsupported:
         raise UnsupportedFieldError(
