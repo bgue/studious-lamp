@@ -10,6 +10,7 @@ Purpose: upload and publish P6 schedules, run the worker that builds snapshots a
 ## Before you start
 - Access: define, publish and void need the document controller or admin; `tl xer worker`, `tl xer reconcile` and `tl cost import --apply` need admin. Opening, attaching, queueing and linking need any signed-in person.
 - The worker is the only process that reads XER files. Run one per ledger. Safe to run during business hours: yes; a build reads the file in a child process with its own limits (60 s, 1 GiB by default), and the settle holds the writer lock for about 13 s (SQLite) or 25 s (Postgres) at the largest legal snapshot, a few seconds for a normal one.
+- Host sizing: give the worker host at least 2 GB of memory per concurrent build and run one build per worker process. The child stays under about 600 MB at the largest legal file, but the worker parent reads the child's typed answer whole and can reach about 1.1 GB for a near-maximum file holding a non-Latin-1 character (ADR-0015).
 - Dev defaults: `TL_DB` as in `docs/runbooks/postgres-local-setup.md` or `run-on-postgres.md`; the commands take `--actor`, default the signed-in user (the dev actor in a dev ledger).
 
 ## Steps: upload, build, publish
