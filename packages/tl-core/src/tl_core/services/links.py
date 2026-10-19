@@ -33,6 +33,7 @@ from tl_core.services.errors import (
     RecordVoidedError,
     ReservedLinkSourceError,
     SelfLinkError,
+    ServiceError,
     SuggestionDeclinedError,
     UnknownRelationError,
     UnsupportedRecordTypeError,
@@ -288,6 +289,21 @@ def _create(
     )
 
 
+def require_link_visible(
+    uow: UnitOfWork,
+    link: Any,
+    link_id: str,
+    scope: str,
+    error: type[ServiceError] = LinkNotFoundError,
+) -> None:
+    """Raise ``LinkNotFoundError`` when an end of the link is a record the viewer must not read:
+    a link to a hidden record does not exist for them (ADR-0016), and the answer is the one for a
+    link that was never made (``error`` is the class that caller raises for a missing link).
+    ``link`` is a row with ``from_id`` and ``to_id``."""
+    if confidentiality.hidden_among(uow.conn(), [str(link.from_id), str(link.to_id)]):
+        raise error(f"no link {link_id!r} in scope {scope!r}")
+
+
 def _act(
     uow: UnitOfWork,
     cmd: _OnLink,
@@ -303,6 +319,7 @@ def _act(
     if link is None or link.scope != cmd.scope:
         raise LinkNotFoundError(f"no link {cmd.link_id!r} in scope {cmd.scope!r}")
     if not by_module:
+        require_link_visible(uow, link, cmd.link_id, cmd.scope)
         _require_owner_allows(uow, link, event_type)
     next_status(link.status, event_type, flag=flag)  # raises InvalidLinkTransitionError
     if same_pin_is_noop and link.status == "active" and link.pin == payload["pin"]:
@@ -422,13 +439,22 @@ def handle_retract_link(
     return _act(uow, cmd, "Link.Retracted", {"reason": cmd.reason}, by_module=by_module)
 
 
+def _admin_sees(uow: UnitOfWork, cmd: _OnLink) -> None:
+    """The admin recovery commands skip the owner rule, not the confidentiality rule."""
+    link = uow.conn().execute(_LINK_SQL, {"id": cmd.link_id}).first()
+    if link is not None and link.scope == cmd.scope:
+        require_link_visible(uow, link, cmd.link_id, cmd.scope)
+
+
 def handle_admin_flag_link(uow: UnitOfWork, cmd: AdminFlagLink) -> CommandResult:
     """Flag a link whatever its source or owner. The API gates it to an admin (ADR-0011)."""
+    _admin_sees(uow, cmd)
     return handle_flag_link(uow, cmd, by_module=True)
 
 
 def handle_admin_retract_link(uow: UnitOfWork, cmd: AdminRetractLink) -> CommandResult:
     """Retract a link whatever its source or owner. The API gates it to an admin (ADR-0011)."""
+    _admin_sees(uow, cmd)
     return handle_retract_link(uow, cmd, by_module=True)
 
 

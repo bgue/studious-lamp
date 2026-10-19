@@ -44,6 +44,7 @@ from tl_core.services.links import (
     handle_add_link,
     handle_flag_link,
     handle_repin_link,
+    require_link_visible,
 )
 from tl_core.uow import UnitOfWork
 
@@ -484,6 +485,9 @@ def handle_repin_document_link(uow: UnitOfWork, cmd: RepinDocumentLink) -> Comma
     link = uow.conn().execute(_LINK_SQL, {"id": cmd.link_id}).first()
     if link is None or link.scope != cmd.scope:
         raise RecordNotFoundError(f"no link {cmd.link_id!r} in scope {cmd.scope!r}")
+    require_link_visible(
+        uow, link, cmd.link_id, cmd.scope, RecordNotFoundError
+    )  # a link to a hidden record: none
     document = registry.get_document(uow.conn(), link.to_id)
     if document is None:
         raise InvalidPinError("this link does not point to a document")

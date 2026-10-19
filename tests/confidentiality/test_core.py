@@ -548,6 +548,58 @@ def test_a_link_to_a_hidden_record_is_not_listed_counted_traced_or_searched(
         assert counts[vault.ids["open"]].active_out == 2
 
 
+def test_a_command_on_a_link_with_a_hidden_end_answers_as_for_a_link_that_was_never_made(
+    db: DbTarget, vault: Vault
+) -> None:
+    from tl_core.services.errors import LinkNotFoundError
+    from tl_core.services.links import (
+        AdminFlagLink,
+        FlagLink,
+        RetractLink,
+        VerifyLink,
+        handle_admin_flag_link,
+        handle_flag_link,
+        handle_retract_link,
+        handle_verify_link,
+    )
+
+    link(db, vault, "open", "restricted")
+    with open_uow(db, readonly=True) as uow:
+        link_id = str(
+            uow.conn()
+            .execute(
+                text("SELECT link_id FROM cur_links WHERE to_id = :t"),
+                {"t": vault.ids["restricted"]},
+            )
+            .scalar_one()
+        )
+    base = {"actor": "user:ann", "source": "test", "scope": SCOPE}
+    attempts = [
+        (handle_verify_link, VerifyLink(**base, link_id=link_id)),
+        (handle_flag_link, FlagLink(**base, link_id=link_id, status="stale", reason="x")),
+        (handle_retract_link, RetractLink(**base, link_id=link_id, reason="x")),
+        (
+            handle_admin_flag_link,
+            AdminFlagLink(**base, link_id=link_id, status="stale", reason="x"),
+        ),
+    ]
+    for handler, command in attempts:
+        with cf.use_viewer(USER), open_uow(db) as uow:
+            with pytest.raises(LinkNotFoundError) as seen:
+                handler(uow, command)  # type: ignore[operator]
+        with cf.use_viewer(USER), open_uow(db) as uow:
+            with pytest.raises(LinkNotFoundError) as never:
+                handler(uow, command.model_copy(update={"link_id": "01J000000000000000000000"}))  # type: ignore[operator]
+        assert str(seen.value).replace(link_id, "X") == str(never.value).replace(
+            "01J000000000000000000000", "X"
+        )
+    with cf.use_viewer(CONTROLLER), open_uow(db) as uow:  # a reader of both ends gets past it
+        from tl_core.services.errors import UnsupportedRecordTypeError
+
+        with pytest.raises(UnsupportedRecordTypeError):  # the module's own rule for the item
+            handle_verify_link(uow, VerifyLink(**base, link_id=link_id))
+
+
 def test_the_query_language_does_not_match_through_a_link_to_a_hidden_record(
     db: DbTarget, vault: Vault
 ) -> None:
