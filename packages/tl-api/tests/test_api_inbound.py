@@ -202,6 +202,8 @@ def test_every_verification_failure_is_the_same_401_and_is_counted(
     counted = {r["code"]: r["count"] for r in rows(harness, "SELECT code, count FROM int_counter")}
     assert counted["replay"] == 1 and counted["bad_signature"] >= 3
     assert len(rows(harness, "SELECT 1 FROM int_delivery")) == 1  # the replay left nothing behind
+    # nor an object: a replay is refused before the body is stored (second security review)
+    assert len(list(harness.store.iter_keys())) == 1
 
 
 def test_the_body_cap_is_checked_before_verification(harness: Harness, client: TestClient) -> None:

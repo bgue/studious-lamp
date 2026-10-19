@@ -243,6 +243,20 @@ _DELIVERY_INSERT = text(
 )
 
 
+def seen_before(conn: Connection, endpoint: EndpointView, message_id: str, now: datetime) -> bool:
+    """Whether ``message_id`` was accepted within the replay window (a read, before the body is
+    stored: a replayed message must not leave an object behind). :func:`accept_delivery` makes
+    the same decision again in its transaction, which is the one that counts."""
+    if not message_id or len(message_id) > MAX_MESSAGE_ID:
+        return True
+    cutoff = iso_z(now - timedelta(seconds=REPLAY_KEEP_S))
+    found = conn.execute(
+        text("SELECT 1 FROM int_replay WHERE replay_id = :id AND seen_at >= :cutoff"),
+        {"id": f"{endpoint.endpoint_id}:{message_id}", "cutoff": cutoff},
+    ).first()
+    return found is not None
+
+
 def accept_delivery(
     uow: UnitOfWork,
     endpoint: EndpointView,
@@ -342,6 +356,7 @@ __all__ = [
     "ReplayError",
     "VerifyError",
     "accept_delivery",
+    "seen_before",
     "check_pending",
     "endpoint_view",
     "count_failure",

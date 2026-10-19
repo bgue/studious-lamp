@@ -194,6 +194,9 @@ class InboundMiddleware:
         objects: ObjectStore | None = ctx.objects
         if objects is None:
             raise RuntimeError("no object store is configured for inbound payloads")
+        with ctx.backend(True) as uow:  # a replay is refused before anything is stored
+            if gate.seen_before(uow.conn(), endpoint, message_id, utcnow()):
+                raise gate.ReplayError("seen")
         delivery_id = new_ulid()
         key = store.body_key(endpoint.endpoint_id, delivery_id)
         digest = store.put_body(objects, key, body)
