@@ -92,7 +92,7 @@ An item is `internal`, `restricted` or `privileged` (the last names the accounts
 variable that defaults to the lowest class, so a path that forgets to set it reads nothing. A clock, a thread, a file or an
 event that belongs to a hidden item is hidden with it, including the counter and proposal events that name the item in their
 payload (`tl_core.confidentiality`: `hidden_event_ids`, `names_hidden_record`). A hidden item answers exactly as one that was
-never numbered. The register export (`tl corr report register`) leaves out everything that is not internal unless a controller
+never numbered. A controller who is not named on a privileged item can name and unname readers by id (the lock-out clause), and `tl corr clearance ls` lists ids and accounts. The sweep reads every clock as the system. Restarting or cancelling a time bar is a controller's act (ADR-0016, D6 refinement). The register export (`tl corr report register`) leaves out everything that is not internal unless a controller
 names the class, and writes a leading quote before any cell that a spreadsheet would run as a formula (§18.10).
 
 ## Surfaces

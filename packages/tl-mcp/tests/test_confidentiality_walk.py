@@ -20,6 +20,7 @@ from typing import Any
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_harness import SCOPE, McpHarness
+from tl_adapters.db import DbTarget
 from tl_adapters.objectstore.fs import FsObjectStore
 from tl_core.files.service import FileService
 from tl_mcp.server import build_server
@@ -60,12 +61,12 @@ def text_of(server: Any, tool: str, args: dict[str, Any]) -> str:
 
 @pytest.fixture
 def world(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, db: DbTarget
 ) -> Iterator[tuple[McpHarness, Hidden, FileService]]:
     monkeypatch.delenv("TL_SCHEMA_DIR", raising=False)
     store = FsObjectStore(tmp_path / "objects", secret=b"k")
     service = FileService(store, secret=b"s")
-    env = McpHarness.build(tmp_path, object_store=store, files=service)
+    env = McpHarness.build(tmp_path, object_store=store, files=service, target=db)
     hidden = seed_hidden_world(env.db, service, tmp_path)
     yield env, hidden, service
     env.close()

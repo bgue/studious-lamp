@@ -25,6 +25,14 @@ from tl_core.auth.password import prepare_password
 from tl_mod_correspondence.confseed import TOKENS, seed_hidden_world
 
 PASSWORD = "correct horse battery"
+
+
+@pytest.fixture
+def harness(parity_harness: Harness) -> Harness:
+    """These walks run on SQLite, and on Postgres under ``--adapters sqlite,postgres``."""
+    return parity_harness
+
+
 #: What each reader may read, by the kinds above. The admin is a controller: no agent and no
 #: privilege. Only the accounts named on a privileged item read it, the controller who set it among
 #: them. A class nobody knows is read by nobody.
@@ -86,7 +94,7 @@ def seed(h: Harness, tmp_path: Path) -> Seed:
     }
     tokens["bot"] = agent_token
 
-    hidden = seed_hidden_world(h.db, h.service, tmp_path)
+    hidden = seed_hidden_world(h.target or h.db, h.service, tmp_path)
     return Seed(hidden.ids, hidden.numbers, hidden.extra_ids, tokens)
 
 

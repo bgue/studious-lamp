@@ -29,8 +29,8 @@ Purpose: run project correspondence day to day: log what arrives, triage it, iss
 
 ### Clocks
 1. `uv run tl corr clock ls --project P123` lists open clocks, soonest first: key, state, due date, days left (negative once overdue), length, type, warnings. `--overdue`, `--all` and `--due-to` narrow it. The TUI shows the same on `F12`, key `3`.
-2. `tl corr clock start|pause|resume|restart|meet|cancel` change one clock. Every change is an event with a reason; a clock is replayed from its events, so a mistake is corrected by another event.
-3. Controller: `uv run tl corr clock sweep --project P123` records `Warned` and `Expired`. Run it once a day (a scheduled job calls the same handler). It is safe to repeat.
+2. `tl corr clock start|pause|resume|restart|meet|cancel` change one clock. Every change is an event with a reason; a clock is replayed from its events, so a mistake is corrected by another event. Restarting or cancelling a time bar (kind `time_bar`, or a clock that cites a clause) is a controller's act; everything else on a clock is anyone's.
+3. Controller: `uv run tl corr clock sweep --project P123` records `Warned` and `Expired` for every running clock of the project, whatever the runner may read, and prints the clocks it could not judge (a calendar file that is gone, a history the engine refuses) to stderr and exits 2. Run it once a day; there is no scheduled job yet (the integration runner of P1-I7 is the place for one, calling the same handler). It is safe to repeat.
 4. A clock counts on the calendar named in its first event (`P123-default@1`). A calendar file never changes; a new version is a new file.
 
 ### Email in
@@ -43,7 +43,7 @@ Purpose: run project correspondence day to day: log what arrives, triage it, iss
 2. Controller: `tl corr party add|contact-add|contact-end|retire` and `tl corr clause add|retire` keep the registers. An email domain belongs to one active party. Contact positions count from 1 and are never reused.
 
 ### Restrict an item and export the register
-1. Controller: `uv run tl corr class set P123-COR-0007 --project P123 --to restricted --reason "..."` (or `privileged` with `--grant user:NAME`). `tl corr class grant|withdraw|ls` change who is named.
+1. Controller: `uv run tl corr class set P123-COR-0007 --project P123 --to restricted --reason "..."` (or `privileged` with `--grant user:NAME`). `tl corr class grant|withdraw|ls` change who is named. A controller who is not named on a privileged item cannot read it but can still name or unname readers by number (so a departed reader never locks an item), and `uv run tl corr clearance ls --project P123` lists item ids with the accounts named on them and nothing of the items.
 2. `uv run tl corr report register --project P123 > register.csv` writes internal items only. A controller adds `--include-class restricted`. `--json` and `--out FILE` are available. A cell that starts with `=`, `+`, `-`, `@` or `|` is written with a leading quote.
 3. `uv run tl corr report due --project P123 [--within 7]` lists answers owed; `tl corr report clocks [--json]` the clocks.
 
