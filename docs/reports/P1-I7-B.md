@@ -34,7 +34,27 @@ No ticket was taken over or abandoned. Two tickets came back blocked by order an
 Every provided test was checked against a mutated reference before dispatch. The first checks proved nothing: the script ran its command under dash, where `${PIPESTATUS[0]}` is a bad substitution, so every mutant looked killed (L-P1-I7B-7). The script now runs under bash and first runs the command unmutated. After the fix, survivors were closed with a new test each: the MCP message id against the stream id, the CLI dispatch outcome line, the CLI "not permitted" preview state, the summary limit boundary, a plain message that reads like a `/remind`, a client with no threads in the tab, and a slash line with leading spaces in the composer. Two mutants remain and are equivalent (`.strip()` in `/raise`, and the `retracted` guard of the reminder job, since a dispatch message cannot be retracted).
 
 ## Security review
-@@SECURITY@@
+The fresh-context review (of dd92d42 plus 1636181) came back changes-requested: no Critical or High, 3 Medium, 6 Low. Every finding is fixed with a test (14f7f06, ec2c23f, 5b2072e); the focused re-check of M1 and M2 is the orchestrator's.
+
+| Finding | Fix (commit) |
+|---|---|
+| M1 a replayed preview token re-ran a side-effecting plan (a dispatch does not bump the record version) | The token also hashes the number of dispatches of the thread, so the dispatch's own message spends it; replay is `dispatch_stale` on both adapters (14f7f06). Counting dispatches rather than the stream version keeps previews and proposals valid across ordinary chat |
+| M2 the accept path forced `holds("user")` true; effects had no account check | `holds` passes through and is required; `holds("user")` false leaves the proposal pending; the engine calls `require_access` before an effect; an access refusal never fails a proposal; the CLI uses `account_holds` for a dispatch proposal (14f7f06) |
+| M3 CLI thread fixture dead on Postgres (the account had no password) | `thread_env` creates `dev` with the sign-in password; the three CLI thread files pass on both adapters (14f7f06) |
+| L1 a bad `expires_at` was a 500 | Validated in `DispatchBody` (422) and bounded by the service (ec2c23f) |
+| L2 the unknown-verb echo raised on a lone surrogate; the verb fold was not ASCII | ASCII-only lookup and echo (ec2c23f) |
+| L3 forbidden fields were checked at the top level only | Recursive to depth 32 (ec2c23f) |
+| L4 `read_thread` returned messages while threads were off; edit and retract were open | Empty page while off; post, edit and retract refused (ec2c23f) |
+| L5 an agent's `/remind` with no mention could never be accepted | The plan names nobody; the job reads the setter from the message (5b2072e) |
+| L6 reminder bounds | `threads.reminders.max_pending` per thread and per person; the job drops a reminder for a closed thread; the missing scheduler is stated here and in the runbook (5b2072e) |
+| N1 (re-check) someone without the dispatch role could permanently fail an agent's proposal | A role, an account or a not-permitted refusal on acceptance is a `ProposalAccessError`: the proposal stays pending for an admin; tested on both adapters (this commit). The confirmation also requires an account for `/notify`, which plans no command |
+| Question: why `by_module` on the `dispatched_from` link? | To set the reserved link source, not to bypass anything; it did skip the generic-command allow-list of the new record. Now `system_source="thread_dispatch"` (14f7f06) |
+| Embedded TUI `thread_post` | `thread_post`, `thread_edit`, `thread_retract` require the signed-in person as actor (ec2c23f) |
+| L7 thread data reachable through proposals and key resolution outside `readable_record` | Noted on the orchestrator's P1-I5 merge checklist; no action here |
+
+Also found by WS-B itself after the merge, before the review: the proposal accept route and `tl proposal accept` passed no runner, so no proposed dispatch could be accepted (1636181, with an API and a CLI test).
+
+There is no scheduler in the server for the `thread.reminder` job. Something must run `tl thread reminders` (or the P1-I7 job runner); until it does, a reminder is queued and not posted. The runbook says so.
 
 ## Gates
 Run on the final tree of `p1/i7b` under `/home/user/locks/suite.lock`.

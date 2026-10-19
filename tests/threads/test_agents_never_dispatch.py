@@ -203,3 +203,28 @@ def test_a_person_with_no_account_cannot_run_an_effect(db: DbTarget) -> None:
         with pytest.raises(CommandAccessError), open_uow(db) as uow:
             handle_dispatch_from_thread(uow, cmd, holds=everyone, runner=TableRunner())
     assert count(db, "SELECT COUNT(*) FROM cur_thread_message WHERE kind <> 'message'") == 0
+
+
+def test_a_person_with_no_account_cannot_even_notify(db: DbTarget) -> None:
+    """`/notify` plans no command, so only the account check of the confirmation stops a ghost."""
+    from tl_core.integration.errors import CommandAccessError
+
+    rid = make_record(db, "REC-1")
+    make_person(db, "lchen")
+    line = "/notify @lchen look at this"
+    with open_uow(db, readonly=True) as uow:
+        found = ThreadPlanner(factory=factory_of(db)).preview(
+            uow,
+            record_id=rid,
+            text=line,
+            actor="user:ghost",
+            holds=everyone,
+            runner=TableRunner(),
+        )
+    assert not isinstance(found, ParseProblem) and found.can_dispatch
+    cmd = DispatchFromThread(
+        actor="user:ghost", source="t", scope=P1, record_id=rid, text=line, token=found.token
+    )
+    with pytest.raises(CommandAccessError), open_uow(db) as uow:
+        handle_dispatch_from_thread(uow, cmd, holds=everyone, runner=TableRunner())
+    assert count(db, "SELECT COUNT(*) FROM cur_thread_message") == 0

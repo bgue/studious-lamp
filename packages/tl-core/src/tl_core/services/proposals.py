@@ -87,6 +87,7 @@ from tl_core.threads.dispatch import (
     check_dispatch_proposal,
     handle_dispatch_from_thread,
 )
+from tl_core.threads.errors import DispatchForbiddenError, DispatchRefusedError
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid, utcnow
 
@@ -775,9 +776,14 @@ def accept_proposal(
 
         try:
             result = handle_dispatch_from_thread(uow, command, holds=holds, runner=runner)
-        except (CommandAccessError, ActionAccessError) as exc:
-            # the accepting person lacks the access: the proposal stays pending for someone else
+        except (CommandAccessError, ActionAccessError, DispatchForbiddenError) as exc:
+            # the accepting person lacks the access or the role: the proposal stays pending for
+            # someone who has it, and a person who may not decide cannot fail it (N1)
             raise ProposalAccessError(str(exc)) from exc
+        except DispatchRefusedError as exc:
+            if exc.problems and all(p.get("code") == "not_permitted" for p in exc.problems):
+                raise ProposalAccessError(str(exc)) from exc
+            raise
     elif isinstance(command, InvokeAction):
         from tl_core.integration.actions.service import handle_invoke_action
         from tl_core.integration.errors import ActionAccessError

@@ -13,6 +13,7 @@ from tl_core.auth import accounts
 from tl_core.proposals.types import ProposalView
 from tl_core.services import proposals
 from tl_core.services.commands import UpdateRecord
+from tl_core.services.errors import ProposalAccessError
 from tl_core.services.records import handle_update_record
 
 ALICE = "user:alice"
@@ -164,5 +165,8 @@ def test_a_person_without_the_roles_cannot_accept(env: McpHarness) -> None:
             actor="user:a",
             source="test",
         )
-    done = accept(env, out["proposal"]["proposal_id"])
-    assert done.status == "failed" and "DispatchForbiddenError" in (done.reason or "")
+    with pytest.raises(ProposalAccessError):  # refused, and the proposal waits for an admin (N1)
+        accept(env, out["proposal"]["proposal_id"])
+    with env.factory(True) as uow:
+        shown = proposals.get_proposal(uow.conn(), out["proposal"]["proposal_id"])
+    assert shown.status == "pending"

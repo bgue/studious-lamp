@@ -26,6 +26,7 @@ from typing import Any
 
 from pydantic import field_validator
 
+from tl_core.integration.actor_access import require_access
 from tl_core.integration.contract import Access, CommandRunner
 from tl_core.ledger import NewEvent
 from tl_core.services.commands import Command, CommandResult
@@ -134,6 +135,9 @@ def handle_dispatch_from_thread(
         raise DispatchStaleError("the plan is not the one you previewed; preview it again")
     if not made.can_dispatch:
         raise DispatchRefusedError(*_refusal(made))
+    # Whoever confirms needs an account that holds `user`, whatever the plan holds (even `/notify`,
+    # which plans no command): the dispatch message is written as them.
+    require_access(uow.conn(), cmd.actor, "user", "a dispatch")
     return _run(uow, cmd, made, runner)
 
 

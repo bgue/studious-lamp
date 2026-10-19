@@ -90,6 +90,11 @@ of work, with the server-set source `thread:<record id>` and correlation id `dis
 16. **Effects and acceptance need an account.** `/summarise` and `/remind` are not table commands, so the engine
     asks `require_access` for the actor before running one. `accept_proposal` passes the caller's `holds` through
     unchanged and refuses to run a dispatch without one; a person with no account leaves the proposal pending.
+    A refusal of the accepting person (no account, a role the setting does not list, a command they may not run)
+    leaves the proposal pending: someone who may decide cannot be locked out by someone who may not. The
+    confirmation also asks `require_access` for the actor, so `/notify` (which plans no command) refuses an
+    account-less person too. A dispatch that creates a module record whose module disallows a generic `AddLink`
+    fails closed (P1-I6 note).
     The `dispatched_from` link is made with `system_source="thread_dispatch"`, not `by_module`: the narrow form
     lifts only the reserved link source and leaves a module's `AddLink` allow-list in force.
 17. **A switched-off thread is closed.** It reads as empty, and posting, editing, retracting, dispatching and the

@@ -13,6 +13,7 @@ from tl_core.integration.contract import Access
 from tl_core.proposals.types import PROPOSABLE_TOOLS, ProposalView
 from tl_core.services import proposals
 from tl_core.services.commands import UpdateRecord
+from tl_core.services.errors import ProposalAccessError
 from tl_core.services.records import handle_update_record
 from tl_core.threads.dispatch import DispatchFromThread, build_dispatch_proposal
 from tl_core.threads.errors import DispatchDisabledError, DispatchRefusedError, DispatchSyntaxError
@@ -139,16 +140,39 @@ def test_a_person_who_may_not_run_every_command_cannot_accept(db: DbTarget) -> N
             factory, proposal_id=view.proposal_id, by=PERSON, holds=holds, runner=runner
         )
 
-    # the same proposal, two people: the one without the access gets a failure, nothing runs
-    failed = accept_with(lambda level: level == "user")
-    assert failed.status == "failed" and "DispatchRefusedError" in (failed.reason or "")
+    # the same proposal, two people: the one without the access is refused and the proposal stays
+    # pending for someone who has it (N1); nothing runs
+    with pytest.raises(ProposalAccessError):
+        accept_with(lambda level: level == "user")
+    with open_uow(db, readonly=True) as uow:
+        assert proposals.get_proposal(uow.conn(), view.proposal_id).status == "pending"
     assert count(db, "SELECT COUNT(*) FROM cur_links") == 0
-    second = proposals.submit(
-        factory, tool="propose_dispatch", agent=AGENT, command=command, summary="s", runner=runner
-    )
-    done = proposals.accept_or_fail(
-        factory, proposal_id=second.proposal_id, by=PERSON, holds=lambda level: True, runner=runner
-    )
+    done = accept_with(lambda level: True)
+    assert done.status == "accepted" and count(db, "SELECT COUNT(*) FROM cur_links") == 1
+
+
+def test_someone_without_the_dispatch_role_cannot_fail_a_proposal(db: DbTarget) -> None:
+    """`threads.dispatch.roles` is a gate on the person, not on the proposal (N1)."""
+    from tl_core.threads.holds import account_holds
+
+    make_person(db, "boss", "person", "admin")
+    put_setting(db, "threads.dispatch.roles", ["admin"])
+    rid = make_record(db, "REC-1")
+    make_record(db, "REC-2")
+    view = propose(db, rid, "/link REC-2")
+
+    def accept_as(who: str) -> ProposalView:
+        with open_uow(db, readonly=True) as uow:
+            holds: Any = account_holds(uow.conn(), who)
+        return proposals.accept_or_fail(
+            factory_of(db), proposal_id=view.proposal_id, by=who, holds=holds, runner=RUNNER
+        )
+
+    with pytest.raises(ProposalAccessError):
+        accept_as(PERSON)  # a plain user: refused, nothing is decided
+    with open_uow(db, readonly=True) as uow:
+        assert proposals.get_proposal(uow.conn(), view.proposal_id).status == "pending"
+    done = accept_as("user:boss")
     assert done.status == "accepted" and count(db, "SELECT COUNT(*) FROM cur_links") == 1
 
 
