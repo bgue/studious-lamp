@@ -50,7 +50,7 @@ from tl_mod_correspondence.names import (
     ST_RESPONDED,
     ST_TRIAGED,
 )
-from tl_mod_correspondence.textcheck import clean_text
+from tl_mod_correspondence.textcheck import clean_optional_text, clean_text
 
 ANSWER_CLOCKS = ("response_from_them", "response_from_us")
 
@@ -97,6 +97,11 @@ class RecordResponse(Command):
     responded_on: str | None = Field(default=None, max_length=10)
     reason: str | None = Field(default=None, max_length=MAX_REASON)
 
+    @field_validator("reason")
+    @classmethod
+    def _clean_reason(cls, value: str | None) -> str | None:
+        return clean_optional_text(value)
+
 
 class CloseCorrespondence(Command):
     """Close an item that needs no more work. Open clocks are cancelled.
@@ -109,6 +114,11 @@ class CloseCorrespondence(Command):
     stream_id: str
     expected_version: int | None = None
     reason: str | None = Field(default=None, max_length=MAX_REASON)
+
+    @field_validator("reason")
+    @classmethod
+    def _clean_close_reason(cls, value: str | None) -> str | None:
+        return clean_optional_text(value)
 
 
 class VoidDraft(Command):

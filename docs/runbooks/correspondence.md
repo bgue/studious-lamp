@@ -44,7 +44,7 @@ Purpose: run project correspondence day to day: log what arrives, triage it, iss
 
 ### Restrict an item and export the register
 1. Controller: `uv run tl corr class set P123-COR-0007 --project P123 --to restricted --reason "..."` (or `privileged` with `--grant user:NAME`). `tl corr class grant|withdraw|ls` change who is named.
-2. `uv run tl corr report register --project P123 > register.csv` writes internal items only. A controller adds `--include-class restricted`. `--json` and `--out FILE` are available. A cell that starts with `=`, `+`, `-` or `@` is written with a leading quote.
+2. `uv run tl corr report register --project P123 > register.csv` writes internal items only. A controller adds `--include-class restricted`. `--json` and `--out FILE` are available. A cell that starts with `=`, `+`, `-`, `@` or `|` is written with a leading quote.
 3. `uv run tl corr report due --project P123 [--within 7]` lists answers owed; `tl corr report clocks [--json]` the clocks.
 
 ## Verify

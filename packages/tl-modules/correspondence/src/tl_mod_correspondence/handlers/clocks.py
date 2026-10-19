@@ -56,6 +56,7 @@ from tl_mod_correspondence.handlers.common import (
     today,
     today_date,
 )
+from tl_mod_correspondence.handlers.models import non_blank
 from tl_mod_correspondence.limits import (
     MAX_CLOCKS_PER_ITEM,
     MAX_DURATION_DAYS,
@@ -75,6 +76,7 @@ from tl_mod_correspondence.names import (
     CLOCK_STARTED,
     CLOCK_WARNED,
 )
+from tl_mod_correspondence.textcheck import clean_text
 
 log = logging.getLogger(__name__)
 
@@ -83,10 +85,7 @@ DayType = Literal["calendar", "working"]
 Trigger = Literal["receipt", "issue", "triage", "manual"]
 
 
-def _non_blank(value: str) -> str:
-    if not value.strip():
-        raise ValueError("must not be blank")
-    return value
+_non_blank = non_blank
 
 
 class StartClock(Command):
@@ -116,6 +115,11 @@ class StartClock(Command):
     def _label(cls, value: str) -> str:
         return _non_blank(value)
 
+    @field_validator("owner", "start_reason")
+    @classmethod
+    def _clean(cls, value: str | None) -> str | None:
+        return None if value is None else clean_text(value)
+
 
 class _ClockAct(Command):
     model_config = ConfigDict(extra="forbid")
@@ -143,6 +147,11 @@ class ResumeClock(_ClockAct):
 
     reason: str | None = Field(default=None, max_length=MAX_REASON)
 
+    @field_validator("reason")
+    @classmethod
+    def _clean_reason(cls, value: str | None) -> str | None:
+        return None if value is None else clean_text(value)
+
 
 class RestartClock(_ClockAct):
     """Count again from a new day zero with the same parameters (an extension, a new notice).
@@ -167,6 +176,11 @@ class MeetClock(_ClockAct):
 
     response_id: str | None = Field(default=None, max_length=MAX_NUMBER)
     reason: str | None = Field(default=None, max_length=MAX_REASON)
+
+    @field_validator("reason")
+    @classmethod
+    def _clean_reason(cls, value: str | None) -> str | None:
+        return None if value is None else clean_text(value)
 
 
 class CancelClock(_ClockAct):

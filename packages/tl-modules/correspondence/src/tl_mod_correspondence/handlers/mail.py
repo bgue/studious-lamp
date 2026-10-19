@@ -21,7 +21,7 @@ by the parser. There is no SMTP and nothing leaves the machine. The ingest is ca
 
 from __future__ import annotations
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, field_validator
 from tl_core.services.commands import Command, CommandResult
 from tl_core.uow import UnitOfWork
 
@@ -35,6 +35,7 @@ from tl_mod_correspondence.handlers.models import Recipient
 from tl_mod_correspondence.handlers.threads import assign_thread
 from tl_mod_correspondence.limits import MAX_TEXT
 from tl_mod_correspondence.names import SLOT_ATTACHMENT, SLOT_MESSAGE
+from tl_mod_correspondence.textcheck import clean_optional_text
 
 NO_SUBJECT = "(no subject)"
 HTML_ONLY = "(This message has only an HTML part; the original is kept in the message file.)"
@@ -46,6 +47,11 @@ class IngestEmail(Command):
     model_config = ConfigDict(extra="forbid")
 
     original_name: str | None = Field(default=None, max_length=MAX_TEXT)
+
+    @field_validator("original_name")
+    @classmethod
+    def _clean_original_name(cls, value: str | None) -> str | None:
+        return clean_optional_text(value)
 
 
 def read_email(data: bytes) -> ParsedMessage:

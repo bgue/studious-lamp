@@ -140,6 +140,11 @@ class EndContact(Command):
     position: int = Field(ge=1, le=MAX_CONTACTS * 50)
     reason: str | None = Field(default=None, max_length=MAX_REASON)
 
+    @field_validator("reason")
+    @classmethod
+    def _clean_reason(cls, value: str | None) -> str | None:
+        return clean_optional_text(value)
+
 
 class RetireParty(Command):
     """Retire a party that is no longer used. Items that name it keep the reference."""

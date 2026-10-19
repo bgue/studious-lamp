@@ -315,3 +315,70 @@ def test_restarting_or_cancelling_a_time_bar_is_a_controllers_act(world: CorrWor
             world.cancel(bar, reason="withdrawn by the contractor")
     with cf.system_view():
         assert world.clock(bar).state == "cancelled"
+
+
+# --- text that becomes record text is checked wherever it comes from -----------------------------
+
+BAD = "evil ‮ text"  # a right-to-left override: refused in every field below
+PROJECT_BASE = {"actor": "user:u", "source": "test", "scope": PROJECT}
+
+
+@pytest.mark.parametrize(
+    ("model", "fields"),
+    [
+        ("clocks.StartClock", {"item_id": "x", "label": BAD, "duration_days": 5}),
+        ("clocks.StartClock", {"item_id": "x", "label": "ok", "duration_days": 5, "owner": BAD}),
+        (
+            "clocks.StartClock",
+            {"item_id": "x", "label": "ok", "duration_days": 5, "start_reason": BAD},
+        ),
+        ("clocks.PauseClock", {"clock_id": "x", "reason": BAD}),
+        ("clocks.ResumeClock", {"clock_id": "x", "reason": BAD}),
+        ("clocks.RestartClock", {"clock_id": "x", "reason": BAD}),
+        ("clocks.MeetClock", {"clock_id": "x", "reason": BAD}),
+        ("clocks.CancelClock", {"clock_id": "x", "reason": BAD}),
+        (
+            "confidentiality.SetCorrespondenceConfidentiality",
+            {"stream_id": "x", "to_class": "restricted", "reason": BAD},
+        ),
+        (
+            "confidentiality.GrantClearance",
+            {"stream_id": "x", "account": "user:ann", "reason": BAD},
+        ),
+        (
+            "confidentiality.WithdrawClearance",
+            {"stream_id": "x", "account": "user:ann", "reason": BAD},
+        ),
+        (
+            "triage.ReclassifyCorrespondence",
+            {"stream_id": "x", "domain": "general", "subtype": "memo", "reason": BAD},
+        ),
+        ("issue.IssueCorrespondence", {"stream_id": "x", "date_reason": BAD}),
+        ("mail.IngestEmail", {"original_name": BAD}),
+        ("responses.CloseCorrespondence", {"stream_id": "x", "reason": BAD}),
+        ("responses.RecordResponse", {"stream_id": "x", "response_id": "y", "reason": BAD}),
+        ("responses.VoidCorrespondence", {"stream_id": "x", "reason": BAD}),
+        ("parties.EndContact", {"party_id": "x", "position": 1, "reason": BAD}),
+        ("parties.RetireParty", {"party_id": "x", "reason": BAD}),
+        ("clauses.RetireClause", {"clause_id": "x", "reason": BAD}),
+        (
+            "threads.SupersedeCorrespondence",
+            {"stream_id": "x", "superseded_by_id": "y", "reason": BAD},
+        ),
+    ],
+)
+def test_a_command_text_with_a_direction_or_control_character_is_refused(
+    model: str, fields: dict[str, object]
+) -> None:
+    import importlib
+
+    from pydantic import ValidationError
+
+    module_name, class_name = model.split(".")
+    cls = getattr(
+        importlib.import_module(f"tl_mod_correspondence.handlers.{module_name}"), class_name
+    )
+    good = {k: ("fine text" if v == BAD else v) for k, v in fields.items()}
+    cls.model_validate({**PROJECT_BASE, **good})  # the same command with a clean text is valid
+    with pytest.raises(ValidationError):
+        cls.model_validate({**PROJECT_BASE, **fields})

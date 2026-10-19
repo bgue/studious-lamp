@@ -31,10 +31,11 @@ _EMAIL = re.compile(r"[^@\s<>()\[\]\\,;:\"]{1,64}@[A-Za-z0-9.-]{1,190}")
 
 
 def non_blank(value: str) -> str:
-    """``value`` when it has a visible character."""
+    """``value`` when it has a visible character and no control or direction character (it
+    becomes record text, so it is checked like any text from outside)."""
     if not value.strip():
         raise ValueError("must not be blank")
-    return value
+    return clean_text(value)
 
 
 class Recipient(BaseModel):

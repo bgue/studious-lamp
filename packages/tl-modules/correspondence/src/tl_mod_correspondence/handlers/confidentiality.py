@@ -42,6 +42,7 @@ from tl_mod_correspondence.handlers.common import (
     load_item_for_control,
     today,
 )
+from tl_mod_correspondence.handlers.models import non_blank
 from tl_mod_correspondence.limits import MAX_CLEARANCES, MAX_NUMBER, MAX_REASON
 from tl_mod_correspondence.names import (
     CORR_CLASS_CHANGED,
@@ -54,10 +55,7 @@ from tl_mod_correspondence.names import (
 ItemClass = Literal["internal", "restricted", "privileged"]
 
 
-def _non_blank(value: str) -> str:
-    if not value.strip():
-        raise ValueError("must not be blank")
-    return value
+_non_blank = non_blank
 
 
 class SetCorrespondenceConfidentiality(Command):

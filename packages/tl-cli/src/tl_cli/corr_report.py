@@ -21,6 +21,7 @@ from typing import Annotated
 
 import typer
 from tl_adapters.db import DbTarget, open_uow
+from tl_core.util import utcnow
 from tl_mod_correspondence import views
 
 from tl_cli.corr_clock import _line as clock_line
@@ -31,7 +32,7 @@ app = typer.Typer(help="Correspondence reports and exports.", no_args_is_help=Tr
 
 _PAGE = 500
 _CLASSES = ("internal", "restricted", "privileged")
-_FORMULA_STARTS = ("=", "+", "-", "@", "\t", "\r")
+_FORMULA_STARTS = ("=", "+", "-", "@", "|", "\t", "\r")
 COLUMNS = (
     "number", "kind", "state", "direction", "domain", "subtype", "date", "counterparty",
     "response_due", "class", "subject",
@@ -136,7 +137,7 @@ def due(
 ) -> None:
     """Items that want an answer, earliest due first: number, due, days left, who, subject."""
     db: DbTarget = ctx.obj
-    today = date.today()
+    today = utcnow().date()
     lines = _register(db, project, awaiting=True, include_void=False, domain=None)
     keyed: list[tuple[str, int | None, views.RegisterLineView]] = []
     for line in lines:

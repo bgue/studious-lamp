@@ -14,7 +14,7 @@ outgoing letter. In one unit of work it:
 
 from __future__ import annotations
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, field_validator
 from tl_core.ledger import Event, NewEvent
 from tl_core.services.commands import Command, CommandResult
 from tl_core.uow import UnitOfWork
@@ -41,6 +41,7 @@ from tl_mod_correspondence.names import (
     ST_RECEIVED,
     ST_TRIAGED,
 )
+from tl_mod_correspondence.textcheck import clean_optional_text
 
 
 class IssueCorrespondence(Command):
@@ -58,6 +59,11 @@ class IssueCorrespondence(Command):
     template: str | None = Field(default=None, max_length=MAX_NUMBER)
     issued_on: str | None = Field(default=None, max_length=10)
     date_reason: str | None = Field(default=None, max_length=MAX_REASON)
+
+    @field_validator("date_reason")
+    @classmethod
+    def _clean_date_reason(cls, value: str | None) -> str | None:
+        return clean_optional_text(value)
 
 
 def _recipient_line(item: registry.ItemRow) -> str:

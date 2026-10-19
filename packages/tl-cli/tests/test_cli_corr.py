@@ -254,3 +254,11 @@ def test_a_controller_lists_who_is_named_and_names_another_reader(
     assert run(cast.ursula, "clearance", "ls", *PROJECT, ok=False).stderr.startswith(
         "error: forbidden"
     )
+
+
+def test_a_cell_that_a_spreadsheet_would_run_gets_a_leading_quote() -> None:
+    from tl_cli.corr_report import safe_cell
+
+    for start in ("=", "+", "-", "@", "|", "\t", "\r"):
+        assert safe_cell(f"{start}cmd") == f"'{start}cmd", start
+    assert safe_cell("Programme") == "Programme" and safe_cell(None) == ""
