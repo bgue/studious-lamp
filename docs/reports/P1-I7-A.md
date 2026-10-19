@@ -12,7 +12,7 @@ Objective met: yes, for the parts that do not need workstream B. External system
 - **Every write is attributed.** A service actor per rule, endpoint, enricher and action (`svc:rule-<key>`, `svc:inbound-<app>.<endpoint>`, ...), source `rule:`, `inbound:`, `enricher:`, `action:`, set by the server; a client cannot pose as one. The command runner checks what each actor holds in the ledger, so automation never runs with more than its owner's switches allow. One kill switch (`integration.kill_switch`) stops all of it.
 - **Entry points.** CLI `tl integration|endpoint|rule|delivery|enricher|enrich|action`; API `tl_api/inbound.py` and `routes/integration.py`; TUI `Ctrl+R` review queue and `Ctrl+E` registry.
 
-Demo path verified: `just demo P1-I7` on SQLite and Postgres: GATE_DEMO. Verified on a fresh clone: no; the gates ran on a clean worktree of the final commit.
+Demo path verified: `just demo P1-I7` passes all clauses on SQLite (bdb60c6); its Postgres pass and the integrated demo are part of the orchestrator's integrated gate. Verified on a fresh clone: no; the gates ran on a clean worktree of the final commit.
 
 ## Tickets
 | ID | Outcome (merged / taken-over / abandoned) | Review rounds | Notes |
@@ -36,7 +36,15 @@ No ticket was taken over or abandoned. Every Haiku-tier ticket was a stub-plus-p
 ## Gates
 | Gate | Result |
 |---|---|
-GATE_ROWS
+| `just check` | exit 0 on the final tree (ruff, format, pyright, generated files, openapi, licences) |
+| Multi-package suite on both adapters at 6c47dea (`tests/integration contract webhooks services schema`, `packages/tl-core api cli tui schema mcp adapters`) | 7514 passed, 18 skipped, 26 failed. Postgres-only: the session-sensitive CLI tests (the conftest signs an admin in), two provided CLI tests, one test without a savepoint; settings and palette pins that WS-B's merge settles; one transport race. All fixed (L-P1-I7A-13 and 14; the watchdog now fires a quarter second after the per-read timeout) |
+| After the WS-B merge (0cc0fd0 and the palette snapshot): `packages/tl-schema` | 382 passed (the catalog test is green with WS-B's `Thread.*` classes) |
+| `packages/tl-mcp packages/tl-api` | 1320 passed, 1 skipped |
+| `packages/tl-tui` | 930 passed (the palette snapshot was regenerated: two new commands) |
+| `tests/integration threads webhooks contract services`, `packages/tl-core/tests`, both adapters | 3366 passed |
+| `packages/tl-cli` (SQLite) | 892 passed |
+| The six session-sensitive CLI files, the two repaired provided tests and the uniqueness test, both adapters | 36 + 44 + 50 passed |
+| Integrated full gate (`just test`, `just test-tui`, parity, both demos on both backends) | not yet run: the orchestrator runs it on the integrated tree after trunk is merged |
 
 ## Security
 - **Pass 1** (of 1972934): changes requested, 9 findings (one HIGH among them): per-actor access in the runner, a non-injective inbound actor name (unique index on `service_actor`), mid-batch switches, JWT claims, the transport deadline, `by_module` and others. All fixed with tests that fail without the fix (8608be3 and its parents); the second pass verified them.
