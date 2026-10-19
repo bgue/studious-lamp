@@ -178,11 +178,14 @@ def test_invoke_judges_the_access_of_the_action_and_the_parameters(
     ok(define(env, tmp_path, HOOK))
     ok(define(env, tmp_path, ECHO))
     make_record(env, "W-1")
-    # a controller action: nobody is signed in, so only the `user` level is held
-    refused(
-        run(env, "action", "invoke", "send_to_nde", "--project", P, "--target", "W-1"), "controller"
-    )
-    assert sql(env, "SELECT 1 FROM cur_action_invocation") == []
+    # a controller action: nobody is signed in, so only the `user` level is held (on Postgres the
+    # conftest signs a test admin in, who holds every level: the check is made on SQLite only)
+    if not env["TL_DB"].startswith("postgres"):
+        refused(
+            run(env, "action", "invoke", "send_to_nde", "--project", P, "--target", "W-1"),
+            "controller",
+        )
+        assert sql(env, "SELECT 1 FROM cur_action_invocation") == []
     refused(run(env, "action", "invoke", "echo_it", "--project", P, "--target", "W-1"), "note")
     refused(
         run(

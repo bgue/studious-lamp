@@ -149,6 +149,7 @@ def test_dry_run_over_a_sample_shows_the_planned_commands_and_writes_nothing(
 ) -> None:
     endpoint(env, GOOD)
     sample = write_json(tmp_path, "sample.json", {"text": "hello"})
+    ok(run(env, "delivery", "ls"))  # on Postgres this signs the test admin in (it writes events)
     before = len(sql(env, "SELECT 1 FROM events"))
     result = ok(run(env, "delivery", "dry-run", "erp/orders", "--project", P, "--sample", sample))
     out = lines(result)
