@@ -68,7 +68,7 @@ GATE_ROWS
 L-P1-I7A-1 to L-P1-I7A-12 appended. No implementer proposals were declined.
 
 ## Docs
-[ADR-0017](../adr/0017-integration-layer.md) (sections 7 to 7d), [docs/runbooks/integration.md](../runbooks/integration.md), `AGENTS.md` (pointer row), the READMEs of `tl-core`, `tl-cli` and `tl-tui`, `docs/tickets/P1-I7/` (plan, 14 tickets, provided tests), `docs/reports/P1-I7/` (ticket reports), `docs/reports/APPROVALS.md`. Not done: `docs/reports/STATUS.md` (the orchestrator's).
+[ADR-0017](../adr/0017-integration-layer.md) (sections 7 to 7d), [docs/runbooks/integration.md](../runbooks/integration.md), `AGENTS.md` (pointer row), the READMEs of `tl-core`, `tl-cli` and `tl-tui`, `docs/tickets/P1-I7/` (plan, the ticket files, provided tests), `docs/reports/P1-I7/` (ticket reports), `docs/reports/APPROVALS.md`. Not done: `docs/reports/STATUS.md` (the orchestrator's).
 
 ## Follow-ups filed
 - At the p1/i7 merge: WS-B's `AGENT_DIRECT_COMMANDS` and the settings pins (16 keys) conflict mechanically; `tl_tui/app.py` and `commands.py` take both sides' bindings.
@@ -101,4 +101,4 @@ The demo state is the ledger the script builds: `just demo P1-I7` (it removes it
    - Unique value: the receiver can verify who asked, the ledger records the request and the answer, and one switch (`integration.kill_switch`) stops it all.
 
 ## Cost notes
-Not tracked per call. Thirteen Haiku-tier tickets ran through the relay (twelve passed on the first attempt); everything on the trust boundary, the engines and both rounds of security fixes were supervisor work. The full suite on both adapters takes about two hours on this container.
+Not tracked per call. Eleven Haiku-tier tickets ran through the relay (ten passed on the first attempt; T02b was blocked once by a stale generated file on its base); everything on the trust boundary, the engines and both rounds of security fixes were supervisor work. The full suite on both adapters takes about two hours on this container.
