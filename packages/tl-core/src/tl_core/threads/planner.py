@@ -15,8 +15,10 @@ and one actor it
 5. dry-runs the commands in a unit of work that is rolled back (``factory``), so a refusal of the
    handlers, a failed guard or a missing number shows in the preview;
 6. computes the token: the SHA-256 of the canonical JSON of the record id, the record version, the
-   command line and the planned commands (type and fields only: who may run them and what the dry
-   run said can change between a preview and an acceptance without the plan changing).
+   number of dispatches the thread has run, the command line and the planned commands (type and
+   fields only: who may run them and what the dry run said can change between a preview and an
+   acceptance without the plan changing). The dispatch count makes a token single-use: the
+   dispatch's own message changes it, so the same token cannot run a side effect twice.
 
 ``preview`` writes nothing. :func:`confirm_token` is what the confirmation compares.
 """
@@ -32,6 +34,7 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from pydantic import BaseModel, ValidationError
+from sqlalchemy import text
 
 from tl_core.integration.contract import (
     SERVER_SET_FIELDS,
@@ -85,6 +88,15 @@ class Factory(Protocol):
     def __call__(self, readonly: bool = False) -> AbstractContextManager[UnitOfWork]: ...
 
 
+_DISPATCHES_SQL = text(
+    "SELECT COUNT(*) FROM cur_thread_message WHERE record_id = :record_id AND kind = 'dispatch'"
+)
+
+
+def _dispatch_count(uow: UnitOfWork, record_id: str) -> int:
+    return int(uow.conn().execute(_DISPATCHES_SQL, {"record_id": record_id}).scalar_one())
+
+
 class _DryRun(Exception):
     """Raised at the end of the dry run so its unit of work rolls back."""
 
@@ -101,6 +113,9 @@ class DispatchPlan:
     problems: list[Problem] = field(default_factory=list[Problem])
     notes: list[str] = field(default_factory=list[str])
     token: str = ""
+    #: How many dispatches this thread has run. It is in the token, so a dispatch's own message
+    #: spends the token it ran with: the same token cannot run a side effect twice (M1).
+    dispatches: int = 0
 
     @property
     def side_effecting(self) -> bool:
@@ -112,12 +127,17 @@ class DispatchPlan:
 
 
 def token_of(
-    record_id: str, record_version: int | None, line: str, planned: list[PlannedCommand]
+    record_id: str,
+    record_version: int | None,
+    line: str,
+    planned: list[PlannedCommand],
+    dispatches: int = 0,
 ) -> str:
     """The preview token: SHA-256 of the canonical JSON of the plan (see the module docstring)."""
     body = {
         "record": record_id,
         "version": record_version,
+        "dispatches": dispatches,
         "line": line,
         "planned": [{"type": p.command_type, "command": p.command} for p in planned],
     }
@@ -206,7 +226,13 @@ class ThreadPlanner:
             today=now.date().isoformat(),
             now=now.isoformat(),
         )
-        plan = DispatchPlan(record=record, parsed=parsed, planned=[], context=context)
+        plan = DispatchPlan(
+            record=record,
+            parsed=parsed,
+            planned=[],
+            context=context,
+            dispatches=_dispatch_count(uow, record.id),
+        )
         target = self.targets.find(parsed, record.record_type)
         if target is None:
             plan.problems.append(
@@ -239,7 +265,9 @@ class ThreadPlanner:
         return self._finish(plan)
 
     def _finish(self, plan: DispatchPlan) -> DispatchPlan:
-        plan.token = token_of(plan.record.id, plan.record.version, plan.parsed.line, plan.planned)
+        plan.token = token_of(
+            plan.record.id, plan.record.version, plan.parsed.line, plan.planned, plan.dispatches
+        )
         return plan
 
     def _check(

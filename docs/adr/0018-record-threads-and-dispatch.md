@@ -1,8 +1,8 @@
 # ADR-0018 — Record threads and dispatch
 
-Status: proposed
+Status: accepted
 Date: 2026-10-18
-Deciders: P1-I7 workstream B supervisor (draft); orchestrator accepts under ADR-0008 decision 6
+Deciders: P1-I7 workstream B supervisor (draft); orchestrator accepted under ADR-0008 decision 6 when WS-B reported done
 Brief sections: §21.5, §10.6 sketch 13, §8 (permissions), §18.12 (agents propose), §7.1 (links)
 
 ## Context

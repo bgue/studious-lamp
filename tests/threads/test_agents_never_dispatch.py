@@ -14,6 +14,7 @@ from tl_core.integration.contract import PlannedCommand
 from tl_core.services import proposals
 from tl_core.services.commands import CommandResult
 from tl_core.services.errors import ProposalDeciderError
+from tl_core.threads.contract import ParseProblem
 from tl_core.threads.dispatch import (
     DispatchFromThread,
     build_dispatch_proposal,
@@ -155,3 +156,39 @@ def test_a_planned_command_never_carries_a_role_or_a_risk_acceptance(db: DbTarge
     assert not isinstance(found, type(None)) and not found.can_dispatch  # type: ignore[union-attr]
     codes = [p.problem.code for p in found.planned if p.problem]  # type: ignore[union-attr]
     assert codes == ["reserved_field", "reserved_field"]
+
+
+def test_a_person_with_no_account_cannot_run_an_effect(db: DbTarget) -> None:
+    """`/summarise` and `/remind` are not table commands, so the runner does not check
+    their actor: the engine does (M2)."""
+    from tl_core.integration.errors import CommandAccessError
+
+    rid = make_record(db, "REC-1")
+    make_person(db, "lchen")
+    with open_uow(db) as uow:
+        from tl_core.threads.messages import PostThreadMessage, handle_post_thread_message
+
+        handle_post_thread_message(
+            uow,
+            PostThreadMessage(
+                actor="user:rgarcia", source="t", scope=P1, record_id=rid, body="a message"
+            ),
+        )
+    for line in ("/summarise", "/remind +1h hello"):
+        with open_uow(db, readonly=True) as uow:
+            found = ThreadPlanner(factory=factory_of(db)).preview(
+                uow,
+                record_id=rid,
+                text=line,
+                actor="user:ghost",
+                holds=everyone,  # an API principal says yes; the account says no
+                runner=TableRunner(),
+            )
+        assert not isinstance(found, ParseProblem)
+        assert not found.can_dispatch and found.planned[0].problem is not None, line
+        cmd = DispatchFromThread(
+            actor="user:ghost", source="t", scope=P1, record_id=rid, text=line, token=found.token
+        )
+        with pytest.raises(CommandAccessError), open_uow(db) as uow:
+            handle_dispatch_from_thread(uow, cmd, holds=everyone, runner=TableRunner())
+    assert count(db, "SELECT COUNT(*) FROM cur_thread_message WHERE kind <> 'message'") == 0

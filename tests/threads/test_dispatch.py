@@ -301,3 +301,22 @@ def test_a_plain_message_is_not_a_dispatch(db: DbTarget) -> None:
         confirm(db, rid, "hello", "0" * 64)
     with pytest.raises(DispatchSyntaxError):
         confirm(db, rid, "/link", "0" * 64)
+
+
+def test_a_token_runs_once_and_a_replay_is_stale(db: DbTarget) -> None:
+    rid = make_record(db, "REC-1")
+    for line in ("/raise record Clash at grid C4", "/summarise", "/remind +1h call back"):
+        found = token_for(db, rid, line)
+        confirm(db, rid, line, found.token, expires_at="2099-01-01T00:00:00+00:00")
+        records, written = count_rows(db, "SELECT COUNT(*) FROM cur_core_record"), len(events(db))
+        with pytest.raises(DispatchStaleError):
+            confirm(db, rid, line, found.token, expires_at="2099-01-01T00:00:00+00:00")
+        assert count_rows(db, "SELECT COUNT(*) FROM cur_core_record") == records
+        assert len(events(db)) == written
+    kinds = [e.event_type for e in events(db)]
+    assert kinds.count("Thread.Dispatched") == 3
+
+
+def count_rows(db: DbTarget, sql: str) -> int:
+    with open_uow(db, readonly=True) as uow:
+        return int(uow.conn().execute(text(sql)).scalar_one())

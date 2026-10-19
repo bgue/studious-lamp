@@ -10,10 +10,13 @@ from tl_adapters.db import DbTarget, open_uow
 from tl_cli.main import app
 from tl_core import settings
 from tl_core.auth import accounts
+from tl_core.auth.password import prepare_password
 from typer.testing import CliRunner
 from typer.testing import Result as RunResult
 
 runner = CliRunner()
+#: The password `conftest.sign_in_test_user` signs `dev` in with on Postgres (same value).
+TEST_PASSWORD = "correct horse battery"
 P = "P123"
 
 
@@ -32,7 +35,7 @@ def thread_env(
             display_name="Dev",
             kind="person",
             roles=["user"],
-            password=None,
+            password=prepare_password(TEST_PASSWORD, username="dev"),
             by="user:a",
         )
         for key, value in (("threads.enabled", True), ("threads.enabled_types", ["core.Record"])):

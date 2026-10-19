@@ -763,14 +763,21 @@ def accept_proposal(
         data["accept_risk"] = accept_risk
     command = model.model_validate(data)
     if isinstance(command, DispatchFromThread):
-        if runner is None:
-            raise ProposalAccessError("a dispatch proposal is accepted where commands can run")
-        result = handle_dispatch_from_thread(
-            uow,
-            command,
-            holds=lambda level: level == "user" or (holds is not None and holds(level)),
-            runner=runner,
-        )
+        if runner is None or holds is None:
+            raise ProposalAccessError(
+                "a dispatch proposal is accepted where commands can run, with the accepting "
+                "person's access"
+            )
+        from tl_core.integration.errors import ActionAccessError, CommandAccessError
+
+        if not holds("user"):  # a person with no account decides nothing; the proposal waits
+            raise ProposalAccessError("accepting a dispatch needs an active account")
+
+        try:
+            result = handle_dispatch_from_thread(uow, command, holds=holds, runner=runner)
+        except (CommandAccessError, ActionAccessError) as exc:
+            # the accepting person lacks the access: the proposal stays pending for someone else
+            raise ProposalAccessError(str(exc)) from exc
     elif isinstance(command, InvokeAction):
         from tl_core.integration.actions.service import handle_invoke_action
         from tl_core.integration.errors import ActionAccessError

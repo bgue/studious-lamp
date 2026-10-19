@@ -15,12 +15,8 @@ from tl_core.services import proposals
 from tl_core.threads.dispatch import build_dispatch_proposal
 
 
-def test_a_person_accepts_an_agents_dispatch_proposal(
-    new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    env = thread_env(new_db, monkeypatch, tmp_path)
-    key = create(env, "Gate valve")
-    other = create(env, "Check valve")
+def agent_proposal(env: dict[str, str], key: str, line: str) -> str:
+    """The id of a pending proposal of `line` on record `key`, filed by agent triage."""
     with open_uow(env["TL_DB"]) as uow:
         accounts.create_account(
             uow,
@@ -45,7 +41,7 @@ def test_a_person_accepts_an_agents_dispatch_proposal(
         factory,
         scope=f"project:{P}",
         record_id=str(rid),
-        text=f"/link {other}",
+        text=line,
         agent="agent:triage",
         runner=runner,
     )
@@ -57,8 +53,34 @@ def test_a_person_accepts_an_agents_dispatch_proposal(
         summary="link",
         runner=runner,
     )
-    done = run(env, "proposal", "accept", view.proposal_id)
+    return view.proposal_id
+
+
+def test_a_person_accepts_an_agents_dispatch_proposal(
+    new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env = thread_env(new_db, monkeypatch, tmp_path)
+    key = create(env, "Gate valve")
+    other = create(env, "Check valve")
+    proposal_id = agent_proposal(env, key, f"/link {other}")
+    done = run(env, "proposal", "accept", proposal_id)
     assert done.exit_code == 0, done.output
-    assert done.stdout.splitlines()[0] == f"accepted {view.proposal_id}"
+    assert done.stdout.splitlines()[0] == f"accepted {proposal_id}"
     shown = run(env, "thread", "show", "--project", P, key).stdout
     assert f"/link {other}" in shown and "-> link:" in shown
+
+
+def test_a_person_with_no_account_cannot_accept_even_an_effect_only_dispatch(
+    new_db: Callable[[], DbTarget], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env = thread_env(new_db, monkeypatch, tmp_path)
+    key = create(env, "Gate valve")
+    assert run(env, "thread", "post", "--project", P, key, "something to summarise").exit_code == 0
+    proposal_id = agent_proposal(env, key, "/summarise")
+    ghost = run(env, "proposal", "accept", proposal_id, "--actor", "user:ghost")
+    assert ghost.exit_code == 1 and ghost.stderr.startswith("error: "), ghost.output
+    shown = run(env, "thread", "show", "--project", P, key).stdout
+    assert "Thread summary" not in shown
+    again = run(env, "proposal", "accept", proposal_id)
+    assert again.exit_code == 0, again.output
+    assert "Thread summary" in run(env, "thread", "show", "--project", P, key).stdout

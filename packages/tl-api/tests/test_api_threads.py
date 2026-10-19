@@ -298,3 +298,36 @@ def test_a_person_accepts_an_agents_dispatch_proposal_over_http(harness: Harness
     link = next(e for e in events if e["event_type"] == "Link.Added")
     assert link["actor"] == ALICE and link["payload"]["to_ref"] == other
     assert link["source"] == f"thread:{rid}"
+
+
+def test_a_token_with_no_account_cannot_accept_even_an_effect_only_dispatch(
+    harness: Harness,
+) -> None:
+    from tl_api.thread_runner import thread_runner
+    from tl_core.services import proposals
+    from tl_core.threads.dispatch import build_dispatch_proposal
+
+    switch_on(harness)
+    make_account(harness, "alice")
+    make_account(harness, "triage", "agent")
+    rid = harness.create_record("P123-REC-0001").stream_id
+    assert post(harness.client, rid, "something to summarise").status_code == 200
+    runner = thread_runner()
+    command = build_dispatch_proposal(
+        harness.backend, scope=SCOPE, record_id=rid, text="/summarise", agent=AGENT, runner=runner
+    )
+    view = proposals.submit(
+        harness.backend,
+        tool="propose_dispatch",
+        agent=AGENT,
+        command=command,
+        summary="summary",
+        runner=runner,
+    )
+    ghost = harness.client_for(BOB)  # a valid token, but BOB has no account
+    refused = ghost.post(f"/proposals/{view.proposal_id}/accept", json={})
+    assert refused.status_code == 403, refused.text
+    kinds = [e["event_type"] for e in harness.client.get("/events").json()["events"]]
+    assert "Thread.Dispatched" not in kinds
+    done = harness.client.post(f"/proposals/{view.proposal_id}/accept", json={})
+    assert done.status_code == 200 and done.json()["status"] == "accepted", done.text

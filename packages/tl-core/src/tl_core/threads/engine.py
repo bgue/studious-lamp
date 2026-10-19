@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from tl_core.integration.actor_access import require_access
 from tl_core.integration.contract import CommandRunner, PlannedCommand
 from tl_core.services.links import AddLink, handle_add_link
 from tl_core.threads.effects import EFFECT_MODELS, StepResult, run_effect
@@ -97,6 +98,9 @@ def execute_plan(
         try:
             data = substitute(item.command, steps)
             if item.command_type in EFFECT_MODELS:
+                # An effect is not a table command, so the runner does not check who runs it:
+                # the actor needs an account that holds `user` (M2).
+                require_access(uow.conn(), actor, "user", item.command_type)
                 step = run_effect(
                     uow,
                     record=record,
@@ -138,7 +142,7 @@ def execute_plan(
                         link_source="thread_dispatch",
                         note=message_id,
                     ),
-                    by_module=True,  # only to set its own link source; the from end is new
+                    system_source="thread_dispatch",  # the narrow form: this link source only
                 )
                 link_ids.append(link.stream_id)
         except Exception as exc:
