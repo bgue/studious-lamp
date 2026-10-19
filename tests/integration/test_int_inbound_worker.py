@@ -99,6 +99,26 @@ def test_a_dry_run_endpoint_plans_and_writes_nothing_but_the_delivery(world: Wor
     assert as_object(load_json(world.events("Inbound.Applied")[0]["payload"]))["dry_run"] is True
 
 
+def test_putting_an_endpoint_back_to_dry_run_stops_what_is_already_queued(world: World) -> None:
+    """Dry-run is the emergency stop: the mode is read when the delivery is applied (second
+    security review, finding 8), not taken from the version it was accepted under."""
+    from intworld import ADMIN, SCOPE
+    from tl_core.integration.inbound.service import ReviseInboundEndpoint, handle_revise_endpoint
+
+    made = world.endpoint()
+    world.deliver(made.endpoint_id, {"text": "hello"})
+    with world.factory() as uow:
+        handle_revise_endpoint(
+            uow,
+            ReviseInboundEndpoint(
+                actor=ADMIN, source="test", scope=SCOPE, endpoint_id=made.endpoint_id,
+                changes={"dry_run": True}, reason="stop",
+            ),
+        )  # fmt: skip
+    run(world)
+    assert only(world)["state"] == "dry_run" and world.posts() == []
+
+
 def test_a_mapping_that_gives_nothing_is_applied_with_no_commands(world: World) -> None:
     made = world.endpoint(
         mapping='$.text = "go" ? {"command": "PostToFeed", "args": {"body": "x"}}'

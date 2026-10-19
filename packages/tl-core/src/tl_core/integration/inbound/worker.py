@@ -316,7 +316,14 @@ class InboundMapJobKind:
                 message = f"Command {position}: {problem.message}"[:MAX_MESSAGE]
                 raise JobFailure(problem.code, message, retryable=False)
             commands.append(item.command)
-        dry = bool(definition.get("dry_run", False))
+        # The mode is read again here, in the unit of work that applies the delivery: an endpoint
+        # put back to dry-run after a delivery was accepted applies nothing, so dry-run is also
+        # the emergency stop for what is already queued. (Live is never taken from the old version.)
+        now_dry = conn.execute(
+            text("SELECT dry_run FROM cur_inbound_endpoint WHERE endpoint_id = :id"),
+            {"id": delivery["endpoint_id"]},
+        ).scalar()
+        dry = bool(definition.get("dry_run", False)) or bool(now_dry)
         if not dry:
             for position, command in enumerate(commands, start=1):
                 try:
