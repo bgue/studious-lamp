@@ -35,17 +35,17 @@ Numbers follow the plan (07-phase1-plan.md); suffixes split a plan ticket by fil
 | T06 | `doc_classifier` enricher, golden set (26 cases), evaluation | H | — | merged | 58d6b7c; accuracy 1.0 on both properties (a `layout` keyword was added to DRW) |
 | T02a | `job` action executor and the example job `echo` | H | — | merged | 852b28c |
 | T04a | Key resolution for inbound mappings (`resolve_keys`) | H | — | merged | 376e4eb |
-| T03b | `tl rule` CLI | H | — | ready | |
-| T04b | `tl endpoint` CLI | H | — | ready | |
-| T04d | `tl delivery` CLI (error queue, dry run) | H | — | ready | |
-| T05a | `tl enricher` and `tl enrich` CLI (review queue) | H | — | ready | |
-| T02b | `tl action` CLI | H | — | ready | |
-| T04c | Inbound endpoint registry views (TUI) | H | S4 | planned | |
-| T05c | Review-queue screen (TUI) | H | S5 | planned | |
-| T07 | Integration registry screen (apps, endpoints, rules, actions, enrichers, kill switch) | H | S2 to S6 | planned | |
-| T08 | Contract tests for inbound mappings and action results | H | S4 | planned | |
+| T03b | `tl rule` CLI | H | — | merged | a53d9fa (merge 87a8fe8); `mode` is admin-gated; `create` refuses actor, source and scope in the file |
+| T04b | `tl endpoint` CLI | H | — | merged | 860680d (merge 42a7c0b); reads are not gated (D12: reads are `user`) |
+| T04d | `tl delivery` CLI (error queue, dry run) | H | — | merged | 045b641 (merge 496f796) |
+| T05a | `tl enricher` and `tl enrich` CLI (review queue) | H | — | merged | 39fa8fe (merge 14faa67) |
+| T02b | `tl action` CLI | H | — | review-only | eac15a2, base merged (98537b1); acceptance green |
+| T04c | Inbound endpoint registry views (TUI) | H | S4 | folded into T07 | the endpoints table and detail are one of the registry screen's seven tables |
+| T05c | Review-queue screen (TUI) | H | S5 | ready | [T05c](T05c-review-queue.md); reference 83f472f/f506c67 |
+| T07 | Integration registry screen (apps, endpoints, rules, actions, enrichers, kill switch) | H | S2 to S6 | ready | [T07](T07-registry-screen.md); reference 83f472f/f506c67 |
+| T08 | Contract tests for inbound mappings and action results | H | S4 | ready | [T08](T08-golden-contracts.md); runners provided, the golden JSON is the work |
 
-The suffixes split a plan ticket by file set. The plan's T05b (dispatcher wiring) and the API routes of T03b, T04b and T05a are supervisor pieces (`tl integration serve`, `tl_api/routes/integration.py`). The batch-2 tickets are stub-plus-provided-test pairs: the stub is the reference implementation with its bodies replaced, and the provided test passed against the reference (reference commit c9117ea) with mutation checks.
+The batch-3 tickets (T05c, T07, T08) are stub-plus-provided-test pairs too. `provided/supervisor-test_app_integration.py.txt` is the supervisor's app wiring test (Ctrl+R and Ctrl+E); it needs both screens, so it joins `packages/tl-tui/tests/` when T05c and T07 are merged. The suffixes split a plan ticket by file set. The plan's T05b (dispatcher wiring) and the API routes of T03b, T04b and T05a are supervisor pieces (`tl integration serve`, `tl_api/routes/integration.py`). The batch-2 tickets are stub-plus-provided-test pairs: the stub is the reference implementation with its bodies replaced, and the provided test passed against the reference (reference commit c9117ea) with mutation checks.
 
 ## Order of work
 1. S1 (done), then the first batch of tickets that need only the contract: T06, T02a, T04a.

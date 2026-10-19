@@ -1,3 +1,5 @@
+# ruff: noqa: F401
+# pyright: reportUnusedImport=false, reportUnusedVariable=false
 """The review queue: values an enricher proposed, waiting for a person (P1-I7-T05c; brief 18.9).
 
 A full-size modal opened with ``Ctrl+R``. The table lists the proposed values (``s`` switches to
@@ -8,6 +10,11 @@ type must allow ``SetPsetValues``, a value that is no longer waiting cannot be d
 is shown in the status line and nothing changes. Every change is one client call
 (``AcceptEnrichment`` or ``RejectEnrichment``) and the list is read again afterwards; nothing is
 stored here.
+
+
+STUB (P1-I7): the methods below whose body is `raise NotImplementedError` are yours;
+everything else is final. Remove this paragraph, the two lint-silencing lines at the top of the
+file, the STEPS paragraphs and `NotImplementedError` when you implement them.
 """
 
 from __future__ import annotations
@@ -78,46 +85,46 @@ class ReviewQueueScreen(ModalScreen[None]):
     # --- data ----------------------------------------------------------------------------
 
     def reload(self) -> None:
-        """Read the list again and keep the highlighted value where it is."""
-        keep = self.current()
-        try:
-            self.values = self.client.list_integration(
-                "enrichments", state=None if self.show_all else WAITING
-            )
-        except CLIENT_ERRORS as exc:
-            self.values = []
-            self._fill(None)
-            self._say(describe_error(exc), error=True)
-            return
-        self._fill(keep["value_id"] if keep is not None else None)
+        """Read the list again and keep the highlighted value where it is.
+
+        STEPS: remember `keep = self.current()`. Read
+        `self.client.list_integration("enrichments", state=None if self.show_all else
+        WAITING)` into `self.values`. On a `CLIENT_ERRORS` error set `self.values = []`,
+        call `self._fill(None)`, say `describe_error(exc)` with `error=True` and return.
+        Otherwise call `self._fill(keep["value_id"] if keep is not None else None)`.
+        """
+        raise NotImplementedError
 
     def _fill(self, keep: str | None) -> None:
-        table = self.query_one("#review-table", DataTable)
-        table.clear()
-        for value in self.values:
-            table.add_row(
-                *(Text(cell) for cell in cells("enrichments", value)), key=value["value_id"]
-            )
-        if self.values:
-            ids = [value["value_id"] for value in self.values]
-            table.move_cursor(row=ids.index(keep) if keep in ids else 0)
-        what = "All values" if self.show_all else "Values waiting for review"
-        self.query_one("#review-title", Static).update(f"{what} ({len(self.values)})   s switches")
-        self._describe()
+        """Show `self.values` in the table, the title and the detail panel.
+
+        STEPS: query `#review-table` (a `DataTable`), `clear()` it, and add one row per
+        value: `Text(cell)` for each cell of `cells("enrichments", value)`, with
+        `key=value["value_id"]`. When there are values, `move_cursor(row=...)` to the index
+        of `keep` (a value id) if it is among them, else to row 0. Set the `#review-title`
+        Static to `f"{what} ({len(self.values)})   s switches"` where `what` is `"All
+        values"` when `self.show_all` else `"Values waiting for review"` (three spaces
+        before `s switches`). Finish with `self._describe()`.
+        """
+        raise NotImplementedError
 
     def current(self) -> dict[str, Any] | None:
-        table = self.query_one("#review-table", DataTable)
-        if not self.values or not 0 <= table.cursor_row < len(self.values):
-            return None
-        return self.values[table.cursor_row]
+        """The highlighted value, or `None` when there is none.
+
+        STEPS: read `cursor_row` of `#review-table`; return `self.values[cursor_row]` when
+        `self.values` is not empty and the row is in range, else `None`.
+        """
+        raise NotImplementedError
 
     def _describe(self) -> None:
-        detail = self.query_one("#review-detail", Static)
-        value = self.current()
-        if value is None:
-            detail.update("Nothing is waiting for review." if not self.show_all else "No values.")
-            return
-        detail.update("\n".join(detail_lines("enrichments", value)))
+        """Fill the panel under the table with the highlighted value.
+
+        STEPS: query the `#review-detail` Static. With no highlighted value, set it to
+        `"Nothing is waiting for review."` (when `self.show_all` is false) or `"No
+        values."`. Otherwise set it to the lines of `detail_lines("enrichments", value)`
+        joined with newlines.
+        """
+        raise NotImplementedError
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#review-status", Static).update(("! " if error else "") + text)
@@ -141,46 +148,39 @@ class ReviewQueueScreen(ModalScreen[None]):
         return value
 
     def action_accept(self) -> None:
-        value = self._waiting()
-        if value is None:
-            return
-        try:
-            self.client.integration_command(
-                "AcceptEnrichment", self.scope, value_id=value["value_id"]
-            )
-        except CLIENT_ERRORS as exc:
-            self.reload()  # show what the value really is now
-            self._say(describe_error(exc), error=True)
-            return
-        self.reload()
-        self._say(f"Accepted {value['property_path']}")
+        """Accept the highlighted value.
+
+        STEPS: take the value from `self._waiting()` and stop when it is `None`. Call
+        `self.client.integration_command("AcceptEnrichment", self.scope,
+        value_id=value["value_id"])`. On a `CLIENT_ERRORS` error call `self.reload()` (to
+        show what the value really is now), then `self._say(describe_error(exc),
+        error=True)` and return. On success call `self.reload()` and `self._say(f"Accepted
+        {value['property_path']}")`.
+        """
+        raise NotImplementedError
 
     def action_reject(self) -> None:
-        value = self._waiting()
-        if value is None:
-            return
+        """Reject the highlighted value after asking for a reason.
 
-        def apply(reason: str | None) -> None:
-            if reason is None:  # cancelled: nothing is changed
-                return
-            try:
-                self.client.integration_command(
-                    "RejectEnrichment", self.scope, value_id=value["value_id"], reason=reason
-                )
-            except CLIENT_ERRORS as exc:
-                self.reload()
-                self._say(describe_error(exc), error=True)
-                return
-            self.reload()
-            self._say(f"Rejected {value['property_path']}")
-
-        self.app.push_screen(
-            PromptScreen(f"Reject {value['property_path']}", "Reason", required=True), apply
-        )
+        STEPS: take the value from `self._waiting()` and stop when it is `None`. Define
+        `apply(reason: str | None)`: it returns at once when `reason is None` (cancelled,
+        nothing changes); otherwise it calls
+        `self.client.integration_command("RejectEnrichment", self.scope,
+        value_id=value["value_id"], reason=reason)`; on a `CLIENT_ERRORS` error it calls
+        `self.reload()` then `self._say(describe_error(exc), error=True)` and returns; on
+        success it calls `self.reload()` and `self._say(f"Rejected
+        {value['property_path']}")`. Push `PromptScreen(f"Reject {value['property_path']}",
+        "Reason", required=True)` on the app with `apply` as the callback
+        (`self.app.push_screen(...)`).
+        """
+        raise NotImplementedError
 
     def action_toggle_all(self) -> None:
-        self.show_all = not self.show_all
-        self.reload()
+        """Switch between the waiting values and all of them.
+
+        STEPS: flip `self.show_all` and call `self.reload()`.
+        """
+        raise NotImplementedError
 
     def action_reload(self) -> None:
         self.reload()

@@ -1,3 +1,5 @@
+# ruff: noqa: F401
+# pyright: reportUnusedImport=false, reportUnusedVariable=false
 """The integration registry: what acts on the ledger, and what it did (P1-I7-T07; brief 18.13).
 
 A full-size modal opened with ``Ctrl+E`` by an admin. One table at a time: endpoints, rules,
@@ -9,6 +11,11 @@ enricher on or off and ``y`` retries a failed delivery. The title shows the kill
 service decides what is allowed (only an admin changes anything): a refusal is shown in the status
 line and nothing changes. Every change is one client call and the lists are read again afterwards;
 nothing is stored here, and no secret or payload is ever in a row.
+
+
+STUB (P1-I7): the methods below whose body is `raise NotImplementedError` are yours;
+everything else is final. Remove this paragraph, the two lint-silencing lines at the top of the
+file, the STEPS paragraphs and `NotImplementedError` when you implement them.
 """
 
 from __future__ import annotations
@@ -105,22 +112,18 @@ class IntegrationScreen(ModalScreen[None]):
         return bool(view.effective.value)
 
     def reload(self) -> None:
-        """Read the table again and keep the highlighted row where it is."""
-        keep = self._row_id(self.current())
-        self.kill_switch = self._read_kill_switch()
-        try:
-            self.rows = self.client.list_integration(self.kind)
-            if self.kind == "deliveries":
-                self.names = {
-                    e["endpoint_id"]: f"{e['app']}/{e['name']}"
-                    for e in self.client.list_integration("endpoints")
-                }
-        except CLIENT_ERRORS as exc:
-            self.rows = []
-            self._fill(None)
-            self._say(describe_error(exc), error=True)
-            return
-        self._fill(keep)
+        """Read the table again and keep the highlighted row where it is.
+
+        STEPS: remember `keep = self._row_id(self.current())`. Set `self.kill_switch =
+        self._read_kill_switch()`. Then read `self.rows =
+        self.client.list_integration(self.kind)`; for the error queue (`self.kind ==
+        "deliveries"`) also set `self.names` to a dict from each endpoint's `endpoint_id` to
+        `f"{e['app']}/{e['name']}"` over `self.client.list_integration("endpoints")`. On a
+        `CLIENT_ERRORS` error set `self.rows = []`, call `self._fill(None)`, say
+        `describe_error(exc)` with `error=True` and return. Otherwise call
+        `self._fill(keep)`.
+        """
+        raise NotImplementedError
 
     def _row_id(self, row: dict[str, Any] | None) -> str | None:
         if row is None:
@@ -135,47 +138,46 @@ class IntegrationScreen(ModalScreen[None]):
         }[self.kind]  # fmt: skip
 
     def _fill(self, keep: str | None) -> None:
-        table = self.query_one("#integration-table", DataTable)
-        table.clear(columns=True)
-        table.add_columns(*COLUMNS[self.kind])
-        for row in self.rows:
-            shown = cells(self.kind, row, self.names)
-            table.add_row(*(Text(c) for c in shown), key=self._row_id(row))
-        if self.rows:
-            ids = [self._row_id(r) for r in self.rows]
-            table.move_cursor(row=ids.index(keep) if keep in ids else 0)
-        self._title()
-        self._describe()
+        """Show `self.rows` in the table, the title and the detail panel.
+
+        STEPS: query `#integration-table` (a `DataTable`), `clear(columns=True)`,
+        `add_columns(*COLUMNS[self.kind])`, and add one row per row of `self.rows`:
+        `Text(c)` for each `c` in `cells(self.kind, row, self.names)`, with
+        `key=self._row_id(row)`. When there are rows, `move_cursor(row=...)` to the index of
+        `keep` (an id) among `[self._row_id(r) for r in self.rows]` if present, else 0. Then
+        call `self._title()` and `self._describe()`.
+        """
+        raise NotImplementedError
 
     def _title(self) -> None:
-        if self.kill_switch is None:
-            switch = "Kill switch: unknown"
-        elif self.kill_switch:
-            switch = "! KILL SWITCH ON: nothing runs (settings F9)"
-        else:
-            switch = "Kill switch: off (settings F9)"
-        self.query_one("#integration-title", Static).update(
-            f"{LABELS[self.kind]} ({len(self.rows)})   {switch}"
-        )
-        tabs = "  ".join(
-            f"[{n} {LABELS[k]}]" if k == self.kind else f"{n} {LABELS[k]}"
-            for n, k in enumerate(KINDS, 1)
-        )
-        self.query_one("#integration-tabs", Static).update(tabs)
+        """Set the title line and the tab line.
+
+        STEPS: the `#integration-title` Static shows `f"{LABELS[self.kind]}
+        ({len(self.rows)})   {switch}"` (three spaces) where `switch` is `"Kill switch:
+        unknown"` when `self.kill_switch is None`, `"! KILL SWITCH ON: nothing runs
+        (settings F9)"` when true, else `"Kill switch: off (settings F9)"`. The
+        `#integration-tabs` Static shows every kind as `f"{n} {LABELS[k]}"` for `n, k in
+        enumerate(KINDS, 1)`, the current one as `f"[{n} {LABELS[k]}]"`, all joined with two
+        spaces.
+        """
+        raise NotImplementedError
 
     def current(self) -> dict[str, Any] | None:
-        table = self.query_one("#integration-table", DataTable)
-        if not self.rows or not 0 <= table.cursor_row < len(self.rows):
-            return None
-        return self.rows[table.cursor_row]
+        """The highlighted row, or `None` when there is none.
+
+        STEPS: read `cursor_row` of `#integration-table`; return `self.rows[cursor_row]`
+        when `self.rows` is not empty and the row is in range, else `None`.
+        """
+        raise NotImplementedError
 
     def _describe(self) -> None:
-        detail = self.query_one("#integration-detail", Static)
-        row = self.current()
-        if row is None:
-            detail.update(f"No {LABELS[self.kind].lower()}.")
-            return
-        detail.update("\n".join(detail_lines(self.kind, row, self.names)))
+        """Fill the panel under the table with the highlighted row.
+
+        STEPS: query the `#integration-detail` Static. With no highlighted row set it to
+        `f"No {LABELS[self.kind].lower()}."`. Otherwise set it to the lines of
+        `detail_lines(self.kind, row, self.names)` joined with newlines.
+        """
+        raise NotImplementedError
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#integration-status", Static).update(("! " if error else "") + text)
@@ -189,53 +191,48 @@ class IntegrationScreen(ModalScreen[None]):
     # --- actions -------------------------------------------------------------------------
 
     def action_show_kind(self, index: int) -> None:
-        self.kind = KINDS[index]
-        self.rows = []
-        self.reload()
+        """Show the table at `index` of `KINDS`.
+
+        STEPS: set `self.kind = KINDS[index]`, `self.rows = []`, and call `self.reload()`.
+        """
+        raise NotImplementedError
 
     def action_next_kind(self, step: int) -> None:
-        self.action_show_kind((KINDS.index(self.kind) + step) % len(KINDS))
+        """Show the next (or, with a negative `step`, the previous) table, wrapping round.
+
+        STEPS: call `self.action_show_kind((KINDS.index(self.kind) + step) % len(KINDS))`.
+        """
+        raise NotImplementedError
 
     def action_switch(self) -> None:
-        row = self.current()
-        if row is None:
-            return
-        switch = SWITCHES.get(self.kind)
-        if switch is None:
-            self._say(f"{LABELS[self.kind]} are not switched here.")
-            return
-        if row.get("retired"):
-            self._say("This one is retired and cannot be switched.")
-            return
-        on, off, field, column = switch
-        enable = not row["enabled"]
-        name, extra = (on, {"enabled": enable}) if off is None else ((on if enable else off), {})
-        try:
-            self.client.integration_command(name, self.scope, **{field: row[column]}, **extra)
-        except CLIENT_ERRORS as exc:
-            self.reload()  # show what the row really is now
-            self._say(describe_error(exc), error=True)
-            return
-        self.reload()
-        self._say(f"{'Enabled' if enable else 'Disabled'} {cells(self.kind, row)[0]}")
+        """Switch the highlighted app, endpoint, rule or enricher on or off.
+
+        STEPS: take `row = self.current()` and stop when it is `None`. Take `switch =
+        SWITCHES.get(self.kind)`; when `None`, `self._say(f"{LABELS[self.kind]} are not
+        switched here.")` and stop. When `row.get("retired")`, `self._say("This one is
+        retired and cannot be switched.")` and stop. Unpack `on, off, field, column =
+        switch`; `enable = not row["enabled"]`. When `off is None` the command is `on` and
+        it takes the extra field `enabled=enable`; otherwise the command is `on` if `enable`
+        else `off` and there is no extra field. Call `self.client.integration_command(name,
+        self.scope, **{field: row[column]}, **extra)`. On a `CLIENT_ERRORS` error call
+        `self.reload()` (to show what the row really is now), then
+        `self._say(describe_error(exc), error=True)` and return. On success call
+        `self.reload()` and `self._say(f"{'Enabled' if enable else 'Disabled'}
+        {cells(self.kind, row)[0]}")`.
+        """
+        raise NotImplementedError
 
     def action_retry(self) -> None:
-        if self.kind != "deliveries":
-            self._say("Retry is on the error queue (key 7).")
-            return
-        row = self.current()
-        if row is None:
-            return
-        try:
-            self.client.integration_command(
-                "RetryInboundDelivery", self.scope, delivery_id=row["delivery_id"]
-            )
-        except CLIENT_ERRORS as exc:
-            self.reload()
-            self._say(describe_error(exc), error=True)
-            return
-        self.reload()
-        self._say("Queued the delivery again.")
+        """Queue the highlighted failed delivery again.
+
+        STEPS: when `self.kind != "deliveries"`, `self._say("Retry is on the error queue
+        (key 7).")` and stop. Take `row = self.current()` and stop when it is `None`. Call
+        `self.client.integration_command("RetryInboundDelivery", self.scope,
+        delivery_id=row["delivery_id"])`. On a `CLIENT_ERRORS` error call `self.reload()`,
+        then `self._say(describe_error(exc), error=True)` and return. On success call
+        `self.reload()` and `self._say("Queued the delivery again.")`.
+        """
+        raise NotImplementedError
 
     def action_reload(self) -> None:
         self.reload()
