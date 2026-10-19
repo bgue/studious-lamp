@@ -148,7 +148,7 @@ may explore: (none)
 just check
 uv run pytest packages/tl-modules/correspondence/tests/test_suggest.py -q
 ```
-Expected: `just check` clean; 10 passed on SQLite.
+Expected: `just check` clean; 14 passed on SQLite (the 10 provided tests plus 4 the supervisor appended after the merge, see *Decision*).
 
 ## Tests to add
 - `packages/tl-modules/correspondence/tests/test_suggest.py` is provided; it is the whole test of this ticket. Add no other test file.
@@ -165,4 +165,18 @@ Standard report (`docs/templates/haiku-report.md`), saved to `docs/reports/P1-I5
 (implementer writes here)
 
 ## Decision
-(supervisor or orchestrator writes here)
+Supervisor, 2026-10-18, after the merge (73e9dce). The implementer's code followed STEPS 4, which counted a keyword that two
+subtypes share once per subtype, while the docstring of `suggest` said *distinct* keywords. The code now follows the docstring:
+- **Shared word.** A keyword that two subtypes of one domain share counts once for the domain's score and once for each of the
+  two subtypes' own scores (the subtype is still chosen by its own score).
+- **Repeated triage keyword.** A word listed twice in a domain's `triage_keywords` counts once.
+- **Docstring.** `suggest` now says so in words.
+- **STEPS 5 fallback removed.** The branch that picked the lowest code when nothing matched and no `general` domain exists was
+  dead: the sorted leaders already give the lowest code. The mutation run showed no test could tell it from the plain line.
+- **Tests.** Four tests were appended to the provided file (shared word and repeated keyword, word edges, order independence
+  and the lowest code, the subject limit). The copy in `tests/test_suggest.py` is therefore **not** byte-identical to the
+  provided text, by design; the first 10 tests are.
+- **Known and intended: a word in both lists.** A word that is in a domain's `triage_keywords` *and* in one of its subtype lists
+  counts twice (the provided test pins `transmittal` at 2 + 2). `triage_keywords` say "this domain"; a subtype keyword says
+  "this kind of letter in this domain"; both agree for a word such as `transmittal`. It is documented in the `suggest`
+  docstring and not forbidden by the domain file check.

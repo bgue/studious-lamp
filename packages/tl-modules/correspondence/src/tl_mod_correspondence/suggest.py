@@ -55,7 +55,8 @@ def suggest(
 
     A domain's score is the sum of the weights of its distinct ``triage_keywords`` and of the
     distinct keywords of all its subtypes (a word that two subtypes share counts once for the
-    domain, and for each of the two subtypes). Its subtype is the one with the highest keyword
+    domain, and for each of the two subtypes; a word in the domain's ``triage_keywords`` and in a
+    subtype's list counts in each list). Its subtype is the one with the highest keyword
     score; a tie, or no match, gives the domain's ``default_subtype``.
     """
     if not domains:
