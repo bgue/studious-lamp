@@ -28,9 +28,9 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field, field_validator
 from tl_core.auth.queries import find_account
-from tl_core.ledger import NewEvent
+from tl_core.ledger import AppendResult, NewEvent
 from tl_core.services.commands import Command, CommandResult
-from tl_core.services.errors import NoChangesError
+from tl_core.services.errors import NoChangesError, RecordNotFoundError
 from tl_core.uow import UnitOfWork
 
 from tl_mod_correspondence import registry
@@ -183,39 +183,62 @@ def handle_set_confidentiality(
     )
 
 
-def handle_grant_clearance(uow: UnitOfWork, cmd: GrantClearance) -> CommandResult:
-    """Append ``Correspondence.ClearanceGranted``. ``ClearanceError`` unless the item is
-    privileged, the account an active person, and not already named."""
-    cmd = correlated(cmd)
-    item = load_item_for_control(uow, cmd, cmd.stream_id)
+def _privileged_for_control(uow: UnitOfWork, cmd: Command, item_id: str) -> registry.ItemRow:
+    """The item of a grant or withdraw, which a controller may run on an item they cannot read.
+
+    Anything that is not a privileged item of the scope (unknown, foreign, or of a class the caller
+    may not read: restricted to a plain viewer, a class nobody knows) answers the one
+    ``RecordNotFoundError`` an unknown id gets, so the path shows an uncleared controller nothing
+    about the item: not its number, not its class. An item the caller may read and that is not
+    privileged gets a ``ClearanceError`` that says so.
+    """
+    item = load_item_for_control(uow, cmd, item_id)
     if item.confidentiality != "privileged":
-        raise ClearanceError(f"item {item.number} is {item.confidentiality}, not privileged")
-    require_person(uow, cmd.account)
-    named = registry.clearances_of(uow.conn(), item.id, for_control=True)
-    if any(row.account == cmd.account for row in named):
-        raise ClearanceError(f"{cmd.account} is already named on item {item.number}")
-    if len(named) >= MAX_CLEARANCES:
-        raise ClearanceError(f"at most {MAX_CLEARANCES} accounts may be named on an item")
-    done = append(uow, cmd, item.id, CORRESPONDENCE, granted_events([cmd.account], cmd.reason))
+        if registry.get_item(uow.conn(), item.id) is not None:  # one the caller may read: say so
+            raise ClearanceError(f"item {item.number} is {item.confidentiality}, not privileged")
+        raise RecordNotFoundError(f"no record {item_id!r}")
+    return item
+
+
+def _result(uow: UnitOfWork, item: registry.ItemRow, done: AppendResult) -> CommandResult:
+    """The id and the new version; the number only to someone who may read the item."""
+    readable = registry.get_item(uow.conn(), item.id) is not None
     return CommandResult(
-        stream_id=item.id, key=item.number, version=done.new_version, events=list(done.events)
+        stream_id=item.id,
+        key=item.number if readable else None,
+        version=done.new_version,
+        events=list(done.events),
     )
 
 
-def handle_withdraw_clearance(uow: UnitOfWork, cmd: WithdrawClearance) -> CommandResult:
-    """Append ``Correspondence.ClearanceWithdrawn``. ``ClearanceError`` unless the item is
-    privileged and the account is named; the last account cannot be withdrawn."""
+def handle_grant_clearance(uow: UnitOfWork, cmd: GrantClearance) -> CommandResult:
+    """Append ``Correspondence.ClearanceGranted``. ``ClearanceError`` unless the account is an
+    active person and not already named; ``RecordNotFoundError`` unless the item is a privileged
+    one of the scope (the same answer for every other case, so a controller who cannot read the
+    item learns nothing of it)."""
     cmd = correlated(cmd)
-    item = load_item_for_control(uow, cmd, cmd.stream_id)
-    if item.confidentiality != "privileged":
-        raise ClearanceError(f"item {item.number} is {item.confidentiality}, not privileged")
+    item = _privileged_for_control(uow, cmd, cmd.stream_id)
+    require_person(uow, cmd.account)
+    named = registry.clearances_of(uow.conn(), item.id, for_control=True)
+    if any(row.account == cmd.account for row in named):
+        raise ClearanceError(f"{cmd.account} is already named on this item")
+    if len(named) >= MAX_CLEARANCES:
+        raise ClearanceError(f"at most {MAX_CLEARANCES} accounts may be named on an item")
+    done = append(uow, cmd, item.id, CORRESPONDENCE, granted_events([cmd.account], cmd.reason))
+    return _result(uow, item, done)
+
+
+def handle_withdraw_clearance(uow: UnitOfWork, cmd: WithdrawClearance) -> CommandResult:
+    """Append ``Correspondence.ClearanceWithdrawn``. ``ClearanceError`` unless the account is
+    named; the last account cannot be withdrawn. ``RecordNotFoundError`` as for a grant."""
+    cmd = correlated(cmd)
+    item = _privileged_for_control(uow, cmd, cmd.stream_id)
     named = registry.clearances_of(uow.conn(), item.id, for_control=True)
     if all(row.account != cmd.account for row in named):
-        raise ClearanceError(f"{cmd.account} is not named on item {item.number}")
+        raise ClearanceError(f"{cmd.account} is not named on this item")
     if len(named) == 1:
         raise ClearanceError(
-            f"{cmd.account} is the last account named on item {item.number}; change its class "
-            "instead"
+            f"{cmd.account} is the last account named on this item; change its class instead"
         )
     done = append(
         uow,
@@ -229,9 +252,7 @@ def handle_withdraw_clearance(uow: UnitOfWork, cmd: WithdrawClearance) -> Comman
             )
         ],
     )
-    return CommandResult(
-        stream_id=item.id, key=item.number, version=done.new_version, events=list(done.events)
-    )
+    return _result(uow, item, done)
 
 
 def inherited_class(

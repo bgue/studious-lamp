@@ -407,3 +407,40 @@ def test_the_answer_of_a_sweep_holds_only_what_its_runner_may_read(world: CorrWo
     with frozen_today("2026-11-10"), open_uow(world.db) as uow:  # and the runner is told the count
         again = handlers_clocks.sweep_clocks(uow, handlers_clocks.SweepClocks(**BASE))
     assert again.events == [] and again.hidden_events == 0  # nothing left to do the second time
+
+
+def test_a_controller_who_cannot_read_an_item_learns_nothing_from_grant_or_withdraw(
+    world: CorrWorld,
+) -> None:
+    _people(world)
+    privileged = _privileged(world)
+    with frozen_today(MONDAY):
+        restricted = world.receive("Terms").stream_id
+        bogus = world.forge_item("P123-COR-0077", confidentiality="bogus")
+    with cf.use_viewer(CTL):
+        world.set_class(restricted, "restricted")
+    plain_ctl = cf.Viewer(actor="user:other", level=0, account="user:other")
+    other = cf.Viewer(actor="user:other", level=1, account="user:other")
+    unknown = "01J000000000000000000000"
+
+    def text(item: str, act: str, viewer: cf.Viewer) -> str:
+        with cf.use_viewer(viewer):
+            try:
+                getattr(world, act)(item, "user:newcomer")
+            except Exception as exc:
+                return f"{type(exc).__name__}: {exc}".replace(item, "ID")
+        return "ok"
+
+    for act in ("grant", "withdraw"):
+        # a class nobody knows and an unknown id read the same to a controller; so does an item
+        # of a class above the plain viewer
+        assert text(bogus, act, other) == text(unknown, act, other)
+        assert text(restricted, act, plain_ctl) == text(unknown, act, plain_ctl)
+    # the messages of a privileged item do not carry its number
+    with cf.use_viewer(other):
+        world.grant(privileged, "user:newcomer")
+        with pytest.raises(ClearanceError) as seen:
+            world.grant(privileged, "user:newcomer")
+        result = world.withdraw(privileged, "user:boss")
+    assert "COR-" not in str(seen.value)
+    assert result.key is None  # the number goes to someone who may read the item, not to this one
