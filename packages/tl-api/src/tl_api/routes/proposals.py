@@ -11,14 +11,16 @@ model (ADR-0005).
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, Header, Query
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from tl_core.auth.types import Principal
 from tl_core.proposals.types import ProposalStatus, ProposalView
 from tl_core.services import proposals
+from tl_core.services.reserved import refuse_role_claim
 from tl_core.util import effective_time
+from tl_core.workflow.roles import workflow_roles
 
 from tl_api.auth import current_principal, guard
 from tl_api.context import ApiContext, get_ctx
@@ -39,11 +41,14 @@ class AcceptBody(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    roles: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(
-        default_factory=list,
-        max_length=20,
-        description="Workflow roles the accepting person holds (a stub until auth, brief 8).",
-    )
+    @model_validator(mode="before")
+    @classmethod
+    def _no_role_claim(cls, data: Any) -> Any:
+        """The accepting person's workflow roles come from the account, never from the body."""
+        if isinstance(data, dict):
+            refuse_role_claim(cast(dict[str, Any], data), frozenset({"roles", "actor_roles"}))
+        return data
+
     accept_risk: bool = Field(
         default=False,
         description='"I accept the risk": needed to accept a change to a `dangerous` setting.',
@@ -128,7 +133,6 @@ def accept_proposal(
     (ADR-0014): a publication into tags the admin role, into documents the document controller or
     admin role. Anyone else gets 403 `proposal_access` and the proposal stays pending.
     """
-    roles = body.roles if body is not None else []
     accept_risk = body.accept_risk if body is not None else False
     when = simulated_time(ctx, proposal_id, effective_at)
     with effective_time(when):
@@ -136,7 +140,7 @@ def accept_proposal(
             ctx.backend,
             proposal_id=proposal_id,
             by=actor,
-            roles=roles,
+            roles=workflow_roles(principal),
             accept_risk=accept_risk,
             source=API_SOURCE,
             holds=lambda level: holds_access(principal, actor, level),

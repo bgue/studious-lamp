@@ -110,6 +110,9 @@ class FakeLinkSupport:
         self.workflow = FAKE_WORKFLOW
         self.key_patterns: list[NumberingPattern] = [KEY_PATTERN]
         self.link_commands: list[Any] = []
+        # The workflow roles of the signed-in account, as the server (or the embedded client)
+        # would derive them (P1-SEC1). The client never sends roles; a test sets this instead.
+        self.account_roles: tuple[str, ...] = ()
 
     # --- helpers ----------------------------------------------------
 
@@ -536,13 +539,13 @@ class FakeLinkSupport:
                 results.append(GuardResult(kind=guard.kind, passed=True, message="ok (fake)"))
         return results
 
-    def workflow_status(self, record_id: str, *, roles: Sequence[str] = ()) -> WorkflowStatus:
+    def workflow_status(self, record_id: str) -> WorkflowStatus:
         self._host().calls.append("workflow_status")
         record = self._record(record_id)
         state = record["status"] or self.workflow.initial_state
         options = []
         for transition in self.workflow.transitions_from(state):
-            guards = self._guards(record, transition.to, transition.guards, roles)
+            guards = self._guards(record, transition.to, transition.guards, self.account_roles)
             options.append(
                 TransitionOption(
                     transition=transition.name,
@@ -577,7 +580,7 @@ class FakeLinkSupport:
         transition = self.workflow.transition(cmd.transition)
         if transition is None or state not in transition.from_states:
             raise UnknownTransitionError(f"transition {cmd.transition!r} cannot start in {state!r}")
-        results = self._guards(record, transition.to, transition.guards, cmd.actor_roles)
+        results = self._guards(record, transition.to, transition.guards, self.account_roles)
         failed = [r for r in results if not r.passed]
         if failed:
             raise GuardFailedError(

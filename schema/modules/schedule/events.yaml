@@ -1,0 +1,340 @@
+id: https://example.org/throughline/modules/schedule/events
+name: tl_mod_schedule_events
+title: Schedule module events
+description: >-
+  The ledger events of the schedule module (brief 18.3), one class per event type, in the same form as
+  `schema/core/events.yaml`. A schedule, a snapshot or an activity reference is created by
+  `Record.Created` followed in the same append by its `*.Defined` event. A snapshot is also the job
+  record of its build: `ScheduleSnapshot.Queued`, `BuildStarted`, `BuildFailed`, then `Built` or
+  `Rejected`. The typed rows of a snapshot are never payloads: the events carry counts and hashes.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+default_range: string
+annotations:
+  tl:module: schedule
+
+classes:
+  ScheduleDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A schedule was registered.
+    annotations:
+      tl:event_type: Schedule.Defined
+      tl:event_version: "1"
+    attributes:
+      code:
+        description: "The schedule's code."
+        required: true
+      schedule_type:
+        description: "baseline, current, look_ahead or what_if."
+        required: true
+      owner:
+        description: "Who owns it."
+      p6_project:
+        description: "The P6 project short name to read, or null."
+    examples:
+      - value: "{\"code\": \"MAIN\", \"owner\": \"Planning\", \"p6_project\": \"DEMO-RACK\", \"schedule_type\": \"current\"}"
+  ScheduleSnapshotPublishedPayload:
+    is_a: EventPayload
+    description: >-
+      A snapshot became the schedule's current one. Written on the schedule's stream.
+    annotations:
+      tl:event_type: Schedule.SnapshotPublished
+      tl:event_version: "1"
+    attributes:
+      snapshot_id:
+        description: "The published snapshot."
+        required: true
+      snapshot_number:
+        description: "Its number."
+        range: integer
+        required: true
+      data_date:
+        description: "Its data date."
+        required: true
+      previous_snapshot_id:
+        description: "The snapshot that was current before, or null."
+      orphan_check_queued:
+        description: "True: a job (schedule.flag_orphans) was queued to flag the links to activities that are not in the snapshot and to restore the ones that came back. Its events (Schedule.OrphansChecked) carry the totals."
+        range: boolean
+        required: true
+    examples:
+      - value: "{\"data_date\": \"2026-10-12T08:00\", \"orphan_check_queued\": true, \"previous_snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"snapshot_number\": 2}"
+  ScheduleOrphansCheckedPayload:
+    is_a: EventPayload
+    description: >-
+      One run of the job that makes the links to a schedule's activities agree with its current snapshot
+      (ADR-0015 section 5): activity references whose presence changed, links flagged stale (their activity
+      is gone) and links restored (it came back). Written on the schedule's stream. A run does a bounded
+      amount of work; complete is false when more is left and another run is queued.
+    annotations:
+      tl:event_type: Schedule.OrphansChecked
+      tl:event_version: "1"
+    attributes:
+      snapshot_id:
+        description: "The current snapshot the run made the links agree with."
+        required: true
+      snapshot_number:
+        description: "Its number."
+        range: integer
+        required: true
+      refs_changed:
+        description: "Activity references whose presence was changed in this run."
+        range: integer
+        required: true
+      links_flagged:
+        description: "Links flagged stale in this run."
+        range: integer
+        required: true
+      links_restored:
+        description: "Links restored in this run."
+        range: integer
+        required: true
+      complete:
+        description: "True when nothing is left to do for this snapshot."
+        range: boolean
+        required: true
+    examples:
+      - value: "{\"complete\": true, \"links_flagged\": 1, \"links_restored\": 0, \"refs_changed\": 1, \"snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"snapshot_number\": 2}"
+  ScheduleSnapshotDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A snapshot was opened for a schedule; the XER file is attached next.
+    annotations:
+      tl:event_type: ScheduleSnapshot.Defined
+      tl:event_version: "1"
+    attributes:
+      schedule_id:
+        description: "The schedule."
+        required: true
+      schedule_code:
+        description: "Its code."
+        required: true
+      number:
+        description: "The snapshot's number in the schedule."
+        range: integer
+        required: true
+      p6_project_option:
+        description: "The P6 project asked for, or null."
+    examples:
+      - value: "{\"number\": 1, \"p6_project_option\": null, \"schedule_code\": \"MAIN\", \"schedule_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+  ScheduleSnapshotQueuedPayload:
+    is_a: EventPayload
+    description: >-
+      The build of a snapshot was queued: the XER file is fixed.
+    annotations:
+      tl:event_type: ScheduleSnapshot.Queued
+      tl:event_version: "1"
+    attributes:
+      source_file_id:
+        description: "The XER file."
+        required: true
+      source_name:
+        description: "Display name of the file."
+        required: true
+      source_sha256:
+        description: "SHA-256 of the file."
+        required: true
+      source_size:
+        description: "Bytes."
+        range: integer
+        required: true
+      requested_by:
+        description: "The actor who asked."
+        required: true
+    examples:
+      - value: "{\"requested_by\": \"user:demo\", \"source_file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"source_name\": \"rack-2026-10-05.xer\", \"source_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"source_size\": 7496}"
+  ScheduleSnapshotBuildStartedPayload:
+    is_a: EventPayload
+    description: >-
+      A worker claimed the build.
+    annotations:
+      tl:event_type: ScheduleSnapshot.BuildStarted
+      tl:event_version: "1"
+    attributes:
+      attempt:
+        description: "Attempt number."
+        range: integer
+        required: true
+      worker:
+        description: "The worker's id."
+        required: true
+      lease_until:
+        description: "ISO-8601 UTC; the claim expires here."
+        required: true
+    examples:
+      - value: "{\"attempt\": 1, \"lease_until\": \"2026-10-17T10:05:00Z\", \"worker\": \"host:1:abcdef\"}"
+  ScheduleSnapshotBuildFailedPayload:
+    is_a: EventPayload
+    description: >-
+      A build attempt failed (a limit breach, a crash, a lease that ran out).
+    annotations:
+      tl:event_type: ScheduleSnapshot.BuildFailed
+      tl:event_version: "1"
+    attributes:
+      attempt:
+        description: "Attempt number."
+        range: integer
+        required: true
+      error_code:
+        description: "A short fixed code."
+        required: true
+      error_message:
+        description: "Words for a person; no paths, no trace."
+        required: true
+      final:
+        description: "True when no attempt is left."
+        range: boolean
+        required: true
+      retry_at:
+        description: "ISO-8601 UTC of the next attempt, or null."
+    examples:
+      - value: "{\"attempt\": 1, \"error_code\": \"xer_limit\", \"error_message\": \"reading the XER file broke the resource limits\", \"final\": true, \"retry_at\": null}"
+  ScheduleSnapshotBuiltPayload:
+    is_a: EventPayload
+    description: >-
+      The file was read and passed the XER document schema; the typed rows were written. The snapshot is Valid.
+    annotations:
+      tl:event_type: ScheduleSnapshot.Built
+      tl:event_version: "1"
+    attributes:
+      data_date:
+        description: "The project's data date, ISO local date-time."
+        required: true
+      p6_version:
+        description: "The P6 version of the file."
+        required: true
+      p6_project:
+        description: "The P6 project short name that was read."
+        required: true
+      counts:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Rows per typed table: activities, relationships, wbs, calendars, codes, udfs."
+        required: true
+      warning_count:
+        description: "Warnings of the check."
+        range: integer
+        required: true
+      typed_sha256:
+        description: "SHA-256 of the canonical typed rows."
+        required: true
+      raw_sha256:
+        description: "SHA-256 of the uncompressed raw tables."
+        required: true
+      report_file_id:
+        description: "The check report file."
+        required: true
+      raw_file_id:
+        description: "The raw tables file."
+        required: true
+    examples:
+      - value: "{\"counts\": {\"activities\": 21, \"calendars\": 1, \"codes\": 21, \"relationships\": 23, \"udfs\": 12, \"wbs\": 4}, \"data_date\": \"2026-10-05T08:00\", \"p6_project\": \"DEMO-RACK\", \"p6_version\": \"20.12\", \"raw_file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"raw_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"report_file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"typed_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"warning_count\": 0}"
+  ScheduleSnapshotRejectedPayload:
+    is_a: EventPayload
+    description: >-
+      The file was read and is not a valid schedule snapshot (or could not be read): the snapshot is Invalid and no rows were written.
+    annotations:
+      tl:event_type: ScheduleSnapshot.Rejected
+      tl:event_version: "1"
+    attributes:
+      outcome:
+        description: "invalid (read, but it fails the document schema) or refused (could not be read)."
+        required: true
+      error_count:
+        description: "Errors."
+        range: integer
+        required: true
+      warning_count:
+        description: "Warnings."
+        range: integer
+        required: true
+      first_codes:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "The codes of the first problems."
+        required: true
+      report_file_id:
+        description: "The report file."
+        required: true
+    examples:
+      - value: "{\"error_count\": 1, \"first_codes\": [\"missing_table\"], \"outcome\": \"invalid\", \"report_file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"warning_count\": 0}"
+  ScheduleSnapshotMadeCurrentPayload:
+    is_a: EventPayload
+    description: >-
+      A snapshot was made the schedule's current one. Written on the snapshot's stream next to the workflow move.
+    annotations:
+      tl:event_type: ScheduleSnapshot.MadeCurrent
+      tl:event_version: "1"
+    attributes:
+      previous_snapshot_id:
+        description: "The snapshot that was current before, or null."
+      orphan_check_queued:
+        description: "True: the job that flags and restores the links to activities was queued."
+        range: boolean
+        required: true
+    examples:
+      - value: "{\"orphan_check_queued\": true, \"previous_snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+  ActivityRefDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      The first link to an activity made its reference.
+    annotations:
+      tl:event_type: ActivityRef.Defined
+      tl:event_version: "1"
+    attributes:
+      schedule_id:
+        description: "The schedule."
+        required: true
+      schedule_code:
+        description: "Its code."
+        required: true
+      activity_id:
+        description: "The P6 activity id."
+        required: true
+      first_snapshot_id:
+        description: "The snapshot that had the activity."
+        required: true
+      first_snapshot_number:
+        description: "Its number."
+        range: integer
+        required: true
+    examples:
+      - value: "{\"activity_id\": \"A1230\", \"first_snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"first_snapshot_number\": 1, \"schedule_code\": \"MAIN\", \"schedule_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+  ActivityRefPresencePayload:
+    is_a: EventPayload
+    description: >-
+      A publication found the activity gone from the schedule (present false) or back (present true).
+    annotations:
+      tl:event_type: ActivityRef.PresenceChanged
+      tl:event_version: "1"
+    attributes:
+      present:
+        description: "Whether the published snapshot has the activity."
+        range: boolean
+        required: true
+      snapshot_id:
+        description: "The snapshot that was published."
+        required: true
+      snapshot_number:
+        description: "Its number."
+        range: integer
+        required: true
+      last_seen_snapshot_id:
+        description: "The latest published snapshot that had the activity."
+        required: true
+      last_seen_number:
+        description: "Its number."
+        range: integer
+        required: true
+    examples:
+      - value: "{\"last_seen_number\": 1, \"last_seen_snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"present\": false, \"snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"snapshot_number\": 2}"

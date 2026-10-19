@@ -1,0 +1,79 @@
+id: https://example.org/throughline/modules/schedule/activity_ref
+name: tl_mod_schedule_activity_ref
+title: Activity references (brief 7, 9 M11)
+description: >-
+  An `ActivityRef` is the stable target of links to a P6 activity: one record per activity id of a
+  schedule, made the first time something links to it. A link points at the reference, never at a
+  snapshot row, so it resolves to the current snapshot's activity and can be read as of an earlier
+  one. `present` says whether the current snapshot still has the activity. Spec:
+  docs/modules/schedule/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: schedule
+
+classes:
+  ActivityRef:
+    description: >-
+      The reference to one activity of one schedule. Record type `schedule.ActivityRef`; its key is
+      `<schedule code>/<activity id>` (`MAIN/A1230`).
+    annotations:
+      tl:current_state: true
+      tl:record_types: "schedule.ActivityRef"
+      tl:ix_scope_schedule: "scope, schedule_id"
+    unique_keys:
+      schedule_activity:
+        description: An activity id has one reference per schedule.
+        unique_key_slots:
+          - schedule_id
+          - activity_id
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      schedule_id:
+        range: Ulid
+        required: true
+        description: The schedule.
+      schedule_code:
+        required: true
+        description: Its code, copied.
+      activity_id:
+        required: true
+        description: The P6 activity id (`task_code`).
+      first_snapshot_id:
+        range: Ulid
+        required: true
+        description: The snapshot that had the activity when the reference was made.
+      first_snapshot_number:
+        range: integer
+        required: true
+        description: Its number.
+      present:
+        range: boolean
+        required: true
+        ifabsent: "true"
+        description: True while the schedule's current snapshot has the activity; false once a publication found it gone.
+      last_seen_snapshot_id:
+        range: Ulid
+        description: The latest published snapshot that had the activity.
+      last_seen_number:
+        range: integer
+        description: Its number.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

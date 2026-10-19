@@ -1,0 +1,28 @@
+id: https://example.org/throughline/modules/cost
+name: tl_mod_cost
+title: "The cost module (M11, cost code mirror and period snapshots)"
+description: >-
+  A mirror of the cost codes of the external cost system and of the figures it reports per period
+  (brief 9, M11). The source of truth stays outside: this module keeps time-stamped copies. A
+  `CostCode` is registered once under its code, with its hierarchy and unit of measure, and carries
+  the latest measure matrix (hours, quantity and amount, each as budget, actual, earned, forecast to
+  complete and estimate at completion) with the date it is as of. A `CostSnapshot` is one imported
+  period; the figures of every snapshot are kept per code (`CostSnapshotValue`), so a report can say
+  what the matrix was at an earlier period.
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` and a row of
+  the module's own current-state table, joined on `id`. Module spec: docs/modules/cost/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - cost_code
+  - cost_snapshot
+  - events
+default_range: string
+annotations:
+  tl:module: cost

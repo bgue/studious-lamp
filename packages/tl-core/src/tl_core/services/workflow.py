@@ -8,6 +8,7 @@ every guard of the transition passes. A record whose ``status`` is null is in th
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from typing import Any
 
 from pydantic import BaseModel
@@ -42,8 +43,8 @@ class TransitionWorkflow(Command):
     stream_id: str
     expected_version: int
     transition: str
-    # Roles the caller holds. A stub until auth exists (brief 8): the list is taken on trust.
-    actor_roles: list[str] = []
+    # No roles here: the caller's roles are an argument of the handler, derived from the
+    # authenticated account (``tl_core.workflow.roles``), never a field a client can set.
     reason: str | None = None
 
 
@@ -150,7 +151,11 @@ def workflow_status(
 
 
 def handle_transition_workflow(
-    uow: UnitOfWork, cmd: TransitionWorkflow, *, by_module: bool = False
+    uow: UnitOfWork,
+    cmd: TransitionWorkflow,
+    *,
+    by_module: bool = False,
+    roles: Sequence[str] = (),
 ) -> CommandResult:
     """Run one transition if its guards pass; otherwise raise and write nothing.
 
@@ -158,6 +163,11 @@ def handle_transition_workflow(
     and has already checked its rules, so the type's generic-command allow-list (ADR-0010
     addendum) does not apply. It is a Python argument, not a field of the command, so no client
     can set it; the guards still run.
+
+    ``roles`` are the workflow roles of the person the command runs for, derived from the
+    authenticated account by the entry point (``tl_core.workflow.roles.workflow_roles``). Like
+    ``by_module`` it is a Python argument, so no client can set it; the default is no roles, which
+    fails every ``roles`` guard (ADR-0013, addendum P1-SEC1).
 
     Raises ``RecordNotFoundError``, ``RecordVoidedError``, ``NoWorkflowError``,
     ``InvalidStateError``, ``UnknownTransitionError`` (no such transition, or not from the current
@@ -187,7 +197,7 @@ def handle_transition_workflow(
 
     facts = _facts(uow, row)
     today = utcnow().date()
-    results = evaluate_guards(uow, facts, transition, roles=cmd.actor_roles, today=today)
+    results = evaluate_guards(uow, facts, transition, roles=roles, today=today)
     failed = [r for r in results if not r.passed]
     if failed:
         raise GuardFailedError(

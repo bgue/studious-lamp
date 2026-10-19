@@ -134,9 +134,9 @@ code="$(curl -s -o "$root/refused.json" -w '%{http_code}' -X POST -H "Authorizat
 echo "POST /commands/CreateRecord as the agent -> $code $(json "print(d['error'])" <"$root/refused.json")"
 [ "$code" = 403 ]
 code="$(curl -s -o "$root/refused.json" -w '%{http_code}' -X POST -H "Authorization: Bearer $agent_token" \
-  -H 'content-type: application/json' -d '{"roles":[]}' "$TL_API_URL/proposals/$proposal/accept")"
-echo "POST /proposals/<id>/accept as the agent -> $code"
-[ "$code" -ge 400 ]
+  -H 'content-type: application/json' -d '{}' "$TL_API_URL/proposals/$proposal/accept")"
+echo "POST /proposals/<id>/accept as the agent -> $code $(json "print(d['error'])" <"$root/refused.json")"
+[ "$code" = 403 ]
 
 step "B: a person accepts it from the CLI; the link is made by that person on the agent's say"
 out="$(tl proposal accept "$proposal" --actor user:sim-approver)"

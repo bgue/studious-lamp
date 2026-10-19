@@ -23,6 +23,7 @@ from tl_core.ledger import ConcurrencyError
 from tl_core.query import QuerySyntaxError
 from tl_core.services import errors as svc
 from tl_core.workflow.engine import GuardResult
+from tl_mod_cost import errors as cost
 
 
 def all_service_errors() -> set[type[Exception]]:
@@ -65,6 +66,10 @@ def build(exc_class: type[Exception]) -> Exception:
         return svc.GuardFailedError("blocked", [GuardResult(kind="k", passed=False, message="m")])
     if exc_class is svc.PsetValidationError:
         return svc.PsetValidationError("invalid", ["a is wrong"])
+    if exc_class is cost.CostFileError:
+        return cost.CostFileError("bad_number", "something specific", 7)
+    if exc_class is cost.CostImportRefusedError:
+        return cost.CostImportRefusedError("something specific", ["row 3: wrong"])
     return exc_class("something specific")
 
 
@@ -132,3 +137,15 @@ def test_a_failing_extractor_load_is_a_fixed_503_that_names_nothing() -> None:
     status, body = body_for(ExtractorLoadError("extractor 'x' cannot be loaded: /home/u/secret.py"))  # type: ignore[misc]
     assert status == 503 and body.error == "extractor_unavailable"
     assert body.message == EXTRACTOR_UNAVAILABLE and "secret" not in body.message
+
+
+def test_a_cost_file_error_keeps_its_code_and_row_and_an_import_refusal_its_issues() -> None:
+    status, body = body_for(cost.CostFileError("bad_number", "row 7: no", 7)) or (0, None)
+    assert status == 422 and body is not None and body.issues == [{"code": "bad_number", "row": 7}]
+    rebuilt = exception_for(status, body.model_dump(mode="json", exclude_none=True))
+    assert isinstance(rebuilt, cost.CostFileError)
+    assert (rebuilt.code, rebuilt.row, str(rebuilt)) == ("bad_number", 7, "row 7: no")
+    whole = exception_for(422, {"error": "cost_file", "message": "the file is empty"})
+    assert isinstance(whole, cost.CostFileError) and (whole.code, whole.row) == ("cost_file", None)
+    refused = body_for(cost.CostImportRefusedError("refused", ["a", "b"]))
+    assert refused is not None and refused[1].issues == ["a", "b"]

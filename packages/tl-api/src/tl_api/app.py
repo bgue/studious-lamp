@@ -48,6 +48,7 @@ from tl_api.routes import (
     admin,
     auth,
     correspondence,
+    cost,
     derivation,
     documents,
     engineering,
@@ -59,6 +60,7 @@ from tl_api.routes import (
     proposals,
     records,
     reference,
+    schedule,
 )
 from tl_api.routes import feed as feed_routes
 from tl_api.routes import settings as settings_routes
@@ -272,6 +274,8 @@ def create_app(
         documents,
         derivation,
         correspondence,
+        schedule,
+        cost,
     ):
         app.include_router(module.router)
     app.include_router(commands.router)

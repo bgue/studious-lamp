@@ -14,7 +14,9 @@ pattern, so a ``#SIMR3FA91C-REC-0007`` in a post resolves to its record.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import tempfile
+from dataclasses import asdict
+from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 import httpx2
@@ -28,11 +30,15 @@ from tl_core.services.workflow import TransitionWorkflow
 from tl_mod_documents.handlers.documents import RegisterDocument
 from tl_mod_documents.handlers.revisions import CreateRevision
 from tl_mod_engineering.handlers.tags import CreateTag, RenameTag
+from tl_mod_schedule.handlers.activity import LinkActivity
+from tl_mod_schedule.handlers.snapshots import OpenScheduleSnapshot, StartScheduleSnapshot
+from tl_mod_schedule.views import ActivityPage, ScheduleDetailView, ScheduleView
 
 from tl_sim.clock import SimClock
 
 EFFECTIVE_AT_HEADER = "X-TL-Effective-At"
 RECORD_TYPE_CODE = "REC"  # the only record type in Phase 0 (core.Record)
+XER_CONTENT_TYPE = "application/octet-stream"  # a guess from ".xer" would be an XML type
 MAX_QUERY = 5000  # the API's page limit
 PROPOSAL_LIMIT = 500  # the proposals route's maximum (`le=500`); the queue is worked every day
 
@@ -59,6 +65,23 @@ class ApiLike(Protocol):
     def rename_tag(self, cmd: RenameTag) -> CommandResult: ...
     def register_document(self, cmd: RegisterDocument) -> CommandResult: ...
     def create_revision(self, cmd: CreateRevision) -> CommandResult: ...
+    def open_schedule_snapshot(self, cmd: OpenScheduleSnapshot) -> CommandResult: ...
+    def start_schedule_snapshot(self, cmd: StartScheduleSnapshot) -> CommandResult: ...
+    def link_activity(self, cmd: LinkActivity) -> CommandResult: ...
+    def upload_file(
+        self,
+        scope: str,
+        record_id: str,
+        path: Path,
+        *,
+        slot: str | None = None,
+        content_type: str | None = None,
+    ) -> Any: ...
+    def list_schedules(self, project: str) -> list[ScheduleView]: ...
+    def get_schedule(self, project: str, code: str) -> ScheduleDetailView: ...
+    def list_activities(
+        self, project: str, code: str, *, snapshot: int | None = None, limit: int = 200
+    ) -> ActivityPage: ...
     def get_record_by_id(self, record_id: str) -> dict[str, Any] | None: ...
     def query_records(
         self, scope: str, q: str, *, limit: int = 500, offset: int = 0
@@ -71,7 +94,7 @@ class ApiLike(Protocol):
         agent: str | None = None,
         limit: int = 200,
     ) -> list[ProposalView]: ...
-    def accept_proposal(self, proposal_id: str, *, roles: Sequence[str] = ()) -> ProposalView: ...
+    def accept_proposal(self, proposal_id: str) -> ProposalView: ...
     def reject_proposal(self, proposal_id: str, reason: str) -> ProposalView: ...
 
 
@@ -100,6 +123,28 @@ class DocumentDesk(Protocol):
         self, number: str, title: str, doc_type: str, discipline: str
     ) -> dict[str, Any]: ...
     def start_revision(self, document_id: str, purpose: str) -> dict[str, Any]: ...
+
+
+@runtime_checkable
+class ScheduleDesk(Protocol):
+    """What a person who sends the weekly P6 update needs besides ``SimClient`` (P1-I4).
+
+    Opening a snapshot, attaching the file and queueing the build are any signed-in person's acts
+    (ADR-0015 section 7); defining a schedule and publishing a snapshot are a controller's, which a
+    simulated person is not, so neither is here.
+    """
+
+    def schedules(self) -> list[dict[str, Any]]: ...
+    def snapshots_of(self, code: str) -> list[dict[str, Any]]: ...
+    def current_activities(self, code: str, *, limit: int = 200) -> list[dict[str, Any]]: ...
+    def open_snapshot(self, schedule_id: str) -> dict[str, Any]: ...
+    def attach_snapshot_file(
+        self, snapshot_id: str, filename: str, data: bytes
+    ) -> dict[str, Any]: ...
+    def start_snapshot(self, snapshot_id: str) -> dict[str, Any]: ...
+    def link_activity(
+        self, record_id: str, schedule_id: str, activity_id: str
+    ) -> dict[str, Any]: ...
 
 
 class Keys:
@@ -132,7 +177,13 @@ def connect(base_url: str, token: str, clock: SimClock, *, timeout: float = 30.0
 
 
 class HttpSimClient:
-    """A ``SimClient`` for one actor of one run."""
+    """A ``SimClient`` for one actor of one run.
+
+    It sends no workflow roles and cannot be given any: the suite derives them from the account
+    behind the actor's token (ADR-0013, addendum P1-SEC1). A simulated person's token is a dev token
+    and carries the `user` role only, so a role-guarded transition is refused for it; a person who
+    must pass one signs in as an account that holds the role.
+    """
 
     def __init__(
         self,
@@ -143,7 +194,6 @@ class HttpSimClient:
         clock: SimClock,
         keys: Keys,
         identity: str,
-        roles: Sequence[str] = (),
         mcp: McpCaller | None = None,
     ) -> None:
         self._api = api
@@ -152,7 +202,6 @@ class HttpSimClient:
         self._clock = clock
         self._keys = keys
         self._identity = identity
-        self._roles = list(roles)
         self._mcp = mcp
 
     def _common(self) -> dict[str, Any]:
@@ -206,7 +255,6 @@ class HttpSimClient:
             stream_id=record_id,
             expected_version=self._version(record_id),
             transition=transition,
-            actor_roles=self._roles,
         )
         result = self._api.transition(cmd)
         to_state = next(
@@ -277,8 +325,74 @@ class HttpSimClient:
 
     def accept_proposal(self, proposal_id: str) -> dict[str, Any]:
         self._clock.tick()
-        return self._api.accept_proposal(proposal_id, roles=self._roles).model_dump(mode="json")
+        return self._api.accept_proposal(proposal_id).model_dump(mode="json")
 
     def reject_proposal(self, proposal_id: str, reason: str) -> dict[str, Any]:
         self._clock.tick()
         return self._api.reject_proposal(proposal_id, reason).model_dump(mode="json")
+
+    # --- the schedule, for the person who sends the weekly update (``ScheduleDesk``) -------------
+
+    @property
+    def _project(self) -> str:
+        return self._scope.removeprefix("project:")
+
+    def schedules(self) -> list[dict[str, Any]]:
+        """The project's schedules: ``id, code, title, current_snapshot_number, snapshot_count``."""
+        return [view.model_dump(mode="json") for view in self._api.list_schedules(self._project)]
+
+    def snapshots_of(self, code: str) -> list[dict[str, Any]]:
+        """The snapshots of one schedule, newest number first: ``number, state, key, ...``."""
+        detail = self._api.get_schedule(self._project, code)
+        return [view.model_dump(mode="json") for view in detail.snapshots]
+
+    def current_activities(self, code: str, *, limit: int = 200) -> list[dict[str, Any]]:
+        """The first ``limit`` activities of the current snapshot, in the snapshot's order."""
+        page = self._api.list_activities(self._project, code, limit=limit)
+        return [asdict(row) for row in page.rows]
+
+    def open_snapshot(self, schedule_id: str) -> dict[str, Any]:
+        """Open the next snapshot of the schedule; the answer is its record (key ``CODE#n``)."""
+        self._clock.tick()
+        result = self._api.open_schedule_snapshot(
+            OpenScheduleSnapshot(**self._common(), schedule_id=schedule_id)
+        )
+        return {"id": result.stream_id, "key": result.key, "version": result.version}
+
+    def attach_snapshot_file(self, snapshot_id: str, filename: str, data: bytes) -> dict[str, Any]:
+        """Upload ``data`` as the snapshot's XER file (slot ``xer``)."""
+        self._clock.tick()
+        with tempfile.TemporaryDirectory(prefix="tl-sim-") as scratch:
+            path = Path(scratch) / filename
+            path.write_bytes(data)
+            self._api.upload_file(
+                self._scope, snapshot_id, path, slot="xer", content_type=XER_CONTENT_TYPE
+            )
+        return {"id": snapshot_id, "size": len(data)}
+
+    def start_snapshot(self, snapshot_id: str) -> dict[str, Any]:
+        """Queue the build of the snapshot (the worker builds it, a controller publishes it)."""
+        self._clock.tick()
+        result = self._api.start_schedule_snapshot(
+            StartScheduleSnapshot(**self._common(), snapshot_id=snapshot_id)
+        )
+        return {"id": snapshot_id, "version": result.version}
+
+    def link_activity(self, record_id: str, schedule_id: str, activity_id: str) -> dict[str, Any]:
+        """Link a record to an activity by its P6 id. ``ref_created`` says whether this made the
+        activity's reference record (the first link to that activity of the schedule)."""
+        self._clock.tick()
+        result = self._api.link_activity(
+            LinkActivity(
+                **self._common(),
+                from_id=record_id,
+                schedule_id=schedule_id,
+                activity_id=activity_id,
+            )
+        )
+        made = [e for e in result.events if e.event_type == "Record.Created"]
+        return {
+            "link_id": result.stream_id,
+            "version": result.version,
+            "ref_created": bool(made),
+        }

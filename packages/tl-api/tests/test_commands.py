@@ -28,8 +28,9 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     paths = harness.app.openapi()["paths"]
     assert {f"/commands/{spec.name}" for spec in COMMANDS} <= set(paths)
     # the core commands, the engineering module's (14) and the documents module's (34)
-    # + the derivation pipeline (P1-I3) and the correspondence module's 28 (P1-I5)
-    assert len(COMMANDS) == 20 + 14 + 24 + 10 + 28
+    # + the derivation pipeline (P1-I3), the cost (1) and schedule (6) modules (P1-I4) and the
+    # correspondence module's 28 (P1-I5)
+    assert len(COMMANDS) == 20 + 14 + 24 + 10 + 1 + 6 + 28
 
 
 def test_create_record_returns_the_command_result(harness: Harness) -> None:
@@ -250,6 +251,9 @@ def test_the_controller_actions_are_exactly_the_commands_marked_controller() -> 
             "RetireParty",
             "DefineClause",
             "RetireClause",
+            "DefineSchedule",
+            "PublishScheduleSnapshot",
+            "VoidScheduleSnapshot",
         )
     }
     assert {s.name for s in COMMANDS if s.access == "controller"} == {

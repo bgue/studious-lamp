@@ -1,0 +1,130 @@
+id: https://example.org/throughline/modules/cost/events
+name: tl_mod_cost_events
+title: Cost module events
+description: >-
+  The ledger events of the cost module (brief 18.3), one class per event type, in the same form as
+  `schema/core/events.yaml`. A cost code or a snapshot is created by `Record.Created` followed in the
+  same append by its `*.Defined` event. A snapshot import is one unit of work: the snapshot, the codes
+  it creates, and one `CostCode.MeasuresRecorded` per code it states figures for, all with the import's
+  correlation id.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+default_range: string
+annotations:
+  tl:module: cost
+
+classes:
+  CostCodeDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A cost code was registered (by the first snapshot that names it).
+    annotations:
+      tl:event_type: CostCode.Defined
+      tl:event_version: "1"
+    attributes:
+      code:
+        description: "The cost code."
+        required: true
+      parent_code:
+        description: "The parent code, or null."
+      level:
+        description: "Depth in the hierarchy."
+        range: integer
+        required: true
+      uom:
+        description: "Unit of measure of the quantity figures."
+    examples:
+      - value: "{\"code\": \"4210-PIP-WLD\", \"level\": 3, \"parent_code\": \"4210-PIP\", \"uom\": \"in-dia\"}"
+  CostCodeRevisedPayload:
+    is_a: EventPayload
+    description: >-
+      A snapshot changed the description, parent or unit of measure of an existing cost code.
+    annotations:
+      tl:event_type: CostCode.Revised
+      tl:event_version: "1"
+    attributes:
+      snapshot_id:
+        description: "The snapshot that brought the change."
+        required: true
+      changes:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "Object of field -> [old, new] for title, parent_code, level and uom."
+        required: true
+    examples:
+      - value: "{\"changes\": {\"uom\": [\"ea\", \"in-dia\"]}, \"snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+  CostCodeMeasuresRecordedPayload:
+    is_a: EventPayload
+    description: >-
+      A snapshot stated the figures of a cost code.
+    annotations:
+      tl:event_type: CostCode.MeasuresRecorded
+      tl:event_version: "1"
+    attributes:
+      snapshot_id:
+        description: "The snapshot."
+        required: true
+      period:
+        description: "YYYY-MM."
+        required: true
+      revision:
+        description: "The snapshot's revision of the period."
+        range: integer
+        required: true
+      as_of:
+        description: "YYYY-MM-DD."
+        required: true
+      measures:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "The fifteen figures, keyed hours_budget ... amount_eac; null where not stated."
+        required: true
+    examples:
+      - value: "{\"as_of\": \"2026-09-30\", \"measures\": {\"amount_actual\": 51240.0, \"amount_budget\": 96000.0, \"amount_eac\": 102440.0, \"amount_earned\": 48000.0, \"amount_ftc\": 51200.0, \"hours_actual\": 640.5, \"hours_budget\": 1200.0, \"hours_eac\": 1280.5, \"hours_earned\": 600.0, \"hours_ftc\": 640.0, \"quantity_actual\": 250.0, \"quantity_budget\": 480.0, \"quantity_eac\": 480.0, \"quantity_earned\": 250.0, \"quantity_ftc\": 230.0}, \"period\": \"2026-09\", \"revision\": 1, \"snapshot_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+  CostSnapshotDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A period of figures was imported.
+    annotations:
+      tl:event_type: CostSnapshot.Defined
+      tl:event_version: "1"
+    attributes:
+      period:
+        description: "YYYY-MM."
+        required: true
+      revision:
+        description: "1 for the first import of the period."
+        range: integer
+        required: true
+      as_of:
+        description: "YYYY-MM-DD."
+        required: true
+      currency:
+        description: "ISO 4217 code, or null."
+      source_name:
+        description: "Display name of the file."
+      source_sha256:
+        description: "SHA-256 of the file."
+      row_count:
+        description: "Codes with figures."
+        range: integer
+        required: true
+      new_code_count:
+        description: "Codes created."
+        range: integer
+        required: true
+      revised_code_count:
+        description: "Codes revised."
+        range: integer
+        required: true
+    examples:
+      - value: "{\"as_of\": \"2026-09-30\", \"currency\": \"USD\", \"new_code_count\": 3, \"period\": \"2026-09\", \"revised_code_count\": 0, \"revision\": 1, \"row_count\": 12, \"source_name\": \"cost-2026-09.csv\", \"source_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\"}"

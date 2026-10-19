@@ -97,7 +97,7 @@ def over_http(dangerous_id: str) -> None:
     print("the proposal is still pending")
     import httpx2
 
-    body = {"roles": [], "accept_risk": True}
+    body = {"accept_risk": True}
     reply = httpx2.post(
         f"{url}/proposals/{dangerous_id}/accept",
         json=body,

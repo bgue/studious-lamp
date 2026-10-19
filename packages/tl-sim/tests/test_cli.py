@@ -25,6 +25,7 @@ class Calls:
     def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
         self.log: list[tuple[str, tuple[Any, ...], dict[str, Any]]] = []
         self.assert_ok = True
+        self.excused = 0
         self.fail_with: Exception | None = None
         for name in ("sim_create", "sim_advance", "sim_inject", "sim_status", "sim_assert"):
             monkeypatch.setattr(api, name, self._make(name))
@@ -104,6 +105,7 @@ class Calls:
             "run_id": "r1a2b3c",
             "ok": self.assert_ok,
             "checked": 40,
+            "excused": self.excused,
             "counts": {},
             "failures": failures,
         }
@@ -206,6 +208,20 @@ def test_status_prints_key_value_lines_then_the_counts(calls: Calls) -> None:
 def test_assert_that_passes_exits_zero(calls: Calls) -> None:
     result = invoke("assert")
     assert (result.exit_code, result.stdout.strip()) == (0, "ok: 40 checks")
+
+
+def test_assert_says_how_much_of_the_operators_was_left_alone(calls: Calls) -> None:
+    calls.excused = 8
+    ok = invoke("assert")
+    assert (ok.exit_code, ok.stdout.strip()) == (
+        0,
+        "ok: 40 checks; 8 records and events of the operators left alone",
+    )
+    calls.assert_ok = False
+    failed = invoke("assert")
+    assert failed.stdout.splitlines()[0] == (
+        "FAILED: 2 of 40 checks; 8 records and events of the operators left alone"
+    )
 
 
 def test_assert_that_fails_lists_every_failure_and_exits_one(calls: Calls) -> None:

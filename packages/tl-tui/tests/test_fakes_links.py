@@ -152,6 +152,7 @@ def test_workflow_blocks_until_the_expected_link_and_role_exist() -> None:
     ]
 
     def run(*roles: str) -> object:
+        client.account_roles = roles
         version = client.get_record_by_id(a)["version"]  # type: ignore[index]
         return client.transition(
             TransitionWorkflow(
@@ -161,7 +162,6 @@ def test_workflow_blocks_until_the_expected_link_and_role_exist() -> None:
                 stream_id=a,
                 expected_version=version,
                 transition="install",
-                actor_roles=list(roles),
             )
         )
 

@@ -9,14 +9,16 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from tl_core.auth.types import Principal
 from tl_core.links.provider import get_vocabulary
 from tl_core.links.vocabulary import default_relation
 from tl_core.numbering.detect import KeyChip, suggest_chips
 from tl_core.services import psets
 from tl_core.services.workflow import WorkflowStatus, workflow_status
+from tl_core.workflow.roles import workflow_roles
 from tl_schema.forms import ConformanceReport, FormMetadata
 
-from tl_api.auth import guard
+from tl_api.auth import current_principal, guard
 from tl_api.context import ApiContext, get_ctx
 from tl_api.models import DefaultRelationOut, DetectKeysBody, RelationOut
 
@@ -66,12 +68,16 @@ def detect_keys(ctx: Ctx, actor: Reader, body: DetectKeysBody) -> list[KeyChip]:
 def get_workflow_status(
     ctx: Ctx,
     actor: Reader,
+    principal: Annotated[Principal, Depends(current_principal)],
     record_id: str,
-    role: Annotated[list[str] | None, Query(description="Roles for the role guards.")] = None,
 ) -> WorkflowStatus:
-    """State, state-entered time and every transition with its guard results."""
+    """State, state-entered time and every transition with its guard results.
+
+    The role guards are judged for the caller: their roles come from the signed-in account, never
+    from the request (ADR-0013, addendum P1-SEC1).
+    """
     with ctx.backend(True) as uow:
-        return workflow_status(uow, record_id, roles=tuple(role or ()))
+        return workflow_status(uow, record_id, roles=workflow_roles(principal))
 
 
 @router.get("/schema/forms", operation_id="get_form_metadata")

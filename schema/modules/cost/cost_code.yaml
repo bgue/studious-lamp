@@ -1,0 +1,115 @@
+id: https://example.org/throughline/modules/cost/cost_code
+name: tl_mod_cost_cost_code
+title: Cost codes (brief 9, M11)
+description: >-
+  A `CostCode` mirrors one code of the external cost system. The code is the record key. The matrix
+  columns hold the figures of the latest snapshot that stated them (`snapshot_id`, `period`, `as_of`
+  say which); older figures are in `cur_cost_snapshot_value`. A figure the snapshot did not state is
+  null, never zero. Spec: docs/modules/cost/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: cost
+
+classes:
+  CostCode:
+    description: >-
+      One cost code of a project. Record type `cost.CostCode`; its key is the code (`4210-PIP-WLD`) and its
+      title the description the cost system gives it. The measure matrix is {hours, quantity, amount} x
+      {budget, actual, earned, forecast to complete, estimate at completion}.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "cost.CostCode"
+      tl:table: cur_cost_costcode
+      tl:ix_scope_code: "scope, code"
+      tl:ix_scope_parent: "scope, parent_code"
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      code:
+        required: true
+        description: The cost code as the cost system writes it; the record key.
+      parent_code:
+        description: The code of the parent in the cost code hierarchy; null for a top level code.
+      level:
+        range: integer
+        required: true
+        ifabsent: int(1)
+        description: Depth in the hierarchy, 1 for a top level code.
+      uom:
+        description: Unit of measure of the quantity figures (`m`, `t`, `ea`, `h`).
+      is_active:
+        range: boolean
+        required: true
+        ifabsent: "true"
+        description: False once the code is closed in the cost system.
+      snapshot_id:
+        range: Ulid
+        description: The snapshot whose figures the matrix holds; null before the first one.
+      period:
+        description: "The period of that snapshot, `YYYY-MM`."
+      as_of:
+        description: "The date the figures are as of, `YYYY-MM-DD`."
+      hours_budget:
+        range: float
+        description: "Hours, budget (hours); null when the snapshot did not state it."
+      hours_actual:
+        range: float
+        description: "Hours, actual to date (hours); null when the snapshot did not state it."
+      hours_earned:
+        range: float
+        description: "Hours, earned (hours); null when the snapshot did not state it."
+      hours_ftc:
+        range: float
+        description: "Hours, forecast to complete (hours); null when the snapshot did not state it."
+      hours_eac:
+        range: float
+        description: "Hours, estimate at completion (hours); null when the snapshot did not state it."
+      quantity_budget:
+        range: float
+        description: "Quantity, budget (quantity in the code's unit of measure); null when the snapshot did not state it."
+      quantity_actual:
+        range: float
+        description: "Quantity, actual to date (quantity in the code's unit of measure); null when the snapshot did not state it."
+      quantity_earned:
+        range: float
+        description: "Quantity, earned (quantity in the code's unit of measure); null when the snapshot did not state it."
+      quantity_ftc:
+        range: float
+        description: "Quantity, forecast to complete (quantity in the code's unit of measure); null when the snapshot did not state it."
+      quantity_eac:
+        range: float
+        description: "Quantity, estimate at completion (quantity in the code's unit of measure); null when the snapshot did not state it."
+      amount_budget:
+        range: float
+        description: "Amount, budget (amount in the snapshot's currency); null when the snapshot did not state it."
+      amount_actual:
+        range: float
+        description: "Amount, actual to date (amount in the snapshot's currency); null when the snapshot did not state it."
+      amount_earned:
+        range: float
+        description: "Amount, earned (amount in the snapshot's currency); null when the snapshot did not state it."
+      amount_ftc:
+        range: float
+        description: "Amount, forecast to complete (amount in the snapshot's currency); null when the snapshot did not state it."
+      amount_eac:
+        range: float
+        description: "Amount, estimate at completion (amount in the snapshot's currency); null when the snapshot did not state it."
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

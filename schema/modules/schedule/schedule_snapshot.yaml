@@ -1,0 +1,127 @@
+id: https://example.org/throughline/modules/schedule/schedule_snapshot
+name: tl_mod_schedule_schedule_snapshot
+title: Schedule snapshots (brief 9, M11)
+description: >-
+  A `ScheduleSnapshot` is one XER upload of a schedule: immutable once built. Its workflow is
+  Uploaded, Processing, Invalid or Valid, Published, Superseded (and Void). The record is also the job
+  record of its build: the claim queue is `job_queue` (ADR-0014) and the attempts are events on the
+  snapshot's own stream. The columns are the facts of the latest attempt; the report and the raw
+  tables are files. Spec: docs/modules/schedule/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: schedule
+
+classes:
+  ScheduleSnapshot:
+    description: >-
+      One snapshot. Record type `schedule.ScheduleSnapshot`; its key is `<schedule code>#<number>`
+      (`MAIN#2`). The workflow state is the envelope `status`.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "schedule.ScheduleSnapshot"
+      tl:ix_schedule_date: "schedule_id, data_date"
+      tl:ix_scope_schedule: "scope, schedule_id"
+    unique_keys:
+      schedule_number:
+        description: A snapshot number is used once per schedule.
+        unique_key_slots:
+          - schedule_id
+          - number
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id, the `cur_core_record` id and `job_queue.job_id`.
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      schedule_id:
+        range: Ulid
+        required: true
+        description: The schedule.
+      schedule_code:
+        required: true
+        description: Its code, copied so a register needs no join.
+      number:
+        range: integer
+        required: true
+        description: 1 for the first upload of the schedule, then 2, 3.
+      p6_project_option:
+        description: The P6 project the uploader asked for; null takes the schedule's or the only project.
+      source_file_id:
+        range: Ulid
+        description: The XER file; set when the build is queued.
+      source_name:
+        description: Display name of the file.
+      source_sha256:
+        description: Hex SHA-256 of the file.
+      source_size:
+        range: integer
+        description: Bytes of the file.
+      requested_by:
+        description: The actor who queued the build.
+      attempts:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Build attempts so far.
+      last_error:
+        description: The code of the latest failed attempt, or null.
+      data_date:
+        description: The project's data date, ISO local date-time; null until the file has been read.
+      p6_version:
+        description: The P6 version in the file's header.
+      p6_project:
+        description: The P6 project short name that was read.
+      activity_count:
+        range: integer
+        description: Activities in the snapshot.
+      relationship_count:
+        range: integer
+        description: Relationships.
+      wbs_count:
+        range: integer
+        description: WBS nodes.
+      calendar_count:
+        range: integer
+        description: Calendars.
+      code_count:
+        range: integer
+        description: Activity code assignments.
+      udf_count:
+        range: integer
+        description: User field values.
+      error_count:
+        range: integer
+        description: Errors of the latest check.
+      warning_count:
+        range: integer
+        description: Warnings of the latest check.
+      report_file_id:
+        range: Ulid
+        description: The check report (slot `report`).
+      raw_file_id:
+        range: Ulid
+        description: The raw tables, verbatim (slot `raw`); only for a valid snapshot.
+      typed_sha256:
+        description: SHA-256 of the canonical typed rows; the build recorded it and `reconcile` checks it.
+      raw_sha256:
+        description: SHA-256 of the uncompressed raw bundle.
+      built_at:
+        description: ISO-8601 UTC of the build that made it valid.
+      published_at:
+        description: ISO-8601 UTC of its publication.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.

@@ -48,6 +48,22 @@ CORRESPONDENCE_TOOLS = {  # P1-I5: five reads and one proposal (an agent only pr
     "suggest_triage",
 }
 CORRESPONDENCE_PROPOSE_TOOLS = {"propose_triage"}
+SCHEDULE_PROPOSE_TOOLS = {"propose_publish_schedule_snapshot"}
+SCHEDULE_READ_TOOLS = {
+    "list_schedules",
+    "get_schedule",
+    "list_schedule_activities",
+    "get_schedule_activity",
+    "compare_schedule_snapshots",
+    "get_look_ahead",
+    "resolve_schedule_activity",
+    "get_activity_float_trend",
+    "list_orphaned_links",
+    "get_record_activity_links",
+    "list_cost_codes",
+    "get_cost_code",
+    "list_cost_snapshots",
+}
 READING = (
     READ_TOOLS
     | TYPE_TOOLS
@@ -55,12 +71,14 @@ READING = (
     | DOCUMENT_TOOLS
     | DERIVATION_READ_TOOLS
     | CORRESPONDENCE_TOOLS
+    | SCHEDULE_READ_TOOLS
 )
 TOOLS = (
     READING
     | PROPOSE_TOOLS
     | DERIVATION_PROPOSE_TOOLS
     | CORRESPONDENCE_PROPOSE_TOOLS
+    | SCHEDULE_PROPOSE_TOOLS
     | {"post_feed"}
 )
 

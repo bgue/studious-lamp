@@ -1,8 +1,9 @@
 """The `tl wf` group: show a record's workflow state and run a transition (brief 8).
 
 Each subcommand parses options, makes one call into `tl_core.services.workflow`, and prints. Guards,
-roles and state rules live in the service. Roles are a stub list given with `--role` until auth
-exists; nothing checks that the caller really holds them.
+roles and state rules live in the service. The roles of a guard are the signed-in account's
+(`tl_cli.session.workflow_roles_of`, ADR-0013 addendum P1-SEC1); `--role` is a claim honoured only
+in a dev setup on a ledger file, like `--actor`.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from typing import Annotated, NoReturn
 
 import typer
 from pydantic import ValidationError
-from tl_adapters.db import DbTarget, open_uow
+from tl_adapters.db import DbTarget, is_postgres, open_uow
 from tl_core.ledger import ConcurrencyError
 from tl_core.links.expected import ExpectedLinkError
 from tl_core.services.errors import GuardFailedError, ServiceError
@@ -27,6 +28,8 @@ from tl_core.workflow.engine import GuardResult
 from tl_core.workflow.loader import WorkflowError
 from tl_schema.compile import SchemaCompileError
 from tl_schema.registry import PackageError
+
+from tl_cli.session import workflow_roles_of
 
 app = typer.Typer(help="Show workflow state and run transitions.", no_args_is_help=True)
 
@@ -75,17 +78,22 @@ def show(
     key: Annotated[str, typer.Argument(help="Record key.")],
     role: Annotated[
         list[str] | None,
-        typer.Option("--role", help="A role the caller holds (a stub until auth); repeatable."),
+        typer.Option(
+            "--role",
+            help="Dev setup on a ledger file only: act with this workflow role (repeatable). "
+            "Elsewhere your roles come from your session.",
+        ),
     ] = None,
 ) -> None:
     """Show a record's workflow state and, for each transition, whether its guards pass."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
+    roles = workflow_roles_of(db, role or (), local=not is_postgres(db))
     with _service_errors(), open_uow(db, readonly=True) as uow:
         row = get_record(uow, scope, key)
         if row is None:
             _fail(f"no record with key {key!r} in project {project!r}")
-        found = workflow_status(uow, row["id"], roles=tuple(role or ()))
+        found = workflow_status(uow, row["id"], roles=roles)
     typer.echo(f"key: {found.key}")
     typer.echo(f"workflow: {found.workflow} v{found.workflow_version}")
     typer.echo(f"state: {found.state}")
@@ -106,7 +114,11 @@ def transition(
     name: Annotated[str, typer.Argument(help="Transition name, as `tl wf show` lists it.")],
     role: Annotated[
         list[str] | None,
-        typer.Option("--role", help="A role the caller holds (a stub until auth); repeatable."),
+        typer.Option(
+            "--role",
+            help="Dev setup on a ledger file only: act with this workflow role (repeatable). "
+            "Elsewhere your roles come from your session.",
+        ),
     ] = None,
     reason: Annotated[str | None, typer.Option("--reason", help="Optional reason.")] = None,
     actor: Annotated[str, typer.Option("--actor", help="Actor recorded on events.")] = (
@@ -116,6 +128,7 @@ def transition(
     """Run a transition if every guard passes; otherwise list the guards and exit 1."""
     db: DbTarget = ctx.obj
     scope = f"project:{project}"
+    roles = workflow_roles_of(db, role or (), actor=actor, local=not is_postgres(db))
     with _service_errors(), open_uow(db) as uow:
         current = get_record(uow, scope, key)
         if current is None:
@@ -129,9 +142,9 @@ def transition(
                 stream_id=current["id"],
                 expected_version=current["version"],
                 transition=name,
-                actor_roles=list(role or ()),
                 reason=reason,
             ),
+            roles=roles,
         )
     payload = result.events[0].payload
     typer.echo(f"transitioned {key} {payload['from_state']} -> {payload['to_state']}")

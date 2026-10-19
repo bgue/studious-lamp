@@ -121,6 +121,8 @@ def test_every_record_class_of_the_committed_modules_has_a_view() -> None:
         "v_correspondence_correspondence_thread",
         "v_correspondence_party",
         "v_correspondence_response_clock",
+        "v_cost_cost_code",
+        "v_cost_cost_snapshot",
         "v_documents_derived_document",
         "v_documents_document",
         "v_documents_document_schema",
@@ -133,4 +135,7 @@ def test_every_record_class_of_the_committed_modules_has_a_view() -> None:
         "v_engineering_standard",
         "v_engineering_tag",
         "v_engineering_tag_class",
+        "v_schedule_activity_ref",
+        "v_schedule_schedule",
+        "v_schedule_schedule_snapshot",
     ]

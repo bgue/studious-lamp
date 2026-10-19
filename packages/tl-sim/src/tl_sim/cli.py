@@ -113,11 +113,13 @@ def _advance(env: api.SimEnv, run_id: str | None, days: int) -> dict[str, Any]:
 
 def _assert(env: api.SimEnv, run_id: str | None) -> None:
     report = api.sim_assert(env, run_id)
+    excused = report.get("excused", 0)  # what the scenario's operators wrote and was left alone
+    note = f"; {excused} records and events of the operators left alone" if excused else ""
     if report["ok"]:
-        typer.echo(f"ok: {report['checked']} checks")
+        typer.echo(f"ok: {report['checked']} checks{note}")
         return
     failures = report["failures"]
-    typer.echo(f"FAILED: {len(failures)} of {report['checked']} checks")
+    typer.echo(f"FAILED: {len(failures)} of {report['checked']} checks{note}")
     for f in failures:
         typer.echo(
             f"  {f['check']} {f['ref']} {f['field']}: expected {f['expected']!r}, "

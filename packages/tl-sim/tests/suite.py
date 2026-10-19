@@ -12,12 +12,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from tl_adapters.objectstore.fs import FsObjectStore
 from tl_adapters.sqlite.factory import SqliteUowFactory
 from tl_adapters.sqlite.uow import create_schema
 from tl_api.app import create_app
 from tl_api.client import ApiClient
 from tl_api.settings import ApiSettings
 from tl_api.tokens import TokenStore, add_token
+from tl_core.files.service import FileService
 from tl_sim.client import HttpSimClient, Keys, install_stamp
 from tl_sim.clock import SimClock
 
@@ -39,6 +41,7 @@ IDENTITIES = [
     "user:sim-crew",
     "user:sim-tag_clerk",
     "user:sim-document_registrar",
+    "user:sim-schedule_updater",
     "user:sim-approver",
     "agent:sim-assistant",
     "user:alice",
@@ -52,6 +55,7 @@ class Suite:
     app_client: TestClient
     keys: Keys
     http: list[TestClient]
+    db: Path
 
     def api(self, identity: str, clock: SimClock | None = None) -> ApiClient:
         http = TestClient(self.app_client.app, raise_server_exceptions=False)
@@ -73,7 +77,7 @@ class Suite:
         )
 
 
-def build_suite(tmp_path: Path, *, standards: bool = False) -> Suite:
+def build_suite(tmp_path: Path, *, standards: bool = False, objects: bool = False) -> Suite:
     tmp_path.mkdir(parents=True, exist_ok=True)
     db = tmp_path / "tl.db"
     create_schema(db)
@@ -90,8 +94,16 @@ def build_suite(tmp_path: Path, *, standards: bool = False) -> Suite:
             load_standards(
                 uow, load_standards_file(ACME_DOCUMENTS), actor="user:seed", source="test"
             )
-    app = create_app(backend, settings=settings, tokens=TokenStore(tokens_path))
-    return Suite(tokens, backend, TestClient(app), Keys(RUN_ID, {}), [])
+    store = FsObjectStore(tmp_path / "objects", secret=b"k") if objects else None
+    files = FileService(store, secret=b"s") if store is not None else None
+    app = create_app(
+        backend,
+        settings=settings,
+        tokens=TokenStore(tokens_path),
+        object_store=store,
+        files_service=files,
+    )
+    return Suite(tokens, backend, TestClient(app), Keys(RUN_ID, {}), [], db)
 
 
 def close_suite(built: Suite) -> None:

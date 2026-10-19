@@ -19,7 +19,7 @@ Purpose: run project correspondence day to day: log what arrives, triage it, iss
 ### Log a letter that arrived
 1. `uv run tl corr receive --project P123 --subject "Revised programme" --from "Acme Construction" --file letter.pdf` numbers the item, marks it Received and stores the file as `original`. A date in `--received-on` after today is refused.
 2. `uv run tl corr suggest P123-COR-0001 --project P123` shows the domain and subtype the engine proposes and why. It only proposes.
-3. `uv run tl corr triage P123-COR-0001 --project P123 --accept` confirms it (or `--domain general --subtype letter`). Triage starts the clocks the subtype defines for receipt and links records named with `--ref`. In the TUI: `F12`, key `2`, `a`.
+3. `uv run tl corr triage P123-COR-0001 --project P123 --accept` confirms it (or `--domain general --subtype letter`). Triage starts the clocks the subtype defines for receipt and links records named with `--ref`. In the TUI: `F5`, key `2`, `a`.
 4. Wrong domain? `uv run tl corr reclassify P123-COR-0001 --project P123 --domain document_control --subtype submittal --reason "..."` before it is issued.
 
 ### Reply
@@ -28,7 +28,7 @@ Purpose: run project correspondence day to day: log what arrives, triage it, iss
 3. `tl corr respond|close|void|supersede` record an answer, close, void a draft or a received item filed in error, or replace an item.
 
 ### Clocks
-1. `uv run tl corr clock ls --project P123` lists open clocks, soonest first: key, state, due date, days left (negative once overdue), length, type, warnings. `--overdue`, `--all` and `--due-to` narrow it. The TUI shows the same on `F12`, key `3`.
+1. `uv run tl corr clock ls --project P123` lists open clocks, soonest first: key, state, due date, days left (negative once overdue), length, type, warnings. `--overdue`, `--all` and `--due-to` narrow it. The TUI shows the same on `F5`, key `3`.
 2. `tl corr clock start|pause|resume|restart|meet|cancel` change one clock. Every change is an event with a reason; a clock is replayed from its events, so a mistake is corrected by another event. Restarting or cancelling a time bar (kind `time_bar`, or a clock that cites a clause) is a controller's act; everything else on a clock is anyone's.
 3. Controller: `uv run tl corr clock sweep --project P123` records `Warned` and `Expired` for every running clock of the project, whatever the runner may read, and prints the clocks it could not judge (a calendar file that is gone, a history the engine refuses) to stderr and exits 2. Run it once a day; there is no scheduled job yet (the integration runner of P1-I7 is the place for one, calling the same handler). It is safe to repeat.
 4. A clock counts on the calendar named in its first event (`P123-default@1`). A calendar file never changes; a new version is a new file.
@@ -48,7 +48,7 @@ Purpose: run project correspondence day to day: log what arrives, triage it, iss
 3. `uv run tl corr report due --project P123 [--within 7]` lists answers owed; `tl corr report clocks [--json]` the clocks.
 
 ## Verify
-- `uv run tl corr ls --project P123` is the master register: items, and the document-control transmittals as `[transmittal]` lines. The API (`GET /projects/P123/correspondence`), the TUI (`F12`) and the MCP tool `list_correspondence` list the same lines for the same reader.
+- `uv run tl corr ls --project P123` is the master register: items, and the document-control transmittals as `[transmittal]` lines. The API (`GET /projects/P123/correspondence`), the TUI (`F5`) and the MCP tool `list_correspondence` list the same lines for the same reader.
 - `uv run tl corr show <number> --project P123` shows the state, clocks, files and thread. `tl events` for a stream shows each change with its actor.
 - `just demo P1-I5` runs the whole path on SQLite and Postgres.
 

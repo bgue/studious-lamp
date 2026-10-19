@@ -1,0 +1,334 @@
+id: https://example.org/throughline/modules/schedule/snapshot_tables
+name: tl_mod_schedule_snapshot_tables
+title: Typed rows of schedule snapshots (brief 9, M11; P1-I4, ADR-0015)
+description: >-
+  The typed content of a schedule snapshot, one table per kind of row. Every row belongs to one
+  snapshot (`snapshot_id`) and a snapshot's rows are written once, when its build completes, and
+  never changed: a snapshot is immutable. These are operational tables like `job_queue`: no event
+  produces them, a projection rebuild never clears them, and the archive and webhooks never read
+  them. The ledger holds the facts (`ScheduleSnapshot.Built`: counts and the SHA-256 of the typed
+  rows); the rows come from the source XER file, so `tl xer reconcile` can write them again
+  from it after a restore and check them against the recorded hash. They use `tl:current_state` and
+  `tl:table` only to get one DDL for both dialects. Durations and floats are hours, as P6 writes
+  them; dates are ISO local date-times without a zone. Spec: docs/modules/schedule/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: schedule
+
+classes:
+  ScheduleCalendar:
+    description: >-
+      P6 calendars the snapshot's activities use, with the project default.
+    annotations:
+      tl:current_state: true
+      tl:table: sched_calendar
+      tl:ix_snapshot: "snapshot_id, seq"
+    attributes:
+      row_id:
+        identifier: true
+        required: true
+        description: "`<snapshot id>:<seq>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      snapshot_id:
+        range: Ulid
+        required: true
+        description: The snapshot the row belongs to.
+      calendar_id:
+        required: true
+        description: "P6 calendar id (`clndr_id`)."
+      name:
+        required: true
+        description: "Calendar name."
+      day_hr:
+        range: float
+        required: true
+        description: "Work hours in a day; a day of float is this many hours."
+      week_hr:
+        range: float
+        description: "Work hours in a week."
+      month_hr:
+        range: float
+        description: "Work hours in a month."
+      year_hr:
+        range: float
+        description: "Work hours in a year."
+      is_default:
+        range: boolean
+        required: true
+        description: "True for the project's default calendar."
+      seq:
+        range: integer
+        required: true
+        description: "Position in the file."
+
+  ScheduleWbs:
+    description: >-
+      The work breakdown structure of the P6 project.
+    annotations:
+      tl:current_state: true
+      tl:table: sched_wbs
+      tl:ix_snapshot: "snapshot_id, seq"
+    attributes:
+      row_id:
+        identifier: true
+        required: true
+        description: "`<snapshot id>:<seq>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      snapshot_id:
+        range: Ulid
+        required: true
+        description: The snapshot the row belongs to.
+      wbs_id:
+        required: true
+        description: "P6 WBS id."
+      parent_wbs_id:
+        description: "Parent WBS id; null for the project node."
+      short_name:
+        required: true
+        description: "WBS code (`wbs_short_name`)."
+      name:
+        required: true
+        description: "WBS name."
+      path:
+        required: true
+        description: "Short names from the project node, joined by ` > `."
+      is_project_node:
+        range: boolean
+        required: true
+        description: "True for the project's root node."
+      seq:
+        range: integer
+        required: true
+        description: "Position in the file."
+
+  ScheduleActivity:
+    description: >-
+      The activities of one snapshot (`TASK`), typed. The activity id is the stable key across snapshots.
+    annotations:
+      tl:current_state: true
+      tl:table: sched_activity
+      tl:ix_scope_activity: "scope, activity_id"
+      tl:ix_snapshot_float: "snapshot_id, total_float_hr"
+      tl:ix_snapshot_start: "snapshot_id, early_start"
+    unique_keys:
+      snapshot_activity:
+        description: An activity id appears once in a snapshot.
+        unique_key_slots:
+          - snapshot_id
+          - activity_id
+    attributes:
+      row_id:
+        identifier: true
+        required: true
+        description: "`<snapshot id>:<seq>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      snapshot_id:
+        range: Ulid
+        required: true
+        description: The snapshot the row belongs to.
+      activity_id:
+        required: true
+        description: "The activity id (`task_code`): the stable key across snapshots, unique in the snapshot."
+      task_id:
+        required: true
+        description: "P6 task id of this export (changes between exports; never a link target)."
+      name:
+        required: true
+        description: "Activity name."
+      wbs_id:
+        required: true
+        description: "P6 WBS id."
+      wbs_path:
+        required: true
+        description: "WBS path, as in the WBS table."
+      task_type:
+        required: true
+        description: "task, start_milestone, finish_milestone, level_of_effort, wbs_summary or resource_dependent."
+      status:
+        required: true
+        description: "not_started, in_progress or completed."
+      calendar_id:
+        required: true
+        description: "P6 calendar id."
+      original_duration_hr:
+        range: float
+        description: "Original (target) duration in hours."
+      remaining_duration_hr:
+        range: float
+        description: "Remaining duration in hours."
+      early_start:
+        description: "Early start, ISO local date-time `YYYY-MM-DDTHH:MM`."
+      early_finish:
+        description: "Early finish."
+      late_start:
+        description: "Late start."
+      late_finish:
+        description: "Late finish."
+      actual_start:
+        description: "Actual start."
+      actual_finish:
+        description: "Actual finish."
+      target_start:
+        description: "Planned (target) start."
+      target_finish:
+        description: "Planned (target) finish."
+      total_float_hr:
+        range: float
+        description: "Total float in hours; null for a completed activity."
+      free_float_hr:
+        range: float
+        description: "Free float in hours; null when the file lacks it."
+      percent_complete:
+        range: float
+        required: true
+        description: "Percent complete by the activity's own type (physical, duration or units), 0 to 100."
+      percent_type:
+        description: "P6 `complete_pct_type`: CP_Phys, CP_Drtn or CP_Units."
+      constraint_type:
+        description: "P6 constraint type, or null."
+      constraint_date:
+        description: "Constraint date, or null."
+      critical:
+        range: boolean
+        required: true
+        description: "True when total float is zero or less and the activity is not complete."
+      longest_path:
+        range: boolean
+        required: true
+        description: "True when P6 flagged the activity as on the driving path."
+      seq:
+        range: integer
+        required: true
+        description: "Position in the file."
+
+  ScheduleRelationship:
+    description: >-
+      The logic of one snapshot (`TASKPRED`) between activities of the project.
+    annotations:
+      tl:current_state: true
+      tl:table: sched_relationship
+      tl:ix_snapshot_succ: "snapshot_id, succ_activity_id"
+      tl:ix_snapshot_pred: "snapshot_id, pred_activity_id"
+    attributes:
+      row_id:
+        identifier: true
+        required: true
+        description: "`<snapshot id>:<seq>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      snapshot_id:
+        range: Ulid
+        required: true
+        description: The snapshot the row belongs to.
+      pred_activity_id:
+        required: true
+        description: "Activity id of the predecessor."
+      succ_activity_id:
+        required: true
+        description: "Activity id of the successor."
+      relationship_type:
+        required: true
+        description: "FS, FF, SS or SF."
+      lag_hr:
+        range: float
+        required: true
+        description: "Lag in hours (negative for a lead)."
+      seq:
+        range: integer
+        required: true
+        description: "Position in the file."
+
+  ActivityCode:
+    description: >-
+      Activity codes assigned to activities (`ACTVTYPE`, `ACTVCODE`, `TASKACTV` joined).
+    annotations:
+      tl:current_state: true
+      tl:table: sched_activity_code
+      tl:ix_snapshot_activity: "snapshot_id, activity_id"
+    attributes:
+      row_id:
+        identifier: true
+        required: true
+        description: "`<snapshot id>:<seq>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      snapshot_id:
+        range: Ulid
+        required: true
+        description: The snapshot the row belongs to.
+      activity_id:
+        required: true
+        description: "The activity."
+      code_type:
+        required: true
+        description: "Activity code type (`ACTVTYPE`), for example `Area`."
+      code_value:
+        required: true
+        description: "The code's short name."
+      code_name:
+        required: true
+        description: "The code's description."
+      seq:
+        range: integer
+        required: true
+        description: "Position in the file."
+
+  ScheduleUdf:
+    description: >-
+      User-defined field values of activities (`UDFTYPE`, `UDFVALUE` joined).
+    annotations:
+      tl:current_state: true
+      tl:table: sched_udf_value
+      tl:ix_snapshot_activity: "snapshot_id, activity_id"
+    attributes:
+      row_id:
+        identifier: true
+        required: true
+        description: "`<snapshot id>:<seq>`."
+      scope:
+        range: ScopeId
+        required: true
+        description: The project scope, `project:<id>`.
+      snapshot_id:
+        range: Ulid
+        required: true
+        description: The snapshot the row belongs to.
+      activity_id:
+        required: true
+        description: "The activity."
+      udf_name:
+        required: true
+        description: "User field name (`UDFTYPE.udf_type_name`)."
+      udf_label:
+        description: "Its label, or null."
+      value_type:
+        required: true
+        description: "text, number, date or code."
+      value:
+        required: true
+        description: "The value as text."
+      seq:
+        range: integer
+        required: true
+        description: "Position in the file."

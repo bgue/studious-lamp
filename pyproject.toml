@@ -40,6 +40,9 @@ tl-mod-engineering = { workspace = true }
 tl-mod-documents = { workspace = true }
 tl-mod-correspondence = { workspace = true }
 tl-extract = { workspace = true }
+tl-xer = { workspace = true }
+tl-mod-cost = { workspace = true }
+tl-mod-schedule = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -77,6 +80,9 @@ extraPaths = [
   "packages/tl-modules/engineering/tests",
   "packages/tl-modules/documents/tests",
   "packages/tl-modules/correspondence/tests",
+  "packages/tl-modules/cost/tests",
+  "packages/tl-modules/schedule/tests",
+  "packages/tl-xer/tests",
   "packages/tl-extract/tests",
   "packages/tl-extract/tests/golden",
   "tests/contract",

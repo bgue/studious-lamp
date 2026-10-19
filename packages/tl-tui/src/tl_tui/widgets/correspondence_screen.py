@@ -1,6 +1,6 @@
 """Correspondence: the master register, the triage inbox and the response clocks (P1-I5).
 
-A full-size modal opened with ``F12``. Three views of one project's correspondence, chosen with
+A full-size modal opened with ``F5``. Three views of one project's correspondence, chosen with
 ``1``, ``2`` and ``3`` (or ``Tab``): the **register** lists every item, with the lines of the
 domains' register sources (the I2 transmittals) among them; the **triage inbox** lists the items
 that arrived and wait for a domain, and ``a`` accepts what the suggestion engine proposes for the

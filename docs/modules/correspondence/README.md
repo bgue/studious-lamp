@@ -54,7 +54,7 @@ A clock is a pure replay of its events against a versioned calendar (`schema/fix
 first event records the calendar and version it counted on, so a later calendar edit cannot move a due date that was
 already given. `calendar` days count every day; `working` days skip the calendar's weekly rest days and holidays. Each
 mutating handler replays the events plus the candidate fact and refuses what the engine refuses (`_check_with`). The
-**sweep** (`SweepClocks`, `tl corr clock sweep`, the `F12` screen) records `Warned` for the smallest warning threshold a
+**sweep** (`SweepClocks`, `tl corr clock sweep`, the `F5` screen) records `Warned` for the smallest warning threshold a
 running clock has crossed and `Expired` once the day is past; repeating it on one day records nothing twice.
 `days_left` and `effective_state` in the reads are computed as of today, so an overdue clock shows `expired` before the sweep
 has run.
@@ -101,7 +101,7 @@ names the class, and writes a leading quote before any cell that a spreadsheet w
 | API | `GET /projects/{project}/correspondence`, `.../{number}`, `/correspondence-threads[/{number}]`, `/correspondence-suggestion`, clocks, parties, clauses, domains; the commands through `POST /commands/<Name>` |
 | MCP | `list_correspondence`, `get_correspondence`, `list_response_clocks`, `list_parties`, `suggest_triage` (reads, action `correspondence.read` open to agents) and `propose_triage` (a proposal) |
 | CLI | `tl corr ...` (`docs/runbooks/correspondence.md`) |
-| TUI | `F12`: register, triage inbox (`a` accepts the suggestion), response clocks (`s` sweeps) |
+| TUI | `F5`: register, triage inbox (`a` accepts the suggestion), response clocks (`s` sweeps) |
 
 ## Open questions
 - Sending is a stub (`delivery: stub`). A real mail transport, delivery receipts and the portal reply arrive with the

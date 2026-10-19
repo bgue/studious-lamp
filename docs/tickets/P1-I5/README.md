@@ -13,7 +13,7 @@ Build the correspondence core of M10 as a new module, `correspondence` (package 
 `just demo P1-I5` (SQLite and Postgres; `dev/demos/P1-I5.sh`, driver `dev/demos/p1_i5_demo.py`), one PASS line per clause:
 1. receive a letter by upload (`tl corr receive`): item `P123-COR-0001`, state Received, the file in slot `original`; the suggestion engine proposes General and a person confirms it (`tl corr triage --accept`);
 2. issue a reply (`tl corr issue`, a document controller's act; a user is refused): a PDF rendition from the General template is stored, the send is a stub, and a 14-calendar-day clock starts on the project calendar `P123-default@1`;
-3. the clocks screen (TUI `F12`, key `3`) shows it with 14 days left;
+3. the clocks screen (TUI `F5`, key `3`) shows it with 14 days left;
 4. the I2 transmittal appears in the master register (`tl corr ls`) as a Document-control line next to the letters;
 5. email-in: a `.eml` file with a PDF attached is ingested (`tl corr mail ingest`): party matched by domain, threaded to the letter by subject, original and attachment kept; the same message again is refused;
 6. confidentiality: a `restricted` item does not exist for a user (same answer as an unused number), the register export leaves it out unless a controller names the class;
@@ -46,7 +46,7 @@ Build the correspondence core of M10 as a new module, `correspondence` (package 
 | S5 | T06 confidentiality: ADR-0016, `tl_core.confidentiality`, filters on every read path, walking tests | Security (§3 table; a delegated human gate) | orchestrator, security review | done (walking tests 72a40a8) |
 | S6 | Module reads, `views.py`, master register with sources, commands (receive, triage, issue, response, clocks, parties), API routes and `ApiClient`, MCP tools, client interface | Interfaces, access, agent actions | orchestrator, security review | done (reads, routes, client, MCP, TUI client; the CLI and the screen are S8 and S9) |
 | S7 | T11a EML parser bounds and the envelope call | Parser of untrusted input | orchestrator, security review | done |
-| S8 | TUI correspondence screen (`F12`), the fake client's correspondence reads | Interfaces | — | done |
+| S8 | TUI correspondence screen (`F5`), the fake client's correspondence reads | Interfaces | — | done |
 | S9 | `tl corr` (CLI), the register export | Access and export | orchestrator, security review | done |
 
 ## Tickets
@@ -70,7 +70,7 @@ Build the correspondence core of M10 as a new module, `correspondence` (package 
 | T08a | Threading keys: subject, message ids, item numbers, `match_thread` | H | — | merged | 784e796 |
 | T08b | Threading wiring: threads from headers, subject and keys; `AssignThread`, `SupersedeCorrespondence` | H | T07a, T08a | merged | b70b461 (`handlers/threads.py`; `with_thread` in receive and draft) |
 | T09 | General and Document-control domain definition files, letter templates | H | T05 | built by supervisor | `schema/fixtures/correspondence/domains/*.yaml`; the compiler and the files cannot be tested apart (L-P1-I3-5) |
-| T10a–d | TUI: master register, item view, triage inbox, clocks screen | H | S6 | done | S8: one screen on `F12` (`widgets/correspondence_screen.py`, `correspondence_text.py`), built by the supervisor |
+| T10a–d | TUI: master register, item view, triage inbox, clocks screen | H | S6 | done | S8: one screen on `F5` (`widgets/correspondence_screen.py`, `correspondence_text.py`), built by the supervisor |
 | T11a | EML parser (bounded, `policy.default`) | H | — | done | S7: 32ea136 (security-sensitive, so the supervisor's) |
 | T11b | Email ingest command and `tl corr mail ingest` | H | T07a, T11a | done | d2f97cb |
 | T12 | Reports (master register, responses due or overdue, running clocks), demo, report | H/S | T10 | done | `tl corr report`, `dev/demos/P1-I5.sh`, `docs/reports/P1-I5.md` |

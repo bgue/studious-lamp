@@ -93,8 +93,10 @@ from tl_core.settings.types import SettingChange
 from tl_core.settings.views import SettingView, get_view, list_views, view_at
 from tl_core.uow import UnitOfWork
 from tl_core.util import utcnow
+from tl_core.workflow.roles import workflow_roles
 from tl_mod_correspondence import views as correspondence_views
 from tl_mod_correspondence.commands import API_COMMANDS as CORRESPONDENCE_COMMANDS
+from tl_mod_cost import views as cost_views
 from tl_mod_documents import reports as document_reports
 from tl_mod_documents import views as document_views
 from tl_mod_documents.derivation import views as derivation_views
@@ -130,6 +132,15 @@ from tl_mod_documents.handlers.transmittals import (
 )
 from tl_mod_documents.resolver import RepinDocumentLink, handle_repin_document_link
 from tl_mod_engineering.views import TagView, tag_view, tag_views
+from tl_mod_schedule import views as schedule_views
+from tl_mod_schedule.compare import Comparison
+from tl_mod_schedule.handlers.activity import LinkActivity, handle_link_activity
+from tl_mod_schedule.handlers.publish import (
+    PublishScheduleSnapshot,
+    handle_publish_schedule_snapshot,
+)
+from tl_mod_schedule.lookahead import LookAhead
+from tl_mod_schedule.resolver import ActivityLink, OrphanedLink, Resolution
 from tl_schema.forms import ConformanceReport, FormMetadata
 
 from tl_tui.client import RelationInfo
@@ -574,13 +585,29 @@ class EmbeddedClient:
 
     # --- workflow -------------------------------------------------------------------------------
 
-    def workflow_status(self, record_id: str, *, roles: Sequence[str] = ()) -> WorkflowStatus:
+    def _workflow_roles(self, uow: UnitOfWork, actor: str) -> tuple[str, ...]:
+        """The workflow roles of this client's own active account, derived from the ledger.
+
+        Nothing the caller or a command says is used (ADR-0013, addendum P1-SEC1). The account is
+        looked up by this client's actor and must be the same character for character and active;
+        anything else (no such account, a disabled one, another actor in the command) holds no
+        roles, so every ``roles`` guard fails.
+        """
+        if actor != self.actor:
+            return ()
+        found = account_queries.find_account(uow.conn(), username=actor.partition(":")[2])
+        if found is None or account_queries.actor_of(found) != actor or found.status != "active":
+            return ()
+        return workflow_roles(found)
+
+    def workflow_status(self, record_id: str) -> WorkflowStatus:
         with self._uow(True) as uow:
-            return workflow_status(uow, record_id, roles=tuple(roles))
+            return workflow_status(uow, record_id, roles=self._workflow_roles(uow, self.actor))
 
     def transition(self, cmd: TransitionWorkflow) -> CommandResult:
         with self._uow(False) as uow:
-            return self.own_writes.note(handle_transition_workflow(uow, cmd))
+            roles = self._workflow_roles(uow, cmd.actor)
+            return self.own_writes.note(handle_transition_workflow(uow, cmd, roles=roles))
 
     # --- feed -----------------------------------------------------------------------------------
 
@@ -990,6 +1017,144 @@ class EmbeddedClient:
         """The gate checked this client's actor, so the command must name the same one."""
         if actor != self.actor:
             raise ForbiddenError("the command names an actor other than the signed-in person")
+
+    # --- schedules and cost (P1-I4) -----------------------------------------------------------
+
+    def list_schedules(self, project: str) -> list[schedule_views.ScheduleView]:
+        with self._uow(True) as uow:
+            return schedule_views.schedule_views(uow.conn(), f"project:{project}")
+
+    def get_schedule(
+        self,
+        project: str,
+        code: str,
+        *,
+        limit: int = schedule_views.DEFAULT_SNAPSHOT_PAGE,
+        offset: int = 0,
+    ) -> schedule_views.ScheduleDetailView:
+        with self._uow(True) as uow:
+            return schedule_views.schedule_detail(
+                uow.conn(), f"project:{project}", code, limit=limit, offset=offset
+            )
+
+    def get_schedule_snapshot(
+        self, project: str, code: str, number: int
+    ) -> schedule_views.SnapshotView:
+        with self._uow(True) as uow:
+            return schedule_views.snapshot_view(uow.conn(), f"project:{project}", code, number)
+
+    def list_activities(
+        self,
+        project: str,
+        code: str,
+        *,
+        snapshot: int | None = None,
+        critical: bool | None = None,
+        status: str | None = None,
+        q: str | None = None,
+        limit: int = 200,
+        offset: int = 0,
+    ) -> schedule_views.ActivityPage:
+        with self._uow(True) as uow:
+            return schedule_views.activity_page(
+                uow.conn(),
+                f"project:{project}",
+                code,
+                snapshot,
+                critical=critical,
+                status=status,
+                search=q,
+                limit=limit,
+                offset=offset,
+            )
+
+    def compare_snapshots(
+        self,
+        project: str,
+        code: str,
+        *,
+        new: int | None = None,
+        old: int | None = None,
+        limit: int = schedule_views.DEFAULT_COMPARE_LIMIT,
+    ) -> Comparison:
+        with self._uow(True) as uow:
+            return schedule_views.comparison(
+                uow.conn(), f"project:{project}", code, new, old, limit=limit
+            )
+
+    def get_look_ahead(
+        self, project: str, code: str, *, snapshot: int | None = None, weeks: int = 4
+    ) -> LookAhead:
+        with self._uow(True) as uow:
+            return schedule_views.look_ahead_view(
+                uow.conn(), f"project:{project}", code, snapshot, weeks
+            )
+
+    def list_orphaned_links(self, project: str, code: str) -> list[OrphanedLink]:
+        with self._uow(True) as uow:
+            return schedule_views.orphans(uow.conn(), f"project:{project}", code)
+
+    def get_schedule_activity(
+        self, project: str, code: str, activity_id: str, *, snapshot: int | None = None
+    ) -> schedule_views.ActivityDetail:
+        with self._uow(True) as uow:
+            return schedule_views.activity_detail(
+                uow.conn(), f"project:{project}", code, activity_id, snapshot
+            )
+
+    def get_activity_trend(
+        self, project: str, code: str, activity_id: str
+    ) -> list[schedule_views.TrendPoint]:
+        with self._uow(True) as uow:
+            return schedule_views.float_trend(uow.conn(), f"project:{project}", code, activity_id)
+
+    def resolve_activity(
+        self, project: str, code: str, activity_id: str, *, as_of: str | None = None
+    ) -> Resolution:
+        with self._uow(True) as uow:
+            return schedule_views.resolution(
+                uow.conn(),
+                f"project:{project}",
+                code,
+                activity_id,
+                schedule_views.as_of_of(as_of),
+            )
+
+    def list_activity_links(self, project: str, record_id: str) -> list[ActivityLink]:
+        with self._uow(True) as uow:
+            return schedule_views.activity_links(uow.conn(), f"project:{project}", record_id)
+
+    def link_activity(self, cmd: LinkActivity) -> CommandResult:
+        with self._uow(False) as uow:
+            self._own_command(cmd.actor)
+            return self.own_writes.note(handle_link_activity(uow, cmd))
+
+    def publish_schedule_snapshot(self, cmd: PublishScheduleSnapshot) -> CommandResult:
+        with self._uow(False) as uow:
+            self._controller_gate(uow)  # what the project's schedule is: a controller's act
+            self._own_command(cmd.actor)
+            return self.own_writes.note(handle_publish_schedule_snapshot(uow, cmd))
+
+    def list_cost_snapshots(self, project: str) -> list[cost_views.CostSnapshotView]:
+        with self._uow(True) as uow:
+            return cost_views.cost_snapshots(uow.conn(), f"project:{project}")
+
+    def list_cost_codes(
+        self,
+        project: str,
+        *,
+        parent: str | None = None,
+        q: str | None = None,
+        limit: int = 1000,
+    ) -> list[cost_views.CostCodeView]:
+        with self._uow(True) as uow:
+            return cost_views.cost_codes(
+                uow.conn(), f"project:{project}", parent=parent, search=q, limit=limit
+            )
+
+    def get_cost_code(self, project: str, code: str) -> cost_views.CostCodeDetailView:
+        with self._uow(True) as uow:
+            return cost_views.cost_code_detail(uow.conn(), f"project:{project}", code)
 
     # --- settings (P0-I8) ---------------------------------------------------------------------
 

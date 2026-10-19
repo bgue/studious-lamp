@@ -27,7 +27,7 @@ def scenario(
     app = TlApp(client, scope=SCOPE, actor="user:kim")
 
     async def go(pilot: Pilot[None]) -> None:
-        await pilot.press("f12")
+        await pilot.press("f5")
         await pilot.pause()
         assert isinstance(app.screen, CorrespondenceScreen)
         await steps(pilot, app, app.screen)
@@ -39,7 +39,7 @@ def status(screen: CorrespondenceScreen) -> str:
     return str(screen.query_one("#corr-status", Static).render())
 
 
-def test_f12_lists_the_master_register_with_the_transmittal_among_the_items() -> None:
+def test_f5_lists_the_master_register_with_the_transmittal_among_the_items() -> None:
     async def steps(pilot: Pilot[None], app: TlApp, screen: CorrespondenceScreen) -> None:
         text = screen_text(app)
         assert "Register of P123" in text

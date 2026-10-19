@@ -9,7 +9,6 @@ property required in the target state). Enter runs an allowed transition through
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Any, ClassVar
 
 from rich.text import Text
@@ -82,14 +81,12 @@ class WorkflowMenu(ModalScreen[bool]):
         scope: str,
         record: dict[str, Any],
         *,
-        roles: Sequence[str] = (),
         actor: str = "user:dev",
     ) -> None:
         super().__init__()
         self.client = client
         self.scope = scope
         self.record = record
-        self.roles = tuple(roles)
         self.actor = actor
         self.status: WorkflowStatus | None = None
 
@@ -111,15 +108,14 @@ class WorkflowMenu(ModalScreen[bool]):
         options = self.query_one("#wf-options", OptionList)
         options.clear_options()
         try:
-            self.status = self.client.workflow_status(self.record["id"], roles=self.roles)
+            self.status = self.client.workflow_status(self.record["id"])
         except CLIENT_ERRORS as exc:
             self.status = None
             self.query_one("#wf-header", Static).update(str(self.record.get("key") or ""))
             self.query_one("#wf-guards", Static).update("")
             self._say(describe_error(exc))
             return
-        roles = ", ".join(self.roles) or "none"
-        self.query_one("#wf-header", Static).update(f"{header_text(self.status)}\nRoles: {roles}")
+        self.query_one("#wf-header", Static).update(header_text(self.status))
         for option in self.status.options:
             options.add_option(Option(Text(option_line(option)), id=option.transition))
         if self.status.options:
@@ -170,7 +166,6 @@ class WorkflowMenu(ModalScreen[bool]):
             stream_id=str(self.record["id"]),
             expected_version=self.status.version,
             transition=option.transition,
-            actor_roles=list(self.roles),
         )
         try:
             self.client.transition(cmd)

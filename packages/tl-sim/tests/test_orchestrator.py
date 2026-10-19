@@ -74,6 +74,7 @@ def test_create_makes_the_run_provisions_actors_and_seeds_the_template(tmp_path:
         "user:sim-crew",
         "user:sim-tag_clerk",
         "user:sim-document_registrar",
+        "user:sim-schedule_updater",
         "user:sim-approver",
         "agent:sim-assistant",
     ]

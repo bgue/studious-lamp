@@ -253,53 +253,6 @@ def test_a_proposal_the_record_has_outgrown_fails_loudly_and_changes_nothing(
     assert "Pset.ValuesSet" not in types
 
 
-def test_role_options_reach_the_workflow_guard(
-    env: dict[str, str], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from tl_core.services.workflow import TransitionWorkflow
-    from tl_core.workflow.definition import WorkflowDefinition
-    from tl_core.workflow.loader import WorkflowRegistry
-    from tl_core.workflow.provider import use_workflows
-
-    flow = {
-        "id": "t.flow",
-        "version": 1,
-        "record_type": "core.Record",
-        "initial_state": "Draft",
-        "states": [{"name": "Draft"}, {"name": "Done"}],
-        "transitions": [
-            {
-                "name": "finish",
-                "from": ["Draft"],
-                "to": "Done",
-                "guards": [{"kind": "roles", "any_of": ["manager"]}],
-            }
-        ],
-    }
-    with use_workflows(WorkflowRegistry([WorkflowDefinition.model_validate(flow)])):
-        rid = record_id(env, make_record(env))
-        command = TransitionWorkflow(
-            actor=AGENT,
-            source="x",
-            scope=SCOPE,
-            stream_id=rid,
-            expected_version=1,
-            transition="finish",
-        )
-
-        def propose() -> str:
-            made = proposals.submit(
-                factory(env), tool="transition_workflow", agent=AGENT, command=command, summary="s"
-            )
-            return made.proposal_id
-
-        without = run(env, "proposal", "accept", propose())
-        assert without.exit_code == 1 and "GuardFailedError" in without.stderr
-        with_role = run(env, "proposal", "accept", propose(), "--role", "manager")
-        assert with_role.exit_code == 0, with_role.output
-        assert with_role.stdout.startswith("accepted ")
-
-
 def test_reject_records_the_reason_and_never_runs_the_command(env: dict[str, str]) -> None:
     pid = propose_create(env)
     result = run(env, "proposal", "reject", pid, "--reason", "Duplicate of NCR-0040")

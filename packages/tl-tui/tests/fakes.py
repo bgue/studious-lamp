@@ -22,6 +22,7 @@ from fakes_documents import FakeDocumentSupport
 from fakes_feed import FakeFeedSupport
 from fakes_links import FakeLinkSupport
 from fakes_query import FakeQuerySupport
+from fakes_schedule import FakeScheduleSupport
 from fakes_settings import FakeSettingsSupport
 from fakes_tags import FakeTagSupport
 from fakes_types import FakeTypeSupport
@@ -220,6 +221,7 @@ class FakeClient(
     FakeDocumentSupport,
     FakeDerivationSupport,
     FakeCorrespondenceSupport,
+    FakeScheduleSupport,
 ):
     """Implements `tl_tui.client.ClientInterface` in memory."""
 
@@ -243,6 +245,7 @@ class FakeClient(
         self._init_documents()
         self._init_derivation()
         self._init_correspondence()
+        self._init_schedule()
 
     # --- seeding -----------------------------------------------------------------------------
 

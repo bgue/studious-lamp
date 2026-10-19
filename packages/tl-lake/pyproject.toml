@@ -10,6 +10,7 @@ dependencies = [
   "tl-schema",
   "tl-core",
   "tl-adapters",
+  "tl-xer",
 ]
 
 [build-system]
