@@ -28,6 +28,7 @@ from typing import Any
 
 from sqlalchemy import Connection, text
 
+from tl_core.integration.actor_access import held_access
 from tl_core.integration.contract import (
     ENRICHMENT_PSET_PREFIX,
     AutomationAccess,
@@ -324,6 +325,11 @@ def run_enricher(
     """Ask ``plugin`` about ``subject`` and store what it proposes. Returns the stats and events."""
     stats = RunStats()
     events: list[Event] = []
+    if held_access(uow.conn(), enricher.service_actor) is None:
+        # the enricher's own switch, its app's or its owner's went off since it was loaded: it
+        # holds nothing now, so it writes nothing (the same check the runner makes for a command)
+        stats.skipped += 1
+        return stats, events
     if not plugin.accepts(subject):
         return stats, events
     try:

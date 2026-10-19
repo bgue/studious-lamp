@@ -27,6 +27,7 @@ from tl_core.integration.enrichers.pipeline import (
     RunStats,
     StoredEnricher,
     in_scope,
+    load_live_enricher,
     load_live_enrichers,
     load_subject,
     run_enricher,
@@ -108,6 +109,14 @@ class EnrichmentDispatcher:
                 if kill_switch_on(uow.conn()):
                     counts.killed += 1
                     return none
+                # the batch loaded its enrichers once: ask again, so switching one off (or
+                # revising it) takes effect at the next event, as it does for a rule
+                live = load_live_enricher(uow.conn(), enricher.name)
+                if live is None or live.enricher_id != enricher.enricher_id:
+                    return none
+                if not applies(live, row):
+                    return none
+                enricher = live
                 selector = enricher.when.record_selector
                 if selector is not None and not record_matches(uow, row, selector):
                     return none

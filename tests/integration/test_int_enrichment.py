@@ -17,6 +17,8 @@ from tl_core.integration.enrichers.commands import (
     handle_reject_enrichment,
     handle_run_enricher,
 )
+from tl_core.integration.enrichers.dispatcher import EnrichmentDispatcher
+from tl_core.integration.enrichers.pipeline import load_live_enricher, load_subject, run_enricher
 from tl_core.integration.enrichers.registry import use_enrichers
 from tl_core.integration.errors import (
     IntegrationNotFoundError,
@@ -430,3 +432,57 @@ def test_the_layer_has_no_other_writer(world: World) -> None:
                 values={"label": "x"},
             ),  # fmt: skip
         )
+
+
+# --- a switch that goes off mid-batch stops the enricher at the next event (second review) ----
+
+
+class SwitchingDispatcher(EnrichmentDispatcher):
+    """Runs the first event, then calls ``after`` (a switch going off between two events)."""
+
+    def __init__(self, world: World, after: Any) -> None:
+        super().__init__(world.factory, clock=world.clock)
+        self._after, self._done = after, False
+
+    def _run(self, enricher: Any, row: Any, counts: Any) -> Any:
+        stats = super()._run(enricher, row, counts)
+        if not self._done:
+            self._done = True
+            self._after()
+        return stats
+
+
+def test_switching_an_enricher_off_mid_batch_stops_it_at_the_next_event(world: World) -> None:
+    enricher_id = setup(world)
+    world.record("DOC-1")
+    world.record("DOC-2")
+    SwitchingDispatcher(
+        world, lambda: world.switch_enricher(enricher_id, on=False)
+    ).run_until_idle()
+    assert len(world.values()) == 1
+
+
+def test_switching_its_app_off_mid_batch_stops_it_too(world: World) -> None:
+    world.app("erp")
+    setup(world, integration_app="erp")
+    world.record("DOC-1")
+    world.record("DOC-2")
+    SwitchingDispatcher(world, lambda: world.switch_app("erp", on=False)).run_until_idle()
+    assert len(world.values()) == 1
+
+
+def test_an_enricher_that_lost_its_access_writes_nothing_even_when_called_directly(
+    world: World,
+) -> None:
+    enricher_id = setup(world, policy="auto", threshold=0.5)
+    record = world.record("DOC-1")
+    with world.factory(readonly=True) as uow:
+        stale = load_live_enricher(uow.conn(), "fake")
+    assert stale is not None
+    world.switch_enricher(enricher_id, on=False)
+    with world.factory() as uow:
+        stats, events = run_enricher(
+            uow, stale, fakes.FakeEnricher(), load_subject(uow.conn(), record),  # type: ignore[arg-type]
+            now=world.clock(), correlation_id=None, causation_id=None,
+        )  # fmt: skip
+    assert events == [] and stats.skipped == 1 and world.values() == []

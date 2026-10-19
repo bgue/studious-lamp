@@ -22,7 +22,12 @@ from tl_core.integration.actions.service import (
     handle_invoke_action,
 )
 from tl_core.integration.actions.wiring import action_job_kind
-from tl_core.integration.apps import RegisterIntegrationApp, handle_register_app
+from tl_core.integration.apps import (
+    RegisterIntegrationApp,
+    SetIntegrationAppEnabled,
+    handle_register_app,
+    handle_set_app_enabled,
+)
 from tl_core.integration.contract import InvokeAction
 from tl_core.integration.enrichers.dispatcher import EnrichmentDispatcher
 from tl_core.integration.enrichers.service import (
@@ -316,6 +321,28 @@ class World:
         row = self.rows("SELECT psets_json FROM cur_core_record WHERE id = :i", i=record_id)[0]
         psets = as_object(load_json(row["psets_json"]))
         return as_object(as_object(psets.get("enrich", {})).get(enricher, {}))
+
+    def app(self, name: str) -> str:
+        """Register the integration app ``name`` (switched on); its id."""
+        with self.factory() as uow:
+            return handle_register_app(
+                uow,
+                RegisterIntegrationApp(
+                    actor=ADMIN, source="test", scope=SCOPE, name=name, label=name
+                ),
+            ).stream_id
+
+    def switch_app(self, name: str, *, on: bool) -> None:
+        app_id = self.rows("SELECT app_id FROM cur_integration_app WHERE name = :n", n=name)[0][
+            "app_id"
+        ]
+        with self.factory() as uow:
+            handle_set_app_enabled(
+                uow,
+                SetIntegrationAppEnabled(
+                    actor=ADMIN, source="test", scope=SCOPE, app_id=app_id, enabled=on
+                ),
+            )
 
     def switch_enricher(self, enricher_id: str, *, on: bool, scope: str = SCOPE) -> None:
         with self.factory() as uow:
