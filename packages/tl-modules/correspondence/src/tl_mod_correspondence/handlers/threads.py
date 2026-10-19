@@ -1,4 +1,3 @@
-# ruff: noqa: F401, F841
 """Threads: group the items of one exchange, and replace an item by another (brief 9 M10).
 
 A **thread** is opened by its first item (``CorrespondenceThread.Defined``, numbered from the
@@ -11,9 +10,6 @@ candidates: a hidden thread is never joined (ADR-0016).
 ``AssignThread`` is the manual form (a person moves an item to a thread, or says what it answers).
 ``SupersedeCorrespondence`` replaces an item by another (a corrected letter); the old item stays in
 the register, marked superseded, and a ``supersedes`` link says which replaced which.
-
-STUB (P1-I5-T08b): the functions with a STEPS comment are for you to write. When they are
-written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -114,24 +110,27 @@ def find_match(
     uow: UnitOfWork, item: registry.ItemRow, references: Sequence[str] = ()
 ) -> ThreadMatch | None:
     """Where ``item`` belongs according to the readable items and threads of its scope."""
-    # STEPS
-    # 1. `conn = uow.conn()`. When `item.responds_to_id is not None`: `answered =
-    #    registry.get_item(conn, item.responds_to_id)` (it applies the viewer's
-    #    confidentiality); when `answered is not None and answered.id != item.id` return
-    #    `ThreadMatch(answered.thread_id, answered.id, "manual")` (a reply we drafted joins the
-    #    thread of what it answers).
-    # 2. `facts = thread_facts_for(item, references)`. `by_message_id = {}`: for each
-    #    `message_id` in `[*facts.references, *([facts.in_reply_to] if facts.in_reply_to else
-    #    [])]`: `found = registry.find_by_message_id(conn, item.scope, message_id)`; when `found
-    #    is not None and found.id != item.id` set `by_message_id[message_id] =
-    #    KnownItem(found.id, found.thread_id)`.
-    # 3. `by_number = {}`: for each `number` in `facts.numbers`: `found =
-    #    registry.find_item(conn, item.scope, number)`; same condition, `by_number[number] =
-    #    KnownItem(found.id, found.thread_id)`.
-    # 4. `subjects = {}`: for each `thread` in `registry.thread_candidates(conn, item.scope,
-    #    facts.subject_key)`: `subjects.setdefault(thread.subject_key, thread.id)`.
-    # 5. Return `match_thread(facts, by_message_id, by_number, subjects)` (it may be `None`).
-    raise NotImplementedError
+    conn = uow.conn()
+    if item.responds_to_id is not None:
+        answered = registry.get_item(conn, item.responds_to_id)
+        if answered is not None and answered.id != item.id:
+            return ThreadMatch(answered.thread_id, answered.id, "manual")
+    facts = thread_facts_for(item, references)
+    by_message_id: dict[str, KnownItem] = {}
+    message_ids = [*facts.references, *([facts.in_reply_to] if facts.in_reply_to else [])]
+    for message_id in message_ids:
+        found = registry.find_by_message_id(conn, item.scope, message_id)
+        if found is not None and found.id != item.id:
+            by_message_id[message_id] = KnownItem(found.id, found.thread_id)
+    by_number: dict[str, KnownItem] = {}
+    for number in facts.numbers:
+        known = registry.find_item(conn, item.scope, number)
+        if known is not None and known.id != item.id:
+            by_number[number] = KnownItem(known.id, known.thread_id)
+    subjects: dict[str, str] = {}
+    for thread in registry.thread_candidates(conn, item.scope, facts.subject_key):
+        subjects.setdefault(thread.subject_key, thread.id)
+    return match_thread(facts, by_message_id, by_number, subjects)
 
 
 def _open_thread(
@@ -219,32 +218,42 @@ def assign_thread(
 
     Returns the events appended. An item that already has a thread is left alone (``[]``).
     """
-    # STEPS
-    # 1. When `item.thread_id is not None` return `[]` (an item already in a thread is left
-    #    alone).
-    # 2. `match = find_match(uow, item, references)`.
-    # 3. No match: `thread_id, events = _open_thread(uow, cmd, item)`; return `[*events,
-    #    *_join(uow, cmd, thread_id, item, None, "manual", first=True)]`.
-    # 4. `thread_id = match.thread_id`. When it is `None` the matched item has no thread yet:
-    #    `earlier = registry.get_item(uow.conn(), match.responds_to_id or "")`. If `earlier` is
-    #    None, do what the no-match step does. Otherwise open the thread for the earlier item:
-    #    `thread_id, events = _open_thread(uow, cmd, earlier)` and `events += _join(uow, cmd,
-    #    thread_id, earlier, None, match.matched_by, first=True)`.
-    # 5. Finally return `[*events, *_join(uow, cmd, thread_id, item, match.responds_to_id,
-    #    match.matched_by)]` (`events` is empty when the match already had a thread).
-    raise NotImplementedError
+    if item.thread_id is not None:
+        return []
+    match = find_match(uow, item, references)
+    if match is None:
+        thread_id, events = _open_thread(uow, cmd, item)
+        return [*events, *_join(uow, cmd, thread_id, item, None, "manual", first=True)]
+    events: list[Event] = []
+    matched_thread = match.thread_id
+    if matched_thread is None:
+        earlier = registry.get_item(uow.conn(), match.responds_to_id or "")
+        if earlier is None:
+            thread_id, events = _open_thread(uow, cmd, item)
+            return [*events, *_join(uow, cmd, thread_id, item, None, "manual", first=True)]
+        thread_id, events = _open_thread(uow, cmd, earlier)
+        events += _join(uow, cmd, thread_id, earlier, None, match.matched_by, first=True)
+    else:
+        thread_id = matched_thread
+    return [
+        *events,
+        *_join(uow, cmd, thread_id, item, match.responds_to_id, match.matched_by),
+    ]
 
 
 def with_thread(uow: UnitOfWork, cmd: Command, made: CommandResult) -> CommandResult:
     """``made`` (a new item) once the item is in its thread: the events are added to the result."""
-    # STEPS
-    # 1. `item = registry.get_item(uow.conn(), made.stream_id)`. When it is `None` (the viewer
-    #    cannot read what they just made) return `made` unchanged.
-    # 2. `events = assign_thread(uow, cmd, item)`; `current = registry.get_item(uow.conn(),
-    #    item.id)`.
-    # 3. Return `CommandResult(stream_id=made.stream_id, key=made.key, version=current.version
-    #    if current else made.version, events=[*made.events, *events])`.
-    raise NotImplementedError
+    item = registry.get_item(uow.conn(), made.stream_id)
+    if item is None:
+        return made
+    events = assign_thread(uow, cmd, item)
+    current = registry.get_item(uow.conn(), item.id)
+    return CommandResult(
+        stream_id=made.stream_id,
+        key=made.key,
+        version=current.version if current else made.version,
+        events=[*made.events, *events],
+    )
 
 
 def handle_assign_thread(uow: UnitOfWork, cmd: AssignThread) -> CommandResult:
@@ -254,25 +263,42 @@ def handle_assign_thread(uow: UnitOfWork, cmd: AssignThread) -> CommandResult:
     ``ThreadNotFoundError`` (no readable thread of that id in the scope), ``ItemStateError`` (the
     item is void) and ``NoChangesError`` (it is in that thread already).
     """
-    # STEPS
-    # 1. `cmd = correlated(cmd)`; `item = load_item(uow, cmd, cmd.stream_id)`. When `item.voided
-    #    or item.state == "Void"` raise `ItemStateError(f"item {item.number} is void")`.
-    # 2. When `cmd.responds_to_id is not None`: `answered = registry.get_item(uow.conn(),
-    #    cmd.responds_to_id)`; when `answered is None or answered.scope != cmd.scope` raise
-    #    `RecordNotFoundError(f"no record {cmd.responds_to_id!r}")`; when `answered.id ==
-    #    item.id` raise `InvalidItemError("an item cannot answer itself")`.
-    # 3. `events = []`. When `cmd.thread_id is None`: `thread_id, events = _open_thread(uow,
-    #    cmd, item)`. Otherwise `thread = registry.get_thread(uow.conn(), cmd.thread_id)`; when
-    #    `thread is None or thread.scope != cmd.scope` raise `ThreadNotFoundError(f"no thread
-    #    {cmd.thread_id!r} in scope {cmd.scope!r}")`; when `item.thread_id == thread.id and
-    #    cmd.responds_to_id in (None, item.responds_to_id)` raise `NoChangesError(f"item
-    #    {item.number} is already in thread {thread.number}")`; `thread_id = thread.id`.
-    # 4. `events += _join(uow, cmd, thread_id, item, cmd.responds_to_id, "manual",
-    #    first=cmd.thread_id is None)`.
-    # 5. `current = registry.get_item(uow.conn(), item.id)`; return
-    #    `CommandResult(stream_id=item.id, key=item.number, version=current.version if current
-    #    else item.version, events=events)`.
-    raise NotImplementedError
+    cmd = correlated(cmd)
+    item = load_item(uow, cmd, cmd.stream_id)
+    if item.voided or item.state == "Void":
+        raise ItemStateError(f"item {item.number} is void")
+    if cmd.responds_to_id is not None:
+        answered = registry.get_item(uow.conn(), cmd.responds_to_id)
+        if answered is None or answered.scope != cmd.scope:
+            raise RecordNotFoundError(f"no record {cmd.responds_to_id!r}")
+        if answered.id == item.id:
+            raise InvalidItemError("an item cannot answer itself")
+    events: list[Event] = []
+    if cmd.thread_id is None:
+        thread_id, events = _open_thread(uow, cmd, item)
+    else:
+        thread = registry.get_thread(uow.conn(), cmd.thread_id)
+        if thread is None or thread.scope != cmd.scope:
+            raise ThreadNotFoundError(f"no thread {cmd.thread_id!r} in scope {cmd.scope!r}")
+        if item.thread_id == thread.id and cmd.responds_to_id in (None, item.responds_to_id):
+            raise NoChangesError(f"item {item.number} is already in thread {thread.number}")
+        thread_id = thread.id
+    events += _join(
+        uow,
+        cmd,
+        thread_id,
+        item,
+        cmd.responds_to_id,
+        "manual",
+        first=cmd.thread_id is None,
+    )
+    current = registry.get_item(uow.conn(), item.id)
+    return CommandResult(
+        stream_id=item.id,
+        key=item.number,
+        version=current.version if current else item.version,
+        events=events,
+    )
 
 
 def handle_supersede_correspondence(uow: UnitOfWork, cmd: SupersedeCorrespondence) -> CommandResult:
@@ -282,19 +308,45 @@ def handle_supersede_correspondence(uow: UnitOfWork, cmd: SupersedeCorrespondenc
     (the old item is closed, or the new one is void) and ``InvalidItemError`` (an item cannot
     replace itself).
     """
-    # STEPS
-    # 1. `cmd = correlated(cmd)`; `old = open_item(uow, cmd, cmd.stream_id)`; `new =
-    #    load_item(uow, cmd, cmd.superseded_by_id)`.
-    # 2. When `new.id == old.id` raise `InvalidItemError("an item cannot supersede itself")`.
-    #    When `new.voided or new.state == "Void"` raise `ItemStateError(f"item {new.number} is
-    #    void and cannot replace another")`.
-    # 3. `done = append(uow, cmd, old.id, CORRESPONDENCE, [NewEvent(event_type=CORR_SUPERSEDED,
-    #    payload={"superseded_by_id": new.id, "reason": cmd.reason})],
-    #    expected=cmd.expected_version or old.version)`.
-    # 4. `linked = handle_add_link(uow, AddLink(actor=cmd.actor, source=cmd.source,
-    #    scope=cmd.scope, correlation_id=cmd.correlation_id, causation_id=cmd.causation_id,
-    #    from_id=new.id, to_id=old.id, relation="supersedes", link_source="rule",
-    #    note=cmd.reason), by_module=True)`.
-    # 5. Return `CommandResult(stream_id=old.id, key=old.number, version=done.new_version,
-    #    events=[*done.events, *linked.events])`.
-    raise NotImplementedError
+    cmd = correlated(cmd)
+    old = open_item(uow, cmd, cmd.stream_id)
+    new = load_item(uow, cmd, cmd.superseded_by_id)
+    if new.id == old.id:
+        raise InvalidItemError("an item cannot supersede itself")
+    if new.voided or new.state == "Void":
+        raise ItemStateError(f"item {new.number} is void and cannot replace another")
+    done = append(
+        uow,
+        cmd,
+        old.id,
+        CORRESPONDENCE,
+        [
+            NewEvent(
+                event_type=CORR_SUPERSEDED,
+                payload={"superseded_by_id": new.id, "reason": cmd.reason},
+            )
+        ],
+        expected=cmd.expected_version or old.version,
+    )
+    linked = handle_add_link(
+        uow,
+        AddLink(
+            actor=cmd.actor,
+            source=cmd.source,
+            scope=cmd.scope,
+            correlation_id=cmd.correlation_id,
+            causation_id=cmd.causation_id,
+            from_id=new.id,
+            to_id=old.id,
+            relation="supersedes",
+            link_source="rule",
+            note=cmd.reason,
+        ),
+        by_module=True,
+    )
+    return CommandResult(
+        stream_id=old.id,
+        key=old.number,
+        version=done.new_version,
+        events=[*done.events, *linked.events],
+    )

@@ -41,6 +41,7 @@ from tl_mod_correspondence.handlers.create import (
     create_item,
 )
 from tl_mod_correspondence.handlers.models import Medium, Recipient, Via, non_blank
+from tl_mod_correspondence.handlers.threads import with_thread
 from tl_mod_correspondence.limits import (
     MAX_BODY,
     MAX_NUMBER,
@@ -143,7 +144,7 @@ def handle_receive_correspondence(uow: UnitOfWork, cmd: ReceiveCorrespondence) -
         known = find_by_message_id(uow.conn(), cmd.scope, message_id)
         if known is not None:
             raise InvalidItemError(f"message {message_id} is already item {known.number}")
-    return create_item(
+    made = create_item(
         uow,
         cmd,
         subject=cmd.subject,
@@ -164,6 +165,7 @@ def handle_receive_correspondence(uow: UnitOfWork, cmd: ReceiveCorrespondence) -
         response_due=cmd.response_due,
         received=True,
     )
+    return with_thread(uow, cmd, made)
 
 
 def handle_update_correspondence(uow: UnitOfWork, cmd: UpdateCorrespondence) -> CommandResult:
