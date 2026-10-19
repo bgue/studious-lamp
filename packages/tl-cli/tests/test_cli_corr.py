@@ -1,6 +1,6 @@
 """`tl corr ...` on a temporary ledger (P1-I5): the register, the clocks, the controller's acts.
 
-The letter is made by the commands: received by upload, answered, drafted and issued with
+The letter is made by the commands: received by upload, triaged, answered, drafted and issued with
 a 14-calendar-day clock. Three people sign in on one ledger (a user, a document controller and an
 admin); every command that needs a controller is tried as the user first. The module signs its
 people in itself, so every case runs on both adapters.
@@ -111,6 +111,24 @@ def test_receive_by_upload_lists_and_shows(cast: Cast, tmp_path: Path) -> None:
     assert number in run(cast.ursula, "ls", *PROJECT).stdout
     run(cast.ursula, "update", number, *PROJECT, "--subject", "Drawings, revision B")
     assert "subject Drawings, revision B" in run(cast.ursula, "show", number, *PROJECT).stdout
+    missing = run(cast.ursula, "show", "P123-COR-9999", *PROJECT, ok=False)
+    assert missing.stderr.startswith("error: no item")
+
+
+def test_receive_by_upload_then_triage_to_general_with_the_suggestion(
+    cast: Cast, tmp_path: Path
+) -> None:
+    number = receive(cast.ursula, tmp_path)
+    shown = run(cast.ursula, "show", number, *PROJECT).stdout
+    assert "Received" in shown and "subject Drawings" in shown
+    assert "file original letter.txt" in shown
+    assert number in run(cast.ursula, "ls", *PROJECT).stdout
+    assert run(cast.ursula, "suggest", number, *PROJECT).stdout.startswith("suggested ")
+    triaged = run(
+        cast.ursula, "triage", number, *PROJECT, "--domain", "general", "--subtype", "letter"
+    ).stdout
+    assert triaged.startswith(f"triaged {number} as general/")
+    assert "Triaged" in run(cast.ursula, "show", number, *PROJECT).stdout
     missing = run(cast.ursula, "show", "P123-COR-9999", *PROJECT, ok=False)
     assert missing.stderr.startswith("error: no item")
 
