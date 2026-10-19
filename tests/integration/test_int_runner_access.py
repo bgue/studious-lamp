@@ -254,8 +254,8 @@ def test_a_service_actor_is_unique_in_its_table(world: World, table: str) -> Non
         row[key] = new_ulid()
         row[name] = "clone"
         names, marks = ", ".join(row), ", ".join(":" + c for c in row)
-        with pytest.raises(IntegrityError):
-            conn.execute(
+        with pytest.raises(IntegrityError), conn.begin_nested():  # a savepoint: Postgres aborts
+            conn.execute(  # the whole transaction on a violation
                 text(f"INSERT INTO {table} ({names}) VALUES ({marks})"),  # noqa: S608
                 row,
             )
