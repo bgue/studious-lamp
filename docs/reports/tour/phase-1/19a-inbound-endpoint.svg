@@ -5,178 +5,178 @@
     
     
 
-    .terminal-1402110102-matrix {
+    .terminal-4215898170-matrix {
         font-family: Fira Code, monospace;
         font-size: 20px;
         line-height: 24.4px;
         font-variant-east-asian: full-width;
     }
 
-    .terminal-1402110102-title {
+    .terminal-4215898170-title {
         font-size: 18px;
         font-weight: bold;
         font-family: arial;
     }
 
-    .terminal-1402110102-r1 { fill: #98a84b;font-weight: bold }
-.terminal-1402110102-r2 { fill: #c5c8c6;font-weight: bold }
-.terminal-1402110102-r3 { fill: #c5c8c6 }
-.terminal-1402110102-r4 { fill: #cc555a }
+    .terminal-4215898170-r1 { fill: #98a84b;font-weight: bold }
+.terminal-4215898170-r2 { fill: #c5c8c6;font-weight: bold }
+.terminal-4215898170-r3 { fill: #c5c8c6 }
+.terminal-4215898170-r4 { fill: #cc555a }
     </style>
 
     <defs>
-    <clipPath id="terminal-1402110102-clip-terminal">
+    <clipPath id="terminal-4215898170-clip-terminal">
       <rect x="0" y="0" width="1438.6" height="853.0" />
     </clipPath>
-    <clipPath id="terminal-1402110102-line-0">
+    <clipPath id="terminal-4215898170-line-0">
     <rect x="0" y="1.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-1">
+<clipPath id="terminal-4215898170-line-1">
     <rect x="0" y="25.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-2">
+<clipPath id="terminal-4215898170-line-2">
     <rect x="0" y="50.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-3">
+<clipPath id="terminal-4215898170-line-3">
     <rect x="0" y="74.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-4">
+<clipPath id="terminal-4215898170-line-4">
     <rect x="0" y="99.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-5">
+<clipPath id="terminal-4215898170-line-5">
     <rect x="0" y="123.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-6">
+<clipPath id="terminal-4215898170-line-6">
     <rect x="0" y="147.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-7">
+<clipPath id="terminal-4215898170-line-7">
     <rect x="0" y="172.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-8">
+<clipPath id="terminal-4215898170-line-8">
     <rect x="0" y="196.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-9">
+<clipPath id="terminal-4215898170-line-9">
     <rect x="0" y="221.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-10">
+<clipPath id="terminal-4215898170-line-10">
     <rect x="0" y="245.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-11">
+<clipPath id="terminal-4215898170-line-11">
     <rect x="0" y="269.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-12">
+<clipPath id="terminal-4215898170-line-12">
     <rect x="0" y="294.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-13">
+<clipPath id="terminal-4215898170-line-13">
     <rect x="0" y="318.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-14">
+<clipPath id="terminal-4215898170-line-14">
     <rect x="0" y="343.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-15">
+<clipPath id="terminal-4215898170-line-15">
     <rect x="0" y="367.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-16">
+<clipPath id="terminal-4215898170-line-16">
     <rect x="0" y="391.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-17">
+<clipPath id="terminal-4215898170-line-17">
     <rect x="0" y="416.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-18">
+<clipPath id="terminal-4215898170-line-18">
     <rect x="0" y="440.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-19">
+<clipPath id="terminal-4215898170-line-19">
     <rect x="0" y="465.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-20">
+<clipPath id="terminal-4215898170-line-20">
     <rect x="0" y="489.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-21">
+<clipPath id="terminal-4215898170-line-21">
     <rect x="0" y="513.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-22">
+<clipPath id="terminal-4215898170-line-22">
     <rect x="0" y="538.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-23">
+<clipPath id="terminal-4215898170-line-23">
     <rect x="0" y="562.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-24">
+<clipPath id="terminal-4215898170-line-24">
     <rect x="0" y="587.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-25">
+<clipPath id="terminal-4215898170-line-25">
     <rect x="0" y="611.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-26">
+<clipPath id="terminal-4215898170-line-26">
     <rect x="0" y="635.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-27">
+<clipPath id="terminal-4215898170-line-27">
     <rect x="0" y="660.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-28">
+<clipPath id="terminal-4215898170-line-28">
     <rect x="0" y="684.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-29">
+<clipPath id="terminal-4215898170-line-29">
     <rect x="0" y="709.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-30">
+<clipPath id="terminal-4215898170-line-30">
     <rect x="0" y="733.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-31">
+<clipPath id="terminal-4215898170-line-31">
     <rect x="0" y="757.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-32">
+<clipPath id="terminal-4215898170-line-32">
     <rect x="0" y="782.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1402110102-line-33">
+<clipPath id="terminal-4215898170-line-33">
     <rect x="0" y="806.7" width="1439.6" height="24.65"/>
             </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="902" rx="8"/><text class="terminal-1402110102-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">An&#160;inbound&#160;endpoint:&#160;a&#160;dry&#160;run,&#160;then&#160;a&#160;signed&#160;delivery&#160;from&#160;a&#160;contractor</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="902" rx="8"/><text class="terminal-4215898170-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">An&#160;inbound&#160;endpoint:&#160;a&#160;dry&#160;run,&#160;then&#160;a&#160;signed&#160;delivery&#160;from&#160;a&#160;contractor</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
         
-    <g transform="translate(9, 41)" clip-path="url(#terminal-1402110102-clip-terminal)">
+    <g transform="translate(9, 41)" clip-path="url(#terminal-4215898170-clip-terminal)">
     
-    <g class="terminal-1402110102-matrix">
-    <text class="terminal-1402110102-r1" x="0" y="20" textLength="61" clip-path="url(#terminal-1402110102-line-0)">amy$&#160;</text><text class="terminal-1402110102-r2" x="61" y="20" textLength="793" clip-path="url(#terminal-1402110102-line-0)">tl&#160;integration&#160;app&#160;add&#160;acme-nde&#160;--label&#160;&#x27;Acme&#160;NDE&#x27;&#160;--project&#160;P123</text><text class="terminal-1402110102-r3" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-1402110102-line-0)">
-</text><text class="terminal-1402110102-r4" x="0" y="44.4" textLength="622.2" clip-path="url(#terminal-1402110102-line-1)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-1402110102-r3" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-1402110102-line-1)">
-</text><text class="terminal-1402110102-r1" x="0" y="68.8" textLength="73.2" clip-path="url(#terminal-1402110102-line-2)">demo$&#160;</text><text class="terminal-1402110102-r2" x="73.2" y="68.8" textLength="793" clip-path="url(#terminal-1402110102-line-2)">tl&#160;integration&#160;app&#160;add&#160;acme-nde&#160;--label&#160;&#x27;Acme&#160;NDE&#x27;&#160;--project&#160;P123</text><text class="terminal-1402110102-r3" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-1402110102-line-2)">
-</text><text class="terminal-1402110102-r3" x="0" y="93.2" textLength="146.4" clip-path="url(#terminal-1402110102-line-3)">app&#160;acme-nde</text><text class="terminal-1402110102-r3" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-1402110102-line-3)">
-</text><text class="terminal-1402110102-r3" x="0" y="117.6" textLength="353.8" clip-path="url(#terminal-1402110102-line-4)">id&#160;01M4RTP75000000000000001B3</text><text class="terminal-1402110102-r3" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-1402110102-line-4)">
-</text><text class="terminal-1402110102-r1" x="0" y="142" textLength="73.2" clip-path="url(#terminal-1402110102-line-5)">demo$&#160;</text><text class="terminal-1402110102-r2" x="73.2" y="142" textLength="1281" clip-path="url(#terminal-1402110102-line-5)">tl&#160;endpoint&#160;create&#160;acme-nde/results&#160;--project&#160;P123&#160;--mapping-file&#160;integ/map.jsonata&#160;--allow&#160;SetPsetValues</text><text class="terminal-1402110102-r3" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-1402110102-line-5)">
-</text><text class="terminal-1402110102-r3" x="0" y="166.4" textLength="305" clip-path="url(#terminal-1402110102-line-6)">endpoint&#160;acme-nde/results</text><text class="terminal-1402110102-r3" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-1402110102-line-6)">
-</text><text class="terminal-1402110102-r3" x="0" y="190.8" textLength="353.8" clip-path="url(#terminal-1402110102-line-7)">id&#160;01M4RTVPY000000000000001B6</text><text class="terminal-1402110102-r3" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-1402110102-line-7)">
-</text><text class="terminal-1402110102-r3" x="0" y="215.2" textLength="439.2" clip-path="url(#terminal-1402110102-line-8)">secret_id&#160;01M4RTVPY000000000000001B7</text><text class="terminal-1402110102-r3" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-1402110102-line-8)">
-</text><text class="terminal-1402110102-r3" x="0" y="239.6" textLength="317.2" clip-path="url(#terminal-1402110102-line-9)">secret&#160;...(not&#160;shown&#160;here)</text><text class="terminal-1402110102-r3" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-1402110102-line-9)">
-</text><text class="terminal-1402110102-r3" x="0" y="264" textLength="463.6" clip-path="url(#terminal-1402110102-line-10)">keep&#160;the&#160;secret:&#160;it&#160;is&#160;not&#160;shown&#160;again</text><text class="terminal-1402110102-r3" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-1402110102-line-10)">
-</text><text class="terminal-1402110102-r1" x="0" y="288.4" textLength="73.2" clip-path="url(#terminal-1402110102-line-11)">demo$&#160;</text><text class="terminal-1402110102-r2" x="73.2" y="288.4" textLength="963.8" clip-path="url(#terminal-1402110102-line-11)">tl&#160;delivery&#160;dry-run&#160;acme-nde/results&#160;--project&#160;P123&#160;--sample&#160;integ/payload.json</text><text class="terminal-1402110102-r3" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-1402110102-line-11)">
-</text><text class="terminal-1402110102-r3" x="0" y="312.8" textLength="109.8" clip-path="url(#terminal-1402110102-line-12)">status&#160;ok</text><text class="terminal-1402110102-r3" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-1402110102-line-12)">
-</text><text class="terminal-1402110102-r3" x="0" y="337.2" textLength="305" clip-path="url(#terminal-1402110102-line-13)">endpoint&#160;acme-nde/results</text><text class="terminal-1402110102-r3" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-1402110102-line-13)">
-</text><text class="terminal-1402110102-r3" x="0" y="361.6" textLength="109.8" clip-path="url(#terminal-1402110102-line-14)">version&#160;1</text><text class="terminal-1402110102-r3" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-1402110102-line-14)">
-</text><text class="terminal-1402110102-r3" x="0" y="386" textLength="585.6" clip-path="url(#terminal-1402110102-line-15)">SetPsetValues&#160;&#160;ok&#160;&#160;SetPsetValues&#160;in&#160;project:P123</text><text class="terminal-1402110102-r3" x="1439.6" y="386" textLength="12.2" clip-path="url(#terminal-1402110102-line-15)">
-</text><text class="terminal-1402110102-r3" x="0" y="410.4" textLength="585.6" clip-path="url(#terminal-1402110102-line-16)">SetPsetValues&#160;&#160;ok&#160;&#160;SetPsetValues&#160;in&#160;project:P123</text><text class="terminal-1402110102-r3" x="1439.6" y="410.4" textLength="12.2" clip-path="url(#terminal-1402110102-line-16)">
-</text><text class="terminal-1402110102-r1" x="0" y="434.8" textLength="73.2" clip-path="url(#terminal-1402110102-line-17)">demo$&#160;</text><text class="terminal-1402110102-r2" x="73.2" y="434.8" textLength="1085.8" clip-path="url(#terminal-1402110102-line-17)">tl&#160;endpoint&#160;mode&#160;acme-nde/results&#160;--project&#160;P123&#160;live&#160;--reason&#160;&#x27;the&#160;dry&#160;run&#160;looked&#160;right&#x27;</text><text class="terminal-1402110102-r3" x="1439.6" y="434.8" textLength="12.2" clip-path="url(#terminal-1402110102-line-17)">
-</text><text class="terminal-1402110102-r3" x="0" y="459.2" textLength="427" clip-path="url(#terminal-1402110102-line-18)">endpoint&#160;acme-nde/results&#160;mode&#160;live</text><text class="terminal-1402110102-r3" x="1439.6" y="459.2" textLength="12.2" clip-path="url(#terminal-1402110102-line-18)">
-</text><text class="terminal-1402110102-r1" x="0" y="483.6" textLength="73.2" clip-path="url(#terminal-1402110102-line-19)">demo$&#160;</text><text class="terminal-1402110102-r2" x="73.2" y="483.6" textLength="610" clip-path="url(#terminal-1402110102-line-19)">tl&#160;endpoint&#160;enable&#160;acme-nde/results&#160;--project&#160;P123</text><text class="terminal-1402110102-r3" x="1439.6" y="483.6" textLength="12.2" clip-path="url(#terminal-1402110102-line-19)">
-</text><text class="terminal-1402110102-r3" x="0" y="508" textLength="341.6" clip-path="url(#terminal-1402110102-line-20)">endpoint&#160;acme-nde/results&#160;on</text><text class="terminal-1402110102-r3" x="1439.6" y="508" textLength="12.2" clip-path="url(#terminal-1402110102-line-20)">
-</text><text class="terminal-1402110102-r1" x="0" y="532.4" textLength="24.4" clip-path="url(#terminal-1402110102-line-21)">$&#160;</text><text class="terminal-1402110102-r2" x="24.4" y="532.4" textLength="427" clip-path="url(#terminal-1402110102-line-21)">POST&#160;/in/acme-nde/results&#160;&#160;(signed)</text><text class="terminal-1402110102-r3" x="1439.6" y="532.4" textLength="12.2" clip-path="url(#terminal-1402110102-line-21)">
-</text><text class="terminal-1402110102-r3" x="0" y="556.8" textLength="146.4" clip-path="url(#terminal-1402110102-line-22)">202&#160;accepted</text><text class="terminal-1402110102-r3" x="1439.6" y="556.8" textLength="12.2" clip-path="url(#terminal-1402110102-line-22)">
-</text><text class="terminal-1402110102-r1" x="0" y="581.2" textLength="24.4" clip-path="url(#terminal-1402110102-line-23)">$&#160;</text><text class="terminal-1402110102-r2" x="24.4" y="581.2" textLength="622.2" clip-path="url(#terminal-1402110102-line-23)">POST&#160;/in/acme-nde/results&#160;&#160;(the&#160;same&#160;message&#160;again)</text><text class="terminal-1402110102-r3" x="1439.6" y="581.2" textLength="12.2" clip-path="url(#terminal-1402110102-line-23)">
-</text><text class="terminal-1402110102-r3" x="0" y="605.6" textLength="195.2" clip-path="url(#terminal-1402110102-line-24)">401&#160;unauthorized</text><text class="terminal-1402110102-r3" x="1439.6" y="605.6" textLength="12.2" clip-path="url(#terminal-1402110102-line-24)">
-</text><text class="terminal-1402110102-r1" x="0" y="630" textLength="24.4" clip-path="url(#terminal-1402110102-line-25)">$&#160;</text><text class="terminal-1402110102-r2" x="24.4" y="630" textLength="500.2" clip-path="url(#terminal-1402110102-line-25)">POST&#160;/in/acme-nde/results&#160;&#160;(no&#160;signature)</text><text class="terminal-1402110102-r3" x="1439.6" y="630" textLength="12.2" clip-path="url(#terminal-1402110102-line-25)">
-</text><text class="terminal-1402110102-r3" x="0" y="654.4" textLength="195.2" clip-path="url(#terminal-1402110102-line-26)">401&#160;unauthorized</text><text class="terminal-1402110102-r3" x="1439.6" y="654.4" textLength="12.2" clip-path="url(#terminal-1402110102-line-26)">
-</text><text class="terminal-1402110102-r1" x="0" y="678.8" textLength="73.2" clip-path="url(#terminal-1402110102-line-27)">demo$&#160;</text><text class="terminal-1402110102-r2" x="73.2" y="678.8" textLength="329.4" clip-path="url(#terminal-1402110102-line-27)">tl&#160;integration&#160;serve&#160;--once</text><text class="terminal-1402110102-r3" x="1439.6" y="678.8" textLength="12.2" clip-path="url(#terminal-1402110102-line-27)">
-</text><text class="terminal-1402110102-r3" x="0" y="703.2" textLength="414.8" clip-path="url(#terminal-1402110102-line-28)">rules&#160;49&#160;enrich&#160;49&#160;jobs&#160;1&#160;killed&#160;0</text><text class="terminal-1402110102-r3" x="1439.6" y="703.2" textLength="12.2" clip-path="url(#terminal-1402110102-line-28)">
-</text><text class="terminal-1402110102-r1" x="0" y="727.6" textLength="61" clip-path="url(#terminal-1402110102-line-29)">amy$&#160;</text><text class="terminal-1402110102-r2" x="61" y="727.6" textLength="402.6" clip-path="url(#terminal-1402110102-line-29)">tl&#160;pset&#160;get&#160;V-1001&#160;--project&#160;P123</text><text class="terminal-1402110102-r3" x="1439.6" y="727.6" textLength="12.2" clip-path="url(#terminal-1402110102-line-29)">
-</text><text class="terminal-1402110102-r3" x="0" y="752" textLength="134.2" clip-path="url(#terminal-1402110102-line-30)">key:&#160;V-1001</text><text class="terminal-1402110102-r3" x="1439.6" y="752" textLength="12.2" clip-path="url(#terminal-1402110102-line-30)">
-</text><text class="terminal-1402110102-r3" x="0" y="776.4" textLength="122" clip-path="url(#terminal-1402110102-line-31)">version:&#160;2</text><text class="terminal-1402110102-r3" x="1439.6" y="776.4" textLength="12.2" clip-path="url(#terminal-1402110102-line-31)">
-</text><text class="terminal-1402110102-r3" x="0" y="800.8" textLength="1061.4" clip-path="url(#terminal-1402110102-line-32)">effective_schema_hash:&#160;0913ecdec08d00143d4fb4d46c235a299ddda11d9980d3589817ac68822f0c20</text><text class="terminal-1402110102-r3" x="1439.6" y="800.8" textLength="12.2" clip-path="url(#terminal-1402110102-line-32)">
-</text><text class="terminal-1402110102-r3" x="0" y="825.2" textLength="183" clip-path="url(#terminal-1402110102-line-33)">conformance:&#160;ok</text><text class="terminal-1402110102-r3" x="1439.6" y="825.2" textLength="12.2" clip-path="url(#terminal-1402110102-line-33)">
-</text><text class="terminal-1402110102-r3" x="0" y="849.6" textLength="866.2" clip-path="url(#terminal-1402110102-line-34)">psets:&#160;{&quot;valve_data&quot;:{&quot;manufacturer&quot;:&quot;Acme&#160;Valves&quot;,&quot;tag_no&quot;:&quot;FV-1001&quot;}}</text><text class="terminal-1402110102-r3" x="1439.6" y="849.6" textLength="12.2" clip-path="url(#terminal-1402110102-line-34)">
+    <g class="terminal-4215898170-matrix">
+    <text class="terminal-4215898170-r1" x="0" y="20" textLength="61" clip-path="url(#terminal-4215898170-line-0)">amy$&#160;</text><text class="terminal-4215898170-r2" x="61" y="20" textLength="793" clip-path="url(#terminal-4215898170-line-0)">tl&#160;integration&#160;app&#160;add&#160;acme-nde&#160;--label&#160;&#x27;Acme&#160;NDE&#x27;&#160;--project&#160;P123</text><text class="terminal-4215898170-r3" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-4215898170-line-0)">
+</text><text class="terminal-4215898170-r4" x="0" y="44.4" textLength="622.2" clip-path="url(#terminal-4215898170-line-1)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-4215898170-r3" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-4215898170-line-1)">
+</text><text class="terminal-4215898170-r1" x="0" y="68.8" textLength="73.2" clip-path="url(#terminal-4215898170-line-2)">demo$&#160;</text><text class="terminal-4215898170-r2" x="73.2" y="68.8" textLength="793" clip-path="url(#terminal-4215898170-line-2)">tl&#160;integration&#160;app&#160;add&#160;acme-nde&#160;--label&#160;&#x27;Acme&#160;NDE&#x27;&#160;--project&#160;P123</text><text class="terminal-4215898170-r3" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-4215898170-line-2)">
+</text><text class="terminal-4215898170-r3" x="0" y="93.2" textLength="146.4" clip-path="url(#terminal-4215898170-line-3)">app&#160;acme-nde</text><text class="terminal-4215898170-r3" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-4215898170-line-3)">
+</text><text class="terminal-4215898170-r3" x="0" y="117.6" textLength="353.8" clip-path="url(#terminal-4215898170-line-4)">id&#160;01M4RTP75000000000000001B3</text><text class="terminal-4215898170-r3" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-4215898170-line-4)">
+</text><text class="terminal-4215898170-r1" x="0" y="142" textLength="73.2" clip-path="url(#terminal-4215898170-line-5)">demo$&#160;</text><text class="terminal-4215898170-r2" x="73.2" y="142" textLength="1281" clip-path="url(#terminal-4215898170-line-5)">tl&#160;endpoint&#160;create&#160;acme-nde/results&#160;--project&#160;P123&#160;--mapping-file&#160;integ/map.jsonata&#160;--allow&#160;SetPsetValues</text><text class="terminal-4215898170-r3" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-4215898170-line-5)">
+</text><text class="terminal-4215898170-r3" x="0" y="166.4" textLength="305" clip-path="url(#terminal-4215898170-line-6)">endpoint&#160;acme-nde/results</text><text class="terminal-4215898170-r3" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-4215898170-line-6)">
+</text><text class="terminal-4215898170-r3" x="0" y="190.8" textLength="353.8" clip-path="url(#terminal-4215898170-line-7)">id&#160;01M4RTVPY000000000000001B6</text><text class="terminal-4215898170-r3" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-4215898170-line-7)">
+</text><text class="terminal-4215898170-r3" x="0" y="215.2" textLength="439.2" clip-path="url(#terminal-4215898170-line-8)">secret_id&#160;01M4RTVPY000000000000001B7</text><text class="terminal-4215898170-r3" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-4215898170-line-8)">
+</text><text class="terminal-4215898170-r3" x="0" y="239.6" textLength="317.2" clip-path="url(#terminal-4215898170-line-9)">secret&#160;...(not&#160;shown&#160;here)</text><text class="terminal-4215898170-r3" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-4215898170-line-9)">
+</text><text class="terminal-4215898170-r3" x="0" y="264" textLength="463.6" clip-path="url(#terminal-4215898170-line-10)">keep&#160;the&#160;secret:&#160;it&#160;is&#160;not&#160;shown&#160;again</text><text class="terminal-4215898170-r3" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-4215898170-line-10)">
+</text><text class="terminal-4215898170-r1" x="0" y="288.4" textLength="73.2" clip-path="url(#terminal-4215898170-line-11)">demo$&#160;</text><text class="terminal-4215898170-r2" x="73.2" y="288.4" textLength="963.8" clip-path="url(#terminal-4215898170-line-11)">tl&#160;delivery&#160;dry-run&#160;acme-nde/results&#160;--project&#160;P123&#160;--sample&#160;integ/payload.json</text><text class="terminal-4215898170-r3" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-4215898170-line-11)">
+</text><text class="terminal-4215898170-r3" x="0" y="312.8" textLength="109.8" clip-path="url(#terminal-4215898170-line-12)">status&#160;ok</text><text class="terminal-4215898170-r3" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-4215898170-line-12)">
+</text><text class="terminal-4215898170-r3" x="0" y="337.2" textLength="305" clip-path="url(#terminal-4215898170-line-13)">endpoint&#160;acme-nde/results</text><text class="terminal-4215898170-r3" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-4215898170-line-13)">
+</text><text class="terminal-4215898170-r3" x="0" y="361.6" textLength="109.8" clip-path="url(#terminal-4215898170-line-14)">version&#160;1</text><text class="terminal-4215898170-r3" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-4215898170-line-14)">
+</text><text class="terminal-4215898170-r3" x="0" y="386" textLength="585.6" clip-path="url(#terminal-4215898170-line-15)">SetPsetValues&#160;&#160;ok&#160;&#160;SetPsetValues&#160;in&#160;project:P123</text><text class="terminal-4215898170-r3" x="1439.6" y="386" textLength="12.2" clip-path="url(#terminal-4215898170-line-15)">
+</text><text class="terminal-4215898170-r3" x="0" y="410.4" textLength="585.6" clip-path="url(#terminal-4215898170-line-16)">SetPsetValues&#160;&#160;ok&#160;&#160;SetPsetValues&#160;in&#160;project:P123</text><text class="terminal-4215898170-r3" x="1439.6" y="410.4" textLength="12.2" clip-path="url(#terminal-4215898170-line-16)">
+</text><text class="terminal-4215898170-r1" x="0" y="434.8" textLength="73.2" clip-path="url(#terminal-4215898170-line-17)">demo$&#160;</text><text class="terminal-4215898170-r2" x="73.2" y="434.8" textLength="1085.8" clip-path="url(#terminal-4215898170-line-17)">tl&#160;endpoint&#160;mode&#160;acme-nde/results&#160;--project&#160;P123&#160;live&#160;--reason&#160;&#x27;the&#160;dry&#160;run&#160;looked&#160;right&#x27;</text><text class="terminal-4215898170-r3" x="1439.6" y="434.8" textLength="12.2" clip-path="url(#terminal-4215898170-line-17)">
+</text><text class="terminal-4215898170-r3" x="0" y="459.2" textLength="427" clip-path="url(#terminal-4215898170-line-18)">endpoint&#160;acme-nde/results&#160;mode&#160;live</text><text class="terminal-4215898170-r3" x="1439.6" y="459.2" textLength="12.2" clip-path="url(#terminal-4215898170-line-18)">
+</text><text class="terminal-4215898170-r1" x="0" y="483.6" textLength="73.2" clip-path="url(#terminal-4215898170-line-19)">demo$&#160;</text><text class="terminal-4215898170-r2" x="73.2" y="483.6" textLength="610" clip-path="url(#terminal-4215898170-line-19)">tl&#160;endpoint&#160;enable&#160;acme-nde/results&#160;--project&#160;P123</text><text class="terminal-4215898170-r3" x="1439.6" y="483.6" textLength="12.2" clip-path="url(#terminal-4215898170-line-19)">
+</text><text class="terminal-4215898170-r3" x="0" y="508" textLength="341.6" clip-path="url(#terminal-4215898170-line-20)">endpoint&#160;acme-nde/results&#160;on</text><text class="terminal-4215898170-r3" x="1439.6" y="508" textLength="12.2" clip-path="url(#terminal-4215898170-line-20)">
+</text><text class="terminal-4215898170-r1" x="0" y="532.4" textLength="24.4" clip-path="url(#terminal-4215898170-line-21)">$&#160;</text><text class="terminal-4215898170-r2" x="24.4" y="532.4" textLength="427" clip-path="url(#terminal-4215898170-line-21)">POST&#160;/in/acme-nde/results&#160;&#160;(signed)</text><text class="terminal-4215898170-r3" x="1439.6" y="532.4" textLength="12.2" clip-path="url(#terminal-4215898170-line-21)">
+</text><text class="terminal-4215898170-r3" x="0" y="556.8" textLength="146.4" clip-path="url(#terminal-4215898170-line-22)">202&#160;accepted</text><text class="terminal-4215898170-r3" x="1439.6" y="556.8" textLength="12.2" clip-path="url(#terminal-4215898170-line-22)">
+</text><text class="terminal-4215898170-r1" x="0" y="581.2" textLength="24.4" clip-path="url(#terminal-4215898170-line-23)">$&#160;</text><text class="terminal-4215898170-r2" x="24.4" y="581.2" textLength="622.2" clip-path="url(#terminal-4215898170-line-23)">POST&#160;/in/acme-nde/results&#160;&#160;(the&#160;same&#160;message&#160;again)</text><text class="terminal-4215898170-r3" x="1439.6" y="581.2" textLength="12.2" clip-path="url(#terminal-4215898170-line-23)">
+</text><text class="terminal-4215898170-r3" x="0" y="605.6" textLength="195.2" clip-path="url(#terminal-4215898170-line-24)">401&#160;unauthorized</text><text class="terminal-4215898170-r3" x="1439.6" y="605.6" textLength="12.2" clip-path="url(#terminal-4215898170-line-24)">
+</text><text class="terminal-4215898170-r1" x="0" y="630" textLength="24.4" clip-path="url(#terminal-4215898170-line-25)">$&#160;</text><text class="terminal-4215898170-r2" x="24.4" y="630" textLength="500.2" clip-path="url(#terminal-4215898170-line-25)">POST&#160;/in/acme-nde/results&#160;&#160;(no&#160;signature)</text><text class="terminal-4215898170-r3" x="1439.6" y="630" textLength="12.2" clip-path="url(#terminal-4215898170-line-25)">
+</text><text class="terminal-4215898170-r3" x="0" y="654.4" textLength="195.2" clip-path="url(#terminal-4215898170-line-26)">401&#160;unauthorized</text><text class="terminal-4215898170-r3" x="1439.6" y="654.4" textLength="12.2" clip-path="url(#terminal-4215898170-line-26)">
+</text><text class="terminal-4215898170-r1" x="0" y="678.8" textLength="73.2" clip-path="url(#terminal-4215898170-line-27)">demo$&#160;</text><text class="terminal-4215898170-r2" x="73.2" y="678.8" textLength="329.4" clip-path="url(#terminal-4215898170-line-27)">tl&#160;integration&#160;serve&#160;--once</text><text class="terminal-4215898170-r3" x="1439.6" y="678.8" textLength="12.2" clip-path="url(#terminal-4215898170-line-27)">
+</text><text class="terminal-4215898170-r3" x="0" y="703.2" textLength="414.8" clip-path="url(#terminal-4215898170-line-28)">rules&#160;49&#160;enrich&#160;49&#160;jobs&#160;1&#160;killed&#160;0</text><text class="terminal-4215898170-r3" x="1439.6" y="703.2" textLength="12.2" clip-path="url(#terminal-4215898170-line-28)">
+</text><text class="terminal-4215898170-r1" x="0" y="727.6" textLength="61" clip-path="url(#terminal-4215898170-line-29)">amy$&#160;</text><text class="terminal-4215898170-r2" x="61" y="727.6" textLength="402.6" clip-path="url(#terminal-4215898170-line-29)">tl&#160;pset&#160;get&#160;V-1001&#160;--project&#160;P123</text><text class="terminal-4215898170-r3" x="1439.6" y="727.6" textLength="12.2" clip-path="url(#terminal-4215898170-line-29)">
+</text><text class="terminal-4215898170-r3" x="0" y="752" textLength="134.2" clip-path="url(#terminal-4215898170-line-30)">key:&#160;V-1001</text><text class="terminal-4215898170-r3" x="1439.6" y="752" textLength="12.2" clip-path="url(#terminal-4215898170-line-30)">
+</text><text class="terminal-4215898170-r3" x="0" y="776.4" textLength="122" clip-path="url(#terminal-4215898170-line-31)">version:&#160;2</text><text class="terminal-4215898170-r3" x="1439.6" y="776.4" textLength="12.2" clip-path="url(#terminal-4215898170-line-31)">
+</text><text class="terminal-4215898170-r3" x="0" y="800.8" textLength="1061.4" clip-path="url(#terminal-4215898170-line-32)">effective_schema_hash:&#160;90db20c44ca6c942cf2e63c1b825f68a65232b29c18437fd1122e575946bf047</text><text class="terminal-4215898170-r3" x="1439.6" y="800.8" textLength="12.2" clip-path="url(#terminal-4215898170-line-32)">
+</text><text class="terminal-4215898170-r3" x="0" y="825.2" textLength="183" clip-path="url(#terminal-4215898170-line-33)">conformance:&#160;ok</text><text class="terminal-4215898170-r3" x="1439.6" y="825.2" textLength="12.2" clip-path="url(#terminal-4215898170-line-33)">
+</text><text class="terminal-4215898170-r3" x="0" y="849.6" textLength="866.2" clip-path="url(#terminal-4215898170-line-34)">psets:&#160;{&quot;valve_data&quot;:{&quot;manufacturer&quot;:&quot;Acme&#160;Valves&quot;,&quot;tag_no&quot;:&quot;FV-1001&quot;}}</text><text class="terminal-4215898170-r3" x="1439.6" y="849.6" textLength="12.2" clip-path="url(#terminal-4215898170-line-34)">
 </text>
     </g>
     </g>

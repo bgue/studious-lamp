@@ -5,146 +5,146 @@
     
     
 
-    .terminal-1226374495-matrix {
+    .terminal-3951951107-matrix {
         font-family: Fira Code, monospace;
         font-size: 20px;
         line-height: 24.4px;
         font-variant-east-asian: full-width;
     }
 
-    .terminal-1226374495-title {
+    .terminal-3951951107-title {
         font-size: 18px;
         font-weight: bold;
         font-family: arial;
     }
 
-    .terminal-1226374495-r1 { fill: #98a84b;font-weight: bold }
-.terminal-1226374495-r2 { fill: #c5c8c6;font-weight: bold }
-.terminal-1226374495-r3 { fill: #c5c8c6 }
-.terminal-1226374495-r4 { fill: #cc555a }
+    .terminal-3951951107-r1 { fill: #98a84b;font-weight: bold }
+.terminal-3951951107-r2 { fill: #c5c8c6;font-weight: bold }
+.terminal-3951951107-r3 { fill: #c5c8c6 }
+.terminal-3951951107-r4 { fill: #cc555a }
     </style>
 
     <defs>
-    <clipPath id="terminal-1226374495-clip-terminal">
+    <clipPath id="terminal-3951951107-clip-terminal">
       <rect x="0" y="0" width="1438.6" height="657.8" />
     </clipPath>
-    <clipPath id="terminal-1226374495-line-0">
+    <clipPath id="terminal-3951951107-line-0">
     <rect x="0" y="1.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-1">
+<clipPath id="terminal-3951951107-line-1">
     <rect x="0" y="25.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-2">
+<clipPath id="terminal-3951951107-line-2">
     <rect x="0" y="50.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-3">
+<clipPath id="terminal-3951951107-line-3">
     <rect x="0" y="74.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-4">
+<clipPath id="terminal-3951951107-line-4">
     <rect x="0" y="99.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-5">
+<clipPath id="terminal-3951951107-line-5">
     <rect x="0" y="123.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-6">
+<clipPath id="terminal-3951951107-line-6">
     <rect x="0" y="147.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-7">
+<clipPath id="terminal-3951951107-line-7">
     <rect x="0" y="172.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-8">
+<clipPath id="terminal-3951951107-line-8">
     <rect x="0" y="196.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-9">
+<clipPath id="terminal-3951951107-line-9">
     <rect x="0" y="221.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-10">
+<clipPath id="terminal-3951951107-line-10">
     <rect x="0" y="245.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-11">
+<clipPath id="terminal-3951951107-line-11">
     <rect x="0" y="269.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-12">
+<clipPath id="terminal-3951951107-line-12">
     <rect x="0" y="294.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-13">
+<clipPath id="terminal-3951951107-line-13">
     <rect x="0" y="318.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-14">
+<clipPath id="terminal-3951951107-line-14">
     <rect x="0" y="343.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-15">
+<clipPath id="terminal-3951951107-line-15">
     <rect x="0" y="367.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-16">
+<clipPath id="terminal-3951951107-line-16">
     <rect x="0" y="391.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-17">
+<clipPath id="terminal-3951951107-line-17">
     <rect x="0" y="416.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-18">
+<clipPath id="terminal-3951951107-line-18">
     <rect x="0" y="440.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-19">
+<clipPath id="terminal-3951951107-line-19">
     <rect x="0" y="465.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-20">
+<clipPath id="terminal-3951951107-line-20">
     <rect x="0" y="489.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-21">
+<clipPath id="terminal-3951951107-line-21">
     <rect x="0" y="513.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-22">
+<clipPath id="terminal-3951951107-line-22">
     <rect x="0" y="538.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-23">
+<clipPath id="terminal-3951951107-line-23">
     <rect x="0" y="562.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-24">
+<clipPath id="terminal-3951951107-line-24">
     <rect x="0" y="587.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1226374495-line-25">
+<clipPath id="terminal-3951951107-line-25">
     <rect x="0" y="611.5" width="1439.6" height="24.65"/>
             </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="706.8" rx="8"/><text class="terminal-1226374495-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">Publishing&#160;40&#160;tags&#160;that&#160;remember&#160;where&#160;they&#160;came&#160;from,&#160;and&#160;taking&#160;them&#160;back</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="706.8" rx="8"/><text class="terminal-3951951107-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">Publishing&#160;40&#160;tags&#160;that&#160;remember&#160;where&#160;they&#160;came&#160;from,&#160;and&#160;taking&#160;them&#160;back</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
         
-    <g transform="translate(9, 41)" clip-path="url(#terminal-1226374495-clip-terminal)">
+    <g transform="translate(9, 41)" clip-path="url(#terminal-3951951107-clip-terminal)">
     
-    <g class="terminal-1226374495-matrix">
-    <text class="terminal-1226374495-r1" x="0" y="20" textLength="61" clip-path="url(#terminal-1226374495-line-0)">amy$&#160;</text><text class="terminal-1226374495-r2" x="61" y="20" textLength="719.8" clip-path="url(#terminal-1226374495-line-0)">tl&#160;derive&#160;publish&#160;LD-4701@A/instrument-index&#160;--project&#160;P123</text><text class="terminal-1226374495-r3" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-1226374495-line-0)">
-</text><text class="terminal-1226374495-r3" x="0" y="44.4" textLength="902.8" clip-path="url(#terminal-1226374495-line-1)">publish&#160;LD-4701@A/instrument-index&#160;pass&#160;2&#160;to&#160;tags&#160;(instrument-index@1.0.0)</text><text class="terminal-1226374495-r3" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-1226374495-line-1)">
-</text><text class="terminal-1226374495-r3" x="0" y="68.8" textLength="500.2" clip-path="url(#terminal-1226374495-line-2)">create&#160;40&#160;&#160;exists&#160;0&#160;&#160;differs&#160;0&#160;&#160;invalid&#160;0</text><text class="terminal-1226374495-r3" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-1226374495-line-2)">
-</text><text class="terminal-1226374495-r3" x="0" y="93.2" textLength="146.4" clip-path="url(#terminal-1226374495-line-3)">+&#160;50-FV-1001</text><text class="terminal-1226374495-r3" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-1226374495-line-3)">
-</text><text class="terminal-1226374495-r3" x="0" y="117.6" textLength="146.4" clip-path="url(#terminal-1226374495-line-4)">+&#160;50-FV-1002</text><text class="terminal-1226374495-r3" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-1226374495-line-4)">
-</text><text class="terminal-1226374495-r1" x="0" y="142" textLength="61" clip-path="url(#terminal-1226374495-line-5)">amy$&#160;</text><text class="terminal-1226374495-r2" x="61" y="142" textLength="817.4" clip-path="url(#terminal-1226374495-line-5)">tl&#160;derive&#160;publish&#160;LD-4701@A/instrument-index&#160;--project&#160;P123&#160;--apply</text><text class="terminal-1226374495-r3" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-1226374495-line-5)">
-</text><text class="terminal-1226374495-r4" x="0" y="166.4" textLength="622.2" clip-path="url(#terminal-1226374495-line-6)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-1226374495-r3" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-1226374495-line-6)">
-</text><text class="terminal-1226374495-r1" x="0" y="190.8" textLength="73.2" clip-path="url(#terminal-1226374495-line-7)">demo$&#160;</text><text class="terminal-1226374495-r2" x="73.2" y="190.8" textLength="817.4" clip-path="url(#terminal-1226374495-line-7)">tl&#160;derive&#160;publish&#160;LD-4701@A/instrument-index&#160;--project&#160;P123&#160;--apply</text><text class="terminal-1226374495-r3" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-1226374495-line-7)">
-</text><text class="terminal-1226374495-r3" x="0" y="215.2" textLength="634.4" clip-path="url(#terminal-1226374495-line-8)">published&#160;40&#160;records&#160;from&#160;LD-4701@A/instrument-index</text><text class="terminal-1226374495-r3" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-1226374495-line-8)">
-</text><text class="terminal-1226374495-r3" x="0" y="239.6" textLength="549" clip-path="url(#terminal-1226374495-line-9)">correlation&#160;derive:01M4RB7TV000000000000000PY</text><text class="terminal-1226374495-r3" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-1226374495-line-9)">
-</text><text class="terminal-1226374495-r1" x="0" y="264" textLength="61" clip-path="url(#terminal-1226374495-line-10)">amy$&#160;</text><text class="terminal-1226374495-r2" x="61" y="264" textLength="451.4" clip-path="url(#terminal-1226374495-line-10)">tl&#160;pset&#160;get&#160;50-FV-1001&#160;--project&#160;P123</text><text class="terminal-1226374495-r3" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-1226374495-line-10)">
-</text><text class="terminal-1226374495-r3" x="0" y="288.4" textLength="183" clip-path="url(#terminal-1226374495-line-11)">key:&#160;50-FV-1001</text><text class="terminal-1226374495-r3" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-1226374495-line-11)">
-</text><text class="terminal-1226374495-r3" x="0" y="312.8" textLength="122" clip-path="url(#terminal-1226374495-line-12)">version:&#160;3</text><text class="terminal-1226374495-r3" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-1226374495-line-12)">
-</text><text class="terminal-1226374495-r3" x="0" y="337.2" textLength="1061.4" clip-path="url(#terminal-1226374495-line-13)">effective_schema_hash:&#160;0913ecdec08d00143d4fb4d46c235a299ddda11d9980d3589817ac68822f0c20</text><text class="terminal-1226374495-r3" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-1226374495-line-13)">
-</text><text class="terminal-1226374495-r3" x="0" y="361.6" textLength="317.2" clip-path="url(#terminal-1226374495-line-14)">conformance:&#160;nonconformant</text><text class="terminal-1226374495-r3" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-1226374495-line-14)">
-</text><text class="terminal-1226374495-r3" x="0" y="386" textLength="1390.8" clip-path="url(#terminal-1226374495-line-15)">issue&#160;nonconformant&#160;class_required&#160;psets.valve_data&#160;Valve&#160;data&#160;is&#160;required&#160;by&#160;the&#160;record&#x27;s&#160;class&#160;and&#160;has&#160;no&#160;values</text><text class="terminal-1226374495-r3" x="1439.6" y="386" textLength="12.2" clip-path="url(#terminal-1226374495-line-15)">
-</text><text class="terminal-1226374495-r3" x="0" y="410.4" textLength="1049.2" clip-path="url(#terminal-1226374495-line-16)">issue&#160;warning&#160;required_in_state&#160;psets.valve_data.manufacturer&#160;Manufacturer&#160;is&#160;required</text><text class="terminal-1226374495-r3" x="1439.6" y="410.4" textLength="12.2" clip-path="url(#terminal-1226374495-line-16)">
-</text><text class="terminal-1226374495-r3" x="0" y="434.8" textLength="1220" clip-path="url(#terminal-1226374495-line-17)">psets:&#160;{&quot;provenance&quot;:{&quot;derived_document&quot;:&quot;LD-4701@A/instrument-index&quot;,&quot;source&quot;:&quot;src.doc.LD-4701@A&quot;}}</text><text class="terminal-1226374495-r3" x="1439.6" y="434.8" textLength="12.2" clip-path="url(#terminal-1226374495-line-17)">
-</text><text class="terminal-1226374495-r1" x="0" y="459.2" textLength="73.2" clip-path="url(#terminal-1226374495-line-18)">demo$&#160;</text><text class="terminal-1226374495-r2" x="73.2" y="459.2" textLength="1195.6" clip-path="url(#terminal-1226374495-line-18)">tl&#160;derive&#160;compensate&#160;LD-4701@A/instrument-index&#160;--project&#160;P123&#160;--reason&#160;&#x27;wrong&#160;unit:&#160;roll&#160;it&#160;back&#x27;</text><text class="terminal-1226374495-r3" x="1439.6" y="459.2" textLength="12.2" clip-path="url(#terminal-1226374495-line-18)">
-</text><text class="terminal-1226374495-r3" x="0" y="483.6" textLength="1012.6" clip-path="url(#terminal-1226374495-line-19)">compensate&#160;LD-4701@A/instrument-index&#160;correlation&#160;derive:01M4RB7TV000000000000000PY</text><text class="terminal-1226374495-r3" x="1439.6" y="483.6" textLength="12.2" clip-path="url(#terminal-1226374495-line-19)">
-</text><text class="terminal-1226374495-r3" x="0" y="508" textLength="658.8" clip-path="url(#terminal-1226374495-line-20)">retract_link&#160;01M4RB7TV000000000000000VZ&#160;&#160;-&#160;&#160;reversible</text><text class="terminal-1226374495-r3" x="1439.6" y="508" textLength="12.2" clip-path="url(#terminal-1226374495-line-20)">
-</text><text class="terminal-1226374495-r3" x="0" y="532.4" textLength="658.8" clip-path="url(#terminal-1226374495-line-21)">retract_link&#160;01M4RB7TV000000000000000W1&#160;&#160;-&#160;&#160;reversible</text><text class="terminal-1226374495-r3" x="1439.6" y="532.4" textLength="12.2" clip-path="url(#terminal-1226374495-line-21)">
-</text><text class="terminal-1226374495-r1" x="0" y="556.8" textLength="73.2" clip-path="url(#terminal-1226374495-line-22)">demo$&#160;</text><text class="terminal-1226374495-r2" x="73.2" y="556.8" textLength="1293.2" clip-path="url(#terminal-1226374495-line-22)">tl&#160;derive&#160;compensate&#160;LD-4701@A/instrument-index&#160;--project&#160;P123&#160;--reason&#160;&#x27;wrong&#160;unit:&#160;roll&#160;it&#160;back&#x27;&#160;--apply</text><text class="terminal-1226374495-r3" x="1439.6" y="556.8" textLength="12.2" clip-path="url(#terminal-1226374495-line-22)">
-</text><text class="terminal-1226374495-r3" x="0" y="581.2" textLength="634.4" clip-path="url(#terminal-1226374495-line-23)">compensated&#160;40&#160;records&#160;of&#160;LD-4701@A/instrument-index</text><text class="terminal-1226374495-r3" x="1439.6" y="581.2" textLength="12.2" clip-path="url(#terminal-1226374495-line-23)">
-</text><text class="terminal-1226374495-r1" x="0" y="605.6" textLength="61" clip-path="url(#terminal-1226374495-line-24)">amy$&#160;</text><text class="terminal-1226374495-r2" x="61" y="605.6" textLength="366" clip-path="url(#terminal-1226374495-line-24)">tl&#160;tag&#160;ls&#160;--project&#160;P123&#160;--all</text><text class="terminal-1226374495-r3" x="1439.6" y="605.6" textLength="12.2" clip-path="url(#terminal-1226374495-line-24)">
-</text><text class="terminal-1226374495-r3" x="0" y="630" textLength="963.8" clip-path="url(#terminal-1226374495-line-25)">50-XV-1006&#160;&#160;ControlValve&#160;&#160;Deleted&#160;&#160;nonconformant&#160;&#160;Feed&#160;isolation&#160;shutdown&#160;valve</text><text class="terminal-1226374495-r3" x="1439.6" y="630" textLength="12.2" clip-path="url(#terminal-1226374495-line-25)">
-</text><text class="terminal-1226374495-r3" x="0" y="654.4" textLength="756.4" clip-path="url(#terminal-1226374495-line-26)">FV1009&#160;&#160;ControlValve&#160;&#160;-&#160;&#160;ok&#160;&#160;Old&#160;numbering&#160;still&#160;in&#160;the&#160;system</text><text class="terminal-1226374495-r3" x="1439.6" y="654.4" textLength="12.2" clip-path="url(#terminal-1226374495-line-26)">
+    <g class="terminal-3951951107-matrix">
+    <text class="terminal-3951951107-r1" x="0" y="20" textLength="61" clip-path="url(#terminal-3951951107-line-0)">amy$&#160;</text><text class="terminal-3951951107-r2" x="61" y="20" textLength="719.8" clip-path="url(#terminal-3951951107-line-0)">tl&#160;derive&#160;publish&#160;LD-4701@A/instrument-index&#160;--project&#160;P123</text><text class="terminal-3951951107-r3" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-3951951107-line-0)">
+</text><text class="terminal-3951951107-r3" x="0" y="44.4" textLength="902.8" clip-path="url(#terminal-3951951107-line-1)">publish&#160;LD-4701@A/instrument-index&#160;pass&#160;2&#160;to&#160;tags&#160;(instrument-index@1.0.0)</text><text class="terminal-3951951107-r3" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-3951951107-line-1)">
+</text><text class="terminal-3951951107-r3" x="0" y="68.8" textLength="500.2" clip-path="url(#terminal-3951951107-line-2)">create&#160;40&#160;&#160;exists&#160;0&#160;&#160;differs&#160;0&#160;&#160;invalid&#160;0</text><text class="terminal-3951951107-r3" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-3951951107-line-2)">
+</text><text class="terminal-3951951107-r3" x="0" y="93.2" textLength="146.4" clip-path="url(#terminal-3951951107-line-3)">+&#160;50-FV-1001</text><text class="terminal-3951951107-r3" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-3951951107-line-3)">
+</text><text class="terminal-3951951107-r3" x="0" y="117.6" textLength="146.4" clip-path="url(#terminal-3951951107-line-4)">+&#160;50-FV-1002</text><text class="terminal-3951951107-r3" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-3951951107-line-4)">
+</text><text class="terminal-3951951107-r1" x="0" y="142" textLength="61" clip-path="url(#terminal-3951951107-line-5)">amy$&#160;</text><text class="terminal-3951951107-r2" x="61" y="142" textLength="817.4" clip-path="url(#terminal-3951951107-line-5)">tl&#160;derive&#160;publish&#160;LD-4701@A/instrument-index&#160;--project&#160;P123&#160;--apply</text><text class="terminal-3951951107-r3" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-3951951107-line-5)">
+</text><text class="terminal-3951951107-r4" x="0" y="166.4" textLength="622.2" clip-path="url(#terminal-3951951107-line-6)">error:&#160;forbidden:&#160;this&#160;command&#160;needs&#160;the&#160;admin&#160;role</text><text class="terminal-3951951107-r3" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-3951951107-line-6)">
+</text><text class="terminal-3951951107-r1" x="0" y="190.8" textLength="73.2" clip-path="url(#terminal-3951951107-line-7)">demo$&#160;</text><text class="terminal-3951951107-r2" x="73.2" y="190.8" textLength="817.4" clip-path="url(#terminal-3951951107-line-7)">tl&#160;derive&#160;publish&#160;LD-4701@A/instrument-index&#160;--project&#160;P123&#160;--apply</text><text class="terminal-3951951107-r3" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-3951951107-line-7)">
+</text><text class="terminal-3951951107-r3" x="0" y="215.2" textLength="634.4" clip-path="url(#terminal-3951951107-line-8)">published&#160;40&#160;records&#160;from&#160;LD-4701@A/instrument-index</text><text class="terminal-3951951107-r3" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-3951951107-line-8)">
+</text><text class="terminal-3951951107-r3" x="0" y="239.6" textLength="549" clip-path="url(#terminal-3951951107-line-9)">correlation&#160;derive:01M4RB7TV000000000000000PY</text><text class="terminal-3951951107-r3" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-3951951107-line-9)">
+</text><text class="terminal-3951951107-r1" x="0" y="264" textLength="61" clip-path="url(#terminal-3951951107-line-10)">amy$&#160;</text><text class="terminal-3951951107-r2" x="61" y="264" textLength="451.4" clip-path="url(#terminal-3951951107-line-10)">tl&#160;pset&#160;get&#160;50-FV-1001&#160;--project&#160;P123</text><text class="terminal-3951951107-r3" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-3951951107-line-10)">
+</text><text class="terminal-3951951107-r3" x="0" y="288.4" textLength="183" clip-path="url(#terminal-3951951107-line-11)">key:&#160;50-FV-1001</text><text class="terminal-3951951107-r3" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-3951951107-line-11)">
+</text><text class="terminal-3951951107-r3" x="0" y="312.8" textLength="122" clip-path="url(#terminal-3951951107-line-12)">version:&#160;3</text><text class="terminal-3951951107-r3" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-3951951107-line-12)">
+</text><text class="terminal-3951951107-r3" x="0" y="337.2" textLength="1061.4" clip-path="url(#terminal-3951951107-line-13)">effective_schema_hash:&#160;90db20c44ca6c942cf2e63c1b825f68a65232b29c18437fd1122e575946bf047</text><text class="terminal-3951951107-r3" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-3951951107-line-13)">
+</text><text class="terminal-3951951107-r3" x="0" y="361.6" textLength="317.2" clip-path="url(#terminal-3951951107-line-14)">conformance:&#160;nonconformant</text><text class="terminal-3951951107-r3" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-3951951107-line-14)">
+</text><text class="terminal-3951951107-r3" x="0" y="386" textLength="1390.8" clip-path="url(#terminal-3951951107-line-15)">issue&#160;nonconformant&#160;class_required&#160;psets.valve_data&#160;Valve&#160;data&#160;is&#160;required&#160;by&#160;the&#160;record&#x27;s&#160;class&#160;and&#160;has&#160;no&#160;values</text><text class="terminal-3951951107-r3" x="1439.6" y="386" textLength="12.2" clip-path="url(#terminal-3951951107-line-15)">
+</text><text class="terminal-3951951107-r3" x="0" y="410.4" textLength="1049.2" clip-path="url(#terminal-3951951107-line-16)">issue&#160;warning&#160;required_in_state&#160;psets.valve_data.manufacturer&#160;Manufacturer&#160;is&#160;required</text><text class="terminal-3951951107-r3" x="1439.6" y="410.4" textLength="12.2" clip-path="url(#terminal-3951951107-line-16)">
+</text><text class="terminal-3951951107-r3" x="0" y="434.8" textLength="1220" clip-path="url(#terminal-3951951107-line-17)">psets:&#160;{&quot;provenance&quot;:{&quot;derived_document&quot;:&quot;LD-4701@A/instrument-index&quot;,&quot;source&quot;:&quot;src.doc.LD-4701@A&quot;}}</text><text class="terminal-3951951107-r3" x="1439.6" y="434.8" textLength="12.2" clip-path="url(#terminal-3951951107-line-17)">
+</text><text class="terminal-3951951107-r1" x="0" y="459.2" textLength="73.2" clip-path="url(#terminal-3951951107-line-18)">demo$&#160;</text><text class="terminal-3951951107-r2" x="73.2" y="459.2" textLength="1195.6" clip-path="url(#terminal-3951951107-line-18)">tl&#160;derive&#160;compensate&#160;LD-4701@A/instrument-index&#160;--project&#160;P123&#160;--reason&#160;&#x27;wrong&#160;unit:&#160;roll&#160;it&#160;back&#x27;</text><text class="terminal-3951951107-r3" x="1439.6" y="459.2" textLength="12.2" clip-path="url(#terminal-3951951107-line-18)">
+</text><text class="terminal-3951951107-r3" x="0" y="483.6" textLength="1012.6" clip-path="url(#terminal-3951951107-line-19)">compensate&#160;LD-4701@A/instrument-index&#160;correlation&#160;derive:01M4RB7TV000000000000000PY</text><text class="terminal-3951951107-r3" x="1439.6" y="483.6" textLength="12.2" clip-path="url(#terminal-3951951107-line-19)">
+</text><text class="terminal-3951951107-r3" x="0" y="508" textLength="658.8" clip-path="url(#terminal-3951951107-line-20)">retract_link&#160;01M4RB7TV000000000000000VZ&#160;&#160;-&#160;&#160;reversible</text><text class="terminal-3951951107-r3" x="1439.6" y="508" textLength="12.2" clip-path="url(#terminal-3951951107-line-20)">
+</text><text class="terminal-3951951107-r3" x="0" y="532.4" textLength="658.8" clip-path="url(#terminal-3951951107-line-21)">retract_link&#160;01M4RB7TV000000000000000W1&#160;&#160;-&#160;&#160;reversible</text><text class="terminal-3951951107-r3" x="1439.6" y="532.4" textLength="12.2" clip-path="url(#terminal-3951951107-line-21)">
+</text><text class="terminal-3951951107-r1" x="0" y="556.8" textLength="73.2" clip-path="url(#terminal-3951951107-line-22)">demo$&#160;</text><text class="terminal-3951951107-r2" x="73.2" y="556.8" textLength="1293.2" clip-path="url(#terminal-3951951107-line-22)">tl&#160;derive&#160;compensate&#160;LD-4701@A/instrument-index&#160;--project&#160;P123&#160;--reason&#160;&#x27;wrong&#160;unit:&#160;roll&#160;it&#160;back&#x27;&#160;--apply</text><text class="terminal-3951951107-r3" x="1439.6" y="556.8" textLength="12.2" clip-path="url(#terminal-3951951107-line-22)">
+</text><text class="terminal-3951951107-r3" x="0" y="581.2" textLength="634.4" clip-path="url(#terminal-3951951107-line-23)">compensated&#160;40&#160;records&#160;of&#160;LD-4701@A/instrument-index</text><text class="terminal-3951951107-r3" x="1439.6" y="581.2" textLength="12.2" clip-path="url(#terminal-3951951107-line-23)">
+</text><text class="terminal-3951951107-r1" x="0" y="605.6" textLength="61" clip-path="url(#terminal-3951951107-line-24)">amy$&#160;</text><text class="terminal-3951951107-r2" x="61" y="605.6" textLength="366" clip-path="url(#terminal-3951951107-line-24)">tl&#160;tag&#160;ls&#160;--project&#160;P123&#160;--all</text><text class="terminal-3951951107-r3" x="1439.6" y="605.6" textLength="12.2" clip-path="url(#terminal-3951951107-line-24)">
+</text><text class="terminal-3951951107-r3" x="0" y="630" textLength="963.8" clip-path="url(#terminal-3951951107-line-25)">50-XV-1006&#160;&#160;ControlValve&#160;&#160;Deleted&#160;&#160;nonconformant&#160;&#160;Feed&#160;isolation&#160;shutdown&#160;valve</text><text class="terminal-3951951107-r3" x="1439.6" y="630" textLength="12.2" clip-path="url(#terminal-3951951107-line-25)">
+</text><text class="terminal-3951951107-r3" x="0" y="654.4" textLength="756.4" clip-path="url(#terminal-3951951107-line-26)">FV1009&#160;&#160;ControlValve&#160;&#160;-&#160;&#160;ok&#160;&#160;Old&#160;numbering&#160;still&#160;in&#160;the&#160;system</text><text class="terminal-3951951107-r3" x="1439.6" y="654.4" textLength="12.2" clip-path="url(#terminal-3951951107-line-26)">
 </text>
     </g>
     </g>
