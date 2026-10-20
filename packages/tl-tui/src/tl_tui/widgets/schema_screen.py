@@ -1,10 +1,4 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false
 """The schema workbench: every package version and what it defines (P1-I8-T04a; brief 10.6, 27.8).
-
-STUB: this file is the interface P1-I8-T04a implements. Remove this paragraph, the two directive
-lines above and every STEPS comment when you implement it. The layout, the keys, the review
-action and `close` are complete.
 
 A full-size modal opened with ``Ctrl+O``. The table lists the package versions, the versions of one
 package together (``tree_cells``); the panel under it shows the highlighted version: who drafted
@@ -101,50 +95,72 @@ class SchemaWorkbenchScreen(ModalScreen[None]):
 
     def reload(self) -> bool:
         """Read the list again and keep the highlighted version where it is; False if it failed."""
-        # STEPS
-        # 1. keep = self.current(); self.details = {}.
-        # 2. In a try: self.rows = self.client.list_schema_packages(). On CLIENT_ERRORS
-        #    as exc: self.rows = [], self._fill(None), self._say(describe_error(exc),
-        #    error=True) and return False.
-        # 3. self._fill(keep.id if keep is not None else None); return True.
-        raise NotImplementedError("STEPS: see the comments")
+        keep = self.current()
+        self.details = {}
+        try:
+            self.rows = self.client.list_schema_packages()
+        except CLIENT_ERRORS as exc:
+            self.rows = []
+            self._fill(None)
+            self._say(describe_error(exc), error=True)
+            return False
+        self._fill(keep.id if keep is not None else None)
+        return True
 
     def _fill(self, keep: str | None) -> None:
         """Show `self.rows` in the table, the title and the panel."""
-        # STEPS
-        # 1. table = self.query_one('#schema-table', DataTable);
-        #    table.clear(columns=True); table.add_columns(*COLUMNS).
-        # 2. One row per package: table.add_row(*(Text(c) for c in cells), key=row.id),
-        #    the cells from tree_cells(self.rows) (zip them with self.rows).
-        # 3. With rows, move the cursor to the row whose id is `keep`, else to row 0
-        #    (table.move_cursor).
-        # 4. Set #schema-title to f'Schema packages ({len(self.rows)})   scope
-        #    {self.scope}', then call self._describe().
-        raise NotImplementedError("STEPS: see the comments")
+        table = self.query_one("#schema-table", DataTable)
+        table.clear(columns=True)
+        table.add_columns(*COLUMNS)
+        for row, cells in zip(self.rows, tree_cells(self.rows), strict=True):
+            table.add_row(*(Text(c) for c in cells), key=row.id)
+        if self.rows:
+            ids = [row.id for row in self.rows]
+            table.move_cursor(row=ids.index(keep) if keep in ids else 0)
+        self.query_one("#schema-title", Static).update(
+            f"Schema packages ({len(self.rows)})   scope {self.scope}"
+        )
+        self._describe()
 
     def current(self) -> PackageSummary | None:
         """The highlighted version, or `None` when there is none."""
-        # STEPS
-        # The highlighted summary: the table's cursor_row indexes self.rows; None when
-        #    there are no rows or the cursor is outside them.
-        raise NotImplementedError("STEPS: see the comments")
+        cursor = self.query_one("#schema-table", DataTable).cursor_row
+        if not self.rows or not 0 <= cursor < len(self.rows):
+            return None
+        return self.rows[cursor]
 
     def _describe(self) -> None:
         """Fill the header, the tab line and the panel with the highlighted version."""
-        # STEPS
-        # 1. Set #schema-tabs: the tab names numbered from 1, joined by two spaces, the
-        #    shown one in square brackets: '[1 Properties]  2 Lint  3 Diff'.
-        # 2. row = self.current(). With none: #schema-header gets 'No package
-        #    versions.', #schema-detail gets '', return.
-        # 3. detail = self.details.get(row.id) or
-        #    self.client.get_schema_package(row.id). On CLIENT_ERRORS: the header gets
-        #    row.key, the detail panel '', say the error with error=True, return. Keep
-        #    the detail in self.details.
-        # 4. #schema-header gets '\n'.join(header_lines(detail)); #schema-detail gets
-        #    the lines of the shown tab joined by newlines:
-        #    property_lines(detail.content), lint_lines(detail.lint) or
-        #    diff_lines(detail).
-        raise NotImplementedError("STEPS: see the comments")
+        tabs = "  ".join(
+            f"[{n} {name}]" if n - 1 == self.tab else f"{n} {name}"
+            for n, name in enumerate(TABS, 1)
+        )
+        self.query_one("#schema-tabs", Static).update(tabs)
+        header = self.query_one("#schema-header", Static)
+        panel = self.query_one("#schema-detail", Static)
+        row = self.current()
+        if row is None:
+            header.update("No package versions.")
+            panel.update("")
+            return
+        detail = self.details.get(row.id)
+        if detail is None:
+            try:
+                detail = self.client.get_schema_package(row.id)
+            except CLIENT_ERRORS as exc:
+                header.update(row.key)
+                panel.update("")
+                self._say(describe_error(exc), error=True)
+                return
+            self.details[row.id] = detail
+        header.update("\n".join(header_lines(detail)))
+        if self.tab == 0:
+            lines = property_lines(detail.content)
+        elif self.tab == 1:
+            lines = lint_lines(detail.lint)
+        else:
+            lines = diff_lines(detail)
+        panel.update("\n".join(lines))
 
     def _say(self, text: str, *, error: bool = False) -> None:
         self.query_one("#schema-status", Static).update(("! " if error else "") + text)
@@ -159,15 +175,12 @@ class SchemaWorkbenchScreen(ModalScreen[None]):
 
     def action_show_tab(self, index: int) -> None:
         """Show the tab at `index` of `TABS`."""
-        # STEPS
-        # self.tab = index; self._describe().
-        raise NotImplementedError("STEPS: see the comments")
+        self.tab = index
+        self._describe()
 
     def action_next_tab(self, step: int) -> None:
         """Show the next (or, with a negative `step`, the previous) tab, wrapping round."""
-        # STEPS
-        # self.action_show_tab((self.tab + step) % len(TABS)).
-        raise NotImplementedError("STEPS: see the comments")
+        self.action_show_tab((self.tab + step) % len(TABS))
 
     def action_review(self) -> None:
         """Open the review of the highlighted version; read the list again when it closes."""
@@ -185,10 +198,8 @@ class SchemaWorkbenchScreen(ModalScreen[None]):
         self.reload()
 
     def action_reload(self) -> None:
-        # STEPS
-        # if self.reload(): self._say('Reloaded.')  (a failed read keeps its error
-        #    text).
-        raise NotImplementedError("STEPS: see the comments")
+        if self.reload():
+            self._say("Reloaded.")
 
     def action_close(self) -> None:
         self.dismiss(None)
