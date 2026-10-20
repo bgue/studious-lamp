@@ -1,12 +1,7 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false
 """`tl schema export-git DIR [--package NAME]`: the published packages as files (P1-I8-T05a4b).
 
-STUB: this file is the interface P1-I8-T05a4b implements. Remove this paragraph, the two directive
-lines above and every STEPS comment when you implement it. `_file_name`, `_write_atomic` and
-`register` are complete.
-
-The files are what a git repository of the company's schema holds: one `<package>@<version>.yaml`
+The files are what a git repository of the company's schema holds (company scope only; a
+project's own packages are not exported): one `<package>@<version>.yaml`
 per version in force (Published or Deprecated), the text exactly as it was drafted. Nothing else
 is written: no report, no impact, no record text (the impact report names mappings and rules,
 which are for administrators; FANOUT F9). It writes files on the host, so it is the
@@ -56,28 +51,63 @@ def export_git(
         str | None, typer.Option("--package", help="Only the versions of this package.")
     ] = None,
 ) -> None:
-    """Write every published version as `<package>@<version>.yaml` into DIR (admin).
+    """Write every published company-scope version as `<package>@<version>.yaml` into DIR (admin).
 
     Lines: `wrote <file>` or `unchanged <file>` (the file already holds the same text), in the
     order package name then version, then `exported <w> written, <u> unchanged to <DIR>`. With
     nothing to export: `nothing to export` (and DIR is not made). A file that exists with other
     text, or is a symbolic link, is `error: ...` (exit 1) and nothing is written.
     """
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; require_admin(db).
-    # 2. In `with service_errors(), open_uow(db, readonly=True) as uow:` collect
-    #    `registry.list_packages(uow.conn(), state=state, package=package,
-    #    limit=registry.MAX_PAGE)` for each `state` in IN_FORCE. Sort by `(row.package,
-    #    version_tuple(row.version))`.
-    # 3. No rows: print `nothing to export` and return.
-    # 4. `directory.mkdir(parents=True, exist_ok=True)`. For each row make the target
-    #    `directory / _file_name(row)`. Before writing anything check all of them: a symbolic
-    #    link (`is_symlink()`) or a file whose text differs from `row.content` is
-    #    `fail(f"{target.name} exists with other text")` (say `is a link` for a link).
-    # 5. Then for each row: write with `_write_atomic(target, row.content)` and print
-    #    `wrote <name>`, or print `unchanged <name>` when the file already holds the text.
-    # 6. Print the last line from the docstring.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_admin(db)
+    rows: list[registry.PackageRow] = []
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        for state in IN_FORCE:
+            rows.extend(
+                registry.list_packages(
+                    uow.conn(),
+                    scope="company",
+                    state=state,
+                    package=package,
+                    limit=registry.MAX_PAGE,
+                )
+            )
+        try:
+            rows.sort(key=lambda row: (row.package, version_tuple(row.version)))
+        except ValueError as exc:
+            fail(str(exc))
+    if not rows:
+        typer.echo("nothing to export")
+        return
+    planned: list[tuple[registry.PackageRow, Path, bool]] = []
+    texts: dict[str, str] = {}
+    for row in rows:
+        target = directory / _file_name(row)
+        if target.name in texts:
+            if texts[target.name] != row.content:
+                fail(f"{target.name} would be written with two different texts")
+            continue
+        texts[target.name] = row.content
+        if target.is_symlink():
+            fail(f"{target.name} is a link")
+        same = False
+        if target.exists():
+            if not target.is_file() or target.read_bytes() != row.content.encode("utf-8"):
+                fail(f"{target.name} exists with other text")
+            same = True
+        planned.append((row, target, same))
+    directory.mkdir(parents=True, exist_ok=True)
+    written = 0
+    unchanged = 0
+    for row, target, same in planned:
+        if same:
+            unchanged += 1
+            typer.echo(f"unchanged {target.name}")
+            continue
+        _write_atomic(target, row.content)
+        written += 1
+        typer.echo(f"wrote {target.name}")
+    typer.echo(f"exported {written} written, {unchanged} unchanged to {directory}")
 
 
 def register(app: typer.Typer) -> None:
