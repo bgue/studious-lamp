@@ -1,6 +1,7 @@
 """`tl schema export-git DIR [--package NAME]`: the published packages as files (P1-I8-T05a4b).
 
-The files are what a git repository of the company's schema holds: one `<package>@<version>.yaml`
+The files are what a git repository of the company's schema holds (company scope only; a
+project's own packages are not exported): one `<package>@<version>.yaml`
 per version in force (Published or Deprecated), the text exactly as it was drafted. Nothing else
 is written: no report, no impact, no record text (the impact report names mappings and rules,
 which are for administrators; FANOUT F9). It writes files on the host, so it is the
@@ -50,7 +51,7 @@ def export_git(
         str | None, typer.Option("--package", help="Only the versions of this package.")
     ] = None,
 ) -> None:
-    """Write every published version as `<package>@<version>.yaml` into DIR (admin).
+    """Write every published company-scope version as `<package>@<version>.yaml` into DIR (admin).
 
     Lines: `wrote <file>` or `unchanged <file>` (the file already holds the same text), in the
     order package name then version, then `exported <w> written, <u> unchanged to <DIR>`. With
@@ -64,17 +65,29 @@ def export_git(
         for state in IN_FORCE:
             rows.extend(
                 registry.list_packages(
-                    uow.conn(), state=state, package=package, limit=registry.MAX_PAGE
+                    uow.conn(),
+                    scope="company",
+                    state=state,
+                    package=package,
+                    limit=registry.MAX_PAGE,
                 )
             )
-    rows.sort(key=lambda row: (row.package, version_tuple(row.version)))
+        try:
+            rows.sort(key=lambda row: (row.package, version_tuple(row.version)))
+        except ValueError as exc:
+            fail(str(exc))
     if not rows:
         typer.echo("nothing to export")
         return
-    directory.mkdir(parents=True, exist_ok=True)
     planned: list[tuple[registry.PackageRow, Path, bool]] = []
+    texts: dict[str, str] = {}
     for row in rows:
         target = directory / _file_name(row)
+        if target.name in texts:
+            if texts[target.name] != row.content:
+                fail(f"{target.name} would be written with two different texts")
+            continue
+        texts[target.name] = row.content
         if target.is_symlink():
             fail(f"{target.name} is a link")
         same = False
@@ -83,6 +96,7 @@ def export_git(
                 fail(f"{target.name} exists with other text")
             same = True
         planned.append((row, target, same))
+    directory.mkdir(parents=True, exist_ok=True)
     written = 0
     unchanged = 0
     for row, target, same in planned:

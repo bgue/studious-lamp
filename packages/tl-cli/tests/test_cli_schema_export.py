@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 from collections.abc import Callable
 from pathlib import Path
@@ -11,6 +12,7 @@ from auth_support import run as tl
 from derivecli_support import as_admin, sign_in_as
 from doccli_support import docs_env
 from tl_adapters.db import DbTarget, as_target, is_postgres
+from tl_mod_schemareg import registry
 from tl_mod_schemareg.handlers.packages import DraftSchemaPackage
 from tl_mod_schemareg.testing import RegistryWorld, next_version, publish_version
 from typer.testing import Result as RunResult
@@ -127,4 +129,59 @@ def test_only_the_administrator_writes_files(env: dict[str, str], tmp_path: Path
     plain = sign_in_as(env, tmp_path, "plain", ["user"])
     out = tmp_path / "out"
     assert "forbidden" in export(plain, str(out), ok=False).output
+    assert not out.exists()
+
+
+def test_a_project_scoped_package_is_not_exported(env: dict[str, str], tmp_path: Path) -> None:
+    as_admin(env)
+    two_published(env)
+    world = RegistryWorld(as_target(env["TL_DB"]))
+    with world.installed():
+        made = publish_version(world, "1.5.0", None, name="x.P123")
+        assert world.package(made.stream_id).scope == "project:P123"
+    out = tmp_path / "out"
+    export(env, str(out))
+    assert sorted(p.name for p in out.iterdir()) == [f"{NAME}@3.3.0.yaml", f"{NAME}@3.4.0.yaml"]
+
+
+def _fake_rows(monkeypatch: pytest.MonkeyPatch, change: Callable[[list[object]], list[object]]):
+    real = registry.list_packages
+
+    def fake(*args: object, **kwargs: object) -> list[object]:
+        return change(real(*args, **kwargs))  # type: ignore[arg-type]
+
+    monkeypatch.setattr(registry, "list_packages", fake)
+
+
+def test_two_rows_for_one_file_name_with_different_text_are_refused(
+    env: dict[str, str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    as_admin(env)
+    two_published(env)
+
+    def twice(rows: list[object]) -> list[object]:
+        if not rows:
+            return rows
+        return [*rows, dataclasses.replace(rows[0], content="other text\n")]  # type: ignore[type-var]
+
+    _fake_rows(monkeypatch, twice)
+    out = tmp_path / "out"
+    refused = export(env, str(out), ok=False)
+    assert refused.output.startswith("error:") and "two different texts" in refused.output
+    assert not out.exists()  # nothing written, not even the directory
+
+
+def test_a_malformed_stored_version_is_an_error_not_a_traceback(
+    env: dict[str, str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    as_admin(env)
+    two_published(env)
+
+    def bad(rows: list[object]) -> list[object]:
+        return [dataclasses.replace(r, version="3.x") for r in rows]  # type: ignore[type-var]
+
+    _fake_rows(monkeypatch, bad)
+    out = tmp_path / "out"
+    refused = export(env, str(out), ok=False)
+    assert refused.output.startswith("error:") and "MAJOR.MINOR.PATCH" in refused.output
     assert not out.exists()
