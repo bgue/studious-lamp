@@ -1,9 +1,4 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false
 """`tl schema package diff|classify|impact|test`: the reports of a package version (P1-I8-T05a1).
-
-STUB: this file is the interface P1-I8-T05a1 implements. Remove this paragraph, the two directive
-lines above and every STEPS comment when you implement it. `register` is complete.
 
 None of these writes anything. The reads are the module's (`tl_mod_schemareg.views` and
 `analysis`); these commands parse options and print one line per fact, with two spaces between
@@ -44,15 +39,19 @@ def diff(ctx: typer.Context, ref: _Ref) -> None:
     `no base to compare with (first version)`. A diff that was cut ends with the line
     `(diff cut)`.
     """
-    # STEPS
-    # 1. db = ctx.obj; call require_session(db).
-    # 2. Inside `with service_errors(), open_uow(db, readonly=True) as uow:` read
-    #    views.package_detail(uow.conn(), ref).
-    # 3. No diff text: print the `not analysed` line when detail.classification is None, else
-    #    `no base to compare with (first version)`; return.
-    # 4. Otherwise print the diff without its trailing newline; when detail.diff_truncated is
-    #    true print `(diff cut)` after it.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_session(db)
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        detail = views.package_detail(uow.conn(), ref)
+    if not detail.diff:
+        if detail.classification is None:
+            typer.echo(f"not analysed: run tl schema package analyse {ref}")
+        else:
+            typer.echo("no base to compare with (first version)")
+        return
+    typer.echo(detail.diff.rstrip("\n"))
+    if detail.diff_truncated:
+        typer.echo("(diff cut)")
 
 
 def classify(ctx: typer.Context, ref: _Ref, as_json: _Json = False) -> None:
@@ -64,15 +63,26 @@ def classify(ctx: typer.Context, ref: _Ref, as_json: _Json = False) -> None:
     forbidden), then one line per change: `<class>  <path>  <detail>`. With no report:
     `not analysed: run tl schema package analyse <ref>`.
     """
-    # STEPS
-    # 1. Same opening as diff: require_session, then views.package_detail(...).
-    # 2. report = detail.classification; when None print the `not analysed` line and return.
-    # 3. With --json print report.model_dump_json(indent=2) and return.
-    # 4. Otherwise print the six header lines in the order of the docstring, then one line per
-    #    change. `counts` lists only classes with a non-zero count, in _CLASS_ORDER, joined by
-    #    ", " as `<class> <n>`; with none it is `counts -`. Use cell() for a value that may be
-    #    None (the base).
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_session(db)
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        detail = views.package_detail(uow.conn(), ref)
+    report = detail.classification
+    if report is None:
+        typer.echo(f"not analysed: run tl schema package analyse {ref}")
+        return
+    if as_json:
+        typer.echo(report.model_dump_json(indent=2))
+        return
+    counts = [f"{cls} {report.counts[cls]}" for cls in _CLASS_ORDER if report.counts.get(cls)]
+    typer.echo(f"classification {detail.key}")
+    typer.echo(f"base {cell(report.base, 200)}")
+    typer.echo(f"worst {report.worst}")
+    typer.echo(f"auto-adoptable {'yes' if report.auto_adoptable else 'no'}")
+    typer.echo(f"blocks submit {'yes' if report.blocks_submit else 'no'}")
+    typer.echo(f"counts {', '.join(counts) or '-'}")
+    for change in report.changes:
+        typer.echo(f"{change.cls}  {change.path}  {change.detail}")
 
 
 def impact(
@@ -93,18 +103,32 @@ def impact(
     `<section>  <target>  <change>  <count or ->  <detail>`, and `(cut at 500 entries)` last when
     the report was cut.
     """
-    # STEPS
-    # 1. Same opening as diff: require_session, then views.package_detail(...).
-    # 2. Without --project the report is detail.impact. With --project it is the first item of
-    #    analysis.project_impact(uow.conn(), project, detail.package, detail.version), called
-    #    inside the same unit of work (it returns a tuple of three; take the first).
-    # 3. No report: print the `not analysed` line and return. With --json print
-    #    report.model_dump_json(indent=2) and return.
-    # 4. Otherwise print `impact <scope>`, `digest <digest>`, `counts <section> <n>, ...`
-    #    (`counts -` when empty; report.counts is a dict in section order), one line per entry in
-    #    the format of the docstring (cell() for the count), and `(cut at 500 entries)` last
-    #    when report.truncated.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_session(db)
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        detail = views.package_detail(uow.conn(), ref)
+        if project is None:
+            report = detail.impact
+        else:
+            report, _, _ = analysis.project_impact(
+                uow.conn(), project, detail.package, detail.version
+            )
+    if report is None:
+        typer.echo(f"not analysed: run tl schema package analyse {ref}")
+        return
+    if as_json:
+        typer.echo(report.model_dump_json(indent=2))
+        return
+    counts = [f"{section} {n}" for section, n in report.counts.items()]
+    typer.echo(f"impact {report.scope}")
+    typer.echo(f"digest {report.digest}")
+    typer.echo(f"counts {', '.join(counts) or '-'}")
+    for entry in report.entries:
+        typer.echo(
+            f"{entry.section}  {entry.target}  {entry.change}  {cell(entry.count)}  {entry.detail}"
+        )
+    if report.truncated:
+        typer.echo("(cut at 500 entries)")
 
 
 def test(
@@ -121,13 +145,22 @@ def test(
     `newly nonconformant <n>`, `newly warning <n>`, `fixed <n>`, then one line per example:
     `<key>  <path>  <rule>  <message>`.
     """
-    # STEPS
-    # 1. Same opening as diff: require_session; then result = views.sample_test(uow.conn(), ref,
-    #    sample) inside the unit of work.
-    # 2. With --json print result.model_dump_json(indent=2) and return.
-    # 3. Otherwise print the four header lines in the order of the docstring and one line per
-    #    result.examples item.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_session(db)
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        result = views.sample_test(uow.conn(), ref, sample)
+    if as_json:
+        typer.echo(result.model_dump_json(indent=2))
+        return
+    typer.echo(
+        f"tested {result.package}  scope {result.scope}  sample {result.sample}  "
+        f"checked {result.checked}"
+    )
+    typer.echo(f"newly nonconformant {result.newly_nonconformant}")
+    typer.echo(f"newly warning {result.newly_warning}")
+    typer.echo(f"fixed {result.fixed}")
+    for example in result.examples:
+        typer.echo(f"{example.key}  {example.path}  {example.rule}  {example.message}")
 
 
 def register(app: typer.Typer) -> None:
