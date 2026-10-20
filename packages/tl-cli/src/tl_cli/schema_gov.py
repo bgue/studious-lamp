@@ -1,9 +1,4 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false
 """`tl schema package publish|deprecate|retire` and `tl schema adopt|adoptions|drift` (T05a2).
-
-STUB: this file is the interface P1-I8-T05a2 implements. Remove this paragraph, the two directive
-lines above and every STEPS comment when you implement it. `register` is complete.
 
 Publishing, deprecating, retiring and adopting are the administrator's (FANOUT D2); the lists are
 any signed-in person's. The rules are the module's (`tl_mod_schemareg.handlers`); these commands
@@ -18,7 +13,7 @@ from typing import Annotated
 
 import typer
 from tl_adapters.db import DbTarget, open_uow
-from tl_mod_schemareg import analysis, views
+from tl_mod_schemareg import views
 from tl_mod_schemareg.handlers.adoption import AdoptSchemaPackage, handle_adopt_schema_package
 from tl_mod_schemareg.handlers.packages import (
     DeprecateSchemaPackage,
@@ -52,15 +47,24 @@ def publish(
 
     With `--auto-adopt` it adds `auto-adopted <n>`: the projects whose pin moved to this version.
     """
-    # STEPS
-    # 1. db = ctx.obj; require_admin(db); target = resolve_package(db, ref).
-    # 2. In `with service_errors(), open_uow(db) as uow:` call handle_publish_schema_package with
-    #    a PublishSchemaPackage(actor=acting(db, actor), source=SOURCE, scope="company",
-    #    package_id=target, auto_adopt=auto_adopt); keep the CommandResult.
-    # 3. Print `published <result.key> <result.stream_id>`. With --auto-adopt print a second line
-    #    `auto-adopted <n>`, where n counts the events of the result whose event_type is
-    #    "Adoption.Pinned".
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_admin(db)
+    target = resolve_package(db, ref)
+    with service_errors(), open_uow(db) as uow:
+        made = handle_publish_schema_package(
+            uow,
+            PublishSchemaPackage(
+                actor=acting(db, actor),
+                source=SOURCE,
+                scope="company",
+                package_id=target,
+                auto_adopt=auto_adopt,
+            ),
+        )
+    typer.echo(f"published {made.key} {made.stream_id}")
+    if auto_adopt:
+        moved = sum(1 for event in made.events if event.event_type == "Adoption.Pinned")
+        typer.echo(f"auto-adopted {moved}")
 
 
 def deprecate(
@@ -73,12 +77,22 @@ def deprecate(
     actor: Actor = DEV_ACTOR,
 ) -> None:
     """Stop new adoptions of a published version (admin). Prints `deprecated <name@version>`."""
-    # STEPS
-    # 1. require_admin(db); target = resolve_package(db, ref).
-    # 2. Call handle_deprecate_schema_package with DeprecateSchemaPackage(actor, source, scope
-    #    "company" as in publish, package_id=target, reason=reason, replacement=replacement).
-    # 3. Print `deprecated <result.key>`.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_admin(db)
+    target = resolve_package(db, ref)
+    with service_errors(), open_uow(db) as uow:
+        done = handle_deprecate_schema_package(
+            uow,
+            DeprecateSchemaPackage(
+                actor=acting(db, actor),
+                source=SOURCE,
+                scope="company",
+                package_id=target,
+                reason=reason,
+                replacement=replacement,
+            ),
+        )
+    typer.echo(f"deprecated {done.key}")
 
 
 def retire(ctx: typer.Context, ref: _Ref, reason: _Reason, actor: Actor = DEV_ACTOR) -> None:
@@ -86,12 +100,21 @@ def retire(ctx: typer.Context, ref: _Ref, reason: _Reason, actor: Actor = DEV_AC
 
     Refused while a project pins it. Prints `retired <name@version>`.
     """
-    # STEPS
-    # 1. require_admin(db); target = resolve_package(db, ref).
-    # 2. Call handle_retire_schema_package with RetireSchemaPackage(actor, source, scope "company",
-    #    package_id=target, reason=reason).
-    # 3. Print `retired <result.key>`.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_admin(db)
+    target = resolve_package(db, ref)
+    with service_errors(), open_uow(db) as uow:
+        done = handle_retire_schema_package(
+            uow,
+            RetireSchemaPackage(
+                actor=acting(db, actor),
+                source=SOURCE,
+                scope="company",
+                package_id=target,
+                reason=reason,
+            ),
+        )
+    typer.echo(f"retired {done.key}")
 
 
 def adopt(
@@ -113,13 +136,22 @@ def adopt(
     Prints `adopted <project> <package>@<version>`. A change that is not additive is refused
     without the digest of the impact report the caller read.
     """
-    # STEPS
-    # 1. require_admin(db).
-    # 2. Call handle_adopt_schema_package with AdoptSchemaPackage(actor=acting(db, actor),
-    #    source=SOURCE, scope=f"project:{project}", project=project, package=package,
-    #    version=version, impact_sha256=impact_sha256).
-    # 3. Print `adopted <project> <package>@<version>`.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_admin(db)
+    with service_errors(), open_uow(db) as uow:
+        handle_adopt_schema_package(
+            uow,
+            AdoptSchemaPackage(
+                actor=acting(db, actor),
+                source=SOURCE,
+                scope=f"project:{project}",
+                project=project,
+                package=package,
+                version=version,
+                impact_sha256=impact_sha256,
+            ),
+        )
+    typer.echo(f"adopted {project} {package}@{version}")
 
 
 def adoptions(
@@ -133,13 +165,18 @@ def adoptions(
     `<project>  <package>@<version>  from <previous or ->  <class or ->  by <actor>`. With none:
     `no adoptions`.
     """
-    # STEPS
-    # 1. require_session(db); read views.adoption_views(uow.conn(), project) in a read-only unit of
-    #    work inside service_errors().
-    # 2. With none print `no adoptions` and return.
-    # 3. Otherwise one line per adoption in the format of the docstring; cell() for the previous
-    #    version and the class, which may be None.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_session(db)
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        rows = views.adoption_views(uow.conn(), project)
+    if not rows:
+        typer.echo("no adoptions")
+        return
+    for row in rows:
+        typer.echo(
+            f"{row.project}  {row.package}@{row.version}  from {cell(row.previous_version)}  "
+            f"{cell(row.worst_class)}  by {row.adopted_by}"
+        )
 
 
 def drift(
@@ -150,11 +187,17 @@ def drift(
 
     `<package>  project <version>  company <version>  behind|current  pinned|following`.
     """
-    # STEPS
-    # 1. require_session(db); inside service_errors() call views.drift_views(project).
-    # 2. One line per item in the format of the docstring: `behind` when item.behind else
-    #    `current`; `pinned` when item.pinned else `following`.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_session(db)
+    with service_errors():
+        items = views.drift_views(project)
+    for item in items:
+        state = "behind" if item.behind else "current"
+        pin = "pinned" if item.pinned else "following"
+        typer.echo(
+            f"{item.package}  project {item.project_version}  company {item.company_version}  "
+            f"{state}  {pin}"
+        )
 
 
 def register(package_app: typer.Typer, schema_app: typer.Typer) -> None:
