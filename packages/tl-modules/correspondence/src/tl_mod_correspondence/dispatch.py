@@ -41,21 +41,30 @@ def plan_raise_rfi(
     no record has. Returns a ``Problem`` (``missing_argument`` for no title, ``too_long`` for a
     title over ``MAX_TEXT`` characters, or the first problem of the keys) instead of a plan.
     """
-    # STEPS
-    # 1. Read `args = parsed.args` and assert it is a `RaiseArgs`.
-    # 2. `title = (args.text or "").strip()`. If it is empty return
-    #    `Problem(code="missing_argument", message="/raise rfi needs a title")`.
-    # 3. If `len(title) > MAX_TEXT` return `Problem(code="too_long", message=f"a title is
-    #    at most {MAX_TEXT} characters")`.
-    # 4. `refs, problems = resolve_keys(uow, context.scope, args.against,
-    #    actor=context.actor)`. If `problems` is not empty return
-    #    `first_problem(problems)`.
-    # 5. Build the command dict: `"subtype": "rfi"`, `"subject": title`, `"question":
-    #    args.note or title`, and `"references"`: one `{"record_id": ref.id, "note":
-    #    "raised against"}` per ref, in order.
-    # 6. Return a list with one `PlannedCommand(command_type="RaiseTechnical",
-    #    command=command, summary=f"Raise RFI: {title}")`.
-    raise NotImplementedError
+    args = parsed.args
+    assert isinstance(args, RaiseArgs)
+    title = (args.text or "").strip()
+    if not title:
+        return Problem(code="missing_argument", message="/raise rfi needs a title")
+    if len(title) > MAX_TEXT:
+        return Problem(code="too_long", message=f"a title is at most {MAX_TEXT} characters")
+    refs, problems = resolve_keys(uow, context.scope, args.against, actor=context.actor)
+    if problems:
+        return first_problem(problems)
+    command: dict[str, object] = {
+        "subtype": "rfi",
+        "subject": title,
+        "question": args.note or title,
+        "references": [{"record_id": ref.id, "note": "raised against"} for ref in refs],
+    }
+    # PlannedCommand.summary is at most 300 characters; a title of up to MAX_TEXT may not fit.
+    return [
+        PlannedCommand(
+            command_type="RaiseTechnical",
+            command=command,
+            summary=f"Raise RFI: {title}"[:300],
+        )
+    ]
 
 
 class RaiseRfiTarget:
