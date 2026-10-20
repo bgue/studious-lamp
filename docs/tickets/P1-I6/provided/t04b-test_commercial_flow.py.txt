@@ -161,6 +161,22 @@ def test_the_notice_is_a_pdf_with_the_figures_the_basis_and_the_clause(world: Co
     assert issued["template"] == "commercial-change-notice"
 
 
+def test_issuing_meets_the_time_bar_only_and_leaves_a_clock_a_person_started(
+    world: CorrWorld,
+) -> None:
+    item_id = approved(world)
+    with acting():
+        world.start_clock(item_id, label="Reply expected from them")  # response_from_them
+        world.issue_commercial(item_id)
+        bar, started, _ = world.clocks("P123-EW-0001")
+    assert (bar.kind, bar.state) == ("time_bar", "met")
+    assert (started.label, started.kind, started.state) == (
+        "Reply expected from them",
+        "response_from_them",
+        "running",
+    )
+
+
 def test_a_quotation_has_no_bar_to_meet_and_starts_its_own_clock(world: CorrWorld) -> None:
     item_id = approved(world, subtype="quotation")
     with acting():

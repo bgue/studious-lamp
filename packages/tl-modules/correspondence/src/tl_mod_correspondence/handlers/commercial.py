@@ -186,7 +186,8 @@ class UpdateCommercial(_CommercialFields):
     """Change a Commercial item that is a Draft or in commercial review (a controller's act).
 
     A field you leave out stays as it is; ``null`` clears an optional one. The clause and the
-    awareness day cannot be changed. Give a ``reason`` when you change an item that is in review.
+    awareness day cannot be changed. Say why in ``reason`` when you change an item that is in
+    review: it is recorded with the change (it is not required).
     """
 
     stream_id: str

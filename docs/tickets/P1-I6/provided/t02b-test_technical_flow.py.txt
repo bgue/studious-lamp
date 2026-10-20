@@ -14,6 +14,7 @@ import pytest
 from pydantic import ValidationError
 from tl_adapters.db import open_uow
 from tl_core import confidentiality as cf
+from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import RecordNotFoundError
 from tl_mod_correspondence import constraints
 from tl_mod_correspondence.errors import (
@@ -379,6 +380,32 @@ def test_a_privileged_answer_must_be_readable_by_everyone_named_on_the_privilege
         with pytest.raises(RecordNotFoundError):
             world.answer_technical(rfi, answer_item_id=narrow)
         world.answer_technical(rfi, answer_item_id=wide)
+
+
+def test_a_privileged_answer_must_be_readable_by_the_last_named_reader_too(
+    world: CorrWorld,
+) -> None:
+    rfi = world.forge_technical(
+        "P123-RFI-0044", state="Awaiting response", confidentiality="privileged"
+    )
+    _name(world, rfi, "user:amy", "user:ctl", "user:zed")
+    letter = world.forge_item("P123-COR-0045", state="Received", confidentiality="privileged")
+    _name(world, letter, "user:amy", "user:ctl")  # zed, named last, could not read it
+    with frozen_today(MONDAY), cf.use_viewer(CONTROLLER):
+        with pytest.raises(RecordNotFoundError):
+            world.answer_technical(rfi, answer_item_id=letter)
+        _name(world, letter, "user:zed")
+        world.answer_technical(rfi, answer_item_id=letter)
+
+
+def test_an_issue_on_a_stale_version_is_a_conflict(world: CorrWorld) -> None:
+    item_id = review(world)
+    with frozen_today(MONDAY):
+        stale = world.technical("P123-RFI-0001").item.version - 1
+        with pytest.raises(ConcurrencyError):
+            world.issue_technical(item_id, expected_version=stale)
+        assert world.technical("P123-RFI-0001").item.state == "Internal review"
+        world.issue_technical(item_id)
 
 
 def test_the_answering_revision_may_not_be_above_the_class_of_the_item(

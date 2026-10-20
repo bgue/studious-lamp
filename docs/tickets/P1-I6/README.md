@@ -35,6 +35,8 @@ Give the correspondence module its second and third domains. **Technical / RFI**
 | D10 | Export to the cost system (T04c, security-sensitive): CSV of the Commercial register with status `pending` (not yet agreed) or `approved` (agreed or partially agreed), amounts exact, formulas quoted, only the classes a controller names (default `internal`, which is empty for restricted items: the controller must say `--class restricted`). |
 | D11 | The constraint hook (T02) is a stub: a Protocol, `ConstraintSink`, called when an RFI is issued and when it is answered, with a default sink that records nothing; Phase 2 puts the AWP constraint behind it. |
 | D12 | No new dependency. |
+| D13 | A `reason` on an update of an item in review is advisory: it is recorded with the change and not required (T02a asked; the docstrings of `UpdateTechnical` and `UpdateCommercial` now say so). | 
+| D14 | `expected_version=0` on a module command is treated as not given (`cmd.expected_version or item.version`), as in the 19 sites of P1-I2 and P1-I5; stream versions start at 1, so 0 is never a real version. A module-wide change to `is not None` is a follow-up for the orchestrator, not part of this increment. |
 
 ## Supervisor-built pieces (in order)
 | # | Piece | Why supervisor-tier | Reviewer | Status |

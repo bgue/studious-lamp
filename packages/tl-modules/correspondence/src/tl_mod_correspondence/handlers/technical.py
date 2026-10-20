@@ -129,7 +129,8 @@ class UpdateTechnical(Command):
 
     A field you leave out stays as it is; ``null`` clears ``proposed_solution``, ``discipline``
     and ``required_by`` (the question, the subject and the flags cannot be cleared). The number
-    and the subtype never change. Give a ``reason`` when you change an item that is in review.
+    and the subtype never change. Say why in ``reason`` when you change an item that is in review:
+    it is recorded with the change (it is not required).
     """
 
     model_config = ConfigDict(extra="forbid")
