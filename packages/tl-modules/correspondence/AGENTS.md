@@ -12,3 +12,6 @@ Read the root `AGENTS.md` first. These rules add to it.
 - Text that comes from outside (an email header, a subject, a file name) is checked with `textcheck.clean_text` before it becomes record text. The EML parser is bounded, refuses rather than truncates, and runs in the envelope; do not add a path that parses a message in the caller's process.
 - Issuing a letter is a stub send (`delivery: stub`). Do not add a network call, an SMTP client or a fetch of anything named in a message.
 - A test that sets a class owns the viewer for its whole body (`use_viewer`); the default viewer is the lowest class on purpose (L-P1-I5-2).
+- Every Commercial command, and every command that touches a Commercial item or its clocks (generic link, file and property-set commands, and cancelling a time bar included), needs a controller viewer: the guards are `require_controller_for` and `controller_only`. A new command or a new generic guard must keep that.
+- A feed card for a confidential stream is tagged through `subjects_of`. A new event type that makes a feed card is added to `POLICY_EVENT_TYPES` deliberately.
+- The evidence trail and the register export are bounded. The trail is limited to depth 3, 200 nodes, 1000 links and 5000 events; the export to `MAX_ROWS` (5000). Do not raise `MAX_ROWS` or the trail bounds without an ADR.
