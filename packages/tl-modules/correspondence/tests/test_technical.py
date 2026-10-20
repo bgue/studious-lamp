@@ -11,7 +11,6 @@ from typing import Any
 
 import pytest
 from pydantic import ValidationError
-from tl_core import confidentiality as cf
 from tl_core.ledger import ConcurrencyError
 from tl_core.services.errors import NoChangesError, RecordNotFoundError
 from tl_mod_correspondence.errors import (
@@ -20,7 +19,7 @@ from tl_mod_correspondence.errors import (
     ItemStateError,
     UnknownDomainError,
 )
-from tl_mod_correspondence.testing import CONTROLLER, CorrWorld, frozen_today
+from tl_mod_correspondence.testing import CorrWorld, frozen_today
 
 MONDAY = "2026-10-19"
 FUTURE = "2026-11-30"
@@ -322,10 +321,9 @@ def test_an_item_in_internal_review_may_be_changed_but_a_later_one_may_not(
         world.submit_technical(made.stream_id)
         world.update_technical(made.stream_id, discipline="piping", reason="review comment")
         assert world.technical("P123-RFI-0001").data.discipline == "piping"
-        with cf.use_viewer(CONTROLLER):
-            world.issue_technical(made.stream_id)
-        with pytest.raises(ItemStateError):
-            world.update_technical(made.stream_id, discipline="structural")
+    later = world.forge_technical("P123-RFI-0002", state="Awaiting response")
+    with frozen_today(MONDAY), pytest.raises(ItemStateError):
+        world.update_technical(later, discipline="structural")
 
 
 @pytest.mark.parametrize("state", ["Issued", "Awaiting response", "Answered", "Accepted", "Closed"])
