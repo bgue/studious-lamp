@@ -96,6 +96,15 @@ bench-rebuild *args:
 demo id:
     bash dev/demos/{{id}}.sh
 
+# Regenerate the screenshot tour (SVGs and transcripts) for a phase, 0 or 1; `out` overrides the output directory
+tour phase="1" out="":
+    uv run python dev/tour/phase{{phase}}.py {{ if out == "" { "" } else { "--out " + out } }}
+
+# Regenerate both screenshot tours, phase 0 then phase 1
+tour-all:
+    just tour 0
+    just tour 1
+
 # Restore drill: back up a dev ledger several ways, lose it, restore it, and write a report with the
 # measured RPO and RTO (needs sudo and pgBackRest for the Postgres part; see docs/runbooks)
 drill *args:
