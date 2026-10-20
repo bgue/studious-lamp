@@ -734,3 +734,12 @@ The fixture project `P123` has the package `x.P123@1.4.0`, which pins `co.acme.e
 - **L-P1-I6-12** · 2026-10-20 · tags: tests, cli
   A CLI test that looks for a phrase in `stderr` breaks when the error box wraps a long path: the phrase is split across lines and `│` characters, and it depends on the length of the pytest base temp dir (a custom `--basetemp` made it fail where the default did not). Compare the words (`" ".join(stderr.replace("│", " ").split())`) when the message holds a path.
   Evidence: `test_the_export_file_is_private_and_is_never_replaced_or_followed_by_accident`. Status: active
+
+### L-P1-I8-13 (tests) A keymap or palette addition makes a TUI snapshot stale: put it in the ticket's tests
+Adding `Ctrl+O` and its palette entry left `part 2` of the DONE gate red (the command-palette snapshot) although every ticket gate was green, because no ticket ran the snapshot test. A ticket that adds a binding, a keymap line or a palette command names `packages/tl-tui/tests` snapshot and keymap tests in its gate and regenerates the snapshot. Evidence: fix 4e1bba8.
+
+### L-P1-I8-14 (process) The whole-suite DONE gate exceeds the two-hour background limit: run it as separate background runs per part
+`just gate` (4 parts, about 2 h with the parity of touched directories) was stopped by the background limit. The orchestrator starts each part (`dev/gate.sh` part k) and `gate-pg` as its own background run and reads each summary; a rerun after a fix covers the touched directories only. `test_int_inbound_worker` (live secrets = 112) failed in part 3 and passes alone: record it as flaky (112), not as a failure.
+
+### L-P1-I8-15 (tests) `app.pop_screen()` does not run a `push_screen` callback; `screen.dismiss(None)` does
+A modal that opens another (workbench to review) and must re-read when it closes only gets its callback from `dismiss`. A test that closes it with `pop_screen()` passes while the real `Esc` path is untested. Also: a `ruff: noqa` stub header sits in lines 1-2, so `sed 1s` clobbers it. Evidence: `schema_screen.py` `action_review`, T04a/T04b reports.
