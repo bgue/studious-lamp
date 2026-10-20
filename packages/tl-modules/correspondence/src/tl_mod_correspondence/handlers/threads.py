@@ -31,6 +31,7 @@ from tl_mod_correspondence.handlers.common import (
     correlated,
     load_item,
     open_item,
+    require_controller_for,
     today,
 )
 from tl_mod_correspondence.handlers.confidentiality import guard_move, inherit_from_matches
@@ -39,7 +40,6 @@ from tl_mod_correspondence.limits import MAX_NUMBER, MAX_REASON
 from tl_mod_correspondence.names import (
     CORR_SUPERSEDED,
     CORR_THREAD_ASSIGNED,
-    CORRESPONDENCE,
     THREAD,
     THREAD_DEFINED,
     THREAD_ITEM_ADDED,
@@ -197,7 +197,7 @@ def _join(
         uow,
         cmd,
         item.id,
-        CORRESPONDENCE,
+        item.record_type,
         [
             NewEvent(
                 event_type=CORR_THREAD_ASSIGNED,
@@ -279,6 +279,7 @@ def handle_assign_thread(uow: UnitOfWork, cmd: AssignThread) -> CommandResult:
     """
     cmd = correlated(cmd)
     item = load_item(uow, cmd, cmd.stream_id)
+    require_controller_for(item)
     if item.voided or item.state == "Void":
         raise ItemStateError(f"item {item.number} is void")
     if cmd.responds_to_id is not None:
@@ -344,7 +345,7 @@ def handle_supersede_correspondence(uow: UnitOfWork, cmd: SupersedeCorrespondenc
         uow,
         cmd,
         old.id,
-        CORRESPONDENCE,
+        old.record_type,
         [
             NewEvent(
                 event_type=CORR_SUPERSEDED,

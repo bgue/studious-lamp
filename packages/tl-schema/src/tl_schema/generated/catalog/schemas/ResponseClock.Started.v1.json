@@ -66,7 +66,7 @@
               "type": "string"
             },
             "trigger": {
-              "description": "What started it: receipt, issue, triage or manual.",
+              "description": "What started it: receipt, issue, triage, awareness (a time bar counted from the day the contractor became aware) or manual.",
               "type": "string"
             },
             "warn_days": {}

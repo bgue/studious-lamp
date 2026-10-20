@@ -1,0 +1,81 @@
+# The Technical / RFI domain (brief 9, M10): requests for information, technical queries and deviation or
+# concession requests. Items are `correspondence.TechnicalItem` records with their own workflow
+# (`correspondence.technical`) and a number per kind (P123-RFI-0001). Checked against
+# schema/modules/correspondence/domain.yaml and compiled by tl_mod_correspondence.domains.
+code: technical
+name: Technical / RFI
+semver: 1.0.0
+scope: company
+description: Questions to the designer or the client, and requests to deviate from the design; an answered item feeds AWP constraints (a stub until Phase 2).
+record_type: correspondence.TechnicalItem
+subtypes:
+  - code: rfi
+    label: Request for information
+    number_code: RFI
+    direction: out
+    response_required: true
+    clocks:
+      - label: Answer required
+        trigger: issue
+        kind: response_from_them
+        duration_days: 10
+        day_type: working
+        warn_days: [3, 1]
+    keywords: [rfi, "request for information", clarify, clarification]
+  - code: tq
+    label: Technical query
+    number_code: TQ
+    direction: out
+    response_required: true
+    clocks:
+      - label: Answer required
+        trigger: issue
+        kind: response_from_them
+        duration_days: 10
+        day_type: working
+        warn_days: [3, 1]
+    keywords: ["technical query", query]
+  - code: deviation
+    label: Deviation or concession request
+    number_code: DEV
+    direction: out
+    response_required: true
+    clocks:
+      - label: Disposition required
+        trigger: issue
+        kind: response_from_them
+        duration_days: 15
+        day_type: working
+        warn_days: [5, 2]
+    keywords: [deviation, concession, waiver]
+default_subtype: rfi
+workflow_ref: correspondence.technical
+numbering_pattern: correspondence.TechnicalItem
+required_psets: []
+routing:
+  receive_roles: [document_controller]
+  review_roles: [discipline_lead]
+  approve_roles: [document_controller]
+  party_roles: [client, engineer]
+confidentiality_default: internal
+feed_policy: full
+integration:
+  webhook_modes: [thin, delta, full]
+  portal_response: true
+templates:
+  - code: technical-rfi
+    label: Request for information
+    subtype: rfi
+    header: "ACME CONSTRUCTION | Request for information"
+    footer: "Please answer by the date above. Ref {number}"
+  - code: technical-tq
+    label: Technical query
+    subtype: tq
+    header: "ACME CONSTRUCTION | Technical query"
+    footer: "Ref {number}"
+  - code: technical-deviation
+    label: Deviation or concession request
+    subtype: deviation
+    header: "ACME CONSTRUCTION | Deviation request"
+    footer: "Ref {number}"
+triage_keywords: [rfi, "request for information", "technical query", deviation, concession]

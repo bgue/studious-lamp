@@ -22,6 +22,15 @@ Each scope has at most one *open* card. For every event the projector asks ``dis
   ``CARD_WINDOW_SECONDS`` after the card's first event (inclusive).
 * ``start``: anything else. The open card, if any, is closed and the event opens a new one.
 
+**A domain's feed policy.** An event whose payload carries ``feed_policy`` follows the policy the
+handler fixed when it wrote the event (brief 9, M10: "an RFI answered posts a full card, a
+commercial notice a minimal card, a legal notice nothing"). ``none``: no card (``ignore``).
+``full`` and ``minimal``: always ``start`` a card of their own, with the line ``feed_text`` as its
+summary, about the event's own record (so the class filter hides it with the record), and the card
+is closed at once: later events never extend it. A policy a rule does not know is ``none``
+(fail closed). Only a handler sets these keys; they are in the event, not read from a file, so a
+rebuild of the feed gives the same cards whatever the domain file says today.
+
 The card id is ``card:<event id of its first event>``. Its ``occurred_at`` and ``seq`` follow its
 latest event, so an extended card moves to the top of the feed.
 """
@@ -38,6 +47,16 @@ from tl_core.feed.types import CARD_WINDOW_SECONDS
 from tl_core.ledger import Event
 
 Disposition = Literal["ignore", "close", "extend", "start"]
+FeedPolicy = Literal["full", "minimal", "none"]
+POLICY_KEY = "feed_policy"
+TEXT_KEY = "feed_text"
+MAX_POLICY_TEXT = 300
+#: The only events that may carry a feed policy: the three that make a domain's card (ADR-0019
+#: section 7). The same keys on any other event are ignored, so a payload that happens to have
+#: them cannot silence or replace a card.
+POLICY_EVENT_TYPES: frozenset[str] = frozenset(
+    {"Correspondence.Issued", "Technical.Answered", "Commercial.Assessed"}
+)
 
 TRANSPARENT_EVENT_TYPES: frozenset[str] = frozenset({"Numbering.Allocated", "Link.Suggested"})
 TRANSPARENT_PREFIXES: tuple[str, ...] = (
@@ -103,11 +122,37 @@ def card_id_for(first_event_id: str) -> str:
     return f"card:{first_event_id}"
 
 
+def policy_of(event: Event) -> FeedPolicy | None:
+    """The feed policy the event carries, ``None`` when it carries none.
+
+    Only ``POLICY_EVENT_TYPES`` carry one. ``full`` and ``minimal`` need a ``feed_text`` of at most
+    300 characters; without one, and for any value that is not one of the three, the policy is
+    ``none`` (fail closed).
+    """
+    if event.event_type not in POLICY_EVENT_TYPES or POLICY_KEY not in event.payload:
+        return None
+    value = event.payload[POLICY_KEY]
+    text = event.payload.get(TEXT_KEY)
+    if value in ("full", "minimal") and isinstance(text, str) and 0 < len(text) <= MAX_POLICY_TEXT:
+        return value
+    return "none"
+
+
+def policy_text(event: Event) -> str:
+    """The summary of a card made by a ``full`` or ``minimal`` event (call after ``policy_of``)."""
+    return str(event.payload[TEXT_KEY])
+
+
 def disposition(open_card: OpenCard | None, event: Event) -> Disposition:
     """What ``event`` does to its scope's open card. See the module docstring."""
     event_type = event.event_type
     if is_transparent(event_type) or is_shadow_proposal(event_type, event.payload):
         return "ignore"
+    policy = policy_of(event)
+    if policy == "none":
+        return "ignore"
+    if policy is not None:
+        return "start"
     if is_feed_event(event_type):
         return "close"
     if (
@@ -123,13 +168,23 @@ def disposition(open_card: OpenCard | None, event: Event) -> Disposition:
 def subjects_of(event: Event) -> list[str]:
     """Ids of the records ``event`` is about, without repeats.
 
-    ``Record.*``, ``Pset.*`` and ``Workflow.*`` are about their stream's record. ``Link.*`` are
-    about both ends (``from_ref``, ``to_ref``). ``File.*`` are about ``record_id`` when the payload
-    has one. Anything else is about no record.
+    ``Record.*``, ``Pset.*`` and ``Workflow.*`` are about their stream's record. Every event of a
+    stream whose type a module declared confidential (an item, a thread, a clock of the
+    correspondence module) is about that stream's record too, whatever its name: a card that
+    names no record would show a reader who may not read the item that "someone defined a
+    commercial" (ADR-0016, the P1-I6 security review). ``Link.*`` are about both ends
+    (``from_ref``, ``to_ref``). ``File.*`` are about ``record_id`` when the payload has one.
+    Anything else is about no record.
     """
+    from tl_core.modules import confidential_stream_types  # a module imports the projections
+
     event_type = event.event_type
     found: list[str] = []
-    if event_type.startswith(_STREAM_SUBJECT_PREFIXES):
+    if policy_of(event) in ("full", "minimal"):
+        found = [event.stream_id]
+    elif event_type.startswith(_STREAM_SUBJECT_PREFIXES):
+        found = [event.stream_id]
+    elif event.stream_type in confidential_stream_types():
         found = [event.stream_id]
     elif event_type.startswith("Link."):
         found = [str(event.payload[k]) for k in ("from_ref", "to_ref") if event.payload.get(k)]
@@ -166,7 +221,7 @@ def fold_cards(events: Sequence[Event]) -> list[tuple[str, str, str, int, int]]:
 
     Returns ``(card_id, actor, event_type, event_count, last_seq)`` per card, oldest first. It is
     the rules without a database, used by tests as the oracle for the projector and by anyone who
-    wants to explain a card.
+    wants to explain a card. A card made by a policy event is closed at once.
     """
     cards: list[tuple[str, str, str, int, int]] = []
     open_card: OpenCard | None = None
@@ -184,8 +239,10 @@ def fold_cards(events: Sequence[Event]) -> list[tuple[str, str, str, int, int]]:
             cards[-1] = (open_card.item_id, event.actor, event.event_type, count, event.seq)
         else:
             card_id = card_id_for(event.event_id)
-            open_card = OpenCard(
-                card_id, event.actor, event.event_type, to_us(event.recorded_at), 1
+            open_card = (
+                None
+                if policy_of(event) is not None
+                else OpenCard(card_id, event.actor, event.event_type, to_us(event.recorded_at), 1)
             )
             cards.append((card_id, event.actor, event.event_type, 1, event.seq))
     return cards

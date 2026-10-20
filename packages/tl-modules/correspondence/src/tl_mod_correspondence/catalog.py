@@ -29,7 +29,11 @@ from tl_mod_correspondence.calendars import (
     split_ref,
 )
 from tl_mod_correspondence.domains import DomainDefinition, DomainError, DomainSet, load_domains
-from tl_mod_correspondence.errors import CalendarUnavailableError, UnknownDomainError
+from tl_mod_correspondence.errors import (
+    CalendarUnavailableError,
+    InvalidItemError,
+    UnknownDomainError,
+)
 
 _lock = threading.Lock()
 _cache: tuple[str, DomainSet] | None = None
@@ -82,6 +86,15 @@ def use_domains(domains: DomainSet) -> Generator[None]:
         _override = previous
 
 
+def triage_domains(scope: str) -> list[DomainDefinition]:
+    """The domains a received letter can be triaged into: those whose items are core items.
+
+    Technical and Commercial items are records of a type of their own, born by their domain's
+    commands; a letter cannot be filed into them, so the suggestion engine never proposes them.
+    """
+    return [d for d in domain_set().for_scope(scope) if not d.has_own_type]
+
+
 def find_domain(scope: str, code: str) -> DomainDefinition:
     """The definition that governs ``code`` in ``scope``. Raises ``UnknownDomainError``."""
     found = domain_set().find(code, scope)
@@ -97,6 +110,22 @@ def check_subtype(scope: str, domain: str, subtype: str) -> DomainDefinition:
     if definition.subtype(subtype) is None:
         codes = ", ".join(s.code for s in definition.subtypes)
         raise UnknownDomainError(f"domain {domain!r} has no subtype {subtype!r} (known: {codes})")
+    return definition
+
+
+def check_core_subtype(scope: str, domain: str, subtype: str) -> DomainDefinition:
+    """Like ``check_subtype``, for a letter: the domain must be one whose items are core items.
+
+    A domain with a record type of its own (Technical, Commercial) is entered through its own
+    commands; a received or drafted letter cannot be filed into it. Raises ``UnknownDomainError``
+    for an unknown domain or subtype and ``InvalidItemError`` for such a domain.
+    """
+    definition = check_subtype(scope, domain, subtype)
+    if definition.has_own_type:
+        raise InvalidItemError(
+            f"domain {domain!r} has items of its own kind, made with the commands of the domain; "
+            "a letter cannot be filed into it (raise a linked item instead)"
+        )
     return definition
 
 

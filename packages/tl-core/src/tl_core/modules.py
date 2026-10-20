@@ -106,6 +106,9 @@ class ProposableCommand:
     model: type[Command]
     handler: ProposalHandler
     access: ProposalAccess
+    #: ``False`` for a command only a rule proposes (``EscalateTechnical``, ADR-0019): it can be
+    #: accepted like any proposal but names no agent tool, so no tool mode is offered for it.
+    agent_tool: bool = True
 
 
 _SQL_NAME = re.compile(r"[a-z][a-z0-9_]{0,62}")
@@ -394,6 +397,17 @@ def module_proposables() -> dict[str, ProposableCommand]:
                 raise ModuleLoadError(f"proposal tool {item.tool!r} is declared twice")
             found[item.tool] = item
     return found
+
+
+def confidential_stream_types() -> frozenset[str]:
+    """The record types of every confidential source and of its children (ADR-0016): the streams
+    whose events are about a record a viewer may not be allowed to read."""
+    types: set[str] = set()
+    for source in confidential_sources():
+        types |= source.record_types
+        for child in source.children:
+            types |= child.record_types
+    return frozenset(types)
 
 
 def confidential_sources() -> list[ConfidentialSource]:

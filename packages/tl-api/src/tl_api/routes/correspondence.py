@@ -17,7 +17,13 @@ from datetime import date
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
-from tl_mod_correspondence import views
+from tl_mod_correspondence import (
+    evidence,
+    reports_commercial,
+    reports_technical,
+    views,
+    views_domain,
+)
 
 from tl_api.auth import guard
 from tl_api.context import ApiContext, get_ctx
@@ -79,6 +85,118 @@ def get_suggestion(ctx: Ctx, actor: Reader, project: str, number: str) -> views.
     person confirms it (`ConfirmTriage`)."""
     with ctx.backend(True) as uow:
         return views.suggestion_for_item(uow.conn(), f"project:{project}", number)
+
+
+@router.get(
+    "/projects/{project}/correspondence/{number}/evidence",
+    operation_id="get_evidence_trail",
+)
+def get_evidence_trail(
+    ctx: Ctx,
+    actor: Reader,
+    project: str,
+    number: str,
+    as_of: Annotated[
+        date | None,
+        Query(description="The day to replay the ledger to (default today; never later)."),
+    ] = None,
+    depth: Annotated[int, Query(ge=0, le=evidence.MAX_DEPTH, description="Links to follow.")] = 2,
+    max_nodes: Annotated[int, Query(ge=1, le=evidence.MAX_NODES)] = 100,
+) -> evidence.EvidenceTrail:
+    """The chain of records linked to an item as it stood at the end of a day: what existed, in
+    which state, and which links were there (a replay of the ledger, brief 9 M10 "evidence
+    trail"). A record or link the person may not read today is left out, whatever its class was
+    then. 404 `correspondence_not_found` for an unknown item and for one the person may not read;
+    422 `evidence_date` for a bad date or one before the item existed."""
+    with ctx.backend(True) as uow:
+        return evidence.evidence_trail(
+            uow.conn(),
+            f"project:{project}",
+            number,
+            as_of.isoformat() if as_of else None,
+            depth=depth,
+            max_nodes=max_nodes,
+        )
+
+
+@router.get("/projects/{project}/rfis", operation_id="list_rfis")
+def list_rfis(
+    ctx: Ctx,
+    actor: Reader,
+    project: str,
+    subtype: Annotated[
+        str | None, Query(max_length=64, description="rfi, tq or deviation.")
+    ] = None,
+    state: Annotated[str | None, Query(max_length=64)] = None,
+    discipline: Annotated[str | None, Query(max_length=32)] = None,
+    only_open: Annotated[bool, Query(description="Not answered, not closed.")] = False,
+    only_overdue: Annotated[
+        bool, Query(description="Awaiting a response past the day needed.")
+    ] = False,
+    only_impact: Annotated[
+        bool, Query(description="The answer said yes to cost or schedule.")
+    ] = False,
+    limit: Annotated[int, Query(ge=1, le=5000)] = 500,
+) -> reports_technical.RfiLog:
+    """The RFI log of a project: every Technical item the person may read with its response
+    time and impact flags, newest first, and the counts over the lines."""
+    with ctx.backend(True) as uow:
+        return reports_technical.rfi_log(
+            uow.conn(),
+            f"project:{project}",
+            subtype=subtype,
+            state=state,
+            discipline=discipline,
+            only_open=only_open,
+            only_overdue=only_overdue,
+            only_impact=only_impact,
+            limit=limit,
+        )
+
+
+@router.get("/projects/{project}/rfis/{number}", operation_id="get_rfi")
+def get_rfi(ctx: Ctx, actor: Reader, project: str, number: str) -> views_domain.TechnicalView:
+    """One RFI, technical query or deviation request with its question, answer, clocks and
+    escalations. 404 `correspondence_not_found` for an unknown number and for one the person
+    may not read."""
+    with ctx.backend(True) as uow:
+        return views_domain.technical_view(uow.conn(), f"project:{project}", number)
+
+
+@router.get("/projects/{project}/commercial", operation_id="list_commercial")
+def list_commercial(
+    ctx: Ctx,
+    actor: Reader,
+    project: str,
+    subtype: Annotated[str | None, Query(max_length=64)] = None,
+    state: Annotated[str | None, Query(max_length=64)] = None,
+    only_open: Annotated[bool, Query(description="Leave out Closed and Void.")] = False,
+    time_bars_only: Annotated[bool, Query(description="Time bars still running, or late.")] = False,
+    limit: Annotated[int, Query(ge=1, le=5000)] = 500,
+) -> reports_commercial.CommercialRegister:
+    """The Commercial register of a project: values (estimated against assessed, by currency) and
+    time bars. Commercial items are restricted, so a plain user or an agent gets an empty
+    register."""
+    with ctx.backend(True) as uow:
+        return reports_commercial.commercial_register(
+            uow.conn(),
+            f"project:{project}",
+            subtype=subtype,
+            state=state,
+            only_open=only_open,
+            time_bars_only=time_bars_only,
+            limit=limit,
+        )
+
+
+@router.get("/projects/{project}/commercial/{number}", operation_id="get_commercial")
+def get_commercial(
+    ctx: Ctx, actor: Reader, project: str, number: str
+) -> views_domain.CommercialView:
+    """One Commercial item with its values, clause, time bar clocks and assessment. 404
+    `correspondence_not_found` for an unknown number and for one the person may not read."""
+    with ctx.backend(True) as uow:
+        return views_domain.commercial_view(uow.conn(), f"project:{project}", number)
 
 
 @router.get("/projects/{project}/correspondence-threads", operation_id="list_threads")

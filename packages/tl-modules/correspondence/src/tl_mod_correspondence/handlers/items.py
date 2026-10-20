@@ -30,6 +30,7 @@ from tl_mod_correspondence.handlers.common import (
     correlated,
     open_item,
     plausible_date,
+    require_core,
     require_project,
     require_state,
     today,
@@ -49,7 +50,7 @@ from tl_mod_correspondence.limits import (
     MAX_RECIPIENTS,
     MAX_TEXT,
 )
-from tl_mod_correspondence.names import CORR_UPDATED, CORRESPONDENCE, ST_DRAFT, ST_RECEIVED
+from tl_mod_correspondence.names import CORR_UPDATED, ST_DRAFT, ST_RECEIVED
 from tl_mod_correspondence.registry import find_by_message_id
 from tl_mod_correspondence.textcheck import clean_optional_text, clean_text
 from tl_mod_correspondence.threading import normalise_message_id
@@ -177,6 +178,7 @@ def handle_update_correspondence(uow: UnitOfWork, cmd: UpdateCorrespondence) -> 
     """
     cmd = correlated(cmd)
     item = open_item(uow, cmd, cmd.stream_id)
+    require_core(item)
     require_state(item, ST_DRAFT, ST_RECEIVED)
     given = cmd.model_fields_set
     old: dict[str, Any] = {
@@ -235,7 +237,7 @@ def handle_update_correspondence(uow: UnitOfWork, cmd: UpdateCorrespondence) -> 
         uow,
         cmd,
         item.id,
-        CORRESPONDENCE,
+        item.record_type,
         events,
         expected=cmd.expected_version or item.version,
     )

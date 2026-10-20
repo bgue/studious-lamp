@@ -1,0 +1,31 @@
+CREATE VIEW IF NOT EXISTS v_correspondence_commercial_item AS
+SELECT
+  r.id AS id,
+  r.key AS key,
+  r.type AS record_type,
+  r.scope AS scope,
+  r.title AS title,
+  r.description AS description,
+  r.status AS status,
+  r.voided AS voided,
+  r.version AS version,
+  r.conformance AS conformance,
+  r.psets_json AS psets_json,
+  r.created_at AS created_at,
+  r.updated_at AS updated_at,
+  t.contract_clause_id AS contract_clause_id,
+  t.aware_on AS aware_on,
+  t.derived_from_id AS derived_from_id,
+  t.currency AS currency,
+  t.estimated_value AS estimated_value,
+  t.estimated_hours AS estimated_hours,
+  t.cost_code_impacts_json AS cost_code_impacts_json,
+  t.schedule_impact_days AS schedule_impact_days,
+  t.schedule_impact_note AS schedule_impact_note,
+  t.entitlement_basis AS entitlement_basis,
+  t.assessed_value AS assessed_value,
+  t.assessed_on AS assessed_on,
+  t.assessment_status AS assessment_status,
+  t.assessment_note AS assessment_note
+FROM cur_correspondence_commercial_item AS t
+JOIN cur_core_record AS r ON r.id = t.id;

@@ -185,7 +185,17 @@ def test_no_resource_shows_what_the_actor_may_not_read(
         for marker in [
             *bad_tokens,
             *bad_ids,
-            *[hidden.numbers[k] for k in ("restricted", "privileged", "bogus", "document")],
+            *[
+                hidden.numbers[k]
+                for k in (
+                    "restricted",
+                    "privileged",
+                    "bogus",
+                    "document",
+                    "commercial",
+                    "secret_rfi",
+                )
+            ],
         ]:
             if marker not in reply:
                 continue

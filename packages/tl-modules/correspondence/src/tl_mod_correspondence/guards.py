@@ -7,20 +7,29 @@ them (and a record the viewer may not read answers "not found" before the guard 
 
 * **Item, AttachFile.** A person attaches the slots ``original`` and ``attachment`` only (the
   slots ``rendition`` and ``message`` are written by the module), and only while the item is a
-  Draft, Received or Triaged: an issued, answered or closed item is the record of what was sent or
-  received.
+  Draft, Received or Triaged (or, for a Technical or Commercial item, still in review): an issued,
+  answered or closed item is the record of what was sent or received.
 * **Item, AddLink and SuggestLink.** Any state but Void.
+* **Commercial item, every generic command.** A document controller or admin only
+  (``controller_only``), then the guard above when there is one.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from sqlalchemy import Connection, text
+from tl_core import confidentiality
+from tl_core.auth.errors import ForbiddenError
 from tl_core.services.errors import UnsupportedRecordTypeError
 
 from tl_mod_correspondence.names import (
     SLOT_ATTACHMENT,
     SLOT_ORIGINAL,
+    ST_COMMERCIAL_REVIEW,
     ST_DRAFT,
+    ST_INTERNAL_REVIEW,
+    ST_PM_APPROVAL,
     ST_RECEIVED,
     ST_TRIAGED,
     ST_VOID,
@@ -28,7 +37,14 @@ from tl_mod_correspondence.names import (
 
 #: The slots a person may fill, and the states in which the item takes a file.
 PERSON_SLOTS = (SLOT_ORIGINAL, SLOT_ATTACHMENT)
-UPLOAD_STATES = (ST_DRAFT, ST_RECEIVED, ST_TRIAGED)
+UPLOAD_STATES = (
+    ST_DRAFT,
+    ST_RECEIVED,
+    ST_TRIAGED,
+    ST_INTERNAL_REVIEW,
+    ST_COMMERCIAL_REVIEW,
+    ST_PM_APPROVAL,
+)
 _STATE_SQL = text("SELECT status, voided FROM cur_core_record WHERE id = :id")
 
 
@@ -58,3 +74,23 @@ def not_void(conn: Connection, record_id: str, slot: str | None) -> None:
     del slot
     if state_of(conn, record_id) == ST_VOID:
         raise UnsupportedRecordTypeError("a void item takes no links")
+
+
+GenericGuard = Callable[[Connection, str, "str | None"], None]
+
+
+def controller_only(inner: GenericGuard | None = None) -> GenericGuard:
+    """``inner`` (when given), after a check that the viewer is a document controller or admin.
+
+    A Commercial item takes the generic commands (links, files, property values) from controllers
+    only, whatever the command's own access word: a person named on a privileged one reads it and
+    must not change it (ADR-0019 section 3, the P1-I6 security review).
+    """
+
+    def guard(conn: Connection, record_id: str, slot: str | None) -> None:
+        if confidentiality.current_viewer().level < 1:
+            raise ForbiddenError("commercial items are for the document_controller and admin roles")
+        if inner is not None:
+            inner(conn, record_id, slot)
+
+    return guard

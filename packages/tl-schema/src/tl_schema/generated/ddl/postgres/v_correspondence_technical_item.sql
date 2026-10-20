@@ -1,0 +1,32 @@
+CREATE OR REPLACE VIEW v_correspondence_technical_item AS
+SELECT
+  r.id AS id,
+  r.key AS key,
+  r.type AS record_type,
+  r.scope AS scope,
+  r.title AS title,
+  r.description AS description,
+  r.status AS status,
+  r.voided AS voided,
+  r.version AS version,
+  r.conformance AS conformance,
+  r.psets_json AS psets_json,
+  r.created_at AS created_at,
+  r.updated_at AS updated_at,
+  t.question AS question,
+  t.proposed_solution AS proposed_solution,
+  t.discipline AS discipline,
+  t.required_by AS required_by,
+  t.potential_cost_impact AS potential_cost_impact,
+  t.potential_schedule_impact AS potential_schedule_impact,
+  t.answer AS answer,
+  t.answered_on AS answered_on,
+  t.answer_cost_impact AS answer_cost_impact,
+  t.answer_schedule_impact AS answer_schedule_impact,
+  t.answer_item_id AS answer_item_id,
+  t.answering_revision_id AS answering_revision_id,
+  t.review_decision AS review_decision,
+  t.reviewed_on AS reviewed_on,
+  t.review_note AS review_note
+FROM cur_correspondence_technical_item AS t
+JOIN cur_core_record AS r ON r.id = t.id;

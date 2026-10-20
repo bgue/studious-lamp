@@ -228,8 +228,8 @@ def test_threads_parties_clauses_and_domains(world: CorrWorld) -> None:
     world.clause()
     assert [c.clause_number for c in read(world, views.clause_views, PROJECT)] == ["20.1"]
     domains = views.domain_views(PROJECT)
-    assert [d.code for d in domains] == ["document_control", "general"]
-    general = domains[1]
+    assert [d.code for d in domains] == ["commercial", "document_control", "general", "technical"]
+    general = domains[2]
     assert general.item_source is None and "general-letter" in general.templates
     [clock] = [c for s in general.subtypes if s.code == "letter" for c in s.clocks]
     assert (clock.trigger, clock.duration_days, clock.warn_days) == ("issue", 14, [7, 3, 1])

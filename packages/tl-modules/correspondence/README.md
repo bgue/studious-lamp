@@ -12,7 +12,9 @@ ADR-0013, ADR-0016).
 | `tl_mod_correspondence.projectors` | package | `CorrespondenceProjector`, `ThreadProjector`, `ClockProjector`, `PartyProjector`, `ClauseProjector` |
 | `tl_mod_correspondence.registry` | module | Reads: items, threads, clocks, parties, clauses (frozen rows joined with `cur_core_record`, filtered by the viewer) |
 | `tl_mod_correspondence.handlers` | package | The commands: `items` (`ReceiveCorrespondence`, `UpdateCorrespondence`), `triage` (`ConfirmTriage`, `ReclassifyCorrespondence`), `responses` (`DraftCorrespondence`, `RecordResponse`, `CloseCorrespondence`, `VoidDraft`, `VoidCorrespondence`), `issue` (`IssueCorrespondence`), `threads` (`AssignThread`, `SupersedeCorrespondence`), `clocks`, `parties`, `clauses`, `confidentiality`, `mail` (`IngestEmail`, `read_email`, `ingest_email`) |
-| `tl_mod_correspondence.commands` | module | `API_COMMANDS`: the 28 commands the API offers, each with its `access` (`user` or `controller`) |
+| `tl_mod_correspondence.handlers` (P1-I6: `technical`, `technical_flow`, `commercial`, `commercial_flow`, `escalate`) | package | The Technical and Commercial commands and their flows; `escalate` (`EscalateTechnical`) turns an RFI with a cost or schedule impact into a linked Early Warning (Draft) and writes nothing on the RFI stream |
+| `tl_mod_correspondence.evidence`, `export`, `registry_domain`, `reports_technical`, `reports_commercial`, `views_domain` | modules | New in P1-I6: the evidence trail, the bounded register export, the domain registry, the Technical and Commercial reports, and the domain views |
+| `tl_mod_correspondence.commands` | module | `API_COMMANDS`: the 47 commands the API offers (24 of them `controller`), each with its `access` (`user` or `controller`) |
 | `tl_mod_correspondence.clocks`, `calendars` | modules | The clock engine (a pure replay of events) and the versioned project calendars |
 | `tl_mod_correspondence.domains`, `catalog`, `sources` | modules | Domain files compiled and cached by content hash; register sources (`documents.transmittal`) |
 | `tl_mod_correspondence.suggest` | module | `suggest`: the triage suggestion engine (a pure function of the text and the domain files) |
@@ -24,7 +26,7 @@ ADR-0013, ADR-0016).
 
 ## Depends on / used by
 - Depends on: `tl_core` (ledger, services, confidentiality, files, numbering, workflow), `tl_schema` (generated DDL), `tl_adapters`, `tl_mod_documents` (the transmittal register source, the file service), `pydantic`, `pyyaml`, `sqlalchemy`.
-- Used by: the platform through its entry point; `tl_cli` (`tl corr`), `tl_api` (routes, client, command table), `tl_tui` (`F12`), `tl_mcp` (five read tools and `propose_triage`).
+- Used by: the platform through its entry point; `tl_cli` (`tl corr`, `tl rfi`, `tl comm`, `tl evidence`), `tl_api` (routes, client, command table), `tl_tui` (`F12`), `tl_mcp` (ten read tools, five from P1-I5 and five from P1-I6, and `propose_triage`).
 
 ## Commands
 ```
@@ -50,4 +52,4 @@ belongs to a hidden item is hidden with it, and a hidden item answers as one tha
 See `AGENTS.md` in this directory.
 
 ## Status
-Introduced in P1-I5. Module spec: `docs/modules/correspondence/README.md`; schema: `schema/modules/correspondence/`; plan: `docs/tickets/P1-I5/README.md`; runbook: `docs/runbooks/correspondence.md`.
+Introduced in P1-I5; Technical, Commercial and the evidence trail added in P1-I6 (plan: `docs/tickets/P1-I6/README.md`). Module spec: `docs/modules/correspondence/README.md`; schema: `schema/modules/correspondence/`; plan: `docs/tickets/P1-I5/README.md`; runbook: `docs/runbooks/correspondence.md`.

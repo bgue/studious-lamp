@@ -215,6 +215,10 @@ classes:
           tl:json: true
         required: true
         description: "List of record ids of the clocks started at issue."
+      feed_policy:
+        description: "full, minimal or none: what the feed shows of the issue (the domain's policy, fixed when the event is written). Absent means the generic card."
+      feed_text:
+        description: "The line of the feed card when the policy is full or minimal."
     examples:
       - value: "{\"clock_ids\": [], \"date_reason\": null, \"delivery\": \"stub\", \"issued_on\": \"2026-10-17\", \"rendition_file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"rendition_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"template\": \"general-letter\"}"
   CorrespondenceRespondedPayload:
@@ -226,8 +230,7 @@ classes:
       tl:event_version: "1"
     attributes:
       response_id:
-        description: "Record id of the answering item."
-        required: true
+        description: "Record id of the answering item; null when the answer is not an item of the register (a Technical item answered in the form)."
       responded_on:
         description: "ISO date of the answer."
         required: true
@@ -406,7 +409,7 @@ classes:
       clause_id:
         description: "Record id of the contract clause."
       trigger:
-        description: "What started it: receipt, issue, triage or manual."
+        description: "What started it: receipt, issue, triage, awareness (a time bar counted from the day the contractor became aware) or manual."
         required: true
     examples:
       - value: "{\"calendar\": \"P123-default@1\", \"clause_id\": null, \"day_type\": \"calendar\", \"due_on\": \"2026-10-31\", \"duration_days\": 14, \"item_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"item_number\": \"P123-COR-0002\", \"kind\": \"response_from_them\", \"label\": \"Reply expected\", \"owner\": \"user:amy\", \"start_on\": \"2026-10-17\", \"trigger\": \"issue\", \"warn_days\": [7, 3, 1]}"
@@ -672,3 +675,200 @@ classes:
         required: true
     examples:
       - value: "{\"reason\": \"Contract complete\"}"
+
+  TechnicalDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A Technical item (RFI, technical query or deviation request) was raised. It follows the
+      `Correspondence.Defined` event of the same item in the same append and holds the domain data.
+    annotations:
+      tl:event_type: Technical.Defined
+      tl:event_version: "1"
+    attributes:
+      question:
+        description: "The question, or the deviation to be accepted."
+        required: true
+      proposed_solution:
+        description: "What the raiser proposes."
+      discipline:
+        description: "Discipline code."
+      required_by:
+        description: "ISO date an answer is needed."
+      potential_cost_impact:
+        description: "yes, no or unknown."
+        required: true
+      potential_schedule_impact:
+        description: "yes, no or unknown."
+        required: true
+    examples:
+      - value: "{\"discipline\": \"M\", \"potential_cost_impact\": \"unknown\", \"potential_schedule_impact\": \"no\", \"proposed_solution\": \"Re-route the line above the beam\", \"question\": \"The isometric clashes with beam B12; confirm the routing\", \"required_by\": \"2026-10-30\"}"
+  TechnicalUpdatedPayload:
+    is_a: EventPayload
+    description: >-
+      The domain fields of a Technical item that is a draft or in internal review changed.
+    annotations:
+      tl:event_type: Technical.Updated
+      tl:event_version: "1"
+      tl:sample_changes: "{\"required_by\": [\"2026-10-30\", \"2026-11-06\"]}"
+    attributes:
+      changes:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "Object of field name to [old, new]."
+      reason:
+        description: "Why it changed."
+    examples:
+      - value: "{\"changes\": {\"required_by\": [\"2026-10-30\", \"2026-11-06\"]}, \"reason\": null}"
+  TechnicalAnsweredPayload:
+    is_a: EventPayload
+    description: >-
+      The answer to a Technical item was recorded, with the answerer's statement on cost and schedule. A
+      cost or schedule impact of `yes` is what the RFI to Commercial escalation rule listens for.
+    annotations:
+      tl:event_type: Technical.Answered
+      tl:event_version: "1"
+    attributes:
+      answer:
+        description: "The answer, plain text."
+        required: true
+      answered_on:
+        description: "ISO date of the answer."
+        required: true
+      date_reason:
+        description: "Why the date is before the day it was recorded; null when it is that day."
+      cost_impact:
+        description: "yes, no or unknown."
+        required: true
+      schedule_impact:
+        description: "yes, no or unknown."
+        required: true
+      answer_item_id:
+        description: "Record id of the item that carries the answer, when there is one."
+      answering_revision_id:
+        description: "Record id of the document revision that answers, when there is one."
+      feed_policy:
+        description: "full, minimal or none: what the feed shows (the domain's policy at the time)."
+      feed_text:
+        description: "The line of the feed card when the policy is full or minimal."
+    examples:
+      - value: "{\"answer\": \"Re-route as proposed; revision C follows\", \"answer_item_id\": null, \"answered_on\": \"2026-10-20\", \"answering_revision_id\": null, \"cost_impact\": \"yes\", \"date_reason\": null, \"schedule_impact\": \"no\"}"
+  TechnicalReviewedPayload:
+    is_a: EventPayload
+    description: >-
+      The raiser accepted or rejected the answer. A rejected answer is re-issued with `Technical.Reissued`.
+    annotations:
+      tl:event_type: Technical.Reviewed
+      tl:event_version: "1"
+    attributes:
+      decision:
+        description: "accepted or rejected."
+        required: true
+      note:
+        description: "Remark on accepting, or why the answer was rejected."
+      reviewed_on:
+        description: "ISO date."
+        required: true
+    examples:
+      - value: "{\"decision\": \"rejected\", \"note\": \"The answer does not say which beam\", \"reviewed_on\": \"2026-10-21\"}"
+  TechnicalReissuedPayload:
+    is_a: EventPayload
+    description: >-
+      A rejected Technical item went back to internal review to be issued again. The answer and the
+      judgement of the round before are cleared from the current state; the events keep them.
+    annotations:
+      tl:event_type: Technical.Reissued
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why it is issued again."
+        required: true
+      round:
+        range: integer
+        description: "The number of the round that starts, counting the first issue as 1."
+        required: true
+    examples:
+      - value: "{\"reason\": \"Names beam B12 and B13\", \"round\": 2}"
+  CommercialDefinedPayload:
+    is_a: EventPayload
+    description: >-
+      A Commercial item (early warning, change notice, claim ...) was raised. It follows the
+      `Correspondence.Defined` event of the same item in the same append and holds the domain data.
+    annotations:
+      tl:event_type: Commercial.Defined
+      tl:event_version: "1"
+    attributes:
+      contract_clause_id:
+        description: "Record id of the contract clause the notice is given under."
+      aware_on:
+        description: "ISO date the contractor became aware; the time bar runs from it."
+      derived_from_id:
+        description: "Record id of the item this one was escalated from."
+      currency:
+        description: "ISO 4217 code of every amount."
+      estimated_value:
+        description: "Decimal text, at most two places."
+      estimated_hours:
+        description: "Decimal text, at most one place."
+      cost_code_impacts:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "List of impacts by cost code, each cost_code, amount, hours, quantity, uom."
+      schedule_impact_days:
+        range: integer
+        description: "Days of delay, negative for acceleration."
+      schedule_impact_note:
+        description: "The schedule impact in words."
+      entitlement_basis:
+        description: "Why the contractor is entitled."
+    examples:
+      - value: "{\"aware_on\": \"2026-10-20\", \"contract_clause_id\": null, \"cost_code_impacts\": [{\"amount\": \"12500.00\", \"cost_code\": \"2.3.1\", \"hours\": null, \"quantity\": null, \"uom\": null}], \"currency\": \"USD\", \"derived_from_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"entitlement_basis\": \"Clause 20.1: instruction changing the routing\", \"estimated_hours\": \"240.5\", \"estimated_value\": \"12500.00\", \"schedule_impact_days\": 3, \"schedule_impact_note\": \"Piping spool S-14 is re-fabricated\"}"
+  CommercialUpdatedPayload:
+    is_a: EventPayload
+    description: >-
+      The domain fields of a Commercial item that is not yet issued changed.
+    annotations:
+      tl:event_type: Commercial.Updated
+      tl:event_version: "1"
+      tl:sample_changes: "{\"estimated_value\": [\"12500.00\", \"14000.00\"]}"
+    attributes:
+      changes:
+        range: Any
+        annotations:
+          tl:json: true
+        required: true
+        description: "Object of field name to [old, new]."
+      reason:
+        description: "Why it changed."
+    examples:
+      - value: "{\"changes\": {\"estimated_value\": [\"12500.00\", \"14000.00\"]}, \"reason\": null}"
+  CommercialAssessedPayload:
+    is_a: EventPayload
+    description: >-
+      The other party assessed an issued Commercial item: agreed, disputed or partially agreed, with the value
+      they assessed.
+    annotations:
+      tl:event_type: Commercial.Assessed
+      tl:event_version: "1"
+    attributes:
+      status:
+        description: "agreed, disputed or partially_agreed."
+        required: true
+      assessed_value:
+        description: "Decimal text, at most two places."
+      assessed_on:
+        description: "ISO date of the assessment."
+        required: true
+      date_reason:
+        description: "Why the date is before the day it was recorded; null when it is that day."
+      note:
+        description: "The assessor's reasoning."
+      feed_policy:
+        description: "full, minimal or none: what the feed shows (the domain's policy at the time)."
+      feed_text:
+        description: "The line of the feed card when the policy is full or minimal."
+    examples:
+      - value: "{\"assessed_on\": \"2026-11-10\", \"assessed_value\": \"9000.00\", \"date_reason\": null, \"note\": \"Hours reduced\", \"status\": \"partially_agreed\"}"

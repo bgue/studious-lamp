@@ -10,25 +10,31 @@ from tl_core.modules import ChildSource, ConfidentialSource, ModuleSpec, Proposa
 from tl_core.projection.types import Projector
 
 from tl_mod_correspondence import MODULE
-from tl_mod_correspondence.guards import item_upload, not_void
+from tl_mod_correspondence.guards import controller_only, item_upload, not_void
+from tl_mod_correspondence.handlers.escalate import EscalateTechnical, handle_escalate_technical
 from tl_mod_correspondence.handlers.triage import ConfirmTriage, handle_confirm_triage
 from tl_mod_correspondence.names import (
     CLAUSE,
     CLEARANCE_TABLE,
     CLOCK,
     CLOCK_TABLE,
+    COMMERCIAL,
     CORRESPONDENCE,
     CORRESPONDENCE_TABLE,
+    ITEM_TYPES,
     PARTY,
     RECORD_TYPES,
+    TECHNICAL,
     THREAD,
     THREAD_TABLE,
 )
 from tl_mod_correspondence.projectors import (
     ClauseProjector,
     ClockProjector,
+    CommercialProjector,
     CorrespondenceProjector,
     PartyProjector,
+    TechnicalProjector,
     ThreadProjector,
 )
 
@@ -51,14 +57,28 @@ LINKABLE_GENERIC_COMMANDS = frozenset({"AddLink", "SuggestLink"}) | LINK_LIFE
 #: What an agent may propose (ADR-0014 section 8): the triage of a received item. Accepting runs
 #: ``ConfirmTriage`` as the accepting person, who needs the access of that command (any signed-in
 #: person); the agent only reads what its clearance allows (internal items) and proposes.
-PROPOSABLE = (ProposableCommand("propose_triage", ConfirmTriage, handle_confirm_triage, "user"),)
+PROPOSABLE = (
+    ProposableCommand("propose_triage", ConfirmTriage, handle_confirm_triage, "user"),
+    # The escalation rule (ADR-0019) proposes it; a controller accepts. It names no agent tool:
+    # an agent does not propose an escalation.
+    ProposableCommand(
+        "escalate_technical",
+        EscalateTechnical,
+        handle_escalate_technical,
+        "controller",
+        agent_tool=False,
+    ),
+)
 
+#: The items of the Technical and Commercial domains are records of a type of their own and take the
+#: same generic commands as an item (the module's commands do the rest).
+#:
 #: The class of an item is its `confidentiality` column; a `privileged` item is read by the accounts
 #: named in the clearance table (ADR-0016). A thread hangs on its governing item and a clock on its
 #: item, so they are readable only when that item is.
 CONFIDENTIAL = (
     ConfidentialSource(
-        record_types=frozenset({CORRESPONDENCE}),
+        record_types=ITEM_TYPES,
         table=CORRESPONDENCE_TABLE,
         id_column="id",
         class_column="confidentiality",
@@ -79,6 +99,8 @@ def projectors() -> list[Projector]:
         ClockProjector(),
         ClauseProjector(),
         PartyProjector(),
+        TechnicalProjector(),
+        CommercialProjector(),
     ]
 
 
@@ -89,14 +111,31 @@ def spec() -> ModuleSpec:
         projectors=projectors,
         generic_commands={
             CORRESPONDENCE: ITEM_GENERIC_COMMANDS,
+            TECHNICAL: ITEM_GENERIC_COMMANDS,
+            COMMERCIAL: ITEM_GENERIC_COMMANDS,
             THREAD: LINKABLE_GENERIC_COMMANDS,
             CLAUSE: LINKABLE_GENERIC_COMMANDS,
             PARTY: LINKABLE_GENERIC_COMMANDS,
         },
         generic_guards={
-            (CORRESPONDENCE, "AttachFile"): item_upload,
-            (CORRESPONDENCE, "AddLink"): not_void,
-            (CORRESPONDENCE, "SuggestLink"): not_void,
+            **{
+                (record_type, command): guard
+                for record_type in (CORRESPONDENCE, TECHNICAL, COMMERCIAL)
+                for command, guard in (
+                    ("AttachFile", item_upload),
+                    ("AddLink", not_void),
+                    ("SuggestLink", not_void),
+                )
+            },
+            # a Commercial item is changed by controllers only, whatever the command's access word
+            **{
+                (COMMERCIAL, command): controller_only(
+                    {"AttachFile": item_upload, "AddLink": not_void, "SuggestLink": not_void}.get(
+                        command
+                    )
+                )
+                for command in ITEM_GENERIC_COMMANDS
+            },
         },
         proposable=PROPOSABLE,
         confidential=CONFIDENTIAL,

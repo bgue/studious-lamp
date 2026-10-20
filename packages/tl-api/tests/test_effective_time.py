@@ -29,14 +29,14 @@ def test_a_simulation_scope_gets_the_header_as_effective_at(harness: Harness) ->
     assert event["source"] == "api" and event["actor"] == ALICE
 
 
-def test_automatic_numbering_cannot_key_a_simulation_scope(harness: Harness) -> None:
-    """`{project}` is letters and digits and `sim-r1` has a dash, so the simulator assigns keys."""
+def test_automatic_numbering_keys_a_simulation_scope_without_its_dash(harness: Harness) -> None:
+    """`{project}` is letters and digits: `sim-r1` is spelled `simr1` in the number (P1-I6)."""
     body = {"scope": SIM, "record_type": "core.Record", "title": "T"}
     response = harness.client_for(ALICE).post(
         "/commands/CreateRecord", json=body, headers={EFFECTIVE_AT_HEADER: AT}
     )
-    assert response.status_code == 422
-    assert response.json()["error"] == "numbering_value"
+    assert response.status_code == 200, response.text
+    assert response.json()["key"].startswith("simr1-")
 
 
 def test_without_the_header_effective_at_is_recorded_at(harness: Harness) -> None:

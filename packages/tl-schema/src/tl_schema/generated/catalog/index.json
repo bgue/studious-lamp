@@ -181,6 +181,33 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Commercial.Assessed.v1",
+      "event_type": "Commercial.Assessed",
+      "payload_class": "CommercialAssessedPayload",
+      "sample": "samples/Commercial.Assessed.v1.json",
+      "schema": "schemas/Commercial.Assessed.v1.json",
+      "title": "The other party assessed an issued Commercial item: agreed, disputed or partially agreed, with the value they assessed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Commercial.Defined.v1",
+      "event_type": "Commercial.Defined",
+      "payload_class": "CommercialDefinedPayload",
+      "sample": "samples/Commercial.Defined.v1.json",
+      "schema": "schemas/Commercial.Defined.v1.json",
+      "title": "A Commercial item (early warning, change notice, claim ...) was raised.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Commercial.Updated.v1",
+      "event_type": "Commercial.Updated",
+      "payload_class": "CommercialUpdatedPayload",
+      "sample": "samples/Commercial.Updated.v1.json",
+      "schema": "schemas/Commercial.Updated.v1.json",
+      "title": "The domain fields of a Commercial item that is not yet issued changed.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.ContractClause.Defined.v1",
       "event_type": "ContractClause.Defined",
       "payload_class": "ContractClauseDefinedPayload",
@@ -1501,6 +1528,51 @@
       "sample": "samples/TagClass.Revised.v1.json",
       "schema": "schemas/TagClass.Revised.v1.json",
       "title": "A tag class changed.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Technical.Answered.v1",
+      "event_type": "Technical.Answered",
+      "payload_class": "TechnicalAnsweredPayload",
+      "sample": "samples/Technical.Answered.v1.json",
+      "schema": "schemas/Technical.Answered.v1.json",
+      "title": "The answer to a Technical item was recorded, with the answerer's statement on cost and schedule.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Technical.Defined.v1",
+      "event_type": "Technical.Defined",
+      "payload_class": "TechnicalDefinedPayload",
+      "sample": "samples/Technical.Defined.v1.json",
+      "schema": "schemas/Technical.Defined.v1.json",
+      "title": "A Technical item (RFI, technical query or deviation request) was raised.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Technical.Reissued.v1",
+      "event_type": "Technical.Reissued",
+      "payload_class": "TechnicalReissuedPayload",
+      "sample": "samples/Technical.Reissued.v1.json",
+      "schema": "schemas/Technical.Reissued.v1.json",
+      "title": "A rejected Technical item went back to internal review to be issued again.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Technical.Reviewed.v1",
+      "event_type": "Technical.Reviewed",
+      "payload_class": "TechnicalReviewedPayload",
+      "sample": "samples/Technical.Reviewed.v1.json",
+      "schema": "schemas/Technical.Reviewed.v1.json",
+      "title": "The raiser accepted or rejected the answer.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Technical.Updated.v1",
+      "event_type": "Technical.Updated",
+      "payload_class": "TechnicalUpdatedPayload",
+      "sample": "samples/Technical.Updated.v1.json",
+      "schema": "schemas/Technical.Updated.v1.json",
+      "title": "The domain fields of a Technical item that is a draft or in internal review changed.",
       "version": 1
     },
     {

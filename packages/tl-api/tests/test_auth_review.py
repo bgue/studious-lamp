@@ -458,6 +458,18 @@ AGENT_MAY_NOT = {
     "admin.command.AdoptSchemaPackage",
     "admin.command.ApproveWaiver",
     "admin.command.RevokeWaiver",
+    # RFIs and Commercial items (P1-I6): the controller's; an agent proposes
+    "control.command.IssueTechnical",
+    "control.command.EscalateTechnical",
+    "control.command.RaiseCommercial",
+    "control.command.UpdateCommercial",
+    "control.command.SubmitCommercial",
+    "control.command.ReviewCommercial",
+    "control.command.ReturnCommercial",
+    "control.command.IssueCommercial",
+    "control.command.AssessCommercial",
+    "control.command.CloseCommercial",
+    "control.command.ReferCommercialToLegal",
 }
 FEED_COMMANDS = {
     "PostToFeed",

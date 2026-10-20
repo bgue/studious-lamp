@@ -290,6 +290,11 @@ def item_view_by_id(conn: Connection, scope: str, item_id: str) -> ItemView:
     return _item(conn, row)
 
 
+def item_model(conn: Connection, row: registry.ItemRow) -> ItemView:
+    """The view of an item the caller has already read (``registry.get_item`` and the like)."""
+    return _item(conn, row)
+
+
 def _item(conn: Connection, row: registry.ItemRow) -> ItemView:
     return ItemView(
         id=row.id,
@@ -577,7 +582,7 @@ def suggestion_for_item(conn: Connection, scope: str, number: str) -> Suggestion
 
 
 def suggestion_for_text(scope: str, subject: str, body: str | None = None) -> SuggestionView:
-    found = suggest(catalog.domain_set().for_scope(scope), subject=subject, body=body)
+    found = suggest(catalog.triage_domains(scope), subject=subject, body=body)
     return SuggestionView(
         domain=found.domain,
         subtype=found.subtype,

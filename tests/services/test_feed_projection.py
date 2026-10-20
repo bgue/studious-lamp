@@ -21,6 +21,7 @@ from tl_adapters.db import (
 )
 from tl_core.feed.types import CARD_WINDOW_SECONDS
 from tl_core.ledger import NewEvent
+from tl_core.modules import use_modules
 from tl_core.projection.defaults import default_registry
 from tl_core.projection.feed import FeedProjector
 from tl_core.services.commands import CreateRecord, UpdateRecord
@@ -319,3 +320,83 @@ def test_reset_and_a_feed_only_rebuild_reproduce_the_rows(world: World) -> None:
     assert dump() == live
     rebuild_projections(world.path)
     assert dump() == live
+
+
+# --- a domain's feed policy (P1-I6) --------------------------------------------------------------
+
+
+@pytest.fixture
+def core_only() -> Iterator[None]:
+    """No module: the events of the policy tests are named like a module's but belong to no
+    projector of one."""
+    with use_modules([]):
+        yield
+
+
+def policy_event(world: World, stream: str, version: int, **payload: Any) -> None:
+    with world.uow() as uow:
+        uow.append(
+            stream_id=stream,
+            stream_type="core.Record",
+            scope=P1,
+            expected_version=version,
+            events=[NewEvent(event_type="Technical.Answered", payload=payload)],
+            actor="user:jo",
+            source="t",
+            correlation_id="c",
+        )
+
+
+def test_a_full_policy_event_is_a_card_with_its_own_line_about_its_record(
+    world: World, core_only: None
+) -> None:
+    rec = world.create()
+    policy_event(world, rec, 1, feed_policy="full", feed_text="RFI P1-RFI-0001 answered: Beam")
+    world.at(1)
+    policy_event(world, rec, 2, feed_policy="full", feed_text="RFI P1-RFI-0001 answered again")
+    *_, first, second = world.cards()
+    assert (first["summary"], second["summary"]) == (
+        "RFI P1-RFI-0001 answered: Beam",
+        "RFI P1-RFI-0001 answered again",
+    )
+    assert first["event_count"] == 1 and first["open_scope"] is None  # closed at once
+    assert second["open_scope"] is None
+    assert [r["record_id"] for r in world.rows(SUBJECTS, i=first["item_id"])] == [rec]
+
+
+def test_a_minimal_policy_card_says_only_its_line(world: World, core_only: None) -> None:
+    rec = world.create()
+    policy_event(world, rec, 1, feed_policy="minimal", feed_text="A commercial notice was issued")
+    card = world.cards()[-1]
+    assert card["summary"] == "A commercial notice was issued"
+    assert "jo" not in card["summary"] and "P1" not in card["summary"]
+
+
+def test_policy_none_and_an_unusable_policy_make_no_card(world: World, core_only: None) -> None:
+    rec = world.create()
+    before = len(world.cards())
+    policy_event(world, rec, 1, feed_policy="none")
+    policy_event(world, rec, 2, feed_policy="loud", feed_text="x")
+    policy_event(world, rec, 3, feed_policy="full")  # a policy that has no line
+    assert len(world.cards()) == before
+
+
+def test_a_policy_card_is_not_extended_by_the_next_event_of_its_kind(
+    world: World, core_only: None
+) -> None:
+    rec = world.create()
+    policy_event(world, rec, 1, feed_policy="full", feed_text="answered")
+    world.at(1)
+    policy_event(world, rec, 2, answer="no policy keys")  # the generic rules: a card of its own
+    *_, policy_card, plain_card = world.cards()
+    assert policy_card["summary"] == "answered" and policy_card["event_count"] == 1
+    assert plain_card["event_count"] == 1 and plain_card["open_scope"] == P1
+
+
+def test_the_policy_cards_come_back_from_a_feed_only_rebuild(world: World, core_only: None) -> None:
+    rec = world.create()
+    policy_event(world, rec, 1, feed_policy="full", feed_text="answered")
+    policy_event(world, rec, 2, feed_policy="none")
+    before = [(c["summary"], c["open_scope"]) for c in world.cards()]
+    rebuild_projections(world.path, types=["feed"])
+    assert [(c["summary"], c["open_scope"]) for c in world.cards()] == before

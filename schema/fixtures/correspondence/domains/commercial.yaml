@@ -1,0 +1,197 @@
+# The Commercial domain (brief 9, M10): early warnings, change and variation notices, site instructions,
+# quotations, claims, payment applications and back-charges. Items are `correspondence.CommercialItem`
+# records with their own workflow (`correspondence.commercial`) and a number per kind (P123-EW-0001).
+#
+# CONTRACTUAL DEFINITION: the clocks below are time bars and assessment periods. They are an
+# illustrative default; a project's contract sets the real figures, and an item that names a contract
+# clause with a time bar takes that clause's length and day type instead of the number here. This file
+# and the workflow are a human gate (04-gates.md section 2, M10 clock and workflow definitions):
+# approved by the orchestrator under ADR-0008 decision 6, logged in docs/reports/APPROVALS.md. A time
+# bar is a `time_bar` clock that starts on `awareness` (the day the contractor became aware of the
+# event) and is met when the notice is issued; restarting or cancelling it is a document controller's
+# act.
+code: commercial
+name: Commercial
+semver: 1.0.0
+scope: company
+description: Notices and claims under the contract, with time bars and values; limited to commercial roles and the project manager (class restricted).
+record_type: correspondence.CommercialItem
+subtypes:
+  - code: early_warning
+    label: Early warning
+    number_code: EW
+    direction: out
+    response_required: true
+    clocks:
+      - label: Early warning time bar
+        trigger: awareness
+        kind: time_bar
+        duration_days: 14
+        day_type: calendar
+        warn_days: [7, 3, 1]
+      - label: Assessment expected
+        trigger: issue
+        kind: response_from_them
+        duration_days: 14
+        day_type: working
+        warn_days: [5, 2]
+    keywords: ["early warning"]
+  - code: change_notice
+    label: Change or variation notice
+    number_code: CN
+    direction: out
+    response_required: true
+    clocks:
+      - label: Change notice time bar
+        trigger: awareness
+        kind: time_bar
+        duration_days: 28
+        day_type: calendar
+        warn_days: [14, 7, 3, 1]
+      - label: Assessment expected
+        trigger: issue
+        kind: response_from_them
+        duration_days: 28
+        day_type: calendar
+        warn_days: [7, 3, 1]
+    keywords: ["change notice", variation]
+  - code: site_instruction
+    label: Site instruction (received)
+    number_code: SI
+    direction: in
+    clocks:
+      - label: Notice of change within the time bar
+        trigger: awareness
+        kind: time_bar
+        duration_days: 14
+        day_type: calendar
+        warn_days: [7, 3, 1]
+    keywords: ["site instruction", instruction]
+  - code: quotation
+    label: Quotation or proposal
+    number_code: QT
+    direction: out
+    response_required: true
+    clocks:
+      - label: Acceptance expected
+        trigger: issue
+        kind: response_from_them
+        duration_days: 28
+        day_type: calendar
+        warn_days: [7, 3]
+    keywords: [quotation, proposal]
+  - code: claim_notice
+    label: Claim notice
+    number_code: CL
+    direction: out
+    response_required: true
+    clocks:
+      - label: Claim notice time bar
+        trigger: awareness
+        kind: time_bar
+        duration_days: 28
+        day_type: calendar
+        warn_days: [14, 7, 3, 1]
+      - label: Assessment expected
+        trigger: issue
+        kind: response_from_them
+        duration_days: 42
+        day_type: calendar
+        warn_days: [14, 7]
+    keywords: [claim]
+  - code: detailed_claim
+    label: Detailed claim
+    number_code: DC
+    direction: out
+    response_required: true
+    clocks:
+      - label: Detailed claim time bar
+        trigger: awareness
+        kind: time_bar
+        duration_days: 84
+        day_type: calendar
+        warn_days: [28, 14, 7, 3]
+      - label: Assessment expected
+        trigger: issue
+        kind: response_from_them
+        duration_days: 56
+        day_type: calendar
+        warn_days: [14, 7]
+    keywords: ["detailed claim"]
+  - code: payment_application
+    label: Payment application
+    number_code: PA
+    direction: out
+    response_required: true
+    clocks:
+      - label: Certificate expected
+        trigger: issue
+        kind: response_from_them
+        duration_days: 28
+        day_type: calendar
+        warn_days: [7, 3]
+    keywords: ["payment application", "payment certificate", invoice]
+  - code: back_charge
+    label: Back-charge
+    number_code: BC
+    direction: out
+    response_required: true
+    clocks:
+      - label: Response expected
+        trigger: issue
+        kind: response_from_them
+        duration_days: 14
+        day_type: calendar
+        warn_days: [7, 3]
+    keywords: ["back-charge", backcharge]
+default_subtype: early_warning
+workflow_ref: correspondence.commercial
+numbering_pattern: correspondence.CommercialItem
+required_psets: []
+routing:
+  receive_roles: [document_controller]
+  review_roles: [commercial_manager]
+  approve_roles: [project_manager]
+  party_roles: [client]
+confidentiality_default: restricted
+feed_policy: minimal
+integration:
+  webhook_modes: [thin]
+  portal_response: false
+templates:
+  - code: commercial-early-warning
+    label: Early warning notice
+    subtype: early_warning
+    header: "ACME CONSTRUCTION | Early warning"
+    footer: "This notice is given under the contract. Ref {number}"
+  - code: commercial-change-notice
+    label: Change notice
+    subtype: change_notice
+    header: "ACME CONSTRUCTION | Notice of change"
+    footer: "This notice is given under the contract. Ref {number}"
+  - code: commercial-quotation
+    label: Quotation
+    subtype: quotation
+    header: "ACME CONSTRUCTION | Quotation"
+    footer: "Ref {number}"
+  - code: commercial-claim-notice
+    label: Claim notice
+    subtype: claim_notice
+    header: "ACME CONSTRUCTION | Notice of claim"
+    footer: "This notice is given under the contract. Ref {number}"
+  - code: commercial-detailed-claim
+    label: Detailed claim
+    subtype: detailed_claim
+    header: "ACME CONSTRUCTION | Detailed claim"
+    footer: "Ref {number}"
+  - code: commercial-payment-application
+    label: Payment application
+    subtype: payment_application
+    header: "ACME CONSTRUCTION | Payment application"
+    footer: "Ref {number}"
+  - code: commercial-back-charge
+    label: Back-charge
+    subtype: back_charge
+    header: "ACME CONSTRUCTION | Back-charge"
+    footer: "Ref {number}"
+triage_keywords: ["early warning", "change notice", claim, variation, "back-charge", "payment application"]

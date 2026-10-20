@@ -46,10 +46,15 @@ _SEMVER = re.compile(r"(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0
 _PSET = re.compile(r"[a-z][a-z0-9_]{0,63}")
 _CLAUSE = re.compile(r"[A-Za-z0-9_.-]{1,64}/[A-Za-z0-9_.()-]{1,64}")
 _WORD = re.compile(r"[a-z0-9][a-z0-9 _.-]{0,59}")
+_NUMBER_CODE = re.compile(r"[A-Z][A-Z0-9]{0,7}")
+_RECORD_TYPE = re.compile(r"correspondence\.[A-Z][A-Za-z]{0,63}")
+
+#: The record type of a domain whose file names none: the items of General and Document control.
+DEFAULT_RECORD_TYPE: Final = "correspondence.Correspondence"
 
 ConfidentialityClass = Literal["internal", "restricted", "privileged"]
 FeedPolicy = Literal["full", "minimal", "none"]
-ClockTrigger = Literal["receipt", "issue"]
+ClockTrigger = Literal["receipt", "issue", "awareness"]
 ClockKind = Literal["response_from_them", "response_from_us", "time_bar"]
 DayType = Literal["calendar", "working"]
 
@@ -101,12 +106,21 @@ class DomainSubtype(_Strict):
     response_required: bool = False
     clocks: tuple[ClockTemplate, ...] = Field(default=(), max_length=MAX_CLOCKS_PER_SUBTYPE)
     keywords: tuple[str, ...] = ()
+    number_code: str | None = None
+    direction: Literal["in", "out"] | None = None
 
     @field_validator("code")
     @classmethod
     def _code(cls, value: str) -> str:
         if _CODE.fullmatch(value) is None:
             raise ValueError("a code is lower case: a letter, then letters, digits or _")
+        return value
+
+    @field_validator("number_code")
+    @classmethod
+    def _number_code(cls, value: str | None) -> str | None:
+        if value is not None and _NUMBER_CODE.fullmatch(value) is None:
+            raise ValueError("a number code is upper case: a letter, then letters or digits")
         return value
 
     @field_validator("keywords")
@@ -159,6 +173,7 @@ class DomainDefinition(_Strict):
     integration: DomainIntegration | None = None
     templates: tuple[LetterTemplate, ...] = Field(default=(), max_length=MAX_TEMPLATES)
     triage_keywords: tuple[str, ...] = ()
+    record_type: str | None = None
     item_source: str | None = Field(default=None, max_length=100)
 
     @field_validator("code")
@@ -193,6 +208,24 @@ class DomainDefinition(_Strict):
     @classmethod
     def _kw(cls, value: tuple[str, ...]) -> tuple[str, ...]:
         return _words(value, "triage_keywords")
+
+    @field_validator("record_type")
+    @classmethod
+    def _record_type(cls, value: str | None) -> str | None:
+        if value is not None and _RECORD_TYPE.fullmatch(value) is None:
+            raise ValueError("a record type is correspondence.<ClassName>")
+        return value
+
+    @property
+    def item_record_type(self) -> str:
+        """The record type of the domain's items (the core item type when the file names none)."""
+        return self.record_type or DEFAULT_RECORD_TYPE
+
+    @property
+    def has_own_type(self) -> bool:
+        """True when the domain's items are a record type of their own (Technical, Commercial):
+        they are born by the domain's commands and cannot be triaged into from a letter."""
+        return self.item_record_type != DEFAULT_RECORD_TYPE
 
     def subtype(self, code: str) -> DomainSubtype | None:
         return next((s for s in self.subtypes if s.code == code), None)
@@ -266,10 +299,31 @@ def check_domain(
                 problems.append(
                     f"{source}: a clock of {subtype.code!r} warns earlier than it is long"
                 )
-    if not any(d.id == domain.workflow_ref for d in workflows.all()):
+    flows = [d for d in workflows.all() if d.id == domain.workflow_ref]
+    if not flows:
         problems.append(f"{source}: no workflow {domain.workflow_ref!r}")
-    if not any(p.id == domain.numbering_pattern for p in numbering.all()):
+    elif any(d.record_type != domain.item_record_type for d in flows):
+        problems.append(
+            f"{source}: workflow {domain.workflow_ref!r} is not for {domain.item_record_type}"
+        )
+    pattern = numbering.get(domain.numbering_pattern)
+    if pattern is None:
         problems.append(f"{source}: no numbering pattern {domain.numbering_pattern!r}")
+    else:
+        if pattern.record_type != domain.item_record_type:
+            problems.append(
+                f"{source}: numbering pattern {domain.numbering_pattern!r} is not for "
+                f"{domain.item_record_type}"
+            )
+        has_kind = "kind" in pattern.compiled().fields
+        for subtype in domain.subtypes:
+            if has_kind and subtype.number_code is None:
+                problems.append(f"{source}: subtype {subtype.code!r} needs a number_code")
+            if not has_kind and subtype.number_code is not None:
+                problems.append(
+                    f"{source}: subtype {subtype.code!r} has a number_code but the pattern "
+                    "has no kind field"
+                )
     if domain.item_source is not None and domain.item_source not in sources:
         problems.append(f"{source}: no register source {domain.item_source!r}")
     return problems

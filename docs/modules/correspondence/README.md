@@ -1,7 +1,7 @@
 # Module spec: correspondence
 
 Status: accepted for Phase 1. Written by: P1-I5 supervisor. Brief sections: §9 (M10), §7.3, §18.10, §24.
-Decisions: ADR-0010 (module record storage), ADR-0013 (document controller), ADR-0016 (confidentiality).
+Decisions: ADR-0010 (module record storage), ADR-0013 (document controller), ADR-0016 (confidentiality), ADR-0019 (Technical and Commercial items, the evidence trail). The Technical/RFI and Commercial domains, escalation and the evidence trail (P1-I6) are specified in [technical-commercial.md](technical-commercial.md).
 
 ## Purpose
 Correspondence is every letter, email, memo and set of minutes the project sends or receives. The module numbers each
