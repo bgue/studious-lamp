@@ -84,6 +84,9 @@ A webhook action calls only hosts on `webhooks.egress.allowlist` (a dangerous se
 - A rule or endpoint: disable it (step 2). Its past writes stay in the ledger; undo them with the ordinary commands (void, compensate), as a person.
 - An enrichment value accepted by mistake cannot be rejected afterwards. A later accepted value of the same property replaces it in the record's layer; the earlier one stays in the history.
 
+### 8. Restricted and privileged records
+Automation reads as its service actor, with the clearance its declared access earns: a rule, an enricher or an endpoint whose access is `controller` or `admin` reads restricted records; none reads privileged ones. A rule or an enricher does not see, and does not act on, a record it cannot read: the event is passed over (the engines count it as `hidden`; the CLI does not print it), not retried. If a rule seems to ignore a restricted record, that is why; raise its access with `tl rule` only if the rule is meant to act on such records. A mapped key that names a record the endpoint cannot read is a `key_not_found` in the error queue. A workflow transition by a rule, a mapping or a thread dispatch carries no workflow role (service actors hold none): a transition that needs a role fails with `workflow_guard_failed`; let the rule propose it and a person with the role accept.
+
 ## Known limits (accepted, 2026-10-19)
 - The per-source and per-endpoint rate counters run before the signature is checked, so an attacker who knows an endpoint path can use up its request budget (the answer is 429 for everyone until the minute turns). Rotate nothing for this; lower the endpoint's `rate_per_minute` or disable it.
 - The source of a request is the connection's address. Behind a proxy every caller looks alike: one noisy caller can lock out the rest. Put per-sender limits on the proxy.
