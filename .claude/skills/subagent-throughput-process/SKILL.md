@@ -1,6 +1,6 @@
 ---
 name: subagent-throughput-process
-description: Token-efficient way to run Throughline's multi-agent build - short-lived supervisors seeded from STATE.md, Haiku-first tickets, one deterministic test gate, capped mutation and review passes, a planner-tier design check before any big plan is carried out, and the TL92 telegraph code for all agent-to-agent traffic. Load it before spawning or messaging a supervisor, reviewer or workflow, before planning an increment or phase, and when writing a relay or handoff.
+description: Token-efficient way to run Throughline's multi-agent build - short-lived supervisors seeded from STATE.md, Haiku-first tickets, one deterministic test gate, capped mutation and review passes, a planner-tier design check before any big plan is carried out, and the Code 92 telegraph code for all agent-to-agent traffic. Load it before spawning or messaging a supervisor, reviewer or workflow, before planning an increment or phase, and when writing a relay or handoff.
 ---
 
 # Subagent throughput process
@@ -71,7 +71,7 @@ negligible (0.5 M). So the levers are, in order: **smaller contexts, fewer calls
    agent's. It reads STATE.md, relay blocks and workflow outcome tables, never transcripts or logs.
 8. **Planner-tier check before big plans.** Before any big plan is implemented, a `plan-check` agent (the planner
    tier: the orchestrator picks the model at spawn; no model name is written anywhere) reviews it for scope, seams, waves and token cost. Big means a phase plan, a
-   fanout, a new process, a core-interface ADR, or anything over about 10 tickets. One short pass, findings in TL92
+   fanout, a new process, a core-interface ADR, or anything over about 10 tickets. One short pass, findings in Code 92
    (`4 PLANCHK <path> | F1 ... | 30`), written under `## Plan check` in the plan file. Implement only after each
    point is answered or explicitly waived there. A supervisor whose round-1 plan has more than about 10 tickets
    asks for it in the relay block (`4 PLANCHK`) instead of dispatching.
@@ -81,7 +81,7 @@ negligible (0.5 M). So the levers are, in order: **smaller contexts, fewer calls
    - `just tour <n>`: the screenshot walkthrough. Present.
    - `dev/state.sh <INC>`: STATE.md plus git state in at most 40 lines. Wanted: Appendix A1.
    - `dev/review-pack.sh <base> <branch>`: one-call review pack. Wanted: Appendix A2.
-   - `dev/relay-lint`: validates a relay block and its TL92 fields. Wanted: Appendix A3.
+   - `dev/relay-lint`: validates a relay block and its Code 92 fields. Wanted: Appendix A3.
    A1–A3 are built as Haiku tickets after the Phase 1 exit and before Phase 2 wave 1 (owner decision, 2026-10-20).
 10. **Brevity limits** (a reviewer may flag an overrun): relay prose ≤ 8 lines; STATE.md ≤ 150 lines; increment
     report ≤ 80 lines, written from STATE.md; ticket or piece report ≤ 60 lines with ≤ 5 decisive output lines per
@@ -108,9 +108,9 @@ Checkpoints `C<k>` are named in the phase plan per increment (C1 schema and spec
 registrations merged; C3 all tickets merged; C4 DONE). The board is the live ticket table; `README.md` keeps the
 objective, demo and order of work and is written once.
 
-## TL92: telegraph code for agent-to-agent traffic
+## Code 92: telegraph code for agent-to-agent traffic
 
-All relays, handoffs, dispatch notes, review returns and agent-to-agent messages use TL92: telegraphic, no
+All relays, handoffs, dispatch notes, review returns and agent-to-agent messages use Code 92: telegraphic, no
 articles or filler, one fact per token where possible, segments separated by ` | `, every message ends with `30`.
 Messages addressed to the human owner stay plain English.
 
@@ -131,6 +131,40 @@ Abbreviations:
   `abn` abandoned, `2s` two-strikes, `gr` gate red, `ge` gate environment failure, `blk` blocked, `esc` escalate,
   `fx` fix, `+t` test added, `dec` decision, `PLANCHK` planner-tier check requested.
 - **Severity:** `HI` / `MD` / `LO`, then `F<n>` finding.
+
+### Phrase book (three-digit codes for the long sentences agents repeat)
+
+A three-digit number is one token and stands for a whole sentence. Use a code when the sentence is exactly what
+you mean; write plain words when it is not. Add free text after a code with `:`, e.g. `121: which scope?`.
+
+| Code | Sentence | Code | Sentence |
+|---|---|---|---|
+| 100 | All provided tests pass; no deviations. | 130 | Merged with a merge commit; worktree removed. |
+| 101 | The provided test is byte-identical to the copy. | 131 | Conflicts were pins or generated files only; regenerated. |
+| 102 | Stub paragraph, STEPS comments and lint directives removed. | 132 | Trunk merged in; no conflicts. |
+| 103 | Every changed path is inside Allowed paths. | 140 | Hidden looks exactly like missing: status, text and counts match. |
+| 104 | No generated, schema, SQL-dialect or TUI-logic change. | 141 | The visibility filter runs before LIMIT and before counting. |
+| 105 | Commit format and trailers conform; no model names. | 142 | Reserved fields are refused at every entry point. |
+| 110 | Gate failed on the environment (OOM, /tmp full, Postgres down), not the code; rerun. | 143 | Size, depth and time bounds hold under the hostile cases. |
+| 111 | The failure reproduces on the base: pre-existing. | 150 | Waiting on the item that follows. |
+| 112 | Flaky: passes alone, fails under load. | 151 | Nothing to do until the event that follows. |
+| 120 | A deviation from STEPS, disclosed in the report. | 160 | Read the cited place; it is not pasted here. |
+| 121 | Open question for the supervisor (text follows). | 170 | Decision applied as instructed; tests added. |
+| 122 | The ticket is under-specified; a decision is needed (text follows). | 171 | Decision not applied: reason follows. |
+
+### Pointers (cite, do not paste)
+
+Never paste what the reader can open. Point at it instead:
+- `@F path#L10-30`: a file, with optional lines.
+- `@D7`: decision D7 in STATE.md.
+- `@F3`: security finding F3.
+- `@Q2`: open question Q2.
+- `@L L-P1-I8-5`: a learning id (`grep -n -A6`).
+- `@A 0016§2`: an ADR section.
+- `@T T05a4b`: a ticket.
+- `@S NEXT`: a STATE.md section.
+
+Send deltas only: what changed since the reader's last STATE.md, never a restatement of it.
 
 Relay block (the last thing in every supervisor reply; `dev/relay-lint` checks it):
 ```

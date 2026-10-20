@@ -11,6 +11,6 @@ Do:
 - Write the tests the spec names first, then the code. Run the sentinel mutation check (one mutant the tests must kill, proving the baseline and the harness) and at most five targeted mutants on the guards the spec marks (bounds, access words, hash checks); report survivors as a missing test you added or a redundant line you removed.
 - Run `just check`, then `just gate <the spec's test paths and touched packages> | tee .gate/summary.txt` once (`just gate-pg` when the spec touches adapters or the ledger).
 - Commit as `<inc>-S<n>: <summary>` with the attribution trailer. Write `docs/reports/<inc>/<inc>-S<n>.md` (≤ 60 lines) and commit it.
-- Return ≤ 15 lines in TL92 (skill `subagent-throughput-process`): deviations first, `@sha`, `31` gate summary, mutation result (`sentinel P, n/5 killed, +t …`), open questions as `4 …`, then `30`.
+- Return ≤ 15 lines in Code 92 (skill `subagent-throughput-process`): deviations first, `@sha`, `31` gate summary, mutation result (`sentinel P, n/5 killed, +t …`), open questions as `4 …`, then `30`.
 
 Do not: touch `schema/**` unless the spec is labelled `schema` and names an approver; add a dependency the spec does not name; edit generated code by hand; widen the piece; run the full suite; poll a log; skip or weaken a failing test. When blocked, write the question under *Blocked* in the report, commit what you have, and return `blocked`.

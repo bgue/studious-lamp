@@ -1,7 +1,7 @@
 # Build spec 01 — Tier contracts
 
 > **Process v2 (2026-10-20).** The operating rules (short-lived supervisor rounds, builder pieces, the single test
-> gate, capped checks, reviewer tiers, the 3-slot cap, the planner-tier plan check, STATE.md and TL92) are defined once in
+> gate, capped checks, reviewer tiers, the 3-slot cap, the planner-tier plan check, STATE.md and Code 92) are defined once in
 > the `subagent-throughput-process` skill (`.claude/skills/subagent-throughput-process/SKILL.md`), rationale in
 > `process-v2.md`. This file keeps the role contracts; where a line here disagrees with the skill, the skill wins.
 
@@ -68,7 +68,7 @@ once on a branch and returns the summary). A **plan-check** agent (planner tier,
 **Working method (one round per agent; skill rules 1, 2, 7, 8)**
 
 1. Round 1: read the increment section and every brief section it cites. Write the plan, the first piece specs and `STATE.md`. More than about 10 tickets: ask for the plan check (`4 PLANCHK`) and dispatch in round 2.
-2. Every round: verify the board against `git log` (the orchestrator merged the `P` items); decide each `2s`, `gr`, `blk`, `esc` item (re-spec, split, escalate); write the next batch of 2–3 items with disjoint *Allowed paths* and all dependencies merged; run the Haiku-ability checklist (§6) on each ticket; commit the provided tests, stubs and interfaces; rewrite `STATE.md`; end with the TL92 relay block.
+2. Every round: verify the board against `git log` (the orchestrator merged the `P` items); decide each `2s`, `gr`, `blk`, `esc` item (re-spec, split, escalate); write the next batch of 2–3 items with disjoint *Allowed paths* and all dependencies merged; run the Haiku-ability checklist (§6) on each ticket; commit the provided tests, stubs and interfaces; rewrite `STATE.md`; end with the Code 92 relay block.
 3. Never: build a piece, run a suite or a mutation check, merge, read a log, or continue past the relay block.
 4. The DONE round (after the orchestrator's `31` full-gate and `9` security results): report, learnings, README and `AGENTS.md` updates, `88` with `REPORT`.
 
@@ -130,7 +130,7 @@ spec, the builder writes the code. A piece other tickets cannot be tested withou
 - `review: lite` (Haiku) for pure-function, text, docs, fixture and loader-table tickets with a provided test; it
   returns `escalate` ("needs a full review") when the diff touches a route, an access word, an adapter, a screen,
   a parser or a job. `full` (Sonnet) for everything else and for every piece.
-- Findings cite `file:line` and the ticket line or `AGENTS.md` rule violated, in TL92 when returned to the orchestrator.
+- Findings cite `file:line` and the ticket line or `AGENTS.md` rule violated, in Code 92 when returned to the orchestrator.
 - `escalate` when the diff exposes a question the ticket cannot answer (interface mismatch, missing spec).
 - Checklist in `02-task-protocol.md` §6.
 
@@ -183,7 +183,7 @@ Each step is written into the ticket or plan under *Blocked* before the call. Th
 ## 9. Fanout mechanics
 
 > **Harness note (ADR-0004, process v2):** subagents cannot spawn subagents here. The orchestrator spawns every agent;
-> supervisors return a TL92 relay block (`19` dispatch, `88` done, `2` blocked) and the orchestrator runs tickets and
+> supervisors return a Code 92 relay block (`19` dispatch, `88` done, `2` blocked) and the orchestrator runs tickets and
 > pieces through `.claude/workflows/ticket-batch-v2.js` (implement → gate → review → one retry). The orchestrator
 > merges `P` branches itself and spawns a fresh supervisor for the next round. Where this section or §3 says a
 > supervisor dispatches, reviews or merges, read it as "asks the orchestrator to".

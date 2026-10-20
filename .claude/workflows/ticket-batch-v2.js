@@ -165,15 +165,15 @@ const results = await pipeline(
 
 // Outcomes: pass | escalate | two-strikes | gate-red | gate-env | blocked | review-failed | agent-died
 // (changes-requested is never returned: it becomes the retry).
-const TL92 = { pass: 'P', escalate: 'esc', 'two-strikes': '2s', 'gate-red': 'gr', 'gate-env': 'ge', blocked: 'blk', 'review-failed': 'rvF', 'agent-died': 'died' }
+const CODE92 = { pass: 'P', escalate: 'esc', 'two-strikes': '2s', 'gate-red': 'gr', 'gate-env': 'ge', blocked: 'blk', 'review-failed': 'rvF', 'agent-died': 'died' }
 const out = results.map((r, i) => r || { id: A.items[i].id, outcome: 'agent-died', attempts: 0, gate: null, reviews: [] })
-// One TL92 line per item (skill "TL92"): <id> <outcome>@<sha7> g<0|1|-> <l|f|p> <attempts> [F1 F2 ...]
+// One Code 92 line per item (skill "Code 92"): <id> <outcome>@<sha7> g<0|1|-> <l|f|p> <attempts> [F1 F2 ...]
 function tl92(r, t) {
   const sha = r.impl && r.impl.commit ? '@' + String(r.impl.commit).slice(0, 7) : ''
   const g = r.gate ? (r.gate.green ? 'g0' : 'g1') : 'g-'
   const tier = isPiece(t) ? 'p' : (t.review === 'lite' ? 'l' : 'f')
   const fs = (r.reviews || []).flatMap(x => x.findings || []).map((_, i) => `F${i + 1}`).join(' ')
-  return `${r.id} ${TL92[r.outcome] || r.outcome}${sha} ${g} ${tier} ${r.attempts}${fs ? ' ' + fs : ''}`
+  return `${r.id} ${CODE92[r.outcome] || r.outcome}${sha} ${g} ${tier} ${r.attempts}${fs ? ' ' + fs : ''}`
 }
 const lines = out.map((r, i) => tl92(r, A.items[i]))
 log(lines.join(' | ') + ' | 30')

@@ -58,8 +58,8 @@ supervisor of decision 1 cost 93% of all input tokens (a ~430 k context re-read 
    reviewer (`lite` Haiku or `full` Sonnet per the ticket header; re-runs nothing) → one retry. Mutation checks are
    capped (sentinel + ≤ 5); one security review per wave.
 5. At most 3 heavy agents alive at once. A planner-tier `plan-check` agent reviews every big plan before dispatch.
-6. All agent-to-agent traffic (relay blocks, round messages, workflow outcomes, review returns) is TL92; files the
+6. All agent-to-agent traffic (relay blocks, round messages, workflow outcomes, review returns) is Code 92; files the
    owner reads stay plain English.
 
 Consequences: the per-increment input-token estimate falls from 0.7–1.1 B to 0.15–0.3 B; waves are sized for 3
-slots (Phase 2 runs in five waves); the orchestrator's context grows by a TL92 line per round, not a page.
+slots (Phase 2 runs in five waves); the orchestrator's context grows by a Code 92 line per round, not a page.

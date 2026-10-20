@@ -2,7 +2,7 @@
 
 How work moves between tiers: tickets, context packs, reports, reviews, branches, and definitions of done.
 
-> **Process v2.** Round handoffs (`STATE.md`), the TL92 relay format, brevity limits, the gate and reviewer rules are
+> **Process v2.** Round handoffs (`STATE.md`), the Code 92 relay format, brevity limits, the gate and reviewer rules are
 > defined in the `subagent-throughput-process` skill and not repeated here; §10 points to them.
 
 ## 1. Ticket lifecycle
@@ -64,7 +64,7 @@ Implementer report (`docs/templates/haiku-report.md`), returned as the final mes
 5. **Open questions / Blocked**.
 
 Limits: a ticket or piece report ≤ 60 lines, ≤ 5 decisive output lines per command; a builder's returned message
-≤ 15 lines (TL92).
+≤ 15 lines (Code 92).
 
 Supervisor increment report (`docs/templates/sonnet-increment.md` §Report, ≤ 80 lines, written from `STATE.md` in
 the DONE round): objective met or not, demo path, ticket table with outcomes (merged, taken over, abandoned), gate
@@ -138,7 +138,7 @@ reads the whole file during a build: the orchestrator names ids, agents `grep -n
 - `docs/tickets/<increment-id>/STATE.md` is the handoff between supervisor rounds; format and limits in the
   `subagent-throughput-process` skill ("STATE.md format"). It is committed at the end of every round as
   `<increment-id>: state r<n>`.
-- Every relay block, orchestrator round message, workflow outcome line and review return is TL92 (skill "TL92");
+- Every relay block, orchestrator round message, workflow outcome line and review return is Code 92 (skill "Code 92");
   `dev/relay-lint` validates a relay before the orchestrator acts on it. Plans, reports, ADRs, learnings and anything
   the owner reads stay plain English.
 - A big plan (phase plan, fanout, process change, core ADR, increment plan over ~10 tickets) carries a

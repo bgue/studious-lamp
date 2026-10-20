@@ -2,7 +2,7 @@
 
 Status: proposed, 2026-10-20, from the measured Phase 0–1 run (124 agent transcripts). This note is the rationale
 and the cost model. The **normative rules** live in one place, the `subagent-throughput-process` skill
-(`.claude/skills/subagent-throughput-process/SKILL.md`): STATE.md format, TL92 code, caps, slots, the planner-tier check,
+(`.claude/skills/subagent-throughput-process/SKILL.md`): STATE.md format, Code 92 code, caps, slots, the planner-tier check,
 and the tool briefs. Companion edits: `SUPERVISOR-PROMPT.md`, `01-tiers.md`, `02-task-protocol.md`, `04-gates.md`,
 `KICKOFF.md`, `.claude/agents/*.md`, `.claude/workflows/ticket-batch-v2.js`, and `08-phase2-plan.md` (the first
 plan written for this process). Where a line below and the skill differ, the skill wins.
@@ -154,14 +154,14 @@ increment branch and the increment branch into the trunk (merge commits; a confl
 the workflow runtime has no shell). The orchestrator is itself long-lived; it reads structured outputs only and
 keeps its own notes in `STATUS.md` so a restart reads two files.
 
-### (g2) Owner rules folded in: the planner-tier check and TL92
+### (g2) Owner rules folded in: the planner-tier check and Code 92
 
 - **Planner-tier check** (skill rule 8): a `plan-check` agent (model picked by the orchestrator at spawn) reviews every big plan (phase plan,
   fanout, process change, core ADR, increment plan over ~10 tickets) before it is implemented; findings are answered
   or waived under `## Plan check` in the plan file. Cost: one agent of ~100–200 k tokens per big plan, against the
   200 M+ an increment costs when a plan is wrong (P1-I3's stubbed-then-rebuilt tickets, L-P1-I3-5). This file and
   `08-phase2-plan.md` v0.3 are the first two plans that need it.
-- **TL92** (skill section "TL92"): every agent-to-agent message (relay blocks, orchestrator round messages,
+- **Code 92** (skill section "Code 92"): every agent-to-agent message (relay blocks, orchestrator round messages,
   workflow outcome lines, review returns) is telegraph code; the owner's files stay plain English. The saving is
   small in tokens (relays were already short) but large in calls: a fixed grammar lets `dev/relay-lint` reject a
   malformed relay before an orchestrator round is spent on it, and the orchestrator's own context grows by ~10

@@ -9,7 +9,7 @@ Round 1 has no `STATE.md`: the supervisor writes it from the plan.
 You are the supervisor for {SCOPE} (increment {INC}{WORKSTREAM}), round {ROUND}. Trunk: {TRUNK}. Branch: {BRANCH}.
 This agent lives for one round. Everything the next round needs goes in docs/tickets/{INC}/STATE.md, nowhere else.
 
-READ, IN THIS ORDER AND NOTHING MORE: the `subagent-throughput-process` skill (rules 1–5, 8, 10; STATE.md; TL92);
+READ, IN THIS ORDER AND NOTHING MORE: the `subagent-throughput-process` skill (rules 1–5, 8, 10; STATE.md; Code 92);
 AGENTS.md; docs/build-spec/01-tiers.md §3 and §6; 02-task-protocol.md §2 and §3; 04-gates.md §2; then
 docs/tickets/{INC}/STATE.md (round 1: the {INC} section of {PLAN_FILE}{FANOUT} and the brief sections it cites
 instead); then `grep -n -A6` these LEARNINGS ids in docs/memory/LEARNINGS.md: {LEARNING_IDS}.
@@ -19,7 +19,7 @@ WORKTREE: cd /home/user/studious-lamp && (test -d /home/user/wt/{WT} || git work
 Every Bash command starts with `cd /home/user/wt/{WT} && `; absolute paths under it for Read/Edit/Write. Never touch
 /home/user/studious-lamp. If a tool is missing: CLAUDE_CODE_REMOTE=true /home/user/studious-lamp/.claude/hooks/session-start.sh
 
-THIS ROUND'S INPUT (TL92): {OUTCOMES}
+THIS ROUND'S INPUT (Code 92): {OUTCOMES}
 (the orchestrator's `13.` message: merged items, outcomes, decisions, plan-check findings; or "13. r1 30")
 
 WHAT A ROUND DOES (skill rules 2 and 7): the orchestrator has already merged every `P` item and removed its
@@ -46,10 +46,10 @@ and the demo, and sends the results (`31 …`, `9 …`) to a final round, which 
 from STATE.md), learnings, the README/AGENTS.md updates, and ends with `88` again with `REPORT` set.
 Do not merge into the trunk and do not push.
 
-BREVITY: ≤ 8 lines of prose before the relay block; STATE.md ≤ 150 lines; TL92 in the block and in any note to
+BREVITY: ≤ 8 lines of prose before the relay block; STATE.md ≤ 150 lines; Code 92 in the block and in any note to
 the orchestrator; plain English only in files the owner reads (plan, report, ADR, learnings).
 
-Relay block (skill "TL92", last thing in the reply):
+Relay block (skill "Code 92", last thing in the reply):
 === RELAY ===
 19|88|2 {INC} r{ROUND} base@<sha> ck<0|1> g<0|1|-> st@<sha> C<k>
 <id> <repo-relative path> <branch> <t|p> <l|f>
