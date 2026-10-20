@@ -1,9 +1,4 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false, reportUnusedFunction=false
 """The document marts of the lake (P1-I8-T08; brief 28.2 gold, 28.4 uses).
-
-STUB: this file is the interface P1-I8-T08 implements. Remove this paragraph, the two directive
-lines above and every STEPS comment when you implement it.
 
 Marts are rebuilt from silver whenever the document tables changed, so a mart never disagrees with
 the silver it came from. Silver already holds only the documents and revisions the lowest reader
@@ -41,26 +36,101 @@ def build_document_marts(con: Duck) -> None:
     (``id``, ``scope``, ``document_id``, ``ordinal``, ``issued_on``). All text is VARCHAR; the
     issue dates are text that starts ``YYYY-MM-DD`` or is empty or is not a date at all.
     """
-    # STEPS
-    # 1. DROP TABLE IF EXISTS for each name in MARTS (use table_ref(name)).
-    # 2. Stop (return) when lake_tables(con) lacks any of DOCUMENT_TABLE, REVISION_TABLE or
-    #    RECORD_TABLE, or when the document table has no row (SELECT count(*)).
-    # 3. mart_document_status: CREATE TABLE ... AS SELECT d.scope, COALESCE(d.discipline, '-') AS
-    #    discipline, COALESCE(d.doc_type, '-') AS doc_type, COALESCE(d.current_revision_status,
-    #    '-') AS status, COUNT(*) AS documents, MIN(NULLIF(d.current_revision_issued_on, '')) AS
-    #    first_issued_on, MAX(NULLIF(...)) AS last_issued_on FROM document d JOIN record r ON
-    #    r.id = d.id WHERE NOT r.voided, grouped by scope and the three COALESCE expressions,
-    #    ordered by scope, discipline, doc_type, status.
-    # 4. mart_document_turnaround: a CTE `issued` of revisions rv joined to their document d (on
-    #    d.id = rv.document_id) and its record r (not voided) where the issue date
-    #    TRY_CAST(SUBSTR(rv.issued_on, 1, 10) AS DATE) is not NULL (columns scope = rv.scope,
-    #    discipline = COALESCE(d.discipline, '-'), document_id, ordinal, issued_date); a CTE `gaps`
-    #    with gap_days = DATE_DIFF('day', LAG(issued_date) OVER (PARTITION BY document_id ORDER
-    #    BY ordinal), issued_date); then SELECT scope, discipline, COUNT(DISTINCT document_id) AS
-    #    documents, COUNT(*) AS issued_revisions, ROUND(AVG(gap_days), 1) AS
-    #    avg_days_between_issues, MAX(gap_days) AS longest_gap_days GROUP BY scope, discipline
-    #    ORDER BY scope, discipline.
-    # 5. mart_document_issues: SELECT rv.scope, SUBSTR(rv.issued_on, 1, 7) AS month, COUNT(*) AS
-    #    revisions_issued, COUNT(DISTINCT rv.document_id) AS documents over the same join and
-    #    filter as step 4, grouped by scope and month, ordered by scope, month.
-    raise NotImplementedError("STEPS: see the comments")
+    for name in MARTS:
+        con.execute(f"DROP TABLE IF EXISTS {table_ref(name)}")
+    tables = lake_tables(con)
+    if not {DOCUMENT_TABLE, REVISION_TABLE, RECORD_TABLE} <= set(tables):
+        return
+    counted = con.execute(f"SELECT count(*) FROM {table_ref(DOCUMENT_TABLE)}").fetchone()
+    if not counted or counted[0] == 0:
+        return
+
+    document = table_ref(DOCUMENT_TABLE)
+    revision = table_ref(REVISION_TABLE)
+    record = table_ref(RECORD_TABLE)
+    con.execute(
+        f"""
+        CREATE TABLE {table_ref(STATUS_TABLE)} AS
+        SELECT
+            d.scope,
+            COALESCE(d.discipline, '-') AS discipline,
+            COALESCE(d.doc_type, '-') AS doc_type,
+            COALESCE(d.current_revision_status, '-') AS status,
+            COUNT(*) AS documents,
+            MIN(NULLIF(d.current_revision_issued_on, '')) AS first_issued_on,
+            MAX(NULLIF(d.current_revision_issued_on, '')) AS last_issued_on
+        FROM {document} d
+        JOIN {record} r ON r.id = d.id
+        WHERE NOT r.voided
+        GROUP BY
+            d.scope,
+            COALESCE(d.discipline, '-'),
+            COALESCE(d.doc_type, '-'),
+            COALESCE(d.current_revision_status, '-')
+        ORDER BY 1, 2, 3, 4
+        """
+    )
+    con.execute(
+        f"""
+        CREATE TABLE {table_ref(TURNAROUND_TABLE)} AS
+        WITH {_issued_cte(revision, document, record)},
+        gaps AS (
+            SELECT
+                scope,
+                discipline,
+                document_id,
+                DATE_DIFF(
+                    'day',
+                    LAG(issued_date) OVER (PARTITION BY document_id ORDER BY ordinal),
+                    issued_date
+                ) AS gap_days
+            FROM issued
+        )
+        SELECT
+            scope,
+            discipline,
+            COUNT(DISTINCT document_id) AS documents,
+            COUNT(*) AS issued_revisions,
+            ROUND(AVG(gap_days), 1) AS avg_days_between_issues,
+            MAX(gap_days) AS longest_gap_days
+        FROM gaps
+        GROUP BY scope, discipline
+        ORDER BY scope, discipline
+        """
+    )
+    con.execute(
+        f"""
+        CREATE TABLE {table_ref(ISSUES_TABLE)} AS
+        WITH {_issued_cte(revision, document, record)}
+        SELECT
+            scope,
+            SUBSTR(issued_on, 1, 7) AS month,
+            COUNT(*) AS revisions_issued,
+            COUNT(DISTINCT document_id) AS documents
+        FROM issued
+        GROUP BY 1, 2
+        ORDER BY 1, 2
+        """
+    )
+
+
+def _issued_cte(revision: str, document: str, record: str) -> str:
+    """The ``issued`` CTE: the issued revisions of documents that are not voided.
+
+    A revision whose issue date does not start with a date is left out, so ``issued_date`` is never
+    NULL. The turnaround and the issue trend both read it, so they use the same filter.
+    """
+    return f"""issued AS (
+            SELECT
+                rv.scope,
+                COALESCE(d.discipline, '-') AS discipline,
+                rv.document_id,
+                rv.ordinal,
+                rv.issued_on,
+                TRY_CAST(SUBSTR(rv.issued_on, 1, 10) AS DATE) AS issued_date
+            FROM {revision} rv
+            JOIN {document} d ON d.id = rv.document_id
+            JOIN {record} r ON r.id = d.id
+            WHERE NOT r.voided
+              AND TRY_CAST(SUBSTR(rv.issued_on, 1, 10) AS DATE) IS NOT NULL
+        )"""

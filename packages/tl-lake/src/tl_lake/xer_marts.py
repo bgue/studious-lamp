@@ -65,7 +65,7 @@ def build_float_trend(con: Duck) -> None:
 
 
 def build_schedule_history(con: Duck) -> None:
-    """Replace ``mart_schedule_history`` (P1-I8-T08; STUB until the ticket merges).
+    """Replace ``mart_schedule_history`` (P1-I8-T08).
 
     One row per published snapshot (Published or Superseded) of a schedule, oldest first, with
     columns ``scope``, ``schedule_code``, ``snapshot_number``, ``data_date``, ``state``,
@@ -80,17 +80,76 @@ def build_schedule_history(con: Duck) -> None:
     ``schedule_code``, ``number``, ``state``, ``data_date``); ``schedule_activity``
     (``snapshot_id``, ``activity_id``, ``critical``, ``percent_complete``, ``early_finish``).
     """
-    # STEPS
-    # 1. DROP TABLE IF EXISTS the mart (table_ref(SCHEDULE_HISTORY_TABLE)).
-    # 2. CREATE TABLE ... AS with a CTE `counts` (per snapshot_id of schedule_activity: COUNT(*) AS
-    #    activities, COUNT(*) FILTER (WHERE critical) AS critical_activities, COUNT(*) FILTER
-    #    (WHERE percent_complete >= 100) AS complete_activities, ROUND(AVG(percent_complete), 1) AS
-    #    avg_percent_complete, MAX(early_finish) AS latest_early_finish) and a CTE `series`
-    #    (published snapshots joined to counts, with LAG(snapshot_id) and LAG(latest_early_finish)
-    #    over a window partitioned by scope and schedule_code ordered by number; the WHERE on state
-    #    comes before the window, so a Void snapshot between two published ones is skipped).
-    # 3. The final SELECT adds finish_slip_days = DATE_DIFF('day', previous_finish,
-    #    latest_early_finish), and activities_added / activities_removed as correlated COUNT(*)
-    #    subqueries with NOT EXISTS against the previous snapshot (NULL when there is none), and is
-    #    ordered by scope, schedule_code, snapshot_number.
-    raise NotImplementedError("STEPS: see the comments")
+    activity = table_ref("schedule_activity")
+    snapshot = table_ref("schedule_snapshot")
+    con.execute(f"DROP TABLE IF EXISTS {table_ref(SCHEDULE_HISTORY_TABLE)}")
+    con.execute(
+        f"""
+        CREATE TABLE {table_ref(SCHEDULE_HISTORY_TABLE)} AS
+        WITH counts AS (
+            SELECT
+                snapshot_id,
+                COUNT(*) AS activities,
+                COUNT(*) FILTER (WHERE critical) AS critical_activities,
+                COUNT(*) FILTER (WHERE percent_complete >= 100) AS complete_activities,
+                ROUND(AVG(percent_complete), 1) AS avg_percent_complete,
+                MAX(early_finish) AS latest_early_finish
+            FROM {activity}
+            GROUP BY snapshot_id
+        ),
+        series AS (
+            SELECT
+                s.scope,
+                s.schedule_code,
+                s.number AS snapshot_number,
+                s.snapshot_id,
+                s.data_date,
+                s.state,
+                c.activities,
+                c.critical_activities,
+                c.complete_activities,
+                c.avg_percent_complete,
+                c.latest_early_finish,
+                LAG(s.snapshot_id) OVER w AS previous_snapshot_id,
+                LAG(c.latest_early_finish) OVER w AS previous_finish
+            FROM {snapshot} s
+            JOIN counts c ON c.snapshot_id = s.snapshot_id
+            WHERE s.state IN ('Published', 'Superseded')
+            WINDOW w AS (PARTITION BY s.scope, s.schedule_code ORDER BY s.number)
+        )
+        SELECT
+            scope,
+            schedule_code,
+            snapshot_number,
+            data_date,
+            state,
+            activities,
+            critical_activities,
+            complete_activities,
+            avg_percent_complete,
+            latest_early_finish,
+            DATE_DIFF('day', previous_finish, latest_early_finish) AS finish_slip_days,
+            CASE WHEN previous_snapshot_id IS NULL THEN NULL ELSE (
+                SELECT COUNT(*)
+                FROM {activity} a
+                WHERE a.snapshot_id = series.snapshot_id
+                  AND NOT EXISTS (
+                      SELECT 1 FROM {activity} p
+                      WHERE p.snapshot_id = series.previous_snapshot_id
+                        AND p.activity_id = a.activity_id
+                  )
+            ) END AS activities_added,
+            CASE WHEN previous_snapshot_id IS NULL THEN NULL ELSE (
+                SELECT COUNT(*)
+                FROM {activity} p
+                WHERE p.snapshot_id = series.previous_snapshot_id
+                  AND NOT EXISTS (
+                      SELECT 1 FROM {activity} a
+                      WHERE a.snapshot_id = series.snapshot_id
+                        AND a.activity_id = p.activity_id
+                  )
+            ) END AS activities_removed
+        FROM series
+        ORDER BY scope, schedule_code, snapshot_number
+        """
+    )
