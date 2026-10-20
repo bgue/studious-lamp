@@ -48211,7 +48211,7 @@
     "/records/{record_id}/thread": {
       "get": {
         "description": "The newest messages of a record's thread (oldest first), with its participants.\n\nA record the caller cannot read is a 404 `record_not_found`; a record whose type has no thread\nanswers with `enabled` false and no messages.",
-        "operationId": "get_thread",
+        "operationId": "get_record_thread",
         "parameters": [
           {
             "in": "path",

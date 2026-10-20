@@ -70,7 +70,7 @@ class DispatchBody(BaseModel):
             raise ValueError("expires_at must be the time a preview returned") from exc
 
 
-@router.get("/records/{record_id}/thread", operation_id="get_thread")
+@router.get("/records/{record_id}/thread", operation_id="get_record_thread")
 def get_thread(
     ctx: Ctx,
     actor: Reader,
