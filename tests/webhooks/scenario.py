@@ -145,6 +145,21 @@ MODULE_STREAMS = (
         ),
     ),
     ("schedule.ActivityRef", "ActivityRef.Defined", ("ActivityRef.PresenceChanged",)),
+    (
+        "schemareg.SchemaPackage",
+        "SchemaPackage.Drafted",
+        (
+            "SchemaPackage.Revised",
+            "SchemaPackage.Analysed",
+            "SchemaPackage.Submitted",
+            "SchemaPackage.ChangesRequested",
+            "SchemaPackage.Approved",
+            "SchemaPackage.Deprecated",
+            "SchemaPackage.Retired",
+        ),
+    ),
+    ("schemareg.Adoption", "Adoption.Pinned", ()),
+    ("schemareg.Waiver", "Waiver.Requested", ("Waiver.Approved", "Waiver.Revoked")),
 )
 
 

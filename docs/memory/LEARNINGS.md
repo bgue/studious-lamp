@@ -661,3 +661,18 @@ A text is as wide as its widest character: one emoji made the typed JSON of a le
   The tl-cli conftest signs in an admin `dev` before each command on Postgres, so a test that needs a plain user, or the absence of a role, must set `AUTO_SIGN_IN = False` and sign its own people in (see `test_cli_wf_roles.py`); an admin also holds `document_controller`, so a role test with the default session passes on Postgres and fails on SQLite for the wrong reason.
   Evidence: `packages/tl-cli/tests/test_cli_wf_roles.py` (`Cast`), `conftest.py`. Status: active
 
+
+### L-P1-I8-1 (design) A ledger-backed source must be able to fail without taking the file-backed schema down
+The registry source of P1-I8 joins published packages, pins and waivers to the package directory through `RegistryState`. Every way it can go wrong (no tables in an old ledger, a package that no longer parses, a pin the registry refuses, a waiver for a property a later schema dropped) leaves the directory's schema in force and logs, because `effective()` runs on every pset write. `trial()` is the one place that is strict, so the workbench says why a draft does not compose. Evidence: `tl_core/schema_provider.py` (`_build_registry`, `_adopted`, `_compose_waived`), `packages/tl-modules/schemareg/tests/test_source.py`.
+
+### L-P1-I8-2 (security) Counts in a stored report are data for every reader
+The impact report of a package is stored in an event the whole company can read, so its record counts are taken as the lowest reader (`confidentiality.LOWEST`), never as the analyst. A count that includes a restricted record tells every reader that one exists. Evidence: `tl_mod_schemareg/analysis.py` `gather_facts`.
+
+### L-P1-I8-3 (process) A reference-first ticket needs the provided test to fail on the stub and to be mutated against the reference before it goes out
+T03 and T08: the stub fails 24 of 28 and 22 of 22 cases; 22 mutants of the impact reference and 29 of the mart references were killed except three that needed a test or are equivalent (a date cast that DuckDB does the same with or without `SUBSTR`; a `sorted()` on a set that only a hash seed can tell, covered with more paths; a table-presence test, then covered). Two survivors were missing tests (a table-presence check with only some silver tables; a one-decimal average that every fixture made whole). Evidence: `docs/tickets/P1-I8/provided/`.
+
+### L-P1-I8-4 (tests) A module that joins every ledger breaks the pinned lists of other packages
+Installing `tl-mod-schemareg` made seven tests fail at once (three DDL file lists, the view list, the webhook scenario that must produce every catalog event, the entry-point list): `pytest packages/tl-schema tests/contract tests/services/test_modules.py tests/webhooks` finds them in six minutes (L-P1-I2-6, again). A script rewrote the file lists. The scenario also needs one stream per new record type (`MODULE_STREAMS`).
+
+### L-P1-I8-5 (env) Never clean `/tmp/pytest-of-root`: it is shared by every agent
+The standing instruction to remove folders older than an hour from `/tmp/pytest-of-root` between runs is wrong when other supervisors run suites at the same time (it caused 767 errors in another run). Give each heavy run its own base temp (`--basetemp=/tmp/pt-p1i8-<name>`), read its exit code, and then remove that one directory. Evidence: coordinator correction of 2026-10-20; one age-based clean-up was run at the start of P1-I8 before the correction.

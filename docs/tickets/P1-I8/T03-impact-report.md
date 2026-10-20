@@ -286,7 +286,7 @@ may explore: (none)
 
 ## Steps
 1. Copy the provided test: `cp docs/tickets/P1-I8/provided/t03-test_impact.py.txt packages/tl-modules/schemareg/tests/test_impact.py`. Do not edit the copy (it is ruff-clean and pyright-clean as provided).
-2. Run it once; it fails (22 of 28 cases) against the stub.
+2. Run it once; it fails (24 of 28 cases) against the stub.
 3. Implement `_properties`, `_change_code`, `_columns` and `impact_report` by the STEPS. Remove the STUB paragraph of the docstring, the two directive lines at the top, every STEPS comment and the placeholder `return` at the end. Remove imports the finished file does not use.
 4. Run the commands under *Acceptance*.
 
