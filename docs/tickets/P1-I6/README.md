@@ -50,17 +50,18 @@ Give the correspondence module its second and third domains. **Technical / RFI**
 | S7 | CLI `tl rfi`, `tl comm`, `tl evidence` | Controller gates, export | security review | done (9de0abb) |
 | S8 | TUI client interface and fakes | Interface other tickets consume | — | done (f43aa36, 9de0abb) |
 | S9 | T05 escalation rule on the P1-I7 engine | Rules; waits for the engine | orchestrator | pending (last) |
+| S11 | Residuals of the security re-check (private export file, own overflow error, scan cards tagged with their record) and the decisions D13, D14 | Confidentiality | orchestrator | done (32c7ed6, 8d2f946) |
 | S10 | Security review fixes F1 to F8 (Commercial controller gate on every command, feed cards of confidential streams, answering records readable by the item's readers, bounded evidence query, private export file, export row limit, issue day floor) | Core feed change; confidentiality | orchestrator re-check of F1 and F2 | done (eb31ba2) |
 
 ## Tickets
 | ID | Title | Tier | Depends | Status | Outcome |
 |---|---|---|---|---|---|
 | T01 | LinkML for the Technical domain and its workflow | S | — | done | S1 (one class, see D1) |
-| T02a | Technical raise, update, submit, return | H | S3 | dispatched (batch 2) | |
-| T02b | Technical issue, answer, review, reissue, close | H | T02a | ready (batch 3) | |
+| T02a | Technical raise, update, submit, return | H | S3 | merged (dd3260b) | passed first time; asked whether a review reason is required (D13) |
+| T02b | Technical issue, answer, review, reissue, close | H | T02a | dispatched (batch 3) | |
 | T03 | Commercial domain: subtypes, workflow, clocks, numbering | S | — | done | S1, S3 (orchestrator approval) |
-| T04a | Commercial raise, update, submit, review, return | H | S3 | dispatched (batch 2) | |
-| T04b | Commercial issue, assess, close, refer to legal | H | T04a | ready (batch 3) | |
+| T04a | Commercial raise, update, submit, review, return | H | S3 | merged (66f768f) | passed first time; asked about the link version (correct: links are streams of their own) and `expected_version` 0 (D14) |
+| T04b | Commercial issue, assess, close, refer to legal | H | T04a | dispatched (batch 3) | |
 | T04c | Cost-system export (CSV) | S | T09b | done | S5 (9de0abb) |
 | T05 | Escalation RFI to Commercial: the command (S3) and the rule on the I7 engine | S | S3, P1-I7 on trunk | pending | S9 |
 | T06 | Evidence trail query | S | S3 | done | S4 (f43aa36) |

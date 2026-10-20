@@ -1,3 +1,4 @@
+# ruff: noqa: F401, F841
 """Issue a Technical item, record its answer, judge the answer, send it round again, close it.
 
 The raiser's commands are in ``technical.py``; these are the rest of the life of an RFI, a
@@ -13,6 +14,9 @@ technical query or a deviation request (workflow ``correspondence.technical``):
 * ``ReissueTechnical``: a rejected item goes back to internal review for another round; the
   answer of the round before is cleared from the current state (the events keep it).
 * ``CloseTechnical``: the item needs no more work; its open clocks are cancelled.
+
+STUB (P1-I6-T02b): the functions with a STEPS comment are for you to write. When they are
+written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -215,88 +219,45 @@ def handle_issue_technical(uow: UnitOfWork, cmd: IssueTechnical) -> CommandResul
     template, a letter the renderer refuses, no file service), ``InvalidClockError`` (the answer
     is needed by a day that is not after the issue day) and the date errors of ``resolve_date``.
     """
-    cmd = correlated(cmd)
-    row = open_technical(uow, cmd, cmd.stream_id)
-    item, data = row.item, row.data
-    require_state(item, ST_INTERNAL_REVIEW)
-    recipients = ", ".join(r.get("name") or r.get("email") or "" for r in item.to).strip(", ")
-    if not recipients:
-        raise InvalidItemError(f"item {item.number} has no recipient")
-    definition = catalog.check_subtype(cmd.scope, DOMAIN_TECHNICAL, item.subtype or "")
-    day, date_reason = resolve_date(cmd.issued_on, cmd.date_reason, "the issue day")
-    wanted = cmd.template
-    templates = [t for t in definition.templates if wanted is None or t.code == wanted]
-    if wanted is None:
-        templates = [t for t in templates if t.subtype == item.subtype]
-    if not templates:
-        raise LetterRenderError(
-            f"domain {definition.code} has no letter template "
-            + (repr(wanted) if wanted else f"for subtype {item.subtype}")
-        )
-    template = templates[0]
-    try:
-        lines = compose_letter(
-            template.header,
-            template.footer,
-            LetterFields(
-                number=item.number,
-                date=day,
-                subject=item.subject,
-                to=recipients,
-                body=_letter_text(data.question, data.proposed_solution, data.required_by),
-            ),
-        )
-        pdf = render_pdf(lines, title=f"{item.number} {item.subject}")
-    except LetterError as exc:
-        raise LetterRenderError(str(exc)) from exc
-    stored = files.write_rendition(
-        uow,
-        actor=cmd.actor,
-        source=cmd.source,
-        scope=cmd.scope,
-        record_id=item.id,
-        filename=f"{item.number}.pdf",
-        data=pdf,
-        correlation_id=cmd.correlation_id or "",
-    )
-    clock_ids, clock_events = start_domain_clocks(
-        uow, cmd, item, definition, "issue", day, answer_by=data.required_by
-    )
-    done = append(
-        uow,
-        cmd,
-        item.id,
-        item.record_type,
-        [
-            NewEvent(
-                event_type=CORR_ISSUED,
-                payload={
-                    "issued_on": day,
-                    "date_reason": date_reason,
-                    "rendition_file_id": stored.file_id,
-                    "rendition_sha256": stored.sha256,
-                    "template": template.code,
-                    "delivery": "stub",
-                    "clock_ids": clock_ids,
-                    **feed_fields(
-                        definition,
-                        full=f"{item.number} issued: {item.subject}",
-                        minimal="A technical request was issued",
-                    ),
-                },
-            )
-        ],
-        expected=cmd.expected_version or item.version,
-    )
-    issued = transition(uow, cmd, item.id, "issue")
-    waiting = transition(uow, cmd, item.id, "await_response")
-    _tell_the_sink(uow, item.id, issued=True)
-    return CommandResult(
-        stream_id=item.id,
-        key=item.number,
-        version=waiting.version,
-        events=[*clock_events, *done.events, *issued.events, *waiting.events],
-    )
+    # STEPS
+    # 1. `cmd = correlated(cmd)`; `row = open_technical(uow, cmd, cmd.stream_id)`; `item,
+    #    data = row.item, row.data`; `require_state(item, ST_INTERNAL_REVIEW)`.
+    # 2. `recipients = ", ".join(r.get("name") or r.get("email") or "" for r in
+    #    item.to).strip(", ")`; if it is empty raise `InvalidItemError(f"item
+    #    {item.number} has no recipient")`.
+    # 3. `definition = catalog.check_subtype(cmd.scope, DOMAIN_TECHNICAL, item.subtype or
+    #    "")`; `day, date_reason = resolve_date(cmd.issued_on, cmd.date_reason, "the issue
+    #    day")`.
+    # 4. The template: `wanted = cmd.template`; `templates = [t for t in
+    #    definition.templates if wanted is None or t.code == wanted]`; when `wanted is
+    #    None` keep only those with `t.subtype == item.subtype`. If none is left raise
+    #    `LetterRenderError(f"domain {definition.code} has no letter template " +
+    #    (repr(wanted) if wanted else f"for subtype {item.subtype}"))`. `template =
+    #    templates[0]`.
+    # 5. Inside `try`: `lines = compose_letter(template.header, template.footer,
+    #    LetterFields(number=item.number, date=day, subject=item.subject, to=recipients,
+    #    body=_letter_text(data.question, data.proposed_solution, data.required_by)))` and
+    #    `pdf = render_pdf(lines, title=f"{item.number} {item.subject}")`; `except
+    #    LetterError as exc:` raise `LetterRenderError(str(exc)) from exc`.
+    # 6. `stored = files.write_rendition(uow, actor=cmd.actor, source=cmd.source,
+    #    scope=cmd.scope, record_id=item.id, filename=f"{item.number}.pdf", data=pdf,
+    #    correlation_id=cmd.correlation_id or "")`.
+    # 7. `clock_ids, clock_events = start_domain_clocks(uow, cmd, item, definition,
+    #    "issue", day, answer_by=data.required_by)`.
+    # 8. `done = append(uow, cmd, item.id, item.record_type,
+    #    [NewEvent(event_type=CORR_ISSUED, payload={...})], expected=cmd.expected_version
+    #    or item.version)`. The payload keys: `issued_on` (`day`), `date_reason`,
+    #    `rendition_file_id` (`stored.file_id`), `rendition_sha256` (`stored.sha256`),
+    #    `template` (`template.code`), `delivery` (`"stub"`), `clock_ids`, and the feed
+    #    keys `**feed_fields(definition, full=f"{item.number} issued: {item.subject}",
+    #    minimal="A technical request was issued")`.
+    # 9. `issued = transition(uow, cmd, item.id, "issue")`; `waiting = transition(uow,
+    #    cmd, item.id, "await_response")`; then call the constraint hook
+    #    `_tell_the_sink(uow, item.id, issued=True)`.
+    # 10. Return `CommandResult(stream_id=item.id, key=item.number,
+    #    version=waiting.version, events=[*clock_events, *done.events, *issued.events,
+    #    *waiting.events])`.
+    raise NotImplementedError
 
 
 def _check_revision(uow: UnitOfWork, cmd: Command, revision_id: str, own_id: str) -> None:
@@ -321,77 +282,41 @@ def handle_answer_technical(uow: UnitOfWork, cmd: AnswerTechnical) -> CommandRes
     answering item is the item itself, or the revision is not a document revision) and the date
     errors of ``resolve_date``.
     """
-    cmd = correlated(cmd)
-    row = open_technical(uow, cmd, cmd.stream_id)
-    item = row.item
-    require_state(item, ST_AWAITING_RESPONSE)
-    if cmd.answer_item_id is not None:
-        answer = registry.get_item(uow.conn(), cmd.answer_item_id)
-        if answer is None or answer.scope != cmd.scope:
-            raise RecordNotFoundError(f"no record {cmd.answer_item_id!r}")
-        if answer.id == item.id:
-            raise InvalidItemError("an item cannot be its own answer")
-        require_readers_may_read(uow, item, answer.id)
-    if cmd.answering_revision_id is not None:
-        _check_revision(uow, cmd, cmd.answering_revision_id, item.id)
-        require_readers_may_read(uow, item, cmd.answering_revision_id)
-    day, date_reason = resolve_date(cmd.answered_on, cmd.date_reason, "the answer day")
-    definition = catalog.check_subtype(cmd.scope, DOMAIN_TECHNICAL, item.subtype or "")
-    done = append(
-        uow,
-        cmd,
-        item.id,
-        item.record_type,
-        [
-            NewEvent(
-                event_type=TECH_ANSWERED,
-                payload={
-                    "answer": cmd.answer,
-                    "answered_on": day,
-                    "date_reason": date_reason,
-                    "cost_impact": cmd.cost_impact,
-                    "schedule_impact": cmd.schedule_impact,
-                    "answer_item_id": cmd.answer_item_id,
-                    "answering_revision_id": cmd.answering_revision_id,
-                    **feed_fields(
-                        definition,
-                        full=f"{item.number} answered: {item.subject}",
-                        minimal="A technical request was answered",
-                    ),
-                },
-            ),
-            NewEvent(
-                event_type=CORR_RESPONDED,
-                payload={"response_id": cmd.answer_item_id, "responded_on": day},
-            ),
-        ],
-        expected=cmd.expected_version or item.version,
-    )
-    linked = []
-    for target, note in (
-        (cmd.answer_item_id, "the answer"),
-        (cmd.answering_revision_id, "the answering revision"),
-    ):
-        if target is not None:
-            linked += link_if_new(uow, cmd, item.id, target, note)
-    moved = transition(uow, cmd, item.id, "answer")
-    met = close_clocks_of_item(
-        uow,
-        cmd,
-        item.id,
-        how="met",
-        day=day,
-        reason="answered",
-        response_id=cmd.answer_item_id,
-        kinds=ANSWER_CLOCKS,
-    )
-    _tell_the_sink(uow, item.id, issued=False)
-    return CommandResult(
-        stream_id=item.id,
-        key=item.number,
-        version=moved.version,
-        events=[*done.events, *linked, *moved.events, *met],
-    )
+    # STEPS
+    # 1. `cmd = correlated(cmd)`; `row = open_technical(uow, cmd, cmd.stream_id)`; `item =
+    #    row.item`; `require_state(item, ST_AWAITING_RESPONSE)`.
+    # 2. If `cmd.answer_item_id` is not None: `answer = registry.get_item(uow.conn(),
+    #    cmd.answer_item_id)`; if `answer is None or answer.scope != cmd.scope` raise
+    #    `RecordNotFoundError(f"no record {cmd.answer_item_id!r}")`; if `answer.id ==
+    #    item.id` raise `InvalidItemError("an item cannot be its own answer")`; then
+    #    `require_readers_may_read(uow, item, answer.id)` (the item's own events will name
+    #    the answer, so everyone who reads the item must be able to read it; it raises the
+    #    same `RecordNotFoundError`).
+    # 3. If `cmd.answering_revision_id` is not None call `_check_revision(uow, cmd,
+    #    cmd.answering_revision_id, item.id)` and then `require_readers_may_read(uow,
+    #    item, cmd.answering_revision_id)`.
+    # 4. `day, date_reason = resolve_date(cmd.answered_on, cmd.date_reason, "the answer
+    #    day")`; `definition = catalog.check_subtype(cmd.scope, DOMAIN_TECHNICAL,
+    #    item.subtype or "")`.
+    # 5. `done = append(uow, cmd, item.id, item.record_type, [two events],
+    #    expected=cmd.expected_version or item.version)`. First
+    #    `NewEvent(event_type=TECH_ANSWERED, payload={...})` with keys `answer`,
+    #    `answered_on` (`day`), `date_reason`, `cost_impact`, `schedule_impact`,
+    #    `answer_item_id`, `answering_revision_id` (from `cmd`) and
+    #    `**feed_fields(definition, full=f"{item.number} answered: {item.subject}",
+    #    minimal="A technical request was answered")`. Then
+    #    `NewEvent(event_type=CORR_RESPONDED, payload={"response_id": cmd.answer_item_id,
+    #    "responded_on": day})`.
+    # 6. `linked = []`. For `(target, note)` in `((cmd.answer_item_id, "the answer"),
+    #    (cmd.answering_revision_id, "the answering revision"))`, when `target is not
+    #    None`: `linked += link_if_new(uow, cmd, item.id, target, note)`.
+    # 7. `moved = transition(uow, cmd, item.id, "answer")`.
+    # 8. `met = close_clocks_of_item(uow, cmd, item.id, how="met", day=day,
+    #    reason="answered", response_id=cmd.answer_item_id, kinds=ANSWER_CLOCKS)`; then
+    #    `_tell_the_sink(uow, item.id, issued=False)`.
+    # 9. Return `CommandResult(stream_id=item.id, key=item.number, version=moved.version,
+    #    events=[*done.events, *linked, *moved.events, *met])`.
+    raise NotImplementedError
 
 
 def handle_review_technical_answer(uow: UnitOfWork, cmd: ReviewTechnicalAnswer) -> CommandResult:
@@ -400,28 +325,18 @@ def handle_review_technical_answer(uow: UnitOfWork, cmd: ReviewTechnicalAnswer) 
     Raises ``RecordNotFoundError``, ``ItemStateError`` (no answer to judge) and
     ``InvalidItemError`` (a rejection without a note).
     """
-    cmd = correlated(cmd)
-    row = open_technical(uow, cmd, cmd.stream_id)
-    item = row.item
-    require_state(item, ST_ANSWERED)
-    if cmd.decision == "rejected" and not (cmd.note and cmd.note.strip()):
-        raise InvalidItemError("say why the answer is rejected")
-    append(
-        uow,
-        cmd,
-        item.id,
-        item.record_type,
-        [
-            NewEvent(
-                event_type=TECH_REVIEWED,
-                payload={"decision": cmd.decision, "note": cmd.note, "reviewed_on": today()},
-            )
-        ],
-        expected=cmd.expected_version or item.version,
-    )
-    return transition(
-        uow, cmd, item.id, "accept" if cmd.decision == "accepted" else "reject", reason=cmd.note
-    )
+    # STEPS
+    # 1. `cmd = correlated(cmd)`; `row = open_technical(uow, cmd, cmd.stream_id)`; `item =
+    #    row.item`; `require_state(item, ST_ANSWERED)`.
+    # 2. If `cmd.decision == "rejected"` and `cmd.note` is None, empty or blank (`not
+    #    (cmd.note and cmd.note.strip())`) raise `InvalidItemError("say why the answer is
+    #    rejected")`.
+    # 3. `append(uow, cmd, item.id, item.record_type, [NewEvent(event_type=TECH_REVIEWED,
+    #    payload={"decision": cmd.decision, "note": cmd.note, "reviewed_on": today()})],
+    #    expected=cmd.expected_version or item.version)`.
+    # 4. Return `transition(uow, cmd, item.id, "accept" if cmd.decision == "accepted" else
+    #    "reject", reason=cmd.note)`.
+    raise NotImplementedError
 
 
 def handle_reissue_technical(uow: UnitOfWork, cmd: ReissueTechnical) -> CommandResult:
@@ -430,20 +345,16 @@ def handle_reissue_technical(uow: UnitOfWork, cmd: ReissueTechnical) -> CommandR
 
     Raises ``RecordNotFoundError`` and ``ItemStateError`` (the answer was not rejected).
     """
-    cmd = correlated(cmd)
-    row = open_technical(uow, cmd, cmd.stream_id)
-    item = row.item
-    require_state(item, ST_REJECTED)
-    rounds = int(uow.conn().execute(_ISSUES_SQL, {"id": item.id}).scalar_one()) + 1
-    append(
-        uow,
-        cmd,
-        item.id,
-        item.record_type,
-        [NewEvent(event_type=TECH_REISSUED, payload={"reason": cmd.reason, "round": rounds})],
-        expected=cmd.expected_version or item.version,
-    )
-    return transition(uow, cmd, item.id, "reissue", reason=cmd.reason)
+    # STEPS
+    # 1. `cmd = correlated(cmd)`; `row = open_technical(uow, cmd, cmd.stream_id)`; `item =
+    #    row.item`; `require_state(item, ST_REJECTED)`.
+    # 2. `rounds = int(uow.conn().execute(_ISSUES_SQL, {"id": item.id}).scalar_one()) + 1`
+    #    (the number of letters sent so far, plus the one that starts).
+    # 3. `append(uow, cmd, item.id, item.record_type, [NewEvent(event_type=TECH_REISSUED,
+    #    payload={"reason": cmd.reason, "round": rounds})], expected=cmd.expected_version
+    #    or item.version)`.
+    # 4. Return `transition(uow, cmd, item.id, "reissue", reason=cmd.reason)`.
+    raise NotImplementedError
 
 
 def handle_close_technical(uow: UnitOfWork, cmd: CloseTechnical) -> CommandResult:
@@ -453,19 +364,16 @@ def handle_close_technical(uow: UnitOfWork, cmd: CloseTechnical) -> CommandResul
     accepted or rejected; or it is waiting for an answer, or was rejected, and no ``reason`` was
     given).
     """
-    cmd = correlated(cmd)
-    row = open_technical(uow, cmd, cmd.stream_id)
-    item = row.item
-    require_state(item, ST_AWAITING_RESPONSE, ST_ACCEPTED, ST_REJECTED)
-    if item.state != ST_ACCEPTED and not (cmd.reason and cmd.reason.strip()):
-        raise ItemStateError(f"item {item.number} is {item.state}; give the reason for closing it")
-    moved = transition(uow, cmd, item.id, "close", reason=cmd.reason, expected=cmd.expected_version)
-    cancelled = close_clocks_of_item(
-        uow, cmd, item.id, how="cancelled", day=today(), reason=cmd.reason or "item closed"
-    )
-    return CommandResult(
-        stream_id=item.id,
-        key=item.number,
-        version=moved.version,
-        events=[*moved.events, *cancelled],
-    )
+    # STEPS
+    # 1. `cmd = correlated(cmd)`; `row = open_technical(uow, cmd, cmd.stream_id)`; `item =
+    #    row.item`; `require_state(item, ST_AWAITING_RESPONSE, ST_ACCEPTED, ST_REJECTED)`.
+    # 2. If `item.state != ST_ACCEPTED` and `cmd.reason` is None, empty or blank raise
+    #    `ItemStateError(f"item {item.number} is {item.state}; give the reason for closing
+    #    it")`.
+    # 3. `moved = transition(uow, cmd, item.id, "close", reason=cmd.reason,
+    #    expected=cmd.expected_version)`.
+    # 4. `cancelled = close_clocks_of_item(uow, cmd, item.id, how="cancelled",
+    #    day=today(), reason=cmd.reason or "item closed")`.
+    # 5. Return `CommandResult(stream_id=item.id, key=item.number, version=moved.version,
+    #    events=[*moved.events, *cancelled])`.
+    raise NotImplementedError
