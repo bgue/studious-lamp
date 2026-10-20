@@ -1,10 +1,4 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false
 """`tl schema crosswalk --project P [--list L] [--json]`: project values and their company values.
-
-STUB: this file is the interface P1-I8-T05a4a implements. Remove this paragraph, the two directive
-lines above and every STEPS comment when you implement it. `CrosswalkRow` and `register` are
-complete.
 
 A project may add values to an `extensible` code list (each must map to a company value or to
 `other`) and owns a `project_defined` list outright (a mapping is optional, and keeps cross-project
@@ -43,19 +37,42 @@ class CrosswalkRow(BaseModel):
 def crosswalk_rows(schema: EffectiveSchema, list_name: str | None = None) -> list[CrosswalkRow]:
     """The values a project owns in the effective schema `schema`, with where each maps.
 
-    STEPS
-    1. Walk `schema.psets.values()` in order and, in each, `pset.all_properties()` in order.
-    2. Skip a property whose `enum_values` is None or whose `value_list_policy` is not
-       `extensible` or `project_defined`; with `list_name`, skip a property whose `code_list`
-       differs from it.
-    3. For each `EnumValue` in `prop.enum_values`, in order: on an `extensible` list skip a value
-       whose `crosswalk` is None (it is a company value). Otherwise add a row:
-       `pset` = pset.name, `property` = `prop.relative_key()`, `code_list` = prop.code_list,
-       `policy` = prop.value_list_policy, `code`, `label`, `maps_to` = the value's crosswalk,
-       `status` = `other` when the crosswalk is `"other"`, `mapped` when it is any other text,
-       `unmapped` when it is None.
+    Only `extensible` and `project_defined` lists are read; an `extensible` list's company values
+    (no crosswalk) are not rows. With `list_name`, only the list of that name. Each row prints as
+    `<pset>.<property>  <code_list>  <code>  <maps_to>  <status>`.
     """
-    raise NotImplementedError("STEPS: see the docstring")
+    rows: list[CrosswalkRow] = []
+    for pset in schema.psets.values():
+        for prop in pset.all_properties():
+            if prop.enum_values is None:
+                continue
+            if prop.value_list_policy not in ("extensible", "project_defined"):
+                continue
+            if list_name is not None and prop.code_list != list_name:
+                continue
+            for value in prop.enum_values:
+                if prop.value_list_policy == "extensible" and value.crosswalk is None:
+                    continue
+                status: Status
+                if value.crosswalk is None:
+                    status = "unmapped"
+                elif value.crosswalk == "other":
+                    status = "other"
+                else:
+                    status = "mapped"
+                rows.append(
+                    CrosswalkRow(
+                        pset=pset.name,
+                        property=prop.relative_key(),
+                        code_list=prop.code_list,
+                        policy=prop.value_list_policy,
+                        code=value.code,
+                        label=value.label,
+                        maps_to=value.crosswalk,
+                        status=status,
+                    )
+                )
+    return rows
 
 
 def crosswalk(
@@ -73,13 +90,27 @@ def crosswalk(
     `values <n>, unmapped <u>`. With `--json` one object: `{"scope": ..., "unmapped": u,
     "rows": [...]}` (the rows as `CrosswalkRow` fields), indented by 2.
     """
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; require_session(db).
-    # 2. In `with service_errors():` get the schema with
-    #    `analysis.provider().effective(f"project:{project}")` (call it through `analysis.`; the
-    #    test replaces `analysis.provider`) and the rows with crosswalk_rows(schema, list_name).
-    # 3. Print as the docstring says. unmapped = the rows whose status is "unmapped".
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_session(db)
+    with service_errors():
+        schema = analysis.provider().effective(f"project:{project}")
+        rows = crosswalk_rows(schema, list_name)
+    unmapped = sum(1 for row in rows if row.status == "unmapped")
+    if as_json:
+        body = {
+            "scope": schema.scope,
+            "unmapped": unmapped,
+            "rows": [row.model_dump() for row in rows],
+        }
+        typer.echo(json.dumps(body, indent=2))
+        return
+    typer.echo(f"crosswalk {schema.scope}")
+    for row in rows:
+        typer.echo(
+            f"{row.pset}.{row.property}  {cell(row.code_list)}  {cell(row.code)}  "
+            f"{cell(row.maps_to)}  {row.status}"
+        )
+    typer.echo(f"values {len(rows)}, unmapped {unmapped}")
 
 
 def register(app: typer.Typer) -> None:
