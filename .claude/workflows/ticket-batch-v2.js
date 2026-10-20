@@ -96,7 +96,7 @@ function gatePrompt(t) {
 Worktree: ${wt} (it exists; do not create or remove worktrees). Every Bash command must start with \`cd ${wt} && \`.
 If ${wt}/pyproject.toml exists run \`uv sync --all-packages\` once (fall back to \`uv sync\`), then run exactly once, in the foreground with a 10-minute timeout per part:
   ${gateCmd(t)}
-Do not edit, commit, re-run or poll. Return green (just check exit 0 and the last summary line is `gate: PASS`), summary (the just check exit code, then \`.gate/summary.txt\` verbatim), failing.`
+Do not edit, commit, re-run or poll. Return green (just check exit 0 and the last summary line is \`gate: PASS\`), summary (the just check exit code, then \`.gate/summary.txt\` verbatim), failing.`
 }
 
 function reviewPrompt(t, attempt, gate) {
