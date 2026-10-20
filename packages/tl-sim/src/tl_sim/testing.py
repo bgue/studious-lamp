@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from tl_core.services.errors import DuplicateLinkError, GuardFailedError, UnknownTransitionError
+from tl_mod_correspondence.errors import ItemStateError
 from tl_mod_schedule.errors import (
     ActivityNotFoundError,
     DuplicateSnapshotError,
@@ -36,6 +37,7 @@ REAL_TIME = datetime(2026, 10, 10, 12, 0, tzinfo=UTC)  # "now", outside every pl
 OPERATOR = "user:operator"  # who sets a schedule up in a test: a controller (the sim cannot)
 WORKER = "svc:schedule"  # the worker that builds snapshots
 SCANNER = "svc:scanner"
+TECHNICAL = "correspondence.TechnicalItem"
 ACTIVITIES = (  # what a published snapshot of a test schedule holds
     ("A1000", "Issue P&IDs IFC"),
     ("A1100", "Procure valves"),
@@ -99,6 +101,16 @@ class FakeWorld:
             if record["id"] == record_id:
                 return record
         raise LookupError(f"no record {record_id!r}")
+
+    def issue_rfi(self, number: str, *, actor: str = OPERATOR) -> None:
+        """What a document controller does beside a run: issue an RFI that is in internal review
+        (the events are the operator's, written in real time like the CLI writes them)."""
+        record = next(r for r in self.record_rows if r["key"] == number)
+        if record["status"] != "Internal review":
+            raise ItemStateError(f"item {number} is {record['status']}; this needs Internal review")
+        record["status"] = "Awaiting response"
+        self.emit("Correspondence.Issued", actor, "cli", REAL_TIME, record["id"])
+        self.emit("Workflow.Transitioned", actor, "cli", REAL_TIME, record["id"])
 
     def define_schedule(
         self,
@@ -424,6 +436,65 @@ class FakeClient:
         self.world.record_rows.append(record)
         self._write("Record.Created", record["id"])
         return {"id": record["id"], "key": number, "version": 1}
+
+    # --- RFIs, for the site engineer and the client's representative (``TechnicalDesk``) -------
+
+    def rfis(self) -> list[dict[str, Any]]:
+        self.calls.append(("rfis", ()))
+        return [
+            {
+                "id": r["id"],
+                "number": r["key"],
+                "subject": r["title"],
+                "state": r["status"] or "Draft",
+            }
+            for r in self.world.record_rows
+            if r["type"] == TECHNICAL
+        ]
+
+    def raise_rfi(
+        self, subject: str, question: str, discipline: str, required_by: str
+    ) -> dict[str, Any]:
+        self.calls.append(("raise_rfi", (subject, question, discipline, required_by)))
+        key = self.keys.next("RFI")
+        record = {
+            "id": f"id-{key}",
+            "key": key,
+            "type": TECHNICAL,
+            "scope": self.world.scope,
+            "title": subject,
+            "status": None,
+            "psets": {},
+            "voided": False,
+            "version": 1,
+        }
+        self.world.record_rows.append(record)
+        self._write("Record.Created", record["id"])
+        return {"id": record["id"], "key": key, "version": 1}
+
+    def _move(self, rfi_id: str, source: str, target: str) -> dict[str, Any]:
+        record = self.world.record(rfi_id)
+        state = record["status"] or "Draft"
+        if state != source:
+            raise ItemStateError(f"item {record['key']} is {state}; this needs it to be {source}")
+        record["status"] = target
+        record["version"] += 1
+        self._write("Workflow.Transitioned", rfi_id)
+        return {"id": rfi_id, "version": record["version"]}
+
+    def submit_rfi(self, rfi_id: str) -> dict[str, Any]:
+        self.calls.append(("submit_rfi", (rfi_id,)))
+        return self._move(rfi_id, "Draft", "Internal review")
+
+    def answer_rfi(
+        self, rfi_id: str, answer: str, cost_impact: str, schedule_impact: str
+    ) -> dict[str, Any]:
+        self.calls.append(("answer_rfi", (rfi_id, answer, cost_impact, schedule_impact)))
+        return self._move(rfi_id, "Awaiting response", "Answered")
+
+    def accept_answer(self, rfi_id: str) -> dict[str, Any]:
+        self.calls.append(("accept_answer", (rfi_id,)))
+        return self._move(rfi_id, "Answered", "Accepted")
 
     # --- the schedule, for the person who sends the weekly update (``ScheduleDesk``) -----------
 

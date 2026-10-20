@@ -1,0 +1,30 @@
+# Two working weeks of a site engineer who raises RFIs and a client representative who answers them.
+#
+# Issuing an RFI is a document controller's act and a simulated person holds the `user` role only,
+# so a run of this scenario needs a controller beside it, and a working calendar for the project
+# (the clocks of an issued RFI count on `<project>-default`, and the project is `sim-<run id>`):
+#   tl sim create rfi-weeks --run-id wk1
+#   (put sim-wk1-default@1.yaml with the project's calendar in the schema directory)
+#   tl sim advance --run wk1 --days 1
+#   tl rfi ls --project sim-wk1 ; tl rfi issue <number> --project sim-wk1      # as a controller
+#   tl sim advance --run wk1 --days 1
+# `operators` names the controller (the dev session is `user:dev`), so `tl sim assert` holds the
+# rest of the run to the rules. A controller may then escalate an answered RFI that says yes to cost
+# impact into a Commercial item (`tl rfi escalate`), which `tl sim assert` leaves alone as well.
+scenario: rfi-weeks
+seed: 31
+start: 2026-11-02
+duration_days: 10
+template: small-piping
+operators: [user:dev]
+actors:
+  document_controller: null
+  crew: null
+  planner: null
+  rfi_author:
+    rfis_per_day: {min: 1, max: 2}
+    accept_rate: 0.8
+    answer_within_days: 14
+  client_rep:
+    answers_per_day: {min: 0, max: 2}
+    impact_rate: 0.4

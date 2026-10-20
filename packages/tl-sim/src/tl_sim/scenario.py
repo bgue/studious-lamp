@@ -31,6 +31,8 @@ ROLE_NAMES = (
     "tag_clerk",
     "document_registrar",
     "schedule_updater",
+    "rfi_author",
+    "client_rep",
 )  # the project team, people (user:sim-*)
 ACTOR_NAMES = (*ROLE_NAMES, "assistant", "approver")  # the order they act in each day
 
@@ -139,6 +141,27 @@ class ScheduleUpdaterParams(Strict):
     series_seed: int = Field(default=1, ge=0)  # which weekly series of files (tl_xer.synth.series)
 
 
+class RfiAuthorParams(Strict):
+    """A site engineer who raises requests for information and sends them to review, and accepts
+    the answers that come back. Issuing an RFI is a document controller's act (ADR-0019) and a
+    simulated person holds the `user` role only, so a controller issues what the author sends
+    (``Scenario.operators``); an RFI nobody issues stays in internal review.
+    """
+
+    rfis_per_day: Count = CountRange(min=0, max=2)
+    accept_rate: float = Field(default=1.0, ge=0, le=1)  # chance an answer is accepted, not left
+    answer_within_days: int = Field(default=14, ge=1, le=60)  # the date an answer is needed
+
+
+class ClientRepParams(Strict):
+    """The client's representative: answers the RFIs that have been issued and wait for an answer.
+    Some answers say that cost is affected, which is what leads a controller to a Commercial item.
+    """
+
+    answers_per_day: Count = CountRange(min=0, max=2)
+    impact_rate: float = Field(default=0.3, ge=0, le=1)  # chance an answer says yes to cost impact
+
+
 class AssistantParams(Strict):
     """The one simulated agent: proposes cross-references over MCP, changes no record itself."""
 
@@ -160,6 +183,8 @@ class ActorsConfig(Strict):
     tag_clerk: TagClerkParams | None = None  # off unless named: needs the standards loaded
     document_registrar: DocumentRegistrarParams | None = None  # off unless named: needs them too
     schedule_updater: ScheduleUpdaterParams | None = None  # off unless named: needs a schedule
+    rfi_author: RfiAuthorParams | None = None  # off unless named: a controller issues the RFIs
+    client_rep: ClientRepParams | None = None  # off unless named: answers what is issued
     assistant: AssistantParams | None = None  # off unless the scenario names it: needs MCP
     approver: ApproverParams | None = None
 

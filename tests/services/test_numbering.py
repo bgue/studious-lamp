@@ -168,6 +168,20 @@ def test_a_segment_value_must_be_letters_and_digits(db: DbTarget) -> None:
         create(db, numbering={"discipline": "P-1"})
 
 
+def test_a_project_id_with_a_hyphen_numbers_without_it_and_a_project_of_symbols_only_cannot(
+    db: DbTarget,
+) -> None:
+    """``sim-wk1`` numbers as ``simwk1`` (the key must parse back); scopes keep counters apart."""
+    pattern = make_pattern()
+    assert segment_values(pattern, "project:sim-wk1") == {"project": "simwk1", "type": "REC"}
+    assert segment_values(pattern, "project:P123") == {"project": "P123", "type": "REC"}
+    with pytest.raises(NumberingValueError, match="letters and digits"):
+        segment_values(pattern, "project:--")
+    first = create(db, "project:sim-a")
+    other = create(db, "project:sima")  # the same spelling in another scope: its own counter
+    assert first == other == "sima-REC-0001"
+
+
 def test_a_project_pattern_needs_a_project_scope(db: DbTarget) -> None:
     registry = NumberingRegistry([make_pattern(scope="*")])
     with use_numbering(registry), pytest.raises(NumberingValueError, match="needs a project"):

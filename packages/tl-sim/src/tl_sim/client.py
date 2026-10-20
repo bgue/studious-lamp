@@ -22,11 +22,18 @@ from typing import Any, Protocol, runtime_checkable
 import httpx2
 from tl_api.client import ApiClient
 from tl_core.proposals.types import ProposalStatus, ProposalView
-from tl_core.services.commands import CommandResult, CreateRecord
+from tl_core.services.commands import Command, CommandResult, CreateRecord
 from tl_core.services.feed import PostToFeed
 from tl_core.services.links import AddLink
 from tl_core.services.psets import SetPsetValues
 from tl_core.services.workflow import TransitionWorkflow
+from tl_mod_correspondence.handlers.models import Recipient
+from tl_mod_correspondence.handlers.technical import RaiseTechnical, SubmitTechnical
+from tl_mod_correspondence.handlers.technical_flow import (
+    AnswerTechnical,
+    ReviewTechnicalAnswer,
+)
+from tl_mod_correspondence.reports_technical import RfiLog
 from tl_mod_documents.handlers.documents import RegisterDocument
 from tl_mod_documents.handlers.revisions import CreateRevision
 from tl_mod_engineering.handlers.tags import CreateTag, RenameTag
@@ -40,6 +47,7 @@ EFFECTIVE_AT_HEADER = "X-TL-Effective-At"
 RECORD_TYPE_CODE = "REC"  # the only record type in Phase 0 (core.Record)
 XER_CONTENT_TYPE = "application/octet-stream"  # a guess from ".xer" would be an XML type
 MAX_QUERY = 5000  # the API's page limit
+RFI_LIMIT = 500  # the RFI log's page; a simulation stays far below it
 PROPOSAL_LIMIT = 500  # the proposals route's maximum (`le=500`); the queue is worked every day
 
 
@@ -77,6 +85,8 @@ class ApiLike(Protocol):
         slot: str | None = None,
         content_type: str | None = None,
     ) -> Any: ...
+    def correspondence_command(self, name: str, cmd: Command) -> CommandResult: ...
+    def list_rfis(self, project: str, *, limit: int = 500) -> RfiLog: ...
     def list_schedules(self, project: str) -> list[ScheduleView]: ...
     def get_schedule(self, project: str, code: str) -> ScheduleDetailView: ...
     def list_activities(
@@ -145,6 +155,25 @@ class ScheduleDesk(Protocol):
     def link_activity(
         self, record_id: str, schedule_id: str, activity_id: str
     ) -> dict[str, Any]: ...
+
+
+@runtime_checkable
+class TechnicalDesk(Protocol):
+    """What a site engineer and the client's representative need besides ``SimClient`` (P1-I6).
+
+    Raising, submitting, answering and accepting are any signed-in person's acts; issuing an RFI is
+    a document controller's, which a simulated person is not, so it is not here.
+    """
+
+    def rfis(self) -> list[dict[str, Any]]: ...
+    def raise_rfi(
+        self, subject: str, question: str, discipline: str, required_by: str
+    ) -> dict[str, Any]: ...
+    def submit_rfi(self, rfi_id: str) -> dict[str, Any]: ...
+    def answer_rfi(
+        self, rfi_id: str, answer: str, cost_impact: str, schedule_impact: str
+    ) -> dict[str, Any]: ...
+    def accept_answer(self, rfi_id: str) -> dict[str, Any]: ...
 
 
 class Keys:
@@ -330,6 +359,61 @@ class HttpSimClient:
     def reject_proposal(self, proposal_id: str, reason: str) -> dict[str, Any]:
         self._clock.tick()
         return self._api.reject_proposal(proposal_id, reason).model_dump(mode="json")
+
+    # --- RFIs, for the site engineer and the client's representative (``TechnicalDesk``) --------
+
+    def rfis(self) -> list[dict[str, Any]]:
+        """The project's RFIs, newest number first: ``id, number, subject, state, ...``."""
+        log = self._api.list_rfis(self._project, limit=RFI_LIMIT)
+        return [line.model_dump(mode="json") for line in log.lines]
+
+    def raise_rfi(
+        self, subject: str, question: str, discipline: str, required_by: str
+    ) -> dict[str, Any]:
+        """Raise an RFI as a draft; the answer is the item (key = its number)."""
+        self._clock.tick()
+        cmd = RaiseTechnical(
+            **self._common(),
+            subtype="rfi",
+            subject=subject,
+            question=question,
+            discipline=discipline,
+            required_by=required_by,
+            to=[Recipient(name="Client engineer", email="engineer@client.example")],
+        )
+        result = self._api.correspondence_command("RaiseTechnical", cmd)
+        return {"id": result.stream_id, "key": result.key, "version": result.version}
+
+    def submit_rfi(self, rfi_id: str) -> dict[str, Any]:
+        self._clock.tick()
+        result = self._api.correspondence_command(
+            "SubmitTechnical", SubmitTechnical(**self._common(), stream_id=rfi_id)
+        )
+        return {"id": rfi_id, "version": result.version}
+
+    def answer_rfi(
+        self, rfi_id: str, answer: str, cost_impact: str, schedule_impact: str
+    ) -> dict[str, Any]:
+        self._clock.tick()
+        result = self._api.correspondence_command(
+            "AnswerTechnical",
+            AnswerTechnical(
+                **self._common(),
+                stream_id=rfi_id,
+                answer=answer,
+                cost_impact=cost_impact,
+                schedule_impact=schedule_impact,
+            ),
+        )
+        return {"id": rfi_id, "version": result.version}
+
+    def accept_answer(self, rfi_id: str) -> dict[str, Any]:
+        self._clock.tick()
+        result = self._api.correspondence_command(
+            "ReviewTechnicalAnswer",
+            ReviewTechnicalAnswer(**self._common(), stream_id=rfi_id, decision="accepted"),
+        )
+        return {"id": rfi_id, "version": result.version}
 
     # --- the schedule, for the person who sends the weekly update (``ScheduleDesk``) -------------
 
