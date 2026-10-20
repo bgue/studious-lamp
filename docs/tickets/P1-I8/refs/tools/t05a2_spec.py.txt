@@ -1,0 +1,110 @@
+import runpy
+COMMON = runpy.run_path("/tmp/claude-0/-home-user-studious-lamp/c1e9f617-74c2-581f-aa0c-d2601bd9e1da/scratchpad/i8/t05a1_spec.py")["COMMON_LEARNINGS"]
+T = dict(
+ id="P1-I8-T05a2",
+ title="`tl schema package publish|deprecate|retire` and `tl schema adopt|adoptions|drift`",
+ labels="cli, schema-registry",
+ depends="P1-I8-S2, P1-I8-S5 and P1-I8-T05a1 on `p1/i8` (the registry, its commands and the report commands; the provided test calls `tl schema package impact --project`)",
+ branch="p1/i8-t05a2-publish-adopt",
+ goal="""
+The governance half of the `tl schema` commands. An administrator publishes an approved package version, can stop new adoptions of it (deprecate) and take it out of every effective schema (retire), pins a version for a project (adopt) and reads which projects pin what and which are behind the company. `packages/tl-cli/src/tl_cli/schema_gov.py` holds six functions; `register` already adds three to the group `tl schema package` and three to `tl schema`. The six function bodies raise `NotImplementedError` today. You write them by the STEPS comments and the output formats in their docstrings, so the one provided test file passes. The rules (states, gates, the digest of the impact report, who may approve) are the registry module's handlers; the commands call them and print.
+""",
+ brief="""
+> **Brief 27.8.** *`tl schema` CLI:* `lint`, `diff`, `classify`, `impact --project P123`, `test --sample 1000`, `publish`, `adopt`, `crosswalk`, `promote`, `export-git` / `import-git`.
+>
+> **Brief 27.4.** *Adoption is per project: constraining or renaming versions need the project data manager to adopt after reviewing their project-specific impact report.* Company packages are published by the schema steward after review.
+>
+> **Increment 8 decisions (FANOUT D2, D4).** Publishing, deprecating, retiring and adopting are the administrator's (no new role). Publish needs an Approved package whose classification is still the one approved. Adoption of anything but an additive version needs the SHA-256 of the project impact report the caller saw (`tl schema package impact REF --project P` prints it). Retire is refused while a project pins the version. `--auto-adopt` on publish moves the projects that pin the version below when the change is purely additive.
+""",
+ spec="""
+- `publish`, `deprecate`, `retire` and `adopt` need the administrator: call `require_admin(db)` first (anything else exits 1 with `error: forbidden: ...`). `adoptions` and `drift` need a signed-in person: `require_session(db)`.
+- A package argument is an id or `name@version`; `resolve_package(db, ref)` (in `tl_cli.schema_pkg`) gives the id. Every command that writes opens `open_uow(db)` inside `service_errors()`, so a refusal of the module is `error: <message>` on stderr and exit code 1.
+- The scope of a package command is `"company"`; the handler sets the real scope. `adopt` uses `project:<id>`.
+- Fields are separated by two spaces. The exact lines are in the docstrings; the provided test checks them.
+""",
+ learnings=COMMON,
+ interfaces=[
+  ("`packages/tl-cli/src/tl_cli/schema_gov.py` (the stub you complete; the whole file):", "/home/user/wt/p1-i8/packages/tl-cli/src/tl_cli/schema_gov.py", None, "python"),
+  ("The commands the handlers take (read-only; from `tl_mod_schemareg.handlers`):", None, '''class PublishSchemaPackage(Command):   # extra fields forbidden
+    package_id: str
+    auto_adopt: bool = False
+
+class DeprecateSchemaPackage(Command):
+    package_id: str
+    reason: str
+    replacement: str | None = None
+
+class RetireSchemaPackage(Command):
+    package_id: str
+    reason: str
+
+class AdoptSchemaPackage(Command):
+    project: str
+    package: str
+    version: str
+    impact_sha256: str | None = None
+
+# every Command also has: actor: str, source: str, scope: str  (correlation_id and causation_id optional)
+def handle_publish_schema_package(uow, cmd: PublishSchemaPackage) -> CommandResult: ...
+def handle_deprecate_schema_package(uow, cmd: DeprecateSchemaPackage) -> CommandResult: ...
+def handle_retire_schema_package(uow, cmd: RetireSchemaPackage) -> CommandResult: ...
+def handle_adopt_schema_package(uow, cmd: AdoptSchemaPackage) -> CommandResult: ...
+
+class CommandResult(BaseModel):
+    stream_id: str
+    key: str | None       # name@version for a package
+    version: int
+    events: list[Event]   # each Event has .event_type, for example "Adoption.Pinned"''', "python"),
+  ("From `tl_mod_schemareg.views` (read-only):", None, '''class AdoptionView(BaseModel):  # frozen
+    id: str
+    project: str
+    package: str
+    version: str
+    previous_version: str | None
+    worst_class: str | None
+    impact_sha256: str | None
+    adopted_by: str
+    adopted_at: str
+
+class DriftView(BaseModel):  # frozen
+    package: str
+    project_version: str
+    company_version: str
+    behind: bool
+    pinned: bool
+
+def adoption_views(conn: Connection, project: str | None = None) -> list[AdoptionView]: ...
+def drift_views(project: str) -> list[DriftView]: ...''', "python"),
+  ("From `tl_cli` (read-only): `resolve_package(db, ref) -> str` in `tl_cli.schema_pkg`; `DEV_ACTOR`, `SOURCE`, `Actor`, `acting(db, actor)`, `cell(value, width=40)` (a dash for none) and `service_errors()` in `tl_cli.derive_support`; `require_admin(db)` and `require_session(db)` in `tl_cli.session`.", None, "", "text"),
+ ],
+ context=[
+  "`packages/tl-cli/src/tl_cli/schema_gov.py` (the stub)",
+  "`docs/tickets/P1-I8/provided/t05a2-test_cli_schema_gov.py.txt`",
+  "`packages/tl-cli/src/tl_cli/schema_pkg.py` (the review commands of the same group: the style to follow)",
+  "`packages/tl-cli/src/tl_cli/schema_pkg_read.py` (the finished report commands of T05a1)",
+  "`packages/tl-modules/schemareg/src/tl_mod_schemareg/views.py`",
+  "`docs/templates/haiku-report.md`",
+ ],
+ allowed=[
+  "`packages/tl-cli/src/tl_cli/schema_gov.py` (modify: the six function bodies, the stub paragraph and directives, the unused imports)",
+  "`packages/tl-cli/tests/test_cli_schema_gov.py` (create: a byte-for-byte copy of the provided file)",
+  "`docs/reports/P1-I8/P1-I8-T05a2.md` (create: your report; commit it)",
+ ],
+ steps=[
+  "Copy the provided test to `packages/tl-cli/tests/test_cli_schema_gov.py`. Do not edit the copy (it is ruff-clean and pyright-clean as provided).",
+  "Run it once; all nine cases fail against the stub.",
+  "Write the six bodies by their STEPS and docstrings. Remove the STUB paragraph, the two directive lines, every STEPS comment and every `raise NotImplementedError` line, and the imports the finished file does not use. Leave `register` as it is.",
+  "Run the commands under *Acceptance*.",
+ ],
+ acceptance="""uv run ruff format packages/tl-cli
+uv run pytest packages/tl-cli/tests/test_cli_schema_gov.py packages/tl-cli/tests/test_cli_schema_package.py packages/tl-cli/tests/test_cli_schema_pkg_read.py -q --adapters sqlite,postgres --basetemp=/tmp/pt-t05a2
+just check""",
+ expected="Expected: all pass on both adapters (the provided file has nine cases; the administrator case skips on Postgres); `just check` is clean (run it with a 600 000 ms timeout). Remove `/tmp/pt-t05a2` after you have read the exit code.",
+ tests="None beyond the provided file. If you think a case is missing, say so under *Open questions* in the report; do not edit the provided file.",
+ report="Standard report (`docs/templates/haiku-report.md`), committed at `docs/reports/P1-I8/P1-I8-T05a2.md`. Deviations first. Paste the last lines of each acceptance command.",
+ escalation=[
+  "Stop and report *Blocked* if a provided test fails and you cannot see a difference between your reading of the STEPS and the test after two attempts.",
+  "Stop if the pasted interface and the repository disagree.",
+  "Stop if you would have to change a provided test or any file outside *Allowed paths*.",
+ ],
+)

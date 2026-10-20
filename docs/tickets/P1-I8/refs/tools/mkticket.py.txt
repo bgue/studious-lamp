@@ -1,0 +1,29 @@
+"""Assemble a ticket file: mkticket.py OUT.md SPEC.py  (SPEC defines T: dict).
+Fields: id, title, labels, depends, branch, goal, brief, spec, learnings, interfaces (list of
+(caption, path or None, text or None, lang)), context (list), allowed (list), steps (list),
+acceptance (str), expected (str), tests (str), report (str), escalation (list)."""
+import runpy, sys
+out, spec = sys.argv[1], sys.argv[2]
+T = runpy.run_path(spec)["T"]
+def fence(lang, text): return f"```{lang}\n{text.rstrip()}\n```"
+parts = [f"# {T['id']} — {T['title']}", "",
+ "Status: ready", "Tier: haiku", f"Labels: {T['labels']}", f"Depends on: {T['depends']}", f"Branch: `{T['branch']}`", "",
+ "## Goal", T['goal'].strip(), "",
+ "## Brief references (pasted)", T['brief'].strip(), ""]
+if T.get('spec'):
+    parts += ["### Specification", T['spec'].strip(), ""]
+if T.get('learnings'):
+    parts += ["### Learnings that apply", T['learnings'].strip(), ""]
+parts += ["## Interfaces (verbatim from the repo at the branch point)"]
+for caption, path, text, lang in T['interfaces']:
+    body = open(path).read() if path else text
+    parts += [caption, fence(lang, body), ""]
+parts += ["## Context (read these, nothing else)"] + [f"- {c}" for c in T['context']] + ["may explore: (none)", ""]
+parts += ["## Allowed paths"] + [f"- {a}" for a in T['allowed']] + [""]
+parts += ["## Steps"] + [f"{i}. {s}" for i, s in enumerate(T['steps'], 1)] + [""]
+parts += ["## Acceptance", fence("", T['acceptance']), T['expected'].strip(), ""]
+parts += ["## Tests to add", T['tests'].strip(), ""]
+parts += ["## Report requirements", T['report'].strip(), ""]
+parts += ["## Escalation triggers"] + [f"- {e}" for e in T['escalation']] + [""]
+parts += ["## Blocked", "(implementer writes here)", "", "## Decision", "(supervisor or orchestrator writes here)", ""]
+open(out, "w").write("\n".join(parts))

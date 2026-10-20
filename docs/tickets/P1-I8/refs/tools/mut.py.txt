@@ -1,0 +1,29 @@
+"""Mutation driver. usage: mut.py FILE SPEC.json 'test command'
+SPEC: list of [old, new] (old must occur exactly once). Runs the command under /bin/bash.
+Baseline must pass (exit 0). A kill is exit code 1 (pytest failures). Restores the file always."""
+import json, subprocess, sys, shutil, os
+path, spec, cmd = sys.argv[1], sys.argv[2], sys.argv[3]
+specs = json.load(open(spec))
+orig = open(path).read()
+def run():
+    r = subprocess.run(["/bin/bash","-c",cmd], capture_output=True, text=True)
+    return r.returncode
+base = run()
+print("baseline exit", base)
+if base != 0:
+    sys.exit(2)
+surv = []
+try:
+    for i,(old,new) in enumerate(specs):
+        n = orig.count(old)
+        if n != 1 or old == new:
+            print(f"[{i}] BAD SPEC occurrences={n}: {old[:60]!r}")
+            surv.append(i); continue
+        open(path,"w").write(orig.replace(old,new))
+        rc = run()
+        status = "killed" if rc == 1 else ("INVALID(rc=%d)" % rc if rc != 0 else "SURVIVED")
+        print(f"[{i}] {status}: {old[:60]!r} -> {new[:40]!r}")
+        if status != "killed": surv.append(i)
+finally:
+    open(path,"w").write(orig)
+print("survivors:", surv)
