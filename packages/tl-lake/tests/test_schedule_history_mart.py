@@ -155,3 +155,20 @@ def test_the_average_percent_complete_has_one_decimal(con: Duck) -> None:
         act(con, "s1", f"A{number}", "2026-10-01 00:00:00", percent=percent)
     build_schedule_history(con)
     assert history(con)[0][7] == 18.3
+
+
+def test_a_published_snapshot_without_activities_is_skipped_as_the_one_before(con: Duck) -> None:
+    """Decision (P1-I8): the snapshot before is the previous published one *that has activity
+    rows*. An empty one has no finish to compare with and would show every activity as added."""
+    snap(con, "s1", 1, "Superseded")
+    act(con, "s1", "A1", "2026-10-01 00:00:00")
+    act(con, "s1", "A2", "2026-10-02 00:00:00")
+    snap(con, "s2", 2, "Superseded")  # published once, but its rows are not in the lake
+    snap(con, "s3", 3)
+    act(con, "s3", "A1", "2026-10-04 00:00:00")
+    act(con, "s3", "A2", "2026-10-02 00:00:00")
+    build_schedule_history(con)
+    assert [(r[2], r[9], r[10], r[11]) for r in history(con)] == [
+        (1, None, None, None),
+        (3, 3, 0, 0),
+    ]
