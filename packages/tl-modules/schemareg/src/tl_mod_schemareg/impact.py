@@ -1,9 +1,9 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false, reportUnusedFunction=false
 """``impact_report``: what a change of the effective schema touches (brief 27.4, 27.7; T03).
 
-STUB: this file is the interface P1-I8-T03 implements. Until then it answers "nothing is touched".
-Remove this paragraph, the two directive lines above and every STEPS comment when you implement it.
+Pure and deterministic: no database, no clock, no file, no randomness. Everything the ledger knows
+arrives in ``ImpactFacts``. A path is ``psets.<pset>.<property>`` (layer-aware, see
+``EffectiveProperty.relative_key``); a path is added, removed or modified, and a modified path gets
+the code of the first group of fields that changed.
 """
 
 from __future__ import annotations
@@ -17,9 +17,7 @@ from tl_mod_schemareg.impact_types import (
     ImpactEntry,
     ImpactFacts,
     ImpactReport,
-    Reference,
     Section,
-    empty_report,
 )
 
 #: Fields of a property that decide its change code; the first group with a difference wins.
@@ -36,9 +34,15 @@ def _properties(schema: EffectiveSchema | None) -> dict[str, tuple[str, Effectiv
     """Path to ``(pset name, property)`` for every property of the schema (``{}`` for ``None``).
 
     The path is ``psets.<pset name>.<prop.relative_key()>``, so a custom property is
-    ``psets.valve_data.x.fat_witness_by``. Walk ``schema.psets`` and ``pset.all_properties()``.
+    ``psets.valve_data.x.fat_witness_by``.
     """
-    raise NotImplementedError("STEPS: see the docstring")
+    found: dict[str, tuple[str, EffectiveProperty]] = {}
+    if schema is None:
+        return found
+    for pset in schema.psets.values():
+        for prop in pset.all_properties():
+            found[f"psets.{pset.name}.{prop.relative_key()}"] = (pset.name, prop)
+    return found
 
 
 def _change_code(old: EffectiveProperty, new: EffectiveProperty) -> str | None:
@@ -47,12 +51,17 @@ def _change_code(old: EffectiveProperty, new: EffectiveProperty) -> str | None:
     Compare each field of the group with ``getattr(old, f) != getattr(new, f)``. A difference in
     ``label``, ``description``, ``origin`` or ``order`` alone is not a change.
     """
-    raise NotImplementedError("STEPS: see the docstring")
+    for code, fields in _GROUPS:
+        if any(getattr(old, field) != getattr(new, field) for field in fields):
+            return code
+    return None
 
 
 def _columns(schema: EffectiveSchema | None) -> dict[str, PromotedColumn]:
     """Promoted columns by column name (``{}`` for ``None``): ``promoted_columns(schema)``."""
-    raise NotImplementedError("STEPS: see the docstring")
+    if schema is None:
+        return {}
+    return {column.name: column for column in promoted_columns(schema)}
 
 
 def impact_report(
@@ -62,44 +71,149 @@ def impact_report(
 
     Pure and deterministic: the same arguments give the same report, entries in a fixed order.
     """
-    # STEPS
-    # 1. codes: path -> code for every path that is in only one schema ("property_added" when only
-    #    new has it, "property_removed" when only old has it) or in both with
-    #    _change_code(...) not None (that code). Use _properties(old) and _properties(new).
-    # 2. hurt = codes without the "property_added" paths. For each path in sorted(hurt) whose
-    #    facts.value_counts.get(path, 0) is above 0 add a "records" entry: target the path,
-    #    change hurt[path], count that number, detail
-    #    f"{n} record(s) hold a value at {path}; {what}" where what is
-    #    "the values stay in history and the lake and leave the forms" for a removed property and
-    #    "they are checked again against the new definition" otherwise.
-    # 3. columns: for each column name in sorted(old columns | new columns): only in new ->
-    #    change "column_added", detail f"cur_core_record gains the column {name} ({linkml_type})";
-    #    only in old -> "column_dropped", detail
-    #    f"the column {name} stays in cur_core_record and is no longer written"; in both with a
-    #    different linkml_type -> "column_type_changed", detail
-    #    f"the column {name} changes type from {old_type} to {new_type}". Section "columns", target
-    #    the column name.
-    # 4. views: when the set of column names differs, or any code is "property_added" or
-    #    "property_removed", add one "views" entry: target f"project views of {new.scope}", change
-    #    "views_regenerated", detail
-    #    "the generated views are rebuilt for the new set of properties and columns".
-    # 5. mappings and reports: for each ref in facts.references (in the order given) whose path is
-    #    in hurt: section "reports" when ref.kind == "report", else "mappings" (only for the kinds
-    #    in _MAPPING_KINDS); target f"{ref.kind} {ref.name}", change hurt[ref.path], detail
-    #    f"{ref.kind} {ref.name} names {ref.path}, which {verb}" with verb "is removed" for a
-    #    removed property and "has changed" otherwise.
-    # 6. mcp_schemas: for each path in codes (added ones too) find its pset (name = the second
-    #    dot-separated part of the path) in new.psets, else in old.psets; each record type in
-    #    pset.applies_to collects the path. For each record type in sorted order add an entry:
-    #    target f"{record_type} tool input schema", change "schema_regenerated", detail
-    #    f"the input schema for {record_type} changes ({n} property)" with "propert" + "y" when
-    #    n == 1 and "ies" otherwise (n = how many paths the type collected).
-    # 7. sort the entries by (SECTION_ORDER.index(section), target, change). truncated is
-    #    len(entries) > MAX_ENTRIES (read the module name MAX_ENTRIES at call time, a test
-    #    patches it); keep entries[:MAX_ENTRIES]; counts is the number of KEPT entries per
-    #    section, in SECTION_ORDER, only sections that have any.
-    # 8. return ImpactReport(scope=new.scope, old_hash=old.hash or None when old is None,
-    #    new_hash=new.hash, changed_paths=tuple(sorted(codes)), entries=..., counts=...,
-    #    truncated=...).
-    # Remove the line below when the steps are done.
-    return empty_report(new.scope, old.hash if old is not None else None, new.hash)
+    old_props = _properties(old)
+    new_props = _properties(new)
+
+    # path -> change code, for paths added, removed or modified
+    codes: dict[str, str] = {}
+    for path in old_props.keys() | new_props.keys():
+        if path not in old_props:
+            codes[path] = "property_added"
+        elif path not in new_props:
+            codes[path] = "property_removed"
+        else:
+            code = _change_code(old_props[path][1], new_props[path][1])
+            if code is not None:
+                codes[path] = code
+
+    entries: list[ImpactEntry] = []
+
+    # records: removed and modified paths that hold at least one value
+    hurt = {path: code for path, code in codes.items() if code != "property_added"}
+    for path in sorted(hurt):
+        count = facts.value_counts.get(path, 0)
+        if count > 0:
+            if hurt[path] == "property_removed":
+                what = "the values stay in history and the lake and leave the forms"
+            else:
+                what = "they are checked again against the new definition"
+            entries.append(
+                ImpactEntry(
+                    section="records",
+                    target=path,
+                    change=hurt[path],
+                    count=count,
+                    detail=f"{count} record(s) hold a value at {path}; {what}",
+                )
+            )
+
+    # columns: promoted columns of cur_core_record
+    old_columns = _columns(old)
+    new_columns = _columns(new)
+    for name in sorted(old_columns.keys() | new_columns.keys()):
+        if name not in old_columns:
+            column_type = new_columns[name].linkml_type
+            entries.append(
+                ImpactEntry(
+                    section="columns",
+                    target=name,
+                    change="column_added",
+                    detail=f"cur_core_record gains the column {name} ({column_type})",
+                )
+            )
+        elif name not in new_columns:
+            entries.append(
+                ImpactEntry(
+                    section="columns",
+                    target=name,
+                    change="column_dropped",
+                    detail=f"the column {name} stays in cur_core_record and is no longer written",
+                )
+            )
+        elif old_columns[name].linkml_type != new_columns[name].linkml_type:
+            old_type = old_columns[name].linkml_type
+            new_type = new_columns[name].linkml_type
+            entries.append(
+                ImpactEntry(
+                    section="columns",
+                    target=name,
+                    change="column_type_changed",
+                    detail=f"the column {name} changes type from {old_type} to {new_type}",
+                )
+            )
+
+    # views: regenerated when the columns or the set of properties change
+    if old_columns.keys() != new_columns.keys() or any(
+        code in ("property_added", "property_removed") for code in codes.values()
+    ):
+        entries.append(
+            ImpactEntry(
+                section="views",
+                target=f"project views of {new.scope}",
+                change="views_regenerated",
+                detail="the generated views are rebuilt for the new set of properties and columns",
+            )
+        )
+
+    # mappings and reports that name a removed or modified path
+    for ref in facts.references:
+        if ref.path not in hurt:
+            continue
+        section: Section
+        if ref.kind == "report":
+            section = "reports"
+        elif ref.kind in _MAPPING_KINDS:
+            section = "mappings"
+        else:
+            continue
+        verb = "is removed" if hurt[ref.path] == "property_removed" else "has changed"
+        entries.append(
+            ImpactEntry(
+                section=section,
+                target=f"{ref.kind} {ref.name}",
+                change=hurt[ref.path],
+                detail=f"{ref.kind} {ref.name} names {ref.path}, which {verb}",
+            )
+        )
+
+    # mcp_schemas: the tool input schemas of the record types whose psets change
+    collected: dict[str, set[str]] = {}
+    for path in codes:
+        pset_name = path.split(".")[1]
+        pset = new.psets.get(pset_name)
+        if pset is None and old is not None:
+            pset = old.psets.get(pset_name)
+        if pset is None:
+            continue
+        for record_type in pset.applies_to:
+            collected.setdefault(record_type, set()).add(path)
+    for record_type in sorted(collected):
+        count = len(collected[record_type])
+        noun = "property" if count == 1 else "properties"
+        entries.append(
+            ImpactEntry(
+                section="mcp_schemas",
+                target=f"{record_type} tool input schema",
+                change="schema_regenerated",
+                detail=f"the input schema for {record_type} changes ({count} {noun})",
+            )
+        )
+
+    entries.sort(key=lambda entry: (SECTION_ORDER.index(entry.section), entry.target, entry.change))
+    truncated = len(entries) > MAX_ENTRIES
+    kept = entries[:MAX_ENTRIES]
+    counts: dict[str, int] = {}
+    for section_name in SECTION_ORDER:
+        n = sum(1 for entry in kept if entry.section == section_name)
+        if n:
+            counts[section_name] = n
+
+    return ImpactReport(
+        scope=new.scope,
+        old_hash=old.hash if old is not None else None,
+        new_hash=new.hash,
+        changed_paths=tuple(sorted(codes)),
+        entries=tuple(kept),
+        counts=counts,
+        truncated=truncated,
+    )
