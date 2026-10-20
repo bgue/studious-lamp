@@ -1,10 +1,4 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false
 """`tl schema export-git DIR [--package NAME]`: the published packages as files (P1-I8-T05a4b).
-
-STUB: this file is the interface P1-I8-T05a4b implements. Remove this paragraph, the two directive
-lines above and every STEPS comment when you implement it. `_file_name`, `_write_atomic` and
-`register` are complete.
 
 The files are what a git repository of the company's schema holds: one `<package>@<version>.yaml`
 per version in force (Published or Deprecated), the text exactly as it was drafted. Nothing else
@@ -63,21 +57,43 @@ def export_git(
     nothing to export: `nothing to export` (and DIR is not made). A file that exists with other
     text, or is a symbolic link, is `error: ...` (exit 1) and nothing is written.
     """
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; require_admin(db).
-    # 2. In `with service_errors(), open_uow(db, readonly=True) as uow:` collect
-    #    `registry.list_packages(uow.conn(), state=state, package=package,
-    #    limit=registry.MAX_PAGE)` for each `state` in IN_FORCE. Sort by `(row.package,
-    #    version_tuple(row.version))`.
-    # 3. No rows: print `nothing to export` and return.
-    # 4. `directory.mkdir(parents=True, exist_ok=True)`. For each row make the target
-    #    `directory / _file_name(row)`. Before writing anything check all of them: a symbolic
-    #    link (`is_symlink()`) or a file whose text differs from `row.content` is
-    #    `fail(f"{target.name} exists with other text")` (say `is a link` for a link).
-    # 5. Then for each row: write with `_write_atomic(target, row.content)` and print
-    #    `wrote <name>`, or print `unchanged <name>` when the file already holds the text.
-    # 6. Print the last line from the docstring.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_admin(db)
+    rows: list[registry.PackageRow] = []
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        for state in IN_FORCE:
+            rows.extend(
+                registry.list_packages(
+                    uow.conn(), state=state, package=package, limit=registry.MAX_PAGE
+                )
+            )
+    rows.sort(key=lambda row: (row.package, version_tuple(row.version)))
+    if not rows:
+        typer.echo("nothing to export")
+        return
+    directory.mkdir(parents=True, exist_ok=True)
+    planned: list[tuple[registry.PackageRow, Path, bool]] = []
+    for row in rows:
+        target = directory / _file_name(row)
+        if target.is_symlink():
+            fail(f"{target.name} is a link")
+        same = False
+        if target.exists():
+            if not target.is_file() or target.read_bytes() != row.content.encode("utf-8"):
+                fail(f"{target.name} exists with other text")
+            same = True
+        planned.append((row, target, same))
+    written = 0
+    unchanged = 0
+    for row, target, same in planned:
+        if same:
+            unchanged += 1
+            typer.echo(f"unchanged {target.name}")
+            continue
+        _write_atomic(target, row.content)
+        written += 1
+        typer.echo(f"wrote {target.name}")
+    typer.echo(f"exported {written} written, {unchanged} unchanged to {directory}")
 
 
 def register(app: typer.Typer) -> None:
