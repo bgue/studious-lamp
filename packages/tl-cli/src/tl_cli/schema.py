@@ -23,6 +23,7 @@ from tl_schema.packages import PackageDoc
 from tl_schema.registry import PackageError, PackageRegistry, default_schema_dir
 
 from tl_cli import (
+    schema_conf,
     schema_crosswalk,
     schema_export,
     schema_gov,
@@ -148,6 +149,7 @@ def reload(ctx: typer.Context, directory: DirOption = None) -> None:
 
 app.add_typer(schema_pkg.app, name="package")
 schema_gov.register(schema_pkg.app, app)
+schema_conf.register(app)
 app.add_typer(schema_waiver.app, name="waiver")
 schema_crosswalk.register(app)
 schema_export.register(app)
