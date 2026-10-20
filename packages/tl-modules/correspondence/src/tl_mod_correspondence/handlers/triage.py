@@ -172,7 +172,7 @@ def handle_confirm_triage(uow: UnitOfWork, cmd: ConfirmTriage) -> CommandResult:
     item = open_item(uow, cmd, cmd.stream_id)
     require_core(item)
     require_state(item, ST_RECEIVED)
-    definition = catalog.check_subtype(cmd.scope, cmd.domain, cmd.subtype)
+    definition = catalog.check_core_subtype(cmd.scope, cmd.domain, cmd.subtype)
     references = _check_references(uow, cmd, cmd.referenced_ids, item.id)
     try:
         due = plausible_date(cmd.response_due, "response_due")
@@ -253,7 +253,7 @@ def handle_reclassify_correspondence(
     item = open_item(uow, cmd, cmd.stream_id)
     require_core(item)
     require_state(item, ST_DRAFT, ST_RECEIVED, ST_TRIAGED)
-    catalog.check_subtype(cmd.scope, cmd.domain, cmd.subtype)
+    catalog.check_core_subtype(cmd.scope, cmd.domain, cmd.subtype)
     if (item.domain, item.subtype) == (cmd.domain, cmd.subtype):
         raise NoChangesError(f"item {item.number} is already {cmd.domain}/{cmd.subtype}")
     done = append(

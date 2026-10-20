@@ -22,6 +22,7 @@ from sqlalchemy import text
 from tl_adapters.db import DbTarget, open_uow
 from tl_adapters.objectstore.fs import FsObjectStore
 from tl_core import confidentiality as cf
+from tl_core import util
 from tl_core.files.service import CompleteUpload, FileResult, FileService, RegisterUpload
 from tl_core.ledger import NewEvent
 from tl_core.services.commands import Command, CommandResult
@@ -153,6 +154,7 @@ from tl_mod_correspondence.names import (
     COMM_DEFINED,
     COMMERCIAL,
     CORR_DEFINED,
+    CORR_ISSUED,
     CORR_RESPONDED,
     CORR_TRIAGED,
     CORRESPONDENCE,
@@ -200,6 +202,7 @@ _TECHNICAL_PATH: dict[str, tuple[str, ...]] = {
     "Answered": ("submit", "issue", "await_response", "answer"),
     "Accepted": ("submit", "issue", "await_response", "answer", "accept"),
     "Rejected": ("submit", "issue", "await_response", "answer", "reject"),
+    "Closed": ("submit", "issue", "await_response", "close"),
 }
 _COMMERCIAL_PATH: dict[str, tuple[str, ...]] = {
     "Draft": (),
@@ -210,7 +213,33 @@ _COMMERCIAL_PATH: dict[str, tuple[str, ...]] = {
     "Agreed": ("submit", "review", "issue", "await_assessment", "agree"),
     "Disputed": ("submit", "review", "issue", "await_assessment", "dispute"),
     "Partially agreed": ("submit", "review", "issue", "await_assessment", "part_agree"),
+    "Closed": ("submit", "review", "issue", "await_assessment", "agree", "close"),
+    "Escalated": ("submit", "review", "issue", "await_assessment", "dispute", "escalate"),
 }
+
+
+@contextmanager
+def at(day: str | date, *, hour: int = 12) -> Generator[None]:
+    """Make ``day`` today for the module **and** for the ledger: events appended inside the block
+    are recorded at ``hour`` UTC of that day. Used by the evidence trail's tests and the demos,
+    which replay the ledger to a date. The ledger binds its clock as a default argument, so the
+    ``datetime`` name inside ``tl_core.util`` is replaced, not the ``utcnow`` function
+    (L-P0-TOUR-1)."""
+    chosen = day if isinstance(day, date) else date.fromisoformat(day)
+    moment = datetime(chosen.year, chosen.month, chosen.day, hour, 0, tzinfo=UTC)
+
+    class _Moment(datetime):
+        @classmethod
+        def now(cls, tz: Any = None) -> _Moment:  # type: ignore[override]
+            return cls.fromtimestamp(moment.timestamp(), tz)
+
+    original = getattr(util, "datetime")  # noqa: B009 - the module's own name, not an export
+    setattr(util, "datetime", _Moment)  # noqa: B010
+    try:
+        with frozen_today(chosen):
+            yield
+    finally:
+        setattr(util, "datetime", original)  # noqa: B010
 
 
 class CorrWorld:
@@ -757,14 +786,20 @@ class CorrWorld:
         state: str = "Draft",
         subtype: str = "rfi",
         confidentiality: str = "internal",
+        scope: str = PROJECT,
+        issued_on: str = "2026-10-20",
         item: dict[str, Any] | None = None,
+        answer: dict[str, Any] | None = None,
         **data: Any,
     ) -> str:
         """A Technical item written with raw events (no command rules); returns its id.
 
-        ``state`` is any state of the Technical workflow except Closed and Void (reach those with
-        the commands). The item has a recipient, an answer date and a question; ``data`` overrides
-        the fields of ``Technical.Defined`` and ``item`` those of ``Correspondence.Defined``.
+        ``state`` is any state of the Technical workflow except Void (void an item with the
+        command). A Closed item was closed while it awaited its answer. The item has a recipient,
+        an answer date and a question; ``data`` overrides the fields of ``Technical.Defined``,
+        ``item`` those of ``Correspondence.Defined`` and ``answer`` those of ``Technical.Answered``
+        (an answered item was answered on 2026-10-20 with cost impact yes and schedule impact no).
+        An item that is past Internal review has been issued on ``issued_on`` (a stub send).
         """
         defined: dict[str, Any] = {
             "number": number,
@@ -791,7 +826,7 @@ class CorrWorld:
             **data,
         }
         path = _TECHNICAL_PATH[state]
-        cmd = _Forge(**BASE)
+        cmd = _Forge(**{**BASE, "scope": scope})
         with cf.system_view(), open_uow(self.db) as uow:
             made = create_module_record(
                 uow,
@@ -805,6 +840,14 @@ class CorrWorld:
                 ],
             )
             for move in path:
+                if move == "issue":
+                    common.append(
+                        uow,
+                        cmd,
+                        made.stream_id,
+                        TECHNICAL,
+                        [NewEvent(event_type=CORR_ISSUED, payload=_issued(issued_on))],
+                    )
                 if move == "answer":
                     common.append(
                         uow,
@@ -819,6 +862,7 @@ class CorrWorld:
                                     "answered_on": "2026-10-20",
                                     "cost_impact": "yes",
                                     "schedule_impact": "no",
+                                    **(answer or {}),
                                 },
                             ),
                             NewEvent(
@@ -855,14 +899,20 @@ class CorrWorld:
         state: str = "Draft",
         subtype: str = "early_warning",
         confidentiality: str = "restricted",
+        scope: str = PROJECT,
+        issued_on: str = "2026-10-20",
         item: dict[str, Any] | None = None,
+        assessment: dict[str, Any] | None = None,
         **data: Any,
     ) -> str:
         """A Commercial item written with raw events (no command rules); returns its id.
 
-        ``state`` is any state of the Commercial workflow except Closed, Escalated and Void
-        (reach those with the commands). No clock is started. ``data`` overrides the fields of
-        ``Commercial.Defined`` and ``item`` those of ``Correspondence.Defined``.
+        ``state`` is any state of the Commercial workflow except Void (void an item with the
+        command). No clock is started. ``data`` overrides the fields of
+        ``Commercial.Defined``, ``item`` those of ``Correspondence.Defined`` and ``assessment``
+        those of ``Commercial.Assessed`` (an assessed item was assessed for 9000.00 on
+        2026-11-10). An item that is past PM approval has been issued on ``issued_on`` (a stub
+        send).
         """
         defined: dict[str, Any] = {
             "number": number,
@@ -892,7 +942,7 @@ class CorrWorld:
             **data,
         }
         path = _COMMERCIAL_PATH[state]
-        cmd = _Forge(**BASE)
+        cmd = _Forge(**{**BASE, "scope": scope})
         with cf.system_view(), open_uow(self.db) as uow:
             made = create_module_record(
                 uow,
@@ -906,6 +956,14 @@ class CorrWorld:
                 ],
             )
             for move in path:
+                if move == "issue":
+                    common.append(
+                        uow,
+                        cmd,
+                        made.stream_id,
+                        COMMERCIAL,
+                        [NewEvent(event_type=CORR_ISSUED, payload=_issued(issued_on))],
+                    )
                 if move in ("agree", "dispute", "part_agree"):
                     common.append(
                         uow,
@@ -924,12 +982,26 @@ class CorrWorld:
                                     "assessed_value": None if move == "dispute" else "9000.00",
                                     "assessed_on": "2026-11-10",
                                     "note": None,
+                                    **(assessment or {}),
                                 },
                             )
                         ],
                     )
                 common.transition(uow, cmd, made.stream_id, move)
         return made.stream_id
+
+
+def _issued(day: str) -> dict[str, Any]:
+    """The payload of a forged ``Correspondence.Issued``: a stub send with no file."""
+    return {
+        "issued_on": day,
+        "date_reason": None,
+        "rendition_file_id": None,
+        "rendition_sha256": None,
+        "template": "forged",
+        "delivery": "stub",
+        "clock_ids": [],
+    }
 
 
 def _load(raw: Any) -> dict[str, Any]:

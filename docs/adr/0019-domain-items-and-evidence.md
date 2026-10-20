@@ -1,0 +1,57 @@
+# ADR-0019 — Technical and Commercial items: a record type per domain, time bars, escalation and the evidence trail
+
+Status: proposed (the number is the supervisor's choice; ADR-0017 and 0018 belong to P1-I7. Needs the orchestrator's approval of the contractual workflow and clock definitions, ADR-0008 decision 6 and `04-gates.md` section 2.)
+Date: 2026-10-20
+Deciders: P1-I6 supervisor (proposal); orchestrator (approval)
+Brief sections: §9 M10 (domain layer, initial domains Technical / RFI and Commercial, cross-domain behaviour), §9 M5 (an RFI is a Technical-domain item), §9 M11 (the register exports to the cost system), §18.3, §18.8, §18.10, §8, §25.5
+
+## Context
+P1-I5 built the correspondence core with two domains, General and Document control, whose items are all `correspondence.Correspondence` records on one workflow. The brief gives the next two domains a workflow of their own (Technical / RFI: Draft, Internal review, Issued, Awaiting response, Answered, Accepted or Rejected, Closed; Commercial: Draft, Commercial review, PM approval, Issued, Awaiting assessment, Assessed, Closed or escalated), data of their own (a question and an answer with impact flags; a clause, values by cost code, schedule impact, an assessed value), contractual time bars, an escalation from an answered RFI to a Commercial item, and an evidence trail that assembles the chain around a Commercial item as of the relevant dates. A workflow belongs to a record type (`tl_core.workflow.loader`), the correspondence core must keep working for the new items (register, threads, clocks, files, class, clearance), and every read path must obey ADR-0016.
+
+## Decision
+
+### 1. A record type per domain that has its own workflow
+`correspondence.TechnicalItem` (subtypes `rfi`, `tq`, `deviation`) and `correspondence.CommercialItem` (eight subtypes). Each is a row of the item table (`cur_correspondence_correspondence`) and a row of its domain table (`cur_correspondence_technical_item`, `cur_correspondence_commercial_item`), both written by projectors from the events of one stream: `Correspondence.Defined` and then `Technical.Defined` or `Commercial.Defined`, in the same append. The core handlers that are not tied to a workflow state (class, clearance, thread, supersede, clocks, void, links, files) work on all three types, because they read `registry.ItemRow` and append with the item's own record type; the handlers that move a core item through Received, Triaged, Issued and Responded call `require_core` and refuse a domain item. The `ConfidentialSource` of the module lists the three types, so the class filter, the clearance table and the children (threads, clocks) apply unchanged. The plan's three classes `RFI`, `TechnicalQuery` and `DeviationRequest` are one class with a subtype: they share every field and the workflow.
+
+A domain file names its record type (`record_type`), a number code per subtype (`number_code`, the `kind` field of the numbering pattern: `P123-RFI-0001`, `P123-EW-0001`) and, for a Commercial site instruction, a direction. The domain compiler checks that the workflow and the numbering pattern are for the domain's record type. The triage never proposes a domain that has its own record type, and `ConfirmTriage`, `ReclassifyCorrespondence` and `DraftCorrespondence` refuse one: a letter cannot become a different record type. A misfiled item gets a linked item in the right domain, as the brief already says for items after issue.
+
+### 2. Typed domain data, exact money
+The domain tables are typed columns, not property sets: the register, the export and the evidence trail need exact values and the validation of a command. An amount is a decimal text with two places (`12500.00`), hours with one, written and read as `Decimal`, never as a float; a currency is a three-letter code and amounts of different currencies are never added together. The effect of a notice on cost codes is a bounded JSON list.
+
+### 3. Access
+Technical: the raiser's side (raise, update, submit, return, answer, review the answer, reissue, close) is any signed-in person; issuing (the external act) and escalating are a document controller's. Commercial items are `restricted` by default, which is how ADR-0016 approximates "commercial roles plus the project manager", so **every Commercial command is a document controller's** (an admin holds the role) and its handler refuses a viewer below that level before it writes anything: a person who cannot read a restricted item cannot make one. The workflow files carry no role guard (P1-I5 D6b). A separation of duties between the commercial reviewer and the approver is not enforced; a project role model is a follow-up (the known limit of ADR-0016).
+
+### 4. Time bars
+A clock of kind `time_bar` with the trigger `awareness` starts when a Commercial item is made and counts from the day the contractor became aware (`aware_on`, today or earlier). When the item names a contract clause the clock cites it and takes the clause's length and day type when it has a time bar; otherwise the domain file's figure applies. Issuing the notice meets the bar on the issue day; a bar met after its due date, or expired, is reported as late. Restarting or cancelling a bar remains a controller's act (ADR-0016 D6). The figures in `schema/fixtures/correspondence/domains/commercial.yaml` are an illustrative default that the contract overrides. **The Commercial workflow and these clock definitions are a contractual definition and a human gate**: this ADR asks the orchestrator to approve them under ADR-0008 decision 6.
+
+### 5. Escalation
+`EscalateTechnical` (controller) makes a Commercial item (an early warning unless told otherwise) from an answered Technical item. The new item is a Draft, restricted (or the RFI's class when that is higher, with the readers of a privileged RFI), `aware_on` is the day of the answer, and a `derived_from` link from the new item to the RFI is written as the module's own (`link_source="rule"`), which a person cannot retract. **Nothing is written on the RFI's stream**: an event on the RFI that named a restricted item would hand its number to every reader of the RFI. The RFI shows its escalations (`TechnicalView.escalations`) only for items the reader can read, through the link. A rule (P1-I7, ADR-0017 section 6) in propose mode watches `Technical.Answered` for a `yes` to cost or schedule impact and proposes this command; a person with the controller access accepts it, and the command runs as that person.
+
+### 6. The evidence trail
+`evidence.evidence_trail(conn, scope, number, as_of)` replays the ledger. **As of a date** means every event recorded up to the end of that day (UTC): a record that did not exist is absent; the title, state and void flag are the ones its events had reached; a link is as its own events left it (a link made later is absent, one retracted later is shown with the status it had); the figures of an item are folded from its events. Time is the ledger's `recorded_at` (what the system knew), not a date a person typed. **Visibility is today's**: a record the viewer cannot read now is left out, and so is every link that ends at it, whatever its class was on that date, and nothing says how many were left out; the events of a record are read only after it passed the filter. The walk is breadth first and bounded (depth 3, 200 records, 1000 links looked at, 5000 events per stream); `truncated` says a bound was hit. A hidden or unknown starting number answers as an unused one.
+
+### 7. The feed policy
+`feed_policy` (`full`, `minimal`, `none`) and `feed_text` are keys of the payload of the events that make a card: `Correspondence.Issued`, `Technical.Answered`, `Commercial.Assessed`. The handler writes them from the domain file, so the policy is in the event and a rebuild of the feed never depends on a file that changed later. `tl_core.feed.cards` honours them: `none` makes no card; `full` and `minimal` make a card of their own with that line, about the event's own record (so the class filter hides it with the record), closed at once so no later event extends it; a policy it does not know, or a `full` or `minimal` without a line, is `none`. Only a handler sets these keys.
+
+### 8. The export to the cost system
+`export.py` writes the Commercial register as pending and approved changes (CSV). It is a bulk export under §18.10: only the classes the person names (default `internal`, so a controller must say `restricted`), never `privileged`, only what the person's viewer reads, amounts exact, one row per cost code, and a cell that a spreadsheet would run as a formula is written with a leading quote. It is a CLI act of a controller; there is no HTTP or MCP route for it.
+
+### 9. The constraint hook
+An RFI feeds AWP constraints in Phase 2. `constraints.ConstraintSink` is a Protocol called when an RFI is issued and when it is answered; the default sink records nothing. Phase 2 puts the constraint behind it.
+
+## Consequences
+- Contracts changed: `tl_core.feed.cards` and `tl_core.projection.feed` honour the payload keys of section 7 (additive; events without them behave as before); the domain definition format gains `record_type`, `number_code`, `direction` and the clock trigger `awareness`; `Correspondence.Issued` gains the optional `feed_policy` and `feed_text`; `Correspondence.Responded.response_id` is optional; ten new event types (`Technical.*`, `Commercial.*`); `ModuleSpec` is unchanged.
+- Tickets re-issued: none. The plan's T01 became one class.
+- Gates affected: schema merge (SCHEMA_APPROVALS); the Commercial workflow and clocks (contractual, section 4); every new read path and the export are listed for security review (`SECURITY_REVIEW`).
+- Known limits: no re-classification between a core domain and these two other than a linked new item; no separation of duties between reviewer and approver; the legal route is a state (`Escalated`), the Legal domain comes later; the constraint is a stub.
+
+## Alternatives considered
+| Option | Why not |
+|---|---|
+| One record type with a subtype and a state machine in the domain table | The workflow engine, the guards and the workflow view all key on the record type; a second state machine beside the first would be a second source of truth |
+| Technical and Commercial items as stand-alone modules with their own register | They would need their own clocks, threads, class and files; the brief wants one register and one clock dashboard |
+| Domain data as property sets | No exact decimal arithmetic or SQL types, no per-command validation; the export would parse JSON text |
+| Write the escalation on the RFI's stream | A restricted item's number would reach every reader of the RFI |
+| An `escalated_to` column on the RFI | Same leak through the register |
+| The evidence trail from today's tables | It would show today's titles, states and links as if they were the ones of the date |
+| Judge the trail's visibility by the class on the date | A record made public later would stay hidden, a record restricted later would stay visible |

@@ -81,3 +81,7 @@ class ClearanceError(CorrespondenceError):
 
 class LetterRenderError(CorrespondenceError):
     """The letter cannot be filled or rendered from the item and its template."""
+
+
+class EvidenceDateError(CorrespondenceError):
+    """The day an evidence trail is asked for is not a date, is to come, or is before the item."""

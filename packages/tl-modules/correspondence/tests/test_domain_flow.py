@@ -37,6 +37,7 @@ def test_an_rfi_is_raised_issued_answered_and_escalated(world: CorrWorld) -> Non
     assert met.state == "met" and met.closed_on == "2026-10-22"
     with frozen_today("2026-10-22"), as_controller():
         escalated = world.escalate(made.stream_id)
+        assert escalated.key is not None
         warning = world.commercial(escalated.key)
     assert escalated.key == "P123-EW-0001"
     assert warning.item.state == "Draft" and warning.item.confidentiality == "restricted"
