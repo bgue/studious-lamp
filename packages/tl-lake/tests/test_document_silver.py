@@ -9,7 +9,7 @@ built from scratch.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 from builder import LedgerBuilder
@@ -46,7 +46,9 @@ def seed(world: DocumentsWorld) -> dict[str, str]:
         return {n: world.document(n).id for n in ("ISO-1", "ISO-2", "ISO-3")}
 
 
-def classify(world: DocumentsWorld, document_id: str, value: str | None) -> None:
+def classify(
+    world: DocumentsWorld, document_id: str, value: Literal["internal", "restricted"] | None
+) -> None:
     with cf.system_view(), open_uow(world.db) as uow:
         handle_set_document_confidentiality(
             uow,

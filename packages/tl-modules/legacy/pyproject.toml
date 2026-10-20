@@ -1,0 +1,28 @@
+[project]
+name = "tl-mod-legacy"
+version = "0.0.1"
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2",
+  "sqlalchemy>=2",
+  "pyyaml>=6",
+  "tl-core",
+  "tl-schema",
+  "tl-adapters",
+  "tl-lake",
+  "tl-mod-engineering",
+  "tl-mod-documents",
+]
+
+[project.entry-points."throughline.modules"]
+legacy = "tl_mod_legacy.module:spec"
+
+# One line per loader: <name> = "<module>:<function>" (the function returns a LoaderDef).
+[project.entry-points."throughline.loaders"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tl_mod_legacy"]

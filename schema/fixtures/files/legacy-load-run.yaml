@@ -1,0 +1,51 @@
+# File slots of a legacy load run (brief 20.1, 29.6). `source` is what an administrator attaches: the
+# CSV or XLSX export. `extracted` (the rows, as JSON), `profile` and `report` (JSON) are written by
+# the module only, with the Python-only `by_module` keyword of the file service.
+id: https://example.org/throughline/fixtures/files/legacy-load-run
+name: tl_fixture_legacy_load_run_files
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+default_range: string
+annotations:
+  tl:module: legacy
+
+classes:
+  LoadRun:
+    annotations:
+      tl:file_slots:
+        - name: source
+          label: Legacy export (CSV or XLSX)
+          cardinality: one
+          accepted_types:
+            - text/csv
+            - text/plain
+            - application/csv
+            - application/vnd.ms-excel
+            - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+          max_size: 52428800
+          retention_class: project
+        - name: extracted
+          label: Extracted rows (JSON)
+          cardinality: one
+          accepted_types:
+            - application/json
+          max_size: 268435456
+          retention_class: project
+        - name: profile
+          label: Profile (JSON)
+          cardinality: one
+          accepted_types:
+            - application/json
+          max_size: 67108864
+          retention_class: project
+        - name: report
+          label: Reconciliation report (JSON)
+          cardinality: one
+          accepted_types:
+            - application/json
+          max_size: 67108864
+          retention_class: project

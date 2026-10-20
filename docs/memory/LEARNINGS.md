@@ -683,3 +683,15 @@ The standing instruction to remove folders older than an hour from `/tmp/pytest-
 ### L-P1-I8-7 (tests) A new silver table changes the text of `tl lake sync` and `tl lake status`
 Two documents tables in `SILVER_TABLES` added two names to "silver rows: ..." and to the status list; three CLI tests and `dev/demos/P0-I7-lake.sh` pinned the text. `grep -rn "silver rows"` finds them.
 
+
+### L-P1-I8-8 (env) One pytest session over several large packages is killed by the memory limit
+`pytest packages/tl-core packages/tl-api packages/tl-mcp tests/...` in one process grew to 7 GB and was OOM-killed at 67 % (exit 137) with no failure before it. Run the packages one per process (`tl-api` alone takes 13 minutes, `tl-core` 36 seconds, `tl-mcp` 6 minutes, the root `tests/` shards under 2 minutes). Evidence: kernel `oom-kill` line for `pytest`, P1-I8 S6.
+
+### L-P1-I8-9 (design) A file a module writes is in quarantine until it is scanned, and only its uploader can read it
+`FileService.open_file` refuses a quarantined file to everyone but the actor that uploaded it. The legacy module writes and reads its four slots as one actor (`svc:legacy`, `tl_mod_legacy.names.ACTOR`) so a stage can read what the stage before it kept, whether or not the scanner has run. A different actor per stage would fail on the second stage. Evidence: `tl_mod_legacy/store.py`; `tl_core/files/service.py` `_readable`.
+
+### L-P1-I8-10 (security) Reserve the source and correlation prefixes of a new bulk writer in the same commit
+`tl_core.services.reserved` lists the source prefixes (`svc:`, `compensation:`, ...) and correlation prefixes (`derive:`, ...) that no client command may carry. The loaders write as `legacy:<system>` with a `load:<ulid>` correlation id, so both were added there; compensation still reverses the ids the run recorded, not the events that carry the correlation id. Evidence: `reserved.py`; `LoadRun.Loaded.record_ids`.
+
+### L-P1-I8-11 (tests) A guard test reads `git status`: its teardown fails in a worktree with uncommitted files
+`test_apply_is_refused_when_the_generated_directory_leaves_the_repository` (tl-mcp) asserts at teardown that no tracked file changed. In a worktree with uncommitted work it errors although nothing is wrong; commit first, then run the shard.

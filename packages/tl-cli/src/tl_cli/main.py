@@ -69,6 +69,7 @@ from tl_cli import (
     lake,
     ledger,
     link,
+    load,
     login,
     new,
     proposal,
@@ -141,6 +142,7 @@ app.add_typer(tag.app, name="tag")
 app.add_typer(doc.app, name="doc")
 app.add_typer(derive.app, name="derive")
 app.add_typer(xer.app, name="xer")
+app.add_typer(load.app, name="load")
 app.add_typer(cost.app, name="cost")
 app.add_typer(transmittal.app, name="transmittal")
 app.add_typer(review.app, name="review")

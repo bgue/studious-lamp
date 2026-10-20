@@ -159,6 +159,21 @@ MODULE_STREAMS = (
         ),
     ),
     ("schemareg.Adoption", "Adoption.Pinned", ()),
+    (
+        "legacy.LoadRun",
+        "LoadRun.Opened",
+        (
+            "LoadRun.Extracted",
+            "LoadRun.Profiled",
+            "LoadRun.Bronzed",
+            "LoadRun.Planned",
+            "LoadRun.Loaded",
+            "LoadRun.Reconciled",
+            "LoadRun.Compensated",
+            "LoadRun.Failed",
+            "LoadRun.Voided",
+        ),
+    ),
     ("schemareg.Waiver", "Waiver.Requested", ("Waiver.Approved", "Waiver.Revoked")),
 )
 

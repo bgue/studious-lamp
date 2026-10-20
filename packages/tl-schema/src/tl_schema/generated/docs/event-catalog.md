@@ -92,6 +92,16 @@ Every ledger event type that can reach a webhook subscriber, generated from the 
 | [`Link.Retracted`](#linkretracted) | `tl.core.Link.Retracted.v1` | A link was retracted. |
 | [`Link.Suggested`](#linksuggested) | `tl.core.Link.Suggested.v1` | A link was suggested and waits for a person to accept or decline. |
 | [`Link.Verified`](#linkverified) | `tl.core.Link.Verified.v1` | A person verified an active link. |
+| [`LoadRun.Bronzed`](#loadrunbronzed) | `tl.core.LoadRun.Bronzed.v1` | The rows were copied, as they are, to the lake bronze table of the system and table. |
+| [`LoadRun.Compensated`](#loadruncompensated) | `tl.core.LoadRun.Compensated.v1` | The records the load created were taken back, by the ids the load recorded. |
+| [`LoadRun.Extracted`](#loadrunextracted) | `tl.core.LoadRun.Extracted.v1` | The rows of the file were read in the resource envelope and stored. |
+| [`LoadRun.Failed`](#loadrunfailed) | `tl.core.LoadRun.Failed.v1` | A stage failed; the run stays in its state and says why (fixed text, no value of the file). |
+| [`LoadRun.Loaded`](#loadrunloaded) | `tl.core.LoadRun.Loaded.v1` | The load wrote records through the module commands, as one correlated batch. |
+| [`LoadRun.Opened`](#loadrunopened) | `tl.core.LoadRun.Opened.v1` | A load run was opened for a file. |
+| [`LoadRun.Planned`](#loadrunplanned) | `tl.core.LoadRun.Planned.v1` | The rows were mapped and a dry run counted what a load would do. |
+| [`LoadRun.Profiled`](#loadrunprofiled) | `tl.core.LoadRun.Profiled.v1` | The rows were profiled: columns, value shapes, keys and repeats. |
+| [`LoadRun.Reconciled`](#loadrunreconciled) | `tl.core.LoadRun.Reconciled.v1` | The load was compared with the file; the report is stored and registered as a document. |
+| [`LoadRun.Voided`](#loadrunvoided) | `tl.core.LoadRun.Voided.v1` | The run was abandoned before it loaded anything. |
 | [`Numbering.Allocated`](#numberingallocated) | `tl.core.Numbering.Allocated.v1` | A number was allocated from a counter. |
 | [`Party.ContactAdded`](#partycontactadded) | `tl.core.Party.ContactAdded.v1` | A contact was added to a party. |
 | [`Party.ContactEnded`](#partycontactended) | `tl.core.Party.ContactEnded.v1` | A contact was ended. |
@@ -5153,6 +5163,540 @@ No fields.
   "tlseq": 48211933,
   "tlstreamversion": 7,
   "type": "tl.core.Link.Verified.v1"
+}
+```
+
+## LoadRun.Bronzed
+
+The rows were copied, as they are, to the lake bronze table of the system and table. Every reader of the lake can read the copy, so this is a step of its own that an administrator takes.
+
+- CloudEvents type: `tl.core.LoadRun.Bronzed.v1`
+- Ledger payload class: `LoadRunBronzedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `bronze_rows` | integer | yes | Rows written to the lake bronze table. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "bronze_rows": 40
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/LoadRun.Bronzed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.LoadRun.Bronzed.v1"
+}
+```
+
+## LoadRun.Compensated
+
+The records the load created were taken back, by the ids the load recorded.
+
+- CloudEvents type: `tl.core.LoadRun.Compensated.v1`
+- Ledger payload class: `LoadRunCompensatedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `correlation_id` | string | yes | The correlation id of the compensation. |
+| `reversed` | integer | yes | Records reversed. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "correlation_id": "load:01J9Z6Q4W3X2Y1V0T9S8R7Q6P7",
+      "reversed": 39
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/LoadRun.Compensated/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.LoadRun.Compensated.v1"
+}
+```
+
+## LoadRun.Extracted
+
+The rows of the file were read in the resource envelope and stored.
+
+- CloudEvents type: `tl.core.LoadRun.Extracted.v1`
+- Ledger payload class: `LoadRunExtractedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `column_count` | integer | yes | Columns. |
+| `extracted_file_id` | string | yes | The stored rows. |
+| `extracted_sha256` | string | yes | SHA-256 of the stored rows. |
+| `extractor` | string | yes | The extractor that read the file. |
+| `row_count` | integer | yes | Data rows. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "column_count": 8,
+      "extracted_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P1",
+      "extracted_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "extractor": "tabular",
+      "row_count": 40
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/LoadRun.Extracted/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.LoadRun.Extracted.v1"
+}
+```
+
+## LoadRun.Failed
+
+A stage failed; the run stays in its state and says why (fixed text, no value of the file).
+
+- CloudEvents type: `tl.core.LoadRun.Failed.v1`
+- Ledger payload class: `LoadRunFailedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `code` | string | yes | A fixed code. |
+| `message` | string | yes | Fixed text. |
+| `stage` | string | yes | extract, profile, plan, load or reconcile. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "code": "extraction_limit",
+      "message": "The file is too large or too complex to read.",
+      "stage": "extract"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/LoadRun.Failed/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.LoadRun.Failed.v1"
+}
+```
+
+## LoadRun.Loaded
+
+The load wrote records through the module commands, as one correlated batch.
+
+- CloudEvents type: `tl.core.LoadRun.Loaded.v1`
+- Ledger payload class: `LoadRunLoadedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `correlation_id` | string | yes | The correlation id of the load. |
+| `loaded_count` | integer | yes | Records created. |
+| `record_ids` | array | yes | Ids of the records created, in file order. |
+| `skipped_existing` | integer | yes | Rows left alone because their key exists. |
+| `skipped_invalid` | integer | yes | Rows left out because they cannot be loaded. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "correlation_id": "load:01J9Z6Q4W3X2Y1V0T9S8R7Q6P3",
+      "loaded_count": 1,
+      "record_ids": [
+        "01J9Z6Q4W3X2Y1V0T9S8R7Q6P4"
+      ],
+      "skipped_existing": 0,
+      "skipped_invalid": 0
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/LoadRun.Loaded/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.LoadRun.Loaded.v1"
+}
+```
+
+## LoadRun.Opened
+
+A load run was opened for a file.
+
+- CloudEvents type: `tl.core.LoadRun.Opened.v1`
+- Ledger payload class: `LoadRunOpenedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `loader` | string | yes | The loader. |
+| `opened_by` | string | yes | The administrator. |
+| `run_number` | integer | yes | The number of the run. |
+| `source_name` | string or null | no | Display name of the file. |
+| `source_sha256` | string or null | no | SHA-256 of the file. |
+| `source_size` | integer or null | no | Size of the file in bytes. |
+| `source_system` | string | yes | The legacy system. |
+| `source_table` | string | yes | The table or list. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "loader": "dms-register",
+      "opened_by": "user:admin",
+      "run_number": 1,
+      "source_name": "register.csv",
+      "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "source_size": 1200,
+      "source_system": "dms",
+      "source_table": "register"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/LoadRun.Opened/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.LoadRun.Opened.v1"
+}
+```
+
+## LoadRun.Planned
+
+The rows were mapped and a dry run counted what a load would do.
+
+- CloudEvents type: `tl.core.LoadRun.Planned.v1`
+- Ledger payload class: `LoadRunPlannedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `mapping_name` | string | yes | The mapping template. |
+| `mapping_sha256` | string | yes | SHA-256 of the mapping template text. |
+| `plan_existing` | integer | yes | Rows whose key exists. |
+| `plan_invalid` | integer | yes | Rows that cannot be loaded. |
+| `plan_new` | integer | yes | Rows that would be created. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "mapping_name": "dms-register",
+      "mapping_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "plan_existing": 0,
+      "plan_invalid": 1,
+      "plan_new": 39
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/LoadRun.Planned/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.LoadRun.Planned.v1"
+}
+```
+
+## LoadRun.Profiled
+
+The rows were profiled: columns, value shapes, keys and repeats.
+
+- CloudEvents type: `tl.core.LoadRun.Profiled.v1`
+- Ledger payload class: `LoadRunProfiledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `profile_file_id` | string | yes | The stored profile. |
+| `profile_sha256` | string | yes | SHA-256 of the stored profile. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "profile_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P2",
+      "profile_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/LoadRun.Profiled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.LoadRun.Profiled.v1"
+}
+```
+
+## LoadRun.Reconciled
+
+The load was compared with the file; the report is stored and registered as a document.
+
+- CloudEvents type: `tl.core.LoadRun.Reconciled.v1`
+- Ledger payload class: `LoadRunReconciledPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `mismatches` | integer | yes | Differences found. |
+| `report_document_id` | string or null | no | The document that registers the report. |
+| `report_file_id` | string | yes | The stored report. |
+| `report_sha256` | string | yes | SHA-256 of the stored report. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "mismatches": 0,
+      "report_document_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "report_file_id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P6",
+      "report_sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/LoadRun.Reconciled/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.LoadRun.Reconciled.v1"
+}
+```
+
+## LoadRun.Voided
+
+The run was abandoned before it loaded anything.
+
+- CloudEvents type: `tl.core.LoadRun.Voided.v1`
+- Ledger payload class: `LoadRunVoidedPayload`
+- Version: 1
+
+### Payload fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | yes | Why. |
+
+### Sample delivered event
+
+```json
+{
+  "data": {
+    "changes": {},
+    "detail": {
+      "reason": "Wrong file."
+    },
+    "links": [],
+    "origin": {
+      "api": "https://tl.example.com/api/v1/p/P123/records/01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "id": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+      "key": "47-1234-W012",
+      "type": "core.Record",
+      "uri": "https://tl.example.com/c/acme/p/P123/r/core.Record/47-1234-W012@v7",
+      "version": 7
+    }
+  },
+  "datacontenttype": "application/json",
+  "dataschema": "https://tl.example.com/schema/events/LoadRun.Voided/1",
+  "id": "01J9Z6Q4W3X2Y1V0T9S8R7Q6P9",
+  "source": "https://tl.example.com/c/acme/p/P123",
+  "specversion": "1.0",
+  "subject": "urn:tl:01J9Z6Q4W3X2Y1V0T9S8R7Q6P5",
+  "time": "2026-10-09T03:14:07.000000Z",
+  "tlactor": "user:jsmith",
+  "tlcorrelationid": "01J9Z6Q4W3X2Y1V0T9S8R7Q6PX",
+  "tlseq": 48211933,
+  "tlstreamversion": 7,
+  "type": "tl.core.LoadRun.Voided.v1"
 }
 ```
 

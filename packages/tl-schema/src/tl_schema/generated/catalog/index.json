@@ -775,6 +775,96 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.LoadRun.Bronzed.v1",
+      "event_type": "LoadRun.Bronzed",
+      "payload_class": "LoadRunBronzedPayload",
+      "sample": "samples/LoadRun.Bronzed.v1.json",
+      "schema": "schemas/LoadRun.Bronzed.v1.json",
+      "title": "The rows were copied, as they are, to the lake bronze table of the system and table.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Compensated.v1",
+      "event_type": "LoadRun.Compensated",
+      "payload_class": "LoadRunCompensatedPayload",
+      "sample": "samples/LoadRun.Compensated.v1.json",
+      "schema": "schemas/LoadRun.Compensated.v1.json",
+      "title": "The records the load created were taken back, by the ids the load recorded.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Extracted.v1",
+      "event_type": "LoadRun.Extracted",
+      "payload_class": "LoadRunExtractedPayload",
+      "sample": "samples/LoadRun.Extracted.v1.json",
+      "schema": "schemas/LoadRun.Extracted.v1.json",
+      "title": "The rows of the file were read in the resource envelope and stored.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Failed.v1",
+      "event_type": "LoadRun.Failed",
+      "payload_class": "LoadRunFailedPayload",
+      "sample": "samples/LoadRun.Failed.v1.json",
+      "schema": "schemas/LoadRun.Failed.v1.json",
+      "title": "A stage failed; the run stays in its state and says why (fixed text, no value of the file).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Loaded.v1",
+      "event_type": "LoadRun.Loaded",
+      "payload_class": "LoadRunLoadedPayload",
+      "sample": "samples/LoadRun.Loaded.v1.json",
+      "schema": "schemas/LoadRun.Loaded.v1.json",
+      "title": "The load wrote records through the module commands, as one correlated batch.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Opened.v1",
+      "event_type": "LoadRun.Opened",
+      "payload_class": "LoadRunOpenedPayload",
+      "sample": "samples/LoadRun.Opened.v1.json",
+      "schema": "schemas/LoadRun.Opened.v1.json",
+      "title": "A load run was opened for a file.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Planned.v1",
+      "event_type": "LoadRun.Planned",
+      "payload_class": "LoadRunPlannedPayload",
+      "sample": "samples/LoadRun.Planned.v1.json",
+      "schema": "schemas/LoadRun.Planned.v1.json",
+      "title": "The rows were mapped and a dry run counted what a load would do.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Profiled.v1",
+      "event_type": "LoadRun.Profiled",
+      "payload_class": "LoadRunProfiledPayload",
+      "sample": "samples/LoadRun.Profiled.v1.json",
+      "schema": "schemas/LoadRun.Profiled.v1.json",
+      "title": "The rows were profiled: columns, value shapes, keys and repeats.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Reconciled.v1",
+      "event_type": "LoadRun.Reconciled",
+      "payload_class": "LoadRunReconciledPayload",
+      "sample": "samples/LoadRun.Reconciled.v1.json",
+      "schema": "schemas/LoadRun.Reconciled.v1.json",
+      "title": "The load was compared with the file; the report is stored and registered as a document.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Voided.v1",
+      "event_type": "LoadRun.Voided",
+      "payload_class": "LoadRunVoidedPayload",
+      "sample": "samples/LoadRun.Voided.v1.json",
+      "schema": "schemas/LoadRun.Voided.v1.json",
+      "title": "The run was abandoned before it loaded anything.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Numbering.Allocated.v1",
       "event_type": "Numbering.Allocated",
       "payload_class": "NumberingAllocatedPayload",
