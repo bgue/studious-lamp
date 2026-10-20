@@ -81,6 +81,16 @@ def list_registry(
         )
     else:
         table, order = TABLES[kind]
+        if kind == "invocations":
+            # an invocation on a record the viewer may not read is not listed; filtered here, so
+            # that the limit counts only what the viewer can see (ADR-0016)
+            hidden_sql = confidentiality.hidden_sql()
+            if hidden_sql is not None:
+                clauses.append(
+                    "invocation_id NOT IN (SELECT g.invocation_id "
+                    f"FROM cur_action_invocation_target g WHERE g.record_id IN ({hidden_sql}))"
+                )
+                params.update(confidentiality.params_for(hidden_sql, None))
         if kind == "enrichments":
             # a value of a record the viewer may not read is not listed (ADR-0016)
             visible, visible_params = confidentiality.not_hidden("target_id")

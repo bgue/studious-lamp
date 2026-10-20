@@ -13,6 +13,9 @@ from typing import Any
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
+from tl_core import confidentiality
+from tl_core.confidentiality import Viewer
+from tl_core.integration.actor_access import viewer_of
 from tl_core.integration.contract import RecordRef
 from tl_core.threads.config import dispatch_enabled, threads_enabled
 from tl_core.threads.contract import (
@@ -59,7 +62,7 @@ class ThreadPage(BaseModel):
     kinds: list[str] = Field(default_factory=list[str])
 
 
-def _view(row: Any) -> ThreadMessageView:
+def _view_of(row: Any) -> ThreadMessageView:
     dispatch = as_object(load_json(row.dispatch_json)) if row.dispatch_json is not None else None
     retracted = bool(row.retracted)
     return ThreadMessageView(
@@ -74,6 +77,29 @@ def _view(row: Any) -> ThreadMessageView:
         record_refs=[str(r) for r in as_list(load_json(row.record_refs_json))],
         dispatch=DispatchOutcome.model_validate(dispatch) if dispatch else None,
     )
+
+
+def _unreadable_names(conn: Any, rows: list[Any], viewer: Viewer) -> set[str]:
+    """The records that messages of this page tag, or that their dispatch cards name, which
+    ``viewer`` must not read. A thread's reader may read its record and still not a tagged one."""
+    ids: set[str] = set()
+    for row in rows:
+        ids.update(str(r) for r in as_list(load_json(row.record_refs_json)))
+        if row.dispatch_json is not None:
+            ids.update(confidentiality.payload_record_ids(row.dispatch_json))
+    return confidentiality.hidden_among(conn, sorted(ids), viewer)
+
+
+def _view(row: Any, hidden: set[str] | None = None) -> ThreadMessageView:
+    view = _view_of(row)
+    if not hidden:
+        return view
+    view.record_refs = [r for r in view.record_refs if r not in hidden]
+    if row.dispatch_json is not None and (
+        confidentiality.payload_record_ids(row.dispatch_json) & hidden
+    ):
+        view.dispatch = None  # the card names a record this reader may not read
+    return view
 
 
 def read_thread(
@@ -106,6 +132,7 @@ def read_thread(
     older = len(rows) > size
     rows = list(reversed(rows[:size]))
     total = conn.execute(_THREAD_SQL, {"record_id": record_id}).first()
+    hidden = _unreadable_names(conn, rows, viewer_of(conn, actor))
     return ThreadPage(
         record=record.ref(),
         enabled=True,
@@ -117,7 +144,7 @@ def read_thread(
             )
             for p in conn.execute(_PARTICIPANTS_SQL, {"record_id": record_id}).all()
         ],
-        messages=[_view(row) for row in rows],
+        messages=[_view(row, hidden) for row in rows],
         seqs=[int(row.seq) for row in rows],
         kinds=[str(row.kind) for row in rows],
         next_before=int(rows[0].seq) if older and rows else None,

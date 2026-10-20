@@ -696,6 +696,9 @@ def _pending(uow: UnitOfWork, proposal_id: str) -> Any:
     row = uow.conn().execute(_BY_ID_SQL, {"proposal_id": proposal_id}).first()
     if row is None:
         raise ProposalNotFoundError(f"no proposal {proposal_id!r}")
+    if not _readable(uow.conn(), [_view(row, uow.conn())]):
+        # a proposal that carries a record the decider may not read does not exist for them
+        raise ProposalNotFoundError(f"no proposal {proposal_id!r}")
     if row.status != "pending":
         raise ProposalNotPendingError(f"proposal {proposal_id} is already {row.status}")
     return row

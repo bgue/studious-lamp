@@ -102,7 +102,7 @@ def dry_run_rule(
         report.events_read = len(rows)
         # read as the rule would: an event about a record its actor may not read is not in a dry
         # run either (ADR-0016)
-        viewer = declared_viewer(rule.service_actor, rule.access)
+        viewer = declared_viewer(rule.service_actor)
         for row in rows:
             if event_hidden(uow.conn(), row, viewer):
                 continue

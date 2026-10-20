@@ -164,8 +164,8 @@ def test_enrichment_values_follow_their_records_on_every_surface(
             assert f"VALUE-{kind}" not in text_out and world.ids[kind] not in text_out
 
 
-def invocation(harness: Harness, world: Seed, kind: str) -> str:
-    invocation_id = f"INV-{kind}".upper().ljust(26, "0")[:26]
+def invocation(harness: Harness, world: Seed, kind: str, tag: str = "") -> str:
+    invocation_id = f"INV-{kind}-{tag}".upper().ljust(26, "0")[:26]
     ref = {"id": world.ids[kind], "key": world.numbers[kind], "record_type": "x"}
     with harness.backend(False) as uow:
         uow.append(
@@ -227,18 +227,29 @@ def key_lookup(harness: Harness, viewer: Viewer, key: str) -> list[RecordRef]:
 def test_a_mapping_resolves_keys_as_its_endpoint_not_as_the_job_runner(
     harness: Harness, world: Seed
 ) -> None:
-    user = Viewer(actor="svc:inbound-a.b", level=0, account="svc:inbound-a.b")
-    controller = Viewer(actor="svc:inbound-a.c", level=1, account="svc:inbound-a.c")
-    for kind, may_user, may_controller in (
-        ("open", True, True),
-        ("restricted", False, True),
-        ("privileged", False, False),
-        ("bogus", False, False),
+    user = Viewer(actor="svc:inbound-a.b", level=0, account="")
+    for kind, may_user in (
+        ("open", True),
+        ("restricted", False),
+        ("privileged", False),
+        ("bogus", False),
     ):
-        found_user = key_lookup(harness, user, world.numbers[kind])
-        found_controller = key_lookup(harness, controller, world.numbers[kind])
-        assert bool(found_user) is may_user, kind
-        assert bool(found_controller) is may_controller, kind
+        assert bool(key_lookup(harness, user, world.numbers[kind])) is may_user, kind
+
+
+def test_a_service_actor_is_the_lowest_viewer_whatever_access_it_declares(
+    harness: Harness, world: Seed
+) -> None:
+    from tl_core.integration.actor_access import held_access, viewer_of
+
+    rule_of(harness, "controller")
+    with harness.backend(True) as uow:
+        conn = uow.conn()
+        actor = str(conn.execute(text("SELECT service_actor FROM cur_rule")).scalar_one())
+        assert held_access(conn, actor) == "controller"  # it may *run* controller commands ...
+        viewer = viewer_of(conn, actor)
+        assert (viewer.level, viewer.account, viewer.system) == (0, "", False)  # ... reads internal
+        assert viewer_of(conn, "svc:threads") == Viewer(actor="svc:threads", level=0, account="")
 
 
 def test_the_registry_reads_a_viewer_with_a_system_view_to_nothing_hidden(
@@ -283,7 +294,12 @@ def rule_of(harness: Harness, access: str) -> str:
                 actor="user:boss", source="test", scope=SCOPE, key=f"probe-{access}",
                 title="Probe", access=access,  # type: ignore[arg-type]
                 when={"event_types": ["Probe.Happened"]},
-                then=[{"command": "PostToFeed", "args": {"body": "seen ${subject_id}"}}],
+                then=[
+                    {
+                        "command": "PostToFeed",
+                        "args": {"body": "seen ${subject_key} ${subject_title} ${subject_id}"},
+                    }
+                ],
             ),
         )  # fmt: skip
         from tl_core.integration.rules.service import ReviseRule, handle_revise_rule
@@ -309,7 +325,7 @@ def fired_events(harness: Harness) -> set[str]:
 
 @pytest.mark.parametrize(
     ("access", "fires_on"),
-    [("user", {"open"}), ("controller", {"open", "restricted"})],
+    [("user", {"open"}), ("controller", {"open"})],  # a service actor reads internal only
 )
 def test_a_rule_acts_only_on_what_its_service_actor_may_read(
     harness: Harness, world: Seed, access: str, fires_on: set[str]
@@ -329,8 +345,18 @@ def test_a_rule_acts_only_on_what_its_service_actor_may_read(
     assert stats.hidden == 4 - len(fires_on)
     feed = json.dumps(harness.client_for(None).get("/feed", params={"scope": SCOPE}).json())
     for kind in ("restricted", "privileged", "bogus"):
-        if kind not in fires_on:
-            assert world.ids[kind] not in feed
+        assert world.ids[kind] not in feed
+        assert world.numbers[kind] not in feed  # nor the key, nor (below) the title
+    with harness.backend(True) as uow, confidentiality.system_view():
+        for kind in ("restricted", "privileged", "bogus"):
+            title = (
+                uow.conn()
+                .execute(
+                    text("SELECT title FROM cur_core_record WHERE id = :i"), {"i": world.ids[kind]}
+                )
+                .scalar_one_or_none()
+            )
+            assert not title or str(title) not in feed, kind
 
 
 def test_a_rules_dry_run_leaves_out_what_the_rule_could_not_read(
@@ -559,3 +585,257 @@ def test_the_thread_record_helper_is_the_confidentiality_filter(
                 except Exception:
                     found = None
                 assert (found is not None) is readable(name, kind), (name, kind)
+
+
+# --- reminders, tags and the thread's reader (P1-I7 review of D17) ---------------------------
+
+
+def remind(client: TestClient, rid: str, line: str) -> None:
+    shown = client.post(f"/records/{rid}/thread/preview", json={"text": line})
+    assert shown.status_code == 200, shown.text
+    preview = shown.json()["preview"]
+    assert preview["can_dispatch"] is True, preview
+    done = client.post(
+        f"/records/{rid}/thread/dispatch",
+        json={"text": line, "token": preview["token"], "expires_at": preview["expires_at"]},
+    )
+    assert done.status_code == 200, done.text
+
+
+def run_reminders(harness: Harness) -> list[Any]:
+    from datetime import timedelta
+
+    from tl_adapters.queue import job_queue_for
+    from tl_core.jobs.runner import JobRunner
+    from tl_core.threads.reminders import ThreadReminderKind
+    from tl_core.util import utcnow
+
+    with harness.backend(True) as uow:
+        queue = job_queue_for(uow.conn())
+    runner = JobRunner(
+        harness.backend,
+        queue,
+        [ThreadReminderKind()],
+        clock=lambda: utcnow() + timedelta(hours=3),
+    )
+    return runner.run_until_idle()
+
+
+def thread_of(client: TestClient, rid: str) -> dict[str, Any]:
+    found = client.get(f"/records/{rid}/thread")
+    assert found.status_code == 200, found.text
+    return found.json()
+
+
+def reminder_refs(page: dict[str, Any]) -> list[str]:
+    return [r for m in page["messages"] if m["author"] == "svc:threads" for r in m["record_refs"]]
+
+
+def test_a_reminder_tags_only_what_the_person_who_set_it_may_read(
+    harness: Harness, world: Seed
+) -> None:
+    threads_on(harness)
+    bob = as_(harness, world, "bob")
+    ctl = as_(harness, world, "ctl")
+    rid = world.ids["open"]
+    secret = world.ids["restricted"]
+    remind(bob, rid, f"/remind +1h check #{world.numbers['restricted']}")
+    remind(ctl, rid, f"/remind +1h see #{world.numbers['restricted']}")
+    done = run_reminders(harness)
+    assert [r.outcome for r in done] == ["done", "done"]
+    # the plain user's reminder tagged nothing; the controller's tagged the item it can read
+    with harness.backend(True) as uow, confidentiality.system_view():
+        refs = [
+            (str(r.body), json.loads(r.record_refs_json))
+            for r in uow.conn().execute(
+                text(
+                    "SELECT body, record_refs_json FROM cur_thread_message "
+                    "WHERE author = 'svc:threads' ORDER BY seq"
+                )
+            )
+        ]
+    by_setter = {("user:bob" in body): found for body, found in refs}
+    assert by_setter[True] == [], refs
+    assert by_setter[False] == [secret], refs
+    # and what the other readers of the thread are shown: bob never sees the id, in any route
+    page = thread_of(bob, rid)
+    assert reminder_refs(page) == []
+    assert secret not in json.dumps(page)
+    assert secret not in json.dumps(bob.get("/events").json())
+    assert reminder_refs(thread_of(ctl, rid)) == [secret]
+
+
+def test_a_reminder_on_a_record_that_is_not_internal_ends_with_a_clear_code(
+    harness: Harness, world: Seed
+) -> None:
+    threads_on(harness)
+    ctl = as_(harness, world, "ctl")
+    rid = world.ids["restricted"]
+    remind(ctl, rid, "/remind +1h look again")
+    done = run_reminders(harness)
+    assert [r.outcome for r in done] == ["final"]
+    with harness.backend(True) as uow:
+        error = uow.conn().execute(text("SELECT last_error FROM job_queue")).scalar_one()
+    assert str(error).startswith("record_not_readable:"), error
+    assert [m for m in thread_of(ctl, rid)["messages"] if m["author"] == "svc:threads"] == []
+
+
+def test_a_thread_reader_is_not_shown_the_id_of_a_record_a_message_tags(
+    harness: Harness, world: Seed
+) -> None:
+    threads_on(harness)
+    ctl = as_(harness, world, "ctl")
+    bob = as_(harness, world, "bob")
+    rid = world.ids["open"]
+    secret = world.ids["restricted"]
+    posted = ctl.post(
+        "/commands/PostThreadMessage",
+        json={
+            "scope": SCOPE,
+            "record_id": rid,
+            "body": f"see #{world.numbers['restricted']} and the plain text",
+        },
+    )
+    assert posted.status_code == 200, posted.text
+    mine = thread_of(ctl, rid)
+    assert [m["record_refs"] for m in mine["messages"]] == [[secret]]
+    theirs = thread_of(bob, rid)
+    assert [m["record_refs"] for m in theirs["messages"]] == [[]]
+    assert secret not in json.dumps(theirs)
+    # the event carries the id: it is not in bob's change feed, and is in the controller's
+    assert secret not in json.dumps(bob.get("/events").json())
+    assert secret in json.dumps(ctl.get("/events").json())
+    with harness.backend(True) as uow, confidentiality.system_view():
+        rows = thread_event_rows(uow, secret)
+        assert rows
+        bob_viewer = confidentiality.viewer_for_actor(uow.conn(), "user:bob")
+        ctl_viewer = confidentiality.viewer_for_actor(uow.conn(), "user:ctl")
+        everything = {str(r["event_id"]) for r in rows}
+        assert confidentiality.hidden_row_ids(uow.conn(), rows, bob_viewer) == everything
+        assert not confidentiality.hidden_row_ids(uow.conn(), rows, ctl_viewer)
+
+
+def thread_event_rows(uow: Any, secret: str) -> list[dict[str, Any]]:
+    found = uow.conn().execute(
+        text(
+            "SELECT event_id, stream_id, stream_type, payload FROM events "
+            "WHERE stream_type = 'core.Thread'"
+        )
+    )
+    return [dict(r._mapping) for r in found if secret in str(r._mapping["payload"])]
+
+
+def test_a_thread_event_naming_a_hidden_record_is_not_a_webhook_for_its_reader(
+    harness: Harness, world: Seed
+) -> None:
+    threads_on(harness)
+    ctl = as_(harness, world, "ctl")
+    rid = world.ids["open"]
+    secret = world.ids["restricted"]
+    ctl.post(
+        "/commands/PostThreadMessage",
+        json={"scope": SCOPE, "record_id": rid, "body": f"see #{world.numbers['restricted']}"},
+    )
+    with harness.backend(True) as uow, confidentiality.system_view():
+        rows = thread_event_rows(uow, secret)
+        assert rows
+        for who in (
+            confidentiality.viewer_for_actor(uow.conn(), "user:bob"),
+            confidentiality.LOWEST,  # the thin audience of a restricted record is cleared for it
+        ):
+            for row in rows:  # what webhooks/dispatch.py asks of each event it would enqueue
+                assert confidentiality.names_hidden_record(
+                    uow.conn(), row["stream_type"], row["payload"], who
+                ), who
+
+
+def test_an_invocation_list_counts_only_what_the_viewer_can_see(
+    harness: Harness, world: Seed
+) -> None:
+    invocation(harness, world, "open", "shown")  # the oldest: the newest ones are hidden
+    for i in range(3):
+        invocation(harness, world, "restricted", f"h{i}")
+    with harness.backend(True) as uow:
+        found = list_registry(uow.conn(), "invocations", limit=1)
+        assert len(found) == 1 and [t["id"] for t in found[0]["targets"]] == [world.ids["open"]]
+        assert len(list_registry(uow.conn(), "invocations", limit=10)) == 1
+
+
+def test_event_hidden_applies_the_payload_scan_the_webhooks_apply(
+    harness: Harness, world: Seed
+) -> None:
+    from tl_core.integration.visibility import declared_viewer, event_hidden
+    from tl_core.services import proposals as props
+    from tl_core.webhooks.rows import OUTBOX_COLUMNS, OutboxRow
+
+    with harness.backend(False) as uow, confidentiality.system_view():
+        record = readable_record(uow, world.ids["restricted"], actor="user:ctl")
+        made = props.propose(
+            uow,
+            tool="propose_dispatch",
+            agent="agent:bot",
+            command=DispatchFromThread(
+                actor="agent:bot", source="mcp:bot", scope=SCOPE, record_id=record.id,
+                text="/notify @amy", token="b" * 64,
+            ),
+            summary="Dispatch on the restricted item",
+        )  # fmt: skip
+    with harness.backend(True) as uow, confidentiality.system_view():
+        rows = uow.conn().execute(
+            text(f"SELECT {OUTBOX_COLUMNS} FROM outbox_events WHERE stream_id = :s"),  # noqa: S608
+            {"s": made.proposal_id},
+        )
+        outbox = [OutboxRow.from_mapping(r._mapping) for r in rows]
+        assert outbox
+        for row in outbox:
+            assert row.subject_id != world.ids["restricted"]  # only the payload names the record
+            assert event_hidden(uow.conn(), row, declared_viewer("svc:rule-x")) is True
+            ctl = confidentiality.viewer_for_actor(uow.conn(), "user:ctl")
+            assert event_hidden(uow.conn(), row, ctl) is False
+
+
+def test_an_installed_thread_read_filter_can_narrow_but_never_widen(
+    harness: Harness, world: Seed
+) -> None:
+    from tl_core.threads.visibility import can_read_record, use_read_filter
+
+    with harness.backend(True) as uow:
+        assert not can_read_record(uow, world.ids["restricted"], "user:bob")
+        with use_read_filter(lambda _uow, _record, _actor: True):  # tries to allow everything
+            assert not can_read_record(uow, world.ids["restricted"], "user:bob")
+            assert can_read_record(uow, world.ids["open"], "user:bob")
+        with use_read_filter(lambda _uow, _record, _actor: False):  # narrows to nothing
+            assert not can_read_record(uow, world.ids["open"], "user:bob")
+
+
+def test_a_proposal_that_carries_a_hidden_record_cannot_be_decided_by_those_who_cannot_read_it(
+    harness: Harness, world: Seed
+) -> None:
+    from tl_core.services import proposals as props
+    from tl_core.services.errors import ProposalNotFoundError
+
+    with harness.backend(False) as uow, confidentiality.system_view():
+        record = readable_record(uow, world.ids["restricted"], actor="user:ctl")
+        made = props.propose(
+            uow,
+            tool="propose_dispatch",
+            agent="agent:bot",
+            command=DispatchFromThread(
+                actor="agent:bot", source="mcp:bot", scope=SCOPE, record_id=record.id,
+                text="/notify @amy", token="c" * 64,
+            ),
+            summary="Dispatch on the restricted item",
+        )  # fmt: skip
+    with harness.backend(False) as uow, use_viewer(Viewer(actor="user:bob", level=0)):
+        for decide in (
+            lambda: props.reject_proposal(
+                uow, proposal_id=made.proposal_id, by="user:bob", reason="no"
+            ),
+            lambda: props.fail_proposal(
+                uow, proposal_id=made.proposal_id, by="user:bob", error="x"
+            ),
+        ):
+            with pytest.raises(ProposalNotFoundError):
+                decide()
+    with harness.backend(False) as uow, use_viewer(Viewer(actor="user:ctl", level=1)):
+        props.reject_proposal(uow, proposal_id=made.proposal_id, by="user:ctl", reason="no")

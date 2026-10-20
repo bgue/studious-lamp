@@ -18,8 +18,9 @@ summarise ``*`` the ``ThreadSummary`` effect (a deterministic summary)
 
 ``assign``, ``due``, ``hold`` and ``release`` have no target in Phase 1 (there is no assignee,
 due-date or constraint model): the planner answers ``dispatch_unavailable`` until a module registers
-one under the entry-point group ``throughline.dispatch_targets``. (``/raise rfi`` is a plain record
-until P1-I6 registers the RFI register's own target.)
+one under the entry-point group ``throughline.dispatch_targets``. (``/raise rfi`` is a placeholder:
+a plain record until a module registers its own ``rfi`` target, which replaces it; no other core
+target can be replaced.)
 
 Lookup: ``raise`` takes the alias exactly (``rfi``, ``record``); ``dispatch`` takes the request type
 then ``*``; every other verb takes the thread's record type (``documents.Revision``) then ``*``.
@@ -51,15 +52,21 @@ def first_problem(problems: Iterable[Problem]) -> Problem:
 
 
 class TargetRegistry:
-    """Targets by ``(verb, name)``. A second target for a pair is refused, never replaced."""
+    """Targets by ``(verb, name)``. A second target for a pair is refused, never replaced, with one
+    exception: a target a *module* registers replaces a core target that declares itself a
+    ``placeholder`` (``placeholder = True`` on the class), such as ``/raise rfi`` until the RFI
+    register of P1-I6 brings its own. Any other clash is an error."""
 
     def __init__(self) -> None:
         self._targets: dict[tuple[str, str], DispatchTarget] = {}
 
-    def register(self, target: DispatchTarget) -> None:
+    def register(self, target: DispatchTarget, *, module: bool = False) -> None:
         key = (target.verb, target.name)
-        if key in self._targets:
-            raise ValueError(f"two dispatch targets for {key}")
+        existing = self._targets.get(key)
+        if existing is not None:
+            if not (module and getattr(existing, "placeholder", False) is True):
+                raise ValueError(f"two dispatch targets for {key}")
+            log.info("dispatch target %s replaces the core placeholder", key)
         self._targets[key] = target
 
     def names(self) -> list[tuple[str, str]]:
@@ -121,7 +128,7 @@ def load_targets(*, entry_points_group: str | None = DISPATCH_TARGET_ENTRY_POINT
     for point in sorted(entry_points(group=entry_points_group), key=lambda p: p.name):
         try:
             for target in _as_targets(point.load()):
-                registry.register(target)
+                registry.register(target, module=True)
         except Exception:  # noqa: BLE001 - a module's failure is logged, not raised
             log.warning("dispatch target %s could not be loaded", point.name, exc_info=True)
     return registry

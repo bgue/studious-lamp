@@ -22,7 +22,7 @@ from sqlalchemy import Connection, text
 
 from tl_core.auth.names import actor_for
 from tl_core.auth.queries import find_account
-from tl_core.confidentiality import LOWEST, Viewer, viewer_for_actor
+from tl_core.confidentiality import Viewer, viewer_for_actor
 from tl_core.integration.contract import Access, access_covers
 from tl_core.integration.errors import CommandAccessError
 
@@ -78,17 +78,14 @@ def held_access(conn: Connection, actor: str) -> Access | None:
 def viewer_of(conn: Connection, actor: str) -> Viewer:
     """Who the confidentiality filters (ADR-0016) take ``actor`` to be, for automation.
 
-    A person is the viewer ``viewer_for_actor`` says. A service actor reads ``internal`` records,
-    and ``restricted`` ones too when its declared access is ``controller``; ``privileged`` ones
-    only when a clearance row names the service actor itself, as it does a person. An actor that
-    holds nothing (switched off, unknown) is the lowest viewer. So a rule, a mapping or an enricher
-    never reads or acts on a record its owner could not, unless it is cleared for it.
+    A person is the viewer ``viewer_for_actor`` says. A service actor (``svc:``) is always the
+    lowest viewer, whatever access it declares or holds: it reads ``internal`` records only and can
+    never be named on a privileged one (ADR-0017 section 7e; controller-level automation over
+    restricted records is a Phase 2 question). So a rule, a mapping, an enricher or a reminder never
+    reads or acts on a record that is not ``internal``.
     """
     if actor.startswith("svc:"):
-        held = held_access(conn, actor)
-        if held is None:
-            return LOWEST
-        return Viewer(actor=actor, level=1 if held in ("controller", "admin") else 0, account=actor)
+        return Viewer(actor=actor, level=0, account="")
     return viewer_for_actor(conn, actor)
 
 

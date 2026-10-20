@@ -19,14 +19,17 @@ from typing import Any
 
 from sqlalchemy import text
 
+from tl_core.confidentiality import use_viewer
+from tl_core.integration.actor_access import viewer_of
 from tl_core.jobs.runner import JobFailure
 from tl_core.jobs.types import Claim
+from tl_core.services.errors import RecordNotFoundError
 from tl_core.threads.config import threads_enabled
 from tl_core.threads.contract import ParsedDispatch, RemindArgs
 from tl_core.threads.effects import REMINDER_JOB_KIND
 from tl_core.threads.messages import post_message
 from tl_core.threads.parser import CommandLineParser
-from tl_core.threads.visibility import readable_record
+from tl_core.threads.visibility import can_read_record, readable_record
 from tl_core.uow import UnitOfWork
 
 #: The actor of everything the server posts into a thread on its own.
@@ -96,22 +99,39 @@ class ThreadReminderKind:
         row = uow.conn().execute(_MESSAGE_SQL, {"message_id": claim.job_id}).first()
         if row is None:
             raise JobFailure("message_missing", "the /remind message is gone", retryable=False)
-        record = readable_record(uow, str(row.record_id), actor=THREAD_SERVICE_ACTOR)
+        record_id, setter = str(row.record_id), str(row.author)
+        # A reminder is posted by the thread service, which reads internal records only, for a
+        # setter who must still be able to read the record: a record that is restricted or
+        # privileged, or that became so after the reminder was set, ends it with a code that says
+        # why (P1-I7 review; the runbook lists it). Nothing is posted and nothing is retried.
+        try:
+            record = readable_record(uow, record_id, actor=THREAD_SERVICE_ACTOR)
+        except RecordNotFoundError:
+            record = None
+        if record is None or not can_read_record(uow, record_id, setter):
+            raise JobFailure(
+                "record_not_readable",
+                "the record is not readable by the reminder's setter and the thread service",
+                retryable=False,
+            )
         if record.voided or not threads_enabled(uow.conn(), record.scope, record.record_type):
             # The record is void, or threads are off now: nothing is posted, and it is not retried.
             raise JobFailure(
                 "thread_closed", "the thread is off or its record is void", retryable=False
             )
-        post_message(
-            uow,
-            record=record,
-            actor=THREAD_SERVICE_ACTOR,
-            source=f"thread:{record.id}",
-            body=body,
-            kind="reminder",
-            correlation_id=f"dispatch:{claim.job_id}",
-            check_enabled=False,
-        )
+        # The note's #KEY tags are resolved as the person who set the reminder, not as the job
+        # runner (which reads everything): a key the setter cannot read is no reference.
+        with use_viewer(viewer_of(uow.conn(), setter)):
+            post_message(
+                uow,
+                record=record,
+                actor=THREAD_SERVICE_ACTOR,
+                source=f"thread:{record.id}",
+                body=body,
+                kind="reminder",
+                correlation_id=f"dispatch:{claim.job_id}",
+                check_enabled=False,
+            )
 
     def failed(
         self,

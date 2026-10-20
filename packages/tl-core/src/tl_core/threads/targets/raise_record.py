@@ -1,8 +1,8 @@
 """``/raise record <title>``: create a ``core.Record`` pre-linked to the thread (FANOUT D10).
 
 The engine adds the ``dispatched_from`` link to the thread's record; this target adds one
-``raised_against`` link for each ``#KEY`` target. Modules register their own aliases (``rfi``) under
-the same verb.
+``raised_against`` link for each ``#KEY`` target. Modules register their own aliases under
+the same verb; a module's ``rfi`` replaces the core placeholder of that name.
 """
 
 from __future__ import annotations
@@ -67,9 +67,11 @@ class RaiseRecordTarget:
 
 class RaiseRfiTarget(RaiseRecordTarget):
     """``/raise rfi <title>``: until the RFI register of P1-I6 registers its own ``rfi`` target
-    (a module's target replaces this one: remove it then), a request for information is a
-    ``core.Record`` raised from the thread, labelled as one in its description, linked to the
-    thread's record and to each ``#KEY`` it was raised against."""
+    (a module's target replaces this placeholder, see ``TargetRegistry.register``), a request for
+    information is a ``core.Record`` raised from the thread, labelled as one in its description,
+    linked to the thread's record and to each ``#KEY`` it was raised against."""
 
     name: str = "rfi"
+    #: A module's target for the same verb and name replaces this one (and no core target).
+    placeholder: bool = True
     lead: str | None = "Request for information raised from a record thread."

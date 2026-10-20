@@ -44,7 +44,10 @@ No ticket was taken over or abandoned. Every Haiku-tier ticket was a stub-plus-p
 | `tests/integration threads webhooks contract services`, `packages/tl-core/tests`, both adapters | 3366 passed |
 | `packages/tl-cli` (SQLite) | 892 passed |
 | The six session-sensitive CLI files, the two repaired provided tests and the uniqueness test, both adapters | 36 + 44 + 50 passed |
-| Integrated full gate (`just test`, `just test-tui`, parity, both demos on both backends) | not yet run: the orchestrator runs it on the integrated tree after trunk is merged |
+| Trunk 61717ad merged (083f300), D17 catch-up (061f2c3): `just check` exit 0; `just demo P1-I7` (with clause 4), `P1-I7B`, `P1-I5`, `P1-I4` on SQLite and Postgres all OK; `packages/tl-tui` 1043 passed after the workflow-menu snapshot gained the Thread tab | passed at cae431c |
+| Integrated full gate (`just test`, `just test-tui`, parity) | run by the orchestrator in `p1-i7a-gate` at 80b0c1b (the supervisor's own `just test` was killed by the container's memory limit at 50%) |
+| Fixes of the confidentiality review (below), touched directories on both adapters: `tests/integration threads webhooks services contract` | 2052 passed |
+| Same: `packages/tl-api packages/tl-mcp` (the confidentiality walks included) | 1651 passed, 1 skipped |
 
 ## Security
 - **Pass 1** (of 1972934): changes requested, 9 findings (one HIGH among them): per-actor access in the runner, a non-injective inbound actor name (unique index on `service_actor`), mid-batch switches, JWT claims, the transport deadline, `by_module` and others. All fixed with tests that fail without the fix (8608be3 and its parents); the second pass verified them.
@@ -67,6 +70,15 @@ No ticket was taken over or abandoned. Every Haiku-tier ticket was a stub-plus-p
   5. LOW, payload-derived text in failure messages: an unknown argument is counted, a validation error names the model field and nothing below it.
   6. INFO, a delivery stopped by the dry-run re-read ends in state `dry_run` and is not retryable: in the runbook.
 
+## Confidentiality review of 061f2c3..80b0c1b (changes requested, fixed)
+1. HIGH, `/remind` leaked a hidden record's id through `record_refs` (the reminder job runs under the runner's `system_view`): `settle` posts under `viewer_of(setter)`; the same narrowing for an action's `post_to_feed`; audit of every JobKind (inbound already narrowed; executors read nothing; webhook deliveries judge by owner). A plain user's `/remind` with a restricted key leaves `record_refs` empty.
+2. MEDIUM, service actors no longer read restricted records: `viewer_of` and `declared_viewer` give every `svc:` actor level 0 and no account; ADR-0017 7e rewritten as one rule (controller-level automation over restricted records is a Phase 2 question). A controller-access rule using `${subject_key}` and `${subject_title}` never fires on, and never carries text of, a restricted item.
+3. MEDIUM, thread messages that tag a hidden record: `read_thread` drops references and dispatch cards that name a record the reader cannot read; `core.Thread` joins the scanned stream types, so `/events`, `/stream`, the webhooks and the automation workers hide such messages (tests on both adapters).
+4. LOW, `GET /integration/invocations` filters hidden targets in SQL before the limit.
+5. LOW, `visibility.event_hidden` applies the payload scan the webhooks apply.
+6. LOW, a reminder on a record that is not internal, or hidden later, fails with `record_not_readable` (runbook section 8).
+7. LOW, hardening: `hidden_event_streams` takes a `Sequence`; an installed thread read filter only narrows (ANDed with `confidential_read`); `/raise rfi` is a declared placeholder that a module's `rfi` target replaces explicitly (`TargetRegistry.register(..., module=True)`, tested; no other core target can be replaced); `proposals._pending` loads through `_readable`, so a hidden proposal is "not found" to accept, reject and fail.
+
 ## Deviations from plan
 - The plan's T05b (dispatcher wiring) and the API routes are supervisor pieces (`tl integration serve`, `routes/integration.py`).
 - `tl integration app add|ls|enable|disable` was added (the demo showed there was no way to register an app from the command line). No schema change.
@@ -79,15 +91,15 @@ No ticket was taken over or abandoned. Every Haiku-tier ticket was a stub-plus-p
 - jsonata-python 0.7.0 and PyJWT (approved in the kickoff, logged).
 
 ## Learnings
-L-P1-I7A-1 to L-P1-I7A-12 appended. No implementer proposals were declined.
+L-P1-I7A-1 to L-P1-I7A-17 appended. No implementer proposals were declined.
 
 ## Docs
 [ADR-0017](../adr/0017-integration-layer.md) (sections 7 to 7d), [docs/runbooks/integration.md](../runbooks/integration.md), `AGENTS.md` (pointer row), the READMEs of `tl-core`, `tl-cli` and `tl-tui`, `docs/tickets/P1-I7/` (plan, the ticket files, provided tests), `docs/reports/P1-I7/` (ticket reports), `docs/reports/APPROVALS.md`. Not done: `docs/reports/STATUS.md` (the orchestrator's).
 
 ## Follow-ups filed
 - At the p1/i7 merge: WS-B's `AGENT_DIRECT_COMMANDS` and the settings pins (16 keys) conflict mechanically; `tl_tui/app.py` and `commands.py` take both sides' bindings.
-- The trunk catch-up (D17): wire the P1-I5 confidentiality filters into the rules worker, the enrichment dispatcher and the registry reads; move P1-I6's rules stub onto the engine; add the `rfi` alias.
-- Demo clause 4 (an action run from a thread's `/dispatch`) is added to `dev/demos/P1-I7.sh` when workstream B is merged.
+- Done at the trunk catch-up (D17): the confidentiality filters in the rules worker, the enrichment dispatcher, the inbound worker, the registry and the threads; the `rfi` alias. Left for P1-I6: move its rules stub onto the engine and register its own `rfi` target (it replaces the placeholder).
+- Demo clause 4 (an action run from a thread's `/dispatch`) is in `dev/demos/P1-I7.sh` (it runs after clause 5, which defines the action).
 - A real model-based enricher needs its own ADR (Phase 1 refuses `model_ref`).
 
 ## Showcase

@@ -9,22 +9,24 @@ two questions the engines ask: "is the record this event is about hidden from th
 
 from __future__ import annotations
 
-from sqlalchemy import Connection
+from sqlalchemy import Connection, text
 
 from tl_core.confidentiality import (
+    SCANNED_STREAM_TYPES,
     Viewer,
     hidden_event_streams,
     is_hidden,
+    names_hidden_record,
 )
-from tl_core.integration.contract import AutomationAccess
 from tl_core.webhooks.rows import OutboxRow
 
+_EVENT_PAYLOAD = text("SELECT payload FROM events WHERE event_id = :event_id")
 
-def declared_viewer(actor: str, access: AutomationAccess) -> Viewer:
-    """The viewer an automation of this declared access is, whether or not it is switched on (a
-    dry run asks what it would have seen): ``restricted`` for ``controller``, else ``internal``;
-    named by its own actor, so a clearance row can name it."""
-    return Viewer(actor=actor, level=1 if access == "controller" else 0, account=actor)
+
+def declared_viewer(actor: str) -> Viewer:
+    """The viewer an automation is, whether or not it is switched on (a dry run asks what it would
+    have seen): the lowest, as :func:`~tl_core.integration.actor_access.viewer_of` says."""
+    return Viewer(actor=actor, level=0, account="")
 
 
 def event_hidden(conn: Connection, row: OutboxRow, viewer: Viewer) -> bool:
@@ -34,4 +36,9 @@ def event_hidden(conn: Connection, row: OutboxRow, viewer: Viewer) -> bool:
         return False
     if row.subject_id and is_hidden(conn, row.subject_id, viewer):
         return True
-    return row.stream_id in hidden_event_streams(conn, [(row.stream_id, row.stream_type)], viewer)
+    if row.stream_id in hidden_event_streams(conn, [(row.stream_id, row.stream_type)], viewer):
+        return True
+    if row.stream_type in SCANNED_STREAM_TYPES:  # a proposal, a counter, a thread message
+        stored = conn.execute(_EVENT_PAYLOAD, {"event_id": row.event_id}).scalar_one_or_none()
+        return stored is not None and names_hidden_record(conn, row.stream_type, stored, viewer)
+    return False

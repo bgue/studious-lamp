@@ -251,7 +251,7 @@ def not_hidden_item(item_expr: str, viewer: Viewer | None = None) -> tuple[str, 
 
 
 def hidden_event_streams(
-    conn: Connection, streams: Iterable[tuple[str, str]], viewer: Viewer | None = None
+    conn: Connection, streams: Sequence[tuple[str, str]], viewer: Viewer | None = None
 ) -> set[str]:
     """The ids among ``(stream_id, stream_type)`` pairs whose events the viewer must not read.
 
@@ -305,9 +305,11 @@ def hidden_event_streams(
 #: proposals (the command an agent proposed). An event of such a stream is hidden when any record
 #: it names is. (Found by the walking test of the routes.) A transmittal is a record, and is read
 #: when its own document is; but its ``Defined`` event lists the documents and revisions it was
-#: made of, so a reader who may not read one of them must not be given that event.
+#: made of, so a reader who may not read one of them must not be given that event. A record thread
+#: is the stream of its own record, but a message in it may tag other records (`record_refs`): a
+#: reader who may read the thread but not a tagged record is not given that message (P1-I7 review).
 SCANNED_STREAM_TYPES: Final = frozenset(
-    {"numbering.Counter", "core.Proposal", "documents.Transmittal"}
+    {"numbering.Counter", "core.Proposal", "documents.Transmittal", "core.Thread"}
 )
 _ULID = re.compile(r"(?<![0-9A-Za-z])[0-9A-HJKMNP-TV-Z]{26}(?![0-9A-Za-z])")
 

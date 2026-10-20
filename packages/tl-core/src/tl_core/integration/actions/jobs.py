@@ -28,6 +28,8 @@ from typing import Any
 
 from sqlalchemy import text
 
+from tl_core.confidentiality import use_viewer
+from tl_core.integration.actor_access import viewer_of
 from tl_core.integration.contract import (
     ActionExecutor,
     ActionOutcome,
@@ -221,17 +223,21 @@ class ActionJobKind:
         )
         if "post_to_feed" in handling and definition is not None:
             count = len(as_list(load_json(row["targets_json"])))
-            handle_post(
-                uow,
-                PostToFeed(
-                    actor=actor_of(row["action"]),
-                    source=source_of(row["action"], int(row["action_version"])),
-                    scope=row["scope"],
-                    body=f"{definition['label']}: done for {count} record(s)"[:500],
-                    correlation_id=f"action:{claim.job_id}",
-                    causation_id=event_id,
-                ),
-            )
+            actor = actor_of(row["action"])
+            # The job runner reads everything; the post's tags are resolved as the action's own
+            # service actor (the lowest viewer), so a key in a label tags nothing it may not read.
+            with use_viewer(viewer_of(uow.conn(), actor)):
+                handle_post(
+                    uow,
+                    PostToFeed(
+                        actor=actor,
+                        source=source_of(row["action"], int(row["action_version"])),
+                        scope=row["scope"],
+                        body=f"{definition['label']}: done for {count} record(s)"[:500],
+                        correlation_id=f"action:{claim.job_id}",
+                        causation_id=event_id,
+                    ),
+                )
 
     def _fail(
         self,

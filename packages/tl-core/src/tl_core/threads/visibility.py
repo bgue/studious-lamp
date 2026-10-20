@@ -52,10 +52,10 @@ class ThreadRecord:
         )
 
 
-#: ``(uow, record_id, actor) -> bool``: whether ``actor`` may read the record. ``None`` (Phase 1
-#: until P1-I5's confidentiality filters are plugged in) means every signed-in person reads every
-#: record they ask for. This is the one place the filters plug in: the thread reads and writes
-#: (:func:`readable_record`) and the events API and stream (:func:`can_read_record`) both use it.
+#: ``(uow, record_id, actor) -> bool``: an extra restriction on who may read the record, applied
+#: on top of the confidentiality filter (:func:`confidential_read`), never instead of it. ``None``
+#: adds none. The thread reads and writes (:func:`readable_record`) and the events API and stream
+#: (:func:`can_read_record`) both use it.
 RecordReadFilter = Callable[[UnitOfWork, str, str], bool]
 _read_filter: RecordReadFilter | None = None
 
@@ -85,11 +85,19 @@ def confidential_read(uow: UnitOfWork, record_id: str, actor: str) -> bool:
     return not confidentiality.is_hidden(conn, record_id, viewer_of(conn, actor))
 
 
+def _allowed(uow: UnitOfWork, record_id: str, actor: str) -> bool:
+    """The confidentiality filter, and an installed filter on top of it: an installed filter can
+    only narrow what a reader may read, never widen it."""
+    if not confidential_read(uow, record_id, actor):
+        return False
+    return _read_filter is None or _read_filter(uow, record_id, actor)
+
+
 def can_read_record(uow: UnitOfWork, record_id: str, actor: str) -> bool:
     """Whether ``actor`` may read ``record_id``. A record that is not there cannot be read."""
     if uow.conn().execute(_RECORD_SQL, {"id": record_id}).first() is None:
         return False
-    return (_read_filter or confidential_read)(uow, record_id, actor)
+    return _allowed(uow, record_id, actor)
 
 
 def readable_record(
@@ -104,7 +112,7 @@ def readable_record(
     if (
         row is None
         or (scope is not None and row.scope != scope)
-        or not (_read_filter or confidential_read)(uow, record_id, actor)
+        or not _allowed(uow, record_id, actor)
     ):
         raise RecordNotFoundError(f"no record {record_id!r}")
     return ThreadRecord(
