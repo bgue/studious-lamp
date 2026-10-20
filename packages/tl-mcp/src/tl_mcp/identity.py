@@ -39,6 +39,10 @@ MCP_ACTIONS = frozenset(
         "mcp.list_code_values",
         "mcp.list_tag_classes",
         "mcp.get_tag",
+        # P1-I7 WS-B: a thread is read and posted to; a dispatch is only proposed (ADR-0018)
+        "mcp.read_thread",
+        "mcp.post_thread_message",
+        "mcp.propose_dispatch",
         "mcp.list_documents",
         "mcp.get_document",
         "mcp.get_document_diff",

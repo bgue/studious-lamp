@@ -35,6 +35,7 @@ from tl_sim import cli as sim_cli
 from typer.core import TyperGroup
 
 from tl_cli import (
+    action,
     actor_hook,
     admin,
     admin_token,
@@ -48,6 +49,7 @@ from tl_cli import (
     corr_registry,
     corr_report,
     cost,
+    delivery,
     derive,
     dev,
     doc,
@@ -56,12 +58,16 @@ from tl_cli import (
     doc_rendition,
     doc_report,
     doc_rev,
+    endpoint,
+    enrich,
+    enricher,
     events,
     evidence,
     extypes,
     extypes_quarantine,
     feed,
     file,
+    integration,
     lake,
     ledger,
     link,
@@ -73,6 +79,7 @@ from tl_cli import (
     restore,
     review,
     rfi,
+    rule,
     schema,
     serve,
     sim_agent,
@@ -81,6 +88,8 @@ from tl_cli import (
     tag,
     tag_import,
     tag_report,
+    thread,
+    thread_dispatch,
     transmittal,
     tui,
     webhook,
@@ -124,6 +133,10 @@ app.add_typer(wf.app, name="wf")
 app.add_typer(file.app, name="file")
 app.add_typer(link.app, name="link")
 app.add_typer(feed.app, name="feed")
+app.add_typer(thread.app, name="thread")  # P1-I7 WS-B
+thread.app.command("preview")(thread_dispatch.preview)
+thread.app.command("dispatch")(thread_dispatch.dispatch)
+thread.app.command("reminders")(thread_dispatch.reminders)
 app.add_typer(proposal.app, name="proposal")
 app.add_typer(standards.app, name="standards")
 standards.app.add_typer(standards_class.app, name="class")
@@ -163,6 +176,13 @@ app.add_typer(lake.app, name="lake")
 app.add_typer(dev.app, name="dev")
 app.add_typer(new.app, name="new")
 app.add_typer(webhook.app, name="webhook")
+app.add_typer(rule.app, name="rule")
+app.add_typer(endpoint.app, name="endpoint")
+app.add_typer(delivery.app, name="delivery")
+app.add_typer(enrich.app, name="enrich")
+app.add_typer(enricher.app, name="enricher")
+app.add_typer(action.app, name="action")
+app.add_typer(integration.app, name="integration")
 sim_cli.AGENT_TOKEN_SOURCE = sim_agent.provider  # the simulated assistant's MCP token
 app.add_typer(sim_cli.app, name="sim")
 app.add_typer(admin.app, name="admin")

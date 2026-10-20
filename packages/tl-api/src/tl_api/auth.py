@@ -83,7 +83,18 @@ AGENT_MUST_PROPOSE_MESSAGE = (
 )
 #: The only commands an ``agent:`` token may run over REST: posting to the feed is a message, not a
 #: record change (brief 21.3). Everything else that changes a record is propose-only.
-AGENT_DIRECT_COMMANDS = frozenset({"PostToFeed", "EditPost", "RetractPost", "ReactToPost"})
+AGENT_DIRECT_COMMANDS = frozenset(
+    {
+        "PostToFeed",
+        "EditPost",
+        "RetractPost",
+        "ReactToPost",
+        # P1-I7 WS-B: a thread message changes no record and never dispatches (brief 21.5)
+        "PostThreadMessage",
+        "EditThreadMessage",
+        "RetractThreadMessage",
+    }
+)
 
 
 def refuse_agent_writes(actor: str) -> None:

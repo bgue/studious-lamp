@@ -167,7 +167,15 @@ def test_the_queue_needs_a_token(harness: Harness) -> None:
 
 # --- B15: an agent token proposes, it does not change records ----------------------------------
 
-FEED_COMMANDS = {"PostToFeed", "EditPost", "RetractPost", "ReactToPost"}
+FEED_COMMANDS = {
+    "PostToFeed",
+    "EditPost",
+    "RetractPost",
+    "ReactToPost",
+    "PostThreadMessage",  # P1-I7 WS-B: a message, not a record change
+    "EditThreadMessage",
+    "RetractThreadMessage",
+}
 MESSAGE = "agents propose record changes through MCP (P0-I6 D4); a human accepts them"
 
 
@@ -224,8 +232,8 @@ def test_an_agent_token_cannot_run_any_record_changing_command(harness: Harness)
         assert response.json()["message"] == MESSAGE
         seen.add(spec.name)
     assert (
-        len(seen) == len(COMMANDS) - len(FEED_COMMANDS) == 71 + 28 + 19
-    )  # + the correspondence commands (P1-I5) and RFIs and Commercial items (P1-I6)
+        len(seen) == len(COMMANDS) - len(FEED_COMMANDS) == 118 + 19
+    )  # incl. P1-I5, P1-I7 WS-A and RFIs and Commercial items (P1-I6)
 
 
 def test_an_agent_token_can_still_post_and_read_and_a_person_can_still_change_records(

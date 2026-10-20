@@ -12,6 +12,9 @@ from starlette.types import Scope as AsgiScope
 from tl_core import confidentiality
 from tl_core.auth.types import Principal
 from tl_core.changefeed import SubscriptionFilter, fetch_changes
+from tl_core.ledger import Event
+from tl_core.threads.contract import THREAD_STREAM_TYPE
+from tl_core.threads.visibility import can_read_record
 
 from tl_api.auth import bearer_token, current_principal, guard
 from tl_api.context import ApiContext, get_ctx
@@ -50,18 +53,43 @@ RecordIds = Annotated[
 ]
 
 
+def thread_events_visible(ctx: ApiContext, actor: str) -> Callable[[Event], bool]:
+    """A thread's events are as visible as its record (brief 21.5): the test of the caller's filter.
+
+    Any other event passes. A thread event is shown when ``actor`` may read the record named in its
+    payload (``tl_core.threads.visibility.can_read_record``, where P1-I5's filters plug in).
+    """
+
+    def visible(event: Event) -> bool:
+        if event.stream_type != THREAD_STREAM_TYPE:
+            return True
+        record_id = event.payload.get("record_id")
+        if not isinstance(record_id, str):
+            return False
+        with ctx.backend(True) as uow:
+            return can_read_record(uow, record_id, actor)
+
+    return visible
+
+
 def build_filter(
+    ctx: ApiContext,
     scope: str | None,
     types: list[str] | None,
     record_ids: list[str] | None,
     principal: Principal,
 ) -> SubscriptionFilter:
-    """The caller's filter. Account events (usernames, roles) are for admins only (ADR-0009)."""
+    """The caller's filter. Account events (usernames, roles; ADR-0009) and the proposals of shadow
+    enrichment values (ADR-0017) are for admins only, and thread events only for those who may
+    read their record."""
+    admin = principal.is_admin and principal.kind != "agent"
     return SubscriptionFilter.of(
         scope=scope or None,
         event_types=types or None,
         record_ids=record_ids or None,
-        hide_stream_types=() if principal.is_admin and principal.kind != "agent" else None,
+        hide_stream_types=() if admin else None,
+        show_shadow=admin,  # the value of an enricher on trial is the admin's
+        visible=thread_events_visible(ctx, principal.actor),
     )
 
 
@@ -80,7 +108,7 @@ def list_events(
     page = fetch_changes(
         ctx.backend.ledger,
         after_seq=after,
-        flt=build_filter(scope, types, record_id, me),
+        flt=build_filter(ctx, scope, types, record_id, me),
         limit=limit,
     )
     with ctx.backend(True) as uow:  # events of records the viewer may not read are left out
@@ -126,7 +154,7 @@ async def stream_events(
             ) from exc
         if cursor < 0:
             raise ApiError(422, "invalid_argument", "Last-Event-ID must not be negative")
-    flt = build_filter(scope, types, record_id, me)
+    flt = build_filter(ctx, scope, types, record_id, me)
     token = bearer_token(request.scope["headers"])
 
     def still_valid() -> bool:

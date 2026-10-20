@@ -63,6 +63,11 @@ AGENT_ACTIONS = frozenset(
         "command.EditPost",
         "command.RetractPost",
         "command.ReactToPost",
+        # P1-I7 WS-B: an agent reads a thread and posts to it; it never dispatches (D12)
+        "thread.read",
+        "command.PostThreadMessage",
+        "command.EditThreadMessage",
+        "command.RetractThreadMessage",
     }
 )
 

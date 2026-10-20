@@ -31,9 +31,12 @@ from sqlalchemy import Connection, text
 
 from tl_core import confidentiality
 from tl_core.auth.projector import ACCOUNT_STREAM_TYPE
+from tl_core.changefeed.filters import SHADOW_PROPOSAL_TYPE, is_shadow_proposal
+from tl_core.integration.streams import INTEGRATION_INTERNAL_EVENT_TYPES
 from tl_core.query.api import QuerySpec, count_query, parse
 from tl_core.query.ast import And, Compare
 from tl_core.services.queries import get_record_by_id
+from tl_core.threads.contract import THREAD_STREAM_TYPE, THREAD_WEBHOOK_EVENT_TYPES
 from tl_core.uow import UnitOfWork
 from tl_core.util import new_ulid
 from tl_core.webhooks.base import Clock, UowFactory, iso_z, parse_iso, utc_now
@@ -123,9 +126,18 @@ class SubscriptionRow:
     def receives(self, row: OutboxRow) -> bool:
         """Whether ``row`` falls inside this subscription's window, scope and expiry.
 
-        Account events (ADR-0009) are internal and never delivered, whatever the filter says.
+        Account events (ADR-0009) and the configuration and bookkeeping events of the integration
+        layer (ADR-0017) are internal and never delivered, whatever the filter says. Of a thread's
+        events only a posted message and a dispatch are delivered (brief 21.5).
         """
         if row.stream_type == ACCOUNT_STREAM_TYPE:
+            return False
+        if row.event_type in INTEGRATION_INTERNAL_EVENT_TYPES:
+            return False
+        if (
+            row.stream_type == THREAD_STREAM_TYPE
+            and row.event_type not in THREAD_WEBHOOK_EVENT_TYPES
+        ):
             return False
         if not any(
             start < row.seq and (end is None or row.seq <= end) for start, end in self.windows
@@ -134,6 +146,15 @@ class SubscriptionRow:
         if self.scope != "company" and self.scope != row.scope:
             return False
         return not (self.expires_at is not None and parse_iso(row.recorded_at) >= self.expires_at)
+
+
+def _is_shadow(uow: UnitOfWork, row: OutboxRow) -> bool:
+    found = (
+        uow.conn()
+        .execute(text("SELECT payload FROM events WHERE event_id = :id"), {"id": row.event_id})
+        .first()
+    )
+    return found is None or is_shadow_proposal(row.event_type, load_json(found[0]))  # fail closed
 
 
 def load_subscriptions(conn: Connection, ids: Sequence[str] | None = None) -> list[SubscriptionRow]:
@@ -331,6 +352,8 @@ class Dispatcher:
     def _matches(self, uow: UnitOfWork, sub: SubscriptionRow, row: OutboxRow) -> bool:
         if not sub.filter.matches_row(row):
             return False
+        if row.event_type == SHADOW_PROPOSAL_TYPE and _is_shadow(uow, row):
+            return False  # the value of an enricher on trial is the admin's, never sent out
         selector = sub.filter.record_selector
         return selector is None or record_matches(uow, row, selector)
 

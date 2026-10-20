@@ -105,6 +105,20 @@ KEYMAP: tuple[KeyEntry, ...] = (
     ),
     KeyEntry(
         "App",
+        "Ctrl+R",
+        "Review queue: accept or reject what an enricher proposed",
+        "TlApp",
+        "ctrl+r",
+    ),
+    KeyEntry(
+        "App",
+        "Ctrl+E",
+        "Integration registry: endpoints, rules, actions (admins)",
+        "TlApp",
+        "ctrl+e",
+    ),
+    KeyEntry(
+        "App",
         "Ctrl+G",
         "RFI log, Commercial register and the evidence trail as of a day",
         "TlApp",

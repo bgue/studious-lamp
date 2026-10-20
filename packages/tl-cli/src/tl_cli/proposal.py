@@ -8,20 +8,22 @@ is named by the id that `ls` prints. Agents propose through MCP; only a person d
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
-from typing import Annotated, NoReturn, cast
+from typing import Annotated, Any, NoReturn, cast
 
 import typer
 from pydantic import ValidationError
 from tl_adapters.db import DbTarget, is_postgres, open_uow
 from tl_adapters.objectstore import make_object_store, object_secret
+from tl_api.thread_runner import thread_runner
 from tl_core.files.service import FileService
 from tl_core.ledger import ConcurrencyError
 from tl_core.proposals.types import ProposalStatus, ProposalView
 from tl_core.services import proposals
 from tl_core.services.errors import ServiceError
 from tl_core.settings.values import format_value
+from tl_core.threads.holds import account_holds
 from tl_core.uow import UnitOfWork
 from tl_mod_documents.derivation import store
 
@@ -208,7 +210,7 @@ def accept(
     db: DbTarget = ctx.obj
     principal = session.current_principal(db)
 
-    def holds(level: str) -> bool:
+    def session_holds(level: str) -> bool:
         # the command runs as `actor`, so the session must be that person's (L-P1-I2b-6)
         if principal is None or principal.actor != actor:
             return False
@@ -219,6 +221,12 @@ def accept(
     roles = session.workflow_roles_of(db, role or (), actor=actor, local=not is_postgres(db))
     _configure_derivation_files()
     with _service_errors():
+        holds: Callable[[Any], bool] = session_holds
+        with open_uow(db, readonly=True) as uow:
+            stored = proposals.get_proposal(uow.conn(), proposal_id)
+            if stored.command_type == "DispatchFromThread":
+                # the runner reads what the person holds from their account: so does this
+                holds = account_holds(uow.conn(), actor)
         view = proposals.accept_or_fail(
             _factory(db),
             proposal_id=proposal_id,
@@ -227,6 +235,7 @@ def accept(
             accept_risk=accept_risk,
             source="cli",
             holds=holds,
+            runner=thread_runner(),  # a dispatch proposal re-plans and runs its commands
         )
     if view.status == "failed":
         typer.echo(f"failed {view.proposal_id}")

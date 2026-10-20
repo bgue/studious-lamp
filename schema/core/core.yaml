@@ -18,6 +18,7 @@ imports:
   - numbering
   - workflow
   - feed
+  - threads
   - proposals
   - settings
   - files
@@ -27,4 +28,5 @@ imports:
   - events
   - auth
   - jobs
+  - integration_ops
 default_range: string

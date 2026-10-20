@@ -445,6 +445,7 @@ def test_write_mode_is_refused_with_the_human_gate_message(env: McpHarness) -> N
         "start_extraction",
         "propose_import_tags",
         "propose_import_documents",
+        "propose_dispatch",  # P1-I7 WS-B
         "propose_publish_schedule_snapshot",
         "propose_triage",
     }

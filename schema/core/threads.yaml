@@ -1,0 +1,327 @@
+id: https://example.org/throughline/core/threads
+name: tl_core_threads
+title: Throughline record threads
+description: >-
+  Optional message threads on records, with dispatch (brief 21.5, 10.6 sketch 13; P1-I7 workstream B, ADR-0018).
+  A thread is one ledger stream per record (`core.Thread`, stream id `thread:<record id>`, scope = the record's
+  scope), created by its first message, so messages never bump the record's version. Its events are
+  `Thread.MessagePosted|MessageEdited|MessageRetracted|Dispatched`, described by the payload classes below.
+  `ThreadMessage` documents the logical shape of a message. `ThreadRow`, `ThreadMessageRow` and
+  `ThreadParticipantRow` are the current-state tables: one row per thread, per message (a retracted message keeps
+  a tombstone row with no body) and per participant. A dispatch is a message of kind `dispatch` followed by
+  `Thread.Dispatched`, whose payload is the outcome of the commands the dispatch ran. Thread messages are not
+  feed items. The server sets the source (`thread:<record id>`) and the correlation id (`dispatch:<message id>`)
+  of the commands a dispatch runs; a client cannot (FANOUT D2).
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - annotations
+  - record
+  - events
+default_range: string
+annotations:
+  tl:module: core
+
+enums:
+  ThreadMessageKind:
+    description: What a message is. A person's message is `message`; the others are written by the server.
+    permissible_values:
+      message:
+        description: Written by a person or an agent.
+      dispatch:
+        description: A confirmed slash command; the outcome is in `Thread.Dispatched`.
+      summary:
+        description: A deterministic summary of the thread posted by `/summarise`.
+      reminder:
+        description: Posted by the server when a `/remind` falls due.
+
+classes:
+  ThreadMessage:
+    description: >-
+      One message in a record thread (brief 21.5). Keys in the body are detected with the feed's key detection
+      and kept as `record_refs`; mentions are kept as typed. The body is plain text.
+    attributes:
+      message_id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Immutable message identifier.
+      record_id:
+        range: Ulid
+        required: true
+        description: The record the thread belongs to; the stream is `thread:<record_id>`.
+      author:
+        required: true
+        description: Actor that wrote it (`user:<id>`, `agent:<id>` or `svc:threads`).
+      body:
+        required: true
+        description: Text of the message.
+      mentions:
+        multivalued: true
+        description: The `@mentions` of the body, as typed without the sigil, without repeats.
+      record_refs:
+        range: Ulid
+        multivalued: true
+        description: The records the body names by key, without repeats.
+      kind:
+        range: ThreadMessageKind
+        required: true
+        ifabsent: string(message)
+
+  ThreadDispatchResult:
+    description: One command a confirmed dispatch ran, as carried in `Thread.Dispatched`.
+    attributes:
+      command_type:
+        required: true
+      stream_id:
+        required: true
+      key:
+        description: Key of the record the command touched, when it has one.
+      version:
+        range: integer
+        required: true
+        description: Stream version after the command.
+
+  ThreadMessagePostedPayload:
+    is_a: EventPayload
+    annotations:
+      tl:event_type: Thread.MessagePosted
+      tl:event_version: "1"
+    description: >-
+      A message was posted in a record thread. The first message of a record creates the thread stream and also
+      carries `record_creator`, the actor that created the record, who joins the participants.
+    attributes:
+      message_id:
+        range: Ulid
+        required: true
+      record_id:
+        range: Ulid
+        required: true
+      author:
+        required: true
+      body:
+        required: true
+      mentions:
+        multivalued: true
+      record_refs:
+        range: Ulid
+        multivalued: true
+      kind:
+        range: ThreadMessageKind
+        required: true
+        ifabsent: string(message)
+      record_creator:
+        description: First message of the thread only; the actor that created the record.
+    examples:
+      - value: "{\"author\": \"user:rgarcia\", \"body\": \"Flanges short for W019 @lchen\", \"kind\": \"message\", \"mentions\": [\"lchen\"], \"message_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"record_creator\": \"user:mlee\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"record_refs\": []}"
+
+  ThreadMessageEditedPayload:
+    is_a: EventPayload
+    annotations:
+      tl:event_type: Thread.MessageEdited
+      tl:event_version: "1"
+    description: >-
+      The author replaced the body of a message. The payload is a full replacement of the body, the mentions and
+      the record references; the earlier text stays in the ledger.
+    attributes:
+      message_id:
+        range: Ulid
+        required: true
+      record_id:
+        range: Ulid
+        required: true
+      body:
+        required: true
+      mentions:
+        multivalued: true
+      record_refs:
+        range: Ulid
+        multivalued: true
+    examples:
+      - value: "{\"body\": \"Flanges short for W019 and W020 @lchen\", \"mentions\": [\"lchen\"], \"message_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"record_refs\": []}"
+
+  ThreadMessageRetractedPayload:
+    is_a: EventPayload
+    annotations:
+      tl:event_type: Thread.MessageRetracted
+      tl:event_version: "1"
+    description: The author retracted a message. The projection keeps a tombstone row and drops the body.
+    attributes:
+      message_id:
+        range: Ulid
+        required: true
+      record_id:
+        range: Ulid
+        required: true
+      reason:
+        required: true
+        description: Why the message was retracted.
+    examples:
+      - value: "{\"message_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"reason\": \"Wrong record\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\"}"
+
+  ThreadDispatchedPayload:
+    is_a: EventPayload
+    annotations:
+      tl:event_type: Thread.Dispatched
+      tl:event_version: "1"
+    description: >-
+      A slash command in a thread was confirmed and its commands ran, in the same transaction as the message of
+      kind `dispatch` that carries the command line. `results` lists the commands, `link_ids` the
+      `dispatched_from` links from created records back to the thread's record. Each command's own events
+      carry the source `thread:<record id>`, the correlation id `dispatch:<message id>` and this message's event
+      as their cause.
+    attributes:
+      message_id:
+        range: Ulid
+        required: true
+      record_id:
+        range: Ulid
+        required: true
+      verb:
+        required: true
+        description: The slash command verb (`link`, `status`, `raise`, `dispatch`, `notify`, `remind`, `summarise`...).
+      results:
+        range: ThreadDispatchResult
+        multivalued: true
+        inlined_as_list: true
+      link_ids:
+        range: Ulid
+        multivalued: true
+      summary:
+        description: One line for the result card.
+    examples:
+      - value: "{\"link_ids\": [\"01J9Z6Q4W3X2Y1V0T9S8R7Q6P8\"], \"message_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"record_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"results\": [{\"command_type\": \"CreateRecord\", \"key\": \"P123-REC-0044\", \"stream_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"version\": 1}], \"summary\": \"Created P123-REC-0044\", \"verb\": \"raise\"}"
+
+  ThreadRow:
+    description: One row per thread, with the counts. The id of the record it belongs to is the key.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_thread
+    attributes:
+      record_id:
+        identifier: true
+        range: Ulid
+        required: true
+      scope:
+        range: ScopeId
+        required: true
+        annotations:
+          tl:indexed: true
+      message_count:
+        range: integer
+        required: true
+        ifabsent: int(0)
+        description: Messages posted, retracted ones included.
+      created_by:
+        required: true
+        description: Author of the first message.
+      created_at:
+        range: datetime
+        required: true
+      last_message_at:
+        range: datetime
+        required: true
+      last_seq:
+        range: integer
+        required: true
+        description: "`seq` of the latest event of the thread."
+      version:
+        range: integer
+        required: true
+        description: Ledger `stream_version` of the thread stream after the last event applied.
+
+  ThreadMessageRow:
+    description: >-
+      One message of a thread. A retracted message keeps its row with an empty `body` and `retracted` true. A
+      `dispatch` message carries the outcome of its commands in `dispatch` once `Thread.Dispatched` is applied.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_thread_message
+      tl:ix_record_seq: "record_id, seq"
+    attributes:
+      message_id:
+        identifier: true
+        range: Ulid
+        required: true
+      record_id:
+        range: Ulid
+        required: true
+        annotations:
+          tl:indexed: true
+      scope:
+        range: ScopeId
+        required: true
+      seq:
+        range: integer
+        required: true
+        description: "`seq` of `Thread.MessagePosted`; orders the thread."
+      author:
+        required: true
+      kind:
+        range: ThreadMessageKind
+        required: true
+        ifabsent: string(message)
+      body:
+        required: true
+        description: Text of the message; empty once retracted.
+      mentions:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+      record_refs:
+        range: Any
+        required: true
+        annotations:
+          tl:json: true
+      posted_at:
+        range: datetime
+        required: true
+      edit_count:
+        range: integer
+        required: true
+        ifabsent: int(0)
+      retracted:
+        range: boolean
+        required: true
+        ifabsent: "false"
+      retract_reason:
+        description: Reason given with `Thread.MessageRetracted`.
+      dispatch:
+        range: Any
+        description: The `DispatchOutcome` of a dispatch message; null for the others.
+        annotations:
+          tl:json: true
+
+  ThreadParticipantRow:
+    description: >-
+      One person in a thread, with why: the record's creator, an author, someone mentioned or a dispatcher.
+      Followers and assignees wait for their models.
+    annotations:
+      tl:current_state: true
+      tl:table: cur_thread_participant
+    attributes:
+      participant_row_id:
+        identifier: true
+        required: true
+        description: "`<record id>|<actor>`."
+      record_id:
+        range: Ulid
+        required: true
+        annotations:
+          tl:indexed: true
+      actor:
+        required: true
+        description: "`user:<id>`, `agent:<id>` or a mention as typed (`crew:P-07`) when it names no account."
+      reasons:
+        range: Any
+        required: true
+        description: A sorted JSON list of `creator`, `author`, `mentioned`, `dispatcher`.
+        annotations:
+          tl:json: true
+      first_seq:
+        range: integer
+        required: true

@@ -251,7 +251,7 @@ def not_hidden_item(item_expr: str, viewer: Viewer | None = None) -> tuple[str, 
 
 
 def hidden_event_streams(
-    conn: Connection, streams: Iterable[tuple[str, str]], viewer: Viewer | None = None
+    conn: Connection, streams: Sequence[tuple[str, str]], viewer: Viewer | None = None
 ) -> set[str]:
     """The ids among ``(stream_id, stream_type)`` pairs whose events the viewer must not read.
 
@@ -264,6 +264,15 @@ def hidden_event_streams(
     if who.system or not ids or hidden_sql(who) is None:
         return set()
     hidden = hidden_among(conn, ids, who)
+    # a record's thread is the stream ``thread:<record id>`` (P1-I7): as hidden as its record
+    threads = {
+        stream: stream.partition(":")[2]
+        for stream, kind in streams
+        if kind == "core.Thread" and stream.startswith("thread:")
+    }
+    if threads:
+        unreadable = hidden_among(conn, sorted(set(threads.values())), who)
+        hidden.update(stream for stream, record in threads.items() if record in unreadable)
     sql = hidden_sql(who)
     assert sql is not None
     extra = {**params_for(sql, who)}
@@ -276,6 +285,12 @@ def hidden_event_streams(
             f"AND f.record_id IN ({sql})",
             f"SELECT t.item_id FROM cur_feed_tags t WHERE t.item_id IN :_cf_ids "
             f"AND t.kind = 'record' AND t.record_id IN ({sql})",
+            # P1-I7: an enrichment value is about its target record, an action invocation about
+            # the records it ran on; their events carry the value, the parameters and the result.
+            f"SELECT v.value_id FROM cur_enrichment_value v WHERE v.value_id IN :_cf_ids "
+            f"AND v.target_id IN ({sql})",
+            f"SELECT g.invocation_id FROM cur_action_invocation_target g "
+            f"WHERE g.invocation_id IN :_cf_ids AND g.record_id IN ({sql})",
         )
         for query in queries:
             statement = text(query).bindparams(bindparam("_cf_ids", expanding=True))
@@ -290,9 +305,11 @@ def hidden_event_streams(
 #: proposals (the command an agent proposed). An event of such a stream is hidden when any record
 #: it names is. (Found by the walking test of the routes.) A transmittal is a record, and is read
 #: when its own document is; but its ``Defined`` event lists the documents and revisions it was
-#: made of, so a reader who may not read one of them must not be given that event.
+#: made of, so a reader who may not read one of them must not be given that event. A record thread
+#: is the stream of its own record, but a message in it may tag other records (`record_refs`): a
+#: reader who may read the thread but not a tagged record is not given that message (P1-I7 review).
 SCANNED_STREAM_TYPES: Final = frozenset(
-    {"numbering.Counter", "core.Proposal", "documents.Transmittal"}
+    {"numbering.Counter", "core.Proposal", "documents.Transmittal", "core.Thread"}
 )
 _ULID = re.compile(r"(?<![0-9A-Za-z])[0-9A-HJKMNP-TV-Z]{26}(?![0-9A-Za-z])")
 

@@ -28,9 +28,10 @@ def test_every_command_in_the_table_has_a_route(harness: Harness) -> None:
     paths = harness.app.openapi()["paths"]
     assert {f"/commands/{spec.name}" for spec in COMMANDS} <= set(paths)
     # the core commands, the engineering module's (14) and the documents module's (34)
-    # + the derivation pipeline (P1-I3), the cost (1) and schedule (6) modules (P1-I4) and the
-    # correspondence module's 28 (P1-I5) and its 19 for RFIs and Commercial items (P1-I6)
-    assert len(COMMANDS) == 20 + 14 + 24 + 10 + 1 + 6 + 28 + 19
+    # + the derivation pipeline (P1-I3), the cost (1) and schedule (6) modules (P1-I4), the
+    # correspondence module's 28 (P1-I5), rules and actions (P1-I7 WS-A: 4 + 3 + 5 + 6 + 1) and
+    # the thread messages (WS-B: 3) and the 19 for RFIs and Commercial items (P1-I6)
+    assert len(COMMANDS) == 20 + 14 + 24 + 10 + 1 + 6 + 28 + 4 + 3 + 5 + 6 + 1 + 3 + 19
 
 
 def test_create_record_returns_the_command_result(harness: Harness) -> None:
