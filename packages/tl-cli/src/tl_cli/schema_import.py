@@ -1,10 +1,4 @@
-# ruff: noqa: F401
-# pyright: reportUnusedImport=false
 """`tl schema import-git DIR [--dry-run]`: draft the packages a directory of files holds (T05a4c).
-
-STUB: this file is the interface P1-I8-T05a4c implements. Remove this paragraph, the two directive
-lines above and every STEPS comment when you implement it. `_files`, `_read` and `register` are
-complete.
 
 DIR is what `tl schema export-git` writes, or a git checkout of it: files `<package>@<version>.yaml`
 directly in DIR. Each becomes a Draft package version, drafted by the signed-in person, exactly as
@@ -85,26 +79,76 @@ def import_git(
     `imported <d> drafted, <u> unchanged, <s> skipped, <p> problems`, or
     `dry run <d> to draft, <u> unchanged, <s> skipped, <p> problems`.
     """
-    # STEPS
-    # 1. db: DbTarget = ctx.obj; require_session(db).
-    # 2. In `with service_errors(), open_uow(db, readonly=True) as uow:` take
-    #    `held = analysis.provider()` and, for each path in `_files(directory)`, `_read` it;
-    #    collect problems as `(path.name, reason)`. Parse the text with
-    #    `analysis.parse_content(text)` (a problem with `str(exc)` on InvalidSchemaPackageError);
-    #    the name must be `f"{doc.package}@{doc.version}.yaml"`. Then
-    #    `registry.find_package(uow.conn(), doc.package, doc.version)`: a row with the same
-    #    `content` is `unchanged`, a row with other content is a problem, no row and
-    #    `held.registry().origin(doc.package, doc.version) is not None` is `skipped`, else `draft`.
-    #    Keep `(doc, text, state)` triples.
-    # 3. Print `problem <file> <reason>` for each problem; with any, print the summary (0 drafted)
-    #    and `raise typer.Exit(code=1)`.
-    # 4. Sort the triples by `(doc.package, version_tuple(doc.version))` and print one line each
-    #    as in the docstring. For state `draft` and no `--dry-run` open `open_uow(db)` inside
-    #    `service_errors()` and call handle_draft_schema_package with
-    #    DraftSchemaPackage(actor=acting(db, actor), source=SOURCE, scope="company",
-    #    content=text); print `drafted <doc.package>@<doc.version> <result.stream_id>`.
-    # 5. Print the summary line.
-    raise NotImplementedError("STEPS: see the comments")
+    db: DbTarget = ctx.obj
+    require_session(db)
+    problems: list[tuple[str, str]] = []
+    triples: list[tuple[PackageDoc, str, str]] = []
+    with service_errors(), open_uow(db, readonly=True) as uow:
+        held = analysis.provider()
+        for path in _files(directory):
+            text, reason = _read(path)
+            if text is None:
+                problems.append((path.name, reason or "is not readable"))
+                continue
+            try:
+                doc = analysis.parse_content(text)
+            except InvalidSchemaPackageError as exc:
+                problems.append((path.name, str(exc)))
+                continue
+            if path.name != f"{doc.package}@{doc.version}.yaml":
+                problems.append((path.name, "name does not match its package and version"))
+                continue
+            row = registry.find_package(uow.conn(), doc.package, doc.version)
+            if row is None:
+                in_force = held.registry().origin(doc.package, doc.version) is not None
+                state = "skipped" if in_force else "draft"
+            elif row.content == text:
+                state = "unchanged"
+            else:
+                problems.append((path.name, "exists with other text"))
+                continue
+            triples.append((doc, text, state))
+
+    def tally(drafted: int, unchanged: int, skipped: int, bad: int) -> str:
+        head = "dry run" if dry_run else "imported"
+        verb = "to draft" if dry_run else "drafted"
+        return f"{head} {drafted} {verb}, {unchanged} unchanged, {skipped} skipped, {bad} problems"
+
+    if problems:
+        for name, why in problems:
+            typer.echo(f"problem {name} {why}")
+        typer.echo(tally(0, 0, 0, len(problems)))
+        raise typer.Exit(code=1)
+
+    triples.sort(key=lambda t: (t[0].package, version_tuple(t[0].version)))
+    for doc, text, state in triples:
+        if state == "unchanged":
+            typer.echo(f"unchanged {doc.key()}")
+        elif state == "skipped":
+            typer.echo(f"skipped {doc.key()} in force already")
+        elif dry_run:
+            typer.echo(f"would draft {doc.key()}")
+        else:
+            with service_errors(), open_uow(db) as uow:
+                made = handle_draft_schema_package(
+                    uow,
+                    DraftSchemaPackage(
+                        actor=acting(db, actor),
+                        source=SOURCE,
+                        scope="company",
+                        content=text,
+                    ),
+                )
+            typer.echo(f"drafted {doc.key()} {made.stream_id}")
+    states = [state for _, _, state in triples]
+    typer.echo(
+        tally(
+            states.count("draft"),
+            states.count("unchanged"),
+            states.count("skipped"),
+            0,
+        )
+    )
 
 
 def register(app: typer.Typer) -> None:
