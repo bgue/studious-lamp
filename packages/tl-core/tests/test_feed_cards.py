@@ -179,3 +179,62 @@ def test_the_window_runs_from_the_first_event_not_the_latest() -> None:
         ("card:E1", "user:jo", "Record.Created", 2, 2),
         ("card:E3", "user:jo", "Record.Created", 1, 3),
     ]
+
+
+# --- a domain's feed policy (P1-I6; brief 9 M10: full, minimal or no card) -----------------------
+
+
+def issued(
+    seq: int, policy: object, text: object = "RFI P1-RFI-0001 answered", **more: Any
+) -> Event:
+    payload: dict[str, Any] = {"feed_policy": policy}
+    if text is not None:
+        payload["feed_text"] = text
+    return ev(seq, "Technical.Answered", payload=payload, **more)
+
+
+@pytest.mark.parametrize("policy", ["full", "minimal"])
+def test_a_policy_event_always_starts_a_card_of_its_own(policy: str) -> None:
+    assert disposition(None, issued(1, policy)) == "start"
+    same = open_card(event_type="Technical.Answered")
+    assert disposition(same, issued(2, policy, at=1)) == "start"  # never extends
+
+
+def test_policy_none_makes_no_card_and_leaves_the_open_card_alone() -> None:
+    assert disposition(open_card(), issued(2, "none", None, at=1)) == "ignore"
+    assert disposition(None, issued(1, "none", None)) == "ignore"
+
+
+@pytest.mark.parametrize(
+    ("policy", "text"),
+    [
+        ("secret", "x"),
+        ("full", None),
+        ("full", ""),
+        ("minimal", 7),
+        ("full", "x" * 301),
+        (None, "x"),
+    ],
+)
+def test_an_unusable_policy_makes_no_card(policy: object, text: object) -> None:
+    assert disposition(None, issued(1, policy, text)) == "ignore"
+
+
+def test_a_policy_card_is_about_its_own_record_and_only_it() -> None:
+    assert subjects_of(issued(1, "full", stream_id="01RFI")) == ["01RFI"]
+    assert subjects_of(issued(1, "minimal", stream_id="01RFI")) == ["01RFI"]
+    assert subjects_of(issued(1, "none", None, stream_id="01RFI")) == []
+
+
+def test_fold_closes_a_policy_card_at_once() -> None:
+    events = [
+        ev(1, "Technical.Answered", payload={"feed_policy": "full", "feed_text": "a"}),
+        ev(2, "Technical.Answered", payload={"feed_policy": "full", "feed_text": "b"}, at=1),
+        ev(3, "Technical.Answered", at=2),  # no policy: the generic rules, a card of its own
+        ev(4, "Technical.Answered", at=3),  # and this one extends it
+    ]
+    assert [(c[0], c[3]) for c in fold_cards(events)] == [
+        ("card:E1", 1),
+        ("card:E2", 1),
+        ("card:E3", 2),
+    ]

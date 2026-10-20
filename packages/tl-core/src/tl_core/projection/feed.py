@@ -34,6 +34,8 @@ from tl_core.feed.cards import (
     OpenCard,
     card_id_for,
     disposition,
+    policy_of,
+    policy_text,
     render_card_summary,
     subjects_of,
     to_us,
@@ -302,6 +304,9 @@ class FeedProjector:
             if open_card is not None:
                 conn.execute(_CLOSE_CARD_SQL, {"item_id": open_card.item_id})
             card_id = card_id_for(event.event_id)
+            by_policy = (
+                policy_of(event) is not None
+            )  # a domain's card: its own line, closed at once
             conn.execute(
                 _INSERT_ITEM_SQL,
                 {
@@ -311,14 +316,16 @@ class FeedProjector:
                     "actor": event.actor,
                     "occurred_at": iso_utc(event.recorded_at),
                     "seq": event.seq,
-                    "summary": render_card_summary(event.actor, event.event_type, 1),
+                    "summary": policy_text(event)
+                    if by_policy
+                    else render_card_summary(event.actor, event.event_type, 1),
                     "importance": "low",
                     "base_importance": "low",
                     "event_type": event.event_type,
                     "event_count": 1,
                     "first_us": to_us(event.recorded_at),
                     "first_seq": event.seq,
-                    "open_scope": event.scope,
+                    "open_scope": None if by_policy else event.scope,
                     "retracted": False,
                     "retract_reason": None,
                     "edit_count": 0,
