@@ -185,3 +185,36 @@ def test_a_malformed_stored_version_is_an_error_not_a_traceback(
     refused = export(env, str(out), ok=False)
     assert refused.output.startswith("error:") and "MAJOR.MINOR.PATCH" in refused.output
     assert not out.exists()
+
+
+def test_a_planted_link_in_place_of_the_temporary_file_is_not_followed(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    as_admin(env)
+    texts = two_published(env)
+    out = tmp_path / "out"
+    out.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("keep\n", encoding="utf-8")
+    for version in texts:
+        (out / f".{NAME}@{version}.yaml.tmp").symlink_to(outside)
+    export(env, str(out))
+    assert outside.read_text(encoding="utf-8") == "keep\n"
+    for version, text in texts.items():
+        target = out / f"{NAME}@{version}.yaml"
+        assert target.read_text(encoding="utf-8") == text and not target.is_symlink()
+
+
+def test_every_page_is_read_not_only_the_first(
+    env: dict[str, str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    as_admin(env)
+    two_published(env)
+    monkeypatch.setattr(registry, "MAX_PAGE", 1)
+    out = tmp_path / "out"
+    lines = export(env, str(out)).stdout.splitlines()
+    assert lines == [
+        f"wrote {NAME}@3.3.0.yaml",
+        f"wrote {NAME}@3.4.0.yaml",
+        f"exported 2 written, 0 unchanged to {out}",
+    ]
