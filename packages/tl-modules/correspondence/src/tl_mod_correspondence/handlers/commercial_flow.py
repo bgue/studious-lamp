@@ -1,4 +1,3 @@
-# ruff: noqa: F401, F841
 """Issue a Commercial item, record its assessment, close it, refer a dispute to the legal route.
 
 The author's commands are in ``commercial.py``; these are the rest of the life of a Commercial
@@ -13,9 +12,6 @@ item (workflow ``correspondence.commercial``). All of them are a document contro
 * ``CloseCommercial``: the item needs no more work; its open clocks are cancelled.
 * ``ReferCommercialToLegal``: a dispute leaves this domain for the legal route (a domain of a
   later phase); the item is Escalated and its clocks are cancelled.
-
-STUB (P1-I6-T04b): the functions with a STEPS comment are for you to write. When they are
-written, delete this paragraph, the STEPS comments and the `ruff: noqa` line at the top.
 """
 
 from __future__ import annotations
@@ -160,59 +156,123 @@ def handle_issue_commercial(uow: UnitOfWork, cmd: IssueCommercial) -> CommandRes
     ``InvalidItemError`` (no recipient, or an issue day before the day the contractor became
     aware), ``UnknownDomainError``, ``LetterRenderError`` and the date errors of ``resolve_date``.
     """
-    # STEPS
-    # 1. `require_controller_viewer()`; `cmd = correlated(cmd)`; `row =
-    #    open_commercial(uow, cmd, cmd.stream_id)`; `item, data = row.item, row.data`;
-    #    `require_state(item, ST_PM_APPROVAL)`.
-    # 2. `recipients = ", ".join(r.get("name") or r.get("email") or "" for r in
-    #    item.to).strip(", ")`; if it is empty raise `InvalidItemError(f"item
-    #    {item.number} has no recipient")`.
-    # 3. `definition = catalog.check_subtype(cmd.scope, DOMAIN_COMMERCIAL, item.subtype or
-    #    "")`; `day, date_reason = resolve_date(cmd.issued_on, cmd.date_reason, "the issue
-    #    day")`. If `data.aware_on is not None and day < data.aware_on` (ISO dates compare
-    #    as text) raise `InvalidItemError(f"the issue day {day} is before the day the
-    #    contractor became aware ({data.aware_on})")`: a bar cannot be met before it ran.
-    # 4. The template: `wanted = cmd.template`; `templates = [t for t in
-    #    definition.templates if wanted is None or t.code == wanted]`; when `wanted is
-    #    None` keep only those with `t.subtype == item.subtype`. If none is left raise
-    #    `LetterRenderError(f"domain {definition.code} has no letter template " +
-    #    (repr(wanted) if wanted else f"for subtype {item.subtype}"))`. `template =
-    #    templates[0]`.
-    # 5. `lines: list[str] = []`, then add in this order: if `data.estimated_value is not
-    #    None`, `f"Estimated value: {data.currency} {data.estimated_value}"`; if
-    #    `data.estimated_hours is not None`, `f"Estimated hours: {data.estimated_hours}"`;
-    #    if `data.schedule_impact_days is not None`, `f"Schedule impact:
-    #    {data.schedule_impact_days} days"`; if `data.schedule_impact_note`, that text; if
-    #    `data.entitlement_basis`, `f"Basis: {data.entitlement_basis}"`; if
-    #    `data.contract_clause_id is not None`, read `clause =
-    #    registry.get_clause(uow.conn(), data.contract_clause_id)` and, when it is not
-    #    None, `f"Given under clause {clause.contract}/{clause.clause_number}."`.
-    # 6. Inside `try`: `letter = compose_letter(template.header, template.footer,
-    #    LetterFields(number=item.number, date=day, subject=item.subject, to=recipients,
-    #    body=_letter_body(item, lines)))` and `pdf = render_pdf(letter,
-    #    title=f"{item.number} {item.subject}")`; `except LetterError as exc:` raise
-    #    `LetterRenderError(str(exc)) from exc`.
-    # 7. `stored = files.write_rendition(uow, actor=cmd.actor, source=cmd.source,
-    #    scope=cmd.scope, record_id=item.id, filename=f"{item.number}.pdf", data=pdf,
-    #    correlation_id=cmd.correlation_id or "")`.
-    # 8. Meet the time bar on the issue day: `met = close_clocks_of_item(uow, cmd,
-    #    item.id, how="met", day=day, reason="the notice was issued",
-    #    kinds=("time_bar",))`. Then start the clocks that wait for the assessment:
-    #    `clock_ids, clock_events = start_domain_clocks(uow, cmd, item, definition,
-    #    "issue", day)`.
-    # 9. `done = append(uow, cmd, item.id, item.record_type,
-    #    [NewEvent(event_type=CORR_ISSUED, payload={...})], expected=cmd.expected_version
-    #    or item.version)`. The payload keys: `issued_on` (`day`), `date_reason`,
-    #    `rendition_file_id` (`stored.file_id`), `rendition_sha256` (`stored.sha256`),
-    #    `template` (`template.code`), `delivery` (`"stub"`), `clock_ids`, and the feed
-    #    keys `**feed_fields(definition, full=f"{item.number} issued: {item.subject}",
-    #    minimal="A commercial notice was issued")`.
-    # 10. `issued = transition(uow, cmd, item.id, "issue")`; `waiting = transition(uow,
-    #    cmd, item.id, "await_assessment")`.
-    # 11. Return `CommandResult(stream_id=item.id, key=item.number,
-    #    version=waiting.version, events=[*met, *clock_events, *done.events,
-    #    *issued.events, *waiting.events])`.
-    raise NotImplementedError
+    require_controller_viewer()
+    cmd = correlated(cmd)
+    row = open_commercial(uow, cmd, cmd.stream_id)
+    item, data = row.item, row.data
+    require_state(item, ST_PM_APPROVAL)
+
+    recipients = ", ".join(r.get("name") or r.get("email") or "" for r in item.to).strip(", ")
+    if not recipients:
+        raise InvalidItemError(f"item {item.number} has no recipient")
+
+    definition = catalog.check_subtype(cmd.scope, DOMAIN_COMMERCIAL, item.subtype or "")
+    day, date_reason = resolve_date(cmd.issued_on, cmd.date_reason, "the issue day")
+    if data.aware_on is not None and day < data.aware_on:
+        raise InvalidItemError(
+            f"the issue day {day} is before the day the contractor became aware ({data.aware_on})"
+        )
+
+    wanted = cmd.template
+    templates = [t for t in definition.templates if wanted is None or t.code == wanted]
+    if wanted is None:
+        templates = [t for t in templates if t.subtype == item.subtype]
+    if not templates:
+        raise LetterRenderError(
+            f"domain {definition.code} has no letter template "
+            + (repr(wanted) if wanted else f"for subtype {item.subtype}")
+        )
+    template = templates[0]
+
+    lines: list[str] = []
+    if data.estimated_value is not None:
+        lines.append(f"Estimated value: {data.currency} {data.estimated_value}")
+    if data.estimated_hours is not None:
+        lines.append(f"Estimated hours: {data.estimated_hours}")
+    if data.schedule_impact_days is not None:
+        lines.append(f"Schedule impact: {data.schedule_impact_days} days")
+    if data.schedule_impact_note:
+        lines.append(data.schedule_impact_note)
+    if data.entitlement_basis:
+        lines.append(f"Basis: {data.entitlement_basis}")
+    if data.contract_clause_id is not None:
+        clause = registry.get_clause(uow.conn(), data.contract_clause_id)
+        if clause is not None:
+            lines.append(f"Given under clause {clause.contract}/{clause.clause_number}.")
+
+    try:
+        letter = compose_letter(
+            template.header,
+            template.footer,
+            LetterFields(
+                number=item.number,
+                date=day,
+                subject=item.subject,
+                to=recipients,
+                body=_letter_body(item, lines),
+            ),
+        )
+        pdf = render_pdf(letter, title=f"{item.number} {item.subject}")
+    except LetterError as exc:
+        raise LetterRenderError(str(exc)) from exc
+
+    stored = files.write_rendition(
+        uow,
+        actor=cmd.actor,
+        source=cmd.source,
+        scope=cmd.scope,
+        record_id=item.id,
+        filename=f"{item.number}.pdf",
+        data=pdf,
+        correlation_id=cmd.correlation_id or "",
+    )
+
+    met = close_clocks_of_item(
+        uow,
+        cmd,
+        item.id,
+        how="met",
+        day=day,
+        reason="the notice was issued",
+        kinds=("time_bar",),
+    )
+    clock_ids, clock_events = start_domain_clocks(uow, cmd, item, definition, "issue", day)
+
+    done = append(
+        uow,
+        cmd,
+        item.id,
+        item.record_type,
+        [
+            NewEvent(
+                event_type=CORR_ISSUED,
+                payload={
+                    "issued_on": day,
+                    "date_reason": date_reason,
+                    "rendition_file_id": stored.file_id,
+                    "rendition_sha256": stored.sha256,
+                    "template": template.code,
+                    "delivery": "stub",
+                    "clock_ids": clock_ids,
+                    **feed_fields(
+                        definition,
+                        full=f"{item.number} issued: {item.subject}",
+                        minimal="A commercial notice was issued",
+                    ),
+                },
+            )
+        ],
+        expected=cmd.expected_version or item.version,
+    )
+
+    issued = transition(uow, cmd, item.id, "issue")
+    waiting = transition(uow, cmd, item.id, "await_assessment")
+    return CommandResult(
+        stream_id=item.id,
+        key=item.number,
+        version=waiting.version,
+        events=[*met, *clock_events, *done.events, *issued.events, *waiting.events],
+    )
 
 
 def handle_assess_commercial(uow: UnitOfWork, cmd: AssessCommercial) -> CommandResult:
@@ -223,34 +283,59 @@ def handle_assess_commercial(uow: UnitOfWork, cmd: AssessCommercial) -> CommandR
     assessment), ``InvalidItemError`` (a value is missing for an agreed or partly agreed item, or
     the item states no currency) and the date errors of ``resolve_date``.
     """
-    # STEPS
-    # 1. `require_controller_viewer()`; `cmd = correlated(cmd)`; `row =
-    #    open_commercial(uow, cmd, cmd.stream_id)`; `item, data = row.item, row.data`;
-    #    `require_state(item, ST_AWAITING_ASSESSMENT)`.
-    # 2. If `cmd.status not in ASSESSMENT_STATUSES` raise `InvalidItemError(f"status is
-    #    one of {', '.join(ASSESSMENT_STATUSES)}")` (the model's `Literal` already says
-    #    it; keep the check).
-    # 3. If `cmd.status != "disputed"` and `cmd.assessed_value is None` raise
-    #    `InvalidItemError(f"an {cmd.status.replace('_', ' ')} item needs the assessed
-    #    value")`.
-    # 4. If `cmd.assessed_value is not None` and `data.currency is None` raise
-    #    `InvalidItemError(f"item {item.number} states no currency; update it before
-    #    recording a value")`.
-    # 5. `day, date_reason = resolve_date(cmd.assessed_on, cmd.date_reason, "the
-    #    assessment day")`; `definition = catalog.check_subtype(cmd.scope,
-    #    DOMAIN_COMMERCIAL, item.subtype or "")`.
-    # 6. `append(uow, cmd, item.id, item.record_type, [NewEvent(event_type=COMM_ASSESSED,
-    #    payload={...})], expected=cmd.expected_version or item.version)`. The payload
-    #    keys: `status`, `assessed_value` (from `cmd`), `assessed_on` (`day`),
-    #    `date_reason`, `note` (from `cmd`) and `**feed_fields(definition,
-    #    full=f"{item.number} assessed as {cmd.status.replace('_', ' ')}", minimal="A
-    #    commercial notice was assessed")`.
-    # 7. `moved = transition(uow, cmd, item.id, _MOVE[cmd.status], reason=cmd.note)`; `met
-    #    = close_clocks_of_item(uow, cmd, item.id, how="met", day=day, reason="assessed",
-    #    kinds=ASSESSMENT_CLOCKS)`.
-    # 8. Return `CommandResult(stream_id=item.id, key=item.number, version=moved.version,
-    #    events=[*moved.events, *met])`.
-    raise NotImplementedError
+    require_controller_viewer()
+    cmd = correlated(cmd)
+    row = open_commercial(uow, cmd, cmd.stream_id)
+    item, data = row.item, row.data
+    require_state(item, ST_AWAITING_ASSESSMENT)
+
+    if cmd.status not in ASSESSMENT_STATUSES:
+        raise InvalidItemError(f"status is one of {', '.join(ASSESSMENT_STATUSES)}")
+    if cmd.status != "disputed" and cmd.assessed_value is None:
+        raise InvalidItemError(f"an {cmd.status.replace('_', ' ')} item needs the assessed value")
+    if cmd.assessed_value is not None and data.currency is None:
+        raise InvalidItemError(
+            f"item {item.number} states no currency; update it before recording a value"
+        )
+
+    day, date_reason = resolve_date(cmd.assessed_on, cmd.date_reason, "the assessment day")
+    definition = catalog.check_subtype(cmd.scope, DOMAIN_COMMERCIAL, item.subtype or "")
+
+    append(
+        uow,
+        cmd,
+        item.id,
+        item.record_type,
+        [
+            NewEvent(
+                event_type=COMM_ASSESSED,
+                payload={
+                    "status": cmd.status,
+                    "assessed_value": cmd.assessed_value,
+                    "assessed_on": day,
+                    "date_reason": date_reason,
+                    "note": cmd.note,
+                    **feed_fields(
+                        definition,
+                        full=f"{item.number} assessed as {cmd.status.replace('_', ' ')}",
+                        minimal="A commercial notice was assessed",
+                    ),
+                },
+            )
+        ],
+        expected=cmd.expected_version or item.version,
+    )
+
+    moved = transition(uow, cmd, item.id, _MOVE[cmd.status], reason=cmd.note)
+    met = close_clocks_of_item(
+        uow, cmd, item.id, how="met", day=day, reason="assessed", kinds=ASSESSMENT_CLOCKS
+    )
+    return CommandResult(
+        stream_id=item.id,
+        key=item.number,
+        version=moved.version,
+        events=[*moved.events, *met],
+    )
 
 
 def handle_close_commercial(uow: UnitOfWork, cmd: CloseCommercial) -> CommandResult:
@@ -259,19 +344,24 @@ def handle_close_commercial(uow: UnitOfWork, cmd: CloseCommercial) -> CommandRes
     Raises ``ForbiddenError``, ``RecordNotFoundError``, ``ItemStateError`` (the item is not
     Agreed, Partially agreed or Disputed; or it is Disputed and no ``reason`` was given).
     """
-    # STEPS
-    # 1. `require_controller_viewer()`; `cmd = correlated(cmd)`; `row =
-    #    open_commercial(uow, cmd, cmd.stream_id)`; `item = row.item`;
-    #    `require_state(item, ST_AGREED, ST_PARTLY_AGREED, ST_DISPUTED)`.
-    # 2. If `item.state == ST_DISPUTED` and `cmd.reason` is None, empty or blank raise
-    #    `ItemStateError(f"item {item.number} is disputed; give the reason for closing
-    #    it")`.
-    # 3. `moved = transition(uow, cmd, item.id, "close", reason=cmd.reason,
-    #    expected=cmd.expected_version)`; `cancelled = close_clocks_of_item(uow, cmd,
-    #    item.id, how="cancelled", day=today(), reason=cmd.reason or "item closed")`.
-    # 4. Return `CommandResult(stream_id=item.id, key=item.number, version=moved.version,
-    #    events=[*moved.events, *cancelled])`.
-    raise NotImplementedError
+    require_controller_viewer()
+    cmd = correlated(cmd)
+    row = open_commercial(uow, cmd, cmd.stream_id)
+    item = row.item
+    require_state(item, ST_AGREED, ST_PARTLY_AGREED, ST_DISPUTED)
+    if item.state == ST_DISPUTED and not (cmd.reason and cmd.reason.strip()):
+        raise ItemStateError(f"item {item.number} is disputed; give the reason for closing it")
+
+    moved = transition(uow, cmd, item.id, "close", reason=cmd.reason, expected=cmd.expected_version)
+    cancelled = close_clocks_of_item(
+        uow, cmd, item.id, how="cancelled", day=today(), reason=cmd.reason or "item closed"
+    )
+    return CommandResult(
+        stream_id=item.id,
+        key=item.number,
+        version=moved.version,
+        events=[*moved.events, *cancelled],
+    )
 
 
 def handle_refer_commercial_to_legal(uow: UnitOfWork, cmd: ReferCommercialToLegal) -> CommandResult:
@@ -279,13 +369,21 @@ def handle_refer_commercial_to_legal(uow: UnitOfWork, cmd: ReferCommercialToLega
 
     Raises ``ForbiddenError``, ``RecordNotFoundError`` and ``ItemStateError`` (not Disputed).
     """
-    # STEPS
-    # 1. `require_controller_viewer()`; `cmd = correlated(cmd)`; `row =
-    #    open_commercial(uow, cmd, cmd.stream_id)`; `item = row.item`;
-    #    `require_state(item, ST_DISPUTED)`.
-    # 2. `moved = transition(uow, cmd, item.id, "escalate", reason=cmd.reason,
-    #    expected=cmd.expected_version)`; `cancelled = close_clocks_of_item(uow, cmd,
-    #    item.id, how="cancelled", day=today(), reason="referred to the legal route")`.
-    # 3. Return `CommandResult(stream_id=item.id, key=item.number, version=moved.version,
-    #    events=[*moved.events, *cancelled])`.
-    raise NotImplementedError
+    require_controller_viewer()
+    cmd = correlated(cmd)
+    row = open_commercial(uow, cmd, cmd.stream_id)
+    item = row.item
+    require_state(item, ST_DISPUTED)
+
+    moved = transition(
+        uow, cmd, item.id, "escalate", reason=cmd.reason, expected=cmd.expected_version
+    )
+    cancelled = close_clocks_of_item(
+        uow, cmd, item.id, how="cancelled", day=today(), reason="referred to the legal route"
+    )
+    return CommandResult(
+        stream_id=item.id,
+        key=item.number,
+        version=moved.version,
+        events=[*moved.events, *cancelled],
+    )
