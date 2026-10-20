@@ -28,6 +28,7 @@ from tl_core.integration.rules.service import (
     handle_revise_rule,
 )
 from tl_core.services import proposals
+from tl_core.services.errors import ProposalNotFoundError
 from tl_mod_correspondence.names import COMMERCIAL_TABLE
 from tl_mod_correspondence.testing import CONTROLLER, CorrWorld, frozen_today
 
@@ -47,7 +48,12 @@ def harness(parity_harness: Harness) -> Harness:
 def parity_accounts(harness: Harness) -> None:
     """A document controller, a user and an admin (the rule's creator)."""
     with harness.backend(False) as uow:
-        for name, role in (("ctl", "document_controller"), ("bob", "user"), ("boss", "admin")):
+        for name, role in (
+            ("ctl", "document_controller"),
+            ("bob", "user"),
+            ("boss", "admin"),
+            ("u", "user"),
+        ):
             accounts.create_account(
                 uow, username=name, display_name=name.title(), kind="person", roles=[role],
                 password=prepare_password("correct horse battery"), by="svc:test",
@@ -100,9 +106,18 @@ def run_rules(harness: Harness) -> Any:
     return RulesWorker(harness.backend, command_runner()).run_until_idle()
 
 
-def pending(harness: Harness) -> list[Any]:
-    with harness.backend(True) as uow:
+def pending(harness: Harness, viewer: Any = None) -> list[Any]:
+    """The proposals the viewer reads (the plain user's viewer when none is given)."""
+    with harness.backend(True) as uow, cf.use_viewer(viewer or cf.LOWEST):
         return proposals.list_proposals(uow.conn(), SCOPE, status=None)
+
+
+def failure_events(corr: CorrWorld) -> list[str]:
+    """Every stored `Proposal.Failed` payload, as text (what the event log shows)."""
+    rows = corr.rows(
+        "SELECT payload AS payload_json FROM events WHERE event_type = 'Proposal.Failed'"
+    )
+    return [str(r["payload_json"]) for r in rows]
 
 
 def commercial_items(corr: CorrWorld) -> int:
@@ -155,7 +170,10 @@ def test_an_answer_with_no_impact_is_proposed_but_cannot_be_accepted(
         done = proposals.accept_or_fail(
             harness.backend, proposal_id=proposal.proposal_id, by="user:ctl", holds=HOLDS
         )
-    assert done.status == "failed" and "states no cost or schedule impact" in (done.reason or "")
+    # a module's refusal is stored as its class and a fixed sentence, never its free text
+    assert done.status == "failed" and done.reason == (
+        "InvalidItemError: the module refused the command"
+    )
     assert commercial_items(corr) == 0
 
 
@@ -241,3 +259,107 @@ def test_raise_rfi_in_a_thread_previews_a_real_rfi_of_the_module(
     assert isinstance(found, DispatchPreview), found
     assert found.problems == [] and found.can_dispatch
     assert [p.command_type for p in found.planned] == ["RaiseTechnical"]
+
+
+def accept(harness: Harness, proposal_id: str) -> Any:
+    with cf.use_viewer(CONTROLLER):
+        return proposals.accept_or_fail(
+            harness.backend, proposal_id=proposal_id, by="user:ctl", holds=HOLDS
+        )
+
+
+def propose_again(harness: Harness, item_id: str) -> str:
+    """A second proposal for the same RFI, as the rule would make after a reissue."""
+    from tl_core.integration.automation import wants_current_version  # noqa: F401
+    from tl_mod_correspondence.handlers.escalate import EscalateTechnical
+
+    with harness.backend(False) as uow:
+        made = proposals.propose_for_rule(
+            uow,
+            proposer="svc:rule-rfi-escalation",
+            command=EscalateTechnical(
+                actor="svc:rule-rfi-escalation", source="proposal", scope=SCOPE,
+                stream_id=item_id, require_impact=True,
+            ),
+            summary="Again",
+            trigger_event_id="01J9Z6Q4W3X2Y1V0T9S8R7Q6PB",
+            correlation_id="01J9Z6Q4W3X2Y1V0T9S8R7Q6PC",
+        )  # fmt: skip
+    return made.proposal_id
+
+
+def test_a_failed_escalation_names_no_restricted_number_and_no_result_id_to_a_user(
+    harness: Harness, corr: CorrWorld, parity_accounts: None
+) -> None:
+    """F1 and F2 of the security review: the early warning is restricted; a plain user reads the
+    proposals, their reasons and the failure events and finds neither its number nor its id."""
+    install(harness)
+    item_id = answered(corr)
+    run_rules(harness)
+    [first] = pending(harness)
+    done = accept(harness, first.proposal_id)
+    assert done.status == "accepted" and done.result_stream_id is not None
+    notice_id, notice_number = done.result_stream_id, "P123-EW-0001"
+
+    second = propose_again(harness, item_id)
+    failed = accept(harness, second)
+    assert failed.status == "failed"
+    assert failed.reason == "InvalidItemError: the module refused the command"
+
+    seen = json.dumps([v.model_dump(mode="json") for v in pending(harness)])
+    assert "was escalated already" not in seen  # a module's text is not stored at all
+    for secret in (notice_number, notice_id):
+        assert secret not in seen
+        assert all(secret not in event for event in failure_events(corr))
+    # the controller reads the id of what the accepted proposal made
+    [accepted] = [v for v in pending(harness, CONTROLLER) if v.proposal_id == first.proposal_id]
+    assert accepted.result_stream_id == notice_id
+    # and the plain user still sees that the proposal was accepted, without the id
+    [plain] = [v for v in pending(harness) if v.proposal_id == first.proposal_id]
+    assert plain.status == "accepted" and plain.result_stream_id is None
+
+
+def test_the_escalation_message_of_the_command_names_no_other_number(
+    harness: Harness, corr: CorrWorld, parity_accounts: None
+) -> None:
+    from tl_mod_correspondence.errors import InvalidItemError
+
+    item_id = answered(corr)
+    with cf.use_viewer(CONTROLLER):
+        corr.escalate(item_id)
+        with pytest.raises(InvalidItemError) as raised:
+            corr.escalate(item_id)
+    assert "P123-EW-0001" not in str(raised.value) and "escalated already" in str(raised.value)
+
+
+def test_a_privileged_rfi_never_fires_the_rule(
+    harness: Harness, corr: CorrWorld, parity_accounts: None
+) -> None:
+    install(harness)
+    with frozen_today(MONDAY):
+        made = corr.raise_technical(required_by=DUE)
+        corr.submit_technical(made.stream_id)
+        with cf.use_viewer(CONTROLLER):
+            corr.set_class(made.stream_id, "privileged", grant=["user:ctl"])
+            corr.issue_technical(made.stream_id)
+            corr.answer_technical(made.stream_id, cost_impact="yes")
+    stats = run_rules(harness)
+    assert pending(harness, CONTROLLER) == [] and stats.hidden >= 1
+
+
+def test_an_rfi_reclassified_after_its_proposal_hides_the_proposal_from_a_user(
+    harness: Harness, corr: CorrWorld, parity_accounts: None
+) -> None:
+    install(harness)
+    item_id = answered(corr)
+    run_rules(harness)
+    [proposal] = pending(harness)  # internal when the rule fired: a user reads it
+    with frozen_today(MONDAY), cf.use_viewer(CONTROLLER):
+        corr.set_class(item_id, "restricted")
+    assert pending(harness) == []  # it carries the id of a record the user may no longer read
+    with harness.backend(True) as uow, cf.use_viewer(cf.LOWEST):
+        with pytest.raises(ProposalNotFoundError):
+            proposals.get_proposal(uow.conn(), proposal.proposal_id)
+    [seen] = pending(harness, CONTROLLER)
+    assert seen.proposal_id == proposal.proposal_id and seen.status == "pending"
+    assert accept(harness, proposal.proposal_id).status == "accepted"

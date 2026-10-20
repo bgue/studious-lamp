@@ -694,3 +694,6 @@ A text is as wide as its widest character: one emoji made the typed JSON of a le
 - **L-P1-I6-11** · 2026-10-20 · tags: tickets
   A stub's header paragraph (`STUB (...)`) and its `ruff: noqa` line are outside the ticket's one-function boundary, so an implementer leaves them in; the supervisor removes both at the merge. Say so in the ticket's Steps or the merge checklist.
   Evidence: `docs/reports/P1-I6/P1-I6-T05b.md` deviation 2, removed in a4d0131. Status: active
+- **L-P1-I6-12** · 2026-10-20 · tags: tests, cli
+  A CLI test that looks for a phrase in `stderr` breaks when the error box wraps a long path: the phrase is split across lines and `│` characters, and it depends on the length of the pytest base temp dir (a custom `--basetemp` made it fail where the default did not). Compare the words (`" ".join(stderr.replace("│", " ").split())`) when the message holds a path.
+  Evidence: `test_the_export_file_is_private_and_is_never_replaced_or_followed_by_accident`. Status: active

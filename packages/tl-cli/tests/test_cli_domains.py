@@ -249,7 +249,9 @@ def test_the_export_file_is_private_and_is_never_replaced_or_followed_by_acciden
     assert out.stat().st_mode & 0o777 == 0o600  # restricted data: the owner only
     out.write_text("keep me")
     refused = run(cast.dora, "comm", "export", *PROJECT, "--out", str(out), ok=False)
-    assert "exists already; use --force" in refused.stderr and out.read_text() == "keep me"
+    # the error box wraps a long path: read the words, not the lines
+    words = " ".join(refused.stderr.replace("│", " ").split())
+    assert "exists already; use --force" in words and out.read_text() == "keep me"
     out.chmod(0o644)  # an older, looser file
     run(cast.dora, "comm", "export", *PROJECT, "--out", str(out), "--force")
     assert out.read_text().startswith("number,kind,title")

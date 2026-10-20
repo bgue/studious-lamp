@@ -356,8 +356,15 @@ def _readable(conn: Connection, views: list[ProposalView]) -> list[ProposalView]
     every: set[str] = set()
     for ids in carried.values():
         every |= ids
-    hidden = confidentiality.hidden_among(conn, sorted(every))
-    return [v for v in views if not (carried[v.proposal_id] & hidden)]
+    results = {v.result_stream_id for v in views if v.result_stream_id}
+    hidden = confidentiality.hidden_among(conn, sorted(every | results))
+    shown = [v for v in views if not (carried[v.proposal_id] & hidden)]
+    # What an accepted command made may be a record the viewer cannot read (a restricted notice
+    # made from an RFI): the proposal stays visible, the id of the new record does not.
+    return [
+        v.model_copy(update={"result_stream_id": None}) if v.result_stream_id in hidden else v
+        for v in shown
+    ]
 
 
 def get_proposal(conn: Connection, proposal_id: str, *, scope: str | None = None) -> ProposalView:
@@ -952,6 +959,13 @@ def accept_or_fail(
         raise
     except (ServiceError, ConcurrencyError, ValidationError) as exc:
         error = f"{type(exc).__name__}: {exc}"
+        failure = exc
     with factory(readonly=False) as uow:
-        _pending(uow, proposal_id)  # decided meanwhile (a race on the proposal stream): not ours
+        # decided meanwhile (a race on the proposal stream): not ours
+        row = _pending(uow, proposal_id)
+        if row.command_type not in CORE_ACCESS:
+            # A module's refusal text may name a record the proposal's readers cannot read (the
+            # number of a restricted notice): the stored reason is the error class and a fixed
+            # sentence (ADR-0016, ADR-0019); the controller reads the item to see why.
+            error = f"{type(failure).__name__}: the module refused the command"
         return fail_proposal(uow, proposal_id=proposal_id, by=by, error=error, source=source)

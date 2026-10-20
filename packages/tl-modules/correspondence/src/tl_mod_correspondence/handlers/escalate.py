@@ -104,7 +104,9 @@ def handle_escalate_technical(uow: UnitOfWork, cmd: EscalateTechnical) -> Comman
     earlier = registry_domain.derived_from_commercial(uow.conn(), item.id)
     live = [e.item.number for e in earlier if e.item.state != "Void"]
     if live:
-        raise InvalidItemError(f"item {item.number} was escalated already, as {', '.join(live)}")
+        # No number of the notice: the message can be stored (a failed proposal) and read by
+        # someone who may not read the restricted notice (ADR-0016, ADR-0019).
+        raise InvalidItemError(f"item {item.number} was escalated already")
     definition = catalog.check_subtype(cmd.scope, DOMAIN_COMMERCIAL, cmd.subtype)
     named, clearances = inherited_class(uow, item, cmd.actor)
     if named == "internal":  # the domain's own class applies, never lower
