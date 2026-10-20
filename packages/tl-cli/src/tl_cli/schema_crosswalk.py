@@ -1,0 +1,118 @@
+"""`tl schema crosswalk --project P [--list L] [--json]`: project values and their company values.
+
+A project may add values to an `extensible` code list (each must map to a company value or to
+`other`) and owns a `project_defined` list outright (a mapping is optional, and keeps cross-project
+reports working). The command lists every value the project owns and the company value it maps
+to, and flags the ones that map to nothing. A `closed` list has no project values. Brief 6.3.
+"""
+
+from __future__ import annotations
+
+import json
+from typing import Annotated, Literal
+
+import typer
+from pydantic import BaseModel
+from tl_adapters.db import DbTarget
+from tl_mod_schemareg import analysis
+from tl_schema.effective import EffectiveSchema
+
+from tl_cli.derive_support import cell, service_errors
+from tl_cli.session import require_session
+
+Status = Literal["mapped", "other", "unmapped"]
+
+
+class CrosswalkRow(BaseModel):
+    pset: str  # "valve_data"
+    property: str  # "body_material", or "x.fat_witness_by" for a custom property
+    code_list: str | None  # "MaterialCode"
+    policy: str  # "extensible" or "project_defined"
+    code: str  # the project's value
+    label: str
+    maps_to: str | None  # the company value, "other", or None
+    status: Status
+
+
+def crosswalk_rows(schema: EffectiveSchema, list_name: str | None = None) -> list[CrosswalkRow]:
+    """The values a project owns in the effective schema `schema`, with where each maps.
+
+    Only `extensible` and `project_defined` lists are read; an `extensible` list's company values
+    (no crosswalk) are not rows. With `list_name`, only the list of that name. Each row prints as
+    `<pset>.<property>  <code_list>  <code>  <maps_to>  <status>`.
+    """
+    rows: list[CrosswalkRow] = []
+    for pset in schema.psets.values():
+        for prop in pset.all_properties():
+            if prop.enum_values is None:
+                continue
+            if prop.value_list_policy not in ("extensible", "project_defined"):
+                continue
+            if list_name is not None and prop.code_list != list_name:
+                continue
+            for value in prop.enum_values:
+                if prop.value_list_policy == "extensible" and value.crosswalk is None:
+                    continue
+                status: Status
+                if value.crosswalk is None:
+                    status = "unmapped"
+                elif value.crosswalk == "other":
+                    status = "other"
+                else:
+                    status = "mapped"
+                rows.append(
+                    CrosswalkRow(
+                        pset=pset.name,
+                        property=prop.relative_key(),
+                        code_list=prop.code_list,
+                        policy=prop.value_list_policy,
+                        code=value.code,
+                        label=value.label,
+                        maps_to=value.crosswalk,
+                        status=status,
+                    )
+                )
+    return rows
+
+
+def crosswalk(
+    ctx: typer.Context,
+    project: Annotated[str, typer.Option("--project", help="The project, for example P123.")],
+    list_name: Annotated[
+        str | None, typer.Option("--list", help="Only this code list, for example MaterialCode.")
+    ] = None,
+    as_json: Annotated[bool, typer.Option("--json", help="The rows as JSON.")] = False,
+) -> None:
+    """List each project value and the company value it maps to; unmapped ones are flagged.
+
+    Lines: `crosswalk project:<P>`, then one line per row,
+    `<pset>.<property>  <code_list>  <code>  <maps_to>  <status>` (a dash for none), then
+    `values <n>, unmapped <u>`. With `--json` one object: `{"scope": ..., "unmapped": u,
+    "rows": [...]}` (the rows as `CrosswalkRow` fields), indented by 2.
+    """
+    db: DbTarget = ctx.obj
+    require_session(db)
+    with service_errors():
+        schema = analysis.provider().effective(f"project:{project}")
+        rows = crosswalk_rows(schema, list_name)
+    unmapped = sum(1 for row in rows if row.status == "unmapped")
+    if as_json:
+        body = {
+            "scope": schema.scope,
+            "unmapped": unmapped,
+            "rows": [row.model_dump() for row in rows],
+        }
+        typer.echo(json.dumps(body, indent=2))
+        return
+    typer.echo(f"crosswalk {schema.scope}")
+    for row in rows:
+        typer.echo(
+            f"{row.pset}.{row.property}  {cell(row.code_list)}  {cell(row.code)}  "
+            f"{cell(row.maps_to)}  {row.status}"
+        )
+    typer.echo(f"values {len(rows)}, unmapped {unmapped}")
+
+
+def register(app: typer.Typer) -> None:
+    """Add the command to `tl schema`."""
+    app.command("crosswalk")(crosswalk)

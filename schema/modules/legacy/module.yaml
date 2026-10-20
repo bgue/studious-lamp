@@ -1,0 +1,25 @@
+id: https://example.org/throughline/modules/legacy
+name: tl_mod_legacy
+title: "The legacy loaders module (brief 29.6, loader runs)"
+description: >-
+  A `LoadRun` is one load of one legacy file into a project: the file from the incumbent system
+  (a spreadsheet or CSV export), the rows read from it, their profile, the mapping and dry run, the
+  records the load wrote, and the reconciliation against the file. The run is the job record of the
+  load, like a schedule snapshot is of its build: the file and the results are files in slots of
+  the run, and the events carry counts, hashes and the ids of the records written, never the rows.
+
+  Storage rule (ADR-0010): every record of this module is a row of `cur_core_record` and a row of
+  the module's own current-state table, joined on `id`. Module spec: docs/modules/legacy/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - load_run
+  - events
+default_range: string
+annotations:
+  tl:module: legacy

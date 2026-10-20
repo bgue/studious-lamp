@@ -25,12 +25,18 @@ import time
 from collections.abc import Callable
 
 from sqlalchemy import text
-from tl_schema.packages import PackageDoc
+from tl_schema.packages import PackageDoc, WaiverDef
 
 from tl_core.extypes import registry, settings_link
 from tl_core.extypes.loader import LoadedType, TypeLoader, default_loader
 from tl_core.extypes.types import TypeView
-from tl_core.schema_provider import DirectorySchemaProvider, get_provider
+from tl_core.modules import schema_sources
+from tl_core.schema_provider import (
+    DirectorySchemaProvider,
+    RegistrySource,
+    RegistryState,
+    get_provider,
+)
 
 DEFAULT_TTL_SECONDS = 1.0
 
@@ -137,6 +143,28 @@ class LedgerExtensionSource:
             return dict(self._unavailable)
 
 
+class _Merged:
+    """Zero or several registry sources as one (only one module provides one today)."""
+
+    def __init__(self, sources: list[RegistrySource]) -> None:
+        self._sources = sources
+
+    def token(self) -> str:
+        return "|".join(s.token() for s in self._sources)
+
+    def snapshot(self) -> RegistryState:
+        documents = [d for s in self._sources for d in s.snapshot().documents]
+        pins: dict[str, dict[str, str]] = {}
+        waivers: dict[str, list[WaiverDef]] = {}
+        for source in self._sources:
+            state = source.snapshot()
+            for scope, held in state.pins.items():
+                pins.setdefault(scope, {}).update(held)
+            for scope, items in state.waivers.items():
+                waivers.setdefault(scope, []).extend(items)
+        return RegistryState(documents=documents, pins=pins, waivers=waivers)
+
+
 def attach(
     factory: registry.UowFactory, *, ttl: float = DEFAULT_TTL_SECONDS, prime: bool = False
 ) -> LedgerExtensionSource | None:
@@ -150,6 +178,12 @@ def attach(
         return None
     source = LedgerExtensionSource(factory, ttl=ttl)
     provider.attach_extensions(source)
+    # The schema registry module (P1-I8) adds its published packages, pins and waivers the same way.
+    registries = [make(factory) for make in schema_sources()]
+    merged = (
+        registries[0] if len(registries) == 1 else (_Merged(registries) if registries else None)
+    )
+    provider.attach_registry(merged)
     if prime:
         # The settings keys of the registered types, before the first read. It opens the ledger,
         # which a SQLite adapter creates when the file is missing: only for a ledger that exists.

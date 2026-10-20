@@ -55,7 +55,10 @@ def test_sync_reports_the_range_the_snapshot_and_the_silver_rows(env: dict[str, 
     lines = result.stdout.splitlines()
     n = 2 + account_events(env)  # the signed-in test account of a Postgres ledger is an event too
     assert lines[0].startswith(f"synced seq 1..{n} ({n} events) in snapshot ")
-    assert lines[1] == "silver rows: cur_core_record 2, links 0, pset_values 0"
+    assert lines[1] == (
+        "silver rows: cur_core_record 2, links 0, pset_values 0, "
+        "cur_documents_document 0, cur_documents_revision 0"
+    )
 
 
 def test_a_second_sync_with_nothing_new_makes_no_snapshot(env: dict[str, str]) -> None:
@@ -72,7 +75,10 @@ def test_sync_is_incremental(env: dict[str, str]) -> None:
     lines = result.stdout.splitlines()
     last = 3 + account_events(env)
     assert lines[0].startswith(f"synced seq {last}..{last} (1 events) in snapshot ")
-    assert lines[1] == "silver rows: cur_core_record 1, links 0, pset_values 0"
+    assert lines[1] == (
+        "silver rows: cur_core_record 1, links 0, pset_values 0, "
+        "cur_documents_document 0, cur_documents_revision 0"
+    )
 
 
 def test_status_after_a_sync_shows_the_as_of_seq_and_row_counts(env: dict[str, str]) -> None:
@@ -85,6 +91,8 @@ def test_status_after_a_sync_shows_the_as_of_seq_and_row_counts(env: dict[str, s
     assert lines[1] == "syncs 1"
     assert lines[2:] == [
         "cur_core_record 2",
+        "cur_documents_document 0",
+        "cur_documents_revision 0",
         f"events {n}",
         "links 0",
         "pset_values 0",
@@ -171,3 +179,38 @@ def test_rebuild_needs_yes_and_then_reloads_everything(env: dict[str, str]) -> N
     assert result.stdout.splitlines()[0].startswith(f"synced seq 1..{n} ({n} events) in snapshot ")
     assert run(env, "lake", "status").stdout.splitlines()[1] == "syncs 1"
     assert head(env) == n
+
+
+def test_mart_ls_and_show_read_a_mart(env: dict[str, str]) -> None:
+    run(env, "lake", "sync")
+    empty = run(env, "lake", "mart", "ls")
+    assert empty.exit_code == 0, empty.output
+    assert empty.stdout.strip() == ""  # no document or schedule yet: no mart
+    missing = run(env, "lake", "mart", "show", "mart_document_status")
+    assert missing.exit_code == 1
+    assert "no mart 'mart_document_status'" in missing.output
+    refused = run(env, "lake", "mart", "show", "cur_core_record")
+    assert refused.exit_code == 1 and "no mart" in refused.output
+
+
+def test_mart_show_prints_the_document_status_mart(
+    env: dict[str, str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from doccli_support import world
+    from tl_core import confidentiality as cf
+
+    made = world(env, tmp_path)
+    with cf.system_view():
+        made.issued_document("ISO-1")
+        made.register("ISO-2", confidentiality="restricted")
+        made.create_revision("ISO-2")
+        made.attach("ISO-2", "A")
+        made.issue("ISO-2", "A", "IFR")
+    assert run(env, "lake", "sync").exit_code == 0
+    listed = run(env, "lake", "mart", "ls").stdout.splitlines()
+    assert "mart_document_status 1" in listed
+    shown = run(env, "lake", "mart", "show", "mart_document_status")
+    assert shown.exit_code == 0, shown.output
+    header, row = shown.stdout.splitlines()[:2]
+    assert header.startswith("scope | discipline | doc_type | status | documents")
+    assert " | 1 | " in row  # the restricted document is in no count

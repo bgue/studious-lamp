@@ -38,6 +38,7 @@ APP_COMMANDS: tuple[AppCommand, ...] = (
         "Ctrl+E",
         "integration",
     ),
+    AppCommand("schema", "Schema workbench: packages, review and publish", "Ctrl+O", "schema"),
     AppCommand("back", "Back to the previous record", "Alt+Left", "back"),
     AppCommand("forward", "Forward to the next record", "Alt+Right", "forward"),
     AppCommand("toggle-nav", "Show or hide the navigation panel", "F2", "toggle_nav"),

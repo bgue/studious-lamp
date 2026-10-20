@@ -98,6 +98,7 @@ class TlApp(App[None]):
         Binding("f11", "derived", "Derived documents", show=False),
         Binding("ctrl+r", "review", "Review queue", show=False),
         Binding("ctrl+e", "integration", "Integration registry", show=False),
+        Binding("ctrl+o", "schema", "Schema workbench", show=False),
         Binding("f12", "schedules", "Schedules", show=False),
         Binding("ctrl+g", "domains", "RFIs and notices", show=False),
         Binding("alt+left", "back", "Back", show=False),
@@ -668,6 +669,14 @@ class TlApp(App[None]):
         from tl_tui.widgets.integration_screen import IntegrationScreen
 
         self.push_screen(IntegrationScreen(self.client, self.scope, self.actor))
+
+    def action_schema(self) -> None:
+        """The schema workbench: packages, lint, diff, impact, review and publish (P1-I8)."""
+        if self._modal_open():
+            return
+        from tl_tui.widgets.schema_screen import SchemaWorkbenchScreen
+
+        self.push_screen(SchemaWorkbenchScreen(self.client, self.scope, self.actor))
 
     def action_help(self) -> None:
         # The app-level `F1` and `?` bindings stay live under a modal; help must not open over

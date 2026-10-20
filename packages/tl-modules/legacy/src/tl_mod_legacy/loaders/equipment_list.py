@@ -1,0 +1,25 @@
+"""The loader `equipment-list`: the equipment list of the incumbent system (P1-I8-T07b)."""
+
+from __future__ import annotations
+
+from tl_mod_legacy.loaders import read_mapping
+from tl_mod_legacy.model import LoaderDef
+
+
+def loader() -> LoaderDef:
+    """One row per equipment tag: number, description and the type that names the tag class.
+
+    The workbook has the sheet ``Equipment List`` and two title rows above the header, so the
+    header is on row 3. The mapping template is ``mappings/equipment-list.yaml``.
+    """
+    return LoaderDef(
+        name="equipment-list",
+        system="equip",
+        table="list",
+        target="tags",
+        description="Equipment list of the incumbent system (workbook).",
+        mapping_text=read_mapping("equipment-list.yaml"),
+        file_types=("xlsx",),
+        sheet="Equipment List",
+        header_row=3,
+    )

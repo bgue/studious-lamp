@@ -90,7 +90,7 @@ if [ "$seeded" = 1 ]; then
   out="$(tl lake sync)"
   echo "$out"
   expect "$out" '^synced seq [0-9]+\.\.[0-9]+ \([0-9]+ events\) in snapshot [0-9]+$'
-  expect "$out" 'silver rows: cur_core_record 1, links 0, pset_values 2$'
+  expect "$out" 'silver rows: cur_core_record 1, links 0, pset_values 2, cur_documents_document 0, cur_documents_revision 0$'
 
   step "time travel: the records now, and as of the first snapshot"
   now="$(tl lake query "SELECT count(*) AS records FROM cur_core_record")"

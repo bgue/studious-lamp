@@ -1,0 +1,32 @@
+import ast, textwrap
+
+def stub_bodies(src, steps):
+    tree = ast.parse(src)
+    lines = src.split("\n")
+    edits = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name in steps:
+            first = node.body[0]
+            has_doc = (isinstance(first, ast.Expr) and isinstance(getattr(first, "value", None), ast.Constant)
+                       and isinstance(first.value.value, str))
+            start = (node.body[1].lineno if has_doc else node.body[0].lineno) - 1
+            end = node.end_lineno
+            indent = " " * (node.col_offset + 4)
+            paras = steps[node.name]
+            new = [indent + "# STEPS"]
+            for i, para in enumerate(paras, 1):
+                text = para if len(paras) == 1 else f"{i}. {para}"
+                new.extend(textwrap.wrap(text, width=96 - len(indent), initial_indent=indent + "# ",
+                                         subsequent_indent=indent + "#    "))
+            new.append(indent + 'raise NotImplementedError("STEPS: see the comments")')
+            edits.append((start, end, new))
+    for start, end, new in sorted(edits, reverse=True):
+        lines[start:end] = new
+    return "\n".join(lines)
+
+def make(ref, out, steps, notice_after, notice):
+    src = open(ref).read()
+    s = stub_bodies(src, steps)
+    s = s.replace(notice_after, notice_after + notice, 1)
+    s = "# ruff: noqa: F401\n# pyright: reportUnusedImport=false\n" + s
+    open(out, "w").write(s)

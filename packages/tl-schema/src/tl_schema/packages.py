@@ -112,12 +112,24 @@ class PropertyDef(StrictModel):
     def _unit_from_string(cls, value: Any) -> Any:
         return {"ucum": value} if isinstance(value, str) else value
 
+    @field_validator("default")
+    @classmethod
+    def _default_is_one_value(cls, value: Any) -> Any:
+        return _one_value(value, "default")
+
     @field_validator("pattern")
     @classmethod
     def _pattern_compiles(cls, value: str | None) -> str | None:
         if value is not None:
             re.compile(value)
         return value
+
+
+def _one_value(value: Any, where: str) -> Any:
+    """A default is a single text, number, truth value or nothing: never a list or a mapping."""
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    raise ValueError(f"{where} must be a single value, not a {type(value).__name__}")
 
 
 class CustomSectionDef(StrictModel):
@@ -157,6 +169,13 @@ class ExtendsDef(StrictModel):
     custom: dict[str, PropertyDef] = {}  # custom-section properties, addressed under "x."
     defaults: dict[str, Any] = {}
     labels: dict[str, str] = {}
+
+    @field_validator("defaults")
+    @classmethod
+    def _defaults_are_single_values(cls, value: dict[str, Any]) -> dict[str, Any]:
+        for name, item in value.items():
+            _one_value(item, f"defaults.{name}")
+        return value
 
     @field_validator("ref")
     @classmethod

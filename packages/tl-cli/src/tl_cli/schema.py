@@ -22,6 +22,16 @@ from tl_schema.lint import lint_documents
 from tl_schema.packages import PackageDoc
 from tl_schema.registry import PackageError, PackageRegistry, default_schema_dir
 
+from tl_cli import (
+    schema_conf,
+    schema_crosswalk,
+    schema_export,
+    schema_gov,
+    schema_import,
+    schema_pkg,
+    schema_waiver,
+)
+
 app = typer.Typer(help="Inspect and check schema packages.", no_args_is_help=True)
 
 DirOption = Annotated[
@@ -135,3 +145,12 @@ def reload(ctx: typer.Context, directory: DirOption = None) -> None:
         typer.echo("unchanged")
     for event in events:
         typer.echo(f"recorded {event.scope} {str(event.payload['effective_schema_hash'])[:12]}")
+
+
+app.add_typer(schema_pkg.app, name="package")
+schema_gov.register(schema_pkg.app, app)
+schema_conf.register(app)
+app.add_typer(schema_waiver.app, name="waiver")
+schema_crosswalk.register(app)
+schema_export.register(app)
+schema_import.register(app)

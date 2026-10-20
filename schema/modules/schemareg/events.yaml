@@ -1,0 +1,279 @@
+id: https://example.org/throughline/modules/schemareg/events
+name: tl_mod_schemareg_events
+title: Schema registry module events
+description: >-
+  The ledger events of the schema registry module (brief 18.3), one class per event type, in the
+  same form as `schema/core/events.yaml`. A package, an adoption or a waiver is created by
+  `Record.Created` followed in the same append by its `*.Drafted`, `*.Pinned` or `*.Requested` event.
+  `SchemaPackage.Published` is a core event (`schema/core/events.yaml`); this module appends it on the
+  package's stream and its projector handles it.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+default_range: string
+annotations:
+  tl:module: schemareg
+
+classes:
+  SchemaPackageDraftedPayload:
+    is_a: EventPayload
+    description: >-
+      A package version was drafted. The content is the package YAML, at most 262144 bytes.
+    annotations:
+      tl:event_type: SchemaPackage.Drafted
+      tl:event_version: "1"
+    attributes:
+      package:
+        description: "Package name."
+        required: true
+      version:
+        description: "Package version."
+        required: true
+      kind:
+        description: "company, extension or project."
+        required: true
+      project:
+        description: "The project of an extension or project package, or null."
+      package_title:
+        description: "The title the package gives itself, or null."
+      content:
+        description: "The package YAML."
+        required: true
+      content_sha256:
+        description: "SHA-256 of the content."
+        required: true
+      changelog:
+        description: "What the author says changed, or null."
+      drafted_by:
+        description: "The actor that drafted it."
+        required: true
+    examples:
+      - value: "{\"changelog\": \"Adds seat_leak_class.\", \"content\": \"package: co.acme.engineering\\n\", \"content_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"drafted_by\": \"user:rgarcia\", \"kind\": \"company\", \"package\": \"co.acme.engineering\", \"package_title\": null, \"project\": null, \"version\": \"3.3.0\"}"
+  SchemaPackageRevisedPayload:
+    is_a: EventPayload
+    description: >-
+      The author changed the content of a draft. Any earlier analysis no longer holds.
+    annotations:
+      tl:event_type: SchemaPackage.Revised
+      tl:event_version: "1"
+    attributes:
+      content:
+        description: "The package YAML."
+        required: true
+      content_sha256:
+        description: "SHA-256 of the content."
+        required: true
+      package_title:
+        description: "The title the package gives itself, or null."
+      changelog:
+        description: "What the author says changed, or null."
+    examples:
+      - value: "{\"changelog\": null, \"content\": \"package: co.acme.engineering\\n\", \"content_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"package_title\": null}"
+  SchemaPackageAnalysedPayload:
+    is_a: EventPayload
+    description: >-
+      The classification and impact reports of the draft were made, for the content with the stated hash.
+    annotations:
+      tl:event_type: SchemaPackage.Analysed
+      tl:event_version: "1"
+    attributes:
+      base_ref:
+        description: "name@version the change was compared with, or null for a first version."
+      classification:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "The classification report."
+        required: true
+      classification_digest:
+        description: "The digest of the classification report."
+        required: true
+      worst_class:
+        description: "The worst class of the change."
+        required: true
+      impact:
+        range: Any
+        annotations:
+          tl:json: true
+        description: "The impact report."
+        required: true
+      impact_sha256:
+        description: "SHA-256 of the canonical JSON of the impact report."
+        required: true
+      content_sha256:
+        description: "The content hash the reports were made for."
+        required: true
+    examples:
+      - value: "{\"base_ref\": \"co.acme.engineering@3.2.0\", \"classification\": {\"worst\": \"additive\"}, \"classification_digest\": \"1111111111111111111111111111111111111111111111111111111111111111\", \"content_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"impact\": {\"sections\": []}, \"impact_sha256\": \"2222222222222222222222222222222222222222222222222222222222222222\", \"worst_class\": \"additive\"}"
+  SchemaPackageSubmittedPayload:
+    is_a: EventPayload
+    description: >-
+      The author sent the package to review.
+    annotations:
+      tl:event_type: SchemaPackage.Submitted
+      tl:event_version: "1"
+    attributes:
+      submitted_by:
+        description: "The actor that submitted it."
+        required: true
+      classification_digest:
+        description: "The digest of the classification report the reviewer will read."
+        required: true
+    examples:
+      - value: "{\"classification_digest\": \"1111111111111111111111111111111111111111111111111111111111111111\", \"submitted_by\": \"user:rgarcia\"}"
+  SchemaPackageChangesRequestedPayload:
+    is_a: EventPayload
+    description: >-
+      A reviewer sent the package back to Draft.
+    annotations:
+      tl:event_type: SchemaPackage.ChangesRequested
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "What must change."
+        required: true
+    examples:
+      - value: "{\"reason\": \"Say what seat_leak_class measures.\"}"
+  SchemaPackageApprovedPayload:
+    is_a: EventPayload
+    description: >-
+      An administrator approved the package, having read the classification report with this digest.
+    annotations:
+      tl:event_type: SchemaPackage.Approved
+      tl:event_version: "1"
+    attributes:
+      approver:
+        description: "The approving administrator."
+        required: true
+      comment:
+        description: "A remark, or null."
+      classification_digest:
+        description: "The digest of the classification report approved."
+        required: true
+    examples:
+      - value: "{\"approver\": \"user:admin\", \"classification_digest\": \"1111111111111111111111111111111111111111111111111111111111111111\", \"comment\": null}"
+  SchemaPackageDeprecatedPayload:
+    is_a: EventPayload
+    description: >-
+      A published version was deprecated: projects that pinned it keep it, nobody can adopt it.
+    annotations:
+      tl:event_type: SchemaPackage.Deprecated
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why."
+        required: true
+      replacement:
+        description: "name@version that replaces it, or null."
+    examples:
+      - value: "{\"reason\": \"Superseded by 3.3.0.\", \"replacement\": \"co.acme.engineering@3.3.0\"}"
+  SchemaPackageRetiredPayload:
+    is_a: EventPayload
+    description: >-
+      A deprecated version was retired: it is out of every effective schema.
+    annotations:
+      tl:event_type: SchemaPackage.Retired
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"reason\": \"No project pins it.\"}"
+  AdoptionPinnedPayload:
+    is_a: EventPayload
+    description: >-
+      A project pinned a version of a company package. The record is created by the first pin.
+    annotations:
+      tl:event_type: Adoption.Pinned
+      tl:event_version: "1"
+    attributes:
+      project:
+        description: "The project id."
+        required: true
+      package:
+        description: "The company package name."
+        required: true
+      version:
+        description: "The pinned version."
+        required: true
+      previous_version:
+        description: "The version pinned before, or null."
+      worst_class:
+        description: "The worst class of the change from the previous version, or null for a first pin."
+      impact_sha256:
+        description: "The SHA-256 of the project impact report the adopter saw, or null for an additive pin."
+      adopted_by:
+        description: "The administrator that pinned it, or the publisher for an automatic pin."
+        required: true
+      auto:
+        range: boolean
+        description: "True when publication pinned it (an additive version, auto-adoption on)."
+    examples:
+      - value: "{\"adopted_by\": \"user:admin\", \"auto\": false, \"impact_sha256\": null, \"package\": \"co.acme.engineering\", \"previous_version\": \"3.2.0\", \"project\": \"P123\", \"version\": \"3.3.0\", \"worst_class\": \"additive\"}"
+  WaiverRequestedPayload:
+    is_a: EventPayload
+    description: >-
+      Someone asked to relax one property for a project until a date.
+    annotations:
+      tl:event_type: Waiver.Requested
+      tl:event_version: "1"
+    attributes:
+      project:
+        description: "The project id."
+        required: true
+      path:
+        description: "The property path."
+        required: true
+      number:
+        description: "1 for the first waiver of the path in the project."
+        range: integer
+        required: true
+      reason:
+        description: "Why."
+        required: true
+      expires:
+        description: "Last day it holds, YYYY-MM-DD."
+        required: true
+      requested_by:
+        description: "The actor that asked."
+        required: true
+    examples:
+      - value: "{\"expires\": \"2027-03-31\", \"number\": 1, \"path\": \"psets.valve_data.size_in\", \"project\": \"P123\", \"reason\": \"Legacy valves have no size on record.\", \"requested_by\": \"user:rgarcia\"}"
+  WaiverApprovedPayload:
+    is_a: EventPayload
+    description: >-
+      An administrator approved the waiver; the effective schema of the project changes.
+    annotations:
+      tl:event_type: Waiver.Approved
+      tl:event_version: "1"
+    attributes:
+      approver:
+        description: "The approving administrator."
+        required: true
+      comment:
+        description: "A remark, or null."
+    examples:
+      - value: "{\"approver\": \"user:admin\", \"comment\": null}"
+  WaiverRevokedPayload:
+    is_a: EventPayload
+    description: >-
+      An administrator revoked the waiver (or refused a request).
+    annotations:
+      tl:event_type: Waiver.Revoked
+      tl:event_version: "1"
+    attributes:
+      revoked_by:
+        description: "The administrator."
+        required: true
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"reason\": \"The data was corrected.\", \"revoked_by\": \"user:admin\"}"

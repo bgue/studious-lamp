@@ -15,13 +15,51 @@
           "additionalProperties": true,
           "description": "Delta and full modes. The ledger event payload, described per event type in the catalog.",
           "properties": {
+            "auto_adopted": {
+              "description": "Projects whose pin moved to this version by publication.",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "content_sha256": {
+              "description": "SHA-256 of the package content.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "kind": {
+              "description": "company, extension or project.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "package": {
               "description": "Package name.",
               "type": "string"
             },
+            "record_id": {
+              "description": "The `schemareg.SchemaPackage` record, when the registry module published it.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "version": {
               "description": "Package version.",
               "type": "string"
+            },
+            "worst_class": {
+              "description": "The worst class of the change the version makes (additive, constraining, ...).",
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           "required": [

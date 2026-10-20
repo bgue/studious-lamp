@@ -1,0 +1,49 @@
+# Workflow of a legacy load run (brief 29.6): Opened with the file, Extracted when its rows were
+# read and stored, Profiled when they were profiled and copied to the lake bronze table, Planned
+# when the mapping and the dry run were done (a plan may be made again), Loaded when the records
+# were written as one correlated batch, Reconciled when the load was compared with the file,
+# Compensated when the batch was taken back. Void abandons a run that has loaded nothing. The moves
+# are made by the legacy module's stage services; people cannot run them with TransitionWorkflow.
+id: legacy.load-run
+version: 1
+record_type: legacy.LoadRun
+scope: company
+initial_state: Opened
+states:
+  - name: Opened
+  - name: Extracted
+  - name: Profiled
+  - name: Planned
+  - name: Loaded
+  - name: Reconciled
+  - name: Compensated
+  - name: Void
+transitions:
+  - name: extract
+    label: The rows of the file were read
+    from: [Opened]
+    to: Extracted
+  - name: profile
+    label: The rows were profiled
+    from: [Extracted]
+    to: Profiled
+  - name: plan
+    label: The rows were mapped and a dry run was made
+    from: [Profiled, Planned]
+    to: Planned
+  - name: load
+    label: The records were written
+    from: [Planned]
+    to: Loaded
+  - name: reconcile
+    label: The load was compared with the file
+    from: [Loaded, Reconciled]
+    to: Reconciled
+  - name: compensate
+    label: The batch was taken back
+    from: [Loaded, Reconciled]
+    to: Compensated
+  - name: void
+    label: Abandon the run
+    from: [Opened, Extracted, Profiled, Planned]
+    to: Void

@@ -1,0 +1,246 @@
+id: https://example.org/throughline/modules/legacy/events
+name: tl_mod_legacy_events
+title: Legacy loader events
+description: >-
+  The ledger events of the legacy loaders module (brief 18.3), one class per event type, in the same
+  form as `schema/core/events.yaml`. A run is created by `Record.Created` followed in the same
+  append by `LoadRun.Opened`. No payload holds a row of the file: counts, hashes, file ids and the
+  ids of the records written.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+  - ../../core/events
+default_range: string
+annotations:
+  tl:module: legacy
+
+classes:
+  LoadRunOpenedPayload:
+    is_a: EventPayload
+    description: >-
+      A load run was opened for a file.
+    annotations:
+      tl:event_type: LoadRun.Opened
+      tl:event_version: "1"
+    attributes:
+      source_system:
+        description: "The legacy system."
+        required: true
+      source_table:
+        description: "The table or list."
+        required: true
+      run_number:
+        description: "The number of the run."
+        range: integer
+        required: true
+      loader:
+        description: "The loader."
+        required: true
+      source_name:
+        description: "Display name of the file."
+      source_sha256:
+        description: "SHA-256 of the file."
+      source_size:
+        description: "Size of the file in bytes."
+        range: integer
+      opened_by:
+        description: "The administrator."
+        required: true
+      confidentiality:
+        description: "The class of the run: internal or restricted."
+    examples:
+      - value: "{\"loader\": \"dms-register\", \"opened_by\": \"user:admin\", \"run_number\": 1, \"source_name\": \"register.csv\", \"source_sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\", \"source_size\": 1200, \"source_system\": \"dms\", \"source_table\": \"register\"}"
+  LoadRunExtractedPayload:
+    is_a: EventPayload
+    description: >-
+      The rows of the file were read in the resource envelope and stored.
+    annotations:
+      tl:event_type: LoadRun.Extracted
+      tl:event_version: "1"
+    attributes:
+      row_count:
+        description: "Data rows."
+        range: integer
+        required: true
+      column_count:
+        description: "Columns."
+        range: integer
+        required: true
+      extractor:
+        description: "The extractor that read the file."
+        required: true
+      extracted_file_id:
+        description: "The stored rows."
+        required: true
+      extracted_sha256:
+        description: "SHA-256 of the stored rows."
+        required: true
+    examples:
+      - value: "{\"column_count\": 8, \"extracted_file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P1\", \"extracted_sha256\": \"1111111111111111111111111111111111111111111111111111111111111111\", \"extractor\": \"tabular\", \"row_count\": 40}"
+  LoadRunProfiledPayload:
+    is_a: EventPayload
+    description: >-
+      The rows were profiled: columns, value shapes, keys and repeats.
+    annotations:
+      tl:event_type: LoadRun.Profiled
+      tl:event_version: "1"
+    attributes:
+      profile_file_id:
+        description: "The stored profile."
+        required: true
+      profile_sha256:
+        description: "SHA-256 of the stored profile."
+        required: true
+    examples:
+      - value: "{\"profile_file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P2\", \"profile_sha256\": \"2222222222222222222222222222222222222222222222222222222222222222\"}"
+  LoadRunBronzedPayload:
+    is_a: EventPayload
+    description: >-
+      The rows were copied, as they are, to the lake bronze table of the system and table. Every
+      reader of the lake can read the copy, so this is a step of its own that an administrator takes.
+    annotations:
+      tl:event_type: LoadRun.Bronzed
+      tl:event_version: "1"
+    attributes:
+      bronze_rows:
+        description: "Rows written to the lake bronze table."
+        range: integer
+        required: true
+      include_confidential:
+        description: "True: the administrator said the copy may hold rows of confidential records."
+        range: boolean
+    examples:
+      - value: "{\"bronze_rows\": 40}"
+  LoadRunPlannedPayload:
+    is_a: EventPayload
+    description: >-
+      The rows were mapped and a dry run counted what a load would do.
+    annotations:
+      tl:event_type: LoadRun.Planned
+      tl:event_version: "1"
+    attributes:
+      mapping_name:
+        description: "The mapping template."
+        required: true
+      mapping_sha256:
+        description: "SHA-256 of the mapping template text."
+        required: true
+      plan_new:
+        description: "Rows that would be created."
+        range: integer
+        required: true
+      plan_existing:
+        description: "Rows whose key exists."
+        range: integer
+        required: true
+      plan_invalid:
+        description: "Rows that cannot be loaded."
+        range: integer
+        required: true
+    examples:
+      - value: "{\"mapping_name\": \"dms-register\", \"mapping_sha256\": \"3333333333333333333333333333333333333333333333333333333333333333\", \"plan_existing\": 0, \"plan_invalid\": 1, \"plan_new\": 39}"
+  LoadRunLoadedPayload:
+    is_a: EventPayload
+    description: >-
+      The load wrote records through the module commands, as one correlated batch.
+    annotations:
+      tl:event_type: LoadRun.Loaded
+      tl:event_version: "1"
+    attributes:
+      loaded_count:
+        description: "Records created."
+        range: integer
+        required: true
+      record_ids:
+        description: "Ids of the records created, in file order."
+        multivalued: true
+        required: true
+      skipped_existing:
+        description: "Rows left alone because their key exists."
+        range: integer
+        required: true
+      skipped_invalid:
+        description: "Rows left out because they cannot be loaded."
+        range: integer
+        required: true
+      correlation_id:
+        description: "The correlation id of the load."
+        required: true
+    examples:
+      - value: "{\"correlation_id\": \"load:01J9Z6Q4W3X2Y1V0T9S8R7Q6P3\", \"loaded_count\": 1, \"record_ids\": [\"01J9Z6Q4W3X2Y1V0T9S8R7Q6P4\"], \"skipped_existing\": 0, \"skipped_invalid\": 0}"
+  LoadRunReconciledPayload:
+    is_a: EventPayload
+    description: >-
+      The load was compared with the file; the report is stored and registered as a document.
+    annotations:
+      tl:event_type: LoadRun.Reconciled
+      tl:event_version: "1"
+    attributes:
+      report_file_id:
+        description: "The stored report."
+        required: true
+      report_sha256:
+        description: "SHA-256 of the stored report."
+        required: true
+      report_document_id:
+        description: "The document that registers the report."
+      mismatches:
+        description: "Differences found."
+        range: integer
+        required: true
+    examples:
+      - value: "{\"mismatches\": 0, \"report_document_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P5\", \"report_file_id\": \"01J9Z6Q4W3X2Y1V0T9S8R7Q6P6\", \"report_sha256\": \"4444444444444444444444444444444444444444444444444444444444444444\"}"
+  LoadRunCompensatedPayload:
+    is_a: EventPayload
+    description: >-
+      The records the load created were taken back, by the ids the load recorded.
+    annotations:
+      tl:event_type: LoadRun.Compensated
+      tl:event_version: "1"
+    attributes:
+      reversed:
+        description: "Records reversed."
+        range: integer
+        required: true
+      correlation_id:
+        description: "The correlation id of the compensation."
+        required: true
+    examples:
+      - value: "{\"correlation_id\": \"load:01J9Z6Q4W3X2Y1V0T9S8R7Q6P7\", \"reversed\": 39}"
+  LoadRunFailedPayload:
+    is_a: EventPayload
+    description: >-
+      A stage failed; the run stays in its state and says why (fixed text, no value of the file).
+    annotations:
+      tl:event_type: LoadRun.Failed
+      tl:event_version: "1"
+    attributes:
+      stage:
+        description: "extract, profile, plan, load or reconcile."
+        required: true
+      code:
+        description: "A fixed code."
+        required: true
+      message:
+        description: "Fixed text."
+        required: true
+    examples:
+      - value: "{\"code\": \"extraction_limit\", \"message\": \"The file is too large or too complex to read.\", \"stage\": \"extract\"}"
+  LoadRunVoidedPayload:
+    is_a: EventPayload
+    description: >-
+      The run was abandoned before it loaded anything.
+    annotations:
+      tl:event_type: LoadRun.Voided
+      tl:event_version: "1"
+    attributes:
+      reason:
+        description: "Why."
+        required: true
+    examples:
+      - value: "{\"reason\": \"Wrong file.\"}"

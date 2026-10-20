@@ -136,6 +136,15 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.Adoption.Pinned.v1",
+      "event_type": "Adoption.Pinned",
+      "payload_class": "AdoptionPinnedPayload",
+      "sample": "samples/Adoption.Pinned.v1.json",
+      "schema": "schemas/Adoption.Pinned.v1.json",
+      "title": "A project pinned a version of a company package.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.AgentToken.Issued.v1",
       "event_type": "AgentToken.Issued",
       "payload_class": "AgentTokenIssuedPayload",
@@ -793,6 +802,96 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.LoadRun.Bronzed.v1",
+      "event_type": "LoadRun.Bronzed",
+      "payload_class": "LoadRunBronzedPayload",
+      "sample": "samples/LoadRun.Bronzed.v1.json",
+      "schema": "schemas/LoadRun.Bronzed.v1.json",
+      "title": "The rows were copied, as they are, to the lake bronze table of the system and table.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Compensated.v1",
+      "event_type": "LoadRun.Compensated",
+      "payload_class": "LoadRunCompensatedPayload",
+      "sample": "samples/LoadRun.Compensated.v1.json",
+      "schema": "schemas/LoadRun.Compensated.v1.json",
+      "title": "The records the load created were taken back, by the ids the load recorded.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Extracted.v1",
+      "event_type": "LoadRun.Extracted",
+      "payload_class": "LoadRunExtractedPayload",
+      "sample": "samples/LoadRun.Extracted.v1.json",
+      "schema": "schemas/LoadRun.Extracted.v1.json",
+      "title": "The rows of the file were read in the resource envelope and stored.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Failed.v1",
+      "event_type": "LoadRun.Failed",
+      "payload_class": "LoadRunFailedPayload",
+      "sample": "samples/LoadRun.Failed.v1.json",
+      "schema": "schemas/LoadRun.Failed.v1.json",
+      "title": "A stage failed; the run stays in its state and says why (fixed text, no value of the file).",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Loaded.v1",
+      "event_type": "LoadRun.Loaded",
+      "payload_class": "LoadRunLoadedPayload",
+      "sample": "samples/LoadRun.Loaded.v1.json",
+      "schema": "schemas/LoadRun.Loaded.v1.json",
+      "title": "The load wrote records through the module commands, as one correlated batch.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Opened.v1",
+      "event_type": "LoadRun.Opened",
+      "payload_class": "LoadRunOpenedPayload",
+      "sample": "samples/LoadRun.Opened.v1.json",
+      "schema": "schemas/LoadRun.Opened.v1.json",
+      "title": "A load run was opened for a file.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Planned.v1",
+      "event_type": "LoadRun.Planned",
+      "payload_class": "LoadRunPlannedPayload",
+      "sample": "samples/LoadRun.Planned.v1.json",
+      "schema": "schemas/LoadRun.Planned.v1.json",
+      "title": "The rows were mapped and a dry run counted what a load would do.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Profiled.v1",
+      "event_type": "LoadRun.Profiled",
+      "payload_class": "LoadRunProfiledPayload",
+      "sample": "samples/LoadRun.Profiled.v1.json",
+      "schema": "schemas/LoadRun.Profiled.v1.json",
+      "title": "The rows were profiled: columns, value shapes, keys and repeats.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Reconciled.v1",
+      "event_type": "LoadRun.Reconciled",
+      "payload_class": "LoadRunReconciledPayload",
+      "sample": "samples/LoadRun.Reconciled.v1.json",
+      "schema": "schemas/LoadRun.Reconciled.v1.json",
+      "title": "The load was compared with the file; the report is stored and registered as a document.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.LoadRun.Voided.v1",
+      "event_type": "LoadRun.Voided",
+      "payload_class": "LoadRunVoidedPayload",
+      "sample": "samples/LoadRun.Voided.v1.json",
+      "schema": "schemas/LoadRun.Voided.v1.json",
+      "title": "The run was abandoned before it loaded anything.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.Numbering.Allocated.v1",
       "event_type": "Numbering.Allocated",
       "payload_class": "NumberingAllocatedPayload",
@@ -1261,12 +1360,84 @@
       "version": 1
     },
     {
+      "ce_type": "tl.core.SchemaPackage.Analysed.v1",
+      "event_type": "SchemaPackage.Analysed",
+      "payload_class": "SchemaPackageAnalysedPayload",
+      "sample": "samples/SchemaPackage.Analysed.v1.json",
+      "schema": "schemas/SchemaPackage.Analysed.v1.json",
+      "title": "The classification and impact reports of the draft were made, for the content with the stated hash.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.Approved.v1",
+      "event_type": "SchemaPackage.Approved",
+      "payload_class": "SchemaPackageApprovedPayload",
+      "sample": "samples/SchemaPackage.Approved.v1.json",
+      "schema": "schemas/SchemaPackage.Approved.v1.json",
+      "title": "An administrator approved the package, having read the classification report with this digest.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.ChangesRequested.v1",
+      "event_type": "SchemaPackage.ChangesRequested",
+      "payload_class": "SchemaPackageChangesRequestedPayload",
+      "sample": "samples/SchemaPackage.ChangesRequested.v1.json",
+      "schema": "schemas/SchemaPackage.ChangesRequested.v1.json",
+      "title": "A reviewer sent the package back to Draft.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.Deprecated.v1",
+      "event_type": "SchemaPackage.Deprecated",
+      "payload_class": "SchemaPackageDeprecatedPayload",
+      "sample": "samples/SchemaPackage.Deprecated.v1.json",
+      "schema": "schemas/SchemaPackage.Deprecated.v1.json",
+      "title": "A published version was deprecated: projects that pinned it keep it, nobody can adopt it.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.Drafted.v1",
+      "event_type": "SchemaPackage.Drafted",
+      "payload_class": "SchemaPackageDraftedPayload",
+      "sample": "samples/SchemaPackage.Drafted.v1.json",
+      "schema": "schemas/SchemaPackage.Drafted.v1.json",
+      "title": "A package version was drafted.",
+      "version": 1
+    },
+    {
       "ce_type": "tl.core.SchemaPackage.Published.v1",
       "event_type": "SchemaPackage.Published",
       "payload_class": "SchemaPackagePublishedPayload",
       "sample": "samples/SchemaPackage.Published.v1.json",
       "schema": "schemas/SchemaPackage.Published.v1.json",
       "title": "A schema package version was published.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.Retired.v1",
+      "event_type": "SchemaPackage.Retired",
+      "payload_class": "SchemaPackageRetiredPayload",
+      "sample": "samples/SchemaPackage.Retired.v1.json",
+      "schema": "schemas/SchemaPackage.Retired.v1.json",
+      "title": "A deprecated version was retired: it is out of every effective schema.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.Revised.v1",
+      "event_type": "SchemaPackage.Revised",
+      "payload_class": "SchemaPackageRevisedPayload",
+      "sample": "samples/SchemaPackage.Revised.v1.json",
+      "schema": "schemas/SchemaPackage.Revised.v1.json",
+      "title": "The author changed the content of a draft.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.SchemaPackage.Submitted.v1",
+      "event_type": "SchemaPackage.Submitted",
+      "payload_class": "SchemaPackageSubmittedPayload",
+      "sample": "samples/SchemaPackage.Submitted.v1.json",
+      "schema": "schemas/SchemaPackage.Submitted.v1.json",
+      "title": "The author sent the package to review.",
       "version": 1
     },
     {
@@ -1492,6 +1663,33 @@
       "sample": "samples/TypeRegistration.Registered.v1.json",
       "schema": "schemas/TypeRegistration.Registered.v1.json",
       "title": "A type package validated and was registered.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Waiver.Approved.v1",
+      "event_type": "Waiver.Approved",
+      "payload_class": "WaiverApprovedPayload",
+      "sample": "samples/Waiver.Approved.v1.json",
+      "schema": "schemas/Waiver.Approved.v1.json",
+      "title": "An administrator approved the waiver; the effective schema of the project changes.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Waiver.Requested.v1",
+      "event_type": "Waiver.Requested",
+      "payload_class": "WaiverRequestedPayload",
+      "sample": "samples/Waiver.Requested.v1.json",
+      "schema": "schemas/Waiver.Requested.v1.json",
+      "title": "Someone asked to relax one property for a project until a date.",
+      "version": 1
+    },
+    {
+      "ce_type": "tl.core.Waiver.Revoked.v1",
+      "event_type": "Waiver.Revoked",
+      "payload_class": "WaiverRevokedPayload",
+      "sample": "samples/Waiver.Revoked.v1.json",
+      "schema": "schemas/Waiver.Revoked.v1.json",
+      "title": "An administrator revoked the waiver (or refused a request).",
       "version": 1
     },
     {

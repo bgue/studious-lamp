@@ -147,7 +147,9 @@ def test_the_installed_modules_are_found_through_their_entry_points() -> None:
         "cost",
         "documents",
         "engineering",
+        "legacy",
         "schedule",
+        "schemareg",
     ]
     by_name = {m.name: m for m in found}
     assert "engineering.Tag" in by_name["engineering"].record_types

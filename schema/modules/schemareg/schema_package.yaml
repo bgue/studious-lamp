@@ -1,0 +1,100 @@
+id: https://example.org/throughline/modules/schemareg/schema_package
+name: tl_mod_schemareg_schema_package
+title: Schema packages (brief 27.4)
+description: >-
+  A `SchemaPackage` is one version of a package of the schema registry. Record type
+  `schemareg.SchemaPackage`; its key is `<package>@<version>` (`co.acme.engineering@3.3.0`). The
+  content is the package YAML (the constrained subset of `tl_schema.packages`), at most 256 KiB, and
+  never changes once the package leaves Draft. Spec: docs/modules/schemareg/README.md.
+prefixes:
+  linkml: https://w3id.org/linkml/
+  throughline: https://example.org/throughline/
+default_prefix: throughline
+imports:
+  - linkml:types
+  - ../../core/annotations
+  - ../../core/record
+default_range: string
+annotations:
+  tl:module: schemareg
+
+classes:
+  SchemaPackage:
+    description: >-
+      One version of a company, extension or project package, with the reports a reviewer reads and
+      the approvals it passed. The workflow states are Draft, InReview, Approved, Published,
+      Deprecated and Retired.
+    annotations:
+      tl:current_state: true
+      tl:record_types: "schemareg.SchemaPackage"
+      tl:ix_scope_package: "scope, package, semver"
+    unique_keys:
+      package_version:
+        description: A package version exists once, in whatever scope it belongs to.
+        unique_key_slots:
+          - package
+          - semver
+    attributes:
+      id:
+        identifier: true
+        range: Ulid
+        required: true
+        description: Record id; equals the ledger stream id and the `cur_core_record` id.
+      scope:
+        range: ScopeId
+        required: true
+        description: "`company` for a company package, `project:<id>` for an extension or project package."
+      package:
+        required: true
+        description: "The package name, for example `co.acme.engineering` or `x.P123`."
+      semver:
+        required: true
+        description: "MAJOR.MINOR.PATCH."
+      kind:
+        required: true
+        description: "`company`, `extension` or `project`."
+      project:
+        description: "The project an extension or project package belongs to; null for a company package."
+      package_title:
+        description: "The title the package gives itself."
+      content:
+        required: true
+        description: The package YAML, at most 262144 bytes. Fixed once the package leaves Draft.
+      content_sha256:
+        required: true
+        description: Hex SHA-256 of the content.
+      changelog:
+        description: What the author says changed.
+      drafted_by:
+        required: true
+        description: The actor that drafted the package; only that actor revises or submits it.
+      base_ref:
+        description: "`name@version` the classification compared against; null for a first version."
+      classification:
+        description: The classification report (JSON text, `tl_schema.classify.ClassificationReport`); null until analysed.
+      classification_digest:
+        description: The digest of the classification report.
+      worst_class:
+        description: "The worst class of the report: additive, deprecation, renaming, promotion, constraining."
+      impact:
+        description: The impact report (JSON text); null until analysed.
+      impact_sha256:
+        description: Hex SHA-256 of the impact report as stored.
+      analysed_sha256:
+        description: The content hash the classification and impact were made for.
+      submitted_by:
+        description: The actor that sent the package to review.
+      approved_by:
+        description: The administrator that approved the package.
+      approved_digest:
+        description: The classification digest the approver saw.
+      published_at:
+        description: Timestamp of publication (ISO, UTC).
+      deprecated_at:
+        description: Timestamp of deprecation.
+      retired_at:
+        description: Timestamp of retirement.
+      last_seq:
+        range: integer
+        required: true
+        description: Ledger `seq` of the last event applied to this row.
